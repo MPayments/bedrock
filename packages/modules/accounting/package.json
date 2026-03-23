@@ -6,8 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
-    "./contracts": "./src/contracts/index.ts",
-    "./schema": "./src/infra/drizzle/schema/index.ts",
+    "./contracts": "./src/contracts.ts",
+    "./schema": "./src/schema.ts",
+    "./adapters/drizzle": "./src/adapters/drizzle.ts",
     "./posting-contracts": "./src/posting-contracts.ts",
     "./packs/schema": "./src/packs/schema.ts",
     "./packs/raw-pack": "./src/packs/raw-pack.ts",
@@ -28,7 +29,6 @@
   },
   "dependencies": {
     "@bedrock/parties": "workspace:*",
-    "@bedrock/balances": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",

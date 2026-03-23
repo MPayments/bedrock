@@ -5,10 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts/index.ts",
-    "./queries": "./src/queries.ts",
-    "./schema": "./src/infra/drizzle/schema/index.ts",
-    "./ids": "./src/ids.ts",
+    "./contracts": "./src/contracts.ts",
+    "./schema": "./src/schema.ts",
+    "./adapters/drizzle": "./src/adapters/drizzle.ts",
     "./worker": "./src/worker.ts"
   },
   "scripts": {

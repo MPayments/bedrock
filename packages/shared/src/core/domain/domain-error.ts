@@ -20,11 +20,11 @@ export class DomainError extends Error {
     messageOrOptions: string | DomainErrorOptions = {},
     legacyMeta?: Readonly<Record<string, unknown>>,
   ) {
-    const options =
+    const options: DomainErrorOptions =
       typeof messageOrOptions === "string"
         ? {
             code: messageOrCode,
-            meta: legacyMeta,
+            ...(legacyMeta ? { meta: legacyMeta } : {}),
           }
         : messageOrOptions;
     const message =
@@ -46,8 +46,8 @@ export class InvariantViolationError extends DomainError {
   constructor(message: string, options: DomainErrorOptions = {}) {
     super(message, {
       code: options.code ?? "invariant_violation",
-      cause: options.cause,
-      meta: options.meta,
+      ...(options.cause === undefined ? {} : { cause: options.cause }),
+      ...(options.meta ? { meta: options.meta } : {}),
     });
   }
 }

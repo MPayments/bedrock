@@ -1,22 +1,8 @@
-import {
-  createAccountingClosePackageSnapshotPort,
-  createAccountingReportQueries,
-  createAccountingReportsContext,
-  createAccountingReportsService,
-  createBedrockDimensionRegistry,
-  createDrizzleAccountingPeriodsCommandRepository,
-  createDrizzleAccountingPeriodsQueryRepository,
-  createDrizzleAccountingReportsRepository,
-  createAccountingPeriodsService,
-  type AccountingPeriodsService,
-  type AccountingReportsService,
-} from "@bedrock/accounting";
-import { createBalancesQueries } from "@bedrock/balances/queries";
+import type { AccountingModule } from "@bedrock/accounting";
 import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
-import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -25,24 +11,16 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { createFeesService, type FeesService } from "@bedrock/fees";
-import { createFxService, type FxService } from "@bedrock/fx";
-import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import {
-  createLedgerQueries,
-  type LedgerBookRow,
-  type LedgerQueries,
-} from "@bedrock/ledger/queries";
 import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
   createPersistenceContext,
-  type Database,
   type Transaction,
 } from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import type { TreasuryModule } from "@bedrock/treasury";
 import { UserNotFoundError } from "@bedrock/users";
 import {
   createDocumentDraftWorkflow,
@@ -65,25 +43,21 @@ import {
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
 
-import { relabelOrganizationBookNames } from "./book-labels";
+import { createApiAccountingModule } from "./accounting-module";
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
-import {
-  createApiPartiesModule,
-  createApiPartiesReadRuntime,
-} from "./parties-module";
+import { createApiLedgerModule } from "./ledger-module";
+import { createApiPartiesModule } from "./parties-module";
+import { createApiTreasuryModule } from "./treasury-module";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
-  accountingReportsService: AccountingReportsService;
-  accountingPeriodsService: AccountingPeriodsService;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
-  feesService: FeesService;
-  fxService: FxService;
+  treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
@@ -112,188 +86,30 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
   },
 ];
 
-async function listBooksWithLabels(input: {
-  ids: string[];
-  ledgerQueries: Pick<LedgerQueries, "listBooksById">;
-  organizationsQueries: {
-    listShortNamesById(ids: string[]): Promise<Map<string, string>>;
-  };
-}): Promise<LedgerBookRow[]> {
-  const books = await input.ledgerQueries.listBooksById(input.ids);
-  const ownerIds = Array.from(
-    new Set(books.map((book) => book.ownerId).filter(Boolean)),
-  ) as string[];
-  const organizationShortNamesById =
-    ownerIds.length === 0
-      ? new Map<string, string>()
-      : await input.organizationsQueries.listShortNamesById(ownerIds);
-
-  return relabelOrganizationBookNames({
-    books,
-    organizationShortNamesById,
-  });
-}
-
-function createAccountingReportRuntime(database: Database | Transaction) {
-  const balancesQueries = createBalancesQueries({ db: database });
-  const partiesReadRuntime = createApiPartiesReadRuntime(database);
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
-  const { organizationsQueries, requisitesQueries } = partiesReadRuntime;
-  const rawLedgerQueries = createLedgerQueries({ db: database });
-  const ledgerQueries: LedgerQueries = {
-    ...rawLedgerQueries,
-    listBooksById: (ids) =>
-      listBooksWithLabels({
-        ids,
-        ledgerQueries: rawLedgerQueries,
-        organizationsQueries,
-      }),
-  };
-  const reportsRepository = createDrizzleAccountingReportsRepository(database);
-  const reportContext = createAccountingReportsContext({
-    balancesQueries,
-    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
-    documentsPort: documentsReadModel,
-    ledgerQueries,
-    organizationsQueries,
-    reportsRepository,
-  });
-
-  return {
-    partiesReadRuntime,
-    ledgerQueries,
-    organizationsQueries,
-    requisitesQueries,
-    reportQueries: createAccountingReportQueries({
-      context: reportContext,
-    }),
-  };
-}
-
-function createAccountingPeriodsPort(
-  database: Database,
-): AccountingPeriodsService {
-  function buildService(
-    database: Database | Transaction,
-  ): AccountingPeriodsService {
-    const { ledgerQueries, organizationsQueries, reportQueries } =
-      createAccountingReportRuntime(database);
-    const queries = createDrizzleAccountingPeriodsQueryRepository(database);
-    const commands = createDrizzleAccountingPeriodsCommandRepository(database);
-
-    return createAccountingPeriodsService({
-      queries,
-      commands,
-      closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
-        repository: commands,
-        assertInternalLedgerOrganization:
-          organizationsQueries.assertInternalLedgerOrganization,
-        listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
-        reportQueries,
-        documentsReadModel: createDrizzleDocumentsReadModel({ db: database }),
-      }),
-    });
-  }
-
-  async function runWithService<T>(input: {
-    db?: Database | Transaction;
-    transactional?: boolean;
-    run: (service: AccountingPeriodsService) => Promise<T>;
-  }) {
-    const execute = (database: Database | Transaction) =>
-      input.run(buildService(database));
-
-    if (input.db) {
-      return execute(input.db);
-    }
-
-    if (input.transactional) {
-      return database.transaction((tx) => execute(tx));
-    }
-
-    return execute(database);
-  }
-
-  return {
-    isOrganizationPeriodClosed(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.isOrganizationPeriodClosed({
-            organizationId: input.organizationId,
-            occurredAt: input.occurredAt,
-          }),
-      });
-    },
-    listClosedOrganizationIdsForPeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.listClosedOrganizationIdsForPeriod({
-            organizationIds: input.organizationIds,
-            occurredAt: input.occurredAt,
-          }),
-      });
-    },
-    assertOrganizationPeriodsOpen(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.assertOrganizationPeriodsOpen({
-            occurredAt: input.occurredAt,
-            organizationIds: input.organizationIds,
-            docType: input.docType,
-          }),
-      });
-    },
-    closePeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        transactional: true,
-        run: (service) =>
-          service.closePeriod({
-            organizationId: input.organizationId,
-            periodStart: input.periodStart,
-            periodEnd: input.periodEnd,
-            closedBy: input.closedBy,
-            closeReason: input.closeReason,
-            closeDocumentId: input.closeDocumentId,
-          }),
-      });
-    },
-    reopenPeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        transactional: true,
-        run: (service) =>
-          service.reopenPeriod({
-            organizationId: input.organizationId,
-            periodStart: input.periodStart,
-            reopenedBy: input.reopenedBy,
-            reopenReason: input.reopenReason,
-            reopenDocumentId: input.reopenDocumentId,
-          }),
-      });
-    },
-  };
-}
-
 export function createApplicationServices(
   platform: ApiCoreServices,
 ): ApiApplicationServices {
   const {
-    accountingService,
+    accountingModule,
     idempotency,
-    ledger,
-    ledgerReadService,
+    ledgerModule,
     logger,
     usersService,
   } =
     platform;
+  const ledgerReadPort = {
+    getOperationDetails: ledgerModule.operations.queries.getDetails,
+    listOperationDetails: ledgerModule.operations.queries.listDetails,
+  };
+  const createLedgerModuleForTransaction = (tx: Transaction) =>
+    createApiLedgerModule({
+      db: tx,
+      idempotency,
+      logger,
+      persistence: bindPersistenceSession(tx),
+    });
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
-  const currenciesQueries = createCurrenciesQueries({ db });
-  const partiesReadRuntime = createApiPartiesReadRuntime(db);
   const currenciesService = createCurrenciesService({ db, logger });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
@@ -309,44 +125,22 @@ export function createApplicationServices(
       return new Map(rows);
     },
   };
-  const accountingReportRuntime = createAccountingReportRuntime(db);
-  const dimensionRegistry = createBedrockDimensionRegistry({
-    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
-    customersQueries: partiesReadRuntime.customersQueries,
-    organizationsQueries: accountingReportRuntime.organizationsQueries,
-    requisitesQueries: accountingReportRuntime.requisitesQueries,
-    documentsReadModel,
-  });
-  const accountingReportsService = createAccountingReportsService({
-    ledgerReadPort: ledgerReadService,
-    listBookNamesById: async (ids) =>
-      new Map(
-        (await accountingReportRuntime.ledgerQueries.listBooksById(ids)).map(
-          (row) => [row.id, row.name ?? row.id],
-        ),
-      ),
-    listCurrencyPrecisionsByCode: currenciesQueries.listPrecisionsByCode,
-    resolveDimensionLabelsFromRecords:
-      dimensionRegistry.resolveLabelsFromDimensionRecords,
-    reportQueries: accountingReportRuntime.reportQueries,
-  });
-  const accountingPeriodsService = createAccountingPeriodsPort(db);
-  const feesService = createFeesService({ db, logger, currenciesService });
-  const fxService = createFxService({
+  const treasuryCurrenciesPort = {
+    findByCode: currenciesService.findByCode,
+    findById: currenciesService.findById,
+  };
+  const treasuryModule = createApiTreasuryModule({
+    db,
     persistence: createPersistenceContext(db),
     logger,
-    feesService,
-    currenciesService,
-    rateSourceProviders: createDefaultFxRateSourceProviders(),
+    currencies: treasuryCurrenciesPort,
   });
   const partiesModule = createApiPartiesModule({
     db,
     persistence: createPersistenceContext(db),
     documents: {
       hasDocumentsForCustomer(customerId) {
-        return createDrizzleDocumentsReadModel({ db }).hasDocumentsForCustomer(
-          customerId,
-        );
+        return documentsReadModel.hasDocumentsForCustomer(customerId);
       },
     },
     currencies: currenciesPort,
@@ -354,16 +148,97 @@ export function createApplicationServices(
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
-    ledgerBooks: ledger.books,
+    createLedgerModule: createLedgerModuleForTransaction,
     logger,
   });
   const requisiteAccountingWorkflow = createRequisiteAccountingWorkflow({
     db,
-    ledgerBooks: ledger.books,
-    ledgerBookAccounts: ledger.bookAccounts,
+    createLedgerModule: createLedgerModuleForTransaction,
     currencies: currenciesPort,
     logger,
   });
+  const documentsAccountingPort = {
+    getDefaultCompiledPack:
+      accountingModule.packs.queries.getDefaultCompiledPack,
+    loadActiveCompiledPackForBook:
+      accountingModule.packs.queries.loadActivePackForBook,
+    resolvePostingPlan: accountingModule.packs.queries.resolvePostingPlan,
+  };
+  const accountingPeriodsPort = {
+    async assertOrganizationPeriodsOpen(input: {
+      occurredAt: Date;
+      organizationIds: string[];
+      docType: string;
+    }) {
+      return accountingModule.periods.commands.assertOrganizationPeriodsOpen(input);
+    },
+    async listClosedOrganizationIdsForPeriod(input: {
+      organizationIds: string[];
+      occurredAt: Date;
+    }) {
+      return accountingModule.periods.queries.listClosedOrganizationIdsForPeriod(
+        input,
+      );
+    },
+    async closePeriod(input: {
+      organizationId: string;
+      periodStart: Date;
+      periodEnd: Date;
+      closedBy: string;
+      closeReason?: string | null;
+      closeDocumentId: string;
+      db?: unknown;
+    }) {
+      const target = input.db as Transaction | undefined;
+      const module: AccountingModule = target
+        ? createApiAccountingModule({
+            db: target,
+            persistence: bindPersistenceSession(target),
+            logger,
+          })
+        : accountingModule;
+
+      return module.periods.commands.closePeriod({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+        closedBy: input.closedBy,
+        closeReason: input.closeReason,
+        closeDocumentId: input.closeDocumentId,
+      });
+    },
+    async isOrganizationPeriodClosed(input: {
+      organizationId: string;
+      occurredAt: Date;
+    }) {
+      return accountingModule.periods.queries.isOrganizationPeriodClosed(input);
+    },
+    async reopenPeriod(input: {
+      organizationId: string;
+      periodStart: Date;
+      reopenedBy: string;
+      reopenReason?: string | null;
+      reopenDocumentId?: string | null;
+      db?: unknown;
+    }) {
+      const target = input.db as Transaction | undefined;
+      const module: AccountingModule = target
+        ? createApiAccountingModule({
+            db: target,
+            persistence: bindPersistenceSession(target),
+            logger,
+          })
+        : accountingModule;
+
+      return module.periods.commands.reopenPeriod({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        reopenedBy: input.reopenedBy,
+        reopenReason: input.reopenReason,
+        reopenDocumentId: input.reopenDocumentId,
+      });
+    },
+  };
   const documentRequisitesService = {
     findById: partiesModule.requisites.queries.findById,
     resolveBindings: partiesModule.requisites.queries.resolveBindings,
@@ -376,11 +251,16 @@ export function createApplicationServices(
       findById: partiesModule.counterparties.queries.findById,
     },
   };
+  const treasuryQuotes = {
+    createQuote: treasuryModule.quotes.commands.createQuote,
+    getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
+    markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
+  };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        fxQuotes: fxService.quotes,
+        treasuryQuotes,
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
       }),
@@ -388,8 +268,10 @@ export function createApplicationServices(
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
-        fxQuotes: fxService.quotes,
-        ledgerReadService,
+        treasuryQuotes,
+        ledgerReadService: {
+          getOperationDetails: ledgerModule.operations.queries.getDetails,
+        },
         requisitesService: documentRequisitesService,
       }),
     ),
@@ -413,9 +295,9 @@ export function createApplicationServices(
   const documentsCoreService = createDocumentsService({
     persistence: createPersistenceContext(db),
     idempotency,
-    accounting: accountingService.packs,
-    accountingPeriods: accountingPeriodsService,
-    ledgerReadService,
+    accounting: documentsAccountingPort,
+    accountingPeriods: accountingPeriodsPort,
+    ledgerReadService: ledgerReadPort,
     policy: documentsPolicy,
     registry: documentRegistry,
     transitionEffects: documentTransitionEffects,
@@ -426,9 +308,9 @@ export function createApplicationServices(
     return createDocumentsService({
       persistence: bindPersistenceSession(tx),
       idempotency,
-      accounting: accountingService.packs,
-      accountingPeriods: accountingPeriodsService,
-      ledgerReadService,
+      accounting: documentsAccountingPort,
+      accountingPeriods: accountingPeriodsPort,
+      ledgerReadService: ledgerReadPort,
       policy: documentsPolicy,
       registry: documentRegistry,
       transitionEffects: documentTransitionEffects,
@@ -443,7 +325,7 @@ export function createApplicationServices(
   const documentPostingWorkflow = createDocumentPostingWorkflow({
     db,
     idempotency,
-    ledgerCommit: ledger.commit,
+    createLedgerModule: createLedgerModuleForTransaction,
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
@@ -460,12 +342,9 @@ export function createApplicationServices(
   });
 
   return {
-    accountingReportsService,
-    accountingPeriodsService,
     partiesModule,
     currenciesService,
-    feesService,
-    fxService,
+    treasuryModule,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,

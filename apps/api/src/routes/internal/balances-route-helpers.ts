@@ -2,7 +2,7 @@ import {
   BalanceHoldNotFoundError,
   BalanceHoldStateError,
   InsufficientAvailableBalanceError,
-} from "@bedrock/balances";
+} from "@bedrock/ledger";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,

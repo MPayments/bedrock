@@ -1,10 +1,5 @@
 import { and, eq } from "drizzle-orm";
 
-import {
-  computeDimensionsHash,
-  tbBookAccountInstanceIdFor,
-  tbLedgerForCurrency,
-} from "@bedrock/ledger/ids";
 import { schema, type Dimensions } from "@bedrock/ledger/schema";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 
@@ -12,7 +7,13 @@ import {
   makeTbAccount,
   tbCreateAccountsOrThrow,
   type TbClient,
-} from "../../../src/infra/tigerbeetle/client";
+} from "../../../src/adapters/tigerbeetle/client";
+import {
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "../../../src/shared/adapters/tigerbeetle/identity-policy";
+import { computeDimensionsHash as computeBookAccountDimensionsHash } from "../../../src/shared/domain/dimensions-hash";
+
 
 function accountCodeFromSeed(seed: string): number {
   const normalized = seed.trim().toLowerCase();
@@ -49,15 +50,14 @@ function assertAccountMapping(
 export async function resolveTbBookAccountInstanceId(
   input: ResolveTbBookAccountInstanceParams,
 ): Promise<bigint> {
-  const dimensionsHash = computeDimensionsHash(input.dimensions);
+  const dimensionsHash = computeBookAccountDimensionsHash(input.dimensions);
   const tbLedger = tbLedgerForCurrency(input.currency);
-  const expected = tbBookAccountInstanceIdFor(
-    input.bookId,
-    input.accountNo,
-    input.currency,
-    dimensionsHash,
-    tbLedger,
-  );
+  const expected = tbBookAccountInstanceIdFor({
+    bookId: input.bookId,
+    accountNo: input.accountNo,
+    currency: input.currency,
+    dimensions: input.dimensions,
+  });
 
   const [existing] = await input.db
     .select({ tbAccountId: schema.bookAccountInstances.tbAccountId })

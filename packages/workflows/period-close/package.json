@@ -15,7 +15,6 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/accounting": "workspace:*",
     "@bedrock/platform": "workspace:*"
   },
   "devDependencies": {

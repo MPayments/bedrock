@@ -1,19 +1,24 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Pool } from "pg";
 
+import { noopLogger } from "@bedrock/platform/observability/logger";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 
+import { DrizzlePackReads } from "../src/packs/adapters/drizzle/pack.reads";
 import {
   type AccountingPackDefinition,
   compilePack,
-  createAccountingPacksService,
+  createPacksService as createAccountingPacksSliceService,
   type CompiledPack,
-} from "../src";
+} from "../src/packs/application";
 import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
 import { AccountingPackDefinitionSchema } from "../src/packs/schema";
+import { DrizzleAccountingUnitOfWork } from "../src/shared/adapters/drizzle/accounting.uow";
 
 const DEFAULT_PACK_URL = new URL(
   "../src/packs/bedrock-core-default.ts",
@@ -91,9 +96,18 @@ export async function loadRawPackDefinition(): Promise<{
 export function createPacksService(
   defaultPackDefinition: AccountingPackDefinition,
 ) {
-  return createAccountingPacksService({
-    db,
+  return createAccountingPacksSliceService({
+    runtime: {
+      log: noopLogger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
+      service: "accounting.packs.script",
+    },
+    commandUow: new DrizzleAccountingUnitOfWork({
+      persistence: createPersistenceContext(db),
+    }),
     defaultPackDefinition,
+    reads: new DrizzlePackReads(db),
   });
 }
 

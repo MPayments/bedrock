@@ -37,8 +37,8 @@ export function invariant(
   }
 
   throw new InvariantViolationError(messageOrCode, {
-    code: options.code,
-    cause: options.cause,
-    meta: options.meta,
+    ...(options.code === undefined ? {} : { code: options.code }),
+    ...(options.cause === undefined ? {} : { cause: options.cause }),
+    ...(options.meta ? { meta: options.meta } : {}),
   });
 }

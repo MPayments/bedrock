@@ -2,8 +2,8 @@ import { loadRawPackDefinition } from "./pack-common";
 import {
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
-  validatePackDefinition,
-} from "../src";
+} from "../src/constants";
+import { validatePackDefinition } from "../src/packs/application";
 
 async function main() {
   const { packRef, definition } = await loadRawPackDefinition();

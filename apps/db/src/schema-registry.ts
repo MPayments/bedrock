@@ -1,9 +1,6 @@
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
-import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as feesSchema } from "@bedrock/fees/schema";
-import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import {
   counterparties,
@@ -30,6 +27,7 @@ import {
 } from "@bedrock/platform/auth-model/schema";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
+import { schema as treasurySchema } from "@bedrock/treasury/schema";
 
 const authSchema = {
   user,
@@ -62,10 +60,8 @@ export type Schema =
   & typeof partiesSchema
   & typeof documentsSchema
   & typeof idempotencySchema
-  & typeof fxSchema
-  & typeof feesSchema
+  & typeof treasurySchema
   & typeof currenciesSchema
-  & typeof balancesSchema
   & typeof reconciliationSchema;
 
 const schemaInternal: Schema = {
@@ -75,10 +71,8 @@ const schemaInternal: Schema = {
   ...partiesSchema,
   ...documentsSchema,
   ...idempotencySchema,
-  ...fxSchema,
-  ...feesSchema,
+  ...treasurySchema,
   ...currenciesSchema,
-  ...balancesSchema,
   ...reconciliationSchema,
 };
 

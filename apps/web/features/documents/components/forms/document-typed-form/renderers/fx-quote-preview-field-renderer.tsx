@@ -12,6 +12,7 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { Field } from "@bedrock/sdk-ui/components/field";
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import type { QuotePreviewResponse } from "@bedrock/treasury/contracts";
 
 import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
 import {
@@ -21,7 +22,7 @@ import {
   formatFxQuotePreviewTimestamp,
   getFinancialLineBucketLabel,
 } from "@/features/documents/lib/fx-quote-preview";
-import { formatRate } from "@/features/fx/rates/lib/format";
+import { formatRate } from "@/features/treasury/rates/lib/format";
 
 import { readValueAsString } from "../helpers";
 import {
@@ -35,7 +36,7 @@ type FxQuotePreviewState =
   | { status: "error"; message: string }
   | {
       status: "ready";
-      preview: Awaited<ReturnType<typeof fetchFxQuotePreview>>;
+      preview: QuotePreviewResponse;
     };
 
 export function FxQuotePreviewFieldRenderer({

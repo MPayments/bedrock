@@ -2,10 +2,10 @@ import {
   FINANCIAL_LINE_BUCKET_OPTIONS,
 } from "@bedrock/documents/contracts";
 import {
-  FxQuotePreviewResponseSchema,
-  PreviewFxQuoteInputSchema,
-  type FxQuotePreviewResponse,
-} from "@bedrock/fx/contracts";
+  QuotePreviewResponseSchema,
+  PreviewQuoteInputSchema,
+  type QuotePreviewResponse,
+} from "@bedrock/treasury/contracts";
 import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
@@ -14,11 +14,17 @@ const financialLineBucketLabelByValue = new Map<string, string>(
   FINANCIAL_LINE_BUCKET_OPTIONS.map((option) => [option.value, option.label] as const),
 );
 
+export interface FxQuotePreviewRequest {
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmountMinor: string;
+}
+
 export function buildFxQuotePreviewRequest(input: {
   amount: unknown;
   fromCurrency: unknown;
   toCurrency: unknown;
-}) {
+}): FxQuotePreviewRequest | null {
   const amount = typeof input.amount === "string" ? input.amount.trim() : "";
   const fromCurrency =
     typeof input.fromCurrency === "string"
@@ -39,23 +45,31 @@ export function buildFxQuotePreviewRequest(input: {
   }
 
   try {
-    return PreviewFxQuoteInputSchema.parse({
+    return {
       fromCurrency,
       toCurrency,
       fromAmountMinor: toMinorAmountString(amount, fromCurrency, {
         requirePositive: true,
       }),
-    });
+    };
   } catch {
     return null;
   }
 }
 
 export async function fetchFxQuotePreview(input: {
-  request: NonNullable<ReturnType<typeof buildFxQuotePreviewRequest>>;
+  request: FxQuotePreviewRequest;
   signal?: AbortSignal;
-}): Promise<FxQuotePreviewResponse> {
-  const response = await fetch(`${API_URL}/v1/fx/quotes/preview`, {
+}): Promise<QuotePreviewResponse> {
+  const request = PreviewQuoteInputSchema.parse({
+    mode: "auto_cross",
+    fromCurrency: input.request.fromCurrency,
+    toCurrency: input.request.toCurrency,
+    fromAmountMinor: input.request.fromAmountMinor,
+    asOf: new Date(),
+  });
+
+  const response = await fetch(`${API_URL}/v1/treasury/quotes/preview`, {
     method: "POST",
     credentials: "include",
     cache: "no-store",
@@ -63,7 +77,10 @@ export async function fetchFxQuotePreview(input: {
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(input.request),
+    body: JSON.stringify({
+      ...request,
+      fromAmountMinor: request.fromAmountMinor.toString(),
+    }),
   });
 
   if (!response.ok) {
@@ -81,7 +98,7 @@ export async function fetchFxQuotePreview(input: {
     throw new Error("Не удалось загрузить текущую котировку");
   }
 
-  return FxQuotePreviewResponseSchema.parse(await response.json());
+  return QuotePreviewResponseSchema.parse(await response.json());
 }
 
 export function formatFxQuotePreviewMinorAmount(input: {

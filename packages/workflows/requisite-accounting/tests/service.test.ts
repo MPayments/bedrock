@@ -70,19 +70,30 @@ describe("requisite accounting workflow", () => {
         run(tx),
       ),
     };
+    const ensureDefaultOrganizationBook = vi.fn(async () => ({
+      bookId: "book-1",
+    }));
+    const ensureBookAccountInstance = vi.fn(async () => ({
+      id: "instance-1",
+      dimensionsHash: "hash-1",
+      tbLedger: 1,
+      tbAccountId: 1n,
+    }));
+    const createLedgerModule = vi.fn(() => ({
+      books: {
+        commands: {
+          ensureDefaultOrganizationBook,
+        },
+      },
+      bookAccounts: {
+        commands: {
+          ensureBookAccountInstance,
+        },
+      },
+    }));
     const workflow = createRequisiteAccountingWorkflow({
       db: db as any,
-      ledgerBooks: {
-        ensureDefaultOrganizationBook: vi.fn(async () => ({ bookId: "book-1" })),
-      },
-      ledgerBookAccounts: {
-        ensureBookAccountInstance: vi.fn(async () => ({
-          id: "instance-1",
-          dimensionsHash: "hash-1",
-          tbLedger: 1,
-          tbAccountId: 1n,
-        })),
-      },
+      createLedgerModule: createLedgerModule as any,
       currencies: {
         assertCurrencyExists: vi.fn(),
         listCodesById: vi.fn(async () => new Map([["cur-1", "USD"]])),
@@ -92,6 +103,16 @@ describe("requisite accounting workflow", () => {
     const result = await workflow.create({ ownerType: "organization" } as any);
 
     expect(result.id).toBe("req-1");
+    expect(createLedgerModule).toHaveBeenCalledWith(tx);
+    expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
+      organizationId: "org-1",
+    });
+    expect(ensureBookAccountInstance).toHaveBeenCalledWith({
+      accountNo: ACCOUNT_NO.BANK,
+      bookId: "book-1",
+      currency: "USD",
+      dimensions: {},
+    });
     expect(upsertBinding).toHaveBeenCalledWith({
       requisiteId: "req-1",
       bookId: "book-1",

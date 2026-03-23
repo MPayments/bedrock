@@ -19,14 +19,14 @@ describe("guardrail policy", () => {
     ).toBe(true);
     expect(
       isSchemaImportAllowed(
-        "@bedrock/fx",
+        "@bedrock/treasury",
         "packages/plugins/documents-ifrs/src/infra/provider.ts",
       ),
     ).toBe(true);
     expect(
       isSchemaImportAllowed(
-        "@bedrock/fx",
-        "packages/modules/fx/src/service.ts",
+        "@bedrock/treasury",
+        "packages/modules/treasury/src/module.ts",
       ),
     ).toBe(false);
   });

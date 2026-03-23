@@ -1,17 +1,12 @@
 import { z } from "zod";
 
-import type {
-  AccountingReportsService,
-  AccountingService,
-} from "@bedrock/accounting";
-import type { BalancesService } from "@bedrock/balances";
+import type { AccountingModule } from "@bedrock/accounting";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
-import type { FeesService } from "@bedrock/fees";
-import type { FxService } from "@bedrock/fx";
-import type { LedgerReadService } from "@bedrock/ledger";
+import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import type { TreasuryModule } from "@bedrock/treasury";
 import type { UsersService } from "@bedrock/users";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
@@ -67,17 +62,14 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  accountingService: AccountingService;
-  accountingReportsService: AccountingReportsService;
+  accountingModule: AccountingModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
-  feesService: FeesService;
-  fxService: FxService;
+  treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
-  ledgerReadService: LedgerReadService;
-  balancesService: BalancesService;
+  ledgerModule: LedgerModule;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
@@ -95,14 +87,11 @@ export function createAppContext(env: Env): AppContext {
   return {
     env,
     logger: core.logger,
-    accountingService: core.accountingService,
-    ledgerReadService: core.ledgerReadService,
-    balancesService: core.balancesService,
-    accountingReportsService: applicationServices.accountingReportsService,
+    accountingModule: core.accountingModule,
+    ledgerModule: core.ledgerModule,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
-    feesService: applicationServices.feesService,
-    fxService: applicationServices.fxService,
+    treasuryModule: applicationServices.treasuryModule,
     organizationBootstrapWorkflow:
       applicationServices.organizationBootstrapWorkflow,
     requisiteAccountingWorkflow:

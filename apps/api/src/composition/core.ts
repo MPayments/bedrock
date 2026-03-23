@@ -1,18 +1,5 @@
-import {
-  createAccountingService,
-  createAccountingChartService,
-  createAccountingPacksService,
-  createInMemoryAccountingCompiledPackCache,
-  type AccountingService,
-} from "@bedrock/accounting";
-import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { createBalancesService, type BalancesService } from "@bedrock/balances";
-import {
-  createLedgerService,
-  createLedgerReadService,
-  type LedgerService,
-  type LedgerReadService,
-} from "@bedrock/ledger";
+import type { AccountingModule } from "@bedrock/accounting";
+import type { LedgerModule } from "@bedrock/ledger";
 import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
 import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
 import {
@@ -26,33 +13,16 @@ import {
 import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { createUsersService, type UsersService } from "@bedrock/users";
 
-import { createApiPartiesReadRuntime } from "./parties-module";
+import { createApiAccountingModule } from "./accounting-module";
+import { createApiLedgerModule } from "./ledger-module";
 import { db } from "../db/client";
 
 export interface ApiCoreServices {
   logger: Logger;
-  accountingService: AccountingService;
-  balancesService: BalancesService;
+  accountingModule: AccountingModule;
   idempotency: IdempotencyPort;
-  ledger: LedgerService;
-  ledgerReadService: LedgerReadService;
+  ledgerModule: LedgerModule;
   usersService: UsersService;
-}
-
-function createApiAccountingService(): AccountingService {
-  const { organizationsQueries } = createApiPartiesReadRuntime(db);
-  const packsService = createAccountingPacksService({
-    db,
-    defaultPackDefinition: rawPackDefinition,
-    cache: createInMemoryAccountingCompiledPackCache(),
-    assertBooksBelongToInternalLedgerOrganizations:
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
-  });
-
-  return createAccountingService({
-    chart: createAccountingChartService({ db }),
-    packs: packsService,
-  });
 }
 
 export function createCoreServices(): ApiCoreServices {
@@ -60,19 +30,14 @@ export function createCoreServices(): ApiCoreServices {
   const idempotency = createIdempotencyService({ logger });
   const authStore = createDrizzleAuthIdentityStore({ db });
   const passwordHasher = createBetterAuthPasswordHasher();
-  const accountingService = createApiAccountingService();
-  const { organizationsQueries } = createApiPartiesReadRuntime(db);
-  const ledger = createLedgerService({
+  const ledgerModule = createApiLedgerModule({
     db,
-    assertInternalLedgerBooks: async ({ bookIds }) =>
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations(
-        bookIds,
-      ),
-  });
-  const ledgerReadService = createLedgerReadService({ db });
-  const balancesService = createBalancesService({
-    persistence: createPersistenceContext(db),
     idempotency,
+    logger,
+  });
+  const accountingModule = createApiAccountingModule({
+    db,
+    persistence: createPersistenceContext(db),
     logger,
   });
   const usersService = createUsersService({
@@ -83,11 +48,9 @@ export function createCoreServices(): ApiCoreServices {
 
   return {
     logger,
-    accountingService,
-    balancesService,
+    accountingModule,
     idempotency,
-    ledger,
-    ledgerReadService,
+    ledgerModule,
     usersService,
   };
 }

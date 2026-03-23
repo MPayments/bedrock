@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type {
   DocumentPostingPlanRequest,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/contracts";
 import {
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,

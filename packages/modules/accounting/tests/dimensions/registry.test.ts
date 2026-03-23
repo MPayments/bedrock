@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createDimensionRegistry } from "../../src/infra/reporting/dimensions";
+import { createDimensionRegistry } from "../../src/reports/adapters/reporting/dimensions";
 
 describe("dimension registry", () => {
   it("batch resolves labels and caches negative results", async () => {
@@ -19,16 +19,12 @@ describe("dimension registry", () => {
       },
     ]);
 
-    const db = {} as never;
-
     const first = await registry.resolveLabels({
-      db,
       valuesByKey: {
         customerId: ["known", "missing"],
       },
     });
     const second = await registry.resolveLabels({
-      db,
       valuesByKey: {
         customerId: ["known", "missing"],
       },

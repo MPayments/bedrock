@@ -31,7 +31,6 @@ type ResolveBreadcrumbItemsOptions = {
 
 const segmentMap: Record<string, SegmentConfig> = {
   treasury: { label: "Казначейство", href: "/treasury", icon: "landmark" },
-  fx: { label: "FX", href: "/fx", icon: "currency" },
   transfers: {
     label: "Переводы",
     href: "/documents/transfers",
@@ -96,8 +95,8 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fx-revaluation": { label: "Переоценка валюты" },
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
-  rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
-  quotes: { label: "Котировки", href: "/fx/quotes", icon: "ticket-percent" },
+  rates: { label: "Курсы", href: "/treasury/rates", icon: "chart-candlestick" },
+  quotes: { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
 
   orders: { label: "Ордера" },
   settlements: { label: "Расчетные операции" },

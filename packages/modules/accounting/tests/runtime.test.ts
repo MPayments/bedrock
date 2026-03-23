@@ -1,14 +1,32 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import {
-  createAccountingPacksService,
-  type DocumentPostingPlan,
-} from "@bedrock/accounting";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
+import { noopLogger } from "@bedrock/platform/observability/logger";
+
+import { createPacksService, type DocumentPostingPlan } from "../src/packs/application";
 
 describe("accounting packs service", () => {
-  const packsService = createAccountingPacksService({
+  const packsService = createPacksService({
+    runtime: {
+      log: noopLogger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
+      service: "accounting.packs.test",
+    },
+    commandUow: {
+      run: (work) =>
+        work({
+          packs: {
+            findVersion: async () => null,
+            insertVersion: async () => undefined,
+            updateVersion: async () => undefined,
+            hasAssignmentsForChecksum: async () => false,
+            insertAssignment: async () => undefined,
+          },
+        }),
+    },
     defaultPackDefinition: rawPackDefinition,
   });
 
@@ -38,7 +56,7 @@ describe("accounting packs service", () => {
       ],
     };
 
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "transfer_intra",
       source: { type: "documents/transfer_intra/post", id: "doc-1" },
       idempotencyKey: "post:doc-1",
@@ -87,7 +105,7 @@ describe("accounting packs service", () => {
 
   it("rejects template usage outside its allowlist", async () => {
     await expect(
-      packsService.resolvePostingPlan({
+      packsService.queries.resolvePostingPlan({
         accountingSourceId: "capital_funding",
         source: { type: "documents/capital_funding/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",
@@ -117,7 +135,7 @@ describe("accounting packs service", () => {
   });
 
   it("resolves reserve-release templates for exchange finalization", async () => {
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "fx_execute",
       source: { type: "documents/exchange/post", id: "doc-2" },
       idempotencyKey: "post:doc-2",
@@ -190,7 +208,7 @@ describe("accounting packs service", () => {
   });
 
   it("allows invoice reserve plans to reserve customer charges into fee clearing", async () => {
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "invoice_reserve",
       source: { type: "documents/invoice/post", id: "doc-3" },
       idempotencyKey: "post:doc-3",
@@ -235,7 +253,7 @@ describe("accounting packs service", () => {
   });
 
   it("omits absent pending config from direct invoice intent lines", async () => {
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "invoice_direct",
       source: { type: "documents/invoice/post", id: "doc-direct" },
       idempotencyKey: "post:doc-direct",
@@ -290,7 +308,7 @@ describe("accounting packs service", () => {
   });
 
   it("omits absent transfer code from pending settlement lines", async () => {
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "payout_settle",
       source: { type: "documents/payout/post", id: "doc-pending" },
       idempotencyKey: "post:doc-pending",
@@ -332,7 +350,7 @@ describe("accounting packs service", () => {
   });
 
   it("resolves treasury fx source postings into clearing and bank dimensions", async () => {
-    const result = await packsService.resolvePostingPlan({
+    const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "treasury_fx_execute",
       source: { type: "documents/fx_execute/post", id: "doc-4" },
       idempotencyKey: "post:doc-4",
@@ -405,7 +423,7 @@ describe("accounting packs service", () => {
 
   it("rejects posting plans without a concrete book id", async () => {
     await expect(
-      packsService.resolvePostingPlan({
+      packsService.queries.resolvePostingPlan({
         accountingSourceId: "transfer_intra",
         source: { type: "documents/transfer_intra/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",

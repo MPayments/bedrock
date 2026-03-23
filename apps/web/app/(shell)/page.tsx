@@ -2,7 +2,7 @@ import { FileText } from "lucide-react";
 
 import { requirePageAudience } from "@/lib/auth/session";
 import { getDocuments } from "@/features/operations/documents/lib/queries";
-import { getRateSources } from "@/features/fx/rates/lib/queries";
+import { getRateSources } from "@/features/treasury/rates/lib/queries";
 
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 import { RecentItemsCard } from "@/features/overview/ui/recent-items-card";
@@ -50,8 +50,8 @@ export default async function DashboardPage() {
           href: TRANSFERS_HREF,
         },
         {
-          id: "fx",
-          label: session.role === "admin" ? "FX-источники" : "Роль",
+          id: "treasury",
+          label: session.role === "admin" ? "Treasury FX" : "Роль",
           value:
             session.role === "admin"
               ? formatCount(sourceStatuses.length)
@@ -60,9 +60,9 @@ export default async function DashboardPage() {
             session.role === "admin"
               ? staleSources > 0
                 ? `Просроченных источников: ${formatCount(staleSources)}`
-                : "Все источники FX актуальны в пределах TTL."
+                : "Все treasury FX-источники актуальны в пределах TTL."
               : "Административные разделы доступны по роли.",
-          href: session.role === "admin" ? "/fx" : undefined,
+          href: session.role === "admin" ? "/treasury" : undefined,
         },
       ]}
       links={

@@ -15,12 +15,18 @@ vi.mock("../../src/auth", () => ({
 
 import { balancesRoutes } from "../../src/routes/balances";
 
-function createBalancesServiceStub() {
+function createLedgerModuleStub() {
   return {
-    getBalance: vi.fn(),
-    reserve: vi.fn(),
-    release: vi.fn(),
-    consume: vi.fn(),
+    balances: {
+      commands: {
+        reserve: vi.fn(),
+        release: vi.fn(),
+        consume: vi.fn(),
+      },
+      queries: {
+        getBalance: vi.fn(),
+      },
+    },
   };
 }
 
@@ -53,7 +59,7 @@ function createMutationResult() {
 }
 
 function createTestApp(requestIdempotencyKey: string | null = "idem-1") {
-  const balancesService = createBalancesServiceStub();
+  const ledgerModule = createLedgerModuleStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -67,9 +73,9 @@ function createTestApp(requestIdempotencyKey: string | null = "idem-1") {
     } as any);
     await next();
   });
-  app.route("/", balancesRoutes({ balancesService } as any));
+  app.route("/", balancesRoutes({ ledgerModule } as any));
 
-  return { app, balancesService };
+  return { app, ledgerModule };
 }
 
 describe("balancesRoutes mutation actions", () => {
@@ -79,7 +85,7 @@ describe("balancesRoutes mutation actions", () => {
   });
 
   it("returns 400 for mutations when idempotency header is missing", async () => {
-    const { app, balancesService } = createTestApp(null);
+    const { app, ledgerModule } = createTestApp(null);
     const mutationBodies = [
       {
         path: "/reserve",
@@ -135,17 +141,17 @@ describe("balancesRoutes mutation actions", () => {
       });
     }
 
-    expect(balancesService.reserve).not.toHaveBeenCalled();
-    expect(balancesService.release).not.toHaveBeenCalled();
-    expect(balancesService.consume).not.toHaveBeenCalled();
+    expect(ledgerModule.balances.commands.reserve).not.toHaveBeenCalled();
+    expect(ledgerModule.balances.commands.release).not.toHaveBeenCalled();
+    expect(ledgerModule.balances.commands.consume).not.toHaveBeenCalled();
   });
 
   it("routes reserve/release/consume through shared mutation helper", async () => {
-    const { app, balancesService } = createTestApp("idem-1");
+    const { app, ledgerModule } = createTestApp("idem-1");
     const mutationResult = createMutationResult();
-    balancesService.reserve.mockResolvedValueOnce(mutationResult);
-    balancesService.release.mockResolvedValueOnce(mutationResult);
-    balancesService.consume.mockResolvedValueOnce(mutationResult);
+    ledgerModule.balances.commands.reserve.mockResolvedValueOnce(mutationResult);
+    ledgerModule.balances.commands.release.mockResolvedValueOnce(mutationResult);
+    ledgerModule.balances.commands.consume.mockResolvedValueOnce(mutationResult);
 
     const commonBody = {
       subject: {
@@ -187,7 +193,7 @@ describe("balancesRoutes mutation actions", () => {
     expect(releaseResponse.status).toBe(200);
     expect(consumeResponse.status).toBe(200);
 
-    expect(balancesService.reserve).toHaveBeenCalledWith({
+    expect(ledgerModule.balances.commands.reserve).toHaveBeenCalledWith({
       subject: commonBody.subject,
       amount: "1.00",
       holdRef: "hold-ref-1",
@@ -199,7 +205,7 @@ describe("balancesRoutes mutation actions", () => {
         correlationId: "corr-1",
       }),
     });
-    expect(balancesService.release).toHaveBeenCalledWith({
+    expect(ledgerModule.balances.commands.release).toHaveBeenCalledWith({
       subject: commonBody.subject,
       holdRef: "hold-ref-1",
       reason: "test",
@@ -210,7 +216,7 @@ describe("balancesRoutes mutation actions", () => {
         correlationId: "corr-1",
       }),
     });
-    expect(balancesService.consume).toHaveBeenCalledWith({
+    expect(ledgerModule.balances.commands.consume).toHaveBeenCalledWith({
       subject: commonBody.subject,
       holdRef: "hold-ref-1",
       reason: "test",

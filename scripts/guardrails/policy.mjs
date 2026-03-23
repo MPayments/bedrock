@@ -41,7 +41,6 @@ const COMMON_SCHEMA_ALLOW_PATTERNS = [
 ];
 
 export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
-  "@bedrock/balances": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/currencies": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
     "^apps/api/src/composition/",
@@ -49,18 +48,16 @@ export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
     "^packages/modules/parties/src/infra/",
   ],
   "@bedrock/documents": [...COMMON_SCHEMA_ALLOW_PATTERNS],
-  "@bedrock/fees": [...COMMON_SCHEMA_ALLOW_PATTERNS],
-  "@bedrock/fx": [
-    ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^packages/plugins/[^/]+/src/infra/",
-  ],
   "@bedrock/ledger": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^packages/modules/balances/src/infra/",
     "^packages/plugins/[^/]+/src/infra/",
   ],
   "@bedrock/parties": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/reconciliation": [...COMMON_SCHEMA_ALLOW_PATTERNS],
+  "@bedrock/treasury": [
+    ...COMMON_SCHEMA_ALLOW_PATTERNS,
+    "^packages/plugins/[^/]+/src/infra/",
+  ],
 };
 
 export const DB_IMPORT_ALLOW_PATTERNS = [

@@ -9,14 +9,14 @@ describe("breadcrumbs", () => {
       { label: "Счета", href: "/accounting/accounts", icon: "wallet" },
     ]);
 
-    await expect(resolveBreadcrumbItems(["fx", "rates"])).resolves.toEqual([
-      { label: "FX", href: "/fx", icon: "currency" },
-      { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
+    await expect(resolveBreadcrumbItems(["treasury", "rates"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Курсы", href: "/treasury/rates", icon: "chart-candlestick" },
     ]);
 
-    await expect(resolveBreadcrumbItems(["fx", "quotes"])).resolves.toEqual([
-      { label: "FX", href: "/fx", icon: "currency" },
-      { label: "Котировки", href: "/fx/quotes", icon: "ticket-percent" },
+    await expect(resolveBreadcrumbItems(["treasury", "quotes"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
     ]);
   });
 

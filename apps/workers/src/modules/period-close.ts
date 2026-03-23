@@ -1,35 +1,16 @@
 import { asc, eq } from "drizzle-orm";
 
-import {
-  createAccountingService,
-  createAccountingChartService,
-  createAccountingPacksService,
-  createAccountingClosePackageSnapshotPort,
-  createAccountingPeriodsService,
-  createAccountingReportQueries,
-  createAccountingReportsContext,
-  createInMemoryAccountingCompiledPackCache,
-  createDrizzleAccountingPeriodsCommandRepository,
-  createDrizzleAccountingPeriodsQueryRepository,
-  createDrizzleAccountingReportsRepository,
-  type AccountingPeriodsService,
-} from "@bedrock/accounting";
-import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { createBalancesQueries } from "@bedrock/balances/queries";
+import type { AccountingModule } from "@bedrock/accounting";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
   createRuleBasedDocumentActionPolicyService,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import {
-  createDrizzleDocumentsReadModel,
-} from "@bedrock/documents/read-model";
-import { createLedgerReadService } from "@bedrock/ledger";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
-import type { Logger } from "@bedrock/platform/observability/logger";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import {
   bindPersistenceSession,
   createPersistenceContext,
@@ -46,6 +27,8 @@ import {
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
 
+import { createWorkerAccountingModule } from "../accounting-module";
+import { createWorkerLedgerModule } from "../ledger-module";
 import { createWorkerPartiesReadRuntime } from "../parties-module";
 
 async function resolveSystemActorUserId(db: Database): Promise<string | null> {
@@ -88,153 +71,6 @@ async function listOrganizationIds(db: Database): Promise<string[]> {
   return rows.map((row) => row.id);
 }
 
-function createAccountingReportRuntime(database: Database | Transaction) {
-  const balancesQueries = createBalancesQueries({ db: database });
-  const partiesReadRuntime = createWorkerPartiesReadRuntime(database);
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
-  const ledgerQueries = createLedgerQueries({ db: database });
-  const { organizationsQueries } = partiesReadRuntime;
-  const reportsRepository = createDrizzleAccountingReportsRepository(database);
-  const reportContext = createAccountingReportsContext({
-    balancesQueries,
-    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
-    documentsPort: documentsReadModel,
-    ledgerQueries,
-    organizationsQueries,
-    reportsRepository,
-  });
-
-  return {
-    ledgerQueries,
-    organizationsQueries,
-    reportQueries: createAccountingReportQueries({
-      context: reportContext,
-    }),
-  };
-}
-
-function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
-  function buildService(
-    database: Database | Transaction,
-  ): AccountingPeriodsService {
-    const { ledgerQueries, organizationsQueries, reportQueries } =
-      createAccountingReportRuntime(database);
-    const queries = createDrizzleAccountingPeriodsQueryRepository(database);
-    const commands = createDrizzleAccountingPeriodsCommandRepository(database);
-
-    return createAccountingPeriodsService({
-      queries,
-      commands,
-      closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
-        repository: commands,
-        assertInternalLedgerOrganization:
-          organizationsQueries.assertInternalLedgerOrganization,
-        listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
-        reportQueries,
-        documentsReadModel: createDrizzleDocumentsReadModel({ db: database }),
-      }),
-    });
-  }
-
-  async function runWithService<T>(input: {
-    db?: Database | Transaction;
-    transactional?: boolean;
-    run: (service: AccountingPeriodsService) => Promise<T>;
-  }) {
-    const execute = (database: Database | Transaction) =>
-      input.run(buildService(database));
-
-    if (input.db) {
-      return execute(input.db);
-    }
-
-    if (input.transactional) {
-      return db.transaction((tx) => execute(tx));
-    }
-
-    return execute(db);
-  }
-
-  return {
-    isOrganizationPeriodClosed(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.isOrganizationPeriodClosed({
-            organizationId: input.organizationId,
-            occurredAt: input.occurredAt,
-          }),
-      });
-    },
-    listClosedOrganizationIdsForPeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.listClosedOrganizationIdsForPeriod({
-            organizationIds: input.organizationIds,
-            occurredAt: input.occurredAt,
-          }),
-      });
-    },
-    assertOrganizationPeriodsOpen(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        run: (service) =>
-          service.assertOrganizationPeriodsOpen({
-            occurredAt: input.occurredAt,
-            organizationIds: input.organizationIds,
-            docType: input.docType,
-          }),
-      });
-    },
-    closePeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        transactional: true,
-        run: (service) =>
-          service.closePeriod({
-            organizationId: input.organizationId,
-            periodStart: input.periodStart,
-            periodEnd: input.periodEnd,
-            closedBy: input.closedBy,
-            closeReason: input.closeReason,
-            closeDocumentId: input.closeDocumentId,
-          }),
-      });
-    },
-    reopenPeriod(input) {
-      return runWithService({
-        db: (input as { db?: Database | Transaction }).db,
-        transactional: true,
-        run: (service) =>
-          service.reopenPeriod({
-            organizationId: input.organizationId,
-            periodStart: input.periodStart,
-            reopenedBy: input.reopenedBy,
-            reopenReason: input.reopenReason,
-            reopenDocumentId: input.reopenDocumentId,
-          }),
-      });
-    },
-  };
-}
-
-function createPeriodCloseAccountingService(db: Database) {
-  const { organizationsQueries } = createWorkerPartiesReadRuntime(db);
-  const packsService = createAccountingPacksService({
-    db,
-    defaultPackDefinition: rawPackDefinition,
-    cache: createInMemoryAccountingCompiledPackCache(),
-    assertBooksBelongToInternalLedgerOrganizations:
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
-  });
-
-  return createAccountingService({
-    chart: createAccountingChartService({ db }),
-    packs: packsService,
-  });
-}
-
 const PERIOD_CLOSE_APPROVAL_RULES: DocumentApprovalRule[] = [
   {
     docTypes: ["period_close", "period_reopen"],
@@ -252,10 +88,106 @@ export function createPeriodCloseWorkerDefinition(deps: {
   ) => Promise<boolean> | boolean;
 }): BedrockWorker {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
-  const accountingPeriods = createAccountingPeriodsPort(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
-  const accountingService = createPeriodCloseAccountingService(deps.db);
-  const ledgerReadService = createLedgerReadService({ db: deps.db });
+  const accountingLogger = deps.logger ?? noopLogger;
+  const ledgerModule = createWorkerLedgerModule({
+    db: deps.db,
+    idempotency,
+    logger: accountingLogger,
+  });
+  const ledgerReadPort = {
+    getOperationDetails: ledgerModule.operations.queries.getDetails,
+    listOperationDetails: ledgerModule.operations.queries.listDetails,
+  };
+  const accountingModule = createWorkerAccountingModule({
+    db: deps.db,
+    persistence: createPersistenceContext(deps.db),
+    logger: accountingLogger,
+  });
+  const accountingPeriods = {
+    async assertOrganizationPeriodsOpen(input: {
+      occurredAt: Date;
+      organizationIds: string[];
+      docType: string;
+    }) {
+      return accountingModule.periods.commands.assertOrganizationPeriodsOpen(
+        input,
+      );
+    },
+    async listClosedOrganizationIdsForPeriod(input: {
+      organizationIds: string[];
+      occurredAt: Date;
+    }) {
+      return accountingModule.periods.queries.listClosedOrganizationIdsForPeriod(
+        input,
+      );
+    },
+    async closePeriod(input: {
+      organizationId: string;
+      periodStart: Date;
+      periodEnd: Date;
+      closedBy: string;
+      closeReason?: string | null;
+      closeDocumentId: string;
+      db?: unknown;
+    }) {
+      const target = input.db as Transaction | undefined;
+      const module: AccountingModule = target
+        ? createWorkerAccountingModule({
+            db: target,
+            persistence: bindPersistenceSession(target),
+            logger: accountingLogger,
+          })
+        : accountingModule;
+
+      return module.periods.commands.closePeriod({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+        closedBy: input.closedBy,
+        closeReason: input.closeReason,
+        closeDocumentId: input.closeDocumentId,
+      });
+    },
+    async isOrganizationPeriodClosed(input: {
+      organizationId: string;
+      occurredAt: Date;
+    }) {
+      return accountingModule.periods.queries.isOrganizationPeriodClosed(input);
+    },
+    async reopenPeriod(input: {
+      organizationId: string;
+      periodStart: Date;
+      reopenedBy: string;
+      reopenReason?: string | null;
+      reopenDocumentId?: string | null;
+      db?: unknown;
+    }) {
+      const target = input.db as Transaction | undefined;
+      const module: AccountingModule = target
+        ? createWorkerAccountingModule({
+            db: target,
+            persistence: bindPersistenceSession(target),
+            logger: accountingLogger,
+          })
+        : accountingModule;
+
+      return module.periods.commands.reopenPeriod({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        reopenedBy: input.reopenedBy,
+        reopenReason: input.reopenReason,
+        reopenDocumentId: input.reopenDocumentId,
+      });
+    },
+  };
+  const documentsAccountingPort = {
+    getDefaultCompiledPack:
+      accountingModule.packs.queries.getDefaultCompiledPack,
+    loadActiveCompiledPackForBook:
+      accountingModule.packs.queries.loadActivePackForBook,
+    resolvePostingPlan: accountingModule.packs.queries.resolvePostingPlan,
+  };
   const documentRegistry = createDocumentRegistry([
     createPeriodCloseDocumentModule(),
   ]);
@@ -269,9 +201,9 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const documentsService = createDocumentsService({
     persistence: createPersistenceContext(deps.db),
     idempotency,
-    accounting: accountingService.packs,
+    accounting: documentsAccountingPort,
     accountingPeriods,
-    ledgerReadService,
+    ledgerReadService: ledgerReadPort,
     policy: documentsPolicy,
     registry: documentRegistry,
     transitionEffects: documentTransitionEffects,
@@ -283,9 +215,9 @@ export function createPeriodCloseWorkerDefinition(deps: {
       createDocumentsService({
         persistence: bindPersistenceSession(tx),
         idempotency,
-        accounting: accountingService.packs,
+        accounting: documentsAccountingPort,
         accountingPeriods,
-        ledgerReadService,
+        ledgerReadService: ledgerReadPort,
         policy: documentsPolicy,
         registry: documentRegistry,
         transitionEffects: documentTransitionEffects,
