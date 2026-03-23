@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
   index,
+  integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -10,7 +12,45 @@ import {
 
 import { organizations } from "@bedrock/parties/schema";
 
+export type AccountingClosePackageState = "closed" | "superseded";
 export type AccountingPeriodState = "closed" | "reopened";
+
+export const accountingClosePackages = pgTable(
+  "accounting_close_packages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    revision: integer("revision").notNull(),
+    state: text("state").$type<AccountingClosePackageState>().notNull(),
+    closeDocumentId: uuid("close_document_id").notNull(),
+    reopenDocumentId: uuid("reopen_document_id"),
+    checksum: text("checksum").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("accounting_close_packages_period_revision_uq").on(
+      t.organizationId,
+      t.periodStart,
+      t.revision,
+    ),
+    index("accounting_close_packages_lookup_idx").on(
+      t.organizationId,
+      t.periodStart,
+      t.revision,
+    ),
+    index("accounting_close_packages_state_idx").on(t.state, t.generatedAt),
+  ],
+);
 
 export const accountingPeriodLocks = pgTable(
   "accounting_period_locks",
@@ -53,5 +93,6 @@ export const accountingPeriodLocks = pgTable(
   ],
 );
 
+export type AccountingClosePackage = typeof accountingClosePackages.$inferSelect;
 export type AccountingPeriodLock = typeof accountingPeriodLocks.$inferSelect;
 export type AccountingPeriodLockInsert = typeof accountingPeriodLocks.$inferInsert;

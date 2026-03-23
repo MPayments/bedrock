@@ -73,3 +73,7 @@ export const feeRules = pgTable(
     index("fee_rules_effective_idx").on(table.effectiveFrom, table.effectiveTo),
   ],
 );
+
+export const schema = {
+  feeRules,
+};

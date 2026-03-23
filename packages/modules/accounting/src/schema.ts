@@ -12,13 +12,11 @@ import {
 } from "./chart/adapters/drizzle/schema";
 import {
   accountingClosePackages,
-} from "./periods/adapters/drizzle/close-packages.schema";
-import {
   accountingPeriodLocks,
-} from "./periods/adapters/drizzle/period-locks.schema";
+} from "./periods/adapters/drizzle/schema";
 import {
   accountingReportLineMappings,
-} from "./reports/adapters/drizzle/report-line-mappings.schema";
+} from "./reports/adapters/drizzle/schema";
 
 export {
   accountingClosePackages,
