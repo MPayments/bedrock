@@ -2,6 +2,7 @@ import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { schema as operationsSchema } from "@bedrock/operations/schema";
 import {
   counterparties,
   counterpartyGroupMemberships,
@@ -62,7 +63,8 @@ export type Schema =
   & typeof idempotencySchema
   & typeof treasurySchema
   & typeof currenciesSchema
-  & typeof reconciliationSchema;
+  & typeof reconciliationSchema
+  & typeof operationsSchema;
 
 const schemaInternal: Schema = {
   ...authSchema,
@@ -74,6 +76,7 @@ const schemaInternal: Schema = {
   ...treasurySchema,
   ...currenciesSchema,
   ...reconciliationSchema,
+  ...operationsSchema,
 };
 
 export const schema: Schema = schemaInternal;

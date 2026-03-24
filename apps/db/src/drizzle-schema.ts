@@ -70,3 +70,31 @@ export {
   reconciliationMatches,
   reconciliationRuns,
 } from "@bedrock/reconciliation/schema";
+export {
+  // Enums
+  opsApplicationStatusEnum,
+  opsDealStatusEnum,
+  opsActivityActionEnum,
+  opsActivityEntityEnum,
+  opsActivitySourceEnum,
+  // Tables
+  opsAgents,
+  opsAgentOrganizations,
+  opsAgentOrganizationBankDetails,
+  opsSubAgents,
+  opsClients,
+  opsClientDocuments,
+  opsContracts,
+  opsApplications,
+  opsCalculations,
+  opsDeals,
+  opsDealDocuments,
+  opsAgentBonus,
+  opsTodos,
+  opsActivityLog,
+  opsSessions,
+  opsAccounts,
+  opsVerifications,
+  opsTelegrafSessions,
+  opsS3CleanupQueue,
+} from "@bedrock/operations/schema";
