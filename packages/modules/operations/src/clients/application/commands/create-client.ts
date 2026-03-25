@@ -71,6 +71,33 @@ export class CreateClientCommand {
         counterpartyId,
       });
 
+      // Auto-create contract if contract fields are provided
+      if (
+        validated.agentOrganizationId &&
+        validated.agentOrganizationBankDetailsId
+      ) {
+        const contract = await tx.contractStore.create({
+          clientId: created.id,
+          contractNumber: validated.contractNumber ?? undefined,
+          contractDate: validated.contractDate ?? undefined,
+          agentFee: validated.agentFee ?? undefined,
+          fixedFee: validated.fixedFee ?? undefined,
+          agentOrganizationId: validated.agentOrganizationId,
+          agentOrganizationBankDetailsId:
+            validated.agentOrganizationBankDetailsId,
+        });
+
+        await tx.clientStore.update({
+          id: created.id,
+          contractId: contract.id,
+        });
+
+        this.runtime.log.info("Contract auto-created for client", {
+          clientId: created.id,
+          contractId: contract.id,
+        });
+      }
+
       this.runtime.log.info("Client created", {
         id: created.id,
         orgName: created.orgName,

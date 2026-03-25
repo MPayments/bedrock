@@ -31,6 +31,7 @@ import type {
   DealsCommandTx,
   DealsCommandUnitOfWork,
 } from "../../../deals/application/ports/deals.uow";
+import { DrizzleTodoStore } from "../../../todos/adapters/drizzle/todo.store";
 
 type OperationsTx = ContractsCommandTx &
   ApplicationsCommandTx &
@@ -41,14 +42,17 @@ type OperationsTx = ContractsCommandTx &
 function bindOperationsTx(tx: Transaction): OperationsTx {
   const applicationStore = new DrizzleApplicationStore(tx);
   const applicationReads = new DrizzleApplicationReads(tx);
+  const contractStore = new DrizzleContractStore(tx);
+  const todoStore = new DrizzleTodoStore(tx);
 
   return {
-    contractStore: new DrizzleContractStore(tx),
+    contractStore,
     applicationStore,
     calculationStore: new DrizzleCalculationStore(tx),
     dealStore: new DrizzleDealStore(tx),
     clientStore: new DrizzleClientStore(tx),
     applicationReads,
+    todoStore,
   };
 }
 

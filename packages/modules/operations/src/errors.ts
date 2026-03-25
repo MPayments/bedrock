@@ -73,3 +73,21 @@ export class SubAgentNotFoundError extends NotFoundError {
     super("SubAgent", String(id));
   }
 }
+
+export class OrganizationNotFoundError extends NotFoundError {
+  constructor(id: number) {
+    super("Organization", String(id));
+  }
+}
+
+export class BankDetailsNotFoundError extends NotFoundError {
+  constructor(id: number) {
+    super("BankDetails", String(id));
+  }
+}
+
+export class TodoNotFoundError extends NotFoundError {
+  constructor(id: number) {
+    super("Todo", String(id));
+  }
+}

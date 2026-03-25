@@ -29,6 +29,13 @@ import type { ContractsCommandUnitOfWork } from "./contracts/application/ports/c
 import { createDealsService } from "./deals/application";
 import type { DealReads } from "./deals/application/ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./deals/application/ports/deals.uow";
+import { createOrganizationsService } from "./organizations/application";
+import type { BankDetailsReads } from "./organizations/application/ports/bank-details.reads";
+import type { OrganizationReads } from "./organizations/application/ports/organization.reads";
+import type { OrganizationsCommandUnitOfWork } from "./organizations/application/ports/organizations.uow";
+import { createTodosService } from "./todos/application";
+import type { TodoReads } from "./todos/application/ports/todo.reads";
+import type { TodosCommandUnitOfWork } from "./todos/application/ports/todos.uow";
 
 export type OperationsModuleUnitOfWork = ContractsCommandUnitOfWork &
   ApplicationsCommandUnitOfWork &
@@ -51,10 +58,15 @@ export interface OperationsModuleDeps {
   dealReads: DealReads;
   clientReads: ClientReads;
   subAgentReads: SubAgentReads;
+  organizationReads: OrganizationReads;
+  bankDetailsReads: BankDetailsReads;
+  todoReads: TodoReads;
 
   // UoW
   unitOfWork: OperationsModuleUnitOfWork;
   subAgentUow: SubAgentsCommandUnitOfWork;
+  organizationsUow: OrganizationsCommandUnitOfWork;
+  todosUow: TodosCommandUnitOfWork;
 
   // Optional ports
   counterparties?: CounterpartiesPort;
@@ -110,6 +122,17 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
       reads: deps.clientReads,
       counterparties: deps.counterparties,
       companyLookup: deps.companyLookup,
+    }),
+    organizations: createOrganizationsService({
+      runtime: createRuntime("operations.organizations"),
+      commandUow: deps.organizationsUow,
+      reads: deps.organizationReads,
+      bankDetailsReads: deps.bankDetailsReads,
+    }),
+    todos: createTodosService({
+      runtime: createRuntime("operations.todos"),
+      commandUow: deps.todosUow,
+      reads: deps.todoReads,
     }),
   };
 }

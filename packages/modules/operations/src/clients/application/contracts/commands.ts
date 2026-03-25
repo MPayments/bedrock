@@ -39,6 +39,13 @@ export const CreateClientInputSchema = z.object({
   subAgentId: z.number().int().nullable().optional(),
   // Contract info (auto-managed)
   contractId: z.number().int().nullable().optional(),
+  // Contract fields for auto-creation
+  contractNumber: z.string().nullable().optional(),
+  contractDate: z.string().nullable().optional(),
+  agentFee: z.string().nullable().optional(),
+  fixedFee: z.string().nullable().optional(),
+  agentOrganizationId: z.number().int().nullable().optional(),
+  agentOrganizationBankDetailsId: z.number().int().nullable().optional(),
   // FK bridge to bedrock parties (auto-set by CounterpartiesPort)
   counterpartyId: z.string().uuid().nullable().optional(),
 });

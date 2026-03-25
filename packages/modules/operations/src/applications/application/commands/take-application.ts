@@ -47,6 +47,17 @@ export class TakeApplicationCommand {
         validated.agentId,
       );
 
+      // Auto-create TODO for the agent
+      await tx.todoStore.create({
+        agentId: validated.agentId,
+        applicationId: validated.applicationId,
+        title: `Создать расчёт для заявки #${validated.applicationId}`,
+        description: application.requestedAmount
+          ? `Сумма: ${application.requestedAmount} ${application.requestedCurrency ?? ""}`
+          : "Клиент ожидает расчёт",
+        order: 0,
+      });
+
       this.runtime.log.info("Application taken by agent", {
         applicationId: validated.applicationId,
         agentId: validated.agentId,

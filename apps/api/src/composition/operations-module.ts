@@ -10,13 +10,18 @@ import {
   DrizzleActivityLogStore,
   DrizzleAgentProfileReads,
   DrizzleApplicationReads,
+  DrizzleBankDetailsReads,
   DrizzleCalculationReads,
   DrizzleClientReads,
   DrizzleContractReads,
   DrizzleDealReads,
   DrizzleOperationsUnitOfWork,
+  DrizzleOrganizationReads,
+  DrizzleOrganizationsUnitOfWork,
   DrizzleSubAgentReads,
   DrizzleSubAgentsUnitOfWork,
+  DrizzleTodoReads,
+  DrizzleTodosUnitOfWork,
 } from "@bedrock/operations/adapters/drizzle";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
@@ -49,9 +54,14 @@ export function createApiOperationsModule(input: {
     dealReads: new DrizzleDealReads(input.db),
     clientReads: new DrizzleClientReads(input.db),
     subAgentReads: new DrizzleSubAgentReads(input.db),
+    organizationReads: new DrizzleOrganizationReads(input.db),
+    bankDetailsReads: new DrizzleBankDetailsReads(input.db),
+    todoReads: new DrizzleTodoReads(input.db),
 
     // UoW
     unitOfWork: new DrizzleOperationsUnitOfWork({ persistence }),
     subAgentUow: new DrizzleSubAgentsUnitOfWork({ persistence }),
+    organizationsUow: new DrizzleOrganizationsUnitOfWork({ persistence }),
+    todosUow: new DrizzleTodosUnitOfWork({ persistence }),
   });
 }
