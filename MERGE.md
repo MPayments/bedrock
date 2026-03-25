@@ -9,7 +9,7 @@
 
 ---
 
-## Phase 1: Общая БД (текущая фаза)
+## Phase 1: Общая БД [DONE]
 
 **Цель:** Оба приложения работают с одной PostgreSQL. Bedrock владеет миграциями. Код обоих приложений не меняется (кроме connection string в mpayments).
 
@@ -70,33 +70,109 @@
 
 ---
 
-## Phase 2: Перенос бизнес-логики
+## Phase 2: Перенос бизнес-логики (текущая фаза)
 
 **Цель:** Бизнес-логика mpayments живёт в `packages/modules/` по DDD-архитектуре bedrock.
 
+> Детальный план с описанием каждого шага — см. `plan.md`.
+
 ### Порядок миграции доменов (по зависимостям)
 
-1. **clients** → объединить с `@bedrock/parties` (counterparties)
-2. **contracts** → новый субдомен в `@bedrock/operations` или `@bedrock/parties`
-3. **applications** → `@bedrock/operations/applications`
-4. **calculations** → интеграция с `@bedrock/treasury` (fx_quotes + fee_rules)
-5. **deals** → `@bedrock/operations/deals` (ядро, зависит от всех выше)
-6. **agent_bonus** → интеграция с `@bedrock/ledger`
+1. **activity-log** → `@bedrock/operations/activity-log` (DONE)
+2. **contracts** → `@bedrock/operations/contracts` (DONE)
+3. **auth (roles)** → расширение `user.role` в `@bedrock/users` (DONE)
+4. **applications** → `@bedrock/operations/applications` (DONE)
+5. **calculations** → `@bedrock/operations/calculations`, интеграция с `@bedrock/treasury` (DONE)
+6. **deals** → `@bedrock/operations/deals` (DONE)
+7. **agent_bonus** → workflow `packages/workflows/deal-commission/` + `@bedrock/ledger` (DONE)
+8. **clients** → `@bedrock/operations/clients`, адаптер над `@bedrock/parties` (DONE)
+9. **sub-agents** → расширение agents субдомена (DONE)
+10. **external services** → см. секцию "Стратегия миграции внешних сервисов" (DONE — порты)
 
 ### Auth объединение
 
 - Единая таблица `user` (bedrock, UUID PK)
-- RBAC: `user.role` → enum (admin, agent, customer, finance)
-- MPayments-специфичные поля (tgId, isAllowed, tag) → отдельная таблица `agent_profiles`
-- Миграция: скрипт сопоставления ops_agents ↔ user по email
+- RBAC: `user.role` → text (admin, user, agent, customer, finance). Не pgEnum — только TypeScript-валидация. **DB-миграция не нужна.**
+- MPayments-специфичные поля (tgId, isAllowed, tag) → используем существующую таблицу `ops_agents` (НЕ создаём `agent_profiles`)
+- `ops_agents.bedrock_user_id` FK-мост — уже реализован
+- Миграция: seed-скрипт сопоставления ops_agents ↔ user по email
 
-### Слияние сущностей
+### Связь сущностей (extension tables, НЕ слияние)
+
+ops_* таблицы остаются как extension tables с FK-мостами к bedrock-сущностям. НЕ добавляем mpayments-колонки в bedrock-таблицы — это operations-specific данные (i18n, INN/KPP, sub-agent привязка).
 
 | Operations | Bedrock | Действие |
 |---|---|---|
-| `ops_clients` | `counterparties` | Добавить mpayments-поля в counterparties (inn, kpp, director, i18n) |
-| `ops_agent_organizations` | `organizations` | Добавить mpayments-поля (inn, director, seal, signature) |
-| `ops_agent_organization_bank_details` | `requisites` | Уже совместимы по структуре |
+| `ops_clients` | `counterparties` | Extension table. FK `counterparty_id` → `counterparties.id`. НЕ объединять. |
+| `ops_agent_organizations` | `organizations` | Extension table. FK `organization_id` → `organizations.id`. |
+| `ops_agent_organization_bank_details` | `requisites` | Extension table. FK `requisite_id` → `requisites.id`. |
+
+---
+
+### Стратегия миграции внешних сервисов MPayments
+
+Помимо основных доменов (заявки, сделки, расчёты), MPayments содержит ряд внешних сервисов. Стратегия по каждому:
+
+#### Обменные курсы (CBR + Investing.com)
+
+**Статус: ЗАМЕНЕНЫ.** Модуль `@bedrock/treasury` полностью заменяет оба сервиса. `treasury.rates` предоставляет CBR и Investing.com провайдеры. Worker `treasury-rates` обновляет курсы автоматически. Миграция не требуется.
+
+#### AI Service (Document Extraction)
+
+**Решение:** Отдельный platform subpath `packages/platform/src/ai/`
+**Что делает:** Извлечение данных из PDF/DOCX/XLSX через OpenAI gpt-4o, перевод полей с русского на английский
+**Реализация:** Phase 2 — port interface (`DocumentExtractionPort`), Phase 3 — OpenAI adapter
+**Зависимости:** `@ai-sdk/openai`, `mammoth`, `xlsx`
+
+#### Document Service (Template Generation)
+
+**Решение:** Workflow `packages/workflows/document-generation/`
+**Что делает:** Генерация DOCX/PDF из шаблонов (контракты, счета, заявки, расчёты, акты) с i18n
+**Реализация:** Phase 2 — workflow skeleton + port interface, Phase 3 — template rendering + PDF conversion
+**Зависимости:** `easy-template-x`, `libreoffice-convert`, `exceljs`, `lvovich`, `russian-nouns-js`
+
+#### S3 / Object Storage
+
+**Решение:** Port interface в Phase 2, platform implementation в Phase 3
+**Где:** Port — `@bedrock/operations` shared ports; Implementation — `packages/platform/src/object-storage/`
+**Что делает:** Upload/download/delete файлов, signed URLs, cleanup queue
+**Зависимости:** `@aws-sdk/client-s3`
+**Существующие схемы:** `ops_s3_cleanup_queue`, `ops_deal_documents`, `ops_client_documents` — все уже в bedrock
+
+#### Notification Service (Email)
+
+**Решение:** Port interface в Phase 2, platform implementation в Phase 3
+**Где:** Port — `@bedrock/operations` shared ports; Implementation — `packages/platform/src/notifications/`
+**Что делает:** Email-уведомления через Resend (смена статусов сделок/заявок, новые расчёты)
+**Зависимости:** `resend` SDK
+
+#### DaData Service (Company Lookup)
+
+**Решение:** Port в clients субдомене, HTTP adapter в Phase 3
+**Что делает:** Поиск компании по ИНН через Tbank DaData API (возвращает наименование, директор, адрес, ИНН/КПП/ОГРН)
+**Реализация:** Phase 2 — port + query handler, Phase 3 — HTTP adapter
+
+#### Customer Service (Customer Portal)
+
+**Решение:** Facade/workflow поверх существующих operations субдоменов
+**Что делает:** Web-портал для клиентов (создание заявок, просмотр расчётов/сделок, ролевые ограничения)
+**Реализация:** Phase 2 — customer workflow/port, Phase 3 — API routes (`apps/api/src/routes/customer/`)
+
+#### Sub-Agent Service
+
+**Решение:** Расширение agents субдомена в `@bedrock/operations`
+**Что делает:** CRUD суб-агентов с отслеживанием комиссий. Таблица `ops_sub_agents` уже существует.
+**Реализация:** Phase 2 — полная реализация
+
+#### Telegram Bot
+
+**Решение:** SKIP в Phase 2. Будет перестроен с нуля в Phase 3 как `apps/bot/`.
+**Причина:** Текущий бот тесно связан с NestJS DI, telegraf sessions, 40 scene-файлов. Проще переписать на `grammy` или `telegraf` v5.
+**Связанные таблицы:** `ops_telegraf_sessions` — сохраняются на Phase 2, удаляются на Phase 4.
+
+#### Reports Scheduler
+
+**Решение:** SKIP. Часть Telegram бота — будет перестроен вместе с ним.
 
 ---
 
@@ -105,10 +181,15 @@
 **Цель:** NestJS больше не нужен. Всё работает через Hono + Next.js в bedrock.
 
 1. **NestJS контроллеры → Hono routes** в `apps/api/src/routes/operations/`
-2. **Telegram-бот → `apps/bot/`** (новый app в монорепо) или `apps/workers/`
+2. **Telegram-бот → `apps/bot/`** — rebuild from scratch (grammy или telegraf v5)
 3. **Next.js фронт mpayments** → отдельный app `apps/ops-web/` или объединить с `apps/web`
 4. **Zod-схемы валидации** переиспользуются as-is (обе системы на Zod)
 5. **OpenAPI** уже есть в bedrock через `@hono/zod-openapi`
+6. **AI adapter** → wire `packages/platform/src/ai/openai.adapter.ts` с credentials
+7. **S3 adapter** → wire `packages/platform/src/object-storage/s3.adapter.ts` с AWS credentials
+8. **Notification adapter** → wire `packages/platform/src/notifications/resend.adapter.ts`
+9. **DaData adapter** → wire HTTP adapter с Tbank API credentials
+10. **Document generation** → deploy LibreOffice на сервере для PDF conversion
 
 ---
 
@@ -116,7 +197,7 @@
 
 1. Удалить mpayments-репозиторий
 2. Удалить BullMQ-интеграцию (`packages/workflows/integration-mpayments/`)
-3. Удалить ops_* таблицы (данные мигрированы в основные)
+3. Удалить ops_* auth таблицы (`ops_sessions`, `ops_accounts`, `ops_verifications`) и `ops_telegraf_sessions`. Остальные ops_* таблицы **СОХРАНЯЮТСЯ** как extension tables (`ops_clients`, `ops_agents`, `ops_agent_organizations` и т.д.)
 4. Удалить Redis (если не используется для других целей)
 5. Консолидировать документацию
 
@@ -124,20 +205,26 @@
 
 ## Маппинг сущностей (полный)
 
-| MPayments сущность | Bedrock сущность | Тип связи | Когда объединять |
+| MPayments сущность | Bedrock сущность | Тип связи | Статус |
 |---|---|---|---|
-| `user` (агенты) | `user` (auth) | FK-мост → слияние | Phase 1 мост, Phase 2 слияние |
-| `clients` | `counterparties` | FK-мост → слияние | Phase 1 мост, Phase 2 слияние |
-| `agent_organizations` | `organizations` | FK-мост → слияние | Phase 1 мост, Phase 2 слияние |
-| `agent_organization_bank_details` | `requisites` | FK-мост → слияние | Phase 1 мост, Phase 2 слияние |
-| `calculations` | `fx_quotes` + `fee_rules` | FK-мост | Phase 1 мост, Phase 2 интеграция |
-| `deals` | `documents` + `ledger_operations` | Workflow | Phase 2 |
-| `applications` | (нет аналога) | Новый домен | Phase 2 |
-| `contracts` | (нет аналога) | Новый домен | Phase 2 |
-| `agent_bonus` | `postings` (леджер) | Workflow | Phase 2 |
+| `user` (агенты) | `user` (auth) + `ops_agents` (extension) | FK-мост (extension) | Phase 1 мост DONE, Phase 2 auth DONE |
+| `clients` | `counterparties` + `ops_clients` (extension) | FK-мост (extension) | Phase 1 мост DONE, Phase 2 adapter DONE |
+| `agent_organizations` | `organizations` + `ops_agent_organizations` (extension) | FK-мост (extension) | Phase 1 мост DONE |
+| `agent_organization_bank_details` | `requisites` + `ops_agent_org_bank_details` (extension) | FK-мост (extension) | Phase 1 мост DONE |
+| `calculations` | `fx_quotes` + `fee_rules` | FK-мост | Phase 1 мост DONE, Phase 2 DONE |
+| `deals` | `documents` + `ledger_operations` | Workflow | Phase 2 DONE |
+| `applications` | (нет аналога) | Новый домен | Phase 2 DONE |
+| `contracts` | (нет аналога) | Новый домен | Phase 2 DONE |
+| `agent_bonus` | `postings` (леджер) | Workflow | Phase 2 DONE |
+| `sub_agents` | (нет аналога) | Новый домен в agents | Phase 2 DONE |
 | `todos` | (нет аналога) | Новый домен | Phase 2 |
-| `activity_log` | (нет аналога) | Новый домен | Phase 2 |
-| `deal_documents` / `client_documents` | S3 storage | Сохранить | Phase 3 |
+| `activity_log` | (нет аналога) | Новый домен | Phase 2 DONE |
+| `deal_documents` / `client_documents` | S3 storage | Port interface | Phase 2 DONE (port), Phase 3 adapter |
+| `s3_cleanup_queue` | (нет аналога) | Worker task | Phase 2 DONE (port + catalog), Phase 3 worker |
+| Currency services (CBR, Investing) | `@bedrock/treasury` | ЗАМЕНЕНЫ | DONE |
+| AI service (OpenAI) | `packages/platform/src/ai/` | Platform subpath | Phase 2 DONE (port), Phase 3 adapter |
+| Document generation | `packages/workflows/document-generation/` | Workflow | Phase 2 DONE (skeleton), Phase 3 adapters |
+| Telegram bot | `apps/bot/` (rebuild) | Новый app | Phase 3 |
 
 ---
 
@@ -146,7 +233,7 @@
 | Риск | Вероятность | Митигация |
 |---|---|---|
 | Миграция ломает одно из приложений | Средняя | CI: оба приложения тестируются на каждую миграцию |
-| Потеря данных при слиянии таблиц (Phase 2) | Низкая | Миграции-мосты: FK → постепенная денормализация → удаление старых |
+| Потеря данных при слиянии таблиц | Низкая | ops_* остаются как extension tables с FK-мостами, слияния нет |
 | Конфликт имён таблиц | Устранён | Префикс `ops_` для всех mpayments-таблиц |
 | Сложность параллельной разработки | Средняя | Phase 1 минимально инвазивна, код не меняется |
 | NestJS-специфичный код (DI, decorators) | Средняя | Извлекать чистую логику, NestJS-обёртки удалять последними |

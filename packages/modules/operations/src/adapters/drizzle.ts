@@ -1,2 +1,36 @@
-// Drizzle adapter exports for the operations module.
-// Will export repositories as business logic is ported from mpayments (Phase 2).
+// Activity Log
+export { DrizzleActivityLogReads } from "../activity-log/adapters/drizzle/activity-log.reads";
+export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activity-log.store";
+
+// Agents
+export { DrizzleAgentProfileReads } from "../agents/adapters/drizzle/agent-profile.reads";
+export { DrizzleSubAgentReads } from "../agents/adapters/drizzle/sub-agent.reads";
+export { DrizzleSubAgentStore } from "../agents/adapters/drizzle/sub-agent.store";
+export { DrizzleSubAgentsUnitOfWork } from "../agents/adapters/drizzle/sub-agents.uow";
+
+// Contracts
+export { DrizzleContractReads } from "../contracts/adapters/drizzle/contract.reads";
+export { DrizzleContractStore } from "../contracts/adapters/drizzle/contract.store";
+
+// Applications
+export { DrizzleApplicationReads } from "../applications/adapters/drizzle/application.reads";
+export { DrizzleApplicationStore } from "../applications/adapters/drizzle/application.store";
+
+// Calculations
+export { DrizzleCalculationReads } from "../calculations/adapters/drizzle/calculation.reads";
+export { DrizzleCalculationStore } from "../calculations/adapters/drizzle/calculation.store";
+
+// Deals
+export { DrizzleDealReads } from "../deals/adapters/drizzle/deal.reads";
+export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";
+
+// Clients
+export { DrizzleClientReads } from "../clients/adapters/drizzle/client.reads";
+export { DrizzleClientStore } from "../clients/adapters/drizzle/client.store";
+export { PartiesCounterpartiesAdapter } from "../clients/adapters/parties-counterparties.adapter";
+
+// UoW
+export { DrizzleOperationsUnitOfWork } from "../shared/adapters/drizzle/operations.uow";
+
+// Notification
+export { ConsoleNotificationAdapter } from "../shared/adapters/console-notification.adapter";

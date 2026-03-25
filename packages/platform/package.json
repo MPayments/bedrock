@@ -17,7 +17,9 @@
     "./persistence": "./src/persistence/index.ts",
     "./persistence/*": "./src/persistence/*.ts",
     "./worker-runtime": "./src/worker-runtime/index.ts",
-    "./worker-runtime/*": "./src/worker-runtime/*.ts"
+    "./worker-runtime/*": "./src/worker-runtime/*.ts",
+    "./ai": "./src/ai/index.ts",
+    "./ai/*": "./src/ai/*.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
