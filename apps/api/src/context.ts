@@ -4,13 +4,15 @@ import type { AccountingModule } from "@bedrock/accounting";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
 import type { LedgerModule } from "@bedrock/ledger";
+import type { OperationsModule } from "@bedrock/operations";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { UsersService } from "@bedrock/users";
+import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
+import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
-import type { IntegrationEventHandler } from "@bedrock/workflow-integration-mpayments";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
@@ -26,28 +28,23 @@ const EnvSchema = z.object({
   BETTER_AUTH_TRUSTED_ORIGINS: z
     .string()
     .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
-  MPAYMENTS_INTEGRATION_ENABLED: z
-    .string()
-    .default("false")
-    .transform((v) => v === "true"),
-  MPAYMENTS_INTEGRATION_USERNAME: z.string().optional(),
-  MPAYMENTS_INTEGRATION_PASSWORD: z.string().optional(),
+
+  // Operations adapters (all optional — graceful degradation)
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_BUCKET: z.string().default("bedrock-documents"),
+  OPENAI_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().default("noreply@bedrock.app"),
+  DADATA_API_URL: z.string().default("https://dadata.tbank.ru"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
 
 export function parseEnv(): Env {
-  const result = EnvSchema.safeParse({
-    DATABASE_URL: process.env.DATABASE_URL,
-    TB_ADDRESS: process.env.TB_ADDRESS,
-    TB_CLUSTER_ID: process.env.TB_CLUSTER_ID,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-    BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
-    MPAYMENTS_INTEGRATION_ENABLED: process.env.MPAYMENTS_INTEGRATION_ENABLED,
-    MPAYMENTS_INTEGRATION_USERNAME: process.env.MPAYMENTS_INTEGRATION_USERNAME,
-    MPAYMENTS_INTEGRATION_PASSWORD: process.env.MPAYMENTS_INTEGRATION_PASSWORD,
-  });
+  const result = EnvSchema.safeParse(process.env);
 
   if (!result.success) {
     const errors = result.error.issues
@@ -73,16 +70,14 @@ export interface AppContext {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  integrationEventHandler: IntegrationEventHandler | null;
+  operationsModule: OperationsModule;
+  customerPortalWorkflow: CustomerPortalWorkflow;
+  documentGenerationWorkflow: DocumentGenerationWorkflow;
 }
 
 export function createAppContext(env: Env): AppContext {
   const core = createCoreServices();
-  const applicationServices = createApplicationServices(core);
-
-  const integrationEventHandler = env.MPAYMENTS_INTEGRATION_ENABLED
-    ? applicationServices.integrationEventHandler
-    : null;
+  const applicationServices = createApplicationServices(core, env);
 
   return {
     env,
@@ -100,6 +95,8 @@ export function createAppContext(env: Env): AppContext {
     documentsService: applicationServices.documentsService,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
-    integrationEventHandler,
+    operationsModule: applicationServices.operationsModule,
+    customerPortalWorkflow: applicationServices.customerPortalWorkflow,
+    documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
   };
 }

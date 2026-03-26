@@ -17,6 +17,11 @@
   "dependencies": {
     "@bedrock/operations": "workspace:*",
     "@bedrock/platform": "workspace:*",
+    "easy-template-x": "^7.1.1",
+    "libreoffice-convert": "^1.6.1",
+    "lvovich": "^2.0.0",
+    "number-to-words-ru": "^2.1.0",
+    "russian-nouns-js": "^2.1.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {

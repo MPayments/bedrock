@@ -23,6 +23,13 @@ import type {
   DealWithDetails,
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
+import type {
+  DealsByDayEntry,
+  DealsByDayQuery,
+  DealsByStatusEntry,
+  DealsStatistics,
+  DealsStatisticsQuery,
+} from "../../application/contracts/statistics";
 import type { DealReads } from "../../application/ports/deal.reads";
 
 const DEAL_SORT_COLUMN_MAP = {
@@ -216,5 +223,128 @@ export class DrizzleDealReads implements DealReads {
       .orderBy(desc(opsAgentBonus.id))
       .limit(1);
     return (row as unknown as AgentBonus) ?? null;
+  }
+
+  async getStatistics(input: DealsStatisticsQuery): Promise<DealsStatistics> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      const appIds = await this.db
+        .select({ id: opsApplications.id })
+        .from(opsApplications)
+        .where(eq(opsApplications.agentId, input.agentId));
+      const ids = appIds.map((a) => a.id);
+      if (ids.length === 0) {
+        return { totalCount: 0, byStatus: {}, totalAmount: "0" };
+      }
+      conditions.push(inArray(opsDeals.applicationId, ids));
+    }
+    if (input.clientId) {
+      const appIds = await this.db
+        .select({ id: opsApplications.id })
+        .from(opsApplications)
+        .where(eq(opsApplications.clientId, input.clientId));
+      const ids = appIds.map((a) => a.id);
+      if (ids.length === 0) {
+        return { totalCount: 0, byStatus: {}, totalAmount: "0" };
+      }
+      conditions.push(inArray(opsDeals.applicationId, ids));
+    }
+    if (input.dateFrom) {
+      conditions.push(gte(opsDeals.createdAt, input.dateFrom));
+    }
+    if (input.dateTo) {
+      conditions.push(lte(opsDeals.createdAt, input.dateTo));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await this.db
+      .select({
+        status: opsDeals.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(opsDeals)
+      .where(where)
+      .groupBy(opsDeals.status);
+
+    const byStatus: Record<string, number> = {};
+    let totalCount = 0;
+    for (const row of rows) {
+      byStatus[row.status] = row.count;
+      totalCount += row.count;
+    }
+
+    return { totalCount, byStatus, totalAmount: "0" };
+  }
+
+  async getByDay(input: DealsByDayQuery): Promise<DealsByDayEntry[]> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      const appIds = await this.db
+        .select({ id: opsApplications.id })
+        .from(opsApplications)
+        .where(eq(opsApplications.agentId, input.agentId));
+      const ids = appIds.map((a) => a.id);
+      if (ids.length === 0) return [];
+      conditions.push(inArray(opsDeals.applicationId, ids));
+    }
+    if (input.clientId) {
+      const appIds = await this.db
+        .select({ id: opsApplications.id })
+        .from(opsApplications)
+        .where(eq(opsApplications.clientId, input.clientId));
+      const ids = appIds.map((a) => a.id);
+      if (ids.length === 0) return [];
+      conditions.push(inArray(opsDeals.applicationId, ids));
+    }
+    if (input.dateFrom) {
+      conditions.push(gte(opsDeals.createdAt, input.dateFrom));
+    }
+    if (input.dateTo) {
+      conditions.push(lte(opsDeals.createdAt, input.dateTo));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await this.db
+      .select({
+        date: sql<string>`to_char(${opsDeals.createdAt}::date, 'YYYY-MM-DD')`,
+        status: opsDeals.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(opsDeals)
+      .where(where)
+      .groupBy(sql`${opsDeals.createdAt}::date`, opsDeals.status)
+      .orderBy(sql`${opsDeals.createdAt}::date`);
+
+    const dayMap = new Map<string, DealsByDayEntry>();
+    for (const row of rows) {
+      const existing = dayMap.get(row.date);
+      if (existing) {
+        existing.count += row.count;
+        existing.byStatus[row.status] = row.count;
+      } else {
+        dayMap.set(row.date, {
+          date: row.date,
+          count: row.count,
+          byStatus: { [row.status]: row.count },
+        });
+      }
+    }
+
+    return [...dayMap.values()];
+  }
+
+  async getByStatus(): Promise<DealsByStatusEntry[]> {
+    const rows = await this.db
+      .select({
+        status: opsDeals.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(opsDeals)
+      .groupBy(opsDeals.status);
+
+    return rows.map((row) => ({
+      status: row.status,
+      count: row.count,
+    }));
   }
 }

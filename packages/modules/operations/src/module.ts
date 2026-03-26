@@ -19,10 +19,15 @@ import { createCalculationsService } from "./calculations/application";
 import type { CalculationReads } from "./calculations/application/ports/calculation.reads";
 import type { CalculationsCommandUnitOfWork } from "./calculations/application/ports/calculations.uow";
 import { createClientsService } from "./clients/application";
+import type { ClientDocumentReads } from "./clients/application/ports/client-document.reads";
+import type { ClientDocumentStore } from "./clients/application/ports/client-document.store";
 import type { ClientReads } from "./clients/application/ports/client.reads";
 import type { ClientsCommandUnitOfWork } from "./clients/application/ports/clients.uow";
 import type { CompanyLookupPort } from "./clients/application/ports/company-lookup.port";
 import type { CounterpartiesPort } from "./clients/application/ports/counterparties.port";
+import type { DealDocumentStore } from "./deals/application/ports/deal-document.store";
+import type { ObjectStoragePort } from "./shared/application/ports/object-storage.port";
+import type { NotificationPort } from "./shared/application/ports/notification.port";
 import { createContractsService } from "./contracts/application";
 import type { ContractReads } from "./contracts/application/ports/contract.reads";
 import type { ContractsCommandUnitOfWork } from "./contracts/application/ports/contracts.uow";
@@ -68,9 +73,16 @@ export interface OperationsModuleDeps {
   organizationsUow: OrganizationsCommandUnitOfWork;
   todosUow: TodosCommandUnitOfWork;
 
+  // Optional reads/stores
+  clientDocumentReads?: ClientDocumentReads;
+  clientDocumentStore?: ClientDocumentStore;
+  dealDocumentStore?: DealDocumentStore;
+
   // Optional ports
   counterparties?: CounterpartiesPort;
   companyLookup?: CompanyLookupPort;
+  objectStorage?: ObjectStoragePort;
+  notification?: NotificationPort;
 }
 
 export type OperationsModule = ReturnType<typeof createOperationsModule>;
@@ -115,6 +127,8 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
       runtime: createRuntime("operations.deals"),
       commandUow: deps.unitOfWork,
       reads: deps.dealReads,
+      dealDocumentStore: deps.dealDocumentStore,
+      objectStorage: deps.objectStorage,
     }),
     clients: createClientsService({
       runtime: createRuntime("operations.clients"),
@@ -122,6 +136,9 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
       reads: deps.clientReads,
       counterparties: deps.counterparties,
       companyLookup: deps.companyLookup,
+      clientDocumentReads: deps.clientDocumentReads,
+      clientDocumentStore: deps.clientDocumentStore,
+      objectStorage: deps.objectStorage,
     }),
     organizations: createOrganizationsService({
       runtime: createRuntime("operations.organizations"),

@@ -20,7 +20,7 @@ import {
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
-  integrationRoutes,
+  operationsRoutes,
   organizationsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
@@ -90,17 +90,6 @@ app.use(
   }),
 );
 
-if (ctx.integrationEventHandler && ctx.env.MPAYMENTS_INTEGRATION_USERNAME && ctx.env.MPAYMENTS_INTEGRATION_PASSWORD) {
-  app.route(
-    "/integration",
-    integrationRoutes({
-      integrationEventHandler: ctx.integrationEventHandler,
-      username: ctx.env.MPAYMENTS_INTEGRATION_USERNAME,
-      password: ctx.env.MPAYMENTS_INTEGRATION_PASSWORD,
-    }),
-  );
-}
-
 app.use(
   "*",
   csrf({
@@ -161,7 +150,8 @@ function createV1Routes(ctx: AppContext) {
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))
-    .route("/me", profileRoutes(ctx));
+    .route("/me", profileRoutes(ctx))
+    .route("/operations", operationsRoutes(ctx));
 }
 
 const v1 = createV1Routes(ctx);

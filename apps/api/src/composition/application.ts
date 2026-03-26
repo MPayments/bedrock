@@ -11,6 +11,8 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import type { OperationsModule } from "@bedrock/operations";
+import { ConsoleNotificationAdapter } from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
@@ -23,17 +25,23 @@ import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import type { TreasuryModule } from "@bedrock/treasury";
 import { UserNotFoundError } from "@bedrock/users";
 import {
+  createCustomerPortalWorkflow,
+  type CustomerPortalWorkflow,
+} from "@bedrock/workflow-customer-portal";
+import {
   createDocumentDraftWorkflow,
   type DocumentDraftWorkflow,
 } from "@bedrock/workflow-document-drafts";
 import {
+  createDocumentGenerationWorkflow,
+  createEasyTemplateXAdapter,
+  createLibreOfficeConvertAdapter,
+  type DocumentGenerationWorkflow,
+} from "@bedrock/workflow-document-generation";
+import {
   createDocumentPostingWorkflow,
   type DocumentPostingWorkflow,
 } from "@bedrock/workflow-document-posting";
-import {
-  createIntegrationEventHandler,
-  type IntegrationEventHandler,
-} from "@bedrock/workflow-integration-mpayments";
 import {
   createOrganizationBootstrapWorkflow,
   type OrganizationBootstrapWorkflow,
@@ -50,8 +58,10 @@ import {
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
 import { createApiLedgerModule } from "./ledger-module";
+import { createApiOperationsModule } from "./operations-module";
 import { createApiPartiesModule } from "./parties-module";
 import { createApiTreasuryModule } from "./treasury-module";
+import type { Env } from "../context";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
@@ -63,7 +73,9 @@ export interface ApiApplicationServices {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  integrationEventHandler: IntegrationEventHandler;
+  operationsModule: OperationsModule;
+  customerPortalWorkflow: CustomerPortalWorkflow;
+  documentGenerationWorkflow: DocumentGenerationWorkflow;
 }
 
 const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
@@ -88,6 +100,7 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
 
 export function createApplicationServices(
   platform: ApiCoreServices,
+  env?: Env,
 ): ApiApplicationServices {
   const {
     accountingModule,
@@ -329,15 +342,34 @@ export function createApplicationServices(
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
-  const integrationEventHandler = createIntegrationEventHandler({
-    createCustomer: partiesModule.customers.commands.create,
-    listCustomers: partiesModule.customers.queries.list,
-    createCounterparty: partiesModule.counterparties.commands.create,
-    listCounterparties: partiesModule.counterparties.queries.list,
-    createRequisite: partiesModule.requisites.commands.create,
-    listProviders: partiesModule.requisites.queries.listProviders,
-    createProvider: partiesModule.requisites.commands.createProvider,
-    findCurrencyByCode: currenciesService.findByCode,
+  // Operations module
+  const operationsModule = createApiOperationsModule({
+    db,
+    logger,
+    notification: new ConsoleNotificationAdapter(logger),
+  });
+
+  // Customer portal workflow
+  const customerPortalWorkflow = createCustomerPortalWorkflow({
+    operations: operationsModule,
+    logger,
+  });
+
+  // Document generation workflow
+  const templatesDir = new URL(
+    "../../../../packages/workflows/document-generation/templates",
+    import.meta.url,
+  ).pathname;
+
+  const templateAdapter = createEasyTemplateXAdapter({
+    templatesDir,
+    logger,
+  });
+
+  const documentGenerationWorkflow = createDocumentGenerationWorkflow({
+    templateRenderer: templateAdapter,
+    pdfConverter: createLibreOfficeConvertAdapter(),
+    templateManager: templateAdapter,
     logger,
   });
 
@@ -350,6 +382,8 @@ export function createApplicationServices(
     documentsService,
     documentDraftWorkflow,
     documentPostingWorkflow,
-    integrationEventHandler,
+    operationsModule,
+    customerPortalWorkflow,
+    documentGenerationWorkflow,
   };
 }

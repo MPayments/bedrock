@@ -47,6 +47,8 @@ export function createApplicationsService(deps: ApplicationsServiceDeps) {
       list: listApplications.execute.bind(listApplications),
       listUnassigned: deps.reads.listUnassigned.bind(deps.reads),
       countByClientId: deps.reads.countByClientId.bind(deps.reads),
+      getStatistics: deps.reads.getStatistics.bind(deps.reads),
+      getByDay: deps.reads.getByDay.bind(deps.reads),
     },
   };
 }

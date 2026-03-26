@@ -23,7 +23,6 @@ export default defineConfig({
       "packages/shared/vitest.config.ts",
       "packages/workflows/document-drafts/vitest.config.ts",
       "packages/workflows/document-posting/vitest.config.ts",
-      "packages/workflows/integration-mpayments/vitest.config.ts",
       "packages/workflows/organization-bootstrap/vitest.config.ts",
       "packages/workflows/period-close/vitest.config.ts",
       "packages/workflows/reconciliation-adjustments/vitest.config.ts",

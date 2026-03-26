@@ -96,6 +96,17 @@ export {
   APPLICATION_STATUS_VALUES,
   type ApplicationStatus,
 } from "./applications/domain/application-status";
+export {
+  ApplicationsByDayQuerySchema,
+  ApplicationsByDaySchema,
+  ApplicationsStatisticsQuerySchema,
+  ApplicationsStatisticsSchema,
+  type ApplicationsByDay,
+  type ApplicationsByDayEntry,
+  type ApplicationsByDayQuery,
+  type ApplicationsStatistics,
+  type ApplicationsStatisticsQuery,
+} from "./applications/application/contracts/statistics";
 
 // --- Calculations ---
 export {
@@ -145,6 +156,20 @@ export {
   DEAL_STATUS_VALUES,
   type DealStatus,
 } from "./deals/domain/deal-status";
+export {
+  DealsByDayQuerySchema,
+  DealsByDaySchema,
+  DealsByStatusSchema,
+  DealsStatisticsQuerySchema,
+  DealsStatisticsSchema,
+  type DealsByDay,
+  type DealsByDayEntry,
+  type DealsByDayQuery,
+  type DealsByStatus,
+  type DealsByStatusEntry,
+  type DealsStatistics,
+  type DealsStatisticsQuery,
+} from "./deals/application/contracts/statistics";
 
 // --- Clients ---
 export {
@@ -168,6 +193,12 @@ export {
   ListClientsQuerySchema,
   type ListClientsQuery,
 } from "./clients/application/contracts/queries";
+export {
+  ClientDocumentSchema,
+  UploadClientDocumentInputSchema,
+  type ClientDocument,
+  type UploadClientDocumentInput,
+} from "./clients/application/contracts/document-dto";
 
 // --- Organizations ---
 export {

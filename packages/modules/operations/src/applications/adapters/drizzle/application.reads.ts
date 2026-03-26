@@ -23,6 +23,12 @@ import {
 import { opsApplications } from "../../../infra/drizzle/schema";
 import type { Application } from "../../application/contracts/dto";
 import type { ListApplicationsQuery } from "../../application/contracts/queries";
+import type {
+  ApplicationsByDayEntry,
+  ApplicationsByDayQuery,
+  ApplicationsStatistics,
+  ApplicationsStatisticsQuery,
+} from "../../application/contracts/statistics";
 import type { ApplicationReads } from "../../application/ports/application.reads";
 
 const APPLICATION_SORT_COLUMN_MAP = {
@@ -145,5 +151,86 @@ export class DrizzleApplicationReads implements ApplicationReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async getStatistics(
+    input: ApplicationsStatisticsQuery,
+  ): Promise<ApplicationsStatistics> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      conditions.push(eq(opsApplications.agentId, input.agentId));
+    }
+    if (input.dateFrom) {
+      conditions.push(gte(opsApplications.createdAt, input.dateFrom));
+    }
+    if (input.dateTo) {
+      conditions.push(lte(opsApplications.createdAt, input.dateTo));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await this.db
+      .select({
+        status: opsApplications.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(opsApplications)
+      .where(where)
+      .groupBy(opsApplications.status);
+
+    const byStatus: Record<string, number> = {};
+    let totalCount = 0;
+    for (const row of rows) {
+      byStatus[row.status] = row.count;
+      totalCount += row.count;
+    }
+
+    return { totalCount, byStatus };
+  }
+
+  async getByDay(
+    input: ApplicationsByDayQuery,
+  ): Promise<ApplicationsByDayEntry[]> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      conditions.push(eq(opsApplications.agentId, input.agentId));
+    }
+    if (input.dateFrom) {
+      conditions.push(gte(opsApplications.createdAt, input.dateFrom));
+    }
+    if (input.dateTo) {
+      conditions.push(lte(opsApplications.createdAt, input.dateTo));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await this.db
+      .select({
+        date: sql<string>`to_char(${opsApplications.createdAt}::date, 'YYYY-MM-DD')`,
+        status: opsApplications.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(opsApplications)
+      .where(where)
+      .groupBy(
+        sql`${opsApplications.createdAt}::date`,
+        opsApplications.status,
+      )
+      .orderBy(sql`${opsApplications.createdAt}::date`);
+
+    const dayMap = new Map<string, ApplicationsByDayEntry>();
+    for (const row of rows) {
+      const existing = dayMap.get(row.date);
+      if (existing) {
+        existing.count += row.count;
+        existing.byStatus[row.status] = row.count;
+      } else {
+        dayMap.set(row.date, {
+          date: row.date,
+          count: row.count,
+          byStatus: { [row.status]: row.count },
+        });
+      }
+    }
+
+    return [...dayMap.values()];
   }
 }

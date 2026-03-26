@@ -23,10 +23,13 @@ export { DrizzleCalculationStore } from "../calculations/adapters/drizzle/calcul
 // Deals
 export { DrizzleDealReads } from "../deals/adapters/drizzle/deal.reads";
 export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";
+export { DrizzleDealDocumentStore } from "../deals/adapters/drizzle/deal-document.store";
 
 // Clients
 export { DrizzleClientReads } from "../clients/adapters/drizzle/client.reads";
 export { DrizzleClientStore } from "../clients/adapters/drizzle/client.store";
+export { DrizzleClientDocumentReads } from "../clients/adapters/drizzle/client-document.reads";
+export { DrizzleClientDocumentStore } from "../clients/adapters/drizzle/client-document.store";
 export { PartiesCounterpartiesAdapter } from "../clients/adapters/parties-counterparties.adapter";
 
 // Organizations

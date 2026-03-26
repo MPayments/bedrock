@@ -70,7 +70,7 @@
 
 ---
 
-## Phase 2: Перенос бизнес-логики (текущая фаза)
+## Phase 2: Перенос бизнес-логики [DONE]
 
 **Цель:** Бизнес-логика mpayments живёт в `packages/modules/` по DDD-архитектуре bedrock.
 
@@ -176,20 +176,43 @@ ops_* таблицы остаются как extension tables с FK-мостам
 
 ---
 
-## Phase 3: Перенос API и фронта
+## Phase 3: Перенос API и фронта (текущая фаза)
 
 **Цель:** NestJS больше не нужен. Всё работает через Hono + Next.js в bedrock.
 
-1. **NestJS контроллеры → Hono routes** в `apps/api/src/routes/operations/`
-2. **Telegram-бот → `apps/bot/`** — rebuild from scratch (grammy или telegraf v5)
-3. **Next.js фронт mpayments** → отдельный app `apps/ops-web/` или объединить с `apps/web`
-4. **Zod-схемы валидации** переиспользуются as-is (обе системы на Zod)
-5. **OpenAPI** уже есть в bedrock через `@hono/zod-openapi`
-6. **AI adapter** → wire `packages/platform/src/ai/openai.adapter.ts` с credentials
-7. **S3 adapter** → wire `packages/platform/src/object-storage/s3.adapter.ts` с AWS credentials
-8. **Notification adapter** → wire `packages/platform/src/notifications/resend.adapter.ts`
-9. **DaData adapter** → wire HTTP adapter с Tbank API credentials
-10. **Document generation** → deploy LibreOffice на сервере для PDF conversion
+### Phase 3a: API + Adapters [DONE]
+
+1. **NestJS контроллеры → Hono routes** в `apps/api/src/routes/operations/` ✅
+   - 10 route модулей: clients, applications, deals, calculations, contracts, organizations, todos, activity-log, agents, customer-portal
+   - Statistics/by-day/by-status analytics queries
+   - Customer portal с role-based middleware
+2. **BullMQ-интеграция удалена** — `packages/workflows/integration-mpayments/` ✅
+3. **S3 adapter** → `packages/platform/src/object-storage/s3.adapter.ts` ✅
+4. **AI adapter** → `packages/platform/src/ai/openai.adapter.ts` ✅
+5. **Notification adapter** → `packages/platform/src/notifications/resend.adapter.ts` ✅
+6. **DaData adapter** → `packages/modules/operations/src/clients/adapters/dadata.adapter.ts` ✅
+7. **OperationsModule wired** into AppContext с composition ✅
+8. **Zod-схемы** переиспользуются as-is + OpenAPI через `@hono/zod-openapi` ✅
+
+### Phase 3b: Telegram-бот (TODO)
+
+- **Telegram-бот → `apps/bot/`** — rebuild from scratch (grammy или telegraf v5)
+- 41 scene из mpayments
+
+### Phase 3c: Frontend (TODO)
+
+- **Next.js фронт mpayments** → `apps/ops-web/` или объединить с `apps/web`
+
+### Phase 3d: Document Generation Adapters [DONE]
+
+1. **Template renderer** → `easy-template-x` adapter in `packages/workflows/document-generation/src/adapters/` ✅
+2. **PDF converter** → `libreoffice-convert` adapter ✅
+3. **Russian language utils** → declensions (lvovich), money-in-words (number-to-words-ru), noun grammar (russian-nouns-js) ✅
+4. **Document data assembly** → 5 assemblers (contract, application, invoice, acceptance, calculation) ✅
+5. **Document API routes** → `apps/api/src/routes/operations/documents.ts` (export, templates, generate) ✅
+6. **Phase 3a gap fixes** → client/deal document CRUD, create-deal-from-application, org bank update/delete, client contract shortcuts ✅
+7. **Composition wired** with real adapters (replacing stubs) ✅
+8. **Template files** → directory at `packages/workflows/document-generation/templates/` (templates loaded from filesystem/S3) ✅
 
 ---
 

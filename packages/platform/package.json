@@ -19,7 +19,11 @@
     "./worker-runtime": "./src/worker-runtime/index.ts",
     "./worker-runtime/*": "./src/worker-runtime/*.ts",
     "./ai": "./src/ai/index.ts",
-    "./ai/*": "./src/ai/*.ts"
+    "./ai/*": "./src/ai/*.ts",
+    "./object-storage": "./src/object-storage/index.ts",
+    "./object-storage/*": "./src/object-storage/*.ts",
+    "./notifications": "./src/notifications/index.ts",
+    "./notifications/*": "./src/notifications/*.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -30,11 +34,19 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.0.0",
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0",
     "@bedrock/shared": "workspace:*",
+    "ai": "^4.0.0",
     "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1",
+    "mammoth": "^1.8.0",
     "pg": "^8.17.2",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "resend": "^4.0.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

@@ -12,8 +12,11 @@ import {
   DrizzleApplicationReads,
   DrizzleBankDetailsReads,
   DrizzleCalculationReads,
+  DrizzleClientDocumentReads,
+  DrizzleClientDocumentStore,
   DrizzleClientReads,
   DrizzleContractReads,
+  DrizzleDealDocumentStore,
   DrizzleDealReads,
   DrizzleOperationsUnitOfWork,
   DrizzleOrganizationReads,
@@ -36,6 +39,9 @@ export function createApiOperationsModule(input: {
   now?: OperationsModuleDeps["now"];
   generateUuid?: OperationsModuleDeps["generateUuid"];
   persistence?: PersistenceContext;
+  objectStorage?: OperationsModuleDeps["objectStorage"];
+  companyLookup?: OperationsModuleDeps["companyLookup"];
+  notification?: OperationsModuleDeps["notification"];
 }): OperationsModule {
   const persistence = input.persistence ?? createPersistenceContext(input.db);
 
@@ -53,6 +59,9 @@ export function createApiOperationsModule(input: {
     contractReads: new DrizzleContractReads(input.db),
     dealReads: new DrizzleDealReads(input.db),
     clientReads: new DrizzleClientReads(input.db),
+    clientDocumentReads: new DrizzleClientDocumentReads(input.db),
+    clientDocumentStore: new DrizzleClientDocumentStore(input.db),
+    dealDocumentStore: new DrizzleDealDocumentStore(input.db),
     subAgentReads: new DrizzleSubAgentReads(input.db),
     organizationReads: new DrizzleOrganizationReads(input.db),
     bankDetailsReads: new DrizzleBankDetailsReads(input.db),
@@ -63,5 +72,10 @@ export function createApiOperationsModule(input: {
     subAgentUow: new DrizzleSubAgentsUnitOfWork({ persistence }),
     organizationsUow: new DrizzleOrganizationsUnitOfWork({ persistence }),
     todosUow: new DrizzleTodosUnitOfWork({ persistence }),
+
+    // Optional ports
+    objectStorage: input.objectStorage,
+    companyLookup: input.companyLookup,
+    notification: input.notification,
   });
 }

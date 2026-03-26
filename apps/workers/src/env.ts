@@ -22,8 +22,6 @@ export const env = {
     process.env.WORKERS_MONITORING_PORT ?? 8081,
   ),
   WORKER_INTERVALS: workerIntervals,
-  MPAYMENTS_INTEGRATION_ENABLED:
-    process.env.MPAYMENTS_INTEGRATION_ENABLED === "true",
   REDIS_HOST: process.env.REDIS_HOST ?? "127.0.0.1",
   REDIS_PORT: Number(process.env.REDIS_PORT ?? 6379),
   REDIS_USER: process.env.REDIS_USER,
