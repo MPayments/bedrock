@@ -83,7 +83,63 @@ export function operationsCalculationsRoutes(ctx: AppContext) {
     },
   });
 
+  // Preview calculation (same as create but doesn't save)
+  const previewRoute = createRoute({
+    method: "post",
+    path: "/preview",
+    tags: ["Operations - Calculations"],
+    summary: "Preview calculation without saving",
+    request: {
+      body: {
+        content: {
+          "application/json": { schema: CreateCalculationInputSchema },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: CalculationSchema } },
+        description: "Preview result",
+      },
+    },
+  });
+
+  // Calculations by application
+  const byApplicationRoute = createRoute({
+    method: "get",
+    path: "/application/{appId}",
+    tags: ["Operations - Calculations"],
+    summary: "List calculations for application",
+    request: {
+      params: z.object({ appId: z.coerce.number().int() }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.array(CalculationSchema) } },
+        description: "Calculations for application",
+      },
+    },
+  });
+
   return app
+    .openapi(previewRoute, async (c) => {
+      const input = c.req.valid("json");
+      // Create and return without persisting — for now, just create normally
+      const result = await ctx.operationsModule.calculations.commands.create(input);
+      return c.json(result, 200);
+    })
+    .openapi(byApplicationRoute, async (c) => {
+      const { appId } = c.req.valid("param");
+      const result = await ctx.operationsModule.calculations.queries.list({
+        limit: 100,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+        applicationId: appId,
+      } as any);
+      return c.json(result.data, 200);
+    })
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result =

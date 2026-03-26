@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CreateTodoInputSchema,
@@ -56,7 +56,87 @@ export function operationsTodosRoutes(ctx: AppContext) {
     responses: { 200: { content: { "application/json": { schema: OpsDeletedSchema } }, description: "Deleted" } },
   });
 
+  const reorderRoute = createRoute({
+    method: "post",
+    path: "/reorder",
+    tags: ["Operations - Todos"],
+    summary: "Reorder todos",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              items: z.array(z.object({ id: z.number().int(), order: z.number().int() })),
+            }),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.object({ success: z.boolean() }) } },
+        description: "Reordered",
+      },
+    },
+  });
+
+  const calendarRoute = createRoute({
+    method: "get",
+    path: "/calendar",
+    tags: ["Operations - Todos"],
+    summary: "Get todos for calendar month",
+    request: {
+      query: z.object({
+        month: z.string().openapi({ description: "Month in YYYY-MM format" }),
+      }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Calendar todos grouped by date",
+      },
+    },
+  });
+
   return app
+    .openapi(reorderRoute, async (c) => {
+      const { items } = c.req.valid("json");
+      await Promise.all(
+        items.map((item) =>
+          ctx.operationsModule.todos.commands.update({ id: item.id, order: item.order }),
+        ),
+      );
+      return c.json({ success: true }, 200);
+    })
+    .openapi(calendarRoute, async (c) => {
+      const { month } = c.req.valid("query");
+      // Fetch all todos for the month using the list query
+      const result = await ctx.operationsModule.todos.queries.list({
+        page: 1,
+        limit: 1000,
+        sort: "order",
+        order: "asc",
+      });
+      // Group by dueDate
+      const grouped: Record<string, unknown[]> = { noDueDate: [] };
+      const noDueDate = grouped.noDueDate!;
+      const monthPrefix = month; // "YYYY-MM"
+      for (const todo of result.data) {
+        const dd = (todo as any).dueDate as string | null;
+        if (dd && dd.startsWith(monthPrefix)) {
+          if (!grouped[dd]) grouped[dd] = [];
+          grouped[dd]!.push(todo);
+        } else if (!dd) {
+          noDueDate.push(todo);
+        }
+      }
+      return c.json({
+        month,
+        todos: grouped,
+        totalCount: result.data.length,
+      }, 200);
+    })
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.operationsModule.todos.queries.list(query);

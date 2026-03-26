@@ -56,6 +56,11 @@
       "cache": false,
       "persistent": true,
       "dependsOn": ["api#build", "@bedrock/sdk-api-client#build"]
+    },
+    "@bedrock/crm-web#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["api#build"]
     }
   }
 }

@@ -144,5 +144,66 @@ export function operationsOrganizationsRoutes(ctx: AppContext) {
       const { bankId } = c.req.valid("param");
       await ctx.operationsModule.organizations.bankDetails.commands.softDelete(bankId);
       return c.json({ deleted: true }, 200);
+    })
+    .get("/:id/files", async (c) => {
+      const id = Number(c.req.param("id"));
+      const org = await ctx.operationsModule.organizations.queries.findById(id);
+      if (!org) return c.json({ signatureUrl: null, sealUrl: null }, 200);
+      const hasSignature = !!(org as any).signatureKey;
+      const hasSeal = !!(org as any).sealKey;
+      return c.json({
+        hasFiles: hasSignature || hasSeal,
+        signatureUrl: hasSignature ? `/v1/operations/organizations/${id}/files/signature` : null,
+        sealUrl: hasSeal ? `/v1/operations/organizations/${id}/files/seal` : null,
+      }, 200);
+    })
+    .get("/:id/files/:type", async (c) => {
+      const id = Number(c.req.param("id"));
+      const type = c.req.param("type") as "signature" | "seal";
+      if (type !== "signature" && type !== "seal") {
+        return c.json({ error: "Type must be signature or seal" }, 400);
+      }
+      const org = await ctx.operationsModule.organizations.queries.findById(id);
+      if (!org) return c.json({ error: "Organization not found" }, 404);
+      const key = type === "signature" ? (org as any).signatureKey : (org as any).sealKey;
+      if (!key) return c.json({ error: "File not found" }, 404);
+      if (!ctx.objectStorage) return c.json({ error: "Storage not configured" }, 503);
+      const buffer = await ctx.objectStorage.download(key);
+      return new Response(new Uint8Array(buffer), {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      });
+    })
+    .post("/:id/files", async (c) => {
+      const id = Number(c.req.param("id"));
+      const body = await c.req.parseBody();
+      const signatureFile = body.signature;
+      const sealFile = body.seal;
+
+      const updates: Record<string, string | null> = {};
+
+      if (!ctx.objectStorage) return c.json({ error: "Storage not configured" }, 503);
+
+      if (signatureFile && typeof signatureFile !== "string") {
+        const key = `organizations/${id}/signature.png`;
+        const buffer = Buffer.from(await signatureFile.arrayBuffer());
+        await ctx.objectStorage!.upload(key, buffer, "image/png");
+        updates.signatureKey = key;
+      }
+
+      if (sealFile && typeof sealFile !== "string") {
+        const key = `organizations/${id}/seal.png`;
+        const buffer = Buffer.from(await sealFile.arrayBuffer());
+        await ctx.objectStorage!.upload(key, buffer, "image/png");
+        updates.sealKey = key;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await ctx.operationsModule.organizations.commands.update({ id, ...updates } as any);
+      }
+
+      return c.json({ success: true }, 200);
     });
 }

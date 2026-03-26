@@ -11,6 +11,8 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import type { UsersService } from "@bedrock/users";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
+import type { DocumentExtractionPort } from "@bedrock/platform/ai";
+import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
@@ -73,6 +75,8 @@ export interface AppContext {
   operationsModule: OperationsModule;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentExtraction?: DocumentExtractionPort;
+  objectStorage?: S3ObjectStorageAdapter;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -98,5 +102,7 @@ export function createAppContext(env: Env): AppContext {
     operationsModule: applicationServices.operationsModule,
     customerPortalWorkflow: applicationServices.customerPortalWorkflow,
     documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
+    documentExtraction: applicationServices.documentExtraction,
+    objectStorage: applicationServices.objectStorage,
   };
 }

@@ -19,6 +19,7 @@ import {
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
+import { exportApplicationsXlsx, xlsxFilename } from "./excel-export";
 
 export function operationsApplicationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -220,7 +221,74 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     },
   });
 
+  const recentRoute = createRoute({
+    method: "get",
+    path: "/recent",
+    tags: ["Operations - Applications"],
+    summary: "Get recent applications",
+    request: {
+      query: z.object({ period: z.string().default("month") }),
+    },
+    responses: {
+      200: { content: { "application/json": { schema: z.any() } }, description: "Recent applications" },
+    },
+  });
+
+  const exportExcelRoute = createRoute({
+    method: "get",
+    path: "/export-excel",
+    tags: ["Operations - Applications"],
+    summary: "Export applications to Excel",
+    request: { query: ListApplicationsQuerySchema },
+    responses: { 200: { description: "Excel file" } },
+  });
+
+  const deleteCalculationRoute = createRoute({
+    method: "delete",
+    path: "/{id}/calculations/{calcId}",
+    tags: ["Operations - Applications"],
+    summary: "Delete calculation from application",
+    request: {
+      params: OpsIdParamSchema.extend({ calcId: z.coerce.number().int() }),
+    },
+    responses: {
+      200: { content: { "application/json": { schema: z.object({ deleted: z.boolean() }) } }, description: "Deleted" },
+    },
+  });
+
+  const appBanksRoute = createRoute({
+    method: "get",
+    path: "/{id}/banks",
+    tags: ["Operations - Applications"],
+    summary: "Get available banks for deal creation",
+    request: { params: OpsIdParamSchema },
+    responses: {
+      200: { content: { "application/json": { schema: z.array(z.any()) } }, description: "Banks" },
+    },
+  });
+
   return app
+    .openapi(recentRoute, async (c) => {
+      // Return recent applications sorted by date
+      const result = await ctx.operationsModule.applications.queries.list({
+        limit: 20,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+      return c.json(result.data, 200);
+    })
+    .openapi(exportExcelRoute, async (c) => {
+      const query = c.req.valid("query");
+      const buffer = await exportApplicationsXlsx(ctx, query);
+      return new Response(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="${xlsxFilename("applications-report")}"`,
+        },
+      });
+    })
     .openapi(statisticsRoute, async (c) => {
       const query = c.req.valid("query");
       const result =
@@ -294,5 +362,17 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         applicationId: id,
       });
       return c.json(result, 201);
+    })
+    .openapi(deleteCalculationRoute, async (c) => {
+      const { calcId } = c.req.valid("param");
+      await ctx.operationsModule.calculations.commands.delete(calcId);
+      return c.json({ deleted: true }, 200);
+    })
+    .openapi(appBanksRoute, async (c) => {
+      // Return organizations with bank details for deal creation
+      const orgs = await ctx.operationsModule.organizations.queries.list({
+        limit: 100, offset: 0, sortBy: "createdAt", sortOrder: "desc",
+      });
+      return c.json(orgs.data, 200);
     });
 }

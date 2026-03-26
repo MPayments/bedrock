@@ -51,6 +51,10 @@ import {
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
 
+import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
+import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
+import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
+
 import { createApiAccountingModule } from "./accounting-module";
 import type { ApiCoreServices } from "./core";
 import {
@@ -76,6 +80,8 @@ export interface ApiApplicationServices {
   operationsModule: OperationsModule;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentExtraction?: OpenAIDocumentExtractionAdapter;
+  objectStorage?: S3ObjectStorageAdapter;
 }
 
 const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
@@ -342,11 +348,28 @@ export function createApplicationServices(
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
-  // Operations module
+  // Operations module - wire optional adapters from env
+  const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
+    ? new S3ObjectStorageAdapter({
+        endpoint: env.S3_ENDPOINT,
+        region: env.S3_REGION ?? "us-east-1",
+        accessKeyId: env.S3_ACCESS_KEY,
+        secretAccessKey: env.S3_SECRET_KEY,
+        bucket: env.S3_BUCKET ?? "bedrock-documents",
+        forcePathStyle: true,
+      }, logger)
+    : undefined;
+
+  const companyLookup = new DadataAdapter({
+    apiUrl: env?.DADATA_API_URL ?? "https://dadata.tbank.ru",
+  });
+
   const operationsModule = createApiOperationsModule({
     db,
     logger,
     notification: new ConsoleNotificationAdapter(logger),
+    objectStorage,
+    companyLookup,
   });
 
   // Customer portal workflow
@@ -373,6 +396,11 @@ export function createApplicationServices(
     logger,
   });
 
+  // AI document extraction (optional)
+  const documentExtraction = env?.OPENAI_API_KEY
+    ? new OpenAIDocumentExtractionAdapter({ apiKey: env.OPENAI_API_KEY })
+    : undefined;
+
   return {
     partiesModule,
     currenciesService,
@@ -385,5 +413,7 @@ export function createApplicationServices(
     operationsModule,
     customerPortalWorkflow,
     documentGenerationWorkflow,
+    documentExtraction,
+    objectStorage,
   };
 }

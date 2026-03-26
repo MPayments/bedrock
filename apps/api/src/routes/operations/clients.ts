@@ -15,6 +15,7 @@ import {
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsDeletedSchema, OpsErrorSchema, OpsIdParamSchema } from "./common";
+import { exportClientsXlsx, xlsxFilename } from "./excel-export";
 
 export function operationsClientsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -153,6 +154,21 @@ export function operationsClientsRoutes(ctx: AppContext) {
     },
   });
 
+  // Upload client document
+  const uploadDocumentRoute = createRoute({
+    method: "post",
+    path: "/{id}/documents",
+    tags: ["Operations - Clients"],
+    summary: "Upload client document",
+    request: { params: OpsIdParamSchema },
+    responses: {
+      201: {
+        content: { "application/json": { schema: ClientDocumentSchema } },
+        description: "Document uploaded",
+      },
+    },
+  });
+
   // List client documents
   const listDocumentsRoute = createRoute({
     method: "get",
@@ -228,7 +244,94 @@ export function operationsClientsRoutes(ctx: AppContext) {
     },
   });
 
+  // Search clients (uses list with q filter)
+  const searchRoute = createRoute({
+    method: "get",
+    path: "/search",
+    tags: ["Operations - Clients"],
+    summary: "Search clients",
+    request: {
+      query: z.object({
+        q: z.string().optional(),
+        limit: z.coerce.number().int().default(20),
+        page: z.coerce.number().int().default(1),
+      }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: PaginatedClientsSchema } },
+        description: "Search results",
+      },
+    },
+  });
+
+  // Parse business card via AI
+  const parseCardRoute = createRoute({
+    method: "post",
+    path: "/parse-card",
+    tags: ["Operations - Clients"],
+    summary: "Parse business card/document via AI",
+    responses: {
+      200: { content: { "application/json": { schema: z.any() } }, description: "Extracted data" },
+    },
+  });
+
+  // Export to xlsx
+  const exportXlsxRoute = createRoute({
+    method: "get",
+    path: "/export/xlsx",
+    tags: ["Operations - Clients"],
+    summary: "Export clients to XLSX",
+    request: { query: ListClientsQuerySchema },
+    responses: { 200: { description: "XLSX file" } },
+  });
+
   return app
+    .openapi(searchRoute, async (c) => {
+      const { q, limit, page } = c.req.valid("query");
+      const result = await ctx.operationsModule.clients.queries.list({
+        page,
+        limit,
+        sort: "createdAt",
+        order: "desc",
+        ...(q ? { search: q } : {}),
+      } as any);
+      return c.json(result, 200);
+    })
+    .openapi(parseCardRoute, async (c) => {
+      if (!ctx.documentExtraction) {
+        return c.json({ error: "AI extraction not configured" }, 503 as any);
+      }
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!file || typeof file === "string") {
+        return c.json({ error: "File is required" }, 400 as any);
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const mimeType = file.type;
+
+      let result;
+      if (mimeType === "application/pdf") {
+        result = await ctx.documentExtraction.extractFromPdf(buffer);
+      } else if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || mimeType === "application/msword") {
+        result = await ctx.documentExtraction.extractFromDocx(buffer);
+      } else if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType === "application/vnd.ms-excel") {
+        result = await ctx.documentExtraction.extractFromXlsx(buffer);
+      } else {
+        result = await ctx.documentExtraction.extractFromPdf(buffer);
+      }
+      return c.json(result, 200);
+    })
+    .openapi(exportXlsxRoute, async (c) => {
+      const buffer = await exportClientsXlsx(ctx);
+      return new Response(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="${xlsxFilename("clients")}"`,
+        },
+      });
+    })
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.operationsModule.clients.queries.list(query);
@@ -292,6 +395,27 @@ export function operationsClientsRoutes(ctx: AppContext) {
         clientId: id,
       });
       return c.json(created, 201);
+    })
+    .openapi(uploadDocumentRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const docs = ctx.operationsModule.clients.documents;
+      if (!docs) return c.json({ error: "Document storage not configured" } as any, 503 as any);
+
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!file || typeof file === "string") {
+        return c.json({ error: "File is required" } as any, 400 as any);
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const result = await docs.commands.upload({
+        clientId: id,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        buffer,
+        uploadedBy: c.get("user")?.id ? Number(c.get("user")!.id) : 0,
+      });
+      return c.json(result, 201);
     })
     .openapi(listDocumentsRoute, async (c) => {
       const { id } = c.req.valid("param");

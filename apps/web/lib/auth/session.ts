@@ -17,24 +17,24 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 const FeatureFlagsSchema = z.record(z.string(), z.boolean());
 
 const SessionResponseSchema = z
-  .object({
+  .looseObject({
     session: z
-      .object({
+      .looseObject({
         id: z.string(),
         expiresAt: z.string().nullable().optional(),
       })
-      .passthrough(),
+      ,
     user: z
-      .object({
+      .looseObject({
         id: z.string(),
         name: z.string(),
         email: z.string(),
         image: z.string().nullable().optional(),
         role: z.string().optional(),
       })
-      .passthrough(),
+      ,
   })
-  .passthrough();
+  ;
 
 function resolveRole(role: string | undefined): UserRole {
   return role === "admin" ? "admin" : "user";

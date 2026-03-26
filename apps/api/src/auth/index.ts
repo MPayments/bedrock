@@ -14,7 +14,7 @@ import {
   verification,
 } from "@bedrock/platform/auth-model";
 
-import { ac, admin, user } from "./permissions";
+import { ac, admin, agent, customer, user } from "./permissions";
 import { db } from "../db/client";
 
 const auth = betterAuth({
@@ -52,6 +52,8 @@ const auth = betterAuth({
       roles: {
         admin,
         user,
+        agent,
+        customer,
       },
     }),
     twoFactor({
