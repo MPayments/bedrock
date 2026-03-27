@@ -12,4 +12,5 @@ export { requisitesRoutes } from "./requisites";
 export { integrationRoutes } from "./integration";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
+export { treasuryRoutes } from "./treasury";
 export { usersRoutes } from "./users";

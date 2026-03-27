@@ -5,7 +5,14 @@ import {
   type UuidGenerator,
 } from "@bedrock/shared/core";
 
+import { createTreasuryAccountsService } from "./accounts/service";
+import { createTreasuryAllocationsService } from "./allocations/service";
+import { createTreasuryControlsService } from "./controls/service";
+import { createTreasuryExecutionsService } from "./executions/service";
 import { createFeesService } from "./fees/application";
+import { createTreasuryObligationsService } from "./obligations/service";
+import { createTreasuryOperationsService } from "./operations/service";
+import { createTreasuryPositionsService } from "./positions/service";
 import type { FeeRuleRepository } from "./fees/application/ports";
 import { createQuotesService } from "./quotes/application";
 import type {
@@ -17,18 +24,25 @@ import type {
 import { createRatesService } from "./rates/application";
 import type { RatesRepository } from "./rates/application/ports";
 import type {
+  TreasuryCoreReads,
+  TreasuryCoreUnitOfWork,
+} from "./shared/application/core-ports";
+import type {
   CurrenciesPort,
   RateSource,
   RateSourceProvider,
 } from "./shared/application/external-ports";
 
-export type TreasuryModuleUnitOfWork = QuotesCommandUnitOfWork;
+export type TreasuryModuleUnitOfWork =
+  & QuotesCommandUnitOfWork
+  & TreasuryCoreUnitOfWork;
 
 export interface TreasuryModuleDeps {
   logger: Logger;
   now: Clock;
   generateUuid: UuidGenerator;
   currencies: CurrenciesPort;
+  coreReads: TreasuryCoreReads;
   ratesRepository: RatesRepository;
   quotesRepository: QuotesRepository;
   quoteFeeComponentsRepository: QuoteFeeComponentsRepository;
@@ -61,23 +75,37 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
     rateSourceProviders: deps.rateSourceProviders,
     ratesRepository: deps.ratesRepository,
   });
+  const coreDeps = {
+    runtime: createRuntime("treasury.core"),
+    reads: deps.coreReads,
+    unitOfWork: deps.unitOfWork,
+  };
 
   return {
-    rates,
-    quotes: createQuotesService({
-      runtime: createRuntime("treasury.quotes"),
-      currencies: deps.currencies,
-      fees: {
-        calculateQuoteFeeComponents: fees.queries.calculateQuoteFeeComponents,
-      },
-      quoteFeeComponentsRepository: deps.quoteFeeComponentsRepository,
-      quoteFinancialLinesRepository: deps.quoteFinancialLinesRepository,
-      quotesRepository: deps.quotesRepository,
-      rates: {
-        getCrossRate: rates.queries.getCrossRate,
-      },
-      commandUow: deps.unitOfWork,
-    }),
-    fees,
+    accounts: createTreasuryAccountsService(coreDeps),
+    obligations: createTreasuryObligationsService(coreDeps),
+    operations: createTreasuryOperationsService(coreDeps),
+    executions: createTreasuryExecutionsService(coreDeps),
+    allocations: createTreasuryAllocationsService(coreDeps),
+    positions: createTreasuryPositionsService(coreDeps),
+    controls: createTreasuryControlsService(coreDeps),
+    pricing: {
+      rates,
+      quotes: createQuotesService({
+        runtime: createRuntime("treasury.quotes"),
+        currencies: deps.currencies,
+        fees: {
+          calculateQuoteFeeComponents: fees.queries.calculateQuoteFeeComponents,
+        },
+        quoteFeeComponentsRepository: deps.quoteFeeComponentsRepository,
+        quoteFinancialLinesRepository: deps.quoteFinancialLinesRepository,
+        quotesRepository: deps.quotesRepository,
+        rates: {
+          getCrossRate: rates.queries.getCrossRate,
+        },
+        commandUow: deps.unitOfWork,
+      }),
+      fees,
+    },
   };
 }

@@ -1,50 +1,27 @@
-CREATE TYPE "public"."counterparty_country_code" AS ENUM('AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW');--> statement-breakpoint
-CREATE TYPE "public"."counterparty_kind" AS ENUM('legal_entity', 'individual');--> statement-breakpoint
-CREATE TYPE "public"."requisite_kind" AS ENUM('bank', 'exchange', 'blockchain', 'custodian');--> statement-breakpoint
-CREATE TYPE "public"."requisite_owner_type" AS ENUM('organization', 'counterparty');--> statement-breakpoint
 CREATE TYPE "public"."chart_account_kind" AS ENUM('asset', 'liability', 'equity', 'revenue', 'expense', 'active_passive');--> statement-breakpoint
 CREATE TYPE "public"."chart_normal_side" AS ENUM('debit', 'credit', 'both');--> statement-breakpoint
+CREATE TYPE "public"."counterparty_country_code" AS ENUM('AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW');--> statement-breakpoint
+CREATE TYPE "public"."counterparty_kind" AS ENUM('legal_entity', 'individual');--> statement-breakpoint
 CREATE TYPE "public"."dimension_mode" AS ENUM('required', 'optional', 'forbidden');--> statement-breakpoint
 CREATE TYPE "public"."dimension_policy_scope" AS ENUM('line', 'debit', 'credit');--> statement-breakpoint
-CREATE TABLE "counterparties" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"external_id" text,
-	"customer_id" uuid,
-	"short_name" text NOT NULL,
-	"full_name" text NOT NULL,
-	"description" text,
-	"country" "counterparty_country_code",
-	"kind" "counterparty_kind" DEFAULT 'legal_entity' NOT NULL,
+CREATE TYPE "public"."party_country_code" AS ENUM('AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW');--> statement-breakpoint
+CREATE TYPE "public"."party_kind" AS ENUM('legal_entity', 'individual');--> statement-breakpoint
+CREATE TYPE "public"."requisite_kind" AS ENUM('bank', 'exchange', 'blockchain', 'custodian');--> statement-breakpoint
+CREATE TYPE "public"."requisite_owner_type" AS ENUM('organization', 'counterparty');--> statement-breakpoint
+CREATE TABLE "account" (
+	"id" text PRIMARY KEY NOT NULL,
+	"account_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp with time zone,
+	"refresh_token_expires_at" timestamp with time zone,
+	"scope" text,
+	"password" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "counterparty_group_memberships" (
-	"counterparty_id" uuid NOT NULL,
-	"group_id" uuid NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "counterparty_group_memberships_pk" PRIMARY KEY("counterparty_id","group_id")
-);
---> statement-breakpoint
-CREATE TABLE "counterparty_groups" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"code" text NOT NULL,
-	"name" text NOT NULL,
-	"description" text,
-	"parent_id" uuid,
-	"customer_id" uuid,
-	"is_system" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "customers" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"external_ref" text,
-	"display_name" text NOT NULL,
-	"description" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "accounting_close_packages" (
@@ -112,43 +89,16 @@ CREATE TABLE "accounting_report_line_mappings" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "chart_account_dimension_policy" (
-	"account_no" text NOT NULL,
-	"dimension_key" text NOT NULL,
-	"mode" "dimension_mode" DEFAULT 'required' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "chart_account_dimension_policy_account_no_dimension_key_pk" PRIMARY KEY("account_no","dimension_key")
-);
---> statement-breakpoint
-CREATE TABLE "chart_template_accounts" (
-	"account_no" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"kind" chart_account_kind NOT NULL,
-	"normal_side" chart_normal_side NOT NULL,
-	"posting_allowed" boolean DEFAULT true NOT NULL,
-	"enabled" boolean DEFAULT true NOT NULL,
-	"parent_account_no" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "chart_template_account_no_fmt" CHECK ("chart_template_accounts"."account_no" ~ '^[0-9]{4}$')
-);
---> statement-breakpoint
-CREATE TABLE "correspondence_rules" (
+CREATE TABLE "action_receipts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"posting_code" text NOT NULL,
-	"debit_account_no" text NOT NULL,
-	"credit_account_no" text NOT NULL,
-	"enabled" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "posting_code_dimension_policy" (
-	"posting_code" text NOT NULL,
-	"dimension_key" text NOT NULL,
-	"required" boolean DEFAULT true NOT NULL,
-	"scope" "dimension_policy_scope" DEFAULT 'line' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "posting_code_dimension_policy_posting_code_dimension_key_pk" PRIMARY KEY("posting_code","dimension_key")
+	"scope" text NOT NULL,
+	"idempotency_key" text NOT NULL,
+	"actor_id" text,
+	"request_hash" text NOT NULL,
+	"status" text NOT NULL,
+	"result_json" jsonb,
+	"error_json" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "balance_events" (
@@ -216,6 +166,104 @@ CREATE TABLE "balance_projector_cursors" (
 	CONSTRAINT "balance_projector_cursor_pair_chk" CHECK (("balance_projector_cursors"."last_posted_at" IS NULL AND "balance_projector_cursors"."last_operation_id" IS NULL) OR ("balance_projector_cursors"."last_posted_at" IS NOT NULL AND "balance_projector_cursors"."last_operation_id" IS NOT NULL))
 );
 --> statement-breakpoint
+CREATE TABLE "book_account_instances" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"book_id" uuid NOT NULL,
+	"account_no" text NOT NULL,
+	"currency" text NOT NULL,
+	"dimensions" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"dimensions_hash" text NOT NULL,
+	"tb_ledger" bigint NOT NULL,
+	"tb_account_id" numeric(39,0) NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "books" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"owner_id" uuid NOT NULL,
+	"code" text NOT NULL,
+	"name" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "chart_account_dimension_policy" (
+	"account_no" text NOT NULL,
+	"dimension_key" text NOT NULL,
+	"mode" "dimension_mode" DEFAULT 'required' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "chart_account_dimension_policy_account_no_dimension_key_pk" PRIMARY KEY("account_no","dimension_key")
+);
+--> statement-breakpoint
+CREATE TABLE "chart_template_accounts" (
+	"account_no" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"kind" chart_account_kind NOT NULL,
+	"normal_side" chart_normal_side NOT NULL,
+	"posting_allowed" boolean DEFAULT true NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"parent_account_no" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "chart_template_account_no_fmt" CHECK ("chart_template_accounts"."account_no" ~ '^[0-9]{4}$')
+);
+--> statement-breakpoint
+CREATE TABLE "correspondence_rules" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"posting_code" text NOT NULL,
+	"debit_account_no" text NOT NULL,
+	"credit_account_no" text NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "counterparties" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_id" text,
+	"customer_id" uuid,
+	"short_name" text NOT NULL,
+	"full_name" text NOT NULL,
+	"description" text,
+	"country" "counterparty_country_code",
+	"kind" "counterparty_kind" DEFAULT 'legal_entity' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_counterparty_endpoints" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"counterparty_id" uuid NOT NULL,
+	"asset_id" uuid NOT NULL,
+	"endpoint_type" text NOT NULL,
+	"value" text NOT NULL,
+	"label" text,
+	"memo_tag" text,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"archived_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "counterparty_group_memberships" (
+	"counterparty_id" uuid NOT NULL,
+	"group_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "counterparty_group_memberships_pk" PRIMARY KEY("counterparty_id","group_id")
+);
+--> statement-breakpoint
+CREATE TABLE "counterparty_groups" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"code" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"parent_id" uuid,
+	"customer_id" uuid,
+	"is_system" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "currencies" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -225,6 +273,15 @@ CREATE TABLE "currencies" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "currencies_precision_non_negative" CHECK ("currencies"."precision" >= 0)
+);
+--> statement-breakpoint
+CREATE TABLE "customers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_ref" text,
+	"display_name" text NOT NULL,
+	"description" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "document_events" (
@@ -281,7 +338,7 @@ CREATE TABLE "documents" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"doc_type" text NOT NULL,
 	"doc_no" text NOT NULL,
-	"module_id" text DEFAULT 'legacy' NOT NULL,
+	"module_id" text NOT NULL,
 	"module_version" integer DEFAULT 1 NOT NULL,
 	"payload_version" integer DEFAULT 1 NOT NULL,
 	"payload" jsonb NOT NULL,
@@ -441,28 +498,6 @@ CREATE TABLE "fx_rates" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "book_account_instances" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"book_id" uuid NOT NULL,
-	"account_no" text NOT NULL,
-	"currency" text NOT NULL,
-	"dimensions" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"dimensions_hash" text NOT NULL,
-	"tb_ledger" bigint NOT NULL,
-	"tb_account_id" numeric(39,0) NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "books" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"owner_id" uuid NOT NULL,
-	"code" text NOT NULL,
-	"name" text NOT NULL,
-	"is_default" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "ledger_operations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"source_type" text NOT NULL,
@@ -480,6 +515,27 @@ CREATE TABLE "ledger_operations" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "organization_requisite_bindings" (
+	"requisite_id" uuid PRIMARY KEY NOT NULL,
+	"book_id" uuid NOT NULL,
+	"book_account_instance_id" uuid NOT NULL,
+	"posting_account_no" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "organizations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_id" text,
+	"short_name" text NOT NULL,
+	"full_name" text NOT NULL,
+	"description" text,
+	"country" "party_country_code",
+	"kind" "party_kind" DEFAULT 'legal_entity' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "outbox" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"org_id" uuid,
@@ -491,6 +547,15 @@ CREATE TABLE "outbox" (
 	"locked_at" timestamp with time zone,
 	"available_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "posting_code_dimension_policy" (
+	"posting_code" text NOT NULL,
+	"dimension_key" text NOT NULL,
+	"required" boolean DEFAULT true NOT NULL,
+	"scope" "dimension_policy_scope" DEFAULT 'line' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "posting_code_dimension_policy_posting_code_dimension_key_pk" PRIMARY KEY("posting_code","dimension_key")
 );
 --> statement-breakpoint
 CREATE TABLE "postings" (
@@ -505,168 +570,6 @@ CREATE TABLE "postings" (
 	"amount_minor" bigint NOT NULL,
 	"memo" text,
 	"context" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "tb_transfer_plans" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"operation_id" uuid NOT NULL,
-	"line_no" integer NOT NULL,
-	"type" text DEFAULT 'create' NOT NULL,
-	"transfer_id" numeric(39,0) NOT NULL,
-	"debit_tb_account_id" numeric(39,0),
-	"credit_tb_account_id" numeric(39,0),
-	"tb_ledger" bigint DEFAULT 0 NOT NULL,
-	"amount" bigint DEFAULT 0 NOT NULL,
-	"code" integer DEFAULT 1 NOT NULL,
-	"pending_ref" text,
-	"pending_id" numeric(39,0),
-	"is_linked" boolean DEFAULT false NOT NULL,
-	"is_pending" boolean DEFAULT false NOT NULL,
-	"timeout_seconds" integer DEFAULT 0 NOT NULL,
-	"status" text DEFAULT 'pending' NOT NULL,
-	"error" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "tb_plan_amount_nonneg" CHECK ("tb_transfer_plans"."amount" >= 0),
-	CONSTRAINT "tb_plan_create_accounts" CHECK (("tb_transfer_plans"."type" <> 'create') OR ("tb_transfer_plans"."debit_tb_account_id" IS NOT NULL AND "tb_transfer_plans"."credit_tb_account_id" IS NOT NULL)),
-	CONSTRAINT "tb_plan_pending_id" CHECK (("tb_transfer_plans"."type" = 'create') OR ("tb_transfer_plans"."pending_id" IS NOT NULL)),
-	CONSTRAINT "tb_plan_void_amount" CHECK (("tb_transfer_plans"."type" <> 'void_pending') OR ("tb_transfer_plans"."amount" = 0)),
-	CONSTRAINT "tb_plan_timeout" CHECK (("tb_transfer_plans"."is_pending" = false) OR ("tb_transfer_plans"."timeout_seconds" > 0))
-);
---> statement-breakpoint
-CREATE TABLE "organization_requisite_bindings" (
-	"requisite_id" uuid PRIMARY KEY NOT NULL,
-	"book_id" uuid NOT NULL,
-	"book_account_instance_id" uuid NOT NULL,
-	"posting_account_no" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "requisites" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"owner_type" "requisite_owner_type" NOT NULL,
-	"organization_id" uuid,
-	"counterparty_id" uuid,
-	"provider_id" uuid NOT NULL,
-	"currency_id" uuid NOT NULL,
-	"kind" "requisite_kind" NOT NULL,
-	"label" text NOT NULL,
-	"description" text,
-	"beneficiary_name" text,
-	"institution_name" text,
-	"institution_country" text,
-	"account_no" text,
-	"corr_account" text,
-	"iban" text,
-	"bic" text,
-	"swift" text,
-	"bank_address" text,
-	"network" text,
-	"asset_code" text,
-	"address" text,
-	"memo_tag" text,
-	"account_ref" text,
-	"subaccount_ref" text,
-	"contact" text,
-	"notes" text,
-	"is_default" boolean DEFAULT false NOT NULL,
-	"archived_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "requisites_owner_fk_chk" CHECK ((
-        "requisites"."owner_type" = 'organization'
-        and "requisites"."organization_id" is not null
-        and "requisites"."counterparty_id" is null
-      ) or (
-        "requisites"."owner_type" = 'counterparty'
-        and "requisites"."counterparty_id" is not null
-        and "requisites"."organization_id" is null
-      ))
-);
---> statement-breakpoint
-CREATE TABLE "organizations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"external_id" text,
-	"short_name" text NOT NULL,
-	"full_name" text NOT NULL,
-	"description" text,
-	"country" "counterparty_country_code",
-	"kind" "counterparty_kind" DEFAULT 'legal_entity' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "account" (
-	"id" text PRIMARY KEY NOT NULL,
-	"account_id" text NOT NULL,
-	"provider_id" text NOT NULL,
-	"user_id" text NOT NULL,
-	"access_token" text,
-	"refresh_token" text,
-	"id_token" text,
-	"access_token_expires_at" timestamp with time zone,
-	"refresh_token_expires_at" timestamp with time zone,
-	"scope" text,
-	"password" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "session" (
-	"id" text PRIMARY KEY NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"token" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL,
-	"ip_address" text,
-	"user_agent" text,
-	"user_id" text NOT NULL,
-	"impersonated_by" text,
-	CONSTRAINT "session_token_unique" UNIQUE("token")
-);
---> statement-breakpoint
-CREATE TABLE "two_factor" (
-	"id" text PRIMARY KEY NOT NULL,
-	"secret" text NOT NULL,
-	"backup_codes" text NOT NULL,
-	"user_id" text NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "user" (
-	"id" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"email" text NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
-	"image" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"role" text,
-	"banned" boolean DEFAULT false,
-	"ban_reason" text,
-	"ban_expires" timestamp with time zone,
-	"two_factor_enabled" boolean,
-	CONSTRAINT "user_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
-CREATE TABLE "verification" (
-	"id" text PRIMARY KEY NOT NULL,
-	"identifier" text NOT NULL,
-	"value" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "action_receipts" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"scope" text NOT NULL,
-	"idempotency_key" text NOT NULL,
-	"actor_id" text,
-	"request_hash" text NOT NULL,
-	"status" text NOT NULL,
-	"result_json" jsonb,
-	"error_json" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -736,22 +639,290 @@ CREATE TABLE "requisite_providers" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "requisites" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"owner_type" "requisite_owner_type" NOT NULL,
+	"organization_id" uuid,
+	"counterparty_id" uuid,
+	"provider_id" uuid NOT NULL,
+	"currency_id" uuid NOT NULL,
+	"kind" "requisite_kind" NOT NULL,
+	"label" text NOT NULL,
+	"description" text,
+	"beneficiary_name" text,
+	"institution_name" text,
+	"institution_country" text,
+	"account_no" text,
+	"corr_account" text,
+	"iban" text,
+	"bic" text,
+	"swift" text,
+	"bank_address" text,
+	"network" text,
+	"asset_code" text,
+	"address" text,
+	"memo_tag" text,
+	"account_ref" text,
+	"subaccount_ref" text,
+	"contact" text,
+	"notes" text,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"archived_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "requisites_owner_fk_chk" CHECK ((
+        "requisites"."owner_type" = 'organization'
+        and "requisites"."organization_id" is not null
+        and "requisites"."counterparty_id" is null
+      ) or (
+        "requisites"."owner_type" = 'counterparty'
+        and "requisites"."counterparty_id" is not null
+        and "requisites"."organization_id" is null
+      ))
+);
+--> statement-breakpoint
+CREATE TABLE "session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"token" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone NOT NULL,
+	"ip_address" text,
+	"user_agent" text,
+	"user_id" text NOT NULL,
+	"impersonated_by" text,
+	CONSTRAINT "session_token_unique" UNIQUE("token")
+);
+--> statement-breakpoint
+CREATE TABLE "tb_transfer_plans" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"operation_id" uuid NOT NULL,
+	"line_no" integer NOT NULL,
+	"type" text DEFAULT 'create' NOT NULL,
+	"transfer_id" numeric(39,0) NOT NULL,
+	"debit_tb_account_id" numeric(39,0),
+	"credit_tb_account_id" numeric(39,0),
+	"tb_ledger" bigint DEFAULT 0 NOT NULL,
+	"amount" bigint DEFAULT 0 NOT NULL,
+	"code" integer DEFAULT 1 NOT NULL,
+	"pending_ref" text,
+	"pending_id" numeric(39,0),
+	"is_linked" boolean DEFAULT false NOT NULL,
+	"is_pending" boolean DEFAULT false NOT NULL,
+	"timeout_seconds" integer DEFAULT 0 NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "tb_plan_amount_nonneg" CHECK ("tb_transfer_plans"."amount" >= 0),
+	CONSTRAINT "tb_plan_create_accounts" CHECK (("tb_transfer_plans"."type" <> 'create') OR ("tb_transfer_plans"."debit_tb_account_id" IS NOT NULL AND "tb_transfer_plans"."credit_tb_account_id" IS NOT NULL)),
+	CONSTRAINT "tb_plan_pending_id" CHECK (("tb_transfer_plans"."type" = 'create') OR ("tb_transfer_plans"."pending_id" IS NOT NULL)),
+	CONSTRAINT "tb_plan_void_amount" CHECK (("tb_transfer_plans"."type" <> 'void_pending') OR ("tb_transfer_plans"."amount" = 0)),
+	CONSTRAINT "tb_plan_timeout" CHECK (("tb_transfer_plans"."is_pending" = false) OR ("tb_transfer_plans"."timeout_seconds" > 0))
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_account_balance_entries" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"account_id" uuid NOT NULL,
+	"asset_id" uuid NOT NULL,
+	"execution_event_id" uuid,
+	"instruction_id" uuid,
+	"operation_id" uuid,
+	"balance_state" text NOT NULL,
+	"leg_kind" text NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_accounts" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"kind" text NOT NULL,
+	"owner_entity_id" uuid NOT NULL,
+	"operator_entity_id" uuid NOT NULL,
+	"asset_id" uuid NOT NULL,
+	"provider" text,
+	"network_or_rail" text,
+	"account_reference" text NOT NULL,
+	"reconciliation_mode" text,
+	"finality_model" text,
+	"segregation_model" text,
+	"can_receive" boolean DEFAULT true NOT NULL,
+	"can_send" boolean DEFAULT true NOT NULL,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"archived_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_allocations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"obligation_id" uuid NOT NULL,
+	"execution_event_id" uuid NOT NULL,
+	"allocated_minor" bigint NOT NULL,
+	"allocation_type" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_document_links" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"document_id" uuid NOT NULL,
+	"link_kind" text NOT NULL,
+	"target_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_endpoints" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"account_id" uuid NOT NULL,
+	"endpoint_type" text NOT NULL,
+	"value" text NOT NULL,
+	"label" text,
+	"memo_tag" text,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"archived_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_execution_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"instruction_id" uuid NOT NULL,
+	"event_kind" text NOT NULL,
+	"event_at" timestamp with time zone NOT NULL,
+	"external_record_id" uuid,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_execution_instructions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"operation_id" uuid NOT NULL,
+	"source_account_id" uuid NOT NULL,
+	"destination_endpoint_id" uuid,
+	"submission_channel" text NOT NULL,
+	"instruction_status" text NOT NULL,
+	"asset_id" uuid NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_obligations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"obligation_kind" text NOT NULL,
+	"debtor_entity_id" uuid NOT NULL,
+	"creditor_entity_id" uuid NOT NULL,
+	"beneficial_owner_type" text,
+	"beneficial_owner_id" uuid,
+	"asset_id" uuid NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"settled_minor" bigint DEFAULT 0 NOT NULL,
+	"due_at" timestamp with time zone,
+	"memo" text,
+	"payload" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_operation_obligations" (
+	"operation_id" uuid NOT NULL,
+	"obligation_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "treasury_operation_obligations_pk" PRIMARY KEY("operation_id","obligation_id")
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_operations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"idempotency_key" text NOT NULL,
+	"operation_kind" text NOT NULL,
+	"economic_owner_entity_id" uuid NOT NULL,
+	"executing_entity_id" uuid NOT NULL,
+	"cash_holder_entity_id" uuid,
+	"beneficial_owner_type" text,
+	"beneficial_owner_id" uuid,
+	"legal_basis" text,
+	"settlement_model" text NOT NULL,
+	"instruction_status" text NOT NULL,
+	"source_account_id" uuid,
+	"destination_account_id" uuid,
+	"source_asset_id" uuid,
+	"destination_asset_id" uuid,
+	"source_amount_minor" bigint,
+	"destination_amount_minor" bigint,
+	"memo" text,
+	"payload" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"approved_at" timestamp with time zone,
+	"reserved_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "treasury_positions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"origin_operation_id" uuid,
+	"position_kind" text NOT NULL,
+	"owner_entity_id" uuid NOT NULL,
+	"counterparty_entity_id" uuid,
+	"beneficial_owner_type" text,
+	"beneficial_owner_id" uuid,
+	"asset_id" uuid NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"settled_minor" bigint DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"closed_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "two_factor" (
+	"id" text PRIMARY KEY NOT NULL,
+	"secret" text NOT NULL,
+	"backup_codes" text NOT NULL,
+	"user_id" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"role" text,
+	"banned" boolean DEFAULT false,
+	"ban_reason" text,
+	"ban_expires" timestamp with time zone,
+	"two_factor_enabled" boolean,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_pack_assignments" ADD CONSTRAINT "accounting_pack_assignments_pack_checksum_accounting_pack_versions_checksum_fk" FOREIGN KEY ("pack_checksum") REFERENCES "public"."accounting_pack_versions"("checksum") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_report_line_mappings" ADD CONSTRAINT "accounting_report_line_mappings_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "balance_holds" ADD CONSTRAINT "balance_holds_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "balance_positions" ADD CONSTRAINT "balance_positions_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "book_account_instances" ADD CONSTRAINT "book_account_instances_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chart_account_dimension_policy" ADD CONSTRAINT "chart_account_dimension_policy_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_debit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("debit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_credit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("credit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparties" ADD CONSTRAINT "counterparties_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_memberships_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_memberships_group_id_counterparty_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_parent_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_pack_assignments" ADD CONSTRAINT "accounting_pack_assignments_pack_checksum_accounting_pack_versions_checksum_fk" FOREIGN KEY ("pack_checksum") REFERENCES "public"."accounting_pack_versions"("checksum") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_report_line_mappings" ADD CONSTRAINT "accounting_report_line_mappings_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "chart_account_dimension_policy" ADD CONSTRAINT "chart_account_dimension_policy_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_debit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("debit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_credit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("credit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "balance_holds" ADD CONSTRAINT "balance_holds_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "balance_positions" ADD CONSTRAINT "balance_positions_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_events" ADD CONSTRAINT "document_events_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_from_document_id_documents_id_fk" FOREIGN KEY ("from_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_to_document_id_documents_id_fk" FOREIGN KEY ("to_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -766,36 +937,15 @@ ALTER TABLE "documents" ADD CONSTRAINT "documents_submitted_by_user_id_fk" FOREI
 ALTER TABLE "documents" ADD CONSTRAINT "documents_approved_by_user_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_rejected_by_user_id_fk" FOREIGN KEY ("rejected_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_cancelled_by_user_id_fk" FOREIGN KEY ("cancelled_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_rules" ADD CONSTRAINT "fee_rules_fixed_currency_id_currencies_id_fk" FOREIGN KEY ("fixed_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_rules" ADD CONSTRAINT "fee_rules_from_currency_id_currencies_id_fk" FOREIGN KEY ("from_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_rules" ADD CONSTRAINT "fee_rules_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_fee_components" ADD CONSTRAINT "fx_quote_fee_components_rule_id_fee_rules_id_fk" FOREIGN KEY ("rule_id") REFERENCES "public"."fee_rules"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_fee_components" ADD CONSTRAINT "fx_quote_fee_components_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_financial_lines" ADD CONSTRAINT "fx_quote_financial_lines_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_financial_lines" ADD CONSTRAINT "fx_quote_financial_lines_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_from_currency_id_currencies_id_fk" FOREIGN KEY ("from_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_execution_counterparty_id_counterparties_id_fk" FOREIGN KEY ("execution_counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_from_currency_id_currencies_id_fk" FOREIGN KEY ("from_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_base_currency_id_currencies_id_fk" FOREIGN KEY ("base_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_quote_currency_id_currencies_id_fk" FOREIGN KEY ("quote_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "book_account_instances" ADD CONSTRAINT "book_account_instances_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk" FOREIGN KEY ("book_account_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_debit_instance_id_book_account_instances_id_fk" FOREIGN KEY ("debit_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_credit_instance_id_book_account_instances_id_fk" FOREIGN KEY ("credit_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tb_transfer_plans" ADD CONSTRAINT "tb_transfer_plans_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk" FOREIGN KEY ("book_account_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "requisites" ADD CONSTRAINT "requisites_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "requisites" ADD CONSTRAINT "requisites_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "requisites" ADD CONSTRAINT "requisites_provider_id_requisite_providers_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."requisite_providers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "requisites" ADD CONSTRAINT "requisites_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "two_factor" ADD CONSTRAINT "two_factor_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reconciliation_exceptions" ADD CONSTRAINT "reconciliation_exceptions_run_id_reconciliation_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."reconciliation_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reconciliation_exceptions" ADD CONSTRAINT "reconciliation_exceptions_external_record_id_reconciliation_external_records_id_fk" FOREIGN KEY ("external_record_id") REFERENCES "public"."reconciliation_external_records"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reconciliation_exceptions" ADD CONSTRAINT "reconciliation_exceptions_adjustment_document_id_documents_id_fk" FOREIGN KEY ("adjustment_document_id") REFERENCES "public"."documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -803,9 +953,28 @@ ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_run_
 ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_external_record_id_reconciliation_external_records_id_fk" FOREIGN KEY ("external_record_id") REFERENCES "public"."reconciliation_external_records"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_matched_operation_id_ledger_operations_id_fk" FOREIGN KEY ("matched_operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_matched_document_id_documents_id_fk" FOREIGN KEY ("matched_document_id") REFERENCES "public"."documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "counterparty_group_memberships_group_idx" ON "counterparty_group_memberships" USING btree ("group_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "counterparty_groups_code_uq" ON "counterparty_groups" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "counterparty_groups_parent_idx" ON "counterparty_groups" USING btree ("parent_id");--> statement-breakpoint
+ALTER TABLE "requisites" ADD CONSTRAINT "requisites_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "requisites" ADD CONSTRAINT "requisites_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "requisites" ADD CONSTRAINT "requisites_provider_id_requisite_providers_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."requisite_providers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "requisites" ADD CONSTRAINT "requisites_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tb_transfer_plans" ADD CONSTRAINT "tb_transfer_plans_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_account_balance_entries" ADD CONSTRAINT "treasury_account_balance_entries_account_id_treasury_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."treasury_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_account_balance_entries" ADD CONSTRAINT "treasury_account_balance_entries_execution_event_id_treasury_execution_events_id_fk" FOREIGN KEY ("execution_event_id") REFERENCES "public"."treasury_execution_events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_account_balance_entries" ADD CONSTRAINT "treasury_account_balance_entries_instruction_id_treasury_execution_instructions_id_fk" FOREIGN KEY ("instruction_id") REFERENCES "public"."treasury_execution_instructions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_account_balance_entries" ADD CONSTRAINT "treasury_account_balance_entries_operation_id_treasury_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."treasury_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_allocations" ADD CONSTRAINT "treasury_allocations_obligation_id_treasury_obligations_id_fk" FOREIGN KEY ("obligation_id") REFERENCES "public"."treasury_obligations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_allocations" ADD CONSTRAINT "treasury_allocations_execution_event_id_treasury_execution_events_id_fk" FOREIGN KEY ("execution_event_id") REFERENCES "public"."treasury_execution_events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_endpoints" ADD CONSTRAINT "treasury_endpoints_account_id_treasury_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."treasury_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_execution_events" ADD CONSTRAINT "treasury_execution_events_instruction_id_treasury_execution_instructions_id_fk" FOREIGN KEY ("instruction_id") REFERENCES "public"."treasury_execution_instructions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_execution_events" ADD CONSTRAINT "treasury_execution_events_external_record_id_reconciliation_external_records_id_fk" FOREIGN KEY ("external_record_id") REFERENCES "public"."reconciliation_external_records"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_execution_instructions" ADD CONSTRAINT "treasury_execution_instructions_operation_id_treasury_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."treasury_operations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_execution_instructions" ADD CONSTRAINT "treasury_execution_instructions_source_account_id_treasury_accounts_id_fk" FOREIGN KEY ("source_account_id") REFERENCES "public"."treasury_accounts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_operation_obligations" ADD CONSTRAINT "treasury_operation_obligations_operation_id_treasury_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."treasury_operations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_operation_obligations" ADD CONSTRAINT "treasury_operation_obligations_obligation_id_treasury_obligations_id_fk" FOREIGN KEY ("obligation_id") REFERENCES "public"."treasury_obligations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury_positions" ADD CONSTRAINT "treasury_positions_origin_operation_id_treasury_operations_id_fk" FOREIGN KEY ("origin_operation_id") REFERENCES "public"."treasury_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "two_factor" ADD CONSTRAINT "two_factor_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "accounting_close_packages_period_revision_uq" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
 CREATE INDEX "accounting_close_packages_lookup_idx" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
 CREATE INDEX "accounting_close_packages_state_idx" ON "accounting_close_packages" USING btree ("state","generated_at");--> statement-breakpoint
@@ -817,14 +986,28 @@ CREATE INDEX "accounting_period_locks_state_period_idx" ON "accounting_period_lo
 CREATE INDEX "accounting_period_locks_organization_state_idx" ON "accounting_period_locks" USING btree ("organization_id","state");--> statement-breakpoint
 CREATE UNIQUE INDEX "accounting_report_line_mappings_uq" ON "accounting_report_line_mappings" USING btree ("standard","report_kind","line_code","account_no","effective_from");--> statement-breakpoint
 CREATE INDEX "accounting_report_line_mappings_lookup_idx" ON "accounting_report_line_mappings" USING btree ("report_kind","account_no","effective_from","effective_to");--> statement-breakpoint
-CREATE INDEX "chart_template_parent_idx" ON "chart_template_accounts" USING btree ("parent_account_no");--> statement-breakpoint
-CREATE UNIQUE INDEX "correspondence_rule_uq" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no");--> statement-breakpoint
-CREATE INDEX "correspondence_rule_lookup_idx" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no","enabled");--> statement-breakpoint
+CREATE UNIQUE INDEX "action_receipts_scope_key_uq" ON "action_receipts" USING btree ("scope","idempotency_key");--> statement-breakpoint
+CREATE INDEX "action_receipts_scope_created_idx" ON "action_receipts" USING btree ("scope","created_at");--> statement-breakpoint
 CREATE INDEX "balance_events_subject_created_idx" ON "balance_events" USING btree ("book_id","subject_type","subject_id","currency","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "balance_events_operation_subject_uq" ON "balance_events" USING btree ("operation_id","subject_type","subject_id","currency","event_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "balance_holds_subject_ref_uq" ON "balance_holds" USING btree ("book_id","subject_type","subject_id","currency","hold_ref");--> statement-breakpoint
 CREATE INDEX "balance_holds_state_created_idx" ON "balance_holds" USING btree ("state","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "balance_positions_subject_uq" ON "balance_positions" USING btree ("book_id","subject_type","subject_id","currency");--> statement-breakpoint
+CREATE UNIQUE INDEX "book_account_instances_uq" ON "book_account_instances" USING btree ("book_id","account_no","currency","dimensions_hash");--> statement-breakpoint
+CREATE UNIQUE INDEX "book_account_instances_tb_uq" ON "book_account_instances" USING btree ("book_id","tb_ledger","tb_account_id");--> statement-breakpoint
+CREATE INDEX "book_account_instances_book_currency_idx" ON "book_account_instances" USING btree ("book_id","currency");--> statement-breakpoint
+CREATE INDEX "book_account_instances_account_no_idx" ON "book_account_instances" USING btree ("account_no");--> statement-breakpoint
+CREATE UNIQUE INDEX "books_code_uq" ON "books" USING btree ("code");--> statement-breakpoint
+CREATE UNIQUE INDEX "books_default_owner_uq" ON "books" USING btree ("owner_id") WHERE "books"."is_default" = true;--> statement-breakpoint
+CREATE INDEX "books_owner_idx" ON "books" USING btree ("owner_id");--> statement-breakpoint
+CREATE INDEX "books_owner_default_idx" ON "books" USING btree ("owner_id","is_default");--> statement-breakpoint
+CREATE INDEX "chart_template_parent_idx" ON "chart_template_accounts" USING btree ("parent_account_no");--> statement-breakpoint
+CREATE UNIQUE INDEX "correspondence_rule_uq" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no");--> statement-breakpoint
+CREATE INDEX "correspondence_rule_lookup_idx" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no","enabled");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_counterparty_endpoints_uq" ON "treasury_counterparty_endpoints" USING btree ("counterparty_id","asset_id","endpoint_type","value");--> statement-breakpoint
+CREATE INDEX "counterparty_group_memberships_group_idx" ON "counterparty_group_memberships" USING btree ("group_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "counterparty_groups_code_uq" ON "counterparty_groups" USING btree ("code");--> statement-breakpoint
+CREATE INDEX "counterparty_groups_parent_idx" ON "counterparty_groups" USING btree ("parent_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "currencies_code_uq" ON "currencies" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "document_events_document_created_idx" ON "document_events" USING btree ("document_id","created_at");--> statement-breakpoint
 CREATE INDEX "document_links_from_type_idx" ON "document_links" USING btree ("from_document_id","link_type");--> statement-breakpoint
@@ -862,17 +1045,11 @@ CREATE UNIQUE INDEX "fx_rates_source_pair_asof_uq" ON "fx_rates" USING btree ("s
 CREATE INDEX "fx_rates_pair_asof_idx" ON "fx_rates" USING btree ("base_currency_id","quote_currency_id","as_of");--> statement-breakpoint
 CREATE INDEX "fx_rates_asof_idx" ON "fx_rates" USING btree ("as_of");--> statement-breakpoint
 CREATE INDEX "fx_rates_source_asof_idx" ON "fx_rates" USING btree ("source","as_of");--> statement-breakpoint
-CREATE UNIQUE INDEX "book_account_instances_uq" ON "book_account_instances" USING btree ("book_id","account_no","currency","dimensions_hash");--> statement-breakpoint
-CREATE UNIQUE INDEX "book_account_instances_tb_uq" ON "book_account_instances" USING btree ("book_id","tb_ledger","tb_account_id");--> statement-breakpoint
-CREATE INDEX "book_account_instances_book_currency_idx" ON "book_account_instances" USING btree ("book_id","currency");--> statement-breakpoint
-CREATE INDEX "book_account_instances_account_no_idx" ON "book_account_instances" USING btree ("account_no");--> statement-breakpoint
-CREATE UNIQUE INDEX "books_code_uq" ON "books" USING btree ("code");--> statement-breakpoint
-CREATE UNIQUE INDEX "books_default_owner_uq" ON "books" USING btree ("owner_id") WHERE "books"."is_default" = true;--> statement-breakpoint
-CREATE INDEX "books_owner_idx" ON "books" USING btree ("owner_id");--> statement-breakpoint
-CREATE INDEX "books_owner_default_idx" ON "books" USING btree ("owner_id","is_default");--> statement-breakpoint
 CREATE UNIQUE INDEX "ledger_operations_idem_uq" ON "ledger_operations" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "ledger_operations_status_idx" ON "ledger_operations" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "ledger_operations_source_idx" ON "ledger_operations" USING btree ("source_type","source_id");--> statement-breakpoint
+CREATE INDEX "requisite_accounting_bindings_book_idx" ON "organization_requisite_bindings" USING btree ("book_id");--> statement-breakpoint
+CREATE INDEX "requisite_accounting_bindings_instance_idx" ON "organization_requisite_bindings" USING btree ("book_account_instance_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "outbox_kind_ref_uq" ON "outbox" USING btree ("kind","ref_id");--> statement-breakpoint
 CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","available_at","created_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint
@@ -880,26 +1057,6 @@ CREATE INDEX "outbox_status_avail_idx" ON "outbox" USING btree ("status","availa
 CREATE UNIQUE INDEX "postings_op_line_uq" ON "postings" USING btree ("operation_id","line_no");--> statement-breakpoint
 CREATE INDEX "postings_op_idx" ON "postings" USING btree ("operation_id");--> statement-breakpoint
 CREATE INDEX "postings_book_currency_idx" ON "postings" USING btree ("book_id","currency");--> statement-breakpoint
-CREATE UNIQUE INDEX "tb_plan_operation_line_uq" ON "tb_transfer_plans" USING btree ("operation_id","line_no");--> statement-breakpoint
-CREATE UNIQUE INDEX "tb_plan_transfer_uq" ON "tb_transfer_plans" USING btree ("transfer_id");--> statement-breakpoint
-CREATE INDEX "tb_plan_post_idx" ON "tb_transfer_plans" USING btree ("operation_id","line_no");--> statement-breakpoint
-CREATE INDEX "tb_plan_status_idx" ON "tb_transfer_plans" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "requisite_accounting_bindings_book_idx" ON "organization_requisite_bindings" USING btree ("book_id");--> statement-breakpoint
-CREATE INDEX "requisite_accounting_bindings_instance_idx" ON "organization_requisite_bindings" USING btree ("book_account_instance_id");--> statement-breakpoint
-CREATE INDEX "requisites_owner_type_idx" ON "requisites" USING btree ("owner_type");--> statement-breakpoint
-CREATE INDEX "requisites_organization_idx" ON "requisites" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "requisites_counterparty_idx" ON "requisites" USING btree ("counterparty_id");--> statement-breakpoint
-CREATE INDEX "requisites_provider_idx" ON "requisites" USING btree ("provider_id");--> statement-breakpoint
-CREATE INDEX "requisites_currency_idx" ON "requisites" USING btree ("currency_id");--> statement-breakpoint
-CREATE INDEX "requisites_kind_idx" ON "requisites" USING btree ("kind");--> statement-breakpoint
-CREATE UNIQUE INDEX "requisites_default_organization_uq" ON "requisites" USING btree ("organization_id","currency_id") WHERE "requisites"."owner_type" = 'organization' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
-CREATE UNIQUE INDEX "requisites_default_counterparty_uq" ON "requisites" USING btree ("counterparty_id","currency_id") WHERE "requisites"."owner_type" = 'counterparty' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
-CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "two_factor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
-CREATE UNIQUE INDEX "action_receipts_scope_key_uq" ON "action_receipts" USING btree ("scope","idempotency_key");--> statement-breakpoint
-CREATE INDEX "action_receipts_scope_created_idx" ON "action_receipts" USING btree ("scope","created_at");--> statement-breakpoint
 CREATE INDEX "recon_exceptions_run_idx" ON "reconciliation_exceptions" USING btree ("run_id");--> statement-breakpoint
 CREATE INDEX "recon_exceptions_state_created_idx" ON "reconciliation_exceptions" USING btree ("state","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "recon_external_records_source_id_uq" ON "reconciliation_external_records" USING btree ("source","source_record_id");--> statement-breakpoint
@@ -908,4 +1065,36 @@ CREATE INDEX "recon_matches_run_idx" ON "reconciliation_matches" USING btree ("r
 CREATE INDEX "recon_matches_external_record_idx" ON "reconciliation_matches" USING btree ("external_record_id");--> statement-breakpoint
 CREATE INDEX "recon_runs_source_created_idx" ON "reconciliation_runs" USING btree ("source","created_at");--> statement-breakpoint
 CREATE INDEX "requisite_providers_kind_idx" ON "requisite_providers" USING btree ("kind");--> statement-breakpoint
-CREATE INDEX "requisite_providers_country_idx" ON "requisite_providers" USING btree ("country");
+CREATE INDEX "requisite_providers_country_idx" ON "requisite_providers" USING btree ("country");--> statement-breakpoint
+CREATE INDEX "requisites_owner_type_idx" ON "requisites" USING btree ("owner_type");--> statement-breakpoint
+CREATE INDEX "requisites_organization_idx" ON "requisites" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "requisites_counterparty_idx" ON "requisites" USING btree ("counterparty_id");--> statement-breakpoint
+CREATE INDEX "requisites_provider_idx" ON "requisites" USING btree ("provider_id");--> statement-breakpoint
+CREATE INDEX "requisites_currency_idx" ON "requisites" USING btree ("currency_id");--> statement-breakpoint
+CREATE INDEX "requisites_kind_idx" ON "requisites" USING btree ("kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "requisites_default_organization_uq" ON "requisites" USING btree ("organization_id","currency_id") WHERE "requisites"."owner_type" = 'organization' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "requisites_default_counterparty_uq" ON "requisites" USING btree ("counterparty_id","currency_id") WHERE "requisites"."owner_type" = 'counterparty' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
+CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "tb_plan_operation_line_uq" ON "tb_transfer_plans" USING btree ("operation_id","line_no");--> statement-breakpoint
+CREATE UNIQUE INDEX "tb_plan_transfer_uq" ON "tb_transfer_plans" USING btree ("transfer_id");--> statement-breakpoint
+CREATE INDEX "tb_plan_post_idx" ON "tb_transfer_plans" USING btree ("operation_id","line_no");--> statement-breakpoint
+CREATE INDEX "tb_plan_status_idx" ON "tb_transfer_plans" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "treasury_balance_entries_account_asset_idx" ON "treasury_account_balance_entries" USING btree ("account_id","asset_id");--> statement-breakpoint
+CREATE INDEX "treasury_balance_entries_operation_idx" ON "treasury_account_balance_entries" USING btree ("operation_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_accounts_reference_uq" ON "treasury_accounts" USING btree ("account_reference");--> statement-breakpoint
+CREATE INDEX "treasury_accounts_owner_asset_idx" ON "treasury_accounts" USING btree ("owner_entity_id","asset_id");--> statement-breakpoint
+CREATE INDEX "treasury_allocations_event_idx" ON "treasury_allocations" USING btree ("execution_event_id");--> statement-breakpoint
+CREATE INDEX "treasury_allocations_obligation_idx" ON "treasury_allocations" USING btree ("obligation_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_document_links_document_kind_target_uq" ON "treasury_document_links" USING btree ("document_id","link_kind","target_id");--> statement-breakpoint
+CREATE INDEX "treasury_document_links_document_kind_idx" ON "treasury_document_links" USING btree ("document_id","link_kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_endpoints_account_type_value_uq" ON "treasury_endpoints" USING btree ("account_id","endpoint_type","value");--> statement-breakpoint
+CREATE INDEX "treasury_execution_events_instruction_idx" ON "treasury_execution_events" USING btree ("instruction_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_execution_events_external_kind_uq" ON "treasury_execution_events" USING btree ("instruction_id","external_record_id","event_kind");--> statement-breakpoint
+CREATE INDEX "treasury_execution_instructions_operation_idx" ON "treasury_execution_instructions" USING btree ("operation_id");--> statement-breakpoint
+CREATE INDEX "treasury_obligations_debtor_creditor_idx" ON "treasury_obligations" USING btree ("debtor_entity_id","creditor_entity_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_operations_idempotency_key_uq" ON "treasury_operations" USING btree ("idempotency_key");--> statement-breakpoint
+CREATE INDEX "treasury_operations_owner_status_idx" ON "treasury_operations" USING btree ("economic_owner_entity_id","instruction_status");--> statement-breakpoint
+CREATE INDEX "treasury_positions_owner_kind_idx" ON "treasury_positions" USING btree ("owner_entity_id","position_kind");--> statement-breakpoint
+CREATE INDEX "treasury_positions_origin_kind_idx" ON "treasury_positions" USING btree ("origin_operation_id","position_kind");--> statement-breakpoint
+CREATE INDEX "two_factor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");

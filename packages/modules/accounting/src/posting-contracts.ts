@@ -1,4 +1,13 @@
 export const ACCOUNTING_SOURCE_ID = {
+  TREASURY_OBLIGATION_OPENED: "treasury_obligation_opened",
+  TREASURY_EXECUTION_SUBMITTED: "treasury_execution_submitted",
+  TREASURY_EXECUTION_SETTLED: "treasury_execution_settled",
+  TREASURY_EXECUTION_FAILED: "treasury_execution_failed",
+  TREASURY_EXECUTION_RETURNED: "treasury_execution_returned",
+  TREASURY_EXECUTION_VOIDED: "treasury_execution_voided",
+  TREASURY_ALLOCATION_APPLIED: "treasury_allocation_applied",
+  TREASURY_POSITION_OPENED: "treasury_position_opened",
+  TREASURY_POSITION_SETTLED: "treasury_position_settled",
   TRANSFER_INTRA: "transfer_intra",
   TRANSFER_INTERCOMPANY: "transfer_intercompany",
   TRANSFER_RESOLUTION_SETTLE: "transfer_resolution_settle",
@@ -27,6 +36,15 @@ export type AccountingSourceId =
   (typeof ACCOUNTING_SOURCE_ID)[keyof typeof ACCOUNTING_SOURCE_ID];
 
 export const OPERATION_CODE = {
+  TREASURY_OBLIGATION_OPENED: "TREASURY_OBLIGATION_OPENED",
+  TREASURY_EXECUTION_SUBMITTED: "TREASURY_EXECUTION_SUBMITTED",
+  TREASURY_EXECUTION_SETTLED: "TREASURY_EXECUTION_SETTLED",
+  TREASURY_EXECUTION_FAILED: "TREASURY_EXECUTION_FAILED",
+  TREASURY_EXECUTION_RETURNED: "TREASURY_EXECUTION_RETURNED",
+  TREASURY_EXECUTION_VOIDED: "TREASURY_EXECUTION_VOIDED",
+  TREASURY_ALLOCATION_APPLIED: "TREASURY_ALLOCATION_APPLIED",
+  TREASURY_POSITION_OPENED: "TREASURY_POSITION_OPENED",
+  TREASURY_POSITION_SETTLED: "TREASURY_POSITION_SETTLED",
   TRANSFER_APPROVE_IMMEDIATE_INTRA: "TRANSFER_APPROVE_IMMEDIATE_INTRA",
   TRANSFER_APPROVE_PENDING_INTRA: "TRANSFER_APPROVE_PENDING_INTRA",
   TRANSFER_APPROVE_IMMEDIATE_CROSS: "TRANSFER_APPROVE_IMMEDIATE_CROSS",
@@ -66,6 +84,12 @@ export const POSTING_TEMPLATE_KEY = {
   TRANSFER_CROSS_DESTINATION_PENDING: "transfer.cross.destination.pending",
   TRANSFER_PENDING_SETTLE: "transfer.pending.settle",
   TRANSFER_PENDING_VOID: "transfer.pending.void",
+  TREASURY_CASH_OUT_IMMEDIATE: "treasury.cash_out.immediate",
+  TREASURY_CASH_OUT_PENDING: "treasury.cash_out.pending",
+  TREASURY_CASH_IN_IMMEDIATE: "treasury.cash_in.immediate",
+  TREASURY_CASH_IN_PENDING: "treasury.cash_in.pending",
+  TREASURY_CASH_PENDING_SETTLE: "treasury.cash.pending.settle",
+  TREASURY_CASH_PENDING_VOID: "treasury.cash.pending.void",
   TREASURY_FX_SOURCE_IMMEDIATE: "treasury.fx.source.immediate",
   TREASURY_FX_SOURCE_PENDING: "treasury.fx.source.pending",
   TREASURY_FX_DESTINATION_IMMEDIATE: "treasury.fx.destination.immediate",
@@ -122,6 +146,18 @@ export const POSTING_TEMPLATE_KEY = {
   PAYMENT_FEE_PAYOUT_INITIATE: "payment.fee_payout.initiate",
   PAYMENT_FEE_PAYOUT_SETTLE: "payment.fee_payout.settle",
   PAYMENT_FEE_PAYOUT_VOID: "payment.fee_payout.void",
+  TREASURY_POSITION_CUSTOMER_LIABILITY_OPEN:
+    "treasury.position.customer_liability.open",
+  TREASURY_POSITION_CUSTOMER_LIABILITY_SETTLE:
+    "treasury.position.customer_liability.settle",
+  TREASURY_POSITION_INTERCOMPANY_DUE_FROM_OPEN:
+    "treasury.position.intercompany_due_from.open",
+  TREASURY_POSITION_INTERCOMPANY_DUE_FROM_SETTLE:
+    "treasury.position.intercompany_due_from.settle",
+  TREASURY_POSITION_INTERCOMPANY_DUE_TO_OPEN:
+    "treasury.position.intercompany_due_to.open",
+  TREASURY_POSITION_INTERCOMPANY_DUE_TO_SETTLE:
+    "treasury.position.intercompany_due_to.settle",
 } as const;
 
 export type PostingTemplateKey =

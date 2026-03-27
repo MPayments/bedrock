@@ -199,6 +199,15 @@ export const FxExecuteInputSchema = baseOccurredAtSchema
     memo: memoSchema,
     financialLines: z.array(fxExecuteFinancialLineInputSchema).default([]),
   })
+  .superRefine((input, ctx) => {
+    if (input.sourceRequisiteId === input.destinationRequisiteId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Для валютного обмена выберите разные реквизиты источника и назначения",
+        path: ["destinationRequisiteId"],
+      });
+    }
+  })
   .transform((input, ctx) => {
     if (input.currency === undefined) {
       return input;

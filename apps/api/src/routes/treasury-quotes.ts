@@ -292,7 +292,8 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
   return app
     .openapi(listQuotesRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.treasuryModule.quotes.queries.listQuotes(query);
+      const result =
+        await ctx.treasuryModule.pricing.quotes.queries.listQuotes(query);
 
       return c.json(
         {
@@ -307,7 +308,8 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
     .openapi(createQuoteRoute, async (c) => {
       try {
         const body = c.req.valid("json");
-        const quote = await ctx.treasuryModule.quotes.commands.createQuote(body);
+        const quote =
+          await ctx.treasuryModule.pricing.quotes.commands.createQuote(body);
         return c.json(serializeQuote(quote), 201);
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -328,7 +330,8 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
     .openapi(previewQuoteRoute, async (c) => {
       try {
         const body = c.req.valid("json");
-        const preview = await ctx.treasuryModule.quotes.queries.previewQuote(body);
+        const preview =
+          await ctx.treasuryModule.pricing.quotes.queries.previewQuote(body);
         return c.json(serializeQuotePreview(preview), 200);
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -347,7 +350,7 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
       try {
         const { quoteRef } = c.req.valid("param");
         const details =
-          await ctx.treasuryModule.quotes.queries.getQuoteDetails({
+          await ctx.treasuryModule.pricing.quotes.queries.getQuoteDetails({
             quoteRef,
           });
         return c.json(serializeQuoteDetails(details), 200);

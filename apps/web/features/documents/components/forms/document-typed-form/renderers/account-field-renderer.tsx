@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 
 import {
@@ -15,6 +16,7 @@ import { isUuid } from "@/lib/resources/http";
 
 import { useDocumentTypedForm } from "../context";
 import {
+  filterFxDestinationRequisiteOptions,
   findSelectedLabel,
   getDocumentFormFieldId,
   readValueAsString,
@@ -33,9 +35,9 @@ export function AccountFieldRenderer({
   field,
 }: DocumentTypedFormFieldRendererProps<"account">) {
   const {
-    meta: { loadingOwnerKeys, requisitesByOwnerKey },
+    meta: { accountCurrencyCodeById, docType, loadingOwnerKeys, requisitesByOwnerKey },
   } = useDocumentTypedForm();
-  const { control } = useFormContext<DocumentFormValues>();
+  const { control, setValue } = useFormContext<DocumentFormValues>();
   const { disabled, submitting } = useDocumentTypedFormDisabledState();
   const errorMessage = useDocumentTypedFormFieldError(field.name);
   const ownerId = readValueAsString(
@@ -49,9 +51,36 @@ export function AccountFieldRenderer({
     ownerId,
     requisiteSource,
   });
-  const accountOptions = isUuid(ownerId)
+  const sourceRequisiteId = readValueAsString(
+    useWatch({
+      control,
+      name: "sourceRequisiteId",
+    }),
+  ).trim();
+  const selectedValue = readValueAsString(
+    useWatch({
+      control,
+      name: field.name,
+    }),
+  ).trim();
+  const rawAccountOptions = isUuid(ownerId)
     ? (requisitesByOwnerKey.get(ownerKey) ?? [])
     : [];
+  const accountOptions = useMemo(() => {
+    return filterFxDestinationRequisiteOptions({
+      accountCurrencyCodeById,
+      docType,
+      fieldName: field.name,
+      options: rawAccountOptions,
+      sourceRequisiteId,
+    });
+  }, [
+    accountCurrencyCodeById,
+    docType,
+    field.name,
+    rawAccountOptions,
+    sourceRequisiteId,
+  ]);
   const accountSelectOptions = accountOptions.map((option) => ({
     value: option.id,
     label: option.label,
@@ -62,6 +91,18 @@ export function AccountFieldRenderer({
     requisiteSource === "organizationRequisites"
       ? "организацию"
       : "контрагента";
+
+  useEffect(() => {
+    if (!selectedValue) {
+      return;
+    }
+
+    if (accountOptions.some((option) => option.id === selectedValue)) {
+      return;
+    }
+
+    setValue(field.name, "", { shouldDirty: true, shouldValidate: true });
+  }, [accountOptions, field.name, selectedValue, setValue]);
 
   return (
     <DocumentTypedFormFieldShell
@@ -92,6 +133,10 @@ export function AccountFieldRenderer({
                     ? `Сначала выберите ${ownerNoun}`
                     : isLoading
                       ? "Загрузка реквизитов..."
+                      : docType === "fx_execute" &&
+                          field.name === "destinationRequisiteId" &&
+                          sourceRequisiteId
+                        ? "Выберите реквизит в другой валюте"
                       : "Выберите реквизит"
                 }
               >

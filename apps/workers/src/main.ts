@@ -39,15 +39,7 @@ const workers = createWorkerFleet({
 });
 
 const monitoring = createWorkerMonitoringRegistry();
-const monitoringServer =
-  env.WORKERS_MONITORING_PORT > 0
-    ? await startWorkerMonitoringServer({
-        host: env.WORKERS_MONITORING_HOST,
-        port: env.WORKERS_MONITORING_PORT,
-        registry: monitoring,
-        logger,
-      })
-    : null;
+const monitoringServer = await startMonitoringServer();
 const fleet = startWorkerFleet({
   appName: "bedrock-workers",
   workers,
@@ -122,3 +114,39 @@ logger.info("Workers started", {
 await fleet.promise;
 logger.info("Workers stopped");
 process.exit(0);
+
+async function startMonitoringServer() {
+  if (env.WORKERS_MONITORING_PORT <= 0) {
+    return null;
+  }
+
+  try {
+    return await startWorkerMonitoringServer({
+      host: env.WORKERS_MONITORING_HOST,
+      port: env.WORKERS_MONITORING_PORT,
+      registry: monitoring,
+      logger,
+    });
+  } catch (error) {
+    if (isAddressInUseError(error)) {
+      logger.warn("Worker monitoring port is already in use; continuing without monitoring server", {
+        host: env.WORKERS_MONITORING_HOST,
+        port: env.WORKERS_MONITORING_PORT,
+      });
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function isAddressInUseError(
+  error: unknown,
+): error is NodeJS.ErrnoException {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "EADDRINUSE"
+  );
+}

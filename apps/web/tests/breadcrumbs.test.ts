@@ -14,9 +14,37 @@ describe("breadcrumbs", () => {
       { label: "Курсы", href: "/treasury/rates", icon: "chart-candlestick" },
     ]);
 
+    await expect(resolveBreadcrumbItems(["treasury", "fx"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "FX", href: "/treasury/fx", icon: "arrow-right-left" },
+    ]);
+
     await expect(resolveBreadcrumbItems(["treasury", "quotes"])).resolves.toEqual([
       { label: "Казначейство", href: "/treasury", icon: "landmark" },
       { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
+    ]);
+
+    await expect(resolveBreadcrumbItems(["treasury", "accounts"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Счета", href: "/treasury/accounts", icon: "wallet" },
+    ]);
+
+    await expect(
+      resolveBreadcrumbItems(["treasury", "operations", "create"]),
+    ).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Операции", href: "/treasury/operations" },
+      { label: "Создать" },
+    ]);
+
+    await expect(resolveBreadcrumbItems(["treasury", "positions"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Позиции", href: "/treasury/positions", icon: "calculator" },
+    ]);
+
+    await expect(resolveBreadcrumbItems(["treasury", "unmatched"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Исключения", href: "/treasury/unmatched", icon: "bell" },
     ]);
   });
 

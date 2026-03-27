@@ -46,6 +46,10 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/settings");
     expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
+    expect(hrefs).toContain("/treasury/accounts");
+    expect(hrefs).toContain("/treasury/operations");
+    expect(hrefs).toContain("/treasury/fx");
+    expect(hrefs).toContain("/treasury/positions");
     expect(hrefs).toContain("/users");
     expect(hrefs).toContain("/treasury/organizations");
     expect(hrefs).toContain("/entities/customers");
@@ -58,6 +62,7 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/accounting/reports");
     expect(hrefs).toContain("/treasury/rates");
     expect(hrefs).toContain("/treasury/quotes");
+    expect(hrefs).toContain("/treasury/unmatched");
     expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");

@@ -2,8 +2,6 @@
 
 import { Plus } from "lucide-react";
 
-import { Button } from "@bedrock/sdk-ui/components/button";
-
 import type { CurrencyOption } from "../lib/queries";
 import { SetManualRateDialog } from "./set-manual-rate-dialog";
 
@@ -15,11 +13,11 @@ export function CreateManualRateDialog({
   currencies,
 }: CreateManualRateDialogProps) {
   return (
-    <SetManualRateDialog currencies={currencies}>
-      <Button size="lg">
+    <SetManualRateDialog currencies={currencies} triggerSize="lg">
+      <>
         <Plus className="h-4 w-4" />
         <span className="hidden md:block">Ручной курс</span>
-      </Button>
+      </>
     </SetManualRateDialog>
   );
 }

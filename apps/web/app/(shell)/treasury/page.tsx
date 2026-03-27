@@ -1,51 +1,61 @@
 import { Vault } from "lucide-react";
 
-import { getOrganizations } from "@/features/entities/organizations/lib/queries";
-import { getDocuments } from "@/features/operations/documents/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 import { getFxQuotes } from "@/features/treasury/quotes/lib/queries";
 import { getRateSources } from "@/features/treasury/rates/lib/queries";
-
-const TREASURY_DOC_TYPES = [
-  "payment_case",
-  "payin_funding",
-  "payout_initiate",
-  "payout_settle",
-  "payout_void",
-  "fee_payout_initiate",
-  "fee_payout_settle",
-  "fee_payout_void",
-  "capital_funding",
-  "fx_execute",
-  "fx_resolution",
-];
+import {
+  listTreasuryAccounts,
+  listTreasuryOperations,
+  listTreasuryPositions,
+  listUnmatchedExternalRecords,
+} from "@/features/treasury/workbench/lib/queries";
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
 }
 
 export default async function TreasuryOverviewPage() {
-  const [organizations, treasuryDocuments, sources, quotes] = await Promise.all([
-    getOrganizations(),
-    getDocuments({ page: 1, perPage: 1, docType: TREASURY_DOC_TYPES }),
-    getRateSources(),
-    getFxQuotes({ page: 1, perPage: 1 }),
-  ]);
+  const [accounts, operations, positions, unmatchedRecords, sources, quotes] =
+    await Promise.all([
+      listTreasuryAccounts(),
+      listTreasuryOperations({ limit: 100 }),
+      listTreasuryPositions(),
+      listUnmatchedExternalRecords({ limit: 100 }),
+      getRateSources(),
+      getFxQuotes({ page: 1, perPage: 1 }),
+    ]);
   const staleSources = sources.filter((source) => source.isExpired).length;
+  const openPositions = positions.filter((position) => position.closedAt === null);
 
   return (
     <SectionOverviewPage
       icon={Vault}
       title="Казначейство"
-      description="Административный обзор казначейских потоков, контрагентов и связанных документов."
+      description="Операционная панель для ручного казначейского процесса: счета, операции, позиции и исключения сверки."
       stats={[
         {
-          id: "organizations",
-          label: "Организации",
-          value: formatCount(organizations.total),
+          id: "accounts",
+          label: "Счета казначейства",
+          value: formatCount(accounts.length),
+          description: "Исполняемые счета с текущими учтенными и доступными остатками.",
+          href: "/treasury/accounts",
+        },
+        {
+          id: "operations",
+          label: "Операции",
+          value: formatCount(operations.length),
+          description: "Последние выплаты, поступления, переводы и возвраты без смены валюты.",
+          href: "/treasury/operations",
+        },
+        {
+          id: "fx",
+          label: "Treasury FX",
+          value: formatCount(quotes.total),
           description:
-            "Владельцы внутренних книг и казначейских ledgers.",
-          href: "/treasury/organizations",
+            staleSources > 0
+              ? `Просроченных FX-источников: ${formatCount(staleSources)}`
+              : "FX работает через отдельный treasury-owned сценарий.",
+          href: "/treasury/fx",
         },
         {
           id: "sources",
@@ -54,51 +64,72 @@ export default async function TreasuryOverviewPage() {
           description:
             staleSources > 0
               ? `Просроченных источников: ${formatCount(staleSources)}`
-              : "Все treasury FX-источники актуальны в пределах TTL.",
+              : "Все источники курсов актуальны в пределах TTL.",
           href: "/treasury/rates",
         },
         {
-          id: "quotes",
-          label: "Котировки",
-          value: formatCount(quotes.total),
-          description: "История treasury FX-котировок и их жизненный цикл.",
-          href: "/treasury/quotes",
-        },
-        {
-          id: "documents",
-          label: "Treasury-документы",
-          value: formatCount(treasuryDocuments.total),
-          description: "Документы funding, payout и treasury FX в едином журнале.",
-          href: "/documents",
+          id: "positions",
+          label: "Открытые позиции",
+          value: formatCount(openPositions.length),
+          description:
+            unmatchedRecords.length > 0
+              ? `Есть ${formatCount(unmatchedRecords.length)} несопоставленных внешних записей`
+              : "Внешние записи сверки сейчас сопоставлены.",
+          href: "/treasury/positions",
         },
       ]}
       links={[
         {
-          id: "organizations",
-          title: "Организации",
-          description: "Рабочая зона казначейских организаций и их внутренних книг.",
-          href: "/treasury/organizations",
+          id: "operations",
+          title: "Операции",
+          description: "Лента ручных операций с переходом в карточку и хронологию событий.",
+          href: "/treasury/operations",
+        },
+        {
+          id: "fx",
+          title: "FX",
+          description:
+            "Отдельный front door для валютной конверсии: запуск FX, контроль котировок и проверка источников курса.",
+          href: "/treasury/fx",
+        },
+        {
+          id: "accounts",
+          title: "Счета",
+          description: "Сводка по исполняемым счетам казначейства и их остаткам.",
+          href: "/treasury/accounts",
+        },
+        {
+          id: "positions",
+          title: "Позиции",
+          description: "Клиентские и межкомпанейские позиции с ручным погашением.",
+          href: "/treasury/positions",
+        },
+        {
+          id: "unmatched",
+          title: "Исключения",
+          description:
+            "Внешние записи сверки и другие исключения, которые ещё не привязаны к событиям исполнения.",
+          href: "/treasury/unmatched",
         },
         {
           id: "rates",
           title: "Курсы",
-          description: "Источники, TTL и manual-rate workflow для treasury FX.",
+          description: "Источники, TTL и ручная установка курсов.",
           href: "/treasury/rates",
         },
         {
           id: "quotes",
           title: "Котировки",
-          description: "Журнал treasury FX-котировок со статусом и деталями.",
+          description: "Журнал валютных котировок со статусом и деталями.",
           href: "/treasury/quotes",
         },
         {
-          id: "journal",
-          title: "Журнал операций",
-          description:
-            "Просмотр статусов и деталей казначейских документов в общем потоке.",
-          href: "/documents/journal",
+          id: "organizations",
+          title: "Организации",
+          description: "Организации-владельцы казначейских потоков и внутренних книг.",
+          href: "/treasury/organizations",
         },
-      ]}
+      ].slice(0, 6)}
     />
   );
 }

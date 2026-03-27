@@ -81,6 +81,21 @@ function createDeps() {
       assertCounterpartyExists: vi.fn(async () => undefined),
       assertCounterpartyLinkedToCustomer: vi.fn(async () => undefined),
     },
+    treasuryState: {
+      ensureIncomingInvoiceObligation: vi.fn(async () => ({
+        obligationId: "obligation-incoming-1",
+      })),
+      ensureOutgoingInvoiceObligation: vi.fn(async () => ({
+        obligationId: "obligation-outgoing-1",
+      })),
+      ensurePaymentOrderPayout: vi.fn(async () => ({
+        operationId: "operation-1",
+        instructionId: "instruction-1",
+        submittedEventId: "event-1",
+      })),
+      listDocumentLinks: vi.fn(async () => []),
+      getPaymentOrderStatus: vi.fn(async () => null),
+    },
   };
 }
 
@@ -618,7 +633,7 @@ describe("commercial document modules", () => {
     });
   });
 
-  it("builds immediate postings for settled payment_order", async () => {
+  it("builds treasury-submitted postings for sent payment_order", async () => {
     const deps = createDeps();
     deps.documentRelations.loadIncomingInvoice = vi.fn(async () =>
       createPostedIncomingInvoice(),
@@ -657,114 +672,102 @@ describe("commercial document modules", () => {
           allocatedAmount: "100.00",
           allocatedAmountMinor: "10000",
           allocatedCurrency: "EUR",
-          executionStatus: "settled",
+          executionStatus: "sent",
           executionRef: "rail-1",
         },
       } as any,
     );
 
     expect(postingPlan?.operationCode).toBe(
-      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE,
+      OPERATION_CODE.TREASURY_EXECUTION_SUBMITTED,
     );
     expect(postingPlan?.requests.map((request) => request.templateKey)).toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_IMMEDIATE,
+      POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
+    );
+    expect(deps.treasuryState.ensureIncomingInvoiceObligation).toHaveBeenCalledWith({
+      document: expect.objectContaining({
+        id: "00000000-0000-4000-8000-000000000201",
+      }),
+    });
+    expect(deps.treasuryState.ensurePaymentOrderPayout).toHaveBeenCalledWith({
+      document: expect.objectContaining({
+        id: "00000000-0000-4000-8000-000000000501",
+      }),
+    });
+  });
+
+  it("rejects payment_order resolution posting; treasury execution events own resolution state", async () => {
+    const deps = createDeps();
+    const module = createPaymentOrderDocumentModule(deps as any);
+
+    await expect(
+      module.buildPostingPlan?.(
+        createDraftContext({
+          docType: "payment_order",
+          docNo: "PPO-2",
+        }) as any,
+        {
+          id: "00000000-0000-4000-8000-000000000402",
+          docType: "payment_order",
+          docNo: "PPO-2",
+          occurredAt: new Date("2026-03-04T10:10:00.000Z"),
+          payload: {
+            occurredAt: "2026-03-04T10:10:00.000Z",
+            contour: "rf",
+            incomingInvoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+            sourcePaymentOrderDocumentId:
+              "00000000-0000-4000-8000-000000000401",
+            customerId: "00000000-0000-4000-8000-000000000301",
+            counterpartyId: "00000000-0000-4000-8000-000000000302",
+            counterpartyRequisiteId: "00000000-0000-4000-8000-000000000303",
+            organizationId: "00000000-0000-4000-8000-000000000113",
+            organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+            fundingAmount: "100.00",
+            fundingAmountMinor: "10000",
+            fundingCurrency: "EUR",
+            allocatedAmount: "100.00",
+            allocatedAmountMinor: "10000",
+            allocatedCurrency: "EUR",
+            executionStatus: "failed",
+          },
+        } as any,
+      ),
+    ).rejects.toThrow(
+      "payment_order resolutions are no longer supported; use treasury execution events instead",
     );
   });
 
-  it("builds pending void postings for payment_order resolutions", async () => {
+  it("includes treasury operation status in payment_order details", async () => {
     const deps = createDeps();
-    deps.documentRelations.loadIncomingInvoice = vi.fn(async () =>
-      createPostedIncomingInvoice(),
-    );
-    deps.documentRelations.loadPaymentOrder = vi.fn(async () =>
-      createPostedSentPaymentOrder(),
-    );
-    deps.ledgerRead.getOperationDetails = vi.fn(async () => ({
-      operation: {} as any,
-      postings: [],
-      tbPlans: [
-        {
-          id: "plan_1",
-          lineNo: 1,
-          type: "create",
-          transferId: 99n,
-          debitTbAccountId: null,
-          creditTbAccountId: null,
-          tbLedger: 1,
-          amount: 10_000n,
-          code: 3101,
-          pendingRef: "payment_order:00000000-0000-4000-8000-000000000401",
-          pendingId: null,
-          isLinked: false,
-          isPending: true,
-          timeoutSeconds: 3600,
-          status: "pending",
-          error: null,
-          createdAt: new Date("2026-03-04T10:00:00.000Z"),
-        },
-      ],
-    }));
-    deps.requisiteBindings.resolveBinding = vi.fn(async () => ({
-      requisiteId: "00000000-0000-4000-8000-000000000111",
-      bookId: "00000000-0000-4000-8000-000000000112",
-      organizationId: "00000000-0000-4000-8000-000000000113",
-      currencyCode: "EUR",
-      postingAccountNo: "1010",
-      bookAccountInstanceId: "00000000-0000-4000-8000-000000000114",
+    deps.treasuryState.getPaymentOrderStatus = vi.fn(async () => ({
+      operationId: "operation-1",
+      instructionId: "instruction-1",
+      operationStatus: "submitted",
+      instructionStatus: "submitted",
+      submittedEventId: "event-1",
     }));
     const module = createPaymentOrderDocumentModule(deps as any);
 
-    const postingPlan = await module.buildPostingPlan?.(
+    const details = await module.buildDetails?.(
       {
         ...createDraftContext({
           docType: "payment_order",
-          docNo: "PPO-2",
+          docNo: "PPO-1",
         }),
-        runtime: {
-          documents: {
-            getDocumentOperationId: vi.fn(async () => "op-payment-order-1"),
-          },
-        },
       } as any,
       {
-        id: "00000000-0000-4000-8000-000000000402",
-        docType: "payment_order",
-        docNo: "PPO-2",
-        occurredAt: new Date("2026-03-04T10:10:00.000Z"),
-        payload: {
-          occurredAt: "2026-03-04T10:10:00.000Z",
-          contour: "rf",
-          incomingInvoiceDocumentId: "00000000-0000-4000-8000-000000000201",
-          sourcePaymentOrderDocumentId:
-            "00000000-0000-4000-8000-000000000401",
-          customerId: "00000000-0000-4000-8000-000000000301",
-          counterpartyId: "00000000-0000-4000-8000-000000000302",
-          counterpartyRequisiteId: "00000000-0000-4000-8000-000000000303",
-          organizationId: "00000000-0000-4000-8000-000000000113",
-          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-          fundingAmount: "100.00",
-          fundingAmountMinor: "10000",
-          fundingCurrency: "EUR",
-          allocatedAmount: "100.00",
-          allocatedAmountMinor: "10000",
-          allocatedCurrency: "EUR",
-          executionStatus: "failed",
-        },
+        ...createPostedSentPaymentOrder(),
+        postingStatus: "posted",
       } as any,
     );
 
-    expect(postingPlan?.operationCode).toBe(
-      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_VOID,
-    );
-    expect(postingPlan?.requests).toEqual([
-      expect.objectContaining({
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
-        pending: expect.objectContaining({
-          pendingId: 99n,
-          amountMinor: 0n,
-        }),
-      }),
-    ]);
+    expect(details?.computed).toMatchObject({
+      treasuryOperationId: "operation-1",
+      treasuryInstructionId: "instruction-1",
+      treasuryOperationStatus: "submitted",
+      treasuryInstructionStatus: "submitted",
+      treasurySubmittedEventId: "event-1",
+    });
   });
 
   it("opens receivable debt for outgoing_invoice", async () => {
@@ -800,10 +803,15 @@ describe("commercial document modules", () => {
     );
 
     expect(postingPlan?.operationCode).toBe(
-      OPERATION_CODE.COMMERCIAL_OUTGOING_INVOICE_OPEN,
+      OPERATION_CODE.TREASURY_OBLIGATION_OPENED,
     );
     expect(postingPlan?.requests[0]?.templateKey).toBe(
       POSTING_TEMPLATE_KEY.COMMERCIAL_OUTGOING_INVOICE_OPEN,
     );
+    expect(deps.treasuryState.ensureOutgoingInvoiceObligation).toHaveBeenCalledWith({
+      document: expect.objectContaining({
+        id: "00000000-0000-4000-8000-000000000601",
+      }),
+    });
   });
 });

@@ -19,7 +19,7 @@ type RatesWorkerSourceGuard = (
 export function createTreasuryRatesWorkerDefinition(deps: {
   id?: string;
   intervalMs?: number;
-  treasuryModule: Pick<TreasuryModule, "rates">;
+  treasuryModule: Pick<TreasuryModule, "pricing">;
   logger?: Logger;
   beforeSourceSync?: RatesWorkerSourceGuard;
 }): BedrockWorker {
@@ -27,9 +27,8 @@ export function createTreasuryRatesWorkerDefinition(deps: {
   const beforeSourceSync = deps.beforeSourceSync;
 
   async function runPass(now: Date) {
-    const statuses = await treasuryModule.rates.queries.getRateSourceStatuses(
-      now,
-    );
+    const statuses =
+      await treasuryModule.pricing.rates.queries.getRateSourceStatuses(now);
 
     let processed = 0;
     for (const status of statuses) {
@@ -46,7 +45,7 @@ export function createTreasuryRatesWorkerDefinition(deps: {
       }
 
       try {
-        await treasuryModule.rates.commands.syncRatesFromSource({
+        await treasuryModule.pricing.rates.commands.syncRatesFromSource({
           source,
           now,
           force: true,

@@ -71,7 +71,7 @@ export function createIncomingInvoiceDocumentModule(
 ): DocumentModule<IncomingInvoiceInput, IncomingInvoiceInput> {
   return {
     moduleId: "incoming_invoice",
-    accountingSourceId: ACCOUNTING_SOURCE_ID.INCOMING_INVOICE,
+    accountingSourceId: ACCOUNTING_SOURCE_ID.TREASURY_OBLIGATION_OPENED,
     docType: "incoming_invoice",
     docNoPrefix: COMMERCIAL_DOCUMENT_METADATA.incoming_invoice.docNoPrefix,
     payloadVersion: 1,
@@ -142,6 +142,7 @@ export function createIncomingInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      await deps.treasuryState.ensureIncomingInvoiceObligation({ document });
 
       return buildIncomingInvoicePostingPlan({
         document,

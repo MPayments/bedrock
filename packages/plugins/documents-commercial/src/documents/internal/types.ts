@@ -82,6 +82,37 @@ export interface CommercialLedgerReadPort {
   getOperationDetails(operationId: string): Promise<LedgerOperationDetails | null>;
 }
 
+export interface CommercialTreasuryDocumentLink {
+  linkKind: "instruction" | "obligation" | "operation";
+  targetId: string;
+}
+
+export interface CommercialTreasuryStatePort {
+  ensureIncomingInvoiceObligation(input: {
+    document: DocumentSnapshot;
+  }): Promise<{ obligationId: string }>;
+  ensureOutgoingInvoiceObligation(input: {
+    document: DocumentSnapshot;
+  }): Promise<{ obligationId: string }>;
+  ensurePaymentOrderPayout(input: {
+    document: DocumentSnapshot;
+  }): Promise<{
+    operationId: string;
+    instructionId: string;
+    submittedEventId: string | null;
+  }>;
+  listDocumentLinks(documentId: string): Promise<CommercialTreasuryDocumentLink[]>;
+  getPaymentOrderStatus(input: {
+    documentId: string;
+  }): Promise<{
+    operationId: string | null;
+    instructionId: string | null;
+    operationStatus: string | null;
+    instructionStatus: string | null;
+    submittedEventId: string | null;
+  } | null>;
+}
+
 export interface CommercialModuleDeps {
   documentRelations: CommercialDocumentRelationsPort;
   ledgerRead: CommercialLedgerReadPort;
@@ -89,4 +120,5 @@ export interface CommercialModuleDeps {
   quoteUsage: CommercialQuoteUsagePort;
   requisiteBindings: CommercialRequisiteBindingsPort;
   partyReferences: CommercialPartyReferencesPort;
+  treasuryState: CommercialTreasuryStatePort;
 }

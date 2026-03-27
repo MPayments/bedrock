@@ -156,7 +156,7 @@ function parseJournalOperationsQuery(requestUrl: string) {
   const operationCode = readQueryStringArray(query.operationCode);
   const sourceType = readQueryStringArray(query.sourceType);
 
-  return JournalOperationsQuerySchema.parse({
+  const candidate = {
     limit: readPositiveInt(query.limit, 20, { min: 1, max: 200 }),
     offset: readPositiveInt(query.offset, 0, { min: 0 }),
     sortBy:
@@ -172,7 +172,14 @@ function parseJournalOperationsQuery(requestUrl: string) {
     sourceId: readNonEmptyQueryString(query.sourceId),
     bookId: readNonEmptyQueryString(query.bookId),
     dimensionFilters: readDimensionFilters(query),
-  });
+  };
+  const parsed = JournalOperationsQuerySchema.safeParse(candidate);
+
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  return JournalOperationsQuerySchema.parse({});
 }
 
 export function documentsRoutes(ctx: AppContext) {
@@ -329,7 +336,8 @@ export function documentsRoutes(ctx: AppContext) {
             query,
           );
 
-        return c.json(
+        return jsonOk(
+          c,
           {
             ...result,
             data: result.data.map((row) => ({
@@ -340,7 +348,6 @@ export function documentsRoutes(ctx: AppContext) {
               createdAt: row.createdAt.toISOString(),
             })),
           },
-          200,
         );
       } catch (error) {
         return handleRouteError(c, error);

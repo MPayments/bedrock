@@ -6,7 +6,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./adapters/drizzle": "./src/adapters/drizzle.ts",
+    "./accounts": "./src/accounts/index.ts",
+    "./allocations": "./src/allocations/index.ts",
     "./contracts": "./src/contracts.ts",
+    "./controls": "./src/controls/index.ts",
+    "./executions": "./src/executions/index.ts",
+    "./obligations": "./src/obligations/index.ts",
+    "./operations": "./src/operations/index.ts",
+    "./positions": "./src/positions/index.ts",
+    "./pricing": "./src/pricing/index.ts",
     "./schema": "./src/schema.ts",
     "./worker": "./src/worker.ts",
     "./providers": "./src/providers.ts"
@@ -24,6 +32,7 @@
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",
     "tlsclientwrapper": "^4.1.2",

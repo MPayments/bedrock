@@ -11,7 +11,12 @@ function createDeps() {
   return {
     documentRelations: {
       loadIncomingInvoice: vi.fn(),
+      loadPaymentOrder: vi.fn(),
       listIncomingInvoicePaymentOrders: vi.fn(async () => []),
+      listPaymentOrderResolutions: vi.fn(async () => []),
+    },
+    ledgerRead: {
+      getOperationDetails: vi.fn(async () => null),
     },
     quoteSnapshot: {
       loadQuoteSnapshot: vi.fn(),
@@ -26,6 +31,14 @@ function createDeps() {
     partyReferences: {
       assertCustomerExists: vi.fn(),
       assertCounterpartyExists: vi.fn(),
+      assertCounterpartyLinkedToCustomer: vi.fn(),
+    },
+    treasuryState: {
+      ensureIncomingInvoiceObligation: vi.fn(),
+      ensureOutgoingInvoiceObligation: vi.fn(),
+      ensurePaymentOrderPayout: vi.fn(),
+      listDocumentLinks: vi.fn(async () => []),
+      getPaymentOrderStatus: vi.fn(async () => null),
     },
   };
 }
@@ -54,15 +67,13 @@ describe("commercial module registry", () => {
     );
 
     expect(incomingInvoice?.accountingSourceId).toBe(
-      ACCOUNTING_SOURCE_ID.INCOMING_INVOICE,
+      ACCOUNTING_SOURCE_ID.TREASURY_OBLIGATION_OPENED,
     );
-    expect(paymentOrder?.accountingSourceIds).toEqual([
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE,
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE,
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID,
-    ]);
+    expect(paymentOrder?.accountingSourceId).toBe(
+      ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SUBMITTED,
+    );
     expect(outgoingInvoice?.accountingSourceId).toBe(
-      ACCOUNTING_SOURCE_ID.OUTGOING_INVOICE,
+      ACCOUNTING_SOURCE_ID.TREASURY_OBLIGATION_OPENED,
     );
     expect(paymentOrder?.postingRequired).toBe(true);
     expect(paymentOrder?.allowDirectPostFromDraft).toBe(false);

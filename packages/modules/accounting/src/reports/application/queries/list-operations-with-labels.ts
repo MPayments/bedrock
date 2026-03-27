@@ -24,12 +24,18 @@ export type LedgerOperationListWithLabels = Omit<
   })[];
 };
 
+function omitUndefined<T extends Record<string, unknown>>(input: T): T {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  ) as T;
+}
+
 export class ListOperationsWithLabelsQuery {
   constructor(private readonly reads: ReportsReads) {}
 
   execute(query?: ListOperationsWithLabelsInput) {
     return this.reads.listOperationsWithLabels(
-      ListOperationsWithLabelsQuerySchema.parse(query ?? {}),
+      omitUndefined(ListOperationsWithLabelsQuerySchema.parse(query ?? {})),
     );
   }
 }
@@ -46,7 +52,9 @@ export class ListOperationsWithLabelsReadQuery {
     query?: ListLedgerOperationsInput,
   ): Promise<LedgerOperationListWithLabels> {
     const { ledgerReadPort, listBookNamesById } = this.input;
-    const result = await ledgerReadPort.listOperations(query);
+    const result = await ledgerReadPort.listOperations(
+      query ? omitUndefined(query) : undefined,
+    );
     const bookNamesById = await listBookNamesById(
       Array.from(new Set(result.data.flatMap((row) => row.bookIds))),
     );

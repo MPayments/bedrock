@@ -64,6 +64,7 @@ export type DocumentTypedFormMeta = {
   customerFieldName: string | null;
   requisitesByOwnerKey: Map<string, RequisiteOption[]>;
   loadingOwnerKeys: Set<string>;
+  accountCurrencyCodeById: Map<string, string>;
   methods: UseFormReturn<DocumentFormValues>;
   onSuccess?: (result: DocumentMutationDto) => void;
 };

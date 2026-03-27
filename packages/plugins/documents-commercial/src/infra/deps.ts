@@ -211,11 +211,10 @@ async function markQuoteUsedForRef(input: {
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
   treasuryQuotes: CommercialTreasuryQuotesPort;
+  treasuryState: CommercialModuleDeps["treasuryState"];
   ledgerReadService: CommercialLedgerReadPort;
   requisitesService: {
-    resolveBindings(input: {
-      requisiteIds: string[];
-    }): Promise<
+    resolveBindings(input: { requisiteIds: string[] }): Promise<
       {
         requisiteId: string;
         bookId: string;
@@ -250,11 +249,11 @@ export function createCommercialDocumentDeps(input: {
   const {
     currenciesService,
     treasuryQuotes,
+    treasuryState,
     ledgerReadService,
     requisitesService,
     partiesService,
-  } =
-    input;
+  } = input;
 
   return {
     ledgerRead: {
@@ -341,7 +340,9 @@ export function createCommercialDocumentDeps(input: {
             partiesService.counterparties.findById(counterpartyId),
             partiesService.counterpartyGroups.listByCustomerId(customerId),
           ]);
-          const customerGroupIds = new Set(customerGroups.map((group) => group.id));
+          const customerGroupIds = new Set(
+            customerGroups.map((group) => group.id),
+          );
           const linkedViaGroup = (counterparty.groupIds ?? []).some((groupId) =>
             customerGroupIds.has(groupId),
           );
@@ -369,11 +370,7 @@ export function createCommercialDocumentDeps(input: {
           forUpdate,
         });
       },
-      loadPaymentOrder({
-        runtime,
-        paymentOrderDocumentId,
-        forUpdate = false,
-      }) {
+      loadPaymentOrder({ runtime, paymentOrderDocumentId, forUpdate = false }) {
         return loadDocumentByType({
           runtime,
           documentId: paymentOrderDocumentId,
@@ -391,10 +388,7 @@ export function createCommercialDocumentDeps(input: {
           fromDocType: PAYMENT_ORDER_DOC_TYPE,
         });
       },
-      async listPaymentOrderResolutions({
-        runtime,
-        paymentOrderDocumentId,
-      }) {
+      async listPaymentOrderResolutions({ runtime, paymentOrderDocumentId }) {
         return runtime.documents.listIncomingLinkedDocuments({
           toDocumentId: paymentOrderDocumentId,
           linkType: "depends_on",
@@ -402,5 +396,6 @@ export function createCommercialDocumentDeps(input: {
         });
       },
     },
+    treasuryState,
   };
 }

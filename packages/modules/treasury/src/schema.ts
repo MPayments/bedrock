@@ -1,3 +1,17 @@
+import {
+  counterpartyEndpoints,
+  treasuryAccountBalanceEntries,
+  treasuryAccounts,
+  treasuryAllocations,
+  treasuryDocumentLinks,
+  treasuryEndpoints,
+  treasuryExecutionEvents,
+  treasuryExecutionInstructions,
+  treasuryObligations,
+  treasuryOperationObligations,
+  treasuryOperations,
+  treasuryPositions,
+} from "./core/adapters/drizzle/schema";
 import { feeRules } from "./fees/adapters/drizzle/schema";
 import {
   fxQuoteFeeComponents,
@@ -8,6 +22,7 @@ import {
 import { fxRateSources, fxRates } from "./rates/adapters/drizzle/schema";
 
 export {
+  counterpartyEndpoints,
   feeRules,
   fxQuoteFeeComponents,
   fxQuoteFinancialLines,
@@ -15,9 +30,21 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
+  treasuryAccountBalanceEntries,
+  treasuryAccounts,
+  treasuryAllocations,
+  treasuryDocumentLinks,
+  treasuryEndpoints,
+  treasuryExecutionEvents,
+  treasuryExecutionInstructions,
+  treasuryObligations,
+  treasuryOperationObligations,
+  treasuryOperations,
+  treasuryPositions,
 };
 
 export const schema = {
+  counterpartyEndpoints,
   fxQuotes,
   fxQuoteLegs,
   fxQuoteFeeComponents,
@@ -25,4 +52,15 @@ export const schema = {
   fxRates,
   fxRateSources,
   feeRules,
+  treasuryAccounts,
+  treasuryEndpoints,
+  treasuryObligations,
+  treasuryOperations,
+  treasuryOperationObligations,
+  treasuryExecutionInstructions,
+  treasuryExecutionEvents,
+  treasuryAllocations,
+  treasuryPositions,
+  treasuryAccountBalanceEntries,
+  treasuryDocumentLinks,
 };

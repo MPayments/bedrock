@@ -36,11 +36,15 @@ import type { CurrencyOption } from "../lib/queries";
 type SetManualRateDialogProps = {
   children: React.ReactNode;
   currencies: CurrencyOption[];
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
 };
 
 export function SetManualRateDialog({
   children,
   currencies,
+  triggerSize = "default",
+  triggerVariant = "default",
 }: SetManualRateDialogProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -113,9 +117,17 @@ export function SetManualRateDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={React.isValidElement(children) ? children : undefined}
+        render={(props) => (
+          <Button
+            {...props}
+            size={triggerSize}
+            variant={triggerVariant}
+          >
+            {children}
+          </Button>
+        )}
       >
-        {!React.isValidElement(children) && children}
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

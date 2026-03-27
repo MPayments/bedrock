@@ -284,7 +284,9 @@ describe("commercial document helpers", () => {
       } as any,
     });
 
-    expect(sentPlan.operationCode).toBe(OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_INITIATE);
+    expect(sentPlan.operationCode).toBe(
+      OPERATION_CODE.TREASURY_EXECUTION_SUBMITTED,
+    );
     expect(sentPlan.requests.map((request) => request.templateKey)).toContain(
       POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
     );
@@ -319,7 +321,9 @@ describe("commercial document helpers", () => {
       } as any,
     });
 
-    expect(settledPlan.operationCode).toBe(OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE);
+    expect(settledPlan.operationCode).toBe(
+      OPERATION_CODE.TREASURY_EXECUTION_SETTLED,
+    );
     expect(settledPlan.requests.map((request) => request.templateKey)).toContain(
       POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_IMMEDIATE,
     );
@@ -374,7 +378,7 @@ describe("commercial document helpers", () => {
     });
 
     expect(settledPlan.operationCode).toBe(
-      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE,
+      OPERATION_CODE.TREASURY_EXECUTION_SETTLED,
     );
     expect(settledPlan.requests).toEqual([
       expect.objectContaining({
@@ -415,7 +419,7 @@ describe("commercial document helpers", () => {
     });
 
     expect(voidPlan.operationCode).toBe(
-      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_VOID,
+      OPERATION_CODE.TREASURY_EXECUTION_FAILED,
     );
     expect(voidPlan.requests).toEqual([
       expect.objectContaining({
@@ -433,16 +437,16 @@ describe("commercial document helpers", () => {
       resolvePaymentOrderAccountingSourceId({
         executionStatus: "sent",
       } as any),
-    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE);
+    ).toBe(ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SUBMITTED);
     expect(
       resolvePaymentOrderAccountingSourceId({
         executionStatus: "settled",
       } as any),
-    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE);
+    ).toBe(ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SETTLED);
     expect(
       resolvePaymentOrderAccountingSourceId({
         executionStatus: "failed",
       } as any),
-    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID);
+    ).toBe(ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_FAILED);
   });
 });

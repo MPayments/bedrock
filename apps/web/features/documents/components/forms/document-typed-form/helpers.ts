@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 
+import type { RequisiteOption } from "@/features/documents/lib/account-options";
 import type { DocumentFormDefinition } from "@/features/documents/lib/document-form-registry";
 import type {
   DocumentFormBreakpoint,
@@ -319,6 +320,36 @@ export function resolveAccountRequisiteRequests(input: {
   }
 
   return requests;
+}
+
+export function filterFxDestinationRequisiteOptions(input: {
+  accountCurrencyCodeById: Map<string, string>;
+  docType: string;
+  fieldName: string;
+  options: RequisiteOption[];
+  sourceRequisiteId: string;
+}) {
+  if (!(input.docType === "fx_execute" && input.fieldName === "destinationRequisiteId")) {
+    return input.options;
+  }
+
+  const sourceCurrencyCode =
+    input.accountCurrencyCodeById.get(input.sourceRequisiteId) ?? null;
+
+  return input.options.filter((option) => {
+    if (option.id === input.sourceRequisiteId) {
+      return false;
+    }
+
+    if (!sourceCurrencyCode) {
+      return true;
+    }
+
+    const optionCurrencyCode =
+      input.accountCurrencyCodeById.get(option.id) ?? null;
+
+    return optionCurrencyCode !== sourceCurrencyCode;
+  });
 }
 
 export function deriveAccountCurrencyFieldUpdates(input: {

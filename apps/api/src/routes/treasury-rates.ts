@@ -212,32 +212,62 @@ export function treasuryRatesRoutes(ctx: AppContext) {
         },
         description: "Rate history for the pair",
       },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Rate history is unavailable for the pair",
+      },
+      503: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Rate history source is unavailable",
+      },
     },
   });
 
   return app
     .openapi(rateHistoryRoute, async (c) => {
       const { base, quote, limit, from } = c.req.valid("query");
-      const points = await ctx.treasuryModule.rates.queries.getRateHistory({
-        base,
-        quote,
-        limit,
-        from,
-      });
-      return c.json(
-        {
-          data: points.map((p) => ({
-            source: p.source,
-            rateNum: p.rateNum.toString(),
-            rateDen: p.rateDen.toString(),
-            asOf: p.asOf.toISOString(),
-          })),
-        },
-        200,
-      );
+      try {
+        const points =
+          await ctx.treasuryModule.pricing.rates.queries.getRateHistory({
+            base,
+            quote,
+            limit,
+            from,
+          });
+        return c.json(
+          {
+            data: points.map((p) => ({
+              source: p.source,
+              rateNum: p.rateNum.toString(),
+              rateDen: p.rateDen.toString(),
+              asOf: p.asOf.toISOString(),
+            })),
+          },
+          200,
+        );
+      } catch (error) {
+        if (error instanceof RateNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        if (
+          error instanceof RateSourceStaleError ||
+          error instanceof RateSourceSyncError
+        ) {
+          return c.json({ error: error.message }, 503);
+        }
+        throw error;
+      }
     })
     .openapi(pairsRoute, async (c) => {
-      const pairs = await ctx.treasuryModule.rates.queries.listPairs();
+      const pairs = await ctx.treasuryModule.pricing.rates.queries.listPairs();
       return c.json(
         {
           data: pairs.map((pair) => ({
@@ -253,7 +283,7 @@ export function treasuryRatesRoutes(ctx: AppContext) {
     .openapi(setManualRateRoute, async (c) => {
       const body = c.req.valid("json");
       try {
-        await ctx.treasuryModule.rates.commands.setManualRate(body);
+        await ctx.treasuryModule.pricing.rates.commands.setManualRate(body);
         return c.json({ ok: true }, 201);
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -272,7 +302,7 @@ export function treasuryRatesRoutes(ctx: AppContext) {
       const { base, quote, asOf } = c.req.valid("query");
 
       try {
-        const rate = await ctx.treasuryModule.rates.queries.getLatestRate(
+        const rate = await ctx.treasuryModule.pricing.rates.queries.getLatestRate(
           base,
           quote,
           asOf ?? new Date(),
@@ -303,7 +333,7 @@ export function treasuryRatesRoutes(ctx: AppContext) {
     })
     .openapi(sourceStatusesRoute, async (c) => {
       const statuses =
-        await ctx.treasuryModule.rates.queries.getRateSourceStatuses();
+        await ctx.treasuryModule.pricing.rates.queries.getRateSourceStatuses();
       return c.json(
         {
           data: statuses.map((status) => serializeSourceStatus(status)),
@@ -317,7 +347,7 @@ export function treasuryRatesRoutes(ctx: AppContext) {
 
       try {
         const result =
-          await ctx.treasuryModule.rates.commands.syncRatesFromSource({
+          await ctx.treasuryModule.pricing.rates.commands.syncRatesFromSource({
           source,
           force: force ?? false,
         });

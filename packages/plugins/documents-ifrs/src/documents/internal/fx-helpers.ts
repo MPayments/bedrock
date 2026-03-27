@@ -86,13 +86,13 @@ export function ensureFxBindingsConvertible(input: {
 }) {
   if (input.source.requisiteId === input.destination.requisiteId) {
     throw new DocumentValidationError(
-      "fx_execute requires different source and destination requisites",
+      "Для валютного обмена выберите разные реквизиты источника и назначения",
     );
   }
 
   if (input.source.currencyCode === input.destination.currencyCode) {
     throw new DocumentValidationError(
-      "fx_execute requires source and destination currencies to differ",
+      "Для валютного обмена реквизиты источника и назначения должны быть в разных валютах",
     );
   }
 }

@@ -145,6 +145,7 @@ export function createApplicationServices(
   const treasuryModule = createApiTreasuryModule({
     db,
     persistence: createPersistenceContext(db),
+    idempotency,
     logger,
     currencies: treasuryCurrenciesPort,
   });
@@ -272,14 +273,16 @@ export function createApplicationServices(
     },
   };
   const treasuryQuotes = {
-    createQuote: treasuryModule.quotes.commands.createQuote,
-    getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
-    markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
+    createQuote: treasuryModule.pricing.quotes.commands.createQuote,
+    getQuoteDetails: treasuryModule.pricing.quotes.queries.getQuoteDetails,
+    markQuoteUsed: treasuryModule.pricing.quotes.commands.markQuoteUsed,
   };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
+        db,
         currenciesService,
+        treasuryModule,
         treasuryQuotes,
         ledgerReadService: {
           getOperationDetails: ledgerModule.operations.queries.getDetails,

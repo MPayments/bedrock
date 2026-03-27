@@ -182,7 +182,7 @@ export function buildIncomingInvoicePostingPlan(input: {
   bookId: string;
 }) {
   return buildDocumentPostingPlan({
-    operationCode: OPERATION_CODE.COMMERCIAL_INCOMING_INVOICE_OPEN,
+    operationCode: OPERATION_CODE.TREASURY_OBLIGATION_OPENED,
     payload: {
       ...input.payload,
       memo: input.payload.memo ?? null,
@@ -209,7 +209,7 @@ export function buildOutgoingInvoicePostingPlan(input: {
   bookId: string;
 }) {
   return buildDocumentPostingPlan({
-    operationCode: OPERATION_CODE.COMMERCIAL_OUTGOING_INVOICE_OPEN,
+    operationCode: OPERATION_CODE.TREASURY_OBLIGATION_OPENED,
     payload: {
       ...input.payload,
       memo: input.payload.memo ?? null,
@@ -507,8 +507,10 @@ export async function buildPaymentOrderPostingPlan(input: {
 
     return buildDocumentPostingPlan({
       operationCode: settle
-        ? OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE
-        : OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_VOID,
+        ? OPERATION_CODE.TREASURY_EXECUTION_SETTLED
+        : input.payload.executionStatus === "failed"
+          ? OPERATION_CODE.TREASURY_EXECUTION_FAILED
+          : OPERATION_CODE.TREASURY_EXECUTION_VOIDED,
       payload: {
         ...input.payload,
         memo: input.payload.memo ?? null,
@@ -587,8 +589,8 @@ export async function buildPaymentOrderPostingPlan(input: {
 
   const operationCode =
     input.payload.executionStatus === "settled"
-      ? OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE
-      : OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_INITIATE;
+      ? OPERATION_CODE.TREASURY_EXECUTION_SETTLED
+      : OPERATION_CODE.TREASURY_EXECUTION_SUBMITTED;
 
   return buildDocumentPostingPlan({
     operationCode,
@@ -604,20 +606,30 @@ export function resolvePaymentOrderAccountingSourceId(
   payload: PaymentOrderPayload,
 ) {
   if (payload.executionStatus === "settled") {
-    return ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE;
+    return ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SETTLED;
   }
 
-  if (
-    payload.executionStatus === "void" ||
-    payload.executionStatus === "failed"
-  ) {
-    return ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID;
+  if (payload.executionStatus === "failed") {
+    return ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_FAILED;
   }
 
-  return ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE;
+  if (payload.executionStatus === "void") {
+    return ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_VOIDED;
+  }
+
+  return ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SUBMITTED;
 }
 
-export function buildPaymentOrderDetails(payload: PaymentOrderPayload) {
+export function buildPaymentOrderDetails(
+  payload: PaymentOrderPayload,
+  treasuryState?: {
+    operationId: string | null;
+    instructionId: string | null;
+    operationStatus: string | null;
+    instructionStatus: string | null;
+    submittedEventId: string | null;
+  } | null,
+) {
   return {
     executionStatus: payload.executionStatus,
     sourcePaymentOrderDocumentId: payload.sourcePaymentOrderDocumentId ?? null,
@@ -628,6 +640,11 @@ export function buildPaymentOrderDetails(payload: PaymentOrderPayload) {
     quoteId: payload.quoteSnapshot?.quoteId ?? null,
     quoteRef: payload.quoteSnapshot?.quoteRef ?? null,
     executionRef: payload.executionRef ?? null,
+    treasuryOperationId: treasuryState?.operationId ?? null,
+    treasuryInstructionId: treasuryState?.instructionId ?? null,
+    treasuryOperationStatus: treasuryState?.operationStatus ?? null,
+    treasuryInstructionStatus: treasuryState?.instructionStatus ?? null,
+    treasurySubmittedEventId: treasuryState?.submittedEventId ?? null,
   };
 }
 

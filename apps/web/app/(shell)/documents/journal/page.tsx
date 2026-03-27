@@ -5,6 +5,7 @@ import { EntityListPageShell } from "@/components/entities/entity-list-page-shel
 import { OperationsJournalTable } from "@/features/operations/journal/components/operations-journal-table";
 import { getOperations } from "@/features/operations/journal/lib/queries";
 import { searchParamsCache } from "@/features/operations/journal/lib/validations";
+import { requirePageAudience } from "@/lib/auth/session";
 
 interface OperationsJournalPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -13,6 +14,8 @@ interface OperationsJournalPageProps {
 export default async function OperationsJournalPage({
   searchParams,
 }: OperationsJournalPageProps) {
+  await requirePageAudience("user");
+
   const parsedSearch = await searchParamsCache.parse(searchParams);
   const operationsPromise = getOperations(parsedSearch);
 

@@ -27,12 +27,18 @@ type SetPairManualRateDialogProps = {
   children: React.ReactNode;
   base: string;
   quote: string;
+  triggerClassName?: string;
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
 };
 
 export function SetPairManualRateDialog({
   children,
   base,
   quote,
+  triggerClassName,
+  triggerSize = "default",
+  triggerVariant = "default",
 }: SetPairManualRateDialogProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -88,9 +94,18 @@ export function SetPairManualRateDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={React.isValidElement(children) ? children : undefined}
+        render={(props) => (
+          <Button
+            {...props}
+            className={triggerClassName}
+            size={triggerSize}
+            variant={triggerVariant}
+          >
+            {children}
+          </Button>
+        )}
       >
-        {!React.isValidElement(children) && children}
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

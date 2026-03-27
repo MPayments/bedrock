@@ -79,9 +79,12 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   create: { label: "Создать" },
   type: { label: "Тип" },
-  accounts: { label: "Реквизиты", icon: "wallet" },
+  accounts: { label: "Счета", icon: "wallet" },
   operations: { label: "Операции" },
+  fx: { label: "FX", href: "/treasury/fx", icon: "arrow-right-left" },
+  positions: { label: "Позиции", href: "/treasury/positions", icon: "calculator" },
   journal: { label: "Журнал операций" },
+  unmatched: { label: "Исключения", href: "/treasury/unmatched", icon: "bell" },
   system: { label: "Система", icon: "cpu" },
   profile: { label: "Профиль", href: "/settings/profile" },
   correspondence: { label: "Корреспонденция" },
@@ -152,6 +155,22 @@ function resolveStaticSegment(
       ...config,
       label: "Счета",
       href: "/accounting/accounts",
+    };
+  }
+
+  if (segment === "accounts" && segments.includes("treasury")) {
+    return {
+      ...config,
+      label: "Счета",
+      href: "/treasury/accounts",
+    };
+  }
+
+  if (segment === "operations" && segments.includes("treasury")) {
+    return {
+      ...config,
+      label: "Операции",
+      href: "/treasury/operations",
     };
   }
 

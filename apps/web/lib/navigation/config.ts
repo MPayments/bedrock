@@ -90,6 +90,41 @@ const navItems: AppNavItem[] = [
     audience: "admin",
     children: [
       {
+        id: "treasury-accounts",
+        title: "Счета",
+        href: "/treasury/accounts",
+        icon: "wallet",
+        audience: "admin",
+      },
+      {
+        id: "treasury-operations",
+        title: "Операции",
+        href: "/treasury/operations",
+        icon: "book-open",
+        audience: "admin",
+      },
+      {
+        id: "treasury-fx",
+        title: "FX",
+        href: "/treasury/fx",
+        icon: "arrow-right-left",
+        audience: "admin",
+      },
+      {
+        id: "treasury-positions",
+        title: "Позиции",
+        href: "/treasury/positions",
+        icon: "calculator",
+        audience: "admin",
+      },
+      {
+        id: "treasury-unmatched",
+        title: "Исключения",
+        href: "/treasury/unmatched",
+        icon: "bell",
+        audience: "admin",
+      },
+      {
         id: "treasury-organizations",
         title: "Организации",
         href: "/treasury/organizations",

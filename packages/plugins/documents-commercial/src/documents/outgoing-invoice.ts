@@ -63,7 +63,7 @@ export function createOutgoingInvoiceDocumentModule(
 ): DocumentModule<OutgoingInvoiceInput, OutgoingInvoiceInput> {
   return {
     moduleId: "outgoing_invoice",
-    accountingSourceId: ACCOUNTING_SOURCE_ID.OUTGOING_INVOICE,
+    accountingSourceId: ACCOUNTING_SOURCE_ID.TREASURY_OBLIGATION_OPENED,
     docType: "outgoing_invoice",
     docNoPrefix: COMMERCIAL_DOCUMENT_METADATA.outgoing_invoice.docNoPrefix,
     payloadVersion: 1,
@@ -124,6 +124,7 @@ export function createOutgoingInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      await deps.treasuryState.ensureOutgoingInvoiceObligation({ document });
 
       return buildOutgoingInvoicePostingPlan({
         document,

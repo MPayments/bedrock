@@ -1,3 +1,4 @@
+export { DrizzleTreasuryCoreRepository } from "../core/adapters/drizzle/core.repository";
 export { DrizzleTreasuryFeeRulesRepository } from "../fees/adapters/drizzle/fee-rules.repository";
 export { DrizzleTreasuryQuoteFinancialLinesRepository } from "../quotes/adapters/drizzle/quote-financial-lines.repository";
 export { DrizzleTreasuryQuoteFeeComponentsRepository } from "../quotes/adapters/drizzle/quote-fee-components.repository";

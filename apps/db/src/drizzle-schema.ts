@@ -22,6 +22,7 @@ export {
   documentSnapshots,
 } from "@bedrock/documents/schema";
 export {
+  counterpartyEndpoints,
   feeRules,
   fxQuoteFeeComponents,
   fxQuoteFinancialLines,
@@ -29,6 +30,17 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
+  treasuryAccountBalanceEntries,
+  treasuryAccounts,
+  treasuryAllocations,
+  treasuryDocumentLinks,
+  treasuryEndpoints,
+  treasuryExecutionEvents,
+  treasuryExecutionInstructions,
+  treasuryObligations,
+  treasuryOperationObligations,
+  treasuryOperations,
+  treasuryPositions,
 } from "@bedrock/treasury/schema";
 export {
   balanceEvents,
@@ -50,6 +62,8 @@ export {
   counterpartyKindEnum,
   customers,
   organizations,
+  partyCountryCodeEnum,
+  partyKindEnum,
   organizationRequisiteBindings,
   requisiteKindEnum,
   requisiteOwnerTypeEnum,

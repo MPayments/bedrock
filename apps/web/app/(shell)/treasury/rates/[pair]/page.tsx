@@ -2,7 +2,13 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ChartCandlestick, Plus } from "lucide-react";
 
-import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 
@@ -10,6 +16,7 @@ import {
   getRateHistory,
   getRatePairs,
 } from "@/features/treasury/rates/lib/queries";
+import { requirePageAudience } from "@/lib/auth/session";
 import { SetPairManualRateDialog } from "./components/set-pair-manual-rate-dialog";
 import { RatePairView } from "./components/rate-pair-view";
 
@@ -49,6 +56,7 @@ export default async function RatePairPage({
   params,
   searchParams,
 }: RatePairPageProps) {
+  await requirePageAudience("admin");
   const { pair } = await params;
   const { range } = await searchParams;
   const parsed = parsePairParam(pair);
@@ -75,11 +83,16 @@ export default async function RatePairPage({
             </p>
           </div>
         </div>
-        <SetPairManualRateDialog base={base} quote={quote}>
-          <Button size="lg" className="w-full sm:w-auto">
+        <SetPairManualRateDialog
+          base={base}
+          quote={quote}
+          triggerClassName="w-full sm:w-auto"
+          triggerSize="lg"
+        >
+          <>
             <Plus className="h-4 w-4" />
             Ручной курс
-          </Button>
+          </>
         </SetPairManualRateDialog>
       </div>
 
@@ -103,8 +116,10 @@ async function PairViewLoader({
   from: string | undefined;
   timeRange: TimeRangeKey;
 }) {
-  const [history, allPairs] = await Promise.all([
-    getRateHistory(base, quote, from),
+  const [historyResult, allPairs] = await Promise.all([
+    getRateHistory(base, quote, from)
+      .then((history) => ({ history, ok: true as const }))
+      .catch((error) => ({ error, ok: false as const })),
     getRatePairs(),
   ]);
 
@@ -114,10 +129,20 @@ async function PairViewLoader({
 
   if (!currentPair) notFound();
 
+  if (!historyResult.ok) {
+    return (
+      <PairUnavailableState
+        base={base}
+        quote={quote}
+        error={historyResult.error}
+      />
+    );
+  }
+
   return (
     <RatePairView
       pair={currentPair}
-      history={history}
+      history={historyResult.history}
       timeRange={timeRange}
     />
   );
@@ -129,5 +154,50 @@ function PairViewSkeleton() {
       <Skeleton className="h-10 w-64" />
       <Skeleton className="h-[350px] rounded-md" />
     </div>
+  );
+}
+
+function PairUnavailableState({
+  base,
+  error,
+  quote,
+}: {
+  base: string;
+  error: unknown;
+  quote: string;
+}) {
+  const message =
+    error instanceof Error && error.message.length > 0
+      ? error.message
+      : "Историю курса не удалось построить.";
+
+  return (
+    <Card className="rounded-sm">
+      <CardHeader className="border-b">
+        <CardTitle>
+          Нет рабочего маршрута курса для {base} / {quote}
+        </CardTitle>
+        <CardDescription>
+          Это не обязательно сбой интерфейса. Чаще всего treasury просто не
+          может построить пару из текущих источников и кросс-валютных путей.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-4">
+        <div className="rounded-xl border px-4 py-3">
+          <div className="text-sm font-medium">Что это значит</div>
+          <div className="text-muted-foreground mt-1 text-sm leading-6">
+            Для этой пары сейчас нет устойчивого автоматического курса или
+            кросс-маршрута. Нужно проверить источники, anchor-валюту и при
+            необходимости временно использовать ручной курс.
+          </div>
+        </div>
+        <div className="rounded-xl border px-4 py-3">
+          <div className="text-sm font-medium">Техническая причина</div>
+          <div className="text-muted-foreground mt-1 text-sm leading-6">
+            {message}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

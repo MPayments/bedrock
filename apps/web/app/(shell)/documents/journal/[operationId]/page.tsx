@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import { getOperationById } from "@/features/operations/journal/lib/queries";
+import { requirePageAudience } from "@/lib/auth/session";
 
 interface OperationDetailsPageProps {
   params: Promise<{ operationId: string }>;
@@ -10,6 +11,8 @@ interface OperationDetailsPageProps {
 export default async function OperationDetailsPage({
   params,
 }: OperationDetailsPageProps) {
+  await requirePageAudience("user");
+
   const { operationId } = await params;
   const details = await getOperationById(operationId);
 

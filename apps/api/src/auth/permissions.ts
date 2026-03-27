@@ -10,6 +10,7 @@ const statements = {
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
+  treasury: ["create", "list", "get", "update"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
@@ -50,6 +51,7 @@ export const admin = ac.newRole({
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
+  treasury: ["create", "list", "get", "update"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
@@ -84,6 +86,7 @@ export const user = ac.newRole({
   customers: ["create", "list", "update"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
+  treasury: ["create", "list", "get", "update"],
   treasury_rates: ["list"],
   organizations: ["list"],
   documents: ["create", "list", "get", "update", "submit"],

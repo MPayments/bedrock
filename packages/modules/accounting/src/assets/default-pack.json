@@ -7,9 +7,18 @@
       "lineType": "create",
       "postingCode": "TR.INTRA.IMMEDIATE",
       "transferCode": 4001,
-      "allowSources": ["transfer_intra", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["sourceRequisiteId", "destinationRequisiteId"],
+      "allowSources": [
+        "transfer_intra",
+        "payment_case",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "sourceRequisiteId",
+        "destinationRequisiteId"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -34,9 +43,18 @@
       "lineType": "create",
       "postingCode": "TR.INTRA.PENDING",
       "transferCode": 4001,
-      "allowSources": ["transfer_intra", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["sourceRequisiteId", "destinationRequisiteId"],
+      "allowSources": [
+        "transfer_intra",
+        "payment_case",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "sourceRequisiteId",
+        "destinationRequisiteId"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "1110",
@@ -62,9 +80,17 @@
       "lineType": "create",
       "postingCode": "TR.CROSS.SOURCE.IMMEDIATE",
       "transferCode": 4001,
-      "allowSources": ["transfer_intercompany", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["sourceRequisiteId", "destinationCounterpartyId"],
+      "allowSources": [
+        "transfer_intercompany",
+        "payment_case"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "sourceRequisiteId",
+        "destinationCounterpartyId"
+      ],
       "debit": {
         "accountNo": "1310",
         "dimensions": {
@@ -93,9 +119,17 @@
       "lineType": "create",
       "postingCode": "TR.CROSS.SOURCE.PENDING",
       "transferCode": 4001,
-      "allowSources": ["transfer_intercompany", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["sourceRequisiteId", "destinationCounterpartyId"],
+      "allowSources": [
+        "transfer_intercompany",
+        "payment_case"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "sourceRequisiteId",
+        "destinationCounterpartyId"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "1310",
@@ -125,9 +159,17 @@
       "lineType": "create",
       "postingCode": "TR.CROSS.DEST.IMMEDIATE",
       "transferCode": 4001,
-      "allowSources": ["transfer_intercompany", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["destinationRequisiteId", "sourceCounterpartyId"],
+      "allowSources": [
+        "transfer_intercompany",
+        "payment_case"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "destinationRequisiteId",
+        "sourceCounterpartyId"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -156,9 +198,17 @@
       "lineType": "create",
       "postingCode": "TR.CROSS.DEST.PENDING",
       "transferCode": 4001,
-      "allowSources": ["transfer_intercompany", "payment_case"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["destinationRequisiteId", "sourceCounterpartyId"],
+      "allowSources": [
+        "transfer_intercompany",
+        "payment_case"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "destinationRequisiteId",
+        "sourceCounterpartyId"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "1110",
@@ -186,8 +236,14 @@
     {
       "key": "transfer.pending.settle",
       "lineType": "post_pending",
-      "allowSources": ["transfer_resolution_settle", "payment_case"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "transfer_resolution_settle",
+        "payment_case",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
       "requiredRefs": [
         "transferDocumentId",
@@ -198,8 +254,16 @@
     {
       "key": "transfer.pending.void",
       "lineType": "void_pending",
-      "allowSources": ["transfer_resolution_void", "payment_case"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "transfer_resolution_void",
+        "payment_case",
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
       "requiredRefs": [
         "transferDocumentId",
@@ -208,19 +272,201 @@
       ]
     },
     {
+      "key": "treasury.cash_out.immediate",
+      "lineType": "create",
+      "postingCode": "TC.3311",
+      "transferCode": 3311,
+      "allowSources": [
+        "treasury_execution_settled",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1110",
+        "dimensions": {
+          "organizationRequisiteId": {
+            "kind": "dimension",
+            "key": "organizationRequisiteId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.cash_out.pending",
+      "lineType": "create",
+      "postingCode": "TC.3312",
+      "transferCode": 3312,
+      "allowSources": [
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "pendingMode": "required",
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1110",
+        "dimensions": {
+          "organizationRequisiteId": {
+            "kind": "dimension",
+            "key": "organizationRequisiteId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.cash_in.immediate",
+      "lineType": "create",
+      "postingCode": "TC.3313",
+      "transferCode": 3313,
+      "allowSources": [
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "debit": {
+        "accountNo": "1110",
+        "dimensions": {
+          "organizationRequisiteId": {
+            "kind": "dimension",
+            "key": "organizationRequisiteId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.cash_in.pending",
+      "lineType": "create",
+      "postingCode": "TC.3314",
+      "transferCode": 3314,
+      "allowSources": [
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "pendingMode": "required",
+      "debit": {
+        "accountNo": "1110",
+        "dimensions": {
+          "organizationRequisiteId": {
+            "kind": "dimension",
+            "key": "organizationRequisiteId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.cash.pending.settle",
+      "lineType": "post_pending",
+      "allowSources": [
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [],
+      "requiredRefs": [
+        "orderId",
+        "eventIdempotencyKey",
+        "pendingSide"
+      ]
+    },
+    {
+      "key": "treasury.cash.pending.void",
+      "lineType": "void_pending",
+      "allowSources": [
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [],
+      "requiredRefs": [
+        "orderId",
+        "eventIdempotencyKey",
+        "pendingSide"
+      ]
+    },
+    {
       "key": "treasury.fx.source.immediate",
       "lineType": "create",
       "postingCode": "TC.2101",
       "transferCode": 2101,
-      "allowSources": ["treasury_fx_execute"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [
         "sourceRequisiteId",
         "destinationRequisiteId",
         "sourceOrganizationId",
         "destinationOrganizationId"
       ],
-      "requiredRefs": ["fxExecuteDocumentId", "quoteRef", "chainId"],
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "quoteRef",
+        "chainId"
+      ],
       "debit": {
         "accountNo": "1310",
         "dimensions": {
@@ -249,15 +495,24 @@
       "lineType": "create",
       "postingCode": "TC.2103",
       "transferCode": 2103,
-      "allowSources": ["treasury_fx_execute"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [
         "sourceRequisiteId",
         "destinationRequisiteId",
         "sourceOrganizationId",
         "destinationOrganizationId"
       ],
-      "requiredRefs": ["fxExecuteDocumentId", "quoteRef", "chainId"],
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "quoteRef",
+        "chainId"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "1310",
@@ -287,15 +542,24 @@
       "lineType": "create",
       "postingCode": "TC.2102",
       "transferCode": 2102,
-      "allowSources": ["treasury_fx_execute"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [
         "sourceRequisiteId",
         "destinationRequisiteId",
         "sourceOrganizationId",
         "destinationOrganizationId"
       ],
-      "requiredRefs": ["fxExecuteDocumentId", "quoteRef", "chainId"],
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "quoteRef",
+        "chainId"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -324,15 +588,24 @@
       "lineType": "create",
       "postingCode": "TC.2104",
       "transferCode": 2104,
-      "allowSources": ["treasury_fx_execute"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [
         "sourceRequisiteId",
         "destinationRequisiteId",
         "sourceOrganizationId",
         "destinationOrganizationId"
       ],
-      "requiredRefs": ["fxExecuteDocumentId", "quoteRef", "chainId"],
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "quoteRef",
+        "chainId"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "1110",
@@ -360,27 +633,53 @@
     {
       "key": "treasury.fx.pending.settle",
       "lineType": "post_pending",
-      "allowSources": ["treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["fxExecuteDocumentId", "eventIdempotencyKey"]
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "eventIdempotencyKey"
+      ]
     },
     {
       "key": "treasury.fx.pending.void",
       "lineType": "void_pending",
-      "allowSources": ["treasury_fx_resolution_void"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "treasury_fx_resolution_void",
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["fxExecuteDocumentId", "eventIdempotencyKey"]
+      "requiredRefs": [
+        "fxExecuteDocumentId",
+        "eventIdempotencyKey"
+      ]
     },
     {
       "key": "treasury.fx.fee_income",
       "lineType": "create",
       "postingCode": "TC.3201",
       "transferCode": 3201,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -420,9 +719,17 @@
       "lineType": "create",
       "postingCode": "TC.3202",
       "transferCode": 3202,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -462,9 +769,17 @@
       "lineType": "create",
       "postingCode": "TC.3203",
       "transferCode": 3203,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -504,9 +819,17 @@
       "lineType": "create",
       "postingCode": "TC.3203",
       "transferCode": 3203,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -546,9 +869,17 @@
       "lineType": "create",
       "postingCode": "TC.3204",
       "transferCode": 3204,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -588,9 +919,17 @@
       "lineType": "create",
       "postingCode": "TC.3204",
       "transferCode": 3204,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -630,9 +969,17 @@
       "lineType": "create",
       "postingCode": "TC.3205",
       "transferCode": 3205,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -672,9 +1019,17 @@
       "lineType": "create",
       "postingCode": "TC.3206",
       "transferCode": 3206,
-      "allowSources": ["treasury_fx_execute", "treasury_fx_resolution_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["feeBucket"],
+      "allowSources": [
+        "treasury_fx_execute",
+        "treasury_fx_resolution_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "feeBucket"
+      ],
       "requiredRefs": [
         "fxExecuteDocumentId",
         "quoteRef",
@@ -714,10 +1069,20 @@
       "lineType": "create",
       "postingCode": "TC.9001",
       "transferCode": 9001,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -742,10 +1107,20 @@
       "lineType": "create",
       "postingCode": "TC.9002",
       "transferCode": 9002,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -770,10 +1145,20 @@
       "lineType": "create",
       "postingCode": "TC.9003",
       "transferCode": 9003,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -798,10 +1183,19 @@
       "lineType": "create",
       "postingCode": "TC.9005",
       "transferCode": 9005,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -821,10 +1215,20 @@
       "lineType": "create",
       "postingCode": "TC.9001",
       "transferCode": 9001,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -849,10 +1253,20 @@
       "lineType": "create",
       "postingCode": "TC.9002",
       "transferCode": 9002,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -877,10 +1291,20 @@
       "lineType": "create",
       "postingCode": "TC.9003",
       "transferCode": 9003,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "counterpartyId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -905,10 +1329,19 @@
       "lineType": "create",
       "postingCode": "TC.9005",
       "transferCode": 9005,
-      "allowSources": ["capital_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId"],
-      "requiredRefs": ["entryRef", "kind"],
+      "allowSources": [
+        "capital_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId"
+      ],
+      "requiredRefs": [
+        "entryRef",
+        "kind"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -928,10 +1361,20 @@
       "lineType": "create",
       "postingCode": "TC.1001",
       "transferCode": 1001,
-      "allowSources": ["payin_funding"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["organizationRequisiteId", "customerId"],
-      "requiredRefs": ["paymentCaseId", "railRef"],
+      "allowSources": [
+        "payin_funding"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "organizationRequisiteId",
+        "customerId"
+      ],
+      "requiredRefs": [
+        "paymentCaseId",
+        "railRef"
+      ],
       "debit": {
         "accountNo": "1110",
         "dimensions": {
@@ -956,10 +1399,22 @@
       "lineType": "create",
       "postingCode": "TC.2001",
       "transferCode": 2001,
-      "allowSources": ["payment_order_initiate", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId"],
-      "requiredRefs": ["quoteRef", "chainId"],
+      "allowSources": [
+        "payment_order_initiate",
+        "payment_order_settle",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -984,10 +1439,23 @@
       "lineType": "create",
       "postingCode": "TC.2009",
       "transferCode": 2009,
-      "allowSources": ["payment_order_initiate", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "counterpartyId"],
-      "requiredRefs": ["quoteRef", "chainId", "legIndex"],
+      "allowSources": [
+        "payment_order_initiate",
+        "payment_order_settle",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "legIndex"
+      ],
       "debit": {
         "accountNo": "2140",
         "dimensions": {
@@ -1020,10 +1488,23 @@
       "lineType": "create",
       "postingCode": "TC.2010",
       "transferCode": 2010,
-      "allowSources": ["payment_order_initiate", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "counterpartyId"],
-      "requiredRefs": ["quoteRef", "chainId", "legIndex"],
+      "allowSources": [
+        "payment_order_initiate",
+        "payment_order_settle",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "legIndex"
+      ],
       "debit": {
         "accountNo": "1310",
         "dimensions": {
@@ -1056,10 +1537,24 @@
       "lineType": "create",
       "postingCode": "TC.3001",
       "transferCode": 3001,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -1088,10 +1583,24 @@
       "lineType": "create",
       "postingCode": "TC.3002",
       "transferCode": 3002,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -1120,10 +1629,23 @@
       "lineType": "create",
       "postingCode": "TC.3004",
       "transferCode": 3004,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2120",
         "dimensions": {
@@ -1156,10 +1678,23 @@
       "lineType": "create",
       "postingCode": "TC.3005",
       "transferCode": 3005,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2120",
         "dimensions": {
@@ -1192,10 +1727,24 @@
       "lineType": "create",
       "postingCode": "TC.3003",
       "transferCode": 3003,
-      "allowSources": ["payment_order_initiate"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_initiate",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -1224,10 +1773,27 @@
       "lineType": "create",
       "postingCode": "TC.3003",
       "transferCode": 3003,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled",
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2120",
         "dimensions": {
@@ -1256,10 +1822,24 @@
       "lineType": "create",
       "postingCode": "TC.3008",
       "transferCode": 3008,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket", "counterpartyId"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "5120",
         "dimensions": {
@@ -1296,10 +1876,23 @@
       "lineType": "create",
       "postingCode": "TC.3008",
       "transferCode": 3008,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket", "counterpartyId"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket",
+        "counterpartyId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2120",
         "dimensions": {
@@ -1336,10 +1929,24 @@
       "lineType": "create",
       "postingCode": "TC.3006",
       "transferCode": 3006,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -1368,10 +1975,24 @@
       "lineType": "create",
       "postingCode": "TC.3007",
       "transferCode": 3007,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "5110",
         "dimensions": {
@@ -1400,10 +2021,23 @@
       "lineType": "create",
       "postingCode": "TC.3009",
       "transferCode": 3009,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2120",
         "dimensions": {
@@ -1436,10 +2070,24 @@
       "lineType": "create",
       "postingCode": "TC.3003",
       "transferCode": 3003,
-      "allowSources": ["payment_order_initiate"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_initiate",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "2110",
         "dimensions": {
@@ -1468,10 +2116,23 @@
       "lineType": "create",
       "postingCode": "TC.3010",
       "transferCode": 3010,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "feeBucket"],
-      "requiredRefs": ["quoteRef", "chainId", "componentId", "componentIndex"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "feeBucket"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "componentId",
+        "componentIndex"
+      ],
       "debit": {
         "accountNo": "5110",
         "dimensions": {
@@ -1504,10 +2165,22 @@
       "lineType": "create",
       "postingCode": "TC.2005",
       "transferCode": 2005,
-      "allowSources": ["payment_order_initiate", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId"],
-      "requiredRefs": ["quoteRef", "chainId", "payoutCounterpartyId"],
+      "allowSources": [
+        "payment_order_initiate",
+        "payment_order_settle",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId"
+      ],
+      "requiredRefs": [
+        "quoteRef",
+        "chainId",
+        "payoutCounterpartyId"
+      ],
       "debit": {
         "accountNo": "2140",
         "dimensions": {
@@ -1532,10 +2205,22 @@
       "lineType": "create",
       "postingCode": "TC.3101",
       "transferCode": 3101,
-      "allowSources": ["payout_initiate", "payment_order_initiate"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "organizationRequisiteId"],
-      "requiredRefs": ["railRef", "payoutBankStableKey"],
+      "allowSources": [
+        "payout_initiate",
+        "payment_order_initiate",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "requiredRefs": [
+        "railRef",
+        "payoutBankStableKey"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "2130",
@@ -1559,33 +2244,61 @@
     {
       "key": "payment.payout.settle",
       "lineType": "post_pending",
-      "allowSources": ["payout_settle", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "payout_settle",
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["orderId", "railRef"]
+      "requiredRefs": [
+        "orderId",
+        "railRef"
+      ]
     },
     {
       "key": "payment.payout.void",
       "lineType": "void_pending",
-      "allowSources": ["payout_void", "payment_order_void"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "payout_void",
+        "payment_order_void",
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["orderId", "railRef"]
+      "requiredRefs": [
+        "orderId",
+        "railRef"
+      ]
     },
     {
       "key": "payment.fee_payout.initiate",
       "lineType": "create",
       "postingCode": "TC.3011",
       "transferCode": 3011,
-      "allowSources": ["fee_payout_initiate"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "fee_payout_initiate",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [
         "feeBucket",
         "orderId",
         "counterpartyId",
         "organizationRequisiteId"
       ],
-      "requiredRefs": ["componentId", "railRef"],
+      "requiredRefs": [
+        "componentId",
+        "railRef"
+      ],
       "pendingMode": "required",
       "debit": {
         "accountNo": "2120",
@@ -1617,27 +2330,53 @@
     {
       "key": "payment.fee_payout.settle",
       "lineType": "post_pending",
-      "allowSources": ["fee_payout_settle"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "fee_payout_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["feePayoutInitiateDocumentId", "railRef"]
+      "requiredRefs": [
+        "feePayoutInitiateDocumentId",
+        "railRef"
+      ]
     },
     {
       "key": "payment.fee_payout.void",
       "lineType": "void_pending",
-      "allowSources": ["fee_payout_void"],
-      "requiredBookRefs": ["bookId"],
+      "allowSources": [
+        "fee_payout_void",
+        "treasury_execution_voided",
+        "treasury_execution_failed",
+        "treasury_execution_returned"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
       "requiredDimensions": [],
-      "requiredRefs": ["feePayoutInitiateDocumentId", "railRef"]
+      "requiredRefs": [
+        "feePayoutInitiateDocumentId",
+        "railRef"
+      ]
     },
     {
       "key": "commercial.incoming_invoice.open",
       "lineType": "create",
       "postingCode": "CM.1001",
       "transferCode": 6001,
-      "allowSources": ["incoming_invoice"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "counterpartyId"],
+      "allowSources": [
+        "incoming_invoice",
+        "treasury_obligation_opened"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
       "debit": {
         "accountNo": "5130",
         "dimensions": {
@@ -1670,9 +2409,17 @@
       "lineType": "create",
       "postingCode": "CM.1101",
       "transferCode": 6002,
-      "allowSources": ["outgoing_invoice"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "counterpartyId"],
+      "allowSources": [
+        "outgoing_invoice",
+        "treasury_obligation_opened"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
       "debit": {
         "accountNo": "1210",
         "dimensions": {
@@ -1705,9 +2452,19 @@
       "lineType": "create",
       "postingCode": "CM.1201",
       "transferCode": 6003,
-      "allowSources": ["payment_order_initiate", "payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["customerId", "orderId", "counterpartyId"],
+      "allowSources": [
+        "payment_order_initiate",
+        "payment_order_settle",
+        "treasury_execution_submitted"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "customerId",
+        "orderId",
+        "counterpartyId"
+      ],
       "debit": {
         "accountNo": "2150",
         "dimensions": {
@@ -1736,10 +2493,21 @@
       "lineType": "create",
       "postingCode": "TC.3101",
       "transferCode": 3101,
-      "allowSources": ["payment_order_settle"],
-      "requiredBookRefs": ["bookId"],
-      "requiredDimensions": ["orderId", "organizationRequisiteId"],
-      "requiredRefs": ["railRef", "payoutBankStableKey"],
+      "allowSources": [
+        "payment_order_settle",
+        "treasury_execution_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "organizationRequisiteId"
+      ],
+      "requiredRefs": [
+        "railRef",
+        "payoutBankStableKey"
+      ],
       "debit": {
         "accountNo": "2130",
         "dimensions": {
@@ -1755,6 +2523,226 @@
           "organizationRequisiteId": {
             "kind": "dimension",
             "key": "organizationRequisiteId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.customer_liability.open",
+      "lineType": "create",
+      "postingCode": "TC.3301",
+      "transferCode": 3301,
+      "allowSources": [
+        "treasury_position_opened"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "customerId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "2110",
+        "dimensions": {
+          "customerId": {
+            "kind": "dimension",
+            "key": "customerId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.customer_liability.settle",
+      "lineType": "create",
+      "postingCode": "TC.3302",
+      "transferCode": 3302,
+      "allowSources": [
+        "treasury_position_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "customerId"
+      ],
+      "debit": {
+        "accountNo": "2110",
+        "dimensions": {
+          "customerId": {
+            "kind": "dimension",
+            "key": "customerId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.intercompany_due_from.open",
+      "lineType": "create",
+      "postingCode": "TC.3303",
+      "transferCode": 3303,
+      "allowSources": [
+        "treasury_position_opened"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "clearingKind": {
+            "kind": "literal",
+            "value": "intercompany"
+          },
+          "counterpartyId": {
+            "kind": "dimension",
+            "key": "counterpartyId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.intercompany_due_from.settle",
+      "lineType": "create",
+      "postingCode": "TC.3304",
+      "transferCode": 3304,
+      "allowSources": [
+        "treasury_position_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "clearingKind": {
+            "kind": "literal",
+            "value": "intercompany"
+          },
+          "counterpartyId": {
+            "kind": "dimension",
+            "key": "counterpartyId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.intercompany_due_to.open",
+      "lineType": "create",
+      "postingCode": "TC.3305",
+      "transferCode": 3305,
+      "allowSources": [
+        "treasury_position_opened"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "clearingKind": {
+            "kind": "literal",
+            "value": "intercompany"
+          },
+          "counterpartyId": {
+            "kind": "dimension",
+            "key": "counterpartyId"
+          }
+        }
+      }
+    },
+    {
+      "key": "treasury.position.intercompany_due_to.settle",
+      "lineType": "create",
+      "postingCode": "TC.3306",
+      "transferCode": 3306,
+      "allowSources": [
+        "treasury_position_settled"
+      ],
+      "requiredBookRefs": [
+        "bookId"
+      ],
+      "requiredDimensions": [
+        "orderId",
+        "counterpartyId"
+      ],
+      "debit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "clearingKind": {
+            "kind": "literal",
+            "value": "intercompany"
+          },
+          "counterpartyId": {
+            "kind": "dimension",
+            "key": "counterpartyId"
+          }
+        }
+      },
+      "credit": {
+        "accountNo": "1310",
+        "dimensions": {
+          "orderId": {
+            "kind": "dimension",
+            "key": "orderId"
           }
         }
       }

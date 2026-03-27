@@ -902,6 +902,150 @@
       "scope": "credit"
     },
     {
+      "postingCode": "TC.3301",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3301",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3302",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3302",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3303",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3303",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3303",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3304",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3304",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3304",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3305",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3305",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3305",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3306",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3306",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3306",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3311",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3311",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3312",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3312",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3313",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3313",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3314",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3314",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
       "postingCode": "CM.1001",
       "dimensionKey": "orderId",
       "required": true,
@@ -1287,6 +1431,56 @@
       "postingCode": "TC.3101",
       "debitAccountNo": "2130",
       "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.3301",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "2110"
+    },
+    {
+      "postingCode": "TC.3302",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3303",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3304",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3305",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3306",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3311",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.3312",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.3313",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3314",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
     },
     {
       "postingCode": "TC.3006",

@@ -5,6 +5,7 @@ import {
   type TransactionalPort,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleTreasuryCoreRepository } from "../../../core/adapters/drizzle/core.repository";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../../../quotes/adapters/drizzle/quote-fee-components.repository";
 import { DrizzleTreasuryQuoteFinancialLinesRepository } from "../../../quotes/adapters/drizzle/quote-financial-lines.repository";
 import { DrizzleTreasuryQuotesRepository } from "../../../quotes/adapters/drizzle/quotes.repository";
@@ -12,19 +13,27 @@ import type {
   QuotesCommandTx,
   QuotesCommandUnitOfWork,
 } from "../../../quotes/application/ports/quotes.uow";
+import type {
+  TreasuryCoreTx,
+  TreasuryCoreUnitOfWork,
+} from "../../application/core-ports";
 
-function bindTreasuryTx(tx: Transaction): QuotesCommandTx {
-  return {
+type TreasuryTx = QuotesCommandTx & TreasuryCoreTx;
+
+function bindTreasuryTx(tx: Transaction): TreasuryTx {
+  const core = new DrizzleTreasuryCoreRepository(tx);
+
+  return Object.assign(core, {
     quotes: new DrizzleTreasuryQuotesRepository(tx),
     quoteFeeComponents: new DrizzleTreasuryQuoteFeeComponentsRepository(tx),
     quoteFinancialLines: new DrizzleTreasuryQuoteFinancialLinesRepository(tx),
-  };
+  });
 }
 
 export class DrizzleTreasuryUnitOfWork
-  implements QuotesCommandUnitOfWork
+  implements QuotesCommandUnitOfWork, TreasuryCoreUnitOfWork
 {
-  private readonly transactional: TransactionalPort<QuotesCommandTx>;
+  private readonly transactional: TransactionalPort<TreasuryTx>;
 
   constructor(input: { persistence: PersistenceContext }) {
     this.transactional = createTransactionalPort(
@@ -33,7 +42,7 @@ export class DrizzleTreasuryUnitOfWork
     );
   }
 
-  run<T>(work: (tx: QuotesCommandTx) => Promise<T>): Promise<T> {
+  run<T>(work: (tx: TreasuryTx) => Promise<T>): Promise<T> {
     return this.transactional.withTransaction((tx) => work(tx));
   }
 }

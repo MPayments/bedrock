@@ -158,27 +158,15 @@ function assertPaymentOrderMatchesInvoice(input: {
 }
 
 function assertPaymentOrderPostable(payload: PaymentOrderPayload) {
-  if (payload.executionStatus === "prepared") {
+  if (payload.sourcePaymentOrderDocumentId) {
     throw new DocumentValidationError(
-      "payment_order with prepared status cannot be posted",
+      "payment_order resolutions are no longer supported; use treasury execution events instead",
     );
   }
 
-  if (
-    isPaymentOrderResolution(payload) &&
-    payload.executionStatus === "sent"
-  ) {
+  if (payload.executionStatus !== "sent") {
     throw new DocumentValidationError(
-      "payment_order resolution cannot be posted with executionStatus=sent",
-    );
-  }
-
-  if (
-    !isPaymentOrderResolution(payload) &&
-    (payload.executionStatus === "void" || payload.executionStatus === "failed")
-  ) {
-    throw new DocumentValidationError(
-      `payment_order with executionStatus=${payload.executionStatus} requires sourcePaymentOrderDocumentId`,
+      `payment_order executionStatus=${payload.executionStatus} is no longer postable; use treasury execution events for lifecycle updates`,
     );
   }
 }
@@ -612,11 +600,7 @@ export function createPaymentOrderDocumentModule(
 ): DocumentModule<PaymentOrderInput, PaymentOrderInput> {
   return {
     moduleId: "payment_order",
-    accountingSourceIds: [
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE,
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE,
-      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID,
-    ],
+    accountingSourceId: ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SUBMITTED,
     docType: "payment_order",
     docNoPrefix: COMMERCIAL_DOCUMENT_METADATA.payment_order.docNoPrefix,
     payloadVersion: 1,
@@ -743,21 +727,6 @@ export function createPaymentOrderDocumentModule(
       await deps.partyReferences.assertCustomerExists(invoicePayload.customerId);
       await deps.partyReferences.assertCounterpartyExists(payload.counterpartyId);
 
-      if (payload.sourcePaymentOrderDocumentId) {
-        const resolutionSource = await resolvePaymentOrderResolutionSource({
-          deps,
-          runtime: context.runtime,
-          sourcePaymentOrderDocumentId: payload.sourcePaymentOrderDocumentId,
-          excludeDocumentId: document.id,
-        });
-
-        assertPaymentOrderResolutionMatchesSource({
-          sourcePayload: resolutionSource.payload,
-          paymentOrder: payload,
-        });
-        return;
-      }
-
       await assertPaymentOrderAllocationAvailable({
         deps,
         runtime: context.runtime,
@@ -775,15 +744,17 @@ export function createPaymentOrderDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      const { document: invoiceDocument } =
+        await resolveIncomingInvoiceForPaymentOrder(
+          deps,
+          context.runtime,
+          payload.incomingInvoiceDocumentId,
+        );
 
-      const resolutionSource = payload.sourcePaymentOrderDocumentId
-        ? await resolvePaymentOrderResolutionSource({
-            deps,
-            runtime: context.runtime,
-            sourcePaymentOrderDocumentId: payload.sourcePaymentOrderDocumentId,
-            excludeDocumentId: document.id,
-          })
-        : undefined;
+      await deps.treasuryState.ensureIncomingInvoiceObligation({
+        document: invoiceDocument,
+      });
+      await deps.treasuryState.ensurePaymentOrderPayout({ document });
 
       return buildPaymentOrderPostingPlan({
         deps,
@@ -791,13 +762,10 @@ export function createPaymentOrderDocumentModule(
         document,
         payload,
         bookId: binding.bookId,
-        resolutionSource,
       });
     },
-    resolveAccountingSourceId(_context, document) {
-      const payload = parsePaymentOrderPayload(document);
-      return resolvePaymentOrderAccountingSourceId(payload);
-    },
+    resolveAccountingSourceId: () =>
+      ACCOUNTING_SOURCE_ID.TREASURY_EXECUTION_SUBMITTED,
     async buildInitialLinks(_context, document) {
       const payload = parsePaymentOrderPayload(document);
       const links: DocumentInitialLink[] = [
@@ -820,8 +788,13 @@ export function createPaymentOrderDocumentModule(
       return buildDocumentPostIdempotencyKey(document);
     },
     async buildDetails(_context, document) {
+      const payload = parsePaymentOrderPayload(document);
+      const treasuryState = await deps.treasuryState.getPaymentOrderStatus({
+        documentId: document.id,
+      });
+
       return {
-        computed: buildPaymentOrderDetails(parsePaymentOrderPayload(document)),
+        computed: buildPaymentOrderDetails(payload, treasuryState),
       };
     },
   };
