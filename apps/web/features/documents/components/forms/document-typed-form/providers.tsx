@@ -16,8 +16,15 @@ import {
   type DocumentTypedFormContextValue,
 } from "./context";
 import {
+  filterCounterpartyOptionsByCustomerId,
   findDependentAccountFieldNames,
+  findCounterpartyFieldNames,
+  findCustomerFieldName,
+  findCustomerIdForCounterparty,
+  findSingleCounterpartyIdForCustomer,
+  isCounterpartyLinkedToCustomer,
   isAccountField,
+  readValueAsString,
   resolveDocumentFormDefaultValues,
   type DocumentFormMode,
 } from "./helpers";
@@ -34,6 +41,7 @@ type DocumentTypedFormProviderProps = {
   onSuccess?: (result: DocumentMutationDto) => void;
   documentId?: string;
   initialPayload?: Record<string, unknown>;
+  initialValues?: DocumentFormValues;
   mode: DocumentFormMode;
 };
 
@@ -44,6 +52,7 @@ export type CreateDocumentTypedFormProviderProps = {
   options: DocumentFormOptions;
   disabled?: boolean;
   onSuccess?: (result: DocumentMutationDto) => void;
+  initialValues?: DocumentFormValues;
 };
 
 export type EditDocumentTypedFormProviderProps = {
@@ -66,6 +75,7 @@ function DocumentTypedFormProvider({
   onSuccess,
   documentId,
   initialPayload,
+  initialValues,
   mode,
 }: DocumentTypedFormProviderProps) {
   const formId = useId();
@@ -79,8 +89,9 @@ function DocumentTypedFormProvider({
         definition,
         mode,
         initialPayload,
+        initialValues,
       }),
-    [definition, initialPayload, mode],
+    [definition, initialPayload, initialValues, mode],
   );
   const methods = useForm<DocumentFormValues>({
     defaultValues,
@@ -107,6 +118,18 @@ function DocumentTypedFormProvider({
       .flatMap((section) => section.fields)
       .filter((field) => field.deriveFrom?.kind === "accountCurrency");
   }, [definition]);
+  const formFields = useMemo(
+    () => definition?.sections.flatMap((section) => section.fields) ?? [],
+    [definition],
+  );
+  const customerFieldName = useMemo(
+    () => findCustomerFieldName(formFields),
+    [formFields],
+  );
+  const counterpartyFieldNames = useMemo(
+    () => findCounterpartyFieldNames(formFields),
+    [formFields],
+  );
 
   const currencyLabelById = useMemo(
     () =>
@@ -131,6 +154,7 @@ function DocumentTypedFormProvider({
       counterparties: options.counterparties.map((counterparty) => ({
         value: counterparty.id,
         label: counterparty.label,
+        customerIds: counterparty.customerIds,
       })),
       customers: options.customers.map((customer) => ({
         value: customer.id,
@@ -148,7 +172,6 @@ function DocumentTypedFormProvider({
       options.organizations,
     ],
   );
-
   const {
     requisitesByOwnerKey,
     loadingOwnerKeys,
@@ -193,6 +216,89 @@ function DocumentTypedFormProvider({
     },
     [accountFields, setValue],
   );
+  const handleCustomerSelection = useCallback(
+    (fieldName: string, customerId: string | null) => {
+      const normalizedCustomerId = readValueAsString(customerId).trim();
+      setValue(fieldName, normalizedCustomerId, { shouldDirty: true });
+      const nextCounterpartyId = normalizedCustomerId
+        ? findSingleCounterpartyIdForCustomer(
+            selectOptions.counterparties,
+            normalizedCustomerId,
+          ) ?? ""
+        : "";
+
+      for (const counterpartyFieldName of counterpartyFieldNames) {
+        const selectedCounterpartyId = readValueAsString(
+          methods.getValues(counterpartyFieldName),
+        ).trim();
+
+        if (
+          selectedCounterpartyId &&
+          isCounterpartyLinkedToCustomer({
+            options: selectOptions.counterparties,
+            counterpartyId: selectedCounterpartyId,
+            customerId: normalizedCustomerId,
+          })
+        ) {
+          continue;
+        }
+
+        if (selectedCounterpartyId === nextCounterpartyId) {
+          continue;
+        }
+
+        setValue(counterpartyFieldName, nextCounterpartyId, { shouldDirty: true });
+        resetDependentAccountFields(counterpartyFieldName);
+      }
+    },
+    [
+      counterpartyFieldNames,
+      methods,
+      resetDependentAccountFields,
+      selectOptions.counterparties,
+      setValue,
+    ],
+  );
+  const handleCounterpartySelection = useCallback(
+    (fieldName: string, counterpartyId: string | null) => {
+      const normalizedCounterpartyId = readValueAsString(counterpartyId).trim();
+      setValue(fieldName, normalizedCounterpartyId, { shouldDirty: true });
+      resetDependentAccountFields(fieldName);
+
+      if (!customerFieldName) {
+        return;
+      }
+
+      const linkedCustomerId = findCustomerIdForCounterparty(
+        selectOptions.counterparties,
+        normalizedCounterpartyId,
+      );
+      const currentCustomerId = readValueAsString(
+        methods.getValues(customerFieldName),
+      ).trim();
+
+      if (
+        currentCustomerId &&
+        isCounterpartyLinkedToCustomer({
+          options: selectOptions.counterparties,
+          counterpartyId: normalizedCounterpartyId,
+          customerId: currentCustomerId,
+        })
+      ) {
+        return;
+      }
+
+      const nextCustomerId = linkedCustomerId ?? "";
+      setValue(customerFieldName, nextCustomerId, { shouldDirty: true });
+    },
+    [
+      customerFieldName,
+      methods,
+      resetDependentAccountFields,
+      selectOptions.counterparties,
+      setValue,
+    ],
+  );
 
   const value = useMemo<DocumentTypedFormContextValue>(
     () => ({
@@ -208,6 +314,8 @@ function DocumentTypedFormProvider({
         onSubmit: submission.onSubmit,
         handleReset: submission.handleReset,
         resetDependentAccountFields,
+        handleCustomerSelection,
+        handleCounterpartySelection,
       },
       meta: {
         mode,
@@ -217,6 +325,7 @@ function DocumentTypedFormProvider({
         formId,
         options,
         selectOptions,
+        customerFieldName,
         requisitesByOwnerKey,
         loadingOwnerKeys,
         methods,
@@ -229,6 +338,9 @@ function DocumentTypedFormProvider({
       docType,
       documentId,
       formId,
+      customerFieldName,
+      handleCounterpartySelection,
+      handleCustomerSelection,
       methods,
       mode,
       onSuccess,

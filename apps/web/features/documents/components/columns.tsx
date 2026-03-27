@@ -98,7 +98,7 @@ export function getDocumentColumns(
       cell: ({ row }) => (
         <div className="space-y-1">
           <Badge variant="outline">
-            {getDocumentTypeLabel(row.original.docType)}
+            {getDocumentTypeLabel(row.original.docType, row.original.payload)}
           </Badge>
         </div>
       ),

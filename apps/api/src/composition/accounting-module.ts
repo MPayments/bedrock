@@ -69,17 +69,24 @@ export function createApiAccountingModule(input: {
     listBooksById: (ids: string[]) =>
       listBooksWithLabels({
         ids,
-        listBooksById: ledgerReadRuntime.booksQueries.listById,
+        listBooksById: (bookIds: string[]) =>
+          ledgerReadRuntime.booksQueries.listById(bookIds),
         organizationsQueries: partiesReadRuntime.organizationsQueries,
       }),
-    listBooksByOwnerId: ledgerReadRuntime.booksQueries.listByOwnerId,
+    listBooksByOwnerId: (ownerId: string) =>
+      ledgerReadRuntime.booksQueries.listByOwnerId(ownerId),
     listScopedPostingRows: (query: ListScopedPostingRowsInput) =>
       ledgerReadRuntime.reportsQueries.listScopedPostingRows(query),
   };
   const ledgerReadPort = {
-    listOperations: ledgerReadRuntime.operationsQueries.list,
-    listOperationDetails: ledgerReadRuntime.operationsQueries.listDetails,
-    getOperationDetails: ledgerReadRuntime.operationsQueries.getDetails,
+    listOperations: (input: Parameters<
+      typeof ledgerReadRuntime.operationsQueries.list
+    >[0]) => ledgerReadRuntime.operationsQueries.list(input),
+    listOperationDetails: (input: Parameters<
+      typeof ledgerReadRuntime.operationsQueries.listDetails
+    >[0]) => ledgerReadRuntime.operationsQueries.listDetails(input),
+    getOperationDetails: (operationId: string) =>
+      ledgerReadRuntime.operationsQueries.getDetails(operationId),
   };
   const currenciesQueries = createCurrenciesQueries({
     db: input.db as Database,
@@ -116,10 +123,12 @@ export function createApiAccountingModule(input: {
     reportsReads,
     closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
       repository: new DrizzlePeriodRepository(input.db),
-      assertInternalLedgerOrganization:
-        partiesReadRuntime.organizationsQueries
-          .assertInternalLedgerOrganization,
-      listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
+      assertInternalLedgerOrganization: (organizationId: string) =>
+        partiesReadRuntime.organizationsQueries.assertInternalLedgerOrganization(
+          organizationId,
+        ),
+      listBooksByOwnerId: (organizationId: string) =>
+        ledgerQueries.listBooksByOwnerId(organizationId),
       reportQueries: reportsReads,
       documentsReadModel,
     }),

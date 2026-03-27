@@ -114,12 +114,12 @@ services:
       context: ..
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://bedrock-api:3002
+        BEDROCK_INTERNAL_API_URL: http://bedrock-api:3002
     container_name: bedrock-web
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_URL: http://bedrock-api:3002
+      BEDROCK_INTERNAL_API_URL: http://bedrock-api:3002
       NODE_ENV: production
     networks:
       - dokploy-network

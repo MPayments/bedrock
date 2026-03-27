@@ -1,3 +1,4 @@
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import type {
   DocumentSnapshot,
   DocumentModuleRuntime,
@@ -33,10 +34,10 @@ export interface CommercialQuoteSnapshotPort {
 }
 
 export interface CommercialQuoteUsagePort {
-  markQuoteUsedForInvoice(input: {
+  markQuoteUsedForPaymentOrder(input: {
     runtime: CommercialDocumentRuntime;
     quoteId: string;
-    invoiceDocumentId: string;
+    paymentOrderDocumentId: string;
     at: Date;
   }): Promise<void>;
 }
@@ -50,30 +51,40 @@ export interface CommercialRequisiteBindingsPort {
 export interface CommercialPartyReferencesPort {
   assertCustomerExists(customerId: string): Promise<void>;
   assertCounterpartyExists(counterpartyId: string): Promise<void>;
+  assertCounterpartyLinkedToCustomer(input: {
+    customerId: string;
+    counterpartyId: string;
+  }): Promise<void>;
 }
 
 export interface CommercialDocumentRelationsPort {
-  loadInvoice(input: {
+  loadIncomingInvoice(input: {
     runtime: CommercialDocumentRuntime;
-    invoiceDocumentId: string;
+    incomingInvoiceDocumentId: string;
     forUpdate?: boolean;
   }): Promise<DocumentSnapshot>;
-  getInvoiceExchangeChild(input: {
+  loadPaymentOrder(input: {
     runtime: CommercialDocumentRuntime;
-    invoiceDocumentId: string;
-  }): Promise<DocumentSnapshot | null>;
-  getInvoiceAcceptanceChild(input: {
+    paymentOrderDocumentId: string;
+    forUpdate?: boolean;
+  }): Promise<DocumentSnapshot>;
+  listIncomingInvoicePaymentOrders(input: {
     runtime: CommercialDocumentRuntime;
-    invoiceDocumentId: string;
-  }): Promise<DocumentSnapshot | null>;
-  getExchangeAcceptance(input: {
+    incomingInvoiceDocumentId: string;
+  }): Promise<DocumentSnapshot[]>;
+  listPaymentOrderResolutions(input: {
     runtime: CommercialDocumentRuntime;
-    exchangeDocumentId: string;
-  }): Promise<DocumentSnapshot | null>;
+    paymentOrderDocumentId: string;
+  }): Promise<DocumentSnapshot[]>;
+}
+
+export interface CommercialLedgerReadPort {
+  getOperationDetails(operationId: string): Promise<LedgerOperationDetails | null>;
 }
 
 export interface CommercialModuleDeps {
   documentRelations: CommercialDocumentRelationsPort;
+  ledgerRead: CommercialLedgerReadPort;
   quoteSnapshot: CommercialQuoteSnapshotPort;
   quoteUsage: CommercialQuoteUsagePort;
   requisiteBindings: CommercialRequisiteBindingsPort;

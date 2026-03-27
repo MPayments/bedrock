@@ -1,19 +1,12 @@
 "use client";
 
-import { Controller, useFormContext } from "react-hook-form";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 
 import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
 
 import { useDocumentTypedForm } from "../context";
 import {
+  filterCounterpartyOptionsByCustomerId,
   findSelectedLabel,
   getDocumentFormFieldId,
   readValueAsString,
@@ -25,6 +18,7 @@ import {
   useDocumentTypedFormDisabledState,
   useDocumentTypedFormFieldError,
 } from "./shared";
+import { SearchableSelectField } from "./searchable-select-field";
 
 export function CounterpartyFieldRenderer({
   className,
@@ -33,6 +27,7 @@ export function CounterpartyFieldRenderer({
   const {
     actions,
     meta: {
+      customerFieldName,
       selectOptions: { counterparties, organizations },
     },
   } = useDocumentTypedForm();
@@ -40,8 +35,17 @@ export function CounterpartyFieldRenderer({
   const { disabled, submitting } = useDocumentTypedFormDisabledState();
   const errorMessage = useDocumentTypedFormFieldError(field.name);
   const ownerSource = resolveOwnerFieldSource(field);
+  const selectedCustomerId = useWatch({
+    control,
+    name: customerFieldName ?? "__customer__",
+  });
   const ownerOptions =
-    ownerSource === "organizations" ? organizations : counterparties;
+    ownerSource === "organizations"
+      ? organizations
+      : filterCounterpartyOptionsByCustomerId(
+          counterparties,
+          readValueAsString(selectedCustomerId).trim(),
+        );
   const ownerNoun =
     ownerSource === "organizations" ? "организацию" : "контрагента";
 
@@ -56,27 +60,30 @@ export function CounterpartyFieldRenderer({
         control={control}
         name={field.name}
         render={({ field: controlledField }) => (
-          <Select
+          <SearchableSelectField
+            inputId={getDocumentFormFieldId(field.name)}
             value={readValueAsString(controlledField.value)}
             disabled={disabled || submitting}
+            invalid={Boolean(errorMessage)}
+            options={ownerOptions}
+            clearable
+            placeholder={`Выберите ${ownerNoun}`}
+            searchPlaceholder={`Поиск ${ownerNoun}...`}
+            emptyLabel={
+              ownerSource === "organizations"
+                ? "Организация не найдена"
+                : "Контрагент не найден"
+            }
             onValueChange={(value) => {
-              controlledField.onChange(value);
-              actions.resetDependentAccountFields(field.name);
+              if (ownerSource === "organizations") {
+                controlledField.onChange(value);
+                actions.resetDependentAccountFields(field.name);
+                return;
+              }
+
+              actions.handleCounterpartySelection(field.name, value);
             }}
-          >
-            <SelectTrigger id={getDocumentFormFieldId(field.name)}>
-              <SelectValue placeholder={`Выберите ${ownerNoun}`}>
-                {findSelectedLabel(controlledField.value, ownerOptions)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {ownerOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         )}
       />
     </DocumentTypedFormFieldShell>

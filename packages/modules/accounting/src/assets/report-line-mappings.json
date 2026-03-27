@@ -21,6 +21,15 @@
     {
       "standard": "ifrs",
       "reportKind": "balance_sheet",
+      "lineCode": "BS.RECEIVABLES",
+      "lineLabel": "Trade receivables",
+      "section": "assets",
+      "accountNo": "1210",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
       "lineCode": "BS.CLEARING",
       "lineLabel": "Clearing balances",
       "section": "assets",
@@ -61,6 +70,15 @@
       "lineLabel": "Order reserves",
       "section": "liabilities",
       "accountNo": "2140",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.PAYABLES",
+      "lineLabel": "Trade payables",
+      "section": "liabilities",
+      "accountNo": "2150",
       "signMultiplier": 1
     },
     {
@@ -129,10 +147,28 @@
     {
       "standard": "ifrs",
       "reportKind": "income_statement",
+      "lineCode": "IS.OUTGOING_INVOICE_REVENUE",
+      "lineLabel": "Outgoing invoice revenue",
+      "section": "revenue",
+      "accountNo": "4140",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
       "lineCode": "IS.ADJ_EXPENSE",
       "lineLabel": "Adjustment expense",
       "section": "expense",
       "accountNo": "5110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.INCOMING_INVOICE_EXPENSE",
+      "lineLabel": "Incoming invoice expense",
+      "section": "expense",
+      "accountNo": "5130",
       "signMultiplier": 1
     },
     {

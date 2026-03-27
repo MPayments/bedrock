@@ -7,7 +7,13 @@ import {
   buildWatchedValueMap,
   collectVisibilityDependencyNames,
   deriveAccountCurrencyFieldUpdates,
+  filterCounterpartyOptionsByCustomerId,
+  findCounterpartyFieldNames,
+  findCustomerFieldName,
+  findCustomerIdForCounterparty,
   findDependentAccountFieldNames,
+  findSingleCounterpartyIdForCustomer,
+  isCounterpartyLinkedToCustomer,
   isFieldVisible,
   mapDocumentFormZodError,
   resolveAccountRequisiteRequests,
@@ -28,8 +34,8 @@ const accountField = {
 } satisfies DocumentFormField;
 
 const documentDefinition: DocumentFormDefinition = {
-  docType: "invoice",
-  label: "Invoice",
+  docType: "incoming_invoice",
+  label: "Incoming Invoice",
   family: "commercial",
   schema: z.object({}),
   sections: [],
@@ -49,9 +55,13 @@ describe("document typed form helpers", () => {
       resolveDocumentFormDefaultValues({
         definition: documentDefinition,
         mode: "create",
+        initialValues: {
+          contour: "intl",
+        },
       }),
     ).toEqual({
       mode: "default",
+      contour: "intl",
     });
 
     expect(
@@ -111,6 +121,92 @@ describe("document typed form helpers", () => {
         "organizationId",
       ),
     ).toEqual(["organizationRequisiteId"]);
+  });
+
+  it("detects customer and counterparty field linkage from form fields", () => {
+    const fields: DocumentFormField[] = [
+      {
+        kind: "customer",
+        name: "customerId",
+        label: "Customer",
+      },
+      {
+        kind: "counterparty",
+        name: "counterpartyId",
+        label: "Counterparty",
+      },
+      {
+        kind: "counterparty",
+        name: "organizationId",
+        label: "Organization",
+        optionsSource: "organizations",
+      },
+    ];
+
+    expect(findCustomerFieldName(fields)).toBe("customerId");
+    expect(findCounterpartyFieldNames(fields)).toEqual(["counterpartyId"]);
+  });
+
+  it("filters counterparties by selected customer and resolves linked customer ids", () => {
+    const counterparties = [
+      {
+        value: "counterparty-1",
+        label: "Contoso",
+        customerIds: ["customer-1"],
+      },
+      {
+        value: "counterparty-2",
+        label: "Fabrikam",
+        customerIds: ["customer-2", "customer-3"],
+      },
+      {
+        value: "counterparty-3",
+        label: "Unscoped",
+        customerIds: [],
+      },
+    ];
+
+    expect(
+      filterCounterpartyOptionsByCustomerId(counterparties, "customer-1"),
+    ).toEqual([counterparties[0]]);
+    expect(
+      filterCounterpartyOptionsByCustomerId(counterparties, "customer-3"),
+    ).toEqual([counterparties[1]]);
+    expect(filterCounterpartyOptionsByCustomerId(counterparties, "")).toEqual(
+      counterparties,
+    );
+    expect(
+      findCustomerIdForCounterparty(counterparties, "counterparty-1"),
+    ).toBe("customer-1");
+    expect(
+      findCustomerIdForCounterparty(counterparties, "counterparty-2"),
+    ).toBeNull();
+    expect(
+      findCustomerIdForCounterparty(counterparties, "missing-counterparty"),
+    ).toBeNull();
+    expect(
+      findSingleCounterpartyIdForCustomer(counterparties, "customer-1"),
+    ).toBe("counterparty-1");
+    expect(
+      findSingleCounterpartyIdForCustomer(counterparties, "customer-2"),
+    ).toBe("counterparty-2");
+    expect(
+      findSingleCounterpartyIdForCustomer(counterparties, "customer-4"),
+    ).toBeNull();
+    expect(
+      isCounterpartyLinkedToCustomer({
+        options: counterparties,
+        counterpartyId: "counterparty-2",
+        customerId: "customer-3",
+      }),
+    ).toBe(true);
+    expect(
+      isCounterpartyLinkedToCustomer({
+        options: counterparties,
+        counterpartyId: "counterparty-1",
+        customerId: "customer-3",
+      }),
+    ).toBe(false);
   });
 
   it("plans deduplicated requisite requests and skips cached/loading owners", () => {
@@ -218,7 +314,7 @@ describe("document typed form helpers", () => {
         label: "Currency",
         visibleWhen: {
           fieldName: "mode",
-          equals: ["exchange"],
+          equals: ["intl"],
         },
       },
     ];

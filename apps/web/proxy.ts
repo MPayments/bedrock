@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
+import { resolveInternalApiUrl } from "./lib/api/internal-base-url";
+
 const PUBLIC_PATHS = new Set(["/login", "/two-factor"]);
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -17,7 +18,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/auth/get-session`, {
+    const res = await fetch(resolveInternalApiUrl("/api/auth/get-session"), {
       headers: { cookie: request.headers.get("cookie") ?? "" },
     });
     if (!res.ok) {

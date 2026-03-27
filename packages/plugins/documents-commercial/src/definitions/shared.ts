@@ -3,25 +3,32 @@ import {
   nowDateTimeLocal,
   optionalString,
   parseSchema,
-  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   toOccurredAtIso,
 } from "@bedrock/plugin-documents-sdk/definitions/shared";
-import { formatPercentFromBps } from "@bedrock/plugin-documents-sdk/financial-lines";
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
-import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
-import type { FinancialLinePayload } from "../validation";
 import {
-  AcceptanceInputSchema,
-  ExchangeInputSchema,
-  InvoiceInputSchema,
-  InvoiceModeSchema,
+  CommercialContourSchema,
+  IncomingInvoiceInputSchema,
+  OutgoingInvoiceInputSchema,
+  PaymentOrderExecutionStatusSchema,
+  PaymentOrderInputSchema,
+  type CommercialContour,
 } from "../validation";
 
-export const INVOICE_MODE_OPTIONS = [
-  { value: "direct", label: "Без обмена" },
-  { value: "exchange", label: "С обменом" },
+export const COMMERCIAL_CONTOUR_OPTIONS = [
+  { value: "rf", label: "РФ" },
+  { value: "intl", label: "Вне РФ" },
+] as const;
+
+export const PAYMENT_ORDER_EXECUTION_STATUS_OPTIONS = [
+  { value: "prepared", label: "Подготовлено" },
+  { value: "sent", label: "Отправлено" },
+  { value: "settled", label: "Исполнено" },
+  { value: "void", label: "Отменено" },
+  { value: "failed", label: "Ошибка" },
 ] as const;
 
 function normalizeCommercialMajorAmountInput(
@@ -35,9 +42,24 @@ function normalizeCommercialMajorAmountInput(
   );
 }
 
-export function getDefaultInvoiceValues() {
+export function resolveContourLabel(input: {
+  docType: "incoming_invoice" | "payment_order" | "outgoing_invoice";
+  contour: CommercialContour;
+}) {
+  if (input.docType === "payment_order") {
+    return input.contour === "rf" ? "Платежное поручение" : "Payment Order";
+  }
+
+  if (input.docType === "incoming_invoice") {
+    return input.contour === "rf" ? "Счет на оплату" : "Invoice";
+  }
+
+  return input.contour === "rf" ? "Счет" : "Invoice";
+}
+
+export function getDefaultIncomingInvoiceValues() {
   return {
-    mode: "direct",
+    contour: "rf",
     occurredAt: nowDateTimeLocal(),
     customerId: "",
     counterpartyId: "",
@@ -45,114 +67,129 @@ export function getDefaultInvoiceValues() {
     organizationRequisiteId: "",
     amount: "",
     currency: "",
-    targetCurrency: "",
-    quoteRef: "",
-    financialLines: [],
+    externalBasisSourceSystem: "",
+    externalBasisEntityType: "",
+    externalBasisEntityId: "",
+    externalBasisDocumentNumber: "",
     memo: "",
   };
 }
 
-export function mapPayloadFinancialLines(
-  financialLines: FinancialLinePayload[] | undefined,
-) {
-  return (financialLines ?? []).map((line) => ({
-    calcMethod:
-      line.calcMethod === "percent" && typeof line.percentBps === "number"
-        ? "percent"
-        : "fixed",
-    bucket: line.bucket,
-    currency: line.currency,
-    amount:
-      line.calcMethod === "percent" && typeof line.percentBps === "number"
-        ? ""
-        : typeof line.amount === "string"
-          ? line.amount
-          : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
-    percent:
-      line.calcMethod === "percent" && typeof line.percentBps === "number"
-        ? formatPercentFromBps(line.percentBps)
-        : "",
-    memo: readString(line.memo),
-  }));
-}
-
-function mapFinancialLineInput(
-  line: Record<string, unknown>,
-) {
-  const calcMethod =
-    readString(line.calcMethod).trim() === "percent" ? "percent" : "fixed";
-
+export function getDefaultOutgoingInvoiceValues() {
   return {
-    calcMethod,
-    bucket: readString(line.bucket).trim(),
-    currency: readString(line.currency).trim(),
-    amount:
-      calcMethod === "fixed"
-        ? normalizeCommercialMajorAmountInput(line.amount, line.currency)
-        : undefined,
-    percent:
-      calcMethod === "percent"
-        ? readString(line.percent).trim()
-        : undefined,
-    memo: optionalString(line.memo),
+    contour: "rf",
+    occurredAt: nowDateTimeLocal(),
+    counterpartyId: "",
+    counterpartyRequisiteId: "",
+    organizationId: "",
+    organizationRequisiteId: "",
+    amount: "",
+    currency: "",
+    memo: "",
   };
 }
 
-export function createInvoicePayload(values: Record<string, unknown>) {
-  const mode = readString(values.mode) === "exchange" ? "exchange" : "direct";
+export function getDefaultPaymentOrderValues() {
+  return {
+    contour: "rf",
+    occurredAt: nowDateTimeLocal(),
+    incomingInvoiceDocumentId: "",
+    sourcePaymentOrderDocumentId: "",
+    counterpartyId: "",
+    counterpartyRequisiteId: "",
+    organizationId: "",
+    organizationRequisiteId: "",
+    amount: "",
+    currency: "",
+    allocatedCurrency: "",
+    executionStatus: "sent",
+    executionRef: "",
+    memo: "",
+  };
+}
 
-  return parseSchema(InvoiceInputSchema, {
-    mode,
+function readContour(value: unknown): CommercialContour {
+  return CommercialContourSchema.parse(readString(value).trim() || "rf");
+}
+
+function readExecutionStatus(value: unknown) {
+  return PaymentOrderExecutionStatusSchema.parse(
+    readString(value).trim() || "sent",
+  );
+}
+
+function buildExternalBasis(values: Record<string, unknown>) {
+  const sourceSystem = readString(values.externalBasisSourceSystem).trim();
+  const entityType = readString(values.externalBasisEntityType).trim();
+  const entityId = readString(values.externalBasisEntityId).trim();
+
+  if (!sourceSystem || !entityType || !entityId) {
+    return undefined;
+  }
+
+  return {
+    sourceSystem,
+    entityType,
+    entityId,
+    documentNumber: optionalString(values.externalBasisDocumentNumber),
+  };
+}
+
+export function createIncomingInvoicePayload(values: Record<string, unknown>) {
+  return parseSchema(IncomingInvoiceInputSchema, {
+    contour: readContour(values.contour),
     occurredAt: toOccurredAtIso(values.occurredAt),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
-    ...(mode === "direct"
-      ? {
-          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-          currency: readString(values.currency).trim(),
-          financialLines: Array.isArray(values.financialLines)
-            ? values.financialLines.map((line) =>
-                mapFinancialLineInput(line as Record<string, unknown>),
-              )
-            : [],
-        }
-      : {
-          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-          currency: readString(values.currency).trim(),
-          targetCurrency: readString(values.targetCurrency).trim(),
-          quoteRef: optionalString(values.quoteRef),
-        }),
+    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+    currency: readString(values.currency).trim(),
+    externalBasis: buildExternalBasis(values),
     memo: optionalString(values.memo),
   });
 }
 
-export function createExchangePayload(values: Record<string, unknown>) {
-  return parseSchema(ExchangeInputSchema, {
+export function createOutgoingInvoicePayload(values: Record<string, unknown>) {
+  return parseSchema(OutgoingInvoiceInputSchema, {
+    contour: readContour(values.contour),
     occurredAt: toOccurredAtIso(values.occurredAt),
-    invoiceDocumentId: readString(values.invoiceDocumentId).trim(),
+    counterpartyId: readString(values.counterpartyId).trim(),
+    counterpartyRequisiteId: readString(values.counterpartyRequisiteId).trim(),
+    organizationId: optionalString(values.organizationId),
+    organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
+    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+    currency: readString(values.currency).trim(),
+    memo: optionalString(values.memo),
+  });
+}
+
+export function createPaymentOrderPayload(values: Record<string, unknown>) {
+  return parseSchema(PaymentOrderInputSchema, {
+    contour: readContour(values.contour),
+    occurredAt: toOccurredAtIso(values.occurredAt),
+    incomingInvoiceDocumentId: readString(values.incomingInvoiceDocumentId).trim(),
+    sourcePaymentOrderDocumentId: optionalString(
+      values.sourcePaymentOrderDocumentId,
+    ),
+    counterpartyId: readString(values.counterpartyId).trim(),
+    counterpartyRequisiteId: readString(values.counterpartyRequisiteId).trim(),
+    organizationId: optionalString(values.organizationId),
+    organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
+    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+    currency: readString(values.currency).trim(),
+    allocatedCurrency: readString(values.allocatedCurrency).trim(),
+    executionStatus: readExecutionStatus(values.executionStatus),
     executionRef: optionalString(values.executionRef),
     memo: optionalString(values.memo),
   });
 }
 
-export function createAcceptancePayload(values: Record<string, unknown>) {
-  return parseSchema(AcceptanceInputSchema, {
-    occurredAt: toOccurredAtIso(values.occurredAt),
-    invoiceDocumentId: readString(values.invoiceDocumentId).trim(),
-    memo: optionalString(values.memo),
-  });
-}
-
 export {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
-  InvoiceInputSchema,
-  InvoiceModeSchema,
-  ExchangeInputSchema,
-  AcceptanceInputSchema,
+  IncomingInvoiceInputSchema,
+  OutgoingInvoiceInputSchema,
+  PaymentOrderInputSchema,
   isoToDateTimeLocal,
   nowDateTimeLocal,
-  normalizeCommercialMajorAmountInput,
   readString,
 };

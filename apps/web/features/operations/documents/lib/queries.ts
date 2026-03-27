@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/documents/contracts";
 
+import { resolveInternalApiUrl } from "@/lib/api/internal-base-url";
 import {
   readJsonWithSchema,
   requestOk,
@@ -19,8 +20,6 @@ import {
 } from "./schemas";
 import type { OperationsSearchParams } from "./validations";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
-
 export type {
   DocumentDetailsDto,
   DocumentDto,
@@ -31,7 +30,7 @@ export type {
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
 
-  return fetch(`${API_URL}${path}`, {
+  return fetch(resolveInternalApiUrl(path), {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
     },

@@ -1,22 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  AcceptancePayloadSchema,
-  InvoiceInputSchema,
-  compileInvoiceDirectFinancialLines,
+  IncomingInvoiceInputSchema,
+  OutgoingInvoiceInputSchema,
+  PaymentOrderExecutionStatusSchema,
+  PaymentOrderInputSchema,
+  PaymentOrderPayloadSchema,
 } from "../src/validation";
 
 const CUSTOMER_ID = "00000000-0000-4000-8000-000000000001";
 const COUNTERPARTY_ID = "00000000-0000-4000-8000-000000000002";
 const ORGANIZATION_ID = "00000000-0000-4000-8000-000000000003";
 const REQUISITE_ID = "00000000-0000-4000-8000-000000000004";
-const INVOICE_DOCUMENT_ID = "00000000-0000-4000-8000-000000000005";
-const EXCHANGE_DOCUMENT_ID = "00000000-0000-4000-8000-000000000006";
+const INCOMING_INVOICE_DOCUMENT_ID = "00000000-0000-4000-8000-000000000005";
+const COUNTERPARTY_REQUISITE_ID = "00000000-0000-4000-8000-000000000006";
 
 describe("commercial documents validation", () => {
-  it("accepts direct invoice input with fixed and percent authoring rows", () => {
-    const parsed = InvoiceInputSchema.parse({
-      mode: "direct",
+  it("accepts incoming_invoice input with external basis metadata", () => {
+    const parsed = IncomingInvoiceInputSchema.parse({
+      contour: "intl",
       occurredAt: "2026-03-03T10:00:00.000Z",
       customerId: CUSTOMER_ID,
       counterpartyId: COUNTERPARTY_ID,
@@ -24,208 +26,157 @@ describe("commercial documents validation", () => {
       organizationRequisiteId: REQUISITE_ID,
       amount: "1000.50",
       currency: "usd",
-      financialLines: [
-        {
-          calcMethod: "fixed",
-          bucket: "fee_revenue",
-          currency: "rub",
-          amount: "10.25",
-          memo: "service fee",
-        },
-        {
-          calcMethod: "percent",
-          bucket: "pass_through",
-          currency: "usd",
-          percent: "-1.5",
-        },
-      ],
+      externalBasis: {
+        sourceSystem: "crm",
+        entityType: "deal",
+        entityId: "deal-42",
+      },
     });
 
     expect(parsed).toMatchObject({
-      mode: "direct",
+      contour: "intl",
       amountMinor: "100050",
       currency: "USD",
+      externalBasis: {
+        sourceSystem: "crm",
+        entityType: "deal",
+        entityId: "deal-42",
+        documentNumber: null,
+      },
     });
-    expect(parsed.financialLines).toHaveLength(2);
-    expect(parsed.financialLines[0]).toMatchObject({
-      calcMethod: "fixed",
-      bucket: "fee_revenue",
-      currency: "RUB",
-      amount: "10.25",
-      memo: "service fee",
-    });
-    expect(parsed.financialLines[1]).toMatchObject({
-      calcMethod: "percent",
-      bucket: "pass_through",
-      currency: "USD",
-      percent: "-1.5",
+  });
+
+  it("accepts outgoing_invoice input and normalizes currency/amount", () => {
+    const parsed = OutgoingInvoiceInputSchema.parse({
+      contour: "rf",
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      counterpartyId: COUNTERPARTY_ID,
+      counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+      organizationId: ORGANIZATION_ID,
+      organizationRequisiteId: REQUISITE_ID,
+      amount: "200.25",
+      currency: "eur",
     });
 
-    expect(
-      compileInvoiceDirectFinancialLines({
-        financialLines: parsed.financialLines,
-        amountMinor: parsed.amountMinor,
-        currency: parsed.currency,
-      }),
-    ).toMatchObject([
-      {
-        calcMethod: "fixed",
-        bucket: "fee_revenue",
-        currency: "RUB",
-        amount: "10.25",
-        amountMinor: "1025",
-        source: "manual",
-        settlementMode: "in_ledger",
-        memo: "service fee",
+    expect(parsed).toMatchObject({
+      contour: "rf",
+      amountMinor: "20025",
+      currency: "EUR",
+    });
+  });
+
+  it("accepts payment_order input with execution status default", () => {
+    const parsed = PaymentOrderInputSchema.parse({
+      contour: "intl",
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      incomingInvoiceDocumentId: INCOMING_INVOICE_DOCUMENT_ID,
+      counterpartyId: COUNTERPARTY_ID,
+      counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+      organizationId: ORGANIZATION_ID,
+      organizationRequisiteId: REQUISITE_ID,
+      amount: "10.50",
+      currency: "usd",
+      allocatedCurrency: "eur",
+    });
+
+    expect(parsed).toMatchObject({
+      contour: "intl",
+      amountMinor: "1050",
+      currency: "USD",
+      allocatedCurrency: "EUR",
+      executionStatus: "sent",
+    });
+  });
+
+  it("accepts payment_order resolution input with a source payment order reference", () => {
+    const parsed = PaymentOrderInputSchema.parse({
+      contour: "intl",
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      incomingInvoiceDocumentId: INCOMING_INVOICE_DOCUMENT_ID,
+      sourcePaymentOrderDocumentId:
+        "00000000-0000-4000-8000-000000000007",
+      counterpartyId: COUNTERPARTY_ID,
+      counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+      organizationId: ORGANIZATION_ID,
+      organizationRequisiteId: REQUISITE_ID,
+      amount: "10.50",
+      currency: "usd",
+      allocatedCurrency: "eur",
+      executionStatus: "failed",
+    });
+
+    expect(parsed).toMatchObject({
+      sourcePaymentOrderDocumentId: "00000000-0000-4000-8000-000000000007",
+      executionStatus: "failed",
+    });
+  });
+
+  it("keeps payment_order payload compatible with FX quote snapshots", () => {
+    const parsed = PaymentOrderPayloadSchema.parse({
+      contour: "intl",
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      incomingInvoiceDocumentId: INCOMING_INVOICE_DOCUMENT_ID,
+      sourcePaymentOrderDocumentId: "00000000-0000-4000-8000-000000000007",
+      customerId: CUSTOMER_ID,
+      counterpartyId: COUNTERPARTY_ID,
+      counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+      organizationId: ORGANIZATION_ID,
+      organizationRequisiteId: REQUISITE_ID,
+      fundingAmount: "100.00",
+      fundingAmountMinor: "10000",
+      fundingCurrency: "USD",
+      allocatedAmount: "92.00",
+      allocatedAmountMinor: "9200",
+      allocatedCurrency: "EUR",
+      executionStatus: "settled",
+      quoteSnapshot: {
+        quoteId: "00000000-0000-4000-8000-000000000010",
+        quoteRef: "quote-ref-1",
+        idempotencyKey: "quote-ref-1",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: "10000",
+        toAmountMinor: "9200",
+        pricingMode: "explicit_route",
+        rateNum: "23",
+        rateDen: "25",
+        expiresAt: "2026-03-03T10:10:00.000Z",
+        pricingTrace: { version: "v1" },
+        legs: [
+          {
+            idx: 1,
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: "10000",
+            toAmountMinor: "9200",
+            rateNum: "23",
+            rateDen: "25",
+            sourceKind: "manual",
+            sourceRef: "desk",
+            asOf: "2026-03-03T10:00:00.000Z",
+            executionCounterpartyId: null,
+          },
+        ],
+        financialLines: [],
+        snapshotHash:
+          "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       },
-      {
-        calcMethod: "percent",
-        percentBps: -150,
-        bucket: "pass_through",
-        currency: "USD",
-        amountMinor: "-1500",
-        source: "manual",
-        settlementMode: "separate_payment_order",
-      },
+    });
+
+    expect(parsed.quoteSnapshot?.toAmountMinor).toBe("9200");
+    expect(parsed.executionStatus).toBe("settled");
+    expect(parsed.sourcePaymentOrderDocumentId).toBe(
+      "00000000-0000-4000-8000-000000000007",
+    );
+  });
+
+  it("supports the full execution status enum", () => {
+    expect(PaymentOrderExecutionStatusSchema.options).toEqual([
+      "prepared",
+      "sent",
+      "settled",
+      "void",
+      "failed",
     ]);
-  });
-
-  it("rejects percent rows that resolve to zero or mismatch invoice currency", () => {
-    expect(() =>
-      InvoiceInputSchema.parse({
-        mode: "direct",
-        occurredAt: "2026-03-03T10:00:00.000Z",
-        customerId: CUSTOMER_ID,
-        counterpartyId: COUNTERPARTY_ID,
-        organizationId: ORGANIZATION_ID,
-        organizationRequisiteId: REQUISITE_ID,
-        amount: "0.01",
-        currency: "usd",
-        financialLines: [
-          {
-            calcMethod: "percent",
-            bucket: "fee_revenue",
-            currency: "usd",
-            percent: "0.01",
-          },
-        ],
-      }),
-    ).toThrow("percent-based financial line must not resolve to zero");
-
-    expect(() =>
-      InvoiceInputSchema.parse({
-        mode: "direct",
-        occurredAt: "2026-03-03T10:00:00.000Z",
-        customerId: CUSTOMER_ID,
-        counterpartyId: COUNTERPARTY_ID,
-        organizationId: ORGANIZATION_ID,
-        organizationRequisiteId: REQUISITE_ID,
-        amount: "100.00",
-        currency: "usd",
-        financialLines: [
-          {
-            calcMethod: "percent",
-            bucket: "fee_revenue",
-            currency: "eur",
-            percent: "1.25",
-          },
-        ],
-      }),
-    ).toThrow("percent-based financial line currency must match base currency USD");
-  });
-
-  it("keeps payload parsing compatible with percent metadata", () => {
-    const parsed = InvoiceInputSchema.parse({
-      mode: "direct",
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      customerId: CUSTOMER_ID,
-      counterpartyId: COUNTERPARTY_ID,
-      organizationId: ORGANIZATION_ID,
-      organizationRequisiteId: REQUISITE_ID,
-      amount: "1000.50",
-      currency: "usd",
-      financialLines: [
-        {
-          bucket: "fee_revenue",
-          currency: "rub",
-          amount: "10.25",
-        },
-      ],
-    });
-
-    const [compiled] = compileInvoiceDirectFinancialLines({
-      financialLines: parsed.financialLines,
-      amountMinor: parsed.amountMinor,
-      currency: parsed.currency,
-    });
-
-    expect(compiled).toMatchObject({
-      calcMethod: "fixed",
-      amountMinor: "1025",
-    });
-  });
-
-  it("accepts legacy exchange invoice input with quoteRef", () => {
-    const parsed = InvoiceInputSchema.parse({
-      mode: "exchange",
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      customerId: CUSTOMER_ID,
-      counterpartyId: COUNTERPARTY_ID,
-      organizationId: ORGANIZATION_ID,
-      organizationRequisiteId: REQUISITE_ID,
-      quoteRef: "quote-ref-1",
-      memo: "fx invoice",
-    });
-
-    expect(parsed).toMatchObject({
-      mode: "exchange",
-      quoteRef: "quote-ref-1",
-      memo: "fx invoice",
-    });
-    expect("amountMinor" in parsed).toBe(false);
-  });
-
-  it("accepts generated exchange invoice input without quoteRef", () => {
-    const parsed = InvoiceInputSchema.parse({
-      mode: "exchange",
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      customerId: CUSTOMER_ID,
-      counterpartyId: COUNTERPARTY_ID,
-      organizationId: ORGANIZATION_ID,
-      organizationRequisiteId: REQUISITE_ID,
-      amount: "100.50",
-      currency: "usd",
-      targetCurrency: "eur",
-      memo: "fx invoice",
-    });
-
-    expect(parsed).toMatchObject({
-      mode: "exchange",
-      amount: "100.5",
-      amountMinor: "10050",
-      currency: "USD",
-      targetCurrency: "EUR",
-      memo: "fx invoice",
-    });
-    expect(parsed.quoteRef).toBeUndefined();
-  });
-
-  it("keeps acceptance payload compatible with optional exchange linkage", () => {
-    const withoutExchange = AcceptancePayloadSchema.parse({
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      invoiceDocumentId: INVOICE_DOCUMENT_ID,
-      invoiceMode: "direct",
-      memo: "close direct invoice",
-    });
-    const withExchange = AcceptancePayloadSchema.parse({
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      invoiceDocumentId: INVOICE_DOCUMENT_ID,
-      exchangeDocumentId: EXCHANGE_DOCUMENT_ID,
-      invoiceMode: "exchange",
-      memo: "close fx invoice",
-    });
-
-    expect(withoutExchange.exchangeDocumentId).toBeUndefined();
-    expect(withExchange.exchangeDocumentId).toBe(EXCHANGE_DOCUMENT_ID);
   });
 });

@@ -37,8 +37,8 @@ COPY --from=pruner /repo/out/full/ ./
 RUN npx tsgo --project apps/api/tsconfig.json
 
 # Build Next.js (produces .next/standalone)
-ARG NEXT_PUBLIC_API_URL=http://localhost:3002
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG BEDROCK_INTERNAL_API_URL=http://localhost:3002
+ENV BEDROCK_INTERNAL_API_URL=${BEDROCK_INTERNAL_API_URL}
 RUN node apps/web/node_modules/.bin/next build apps/web
 
 # --- Runner ---

@@ -15,7 +15,10 @@ import type { DocumentsReadModel } from "./read-model";
 export interface DocumentModuleRuntime {
   documents: Pick<
     DocumentsReadModel,
-    "findIncomingLinkedDocument" | "getDocumentByType" | "getDocumentOperationId"
+    | "findIncomingLinkedDocument"
+    | "getDocumentByType"
+    | "getDocumentOperationId"
+    | "listIncomingLinkedDocuments"
   >;
 }
 

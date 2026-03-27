@@ -24,27 +24,57 @@ describe("document form options", () => {
   it("keeps successful option lists when one options request fails", async () => {
     readOptionsList
       .mockResolvedValueOnce({
-        data: [{ id: "counterparty-1", label: "Contoso" }],
+        data: [
+          {
+            id: "group-1",
+            code: "customer:customer-1",
+            name: "Acme",
+            parentId: null,
+            customerId: "customer-1",
+            customerLabel: "Acme Corp",
+            isSystem: false,
+            label: "Acme",
+          },
+        ],
       })
       .mockRejectedValueOnce(new Error("organizations unavailable"))
       .mockResolvedValueOnce({
         data: [{ id: "usd", code: "USD", label: "US Dollar" }],
       });
-    readPaginatedList.mockResolvedValueOnce({
-      data: {
-        data: [{ id: "customer-1", displayName: "Acme Corp" }],
-      },
-    });
-
+    readPaginatedList
+      .mockResolvedValueOnce({
+        data: {
+          data: [
+            {
+              id: "counterparty-1",
+              shortName: "Contoso",
+              customerId: null,
+              groupIds: ["group-1"],
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: [{ id: "customer-1", displayName: "Acme Corp" }],
+        },
+      });
     const { getDocumentFormOptions } = await import(
       "@/features/documents/lib/form-options"
     );
 
     await expect(getDocumentFormOptions()).resolves.toEqual({
-      counterparties: [{ id: "counterparty-1", label: "Contoso" }],
+      counterparties: [
+        {
+          id: "counterparty-1",
+          label: "Contoso",
+          customerIds: ["customer-1"],
+        },
+      ],
       customers: [{ id: "customer-1", label: "Acme Corp" }],
       organizations: [],
       currencies: [{ id: "usd", code: "USD", label: "US Dollar" }],
     });
   });
+
 });

@@ -5,14 +5,14 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { resolveInternalApiUrl } from "@/lib/api/internal-base-url";
+
 import type {
   AppAudience,
   FeatureFlagMap,
   UserRole,
   UserSessionSnapshot,
 } from "./types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 const FeatureFlagsSchema = z.record(z.string(), z.boolean());
 
@@ -55,7 +55,7 @@ function resolveFeatureFlags(): FeatureFlagMap {
 
 async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   const requestHeaders = await headers();
-  const response = await fetch(`${API_URL}/api/auth/get-session`, {
+  const response = await fetch(resolveInternalApiUrl("/api/auth/get-session"), {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
     },

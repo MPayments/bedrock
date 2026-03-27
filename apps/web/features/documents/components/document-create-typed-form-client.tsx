@@ -1,5 +1,6 @@
 "use client";
 
+import { startTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 
 import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 
@@ -27,6 +29,7 @@ type DocumentCreateTypedFormClientProps = {
   docType: string;
   userRole: UserRole;
   options: DocumentFormOptions;
+  initialValues?: DocumentFormValues;
 };
 
 function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
@@ -60,6 +63,7 @@ export function DocumentCreateTypedFormClient({
   docType,
   userRole,
   options,
+  initialValues,
 }: DocumentCreateTypedFormClientProps) {
   const router = useRouter();
 
@@ -68,10 +72,15 @@ export function DocumentCreateTypedFormClient({
       docType={docType}
       userRole={userRole}
       options={options}
+      initialValues={initialValues}
       onSuccess={(document) => {
-        router.push(
-          buildDocumentDetailsHref(document.docType, document.id) ?? "/documents",
-        );
+        const href =
+          buildDocumentDetailsHref(document.docType, document.id) ?? "/documents";
+
+        startTransition(() => {
+          router.push(href);
+          router.refresh();
+        });
       }}
     >
       <DocumentCreateTypedFormCard docType={docType} />

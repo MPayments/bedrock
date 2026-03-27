@@ -90,44 +90,88 @@ const JournalOperationsQuerySchema = z.object({
     .optional(),
 });
 
-function parseJournalOperationsQuery(requestUrl: string) {
-  const params = new URL(requestUrl).searchParams;
-  const dimensionFilters = new Map<string, string[]>();
-  const status = params.getAll("status");
-  const operationCode = params.getAll("operationCode");
-  const sourceType = params.getAll("sourceType");
+const JOURNAL_OPERATION_STATUSES = new Set(["pending", "posted", "failed"]);
+const JOURNAL_SORTABLE_COLUMNS = new Set(["createdAt", "postingDate", "postedAt"]);
 
-  for (const [key, value] of params.entries()) {
-    if (!key.startsWith("dimension.")) {
-      continue;
-    }
+function readFirstQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
-    const dimensionKey = key.slice("dimension.".length).trim();
-    const dimensionValue = value.trim();
-    if (!dimensionKey || !dimensionValue) {
-      continue;
-    }
+function readNonEmptyQueryString(value: string | string[] | undefined) {
+  const normalized = readFirstQueryValue(value)?.trim();
+  return normalized ? normalized : undefined;
+}
 
-    const existing = dimensionFilters.get(dimensionKey) ?? [];
-    existing.push(dimensionValue);
-    dimensionFilters.set(dimensionKey, existing);
+function readQueryStringArray(value: string | string[] | undefined) {
+  const values = (Array.isArray(value) ? value : value ? [value] : [])
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  return values.length > 0 ? values : undefined;
+}
+
+function readPositiveInt(
+  value: string | string[] | undefined,
+  fallback: number,
+  input: { min: number; max?: number },
+) {
+  const parsed = Number(readFirstQueryValue(value));
+  if (!Number.isInteger(parsed) || parsed < input.min) {
+    return fallback;
   }
 
+  if (typeof input.max === "number" && parsed > input.max) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function readDimensionFilters(
+  query: Record<string, string | string[]>,
+) {
+  const entries = Object.entries(query)
+    .filter(([key]) => key.startsWith("dimension."))
+    .map(([key, value]) => {
+      const dimensionKey = key.slice("dimension.".length).trim();
+      const values = readQueryStringArray(value);
+
+      return [dimensionKey, values] as const;
+    })
+    .filter(
+      (entry): entry is [string, string[]] =>
+        entry[0].length > 0 && Array.isArray(entry[1]) && entry[1].length > 0,
+    );
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function parseJournalOperationsQuery(requestUrl: string) {
+  const query = queryObjectFromUrl(requestUrl);
+  const sortBy = readNonEmptyQueryString(query.sortBy);
+  const sortOrder = readNonEmptyQueryString(query.sortOrder);
+  const status = (readQueryStringArray(query.status) ?? []).filter((value) =>
+    JOURNAL_OPERATION_STATUSES.has(value),
+  );
+  const operationCode = readQueryStringArray(query.operationCode);
+  const sourceType = readQueryStringArray(query.sourceType);
+
   return JournalOperationsQuerySchema.parse({
-    limit: params.get("limit") ?? undefined,
-    offset: params.get("offset") ?? undefined,
-    sortBy: params.get("sortBy") ?? undefined,
-    sortOrder: params.get("sortOrder") ?? undefined,
-    query: params.get("query") ?? undefined,
-    status: status.length > 0 ? status : undefined,
-    operationCode: operationCode.length > 0 ? operationCode : undefined,
-    sourceType: sourceType.length > 0 ? sourceType : undefined,
-    sourceId: params.get("sourceId") ?? undefined,
-    bookId: params.get("bookId") ?? undefined,
-    dimensionFilters:
-      dimensionFilters.size > 0
-        ? Object.fromEntries(dimensionFilters)
+    limit: readPositiveInt(query.limit, 20, { min: 1, max: 200 }),
+    offset: readPositiveInt(query.offset, 0, { min: 0 }),
+    sortBy:
+      sortBy && JOURNAL_SORTABLE_COLUMNS.has(sortBy)
+        ? sortBy
         : undefined,
+    sortOrder:
+      sortOrder === "asc" || sortOrder === "desc" ? sortOrder : undefined,
+    query: readNonEmptyQueryString(query.query),
+    status: status.length > 0 ? status : undefined,
+    operationCode,
+    sourceType,
+    sourceId: readNonEmptyQueryString(query.sourceId),
+    bookId: readNonEmptyQueryString(query.bookId),
+    dimensionFilters: readDimensionFilters(query),
   });
 }
 

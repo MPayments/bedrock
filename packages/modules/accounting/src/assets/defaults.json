@@ -145,6 +145,15 @@
       "parentAccountNo": "1200"
     },
     {
+      "accountNo": "1210",
+      "name": "Дебиторская задолженность",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "1200"
+    },
+    {
       "accountNo": "2110",
       "name": "Кошелек клиента",
       "kind": "liability",
@@ -181,6 +190,15 @@
       "parentAccountNo": "2100"
     },
     {
+      "accountNo": "2150",
+      "name": "Кредиторская задолженность",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2100"
+    },
+    {
       "accountNo": "4110",
       "name": "Доход от комиссий",
       "kind": "revenue",
@@ -208,8 +226,26 @@
       "parentAccountNo": "4000"
     },
     {
+      "accountNo": "4140",
+      "name": "Доход по исходящим счетам",
+      "kind": "revenue",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "4000"
+    },
+    {
       "accountNo": "5110",
       "name": "Расход по корректировкам",
+      "kind": "expense",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "5000"
+    },
+    {
+      "accountNo": "5130",
+      "name": "Расход по входящим счетам",
       "kind": "expense",
       "normalSide": "debit",
       "postingAllowed": true,
@@ -866,6 +902,48 @@
       "scope": "credit"
     },
     {
+      "postingCode": "CM.1001",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "CM.1001",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "CM.1101",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "CM.1101",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "CM.1201",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "CM.1201",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "CM.1201",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
       "postingCode": "TC.3201",
       "dimensionKey": "orderId",
       "required": true,
@@ -1229,6 +1307,21 @@
       "postingCode": "TC.3010",
       "debitAccountNo": "5110",
       "creditAccountNo": "2120"
+    },
+    {
+      "postingCode": "CM.1001",
+      "debitAccountNo": "5130",
+      "creditAccountNo": "2150"
+    },
+    {
+      "postingCode": "CM.1101",
+      "debitAccountNo": "1210",
+      "creditAccountNo": "4140"
+    },
+    {
+      "postingCode": "CM.1201",
+      "debitAccountNo": "2150",
+      "creditAccountNo": "2110"
     }
   ]
 }

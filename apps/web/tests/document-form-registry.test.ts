@@ -82,9 +82,9 @@ describe("document form registry", () => {
     expect(fieldNames).not.toContain("quoteRef");
   });
 
-  it("exposes generated-quote fields for exchange invoice mode", () => {
+  it("exposes incoming_invoice base fields and external basis section", () => {
     const definition = getDocumentFormDefinitionForRole({
-      docType: "invoice",
+      docType: "incoming_invoice",
       role: "admin",
     });
 
@@ -99,15 +99,10 @@ describe("document form registry", () => {
       .find((field) => field.name === "quotePreview");
 
     expect(fieldNames).toContain("amount");
-    expect(fieldNames).toContain("targetCurrency");
-    expect(fieldNames).not.toContain("quoteRef");
-    expect(previewField).toMatchObject({
-      kind: "fxQuotePreview",
-      requestMode: "auto_cross",
-      amountFieldName: "amount",
-      fromCurrencyFieldName: "currency",
-      toCurrencyFieldName: "targetCurrency",
-    });
+    expect(fieldNames).toContain("currency");
+    expect(fieldNames).toContain("externalBasisSourceSystem");
+    expect(fieldNames).toContain("externalBasisEntityId");
+    expect(previewField).toBeUndefined();
   });
 
   it("exposes an auto-cross quote preview field for fx_execute", () => {
@@ -129,26 +124,40 @@ describe("document form registry", () => {
     });
   });
 
-  it("exposes percent-enabled financial-lines metadata for invoice and fx_execute", () => {
+  it("exposes payment_order quote preview and fx_execute financial-lines metadata", () => {
     const definitions = [
       ...COMMERCIAL_DOCUMENT_DEFINITIONS,
       ...IFRS_DOCUMENT_DEFINITIONS,
     ];
 
-    for (const docType of ["invoice", "fx_execute"]) {
-      const definition = definitions.find((item) => item.docType === docType)
-        ?.formDefinition;
-      const financialLinesField = definition?.sections
-        .flatMap((section) => section.fields)
-        .find((field) => field.name === "financialLines");
+    const paymentOrderDefinition = definitions.find(
+      (item) => item.docType === "payment_order",
+    )?.formDefinition;
+    const paymentOrderPreviewField = paymentOrderDefinition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "quotePreview");
 
-      expect(financialLinesField).toMatchObject({
-        kind: "financialLines",
-        supportedCalcMethods: ["fixed", "percent"],
-        baseAmountFieldName: "amount",
-        baseCurrencyFieldName: "currency",
-      });
-    }
+    expect(paymentOrderPreviewField).toMatchObject({
+      kind: "fxQuotePreview",
+      requestMode: "auto_cross",
+      amountFieldName: "amount",
+      fromCurrencyFieldName: "currency",
+      toCurrencyFieldName: "allocatedCurrency",
+    });
+
+    const fxExecuteDefinition = definitions.find(
+      (item) => item.docType === "fx_execute",
+    )?.formDefinition;
+    const financialLinesField = fxExecuteDefinition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "financialLines");
+
+    expect(financialLinesField).toMatchObject({
+      kind: "financialLines",
+      supportedCalcMethods: ["fixed", "percent"],
+      baseAmountFieldName: "amount",
+      baseCurrencyFieldName: "currency",
+    });
   });
 
   it("keeps layout metadata valid for current typed definitions", () => {

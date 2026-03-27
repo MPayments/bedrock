@@ -1,9 +1,9 @@
-import { acceptanceDocumentDefinition } from "./acceptance";
-import { exchangeDocumentDefinition } from "./exchange";
-import { invoiceDocumentDefinition } from "./invoice";
+import { incomingInvoiceDocumentDefinition } from "./incoming-invoice";
+import { outgoingInvoiceDocumentDefinition } from "./outgoing-invoice";
+import { paymentOrderDocumentDefinition } from "./payment-order";
 
 export const COMMERCIAL_DOCUMENT_CATALOG = [
-  invoiceDocumentDefinition,
-  exchangeDocumentDefinition,
-  acceptanceDocumentDefinition,
+  incomingInvoiceDocumentDefinition,
+  paymentOrderDocumentDefinition,
+  outgoingInvoiceDocumentDefinition,
 ] as const;

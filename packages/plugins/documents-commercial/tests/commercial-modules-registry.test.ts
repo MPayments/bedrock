@@ -7,27 +7,32 @@ import {
   createCommercialDocumentModules,
 } from "../src";
 
-describe("commercial module registry", () => {
-  const deps = {
+function createDeps() {
+  return {
     documentRelations: {
-      loadInvoice: vi.fn(),
-      getInvoiceExchangeChild: vi.fn(),
-      getInvoiceAcceptanceChild: vi.fn(),
-      getExchangeAcceptance: vi.fn(),
+      loadIncomingInvoice: vi.fn(),
+      listIncomingInvoicePaymentOrders: vi.fn(async () => []),
     },
     quoteSnapshot: {
       loadQuoteSnapshot: vi.fn(),
+      createQuoteSnapshot: vi.fn(),
     },
     quoteUsage: {
-      markQuoteUsedForInvoice: vi.fn(),
+      markQuoteUsedForPaymentOrder: vi.fn(),
     },
     requisiteBindings: {
       resolveBinding: vi.fn(),
     },
+    partyReferences: {
+      assertCustomerExists: vi.fn(),
+      assertCounterpartyExists: vi.fn(),
+    },
   };
+}
 
+describe("commercial module registry", () => {
   it("registers one module per commercial doc type in canonical order", () => {
-    const modules = createCommercialDocumentModules(deps as any);
+    const modules = createCommercialDocumentModules(createDeps() as any);
 
     expect(modules).toHaveLength(COMMERCIAL_DOCUMENT_TYPE_ORDER.length);
     expect(modules.map((module) => module.docType)).toEqual(
@@ -35,19 +40,31 @@ describe("commercial module registry", () => {
     );
   });
 
-  it("exposes the expected posting model for invoice, exchange, and acceptance", () => {
-    const modules = createCommercialDocumentModules(deps as any);
+  it("exposes the expected posting model for incoming_invoice, payment_order, and outgoing_invoice", () => {
+    const modules = createCommercialDocumentModules(createDeps() as any);
 
-    const invoice = modules.find((module) => module.docType === "invoice");
-    const exchange = modules.find((module) => module.docType === "exchange");
-    const acceptance = modules.find((module) => module.docType === "acceptance");
+    const incomingInvoice = modules.find(
+      (module) => module.docType === "incoming_invoice",
+    );
+    const paymentOrder = modules.find(
+      (module) => module.docType === "payment_order",
+    );
+    const outgoingInvoice = modules.find(
+      (module) => module.docType === "outgoing_invoice",
+    );
 
-    expect(invoice?.accountingSourceIds).toEqual([
-      ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
-      ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
+    expect(incomingInvoice?.accountingSourceId).toBe(
+      ACCOUNTING_SOURCE_ID.INCOMING_INVOICE,
+    );
+    expect(paymentOrder?.accountingSourceIds).toEqual([
+      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE,
+      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE,
+      ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID,
     ]);
-    expect(exchange?.accountingSourceId).toBe(ACCOUNTING_SOURCE_ID.FX_EXECUTE);
-    expect(acceptance?.postingRequired).toBe(false);
-    expect(acceptance?.allowDirectPostFromDraft).toBe(false);
+    expect(outgoingInvoice?.accountingSourceId).toBe(
+      ACCOUNTING_SOURCE_ID.OUTGOING_INVOICE,
+    );
+    expect(paymentOrder?.postingRequired).toBe(true);
+    expect(paymentOrder?.allowDirectPostFromDraft).toBe(false);
   });
 });

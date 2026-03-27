@@ -2,6 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { resolveInternalApiUrl } from "@/lib/api/internal-base-url";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { requestOk, readJsonWithSchema } from "@/lib/api/response";
 import { isUuid } from "@/lib/resources/http";
@@ -80,13 +81,12 @@ const OperationsListResponseSchema = createPaginatedResponseSchema(
 export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
 export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 const OPERATIONS_SORTABLE_COLUMNS = new Set(["createdAt", "postingDate", "postedAt"]);
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
 
-  return fetch(`${API_URL}${path}`, {
+  return fetch(resolveInternalApiUrl(path), {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
     },

@@ -1,8 +1,7 @@
 import { z } from "zod";
 
+import { resolveApiPath } from "@/lib/api/path";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 const RequisiteListItemSchema = z.object({
   id: z.uuid(),
@@ -46,7 +45,7 @@ export async function fetchRequisiteOptions(input: {
   });
 
   const response = await fetch(
-    `${API_URL}/v1/requisites?${query.toString()}`,
+    `${resolveApiPath("/v1/requisites")}?${query.toString()}`,
     {
       credentials: "include",
       cache: "no-store",

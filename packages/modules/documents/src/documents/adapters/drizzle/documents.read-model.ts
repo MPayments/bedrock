@@ -9,6 +9,7 @@ import type {
   FindIncomingLinkedDocumentInput,
   GetDocumentByTypeReadModelInput,
   GetDocumentOperationIdReadModelInput,
+  ListIncomingLinkedDocumentsInput,
   ListAdjustmentsForOrganizationPeriodInput,
 } from "../../../read-model";
 
@@ -53,6 +54,29 @@ export class DrizzleDocumentsReadModel implements DocumentsReadModel {
       .limit(1);
 
     return row?.document ?? null;
+  }
+
+  async listIncomingLinkedDocuments(query: ListIncomingLinkedDocumentsInput) {
+    const rows = await this.db
+      .select({
+        document: schema.documents,
+      })
+      .from(schema.documentLinks)
+      .innerJoin(
+        schema.documents,
+        eq(schema.documents.id, schema.documentLinks.fromDocumentId),
+      )
+      .where(
+        and(
+          eq(schema.documentLinks.toDocumentId, query.toDocumentId),
+          eq(schema.documentLinks.linkType, query.linkType),
+          query.fromDocType
+            ? eq(schema.documents.docType, query.fromDocType)
+            : undefined,
+        ),
+      );
+
+    return rows.map((row) => row.document);
   }
 
   async getDocumentOperationId(query: GetDocumentOperationIdReadModelInput) {

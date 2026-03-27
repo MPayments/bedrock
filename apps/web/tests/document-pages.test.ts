@@ -12,6 +12,7 @@ const getDocuments = vi.fn();
 const getDocumentFormOptions = vi.fn();
 const createEmptyDocumentFormOptions = vi.fn(() => ({
   counterparties: [],
+  customers: [],
   organizations: [],
   currencies: [],
 }));
@@ -66,6 +67,7 @@ describe("document pages", () => {
     getDocuments.mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 });
     getDocumentFormOptions.mockResolvedValue({
       counterparties: [],
+      customers: [],
       organizations: [],
       currencies: [],
     });
@@ -124,6 +126,7 @@ describe("document pages", () => {
         params: Promise.resolve({
           docType: "period_reopen",
         }),
+        searchParams: Promise.resolve({}),
       }),
     ).rejects.toBe(NOT_FOUND);
   });

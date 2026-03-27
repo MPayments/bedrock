@@ -5,12 +5,12 @@ import { headers } from "next/headers";
 
 import { createClient, type Client } from "@bedrock/sdk-api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+import { resolveInternalApiBaseUrl } from "./internal-base-url";
 
 const createServerApiClient = async (): Promise<Client> => {
   const requestHeaders = await headers();
 
-  return createClient(API_URL, {
+  return createClient(resolveInternalApiBaseUrl(), {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
     },

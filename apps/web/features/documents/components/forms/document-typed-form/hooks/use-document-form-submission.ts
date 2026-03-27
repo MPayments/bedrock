@@ -125,7 +125,10 @@ export function useDocumentFormSubmission(input: {
       }
 
       onSuccess?.(mutationResult.data);
-      reset(values);
+
+      if (mode === "edit") {
+        reset(values);
+      }
     },
     [
       clearErrors,

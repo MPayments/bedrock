@@ -85,8 +85,9 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
   },
   {
     docTypes: [
-      "invoice",
-      "exchange",
+      "incoming_invoice",
+      "payment_order",
+      "outgoing_invoice",
       "transfer_intra",
       "transfer_intercompany",
       "transfer_resolution",
@@ -262,6 +263,13 @@ export function createApplicationServices(
     counterparties: {
       findById: partiesModule.counterparties.queries.findById,
     },
+    counterpartyGroups: {
+      listByCustomerId: (customerId: string) =>
+        partiesModule.counterparties.queries.listGroups({
+          customerId,
+          includeSystem: true,
+        }),
+    },
   };
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
@@ -273,6 +281,9 @@ export function createApplicationServices(
       createCommercialDocumentDeps({
         currenciesService,
         treasuryQuotes,
+        ledgerReadService: {
+          getOperationDetails: ledgerModule.operations.queries.getDetails,
+        },
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
       }),

@@ -61,12 +61,57 @@ function isAllowedForRole(option: DocumentTypeOption, role: UserRole): boolean {
   return role === "admin";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readCommercialContour(payload: unknown): "rf" | "intl" | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const contour = payload.contour;
+  if (contour === "rf" || contour === "intl") {
+    return contour;
+  }
+
+  return null;
+}
+
+function resolveCommercialRuntimeLabel(
+  docType: string,
+  payload?: unknown,
+): string | null {
+  const contour = readCommercialContour(payload);
+  if (!contour) {
+    return null;
+  }
+
+  if (docType === "incoming_invoice") {
+    return contour === "rf" ? "Счет на оплату" : "Invoice";
+  }
+
+  if (docType === "payment_order") {
+    return contour === "rf" ? "Платежное поручение" : "Payment Order";
+  }
+
+  if (docType === "outgoing_invoice") {
+    return contour === "rf" ? "Счет" : "Invoice";
+  }
+
+  return null;
+}
+
 export function isKnownDocumentType(docType: string): docType is KnownDocumentType {
   return KNOWN_DOCUMENT_TYPE_SET.has(docType as KnownDocumentType);
 }
 
-export function getDocumentTypeLabel(docType: string): string {
-  return DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType)?.label ?? docType;
+export function getDocumentTypeLabel(docType: string, payload?: unknown): string {
+  return (
+    resolveCommercialRuntimeLabel(docType, payload) ??
+    DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType)?.label ??
+    docType
+  );
 }
 
 export function getDocumentTypeFamily(docType: string): DocumentTypeFamily | null {

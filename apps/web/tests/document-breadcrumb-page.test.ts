@@ -56,10 +56,13 @@ describe("document breadcrumb page", () => {
 
     getDocumentDetails.mockResolvedValue({
       document: {
-        docType: "invoice",
+        docType: "incoming_invoice",
         id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        docNo: "INV-001",
+        docNo: "IIN-001",
         title: "Invoice 001",
+        payload: {
+          contour: "rf",
+        },
       },
     });
 
@@ -72,7 +75,7 @@ describe("document breadcrumb page", () => {
         segments: [
           "documents",
           "commercial",
-          "invoice",
+          "incoming_invoice",
           "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         ],
       }),
@@ -85,12 +88,12 @@ describe("document breadcrumb page", () => {
         icon: "book-open",
       },
       {
-        label: "Инвойс",
-        href: "/documents/commercial?docType=invoice",
+        label: "Счет на оплату",
+        href: "/documents/commercial?docType=incoming_invoice",
       },
       {
-        label: "INV-001",
-        href: "/documents/commercial/invoice/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        label: "IIN-001",
+        href: "/documents/commercial/incoming_invoice/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);
   });

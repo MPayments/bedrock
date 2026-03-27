@@ -71,6 +71,44 @@ function createDocumentWithOperationFor(docType: string) {
   };
 }
 
+function createDocumentDetails() {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const base = createDocumentWithOperation();
+
+  return {
+    document: base.document,
+    postingOperationId: "11111111-1111-4111-8111-111111111112",
+    allowedActions: base.allowedActions,
+    links: [],
+    parent: null,
+    children: [],
+    dependsOn: [],
+    compensates: [],
+    documentOperations: [
+      {
+        id: "11111111-1111-4111-8111-111111111113",
+        documentId: base.document.id,
+        operationId: "11111111-1111-4111-8111-111111111112",
+        kind: "post",
+        createdAt: now,
+      },
+    ],
+    events: [],
+    snapshot: null,
+    ledgerOperations: [],
+    computed: {
+      allocatedAmountMinor: "0",
+      settledAmountMinor: "0",
+      availableAmountMinor: "1234",
+      allocatedAmount: "0",
+      settledAmount: "0",
+      availableAmount: "12.34",
+      timeline: [],
+    },
+    extra: null,
+  };
+}
+
 function createDocumentsModuleStub() {
   return {
     documents: {
@@ -86,6 +124,18 @@ function createDocumentsModuleStub() {
     lifecycle: {
       commands: {
         execute: vi.fn(),
+      },
+    },
+  };
+}
+
+function createAccountingModuleStub() {
+  return {
+    reports: {
+      queries: {
+        getOperationDetailsWithLabels: vi.fn(),
+        listOperationDetailsWithLabels: vi.fn(),
+        listOperationsWithLabels: vi.fn(),
       },
     },
   };
@@ -114,6 +164,7 @@ function createTestApp(input?: {
       : "idem-1";
   const role = input?.role ?? "admin";
   const documentsModule = createDocumentsModuleStub();
+  const accountingModule = createAccountingModuleStub();
   const documentDraftWorkflow = createDocumentDraftWorkflowStub();
   const documentPostingWorkflow = createDocumentPostingWorkflowStub();
   const app = new OpenAPIHono();
@@ -132,6 +183,7 @@ function createTestApp(input?: {
   app.route(
     "/",
     documentsRoutes({
+      accountingModule,
       documentsModule,
       documentDraftWorkflow,
       documentPostingWorkflow,
@@ -140,6 +192,7 @@ function createTestApp(input?: {
 
   return {
     app,
+    accountingModule,
     documentsModule,
     documentDraftWorkflow,
     documentPostingWorkflow,
@@ -395,6 +448,121 @@ describe("documentsRoutes mutation actions", () => {
         requestId: "req-1",
         correlationId: "corr-1",
       }),
+    });
+  });
+
+  it("returns document details with labeled ledger operations", async () => {
+    const { accountingModule, app, documentsModule } = createTestApp();
+    const details = createDocumentDetails();
+    documentsModule.documents.queries.getDetails.mockResolvedValue(details);
+    accountingModule.reports.queries.listOperationDetailsWithLabels.mockResolvedValue(
+      new Map([
+        [
+          "11111111-1111-4111-8111-111111111112",
+          {
+            operation: {
+              id: "11111111-1111-4111-8111-111111111112",
+              sourceType: "documents/transfer_intra/post",
+              sourceId: details.document.id,
+              operationCode: "TRANSFER_INTRA_POST",
+              operationVersion: 1,
+              postingDate: new Date("2026-01-01T00:00:00.000Z"),
+              status: "posted",
+              error: null,
+              postedAt: new Date("2026-01-01T00:00:01.000Z"),
+              outboxAttempts: 0,
+              lastOutboxErrorAt: null,
+              createdAt: new Date("2026-01-01T00:00:00.000Z"),
+              postingCount: 1,
+              bookIds: ["book-1"],
+              currencies: ["USD"],
+              bookLabels: {},
+            },
+            postings: [
+              {
+                id: "posting-1",
+                lineNo: 1,
+                bookId: "book-1",
+                bookName: "Main book",
+                debitInstanceId: "debit-1",
+                debitAccountNo: "1010",
+                debitDimensions: null,
+                creditInstanceId: "credit-1",
+                creditAccountNo: "2010",
+                creditDimensions: null,
+                postingCode: "TR.1001",
+                currency: "USD",
+                currencyPrecision: 2,
+                amountMinor: 1234n,
+                memo: null,
+                context: null,
+                createdAt: new Date("2026-01-01T00:00:00.000Z"),
+              },
+            ],
+            tbPlans: [],
+            dimensionLabels: {},
+          },
+        ],
+      ]),
+    );
+
+    const response = await app.request(
+      `http://localhost/${details.document.docType}/${details.document.id}/details`,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        document: expect.objectContaining({
+          id: details.document.id,
+        }),
+        ledgerOperations: [
+          expect.objectContaining({
+            operation: expect.objectContaining({
+              id: "11111111-1111-4111-8111-111111111112",
+            }),
+          }),
+        ],
+      }),
+    );
+    expect(
+      accountingModule.reports.queries.listOperationDetailsWithLabels,
+    ).toHaveBeenCalledWith(["11111111-1111-4111-8111-111111111112"]);
+  });
+
+  it("sanitizes invalid journal query params instead of returning 400", async () => {
+    const { accountingModule, app } = createTestApp();
+    accountingModule.reports.queries.listOperationsWithLabels.mockResolvedValue({
+      data: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+
+    const response = await app.request(
+      "http://localhost/journal?limit=oops&offset=-1&sortBy=bogus&sortOrder=sideways&query=%20%20&status=wat&status=posted&operationCode=%20%20&operationCode=PAYMENT_ORDER&sourceType=&sourceType=documents&sourceId=%20%20&bookId=%20%20&dimension.customer=&dimension.customer=customer-1&dimension.%20%20=value",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    expect(
+      accountingModule.reports.queries.listOperationsWithLabels,
+    ).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+      status: ["posted"],
+      operationCode: ["PAYMENT_ORDER"],
+      sourceType: ["documents"],
+      dimensionFilters: {
+        customer: ["customer-1"],
+      },
     });
   });
 });

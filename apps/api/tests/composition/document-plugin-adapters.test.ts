@@ -14,6 +14,7 @@ function createRuntime(input: {
   return {
     documents: {
       findIncomingLinkedDocument: vi.fn(async () => null),
+      listIncomingLinkedDocuments: vi.fn(async () => []),
       getDocumentByType: input.getDocumentByType ?? vi.fn(async () => null),
       getDocumentOperationId:
         input.getDocumentOperationId ?? vi.fn(async () => null),
@@ -114,6 +115,9 @@ describe("document plugin adapters composition", () => {
     const deps = createCommercialDocumentDeps({
       currenciesService: currenciesService as any,
       treasuryQuotes: treasuryQuotes as any,
+      ledgerReadService: {
+        getOperationDetails: vi.fn(async () => null),
+      } as any,
       partiesService: partiesService as any,
       requisitesService: requisitesService as any,
     });
@@ -141,7 +145,7 @@ describe("document plugin adapters composition", () => {
         toCurrency: "USDT",
         fromAmountMinor: "10000",
         asOf: new Date("2026-03-03T10:00:00.000Z"),
-        idempotencyKey: "documents.invoice.exchange.quote:create-idem",
+        idempotencyKey: "documents:payment_order:quote:create-idem:USD:USDT:10000",
       }),
     ).resolves.toEqual(
       expect.objectContaining({

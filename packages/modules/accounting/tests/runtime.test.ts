@@ -134,35 +134,28 @@ describe("accounting packs service", () => {
     ).rejects.toThrow(/is not allowed to use template/);
   });
 
-  it("resolves reserve-release templates for exchange finalization", async () => {
+  it("resolves incoming_invoice opening into expense and creditors", async () => {
     const result = await packsService.queries.resolvePostingPlan({
-      accountingSourceId: "fx_execute",
-      source: { type: "documents/exchange/post", id: "doc-2" },
+      accountingSourceId: "incoming_invoice",
+      source: { type: "documents/incoming_invoice/post", id: "doc-2" },
       idempotencyKey: "post:doc-2",
-      postingDate: new Date("2026-03-03T10:05:00.000Z"),
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
       plan: {
-        operationCode: "TREASURY_FX_EXECUTED",
+        operationCode: "COMMERCIAL_INCOMING_INVOICE_OPEN",
         operationVersion: 1,
-        payload: { exchangeId: "doc-2" },
+        payload: { incomingInvoiceId: "doc-2" },
         requests: [
           {
-            templateKey:
-              POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME_FROM_RESERVE,
-            effectiveAt: new Date("2026-03-03T10:05:00.000Z"),
-            currency: "USD",
+            templateKey: POSTING_TEMPLATE_KEY.COMMERCIAL_INCOMING_INVOICE_OPEN,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "EUR",
             amountMinor: 250n,
             bookRefs: {
               bookId: "00000000-0000-4000-8000-000000000001",
             },
             dimensions: {
               orderId: "order-1",
-              feeBucket: "fee_revenue",
-            },
-            refs: {
-              quoteRef: "quote-ref-1",
-              chainId: "invoice:order-1",
-              componentId: "line-1",
-              componentIndex: "1",
+              counterpartyId: "counterparty-1",
             },
           },
         ],
@@ -172,9 +165,9 @@ describe("accounting packs service", () => {
     expect(result.appliedTemplates).toEqual([
       {
         requestIndex: 0,
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME_FROM_RESERVE,
+        templateKey: POSTING_TEMPLATE_KEY.COMMERCIAL_INCOMING_INVOICE_OPEN,
         lineType: "create",
-        postingCode: "TC.3004",
+        postingCode: "CM.1001",
       },
     ]);
     expect(result.intent.lines).toEqual([
@@ -182,46 +175,46 @@ describe("accounting packs service", () => {
         type: "create",
         planRef: expect.any(String),
         bookId: "00000000-0000-4000-8000-000000000001",
-        postingCode: "TC.3004",
+        postingCode: "CM.1001",
         debit: {
-          accountNo: "2120",
-          currency: "USD",
+          accountNo: "5130",
+          currency: "EUR",
           dimensions: {
             orderId: "order-1",
-            feeBucket: "fee_revenue",
+            counterpartyId: "counterparty-1",
           },
         },
         credit: {
-          accountNo: "4110",
-          currency: "USD",
+          accountNo: "2150",
+          currency: "EUR",
           dimensions: {
             orderId: "order-1",
-            feeBucket: "fee_revenue",
+            counterpartyId: "counterparty-1",
           },
         },
         amountMinor: 250n,
-        code: 3004,
+        code: 6001,
         memo: null,
-        chain: "invoice:order-1",
+        chain: null,
       }),
     ]);
   });
 
-  it("allows invoice reserve plans to reserve customer charges into fee clearing", async () => {
+  it("allows payment_order settlement plans to clear AP into customer clearing", async () => {
     const result = await packsService.queries.resolvePostingPlan({
-      accountingSourceId: "invoice_reserve",
-      source: { type: "documents/invoice/post", id: "doc-3" },
+      accountingSourceId: "payment_order_settle",
+      source: { type: "documents/payment_order/post", id: "doc-3" },
       idempotencyKey: "post:doc-3",
       postingDate: new Date("2026-03-03T10:00:00.000Z"),
       plan: {
-        operationCode: "COMMERCIAL_INVOICE_RESERVE",
+        operationCode: "COMMERCIAL_PAYMENT_ORDER_SETTLE",
         operationVersion: 1,
-        payload: { invoiceId: "doc-3" },
+        payload: { paymentOrderId: "doc-3" },
         requests: [
           {
-            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
+            templateKey: POSTING_TEMPLATE_KEY.COMMERCIAL_PAYMENT_ORDER_AP_CLEAR,
             effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
-            currency: "USD",
+            currency: "EUR",
             amountMinor: 150n,
             bookRefs: {
               bookId: "00000000-0000-4000-8000-000000000001",
@@ -229,13 +222,7 @@ describe("accounting packs service", () => {
             dimensions: {
               customerId: "customer-1",
               orderId: "order-1",
-              feeBucket: "fee_revenue",
-            },
-            refs: {
-              quoteRef: "quote-ref-1",
-              chainId: "invoice:order-1",
-              componentId: "line-1",
-              componentIndex: "1",
+              counterpartyId: "counterparty-1",
             },
           },
         ],
@@ -245,63 +232,46 @@ describe("accounting packs service", () => {
     expect(result.appliedTemplates).toEqual([
       {
         requestIndex: 0,
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
+        templateKey: POSTING_TEMPLATE_KEY.COMMERCIAL_PAYMENT_ORDER_AP_CLEAR,
         lineType: "create",
-        postingCode: "TC.3003",
+        postingCode: "CM.1201",
       },
     ]);
   });
 
-  it("omits absent pending config from direct invoice intent lines", async () => {
+  it("omits absent pending config from settled payment_order bank-send lines", async () => {
     const result = await packsService.queries.resolvePostingPlan({
-      accountingSourceId: "invoice_direct",
-      source: { type: "documents/invoice/post", id: "doc-direct" },
+      accountingSourceId: "payment_order_settle",
+      source: { type: "documents/payment_order/post", id: "doc-direct" },
       idempotencyKey: "post:doc-direct",
       postingDate: new Date("2026-03-03T10:00:00.000Z"),
       plan: {
-        operationCode: "COMMERCIAL_INVOICE_DIRECT",
+        operationCode: "COMMERCIAL_PAYMENT_ORDER_SETTLE",
         operationVersion: 1,
-        payload: { invoiceId: "doc-direct" },
+        payload: { paymentOrderId: "doc-direct" },
         requests: [
           {
-            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_IMMEDIATE,
             effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
-            currency: "USD",
-            amountMinor: 321_210n,
-            bookRefs: {
-              bookId: "00000000-0000-4000-8000-000000000001",
-            },
-            dimensions: {
-              customerId: "customer-1",
-              orderId: "order-1",
-            },
-            refs: {
-              quoteRef: "invoice:order-1",
-              chainId: "invoice:order-1",
-            },
-          },
-          {
-            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
-            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
-            currency: "USD",
+            currency: "EUR",
             amountMinor: 321_210n,
             bookRefs: {
               bookId: "00000000-0000-4000-8000-000000000001",
             },
             dimensions: {
               orderId: "order-1",
+              organizationRequisiteId: "org-req-1",
             },
             refs: {
-              quoteRef: "invoice:order-1",
-              chainId: "invoice:order-1",
-              payoutCounterpartyId: "counterparty-1",
+              railRef: "rail-1",
+              payoutBankStableKey: "bank-1",
             },
           },
         ],
       },
     });
 
-    expect(result.intent.lines).toHaveLength(2);
+    expect(result.intent.lines).toHaveLength(1);
     for (const line of result.intent.lines) {
       expect("pending" in line).toBe(false);
     }
@@ -347,6 +317,47 @@ describe("accounting packs service", () => {
       }),
     ]);
     expect("code" in result.intent.lines[0]!).toBe(false);
+  });
+
+  it("accepts payment_order pending settlement lines through payment.payout.settle", async () => {
+    const result = await packsService.queries.resolvePostingPlan({
+      accountingSourceId: "payment_order_settle",
+      source: { type: "documents/payment_order/post", id: "doc-pending" },
+      idempotencyKey: "post:doc-pending",
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
+      plan: {
+        operationCode: "COMMERCIAL_PAYMENT_ORDER_SETTLE",
+        operationVersion: 1,
+        payload: { paymentOrderId: "doc-pending" },
+        requests: [
+          {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 1n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {},
+            refs: {
+              orderId: "order-1",
+              railRef: "rail-1",
+            },
+            pending: {
+              pendingId: 42n,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.intent.lines).toEqual([
+      expect.objectContaining({
+        type: "post_pending",
+        pendingId: 42n,
+        amount: 0n,
+      }),
+    ]);
   });
 
   it("resolves treasury fx source postings into clearing and bank dimensions", async () => {

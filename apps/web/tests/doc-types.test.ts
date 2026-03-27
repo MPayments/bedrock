@@ -1,4 +1,8 @@
 import {
+  COMMERCIAL_DOCUMENT_METADATA,
+  COMMERCIAL_DOCUMENT_TYPE_ORDER,
+} from "@bedrock/plugin-documents-commercial/contracts";
+import {
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
 } from "@bedrock/plugin-documents-ifrs/contracts";
@@ -27,6 +31,29 @@ describe("document doc types", () => {
       expect(getDocumentTypeFamily(docType)).toBe(metadata.family);
       expect(isAdminOnlyDocumentType(docType)).toBe(metadata.adminOnly);
     }
+  });
+
+  it("keeps commercial labels and families aligned with application metadata", () => {
+    for (const docType of COMMERCIAL_DOCUMENT_TYPE_ORDER) {
+      const metadata = COMMERCIAL_DOCUMENT_METADATA[docType];
+
+      expect(isKnownDocumentType(docType)).toBe(true);
+      expect(getDocumentTypeLabel(docType)).toBe(metadata.label);
+      expect(getDocumentTypeFamily(docType)).toBe(metadata.family);
+      expect(isAdminOnlyDocumentType(docType)).toBe(metadata.adminOnly);
+    }
+  });
+
+  it("resolves contour-aware labels for commercial document details", () => {
+    expect(
+      getDocumentTypeLabel("incoming_invoice", { contour: "rf" }),
+    ).toBe("Счет на оплату");
+    expect(
+      getDocumentTypeLabel("payment_order", { contour: "intl" }),
+    ).toBe("Payment Order");
+    expect(
+      getDocumentTypeLabel("outgoing_invoice", { contour: "rf" }),
+    ).toBe("Счет");
   });
 
   it("enforces typed-form and create permissions for admin-only IFRS docs", () => {

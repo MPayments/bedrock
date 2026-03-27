@@ -2,9 +2,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
+import { resolveInternalApiBaseUrl } from "./lib/api/internal-base-url";
+
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3003";
+const API_URL = resolveInternalApiBaseUrl();
 
 const nextConfig: NextConfig = {
   output: "standalone",

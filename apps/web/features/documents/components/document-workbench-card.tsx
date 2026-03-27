@@ -62,7 +62,7 @@ export function DocumentWorkbenchCard({
               <CardTitle>Редактирование</CardTitle>
               <CardDescription>
                 {activeDefinition
-                  ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType)}.`
+                  ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType, payload)}.`
                   : "Для этого типа документа типизированная форма редактирования недоступна."}
               </CardDescription>
             </div>

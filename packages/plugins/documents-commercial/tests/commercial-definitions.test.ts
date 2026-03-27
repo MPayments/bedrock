@@ -36,75 +36,99 @@ describe("commercial document definitions", () => {
     ).toEqual(COMMERCIAL_DOCUMENT_TYPE_ORDER);
   });
 
-  it("keeps invoice typed form split by mode with a financial-lines editor", () => {
-    const invoice = getCommercialDocumentDefinition("invoice");
-    const formDefinition = invoice?.formDefinition;
-    expect(formDefinition).not.toBeNull();
-
-    const fields = formDefinition!.sections.flatMap((section) => section.fields);
-    const mainSection = formDefinition!.sections.find(
-      (section) => section.id === "main",
-    );
-    const financialLines = fields.find((field) => field.name === "financialLines");
-    const exchangeSection = formDefinition!.sections.find(
-      (section) => section.id === "exchange",
-    );
-    const exchangePreview = fields.find((field) => field.name === "quotePreview");
-    const targetCurrency = fields.find((field) => field.name === "targetCurrency");
-    const exchangeCurrencies = fields.filter(
-      (field) => field.kind === "currency" && field.name === "currency",
+  it("keeps incoming_invoice typed form with external basis fields", () => {
+    const incomingInvoice = getCommercialDocumentDefinition("incoming_invoice");
+    const formDefinition = incomingInvoice?.formDefinition;
+    const fields = formDefinition?.sections.flatMap((section) => section.fields) ?? [];
+    const externalBasisSection = formDefinition?.sections.find(
+      (section) => section.id === "external-basis",
     );
 
-    expect(mainSection?.layout?.rows).toContainEqual({
-      columns: { base: 1, sm: 2 },
-      fields: ["customerId", "counterpartyId"],
+    expect(fields.find((field) => field.name === "contour")).toMatchObject({
+      kind: "enum",
+      name: "contour",
     });
-    expect(mainSection?.layout?.rows).toContainEqual({
-      columns: { base: 1, sm: 2 },
-      fields: ["organizationId", "organizationRequisiteId"],
+    expect(fields.find((field) => field.name === "customerId")).toMatchObject({
+      kind: "customer",
     });
-    expect(financialLines).toMatchObject({
-      kind: "financialLines",
-      supportedCalcMethods: ["fixed", "percent"],
-      baseAmountFieldName: "amount",
-      baseCurrencyFieldName: "currency",
-      visibleWhen: { fieldName: "mode", equals: ["direct"] },
+    expect(fields.find((field) => field.name === "organizationRequisiteId")).toMatchObject({
+      kind: "account",
+      optionsSource: "organizationRequisites",
     });
-    expect(exchangeCurrencies).toContainEqual(
-      expect.objectContaining({
-        kind: "currency",
-        hidden: true,
-        deriveFrom: {
-          kind: "accountCurrency",
-          accountFieldNames: ["organizationRequisiteId"],
-        },
-      }),
-    );
-    expect(targetCurrency).toMatchObject({
+    expect(fields.find((field) => field.name === "currency")).toMatchObject({
       kind: "currency",
-      visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+      hidden: true,
+      deriveFrom: {
+        kind: "accountCurrency",
+        accountFieldNames: ["organizationRequisiteId"],
+      },
     });
-    expect(exchangePreview).toMatchObject({
+    expect(externalBasisSection?.fields.map((field) => field.name)).toEqual([
+      "externalBasisSourceSystem",
+      "externalBasisEntityType",
+      "externalBasisEntityId",
+      "externalBasisDocumentNumber",
+    ]);
+  });
+
+  it("keeps payment_order typed form with FX preview and derived funding currency", () => {
+    const paymentOrder = getCommercialDocumentDefinition("payment_order");
+    const formDefinition = paymentOrder?.formDefinition;
+    const fields = formDefinition?.sections.flatMap((section) => section.fields) ?? [];
+
+    expect(
+      fields.find((field) => field.name === "sourcePaymentOrderDocumentId"),
+    ).toMatchObject({
+      kind: "text",
+      name: "sourcePaymentOrderDocumentId",
+    });
+    expect(fields.find((field) => field.name === "quotePreview")).toMatchObject({
       kind: "fxQuotePreview",
       requestMode: "auto_cross",
       amountFieldName: "amount",
       fromCurrencyFieldName: "currency",
-      toCurrencyFieldName: "targetCurrency",
-      visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+      toCurrencyFieldName: "allocatedCurrency",
     });
-    expect(exchangeSection?.layout?.rows).toEqual([
-      { fields: ["amount", "targetCurrency"] },
-      { fields: ["quotePreview"] },
-    ]);
+    expect(fields.find((field) => field.name === "currency")).toMatchObject({
+      kind: "currency",
+      hidden: true,
+      deriveFrom: {
+        kind: "accountCurrency",
+        accountFieldNames: ["organizationRequisiteId"],
+      },
+    });
+    expect(fields.find((field) => field.name === "executionStatus")).toMatchObject({
+      kind: "enum",
+      name: "executionStatus",
+    });
   });
 
-  it("round-trips invoice percent rows through the typed definition", () => {
-    const invoice = getCommercialDocumentDefinition("invoice");
-    const formDefinition = invoice?.formDefinition;
+  it("keeps outgoing_invoice typed form with derived currency", () => {
+    const outgoingInvoice = getCommercialDocumentDefinition("outgoing_invoice");
+    const formDefinition = outgoingInvoice?.formDefinition;
+    const fields = formDefinition?.sections.flatMap((section) => section.fields) ?? [];
+
+    expect(fields.find((field) => field.name === "organizationRequisiteId")).toMatchObject({
+      kind: "account",
+      optionsSource: "organizationRequisites",
+    });
+    expect(fields.find((field) => field.name === "currency")).toMatchObject({
+      kind: "currency",
+      hidden: true,
+      deriveFrom: {
+        kind: "accountCurrency",
+        accountFieldNames: ["organizationRequisiteId"],
+      },
+    });
+  });
+
+  it("round-trips incoming_invoice external basis through the typed definition", () => {
+    const incomingInvoice = getCommercialDocumentDefinition("incoming_invoice");
+    const formDefinition = incomingInvoice?.formDefinition;
 
     const values = formDefinition?.fromPayload({
       occurredAt: "2026-03-03T10:00:00.000Z",
-      mode: "direct",
+      contour: "intl",
       customerId: "00000000-0000-4000-8000-000000000001",
       counterpartyId: "00000000-0000-4000-8000-000000000002",
       organizationId: "00000000-0000-4000-8000-000000000003",
@@ -112,69 +136,60 @@ describe("commercial document definitions", () => {
       amount: "100.00",
       amountMinor: "10000",
       currency: "USD",
-      financialLines: [
-        {
-          id: "manual:1",
-          bucket: "fee_revenue",
-          currency: "USD",
-          amount: "1.25",
-          amountMinor: "125",
-          source: "manual",
-          settlementMode: "in_ledger",
-          calcMethod: "percent",
-          percentBps: 125,
-        },
-      ],
+      externalBasis: {
+        sourceSystem: "crm",
+        entityType: "deal",
+        entityId: "deal-42",
+        documentNumber: "CI-001",
+      },
+      memo: "memo",
     });
 
-    expect(values?.financialLines).toEqual([
-      {
-        calcMethod: "percent",
-        bucket: "fee_revenue",
-        currency: "USD",
-        amount: "",
-        percent: "1.25",
-        memo: "",
-      },
-    ]);
-
+    expect(values).toMatchObject({
+      contour: "intl",
+      externalBasisSourceSystem: "crm",
+      externalBasisEntityType: "deal",
+      externalBasisEntityId: "deal-42",
+      externalBasisDocumentNumber: "CI-001",
+    });
     expect(formDefinition?.toPayload(values ?? {})).toMatchObject({
-      mode: "direct",
-      financialLines: [
-        {
-          calcMethod: "percent",
-          bucket: "fee_revenue",
-          currency: "USD",
-          percent: "1.25",
-        },
-      ],
+      contour: "intl",
+      externalBasis: {
+        sourceSystem: "crm",
+        entityType: "deal",
+        entityId: "deal-42",
+        documentNumber: "CI-001",
+      },
     });
   });
 
-  it("restores generated exchange invoice inputs from stored quote snapshots", () => {
-    const invoice = getCommercialDocumentDefinition("invoice");
-    const formDefinition = invoice?.formDefinition;
+  it("round-trips payment_order resolution references through the typed definition", () => {
+    const paymentOrder = getCommercialDocumentDefinition("payment_order");
+    const formDefinition = paymentOrder?.formDefinition;
 
-    expect(
-      formDefinition?.fromPayload({
-        occurredAt: "2026-03-03T10:00:00.000Z",
-        mode: "exchange",
-        customerId: "00000000-0000-4000-8000-000000000001",
-        counterpartyId: "00000000-0000-4000-8000-000000000002",
-        organizationId: "00000000-0000-4000-8000-000000000003",
-        organizationRequisiteId: "00000000-0000-4000-8000-000000000004",
-        quoteSnapshot: {
-          quoteRef: "550e8400-e29b-41d4-a716-446655440010",
-          fromCurrency: "USD",
-          toCurrency: "EUR",
-          fromAmountMinor: "10050",
-        },
-      }),
-    ).toMatchObject({
-      mode: "exchange",
-      amount: "100.5",
+    const values = formDefinition?.fromPayload({
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      contour: "intl",
+      incomingInvoiceDocumentId: "00000000-0000-4000-8000-000000000001",
+      sourcePaymentOrderDocumentId: "00000000-0000-4000-8000-000000000002",
+      counterpartyId: "00000000-0000-4000-8000-000000000003",
+      counterpartyRequisiteId: "00000000-0000-4000-8000-000000000004",
+      organizationId: "00000000-0000-4000-8000-000000000005",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000006",
+      fundingAmount: "100.00",
+      fundingCurrency: "USD",
+      allocatedCurrency: "EUR",
+      executionStatus: "settled",
+    });
+
+    expect(values).toMatchObject({
+      sourcePaymentOrderDocumentId: "00000000-0000-4000-8000-000000000002",
+      amount: "100.00",
       currency: "USD",
-      targetCurrency: "EUR",
+    });
+    expect(formDefinition?.toPayload(values ?? {})).toMatchObject({
+      sourcePaymentOrderDocumentId: "00000000-0000-4000-8000-000000000002",
+      executionStatus: "settled",
     });
   });
 });

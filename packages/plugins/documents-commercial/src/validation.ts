@@ -1,11 +1,6 @@
 import { z } from "zod";
 
 import {
-  compileManualFinancialLine,
-  formatPercentFromBps,
-  parseSignedPercentToBps,
-} from "@bedrock/plugin-documents-sdk/financial-lines";
-import {
   baseOccurredAtSchema,
   currencyCodeSchema,
   memoSchema,
@@ -24,6 +19,7 @@ import {
 } from "./financial-lines";
 
 const uuidSchema = z.uuid();
+
 function parseStrictMinorAmountString(value: string): bigint | null {
   if (value !== value.trim()) {
     return null;
@@ -32,86 +28,59 @@ function parseStrictMinorAmountString(value: string): bigint | null {
   return parseMinorAmount(value);
 }
 
-const signedMinorAmountStringSchema = z
-  .string()
-  .refine((value) => parseStrictMinorAmountString(value) !== null, {
-    message: "amountMinor must be an integer in minor units",
-  })
-  .refine((value) => parseStrictMinorAmountString(value) !== 0n, {
-    message: "amountMinor must be non-zero",
-  });
 const positiveMinorAmountStringSchema = z
   .string()
   .refine((value) => parseStrictMinorAmountString(value) !== null, {
     message: "amountMinor must be a positive integer in minor units",
   })
-  .refine(
-    (value) => {
-      const parsed = parseStrictMinorAmountString(value);
-      return parsed !== null && parsed > 0n;
-    },
-    {
-      message: "amountMinor must be positive",
-    },
-  );
+  .refine((value) => {
+    const parsed = parseStrictMinorAmountString(value);
+    return parsed !== null && parsed > 0n;
+  }, {
+    message: "amountMinor must be positive",
+  });
 
-export const InvoiceModeSchema = z.enum(["direct", "exchange"]);
-const financialLineCalcMethodSchema = z.enum(["fixed", "percent"]);
+const nonEmptyStringSchema = z.string().trim().min(1).max(255);
 
-const directFinancialLineFixedInputSchema = z
+export const CommercialContourSchema = z.enum(["rf", "intl"]);
+export const PaymentOrderExecutionStatusSchema = z.enum([
+  "prepared",
+  "sent",
+  "settled",
+  "void",
+  "failed",
+]);
+
+export const ExternalBasisInputSchema = z
   .object({
-    calcMethod: z.literal("fixed").optional(),
-    bucket: financialLineBucketSchema,
-    currency: currencyCodeSchema,
-    amount: amountValueSchema,
-    memo: memoSchema,
+    sourceSystem: z.string().trim().min(1).max(128),
+    entityType: z.string().trim().min(1).max(128),
+    entityId: z.string().trim().min(1).max(255),
+    documentNumber: z.string().trim().min(1).max(255).optional(),
   })
   .transform((input) => ({
     ...input,
-    calcMethod: "fixed" as const,
+    documentNumber: input.documentNumber ?? null,
   }));
 
-const directFinancialLinePercentInputSchema = z
-  .object({
-    calcMethod: z.literal("percent"),
-    bucket: financialLineBucketSchema,
-    currency: currencyCodeSchema.optional(),
-    percent: z.string().trim().min(1).max(32),
-    memo: memoSchema,
-  })
-  .transform((input, ctx) => {
-    try {
-      return {
-        ...input,
-        percent: formatPercentFromBps(parseSignedPercentToBps(input.percent)),
-      };
-    } catch (error) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          error instanceof Error ? error.message : "percent is invalid",
-        path: ["percent"],
-      });
-      return z.NEVER;
-    }
-  });
-
-const directFinancialLineInputSchema = z.union([
-  directFinancialLineFixedInputSchema,
-  directFinancialLinePercentInputSchema,
-]);
+export const ExternalBasisPayloadSchema = z.object({
+  sourceSystem: z.string().trim().min(1).max(128),
+  entityType: z.string().trim().min(1).max(128),
+  entityId: z.string().trim().min(1).max(255),
+  documentNumber: z.string().trim().min(1).max(255).nullable(),
+});
 
 const financialLinePayloadSchema = z.object({
   id: z.string().trim().min(1).max(128),
   bucket: financialLineBucketSchema,
   currency: currencyCodeSchema,
   amount: amountValueSchema,
-  amountMinor: signedMinorAmountStringSchema,
+  amountMinor: z.string().trim().min(1),
   source: financialLineSourceSchema,
   settlementMode: financialLineSettlementModeSchema,
   memo: memoSchema,
   metadata: z.record(z.string(), z.string().max(255)).optional(),
-  calcMethod: financialLineCalcMethodSchema.optional(),
+  calcMethod: z.enum(["fixed", "percent"]).optional(),
   percentBps: z.number().int().optional(),
 });
 
@@ -147,240 +116,139 @@ export const QuoteSnapshotSchema = z.object({
   snapshotHash: z.string().length(64),
 });
 
-const invoiceBaseInputSchema = baseOccurredAtSchema.extend({
+const incomingInvoiceBaseSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
   customerId: uuidSchema,
   counterpartyId: uuidSchema,
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
-  memo: memoSchema,
-});
-
-const invoiceDirectInputBaseSchema = invoiceBaseInputSchema.extend({
-  mode: z.literal("direct"),
   amount: amountValueSchema,
   currency: currencyCodeSchema,
-  financialLines: z.array(directFinancialLineInputSchema).default([]),
+  externalBasis: ExternalBasisInputSchema.optional(),
+  memo: memoSchema,
 });
 
-const invoiceExchangeInputBaseSchema = invoiceBaseInputSchema.extend({
-  mode: z.literal("exchange"),
-  quoteRef: z.string().trim().min(1).max(255).optional(),
-  amount: amountValueSchema.optional(),
-  currency: currencyCodeSchema.optional(),
-  targetCurrency: currencyCodeSchema.optional(),
-});
-
-function resolveDirectFinancialLineErrorPath(
-  error: unknown,
-  index: number,
-): [string, number, string] {
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("currency")) {
-    return ["financialLines", index, "currency"];
-  }
-
-  if (message.includes("percent")) {
-    return ["financialLines", index, "percent"];
-  }
-
-  return ["financialLines", index, "amount"];
-}
-
-export function compileInvoiceDirectFinancialLines(input: {
-  financialLines: DirectFinancialLineInput[];
-  amountMinor: string;
-  currency: string;
-}) {
-  return input.financialLines.map((line) =>
-    financialLinePayloadSchema.parse(
-      compileManualFinancialLine({
-        line,
-        baseAmountMinor: input.amountMinor,
-        baseCurrency: input.currency,
-      }),
-    ),
-  );
-}
-
-export const InvoiceDirectInputSchema = invoiceDirectInputBaseSchema.transform((input, ctx) => {
-    try {
-      const amountMinor = toMinorAmountString(input.amount, input.currency, {
-        requirePositive: true,
-      });
-
-      let hasFinancialLineIssue = false;
-      input.financialLines.forEach((line, index) => {
-        try {
-          compileManualFinancialLine({
-            line,
-            baseAmountMinor: amountMinor,
-            baseCurrency: input.currency,
-            createId: () => `manual:validation:${index}`,
-          });
-        } catch (error) {
-          hasFinancialLineIssue = true;
-          ctx.addIssue({
-            code: "custom",
-            message:
-              error instanceof Error ? error.message : "financial line is invalid",
-            path: resolveDirectFinancialLineErrorPath(error, index),
-          });
-        }
-      });
-
-      if (hasFinancialLineIssue) {
-        return z.NEVER;
-      }
-
-      return {
-        ...input,
-        amountMinor,
-      };
-    } catch (error) {
-      ctx.addIssue({
-        code: "custom",
-        message: error instanceof Error ? error.message : "amount is invalid",
-      });
-      return z.NEVER;
-    }
-  },
+export const IncomingInvoiceInputSchema = incomingInvoiceBaseSchema.transform(
+  (input) => ({
+    ...input,
+    amountMinor: toMinorAmountString(input.amount, input.currency, {
+      requirePositive: true,
+    }),
+  }),
 );
 
-export const InvoiceExchangeInputSchema = invoiceExchangeInputBaseSchema.transform(
-  (input, ctx) => {
-    if (input.quoteRef) {
-      return input;
-    }
-
-    if (!input.amount) {
-      ctx.addIssue({
-        code: "custom",
-        message: "amount is required when quoteRef is not provided",
-        path: ["amount"],
-      });
-    }
-
-    if (!input.currency) {
-      ctx.addIssue({
-        code: "custom",
-        message: "currency is required when quoteRef is not provided",
-        path: ["currency"],
-      });
-    }
-
-    if (!input.targetCurrency) {
-      ctx.addIssue({
-        code: "custom",
-        message: "targetCurrency is required when quoteRef is not provided",
-        path: ["targetCurrency"],
-      });
-    }
-
-    if (!input.amount || !input.currency || !input.targetCurrency) {
-      return z.NEVER;
-    }
-
-    if (input.currency === input.targetCurrency) {
-      ctx.addIssue({
-        code: "custom",
-        message: "targetCurrency must differ from currency",
-        path: ["targetCurrency"],
-      });
-      return z.NEVER;
-    }
-
-    try {
-      return {
-        ...input,
-        amountMinor: toMinorAmountString(input.amount, input.currency, {
-          requirePositive: true,
-        }),
-      };
-    } catch (error) {
-      ctx.addIssue({
-        code: "custom",
-        message: error instanceof Error ? error.message : "amount is invalid",
-        path: ["amount"],
-      });
-      return z.NEVER;
-    }
-  },
-);
-
-export const InvoiceInputSchema = z.discriminatedUnion("mode", [
-  InvoiceDirectInputSchema,
-  InvoiceExchangeInputSchema,
-]);
-
-const invoiceBasePayloadSchema = baseOccurredAtSchema.extend({
+export const IncomingInvoicePayloadSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
   customerId: uuidSchema,
   counterpartyId: uuidSchema,
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
-  memo: memoSchema,
-});
-
-export const InvoiceDirectPayloadSchema = invoiceBasePayloadSchema.extend({
-  mode: z.literal("direct"),
   amount: amountValueSchema,
   amountMinor: positiveMinorAmountStringSchema,
   currency: currencyCodeSchema,
-  financialLines: z.array(financialLinePayloadSchema),
-});
-
-export const InvoiceExchangePayloadSchema = invoiceBasePayloadSchema.extend({
-  mode: z.literal("exchange"),
-  quoteSnapshot: QuoteSnapshotSchema,
-});
-
-export const InvoicePayloadSchema = z.discriminatedUnion("mode", [
-  InvoiceDirectPayloadSchema,
-  InvoiceExchangePayloadSchema,
-]);
-
-export const ExchangeInputSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
-  executionRef: referenceSchema,
+  externalBasis: ExternalBasisPayloadSchema.optional(),
   memo: memoSchema,
 });
 
-export const ExchangePayloadSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
-  customerId: uuidSchema,
+const outgoingInvoiceBaseSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
   counterpartyId: uuidSchema,
+  counterpartyRequisiteId: uuidSchema,
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  memo: memoSchema,
+});
+
+export const OutgoingInvoiceInputSchema = outgoingInvoiceBaseSchema.transform(
+  (input) => ({
+    ...input,
+    amountMinor: toMinorAmountString(input.amount, input.currency, {
+      requirePositive: true,
+    }),
+  }),
+);
+
+export const OutgoingInvoicePayloadSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
+  counterpartyId: uuidSchema,
+  counterpartyRequisiteId: uuidSchema,
+  organizationId: uuidSchema.optional(),
+  organizationRequisiteId: uuidSchema,
+  amount: amountValueSchema,
+  amountMinor: positiveMinorAmountStringSchema,
+  currency: currencyCodeSchema,
+  memo: memoSchema,
+});
+
+const paymentOrderBaseSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
+  incomingInvoiceDocumentId: uuidSchema,
+  sourcePaymentOrderDocumentId: uuidSchema.optional(),
+  counterpartyId: uuidSchema,
+  counterpartyRequisiteId: uuidSchema,
+  organizationId: uuidSchema.optional(),
+  organizationRequisiteId: uuidSchema,
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  allocatedCurrency: currencyCodeSchema,
+  executionStatus: PaymentOrderExecutionStatusSchema.default("sent"),
   executionRef: referenceSchema,
-  quoteSnapshot: QuoteSnapshotSchema,
   memo: memoSchema,
 });
 
-export const AcceptanceInputSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
+export const PaymentOrderInputSchema = paymentOrderBaseSchema.transform(
+  (input) => ({
+    ...input,
+    amountMinor: toMinorAmountString(input.amount, input.currency, {
+      requirePositive: true,
+    }),
+  }),
+);
+
+export const PaymentOrderPayloadSchema = baseOccurredAtSchema.extend({
+  contour: CommercialContourSchema,
+  incomingInvoiceDocumentId: uuidSchema,
+  sourcePaymentOrderDocumentId: uuidSchema.optional(),
+  customerId: uuidSchema,
+  counterpartyId: uuidSchema,
+  counterpartyRequisiteId: uuidSchema,
+  organizationId: uuidSchema.optional(),
+  organizationRequisiteId: uuidSchema,
+  fundingAmount: amountValueSchema,
+  fundingAmountMinor: positiveMinorAmountStringSchema,
+  fundingCurrency: currencyCodeSchema,
+  allocatedAmount: amountValueSchema,
+  allocatedAmountMinor: positiveMinorAmountStringSchema,
+  allocatedCurrency: currencyCodeSchema,
+  executionStatus: PaymentOrderExecutionStatusSchema,
+  executionRef: referenceSchema,
+  quoteSnapshot: QuoteSnapshotSchema.optional(),
   memo: memoSchema,
 });
 
-export const AcceptancePayloadSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
-  exchangeDocumentId: uuidSchema.optional(),
-  invoiceMode: InvoiceModeSchema,
-  memo: memoSchema,
+export const CommercialDocumentReferenceSchema = z.object({
+  incomingInvoiceDocumentId: uuidSchema.optional(),
+  paymentOrderDocumentId: uuidSchema.optional(),
+  outgoingInvoiceDocumentId: uuidSchema.optional(),
 });
 
-export type DirectFinancialLineInput = z.infer<
-  typeof directFinancialLineInputSchema
+export type CommercialContour = z.infer<typeof CommercialContourSchema>;
+export type PaymentOrderExecutionStatus = z.infer<
+  typeof PaymentOrderExecutionStatusSchema
 >;
+export type ExternalBasisInput = z.infer<typeof ExternalBasisInputSchema>;
+export type ExternalBasisPayload = z.infer<typeof ExternalBasisPayloadSchema>;
 export type FinancialLinePayload = z.infer<typeof financialLinePayloadSchema>;
 export type QuoteSnapshot = z.infer<typeof QuoteSnapshotSchema>;
-export type InvoiceDirectInput = z.infer<typeof InvoiceDirectInputSchema>;
-export type InvoiceExchangeInput = z.infer<typeof InvoiceExchangeInputSchema>;
-export type InvoiceInput = z.infer<typeof InvoiceInputSchema>;
-export type InvoiceDirectPayload = z.infer<typeof InvoiceDirectPayloadSchema>;
-export type InvoiceExchangePayload = z.infer<
-  typeof InvoiceExchangePayloadSchema
->;
-export type InvoicePayload = z.infer<typeof InvoicePayloadSchema>;
-export type ExchangeInput = z.infer<typeof ExchangeInputSchema>;
-export type ExchangePayload = z.infer<typeof ExchangePayloadSchema>;
-export type AcceptanceInput = z.infer<typeof AcceptanceInputSchema>;
-export type AcceptancePayload = z.infer<typeof AcceptancePayloadSchema>;
+export type IncomingInvoiceInput = z.infer<typeof IncomingInvoiceInputSchema>;
+export type IncomingInvoicePayload = z.infer<typeof IncomingInvoicePayloadSchema>;
+export type OutgoingInvoiceInput = z.infer<typeof OutgoingInvoiceInputSchema>;
+export type OutgoingInvoicePayload = z.infer<typeof OutgoingInvoicePayloadSchema>;
+export type PaymentOrderInput = z.infer<typeof PaymentOrderInputSchema>;
+export type PaymentOrderPayload = z.infer<typeof PaymentOrderPayloadSchema>;
+
+export function normalizePaymentOrderReference(value: unknown): string {
+  return nonEmptyStringSchema.parse(value);
+}

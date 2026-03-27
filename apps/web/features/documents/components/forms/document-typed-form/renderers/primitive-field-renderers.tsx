@@ -29,6 +29,7 @@ import {
   useDocumentTypedFormDisabledState,
   useDocumentTypedFormFieldError,
 } from "./shared";
+import { SearchableSelectField } from "./searchable-select-field";
 
 function resolveInputType(
   field: DocumentFormField & {
@@ -233,6 +234,7 @@ export function CustomerFieldRenderer({
   field,
 }: DocumentTypedFormFieldRendererProps<"customer">) {
   const {
+    actions,
     meta: {
       selectOptions: { customers },
     },
@@ -252,24 +254,20 @@ export function CustomerFieldRenderer({
         control={control}
         name={field.name}
         render={({ field: controlledField }) => (
-          <Select
+          <SearchableSelectField
+            inputId={getDocumentFormFieldId(field.name)}
             value={readValueAsString(controlledField.value)}
             disabled={disabled || submitting}
-            onValueChange={(value) => controlledField.onChange(value)}
-          >
-            <SelectTrigger id={getDocumentFormFieldId(field.name)}>
-              <SelectValue placeholder="Выберите клиента">
-                {findSelectedLabel(controlledField.value, customers)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {customers.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            invalid={Boolean(errorMessage)}
+            options={customers}
+            clearable
+            placeholder="Выберите клиента"
+            searchPlaceholder="Поиск клиента..."
+            emptyLabel="Клиент не найден"
+            onValueChange={(value) =>
+              actions.handleCustomerSelection(field.name, value)
+            }
+          />
         )}
       />
     </DocumentTypedFormFieldShell>

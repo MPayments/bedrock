@@ -32,6 +32,12 @@ export type DocumentFormOwnerRequest = {
   ownerType: "counterparty" | "organization";
 };
 
+export type CustomerScopedCounterpartyOption = {
+  value: string;
+  label: string;
+  customerIds: string[];
+};
+
 export function isAccountField(
   field: DocumentFormField,
 ): field is Extract<DocumentFormField, { kind: "account" }> {
@@ -124,6 +130,7 @@ export function resolveDocumentFormDefaultValues(input: {
   definition: DocumentFormDefinition | null;
   mode: DocumentFormMode;
   initialPayload?: Record<string, unknown>;
+  initialValues?: DocumentFormValues;
 }): DocumentFormValues {
   if (!input.definition) {
     return {};
@@ -133,7 +140,10 @@ export function resolveDocumentFormDefaultValues(input: {
     return input.definition.fromPayload(input.initialPayload);
   }
 
-  return input.definition.defaultValues();
+  return {
+    ...input.definition.defaultValues(),
+    ...(input.initialValues ?? {}),
+  };
 }
 
 export function mapDocumentFormZodError(
@@ -158,6 +168,87 @@ export function findDependentAccountFieldNames(
   return accountFields
     .filter((field) => field.counterpartyField === ownerFieldName)
     .map((field) => field.name);
+}
+
+export function findCustomerFieldName(
+  fields: DocumentFormField[],
+): string | null {
+  return fields.find((field) => field.kind === "customer")?.name ?? null;
+}
+
+export function findCounterpartyFieldNames(
+  fields: DocumentFormField[],
+): string[] {
+  return fields
+    .filter(
+      (field): field is Extract<DocumentFormField, { kind: "counterparty" }> =>
+        field.kind === "counterparty" &&
+        resolveOwnerFieldSource(field) === "counterparties",
+    )
+    .map((field) => field.name);
+}
+
+export function filterCounterpartyOptionsByCustomerId(
+  options: CustomerScopedCounterpartyOption[],
+  customerId: string,
+): CustomerScopedCounterpartyOption[] {
+  const normalizedCustomerId = readValueAsString(customerId).trim();
+  if (!normalizedCustomerId) {
+    return options;
+  }
+
+  return options.filter(
+    (option) => option.customerIds.includes(normalizedCustomerId),
+  );
+}
+
+export function findCustomerIdForCounterparty(
+  options: CustomerScopedCounterpartyOption[],
+  counterpartyId: string,
+): string | null {
+  const normalizedCounterpartyId = readValueAsString(counterpartyId).trim();
+  if (!normalizedCounterpartyId) {
+    return null;
+  }
+
+  const customerIds =
+    options.find((option) => option.value === normalizedCounterpartyId)
+      ?.customerIds ?? [];
+
+  return customerIds.length === 1 ? (customerIds[0] ?? null) : null;
+}
+
+export function findSingleCounterpartyIdForCustomer(
+  options: CustomerScopedCounterpartyOption[],
+  customerId: string,
+): string | null {
+  const linkedCounterparties = filterCounterpartyOptionsByCustomerId(
+    options,
+    customerId,
+  );
+
+  return linkedCounterparties.length === 1
+    ? (linkedCounterparties[0]?.value ?? null)
+    : null;
+}
+
+export function isCounterpartyLinkedToCustomer(input: {
+  options: CustomerScopedCounterpartyOption[];
+  counterpartyId: string;
+  customerId: string;
+}): boolean {
+  const normalizedCounterpartyId = readValueAsString(input.counterpartyId).trim();
+  const normalizedCustomerId = readValueAsString(input.customerId).trim();
+
+  if (!normalizedCounterpartyId || !normalizedCustomerId) {
+    return false;
+  }
+
+  const customerIds =
+    input.options.find((option) => option.value === normalizedCounterpartyId)
+      ?.customerIds ?? [];
+
+  return customerIds.includes(normalizedCustomerId);
 }
 
 export function collectVisibilityDependencyNames(

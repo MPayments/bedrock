@@ -1,8 +1,7 @@
 import { z } from "zod";
 
+import { resolveApiPath } from "@/lib/api/path";
 import { executeApiMutation, type ApiMutationResult } from "@/lib/api/mutation";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 const DocumentMutationSchema = z.object({
   id: z.uuid(),
@@ -33,7 +32,7 @@ function generateIdempotencyKey(prefix: string): string {
 }
 
 function buildDocumentUrl(path: string): string {
-  return `${API_URL}${path}`;
+  return resolveApiPath(path);
 }
 
 function mutationHeaders(idempotencyKey?: string): Record<string, string> {

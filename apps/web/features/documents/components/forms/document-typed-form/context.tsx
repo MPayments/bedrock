@@ -20,6 +20,11 @@ export type DocumentTypedFormSelectOption = {
   label: string;
 };
 
+export type DocumentTypedFormCounterpartySelectOption =
+  DocumentTypedFormSelectOption & {
+    customerIds: string[];
+  };
+
 export type DocumentTypedFormState = {
   definition: DocumentFormDefinition | null;
   disabled: boolean;
@@ -33,6 +38,14 @@ export type DocumentTypedFormActions = {
   onSubmit: (event?: BaseSyntheticEvent) => Promise<void>;
   handleReset: () => void;
   resetDependentAccountFields: (ownerFieldName: string) => void;
+  handleCustomerSelection: (
+    fieldName: string,
+    customerId: string | null,
+  ) => void;
+  handleCounterpartySelection: (
+    fieldName: string,
+    counterpartyId: string | null,
+  ) => void;
 };
 
 export type DocumentTypedFormMeta = {
@@ -44,10 +57,11 @@ export type DocumentTypedFormMeta = {
   options: DocumentFormOptions;
   selectOptions: {
     currencies: DocumentTypedFormSelectOption[];
-    counterparties: DocumentTypedFormSelectOption[];
+    counterparties: DocumentTypedFormCounterpartySelectOption[];
     customers: DocumentTypedFormSelectOption[];
     organizations: DocumentTypedFormSelectOption[];
   };
+  customerFieldName: string | null;
   requisitesByOwnerKey: Map<string, RequisiteOption[]>;
   loadingOwnerKeys: Set<string>;
   methods: UseFormReturn<DocumentFormValues>;

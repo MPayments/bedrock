@@ -15,6 +15,12 @@ export interface FindIncomingLinkedDocumentInput {
   fromDocType: string;
 }
 
+export interface ListIncomingLinkedDocumentsInput {
+  toDocumentId: string;
+  linkType: DocumentLinkType;
+  fromDocType?: string;
+}
+
 export interface GetDocumentOperationIdReadModelInput {
   documentId: string;
   kind: string;
@@ -61,6 +67,9 @@ export interface DocumentsReadModel {
   findIncomingLinkedDocument: (
     input: FindIncomingLinkedDocumentInput,
   ) => Promise<DocumentSnapshot | null>;
+  listIncomingLinkedDocuments: (
+    input: ListIncomingLinkedDocumentsInput,
+  ) => Promise<DocumentSnapshot[]>;
   getDocumentOperationId: (
     input: GetDocumentOperationIdReadModelInput,
   ) => Promise<string | null>;

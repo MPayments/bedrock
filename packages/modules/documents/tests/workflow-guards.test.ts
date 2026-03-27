@@ -93,6 +93,7 @@ function createContext(
   const moduleRuntime = {
     documents: {
       findIncomingLinkedDocument: vi.fn(async () => null),
+      listIncomingLinkedDocuments: vi.fn(async () => []),
       getDocumentByType: vi.fn(async () => null),
       getDocumentOperationId: vi.fn(async () => null),
     },

@@ -1,5 +1,6 @@
 import type { CurrenciesService } from "@bedrock/currencies";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
@@ -20,24 +21,23 @@ import type { CommercialModuleDeps } from "../documents/internal/types";
 import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
 
-const INVOICE_DOC_TYPE = "invoice";
-const EXCHANGE_DOC_TYPE = "exchange";
-const ACCEPTANCE_DOC_TYPE = "acceptance";
+const INCOMING_INVOICE_DOC_TYPE = "incoming_invoice";
+const PAYMENT_ORDER_DOC_TYPE = "payment_order";
 
 function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
 }
 
 interface CommercialTreasuryQuotesPort {
-  getQuoteDetails(
-    input: GetQuoteDetailsInput,
-  ): Promise<QuoteDetailsRecord>;
-  markQuoteUsed(
-    input: MarkQuoteUsedInput,
-  ): Promise<QuoteRecord>;
-  createQuote(
-    input: CreateQuoteInput,
-  ): Promise<QuoteRecord>;
+  getQuoteDetails(input: GetQuoteDetailsInput): Promise<QuoteDetailsRecord>;
+  markQuoteUsed(input: MarkQuoteUsedInput): Promise<QuoteRecord>;
+  createQuote(input: CreateQuoteInput): Promise<QuoteRecord>;
+}
+
+interface CommercialLedgerReadPort {
+  getOperationDetails(
+    operationId: string,
+  ): Promise<LedgerOperationDetails | null>;
 }
 
 async function loadDocumentByType(input: {
@@ -211,6 +211,7 @@ async function markQuoteUsedForRef(input: {
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
   treasuryQuotes: CommercialTreasuryQuotesPort;
+  ledgerReadService: CommercialLedgerReadPort;
   requisitesService: {
     resolveBindings(input: {
       requisiteIds: string[];
@@ -230,14 +231,37 @@ export function createCommercialDocumentDeps(input: {
       findById(customerId: string): Promise<{ id: string }>;
     };
     counterparties: {
-      findById(counterpartyId: string): Promise<{ id: string }>;
+      findById(counterpartyId: string): Promise<{
+        id: string;
+        customerId?: string | null;
+        groupIds?: string[];
+      }>;
+    };
+    counterpartyGroups: {
+      listByCustomerId(customerId: string): Promise<
+        {
+          id: string;
+          customerId: string | null;
+        }[]
+      >;
     };
   };
 }): CommercialModuleDeps {
-  const { currenciesService, treasuryQuotes, requisitesService, partiesService } =
+  const {
+    currenciesService,
+    treasuryQuotes,
+    ledgerReadService,
+    requisitesService,
+    partiesService,
+  } =
     input;
 
   return {
+    ledgerRead: {
+      getOperationDetails(operationId) {
+        return ledgerReadService.getOperationDetails(operationId);
+      },
+    },
     quoteSnapshot: {
       async loadQuoteSnapshot({ quoteRef }) {
         return loadQuoteSnapshotRecord({
@@ -274,15 +298,15 @@ export function createCommercialDocumentDeps(input: {
       },
     },
     quoteUsage: {
-      async markQuoteUsedForInvoice({
+      async markQuoteUsedForPaymentOrder({
         quoteId,
-        invoiceDocumentId,
+        paymentOrderDocumentId,
         at,
       }) {
         await markQuoteUsedForRef({
           treasuryQuotes,
           quoteId,
-          usedByRef: `invoice:${invoiceDocumentId}`,
+          usedByRef: `payment_order:${paymentOrderDocumentId}`,
           at,
         });
       },
@@ -311,35 +335,70 @@ export function createCommercialDocumentDeps(input: {
           rethrowAsDocumentValidationError(error);
         }
       },
+      async assertCounterpartyLinkedToCustomer({ customerId, counterpartyId }) {
+        try {
+          const [counterparty, customerGroups] = await Promise.all([
+            partiesService.counterparties.findById(counterpartyId),
+            partiesService.counterpartyGroups.listByCustomerId(customerId),
+          ]);
+          const customerGroupIds = new Set(customerGroups.map((group) => group.id));
+          const linkedViaGroup = (counterparty.groupIds ?? []).some((groupId) =>
+            customerGroupIds.has(groupId),
+          );
+
+          if (!linkedViaGroup) {
+            throw new DocumentValidationError(
+              `Counterparty ${counterpartyId} is not linked to customer ${customerId}`,
+            );
+          }
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
+      },
     },
     documentRelations: {
-      loadInvoice({ runtime, invoiceDocumentId, forUpdate = false }) {
+      loadIncomingInvoice({
+        runtime,
+        incomingInvoiceDocumentId,
+        forUpdate = false,
+      }) {
         return loadDocumentByType({
           runtime,
-          documentId: invoiceDocumentId,
-          docType: INVOICE_DOC_TYPE,
+          documentId: incomingInvoiceDocumentId,
+          docType: INCOMING_INVOICE_DOC_TYPE,
           forUpdate,
         });
       },
-      async getInvoiceExchangeChild({ runtime, invoiceDocumentId }) {
-        return runtime.documents.findIncomingLinkedDocument({
-          toDocumentId: invoiceDocumentId,
-          linkType: "parent",
-          fromDocType: EXCHANGE_DOC_TYPE,
+      loadPaymentOrder({
+        runtime,
+        paymentOrderDocumentId,
+        forUpdate = false,
+      }) {
+        return loadDocumentByType({
+          runtime,
+          documentId: paymentOrderDocumentId,
+          docType: PAYMENT_ORDER_DOC_TYPE,
+          forUpdate,
         });
       },
-      async getInvoiceAcceptanceChild({ runtime, invoiceDocumentId }) {
-        return runtime.documents.findIncomingLinkedDocument({
-          toDocumentId: invoiceDocumentId,
+      async listIncomingInvoicePaymentOrders({
+        runtime,
+        incomingInvoiceDocumentId,
+      }) {
+        return runtime.documents.listIncomingLinkedDocuments({
+          toDocumentId: incomingInvoiceDocumentId,
           linkType: "parent",
-          fromDocType: ACCEPTANCE_DOC_TYPE,
+          fromDocType: PAYMENT_ORDER_DOC_TYPE,
         });
       },
-      async getExchangeAcceptance({ runtime, exchangeDocumentId }) {
-        return runtime.documents.findIncomingLinkedDocument({
-          toDocumentId: exchangeDocumentId,
+      async listPaymentOrderResolutions({
+        runtime,
+        paymentOrderDocumentId,
+      }) {
+        return runtime.documents.listIncomingLinkedDocuments({
+          toDocumentId: paymentOrderDocumentId,
           linkType: "depends_on",
-          fromDocType: ACCEPTANCE_DOC_TYPE,
+          fromDocType: PAYMENT_ORDER_DOC_TYPE,
         });
       },
     },

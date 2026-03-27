@@ -1,7 +1,7 @@
 export const COMMERCIAL_DOCUMENT_TYPES = [
-  "invoice",
-  "exchange",
-  "acceptance",
+  "incoming_invoice",
+  "payment_order",
+  "outgoing_invoice",
 ] as const;
 
 export type CommercialDocumentType = (typeof COMMERCIAL_DOCUMENT_TYPES)[number];

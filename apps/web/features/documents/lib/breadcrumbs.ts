@@ -31,6 +31,7 @@ export function buildDocumentDetailsBreadcrumbItems(document: {
   id: string;
   docNo: string;
   title: string;
+  payload?: Record<string, unknown>;
 }): BreadcrumbItem[] {
   const currentLabel =
     document.docNo.trim() || document.title.trim() || document.id;
@@ -42,7 +43,7 @@ export function buildDocumentDetailsBreadcrumbItems(document: {
       icon: "book-open",
     },
     {
-      label: getDocumentTypeLabel(document.docType),
+      label: getDocumentTypeLabel(document.docType, document.payload),
       href: buildDocumentTypeHref(document.docType) ?? "/documents",
     },
     {

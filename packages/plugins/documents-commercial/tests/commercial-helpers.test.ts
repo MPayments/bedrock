@@ -1,17 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
+import {
+  ACCOUNTING_SOURCE_ID,
+  OPERATION_CODE,
+  POSTING_TEMPLATE_KEY,
+} from "@bedrock/accounting/posting-contracts";
 
 import {
-  buildExchangeInvoicePostingPlan,
-  buildExchangePostingPlan,
-  buildFinancialLineRequests,
+  buildIncomingInvoiceDetails,
+  buildPaymentOrderPostingPlan,
   buildQuoteSnapshotHash,
   loadQuoteSnapshot,
-  markQuoteUsedForInvoice,
+  markQuoteUsedForPaymentOrder,
+  resolvePaymentOrderAccountingSourceId,
 } from "../src/documents/internal/helpers";
 
-function makeQuoteSnapshot(financialLines: any[]) {
+const INVOICE_ID = "00000000-0000-4000-8000-000000000001";
+const CUSTOMER_ID = "00000000-0000-4000-8000-000000000002";
+const COUNTERPARTY_ID = "00000000-0000-4000-8000-000000000003";
+const COUNTERPARTY_REQUISITE_ID = "00000000-0000-4000-8000-000000000004";
+const ORGANIZATION_REQUISITE_ID = "00000000-0000-4000-8000-000000000005";
+
+function makeQuoteSnapshot() {
   const snapshot = {
     quoteId: "00000000-0000-4000-8000-000000000010",
     quoteRef: "quote-ref-1",
@@ -40,7 +50,7 @@ function makeQuoteSnapshot(financialLines: any[]) {
         executionCounterpartyId: null,
       },
     ],
-    financialLines,
+    financialLines: [],
   };
 
   return {
@@ -51,17 +61,7 @@ function makeQuoteSnapshot(financialLines: any[]) {
 
 describe("commercial document helpers", () => {
   it("builds a deterministic quote snapshot hash", () => {
-    const snapshot = makeQuoteSnapshot([
-      {
-        id: "line-1",
-        bucket: "fee_revenue" as const,
-        currency: "USD",
-        amount: "25",
-        amountMinor: "2500",
-        source: "rule" as const,
-        settlementMode: "in_ledger" as const,
-      },
-    ]);
+    const snapshot = makeQuoteSnapshot();
 
     const first = buildQuoteSnapshotHash({
       ...snapshot,
@@ -75,175 +75,15 @@ describe("commercial document helpers", () => {
     const changed = buildQuoteSnapshotHash({
       ...snapshot,
       snapshotHash: undefined,
-      financialLines: [
-        {
-          ...snapshot.financialLines[0]!,
-          amountMinor: "2600",
-        },
-      ],
+      toAmountMinor: "9300",
     } as any);
 
     expect(first).toBe(second);
     expect(changed).not.toBe(first);
   });
 
-  it("maps signed financial lines to posting templates for direct documents", () => {
-    const requests = buildFinancialLineRequests({
-      document: {
-        id: "doc-1",
-        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-      } as any,
-      bookId: "book-1",
-      customerId: "customer-1",
-      orderId: "order-1",
-      counterpartyId: "counterparty-1",
-      quoteRef: "quote-ref-1",
-      chainId: "invoice:order-1",
-      postingPhase: "direct",
-      includeCustomerLines: true,
-      includeProviderLines: true,
-      lines: [
-        {
-          id: "fee-positive",
-          bucket: "fee_revenue",
-          currency: "USD",
-          amountMinor: 150n,
-          source: "manual",
-        },
-        {
-          id: "spread-negative",
-          bucket: "spread_revenue",
-          currency: "USD",
-          amountMinor: -25n,
-          source: "manual",
-        },
-        {
-          id: "provider-negative",
-          bucket: "provider_fee_expense",
-          currency: "USD",
-          amountMinor: -10n,
-          source: "manual",
-        },
-        {
-          id: "pass-through-positive",
-          bucket: "pass_through",
-          currency: "USD",
-          amountMinor: 40n,
-          source: "manual",
-        },
-        {
-          id: "adjustment-positive",
-          bucket: "adjustment",
-          currency: "USD",
-          amountMinor: 7n,
-          source: "manual",
-        },
-      ],
-    });
-
-    expect(
-      requests.map((request) => ({
-        templateKey: request.templateKey,
-        amountMinor: request.amountMinor,
-      })),
-    ).toEqual([
-      {
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
-        amountMinor: 150n,
-      },
-      {
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
-        amountMinor: 25n,
-      },
-      {
-        templateKey:
-          POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE_REVERSAL,
-        amountMinor: 10n,
-      },
-      {
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
-        amountMinor: 40n,
-      },
-      {
-        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE,
-        amountMinor: 7n,
-      },
-    ]);
-  });
-
-  it("filters customer-facing and provider-facing lines independently", () => {
-    const lines = [
-      {
-        id: "fee-positive",
-        bucket: "fee_revenue" as const,
-        currency: "USD",
-        amountMinor: 150n,
-        source: "manual" as const,
-      },
-      {
-        id: "provider-positive",
-        bucket: "provider_fee_expense" as const,
-        currency: "USD",
-        amountMinor: 30n,
-        source: "manual" as const,
-      },
-    ];
-
-    const customerOnly = buildFinancialLineRequests({
-      document: {
-        id: "doc-1",
-        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-      } as any,
-      bookId: "book-1",
-      customerId: "customer-1",
-      orderId: "order-1",
-      counterpartyId: "counterparty-1",
-      quoteRef: "quote-ref-1",
-      chainId: "invoice:order-1",
-      postingPhase: "direct",
-      lines,
-      includeCustomerLines: true,
-      includeProviderLines: false,
-    });
-    const providerOnly = buildFinancialLineRequests({
-      document: {
-        id: "doc-1",
-        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-      } as any,
-      bookId: "book-1",
-      customerId: "customer-1",
-      orderId: "order-1",
-      counterpartyId: "counterparty-1",
-      quoteRef: "quote-ref-1",
-      chainId: "invoice:order-1",
-      postingPhase: "direct",
-      lines,
-      includeCustomerLines: false,
-      includeProviderLines: true,
-    });
-
-    expect(customerOnly).toHaveLength(1);
-    expect(customerOnly[0]?.templateKey).toBe(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
-    );
-    expect(providerOnly).toHaveLength(1);
-    expect(providerOnly[0]?.templateKey).toBe(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
-    );
-  });
-
   it("delegates quote snapshot loading through the injected port", async () => {
-    const expectedSnapshot = makeQuoteSnapshot([
-      {
-        id: "line-1",
-        bucket: "fee_revenue",
-        currency: "USDT",
-        amount: "0.123456",
-        amountMinor: "123456",
-        source: "rule",
-        settlementMode: "in_ledger",
-      },
-    ]);
+    const expectedSnapshot = makeQuoteSnapshot();
     const loadQuoteSnapshotPort = vi.fn(async () => expectedSnapshot);
     const runtime = {} as any;
 
@@ -257,13 +97,7 @@ describe("commercial document helpers", () => {
       quoteRef: "quote-ref-crypto",
     });
 
-    expect(snapshot.financialLines).toEqual([
-      expect.objectContaining({
-        currency: "USDT",
-        amount: "0.123456",
-        amountMinor: "123456",
-      }),
-    ]);
+    expect(snapshot.quoteId).toBe(expectedSnapshot.quoteId);
     expect(loadQuoteSnapshotPort).toHaveBeenCalledWith({
       runtime,
       quoteRef: "quote-ref-crypto",
@@ -271,184 +105,344 @@ describe("commercial document helpers", () => {
   });
 
   it("delegates quote locking through the injected quote usage port", async () => {
-    const markQuoteUsed = vi.fn(async () => {
-      throw new Error("already used");
-    });
-    const runtime = {} as any;
-
-    await expect(
-      markQuoteUsedForInvoice({
-        runtime,
-        deps: {
-          quoteUsage: {
-            markQuoteUsedForInvoice: markQuoteUsed,
-          },
-        } as any,
-        quoteId: "550e8400-e29b-41d4-a716-446655440010",
-        invoiceDocumentId: "doc-1",
-        at: new Date("2026-03-03T10:00:00.000Z"),
-      }),
-    ).rejects.toThrow(/already used/);
-  });
-
-  it("reserves customer charges on exchange invoices without recognizing pnl", async () => {
-    const now = new Date("2026-03-03T10:00:00.000Z");
     const markQuoteUsed = vi.fn(async () => undefined);
     const runtime = {} as any;
 
-    const plan = await buildExchangeInvoicePostingPlan({
+    await markQuoteUsedForPaymentOrder({
+      runtime,
       deps: {
         quoteUsage: {
-          markQuoteUsedForInvoice: markQuoteUsed,
+          markQuoteUsedForPaymentOrder: markQuoteUsed,
         },
       } as any,
-      context: { runtime, now } as any,
-      document: {
-        id: "invoice-1",
-        occurredAt: now,
-      } as any,
-      bookId: "book-1",
-      payload: {
-        mode: "exchange",
-        occurredAt: now,
-        customerId: "customer-1",
-        counterpartyId: "counterparty-1",
-        organizationRequisiteId: "org-req-1",
-        quoteSnapshot: makeQuoteSnapshot([
-          {
-            id: "fee-1",
-            bucket: "fee_revenue",
-            currency: "USD",
-            amount: "1.5",
-            amountMinor: "150",
-            source: "rule",
-            settlementMode: "in_ledger",
-          },
-          {
-            id: "spread-1",
-            bucket: "spread_revenue",
-            currency: "USD",
-            amount: "-0.25",
-            amountMinor: "-25",
-            source: "rule",
-            settlementMode: "in_ledger",
-          },
-          {
-            id: "pass-through-1",
-            bucket: "pass_through",
-            currency: "USD",
-            amount: "0.4",
-            amountMinor: "40",
-            source: "rule",
-            settlementMode: "separate_payment_order",
-          },
-          {
-            id: "provider-1",
-            bucket: "provider_fee_expense",
-            currency: "USD",
-            amount: "0.3",
-            amountMinor: "30",
-            source: "rule",
-            settlementMode: "in_ledger",
-          },
-        ]),
-      } as any,
+      quoteId: "550e8400-e29b-41d4-a716-446655440010",
+      paymentOrderDocumentId: "doc-1",
+      at: new Date("2026-03-03T10:00:00.000Z"),
     });
 
     expect(markQuoteUsed).toHaveBeenCalledWith({
       runtime,
-      quoteId: "00000000-0000-4000-8000-000000000010",
-      invoiceDocumentId: "invoice-1",
-      at: now,
+      quoteId: "550e8400-e29b-41d4-a716-446655440010",
+      paymentOrderDocumentId: "doc-1",
+      at: new Date("2026-03-03T10:00:00.000Z"),
     });
-
-    expect(plan.requests.map((request) => request.templateKey)).toEqual([
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL,
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
-    ]);
   });
 
-  it("finalizes reserved customer lines on exchange posting", () => {
-    const plan = buildExchangePostingPlan({
-      document: {
-        id: "exchange-1",
-        occurredAt: new Date("2026-03-03T10:05:00.000Z"),
-      } as any,
-      bookId: "book-1",
+  it("aggregates incoming_invoice payment state and excludes void payment orders", () => {
+    const details = buildIncomingInvoiceDetails({
       payload: {
-        occurredAt: new Date("2026-03-03T10:05:00.000Z"),
-        invoiceDocumentId: "invoice-1",
+        occurredAt: "2026-03-03T10:00:00.000Z",
+        contour: "intl",
         customerId: "customer-1",
         counterpartyId: "counterparty-1",
         organizationRequisiteId: "org-req-1",
-        quoteSnapshot: makeQuoteSnapshot([
-          {
-            id: "fee-1",
-            bucket: "fee_revenue",
-            currency: "USD",
-            amount: "1.5",
-            amountMinor: "150",
-            source: "rule",
-            settlementMode: "in_ledger",
+        amount: "100.00",
+        amountMinor: "10000",
+        currency: "EUR",
+      } as any,
+      paymentOrders: [
+        {
+          id: "00000000-0000-4000-8000-000000000101",
+          docType: "payment_order",
+          docNo: "PPO-1",
+          occurredAt: new Date("2026-03-03T10:05:00.000Z"),
+          lifecycleStatus: "active",
+          postingStatus: "posted",
+          payload: {
+            occurredAt: "2026-03-03T10:05:00.000Z",
+            contour: "intl",
+            incomingInvoiceDocumentId: INVOICE_ID,
+            customerId: CUSTOMER_ID,
+            counterpartyId: COUNTERPARTY_ID,
+            counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+            organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+            fundingAmount: "50.00",
+            fundingAmountMinor: "5000",
+            fundingCurrency: "USD",
+            allocatedAmount: "46.00",
+            allocatedAmountMinor: "4600",
+            allocatedCurrency: "EUR",
+            executionStatus: "sent",
           },
-          {
-            id: "spread-1",
-            bucket: "spread_revenue",
-            currency: "USD",
-            amount: "-0.25",
-            amountMinor: "-25",
-            source: "rule",
-            settlementMode: "in_ledger",
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000102",
+          docType: "payment_order",
+          docNo: "PPO-2",
+          occurredAt: new Date("2026-03-03T10:10:00.000Z"),
+          lifecycleStatus: "active",
+          postingStatus: "posted",
+          payload: {
+            occurredAt: "2026-03-03T10:10:00.000Z",
+            contour: "intl",
+            incomingInvoiceDocumentId: INVOICE_ID,
+            sourcePaymentOrderDocumentId:
+              "00000000-0000-4000-8000-000000000101",
+            customerId: CUSTOMER_ID,
+            counterpartyId: COUNTERPARTY_ID,
+            counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+            organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+            fundingAmount: "50.00",
+            fundingAmountMinor: "5000",
+            fundingCurrency: "EUR",
+            allocatedAmount: "46.00",
+            allocatedAmountMinor: "4600",
+            allocatedCurrency: "EUR",
+            executionStatus: "settled",
           },
-          {
-            id: "adjustment-1",
-            bucket: "adjustment",
-            currency: "USD",
-            amount: "0.7",
-            amountMinor: "70",
-            source: "manual",
-            settlementMode: "in_ledger",
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000103",
+          docType: "payment_order",
+          docNo: "PPO-3",
+          occurredAt: new Date("2026-03-03T10:15:00.000Z"),
+          lifecycleStatus: "active",
+          postingStatus: "posted",
+          payload: {
+            occurredAt: "2026-03-03T10:15:00.000Z",
+            contour: "intl",
+            incomingInvoiceDocumentId: INVOICE_ID,
+            customerId: CUSTOMER_ID,
+            counterpartyId: COUNTERPARTY_ID,
+            counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+            organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+            fundingAmount: "20.00",
+            fundingAmountMinor: "2000",
+            fundingCurrency: "EUR",
+            allocatedAmount: "20.00",
+            allocatedAmountMinor: "2000",
+            allocatedCurrency: "EUR",
+            executionStatus: "sent",
           },
-          {
-            id: "pass-through-1",
-            bucket: "pass_through",
-            currency: "USD",
-            amount: "0.4",
-            amountMinor: "40",
-            source: "rule",
-            settlementMode: "separate_payment_order",
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000104",
+          docType: "payment_order",
+          docNo: "PPO-4",
+          occurredAt: new Date("2026-03-03T10:20:00.000Z"),
+          lifecycleStatus: "active",
+          postingStatus: "posted",
+          payload: {
+            occurredAt: "2026-03-03T10:20:00.000Z",
+            contour: "intl",
+            incomingInvoiceDocumentId: INVOICE_ID,
+            sourcePaymentOrderDocumentId:
+              "00000000-0000-4000-8000-000000000103",
+            customerId: CUSTOMER_ID,
+            counterpartyId: COUNTERPARTY_ID,
+            counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+            organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+            fundingAmount: "20.00",
+            fundingAmountMinor: "2000",
+            fundingCurrency: "EUR",
+            allocatedAmount: "20.00",
+            allocatedAmountMinor: "2000",
+            allocatedCurrency: "EUR",
+            executionStatus: "void",
           },
-          {
-            id: "provider-1",
-            bucket: "provider_fee_expense",
-            currency: "USD",
-            amount: "0.3",
-            amountMinor: "30",
-            source: "rule",
-            settlementMode: "in_ledger",
-          },
-        ]),
+        },
+      ] as any,
+    });
+
+    expect(details).toMatchObject({
+      allocatedAmountMinor: "4600",
+      settledAmountMinor: "4600",
+      availableAmountMinor: "5400",
+    });
+    expect(details.timeline).toHaveLength(4);
+  });
+
+  it("builds payment_order posting plans for sent and settled states", async () => {
+    const now = new Date("2026-03-03T10:00:00.000Z");
+    const sentPlan = await buildPaymentOrderPostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForPaymentOrder: vi.fn(async () => undefined),
+        },
+      } as any,
+      context: { runtime: {}, now } as any,
+      document: {
+        id: "payment-order-1",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        contour: "rf",
+        occurredAt: now.toISOString(),
+        incomingInvoiceDocumentId: "invoice-1",
+        customerId: CUSTOMER_ID,
+        counterpartyId: COUNTERPARTY_ID,
+        counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+        organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+        fundingAmount: "100.00",
+        fundingAmountMinor: "10000",
+        fundingCurrency: "EUR",
+        allocatedAmount: "100.00",
+        allocatedAmountMinor: "10000",
+        allocatedCurrency: "EUR",
+        executionStatus: "sent",
       } as any,
     });
 
-    const templateKeys = plan.requests.map((request) => request.templateKey);
+    expect(sentPlan.operationCode).toBe(OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_INITIATE);
+    expect(sentPlan.requests.map((request) => request.templateKey)).toContain(
+      POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
+    );
 
-    expect(templateKeys).toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME_FROM_RESERVE,
+    const settledPlan = await buildPaymentOrderPostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForPaymentOrder: vi.fn(async () => undefined),
+        },
+      } as any,
+      context: { runtime: {}, now } as any,
+      document: {
+        id: "payment-order-2",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        contour: "rf",
+        occurredAt: now.toISOString(),
+        incomingInvoiceDocumentId: "invoice-1",
+        customerId: CUSTOMER_ID,
+        counterpartyId: COUNTERPARTY_ID,
+        counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+        organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+        fundingAmount: "100.00",
+        fundingAmountMinor: "10000",
+        fundingCurrency: "EUR",
+        allocatedAmount: "100.00",
+        allocatedAmountMinor: "10000",
+        allocatedCurrency: "EUR",
+        executionStatus: "settled",
+      } as any,
+    });
+
+    expect(settledPlan.operationCode).toBe(OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE);
+    expect(settledPlan.requests.map((request) => request.templateKey)).toContain(
+      POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_IMMEDIATE,
     );
-    expect(templateKeys).toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE,
+  });
+
+  it("builds payment_order resolution plans for settle and void states", async () => {
+    const now = new Date("2026-03-03T10:00:00.000Z");
+    const sourcePayload = {
+      contour: "rf",
+      occurredAt: now.toISOString(),
+      incomingInvoiceDocumentId: "invoice-1",
+      customerId: CUSTOMER_ID,
+      counterpartyId: COUNTERPARTY_ID,
+      counterpartyRequisiteId: COUNTERPARTY_REQUISITE_ID,
+      organizationRequisiteId: ORGANIZATION_REQUISITE_ID,
+      fundingAmount: "100.00",
+      fundingAmountMinor: "10000",
+      fundingCurrency: "EUR",
+      allocatedAmount: "100.00",
+      allocatedAmountMinor: "10000",
+      allocatedCurrency: "EUR",
+      executionStatus: "sent",
+      executionRef: "rail-1",
+    } as any;
+
+    const settledPlan = await buildPaymentOrderPostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForPaymentOrder: vi.fn(async () => undefined),
+        },
+      } as any,
+      context: { runtime: {}, now } as any,
+      document: {
+        id: "payment-order-resolution-1",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        ...sourcePayload,
+        sourcePaymentOrderDocumentId: "payment-order-1",
+        executionStatus: "settled",
+      } as any,
+      resolutionSource: {
+        document: { id: "payment-order-1" } as any,
+        payload: sourcePayload,
+        pendingTransfer: {
+          transferId: 101n,
+          pendingRef: "payment_order:payment-order-1",
+          amountMinor: 10000n,
+        },
+      },
+    });
+
+    expect(settledPlan.operationCode).toBe(
+      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_SETTLE,
     );
-    expect(templateKeys).toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE_FROM_RESERVE,
+    expect(settledPlan.requests).toEqual([
+      expect.objectContaining({
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE,
+        pending: expect.objectContaining({
+          pendingId: 101n,
+          amountMinor: 10000n,
+        }),
+      }),
+    ]);
+
+    const voidPlan = await buildPaymentOrderPostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForPaymentOrder: vi.fn(async () => undefined),
+        },
+      } as any,
+      context: { runtime: {}, now } as any,
+      document: {
+        id: "payment-order-resolution-2",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        ...sourcePayload,
+        sourcePaymentOrderDocumentId: "payment-order-1",
+        executionStatus: "failed",
+      } as any,
+      resolutionSource: {
+        document: { id: "payment-order-1" } as any,
+        payload: sourcePayload,
+        pendingTransfer: {
+          transferId: 101n,
+          pendingRef: "payment_order:payment-order-1",
+          amountMinor: 10000n,
+        },
+      },
+    });
+
+    expect(voidPlan.operationCode).toBe(
+      OPERATION_CODE.COMMERCIAL_PAYMENT_ORDER_VOID,
     );
-    expect(templateKeys).toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
-    );
-    expect(templateKeys).not.toContain(
-      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
-    );
+    expect(voidPlan.requests).toEqual([
+      expect.objectContaining({
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
+        pending: expect.objectContaining({
+          pendingId: 101n,
+          amountMinor: 0n,
+        }),
+      }),
+    ]);
+  });
+
+  it("maps payment_order execution statuses to accounting sources", () => {
+    expect(
+      resolvePaymentOrderAccountingSourceId({
+        executionStatus: "sent",
+      } as any),
+    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_INITIATE);
+    expect(
+      resolvePaymentOrderAccountingSourceId({
+        executionStatus: "settled",
+      } as any),
+    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_SETTLE);
+    expect(
+      resolvePaymentOrderAccountingSourceId({
+        executionStatus: "failed",
+      } as any),
+    ).toBe(ACCOUNTING_SOURCE_ID.PAYMENT_ORDER_VOID);
   });
 });
