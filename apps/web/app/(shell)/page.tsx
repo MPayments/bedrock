@@ -51,7 +51,7 @@ export default async function DashboardPage() {
         },
         {
           id: "treasury",
-          label: session.role === "admin" ? "Treasury FX" : "Роль",
+          label: session.role === "admin" ? "Источники курсов" : "Роль",
           value:
             session.role === "admin"
               ? formatCount(sourceStatuses.length)
@@ -60,7 +60,7 @@ export default async function DashboardPage() {
             session.role === "admin"
               ? staleSources > 0
                 ? `Просроченных источников: ${formatCount(staleSources)}`
-                : "Все treasury FX-источники актуальны в пределах TTL."
+                : "Все источники курсов актуальны в пределах TTL."
               : "Административные разделы доступны по роли.",
           href: session.role === "admin" ? "/treasury" : undefined,
         },

@@ -36,6 +36,9 @@ export function TreasuryOperationsTable({
     getRowId: (row) => row.id,
     initialState: {
       sorting: [{ id: "createdAt", desc: true }],
+      columnVisibility: {
+        query: false,
+      },
     },
   });
 
@@ -61,7 +64,7 @@ export function TreasuryOperationsTable({
             <div className="text-sm font-medium">Операций пока нет</div>
             <div className="text-muted-foreground mt-1 text-sm leading-6">
               Создайте первую treasury-операцию. Для валютной конверсии
-              используйте отдельный treasury FX.
+              используйте отдельный FX-документ.
             </div>
           </div>
         </CardContent>

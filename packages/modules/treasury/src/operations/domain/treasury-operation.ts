@@ -4,6 +4,15 @@ import type { IssueOperationInput } from "../contracts";
 import type { ExecutionEventKind } from "../../shared/domain/taxonomy";
 import type { TreasuryOperationRecord } from "../../shared/application/core-ports";
 
+const TERMINAL_OPERATION_STATUSES = new Set<
+  TreasuryOperationRecord["instructionStatus"]
+>(["settled", "failed", "returned", "void"]);
+
+const NON_LIFECYCLE_EVENT_KINDS = new Set<ExecutionEventKind>([
+  "fee_charged",
+  "manual_adjustment",
+]);
+
 export function resolveSettlementModel(input: {
   operationKind: IssueOperationInput["operationKind"];
   economicOwnerEntityId: string;
@@ -240,11 +249,19 @@ export function applyOperationExecutionEvent(input: {
   instructionStatuses: string[];
   now: Date;
 }) {
+  const allInstructionsVoided =
+    input.instructionStatuses.length > 0 &&
+    input.instructionStatuses.every((status) => status === "void");
+  const allInstructionsSettled =
+    input.instructionStatuses.length > 0 &&
+    input.instructionStatuses.every((status) => status === "settled");
   const nextStatus = input.instructionStatuses.includes("failed")
     ? "failed"
     : input.instructionStatuses.includes("returned")
       ? "returned"
-      : input.instructionStatuses.every((status) => status === "settled")
+      : allInstructionsVoided
+        ? "void"
+        : allInstructionsSettled
         ? "settled"
         : input.instructionStatuses.includes("submitted") ||
             input.instructionStatuses.includes("accepted")
@@ -277,12 +294,21 @@ export function assertOperationSupportsInstructionCreation(
 
 export function assertOperationCanReceiveExecutionEvent(
   operation: TreasuryOperationRecord,
+  eventKind: ExecutionEventKind,
 ) {
-  if (operation.instructionStatus === "void") {
+  if (NON_LIFECYCLE_EVENT_KINDS.has(eventKind)) {
+    return;
+  }
+
+  if (TERMINAL_OPERATION_STATUSES.has(operation.instructionStatus)) {
     throw new DomainError(
-      "treasury.operation.void",
-      "void operation cannot receive execution events",
-      { operationId: operation.id },
+      "treasury.operation.terminal",
+      "terminal operation cannot receive lifecycle execution events",
+      {
+        eventKind,
+        operationId: operation.id,
+        operationStatus: operation.instructionStatus,
+      },
     );
   }
 }

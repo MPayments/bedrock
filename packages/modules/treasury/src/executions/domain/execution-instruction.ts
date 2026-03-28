@@ -3,6 +3,18 @@ import { invariant } from "@bedrock/shared/core/domain";
 import type { ExecutionEventKind, InstructionStatus } from "../../shared/domain/taxonomy";
 import type { ExecutionInstructionRecord } from "../../shared/application/core-ports";
 
+const TERMINAL_INSTRUCTION_STATUSES = new Set<InstructionStatus>([
+  "settled",
+  "failed",
+  "returned",
+  "void",
+]);
+
+const NON_LIFECYCLE_EVENT_KINDS = new Set<ExecutionEventKind>([
+  "fee_charged",
+  "manual_adjustment",
+]);
+
 export function resolveInstructionStatusFromEvent(
   currentStatus: InstructionStatus,
   eventKind: ExecutionEventKind,
@@ -30,9 +42,13 @@ export function assertInstructionCanReceiveEvent(
   instruction: ExecutionInstructionRecord,
   eventKind: ExecutionEventKind,
 ) {
+  if (NON_LIFECYCLE_EVENT_KINDS.has(eventKind)) {
+    return;
+  }
+
   invariant(
-    instruction.instructionStatus !== "void" || eventKind === "manual_adjustment",
-    "void instruction cannot receive this event",
+    !TERMINAL_INSTRUCTION_STATUSES.has(instruction.instructionStatus),
+    "terminal instruction cannot receive lifecycle execution events",
     {
       code: "treasury.execution_instruction.invalid_event",
     },

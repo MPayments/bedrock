@@ -3,7 +3,9 @@ import { AlertTriangle } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-import { TreasuryUnmatchedRecordsList } from "@/features/treasury/workbench/components/unmatched-records-list";
+import type { EntityListResult } from "@/components/entities/entity-table-shell";
+import { TreasuryUnmatchedRecordsTable } from "@/features/treasury/workbench/components/unmatched-records-table";
+import { presentTreasuryExceptions, type TreasuryExceptionTableRow } from "@/features/treasury/workbench/lib/presentation";
 import { getTreasuryReferenceData } from "@/features/treasury/workbench/lib/reference-data";
 import {
   listExecutionInstructions,
@@ -12,12 +14,22 @@ import {
 } from "@/features/treasury/workbench/lib/queries";
 
 export default async function TreasuryUnmatchedPage() {
-  const [instructions, operations, records, references] = await Promise.all([
+  const [instructions, operations, references] = await Promise.all([
     listExecutionInstructions({ limit: 200 }),
     listTreasuryOperations({ limit: 200 }),
-    listUnmatchedExternalRecords({ limit: 100 }),
     getTreasuryReferenceData(),
   ]);
+  const recordsPromise: Promise<EntityListResult<TreasuryExceptionTableRow>> =
+    listUnmatchedExternalRecords({ limit: 100 }).then((records) => {
+      const data = presentTreasuryExceptions({ records });
+
+      return {
+        data,
+        total: data.length,
+        limit: Math.max(data.length, 10),
+        offset: 0,
+      };
+    });
 
   return (
     <EntityListPageShell
@@ -28,11 +40,11 @@ export default async function TreasuryUnmatchedPage() {
         <DataTableSkeleton columnCount={5} rowCount={8} filterCount={2} />
       }
     >
-      <TreasuryUnmatchedRecordsList
+      <TreasuryUnmatchedRecordsTable
         assetLabels={references.assetLabels}
         instructions={instructions}
         operations={operations}
-        records={records}
+        promise={recordsPromise}
       />
     </EntityListPageShell>
   );

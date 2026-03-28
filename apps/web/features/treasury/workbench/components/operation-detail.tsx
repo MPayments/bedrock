@@ -34,6 +34,7 @@ type TreasuryOperationDetailProps = {
   customerLabels: Record<string, string>;
   operationTimeline: TreasuryOperationTimeline;
   organizationLabels: Record<string, string>;
+  showHeaderCopy?: boolean;
   treasuryEndpoints: TreasuryEndpointListItem[];
 };
 
@@ -50,23 +51,6 @@ function FactItem({
         {label}
       </div>
       <div className="text-sm leading-6">{value}</div>
-    </div>
-  );
-}
-
-function InsightCard({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}) {
-  return (
-    <div className="bg-muted/40 rounded-xl border px-4 py-3">
-      <div className="text-sm font-medium">{title}</div>
-      <div className="text-muted-foreground mt-1 text-sm leading-6">
-        {description}
-      </div>
     </div>
   );
 }
@@ -94,6 +78,7 @@ export function TreasuryOperationDetail({
   customerLabels,
   operationTimeline,
   organizationLabels,
+  showHeaderCopy = true,
   treasuryEndpoints,
 }: TreasuryOperationDetailProps) {
   const detail = presentTreasuryOperationDetail({
@@ -127,16 +112,18 @@ export function TreasuryOperationDetail({
               </Badge>
               <Badge variant="secondary">{detail.header.settlementModelLabel}</Badge>
             </div>
-            <div className="space-y-1">
-              <CardTitle className="text-2xl">{detail.header.title}</CardTitle>
-              <CardDescription className="max-w-4xl text-base leading-7">
-                {detail.header.summary}
-              </CardDescription>
-              <div className="text-muted-foreground text-sm">
-                ID операции: {detail.header.operationShortId}
-                <span className="ml-2 text-xs">{detail.header.operationId}</span>
+            {showHeaderCopy ? (
+              <div className="space-y-1">
+                <CardTitle className="text-2xl">{detail.header.title}</CardTitle>
+                <CardDescription className="max-w-4xl text-base leading-7">
+                  {detail.header.summary}
+                </CardDescription>
+                <div className="text-muted-foreground text-sm">
+                  ID операции: {detail.header.operationShortId}
+                  <span className="ml-2 text-xs">{detail.header.operationId}</span>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
           <CardAction>
             <TreasuryOperationActions
@@ -152,21 +139,6 @@ export function TreasuryOperationDetail({
           </CardAction>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
-          <div className="grid gap-3 lg:grid-cols-3">
-            <InsightCard
-              title={detail.stage.title}
-              description={detail.stage.description}
-            />
-            <InsightCard
-              title="Что делать дальше"
-              description={detail.nextStep}
-            />
-            <InsightCard
-              title="Последний зафиксированный факт"
-              description={detail.latestEventLabel}
-            />
-          </div>
-
           {detail.warning ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
               {detail.warning}

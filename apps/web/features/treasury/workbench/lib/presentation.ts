@@ -64,6 +64,40 @@ export type TreasuryOperationTableRow = {
   createdAtLabel: string;
 };
 
+export type TreasuryPositionTableRow = {
+  id: string;
+  assetCode: string;
+  kind: string;
+  kindLabel: string;
+  meaning: string;
+  ownerLabel: string;
+  relatedPartyLabel: string;
+  beneficialOwnerTypeLabel: string;
+  amountLabel: string;
+  settledLabel: string;
+  remainingMinor: string;
+  remainingLabel: string;
+  status: "open" | "closed";
+  statusLabel: string;
+  createdAt: string;
+  createdAtLabel: string;
+  canSettle: boolean;
+};
+
+export type TreasuryExceptionTableRow = {
+  id: string;
+  receivedAt: string;
+  receivedAtLabel: string;
+  sourceLabel: string;
+  recordKindLabel: string;
+  reasonLabel: string;
+  reasonMetaLabel: string | null;
+  resolutionHint: string;
+  externalRecordId: string;
+  externalRecordShortId: string;
+  record: UnmatchedExternalRecordListItem;
+};
+
 export function formatMoneyValue(
   amountMinor: string | null | undefined,
   assetCode: string | null | undefined,
@@ -512,15 +546,17 @@ export function presentTreasuryPositions(input: {
   >;
   positions: TreasuryPositionListItem[];
 }) {
-  return input.positions.map((position) => {
+  return input.positions.map<TreasuryPositionTableRow>((position) => {
     const assetCode = input.labels.assetLabels[position.assetId] ?? position.assetId;
     const remainingMinor = (
       BigInt(position.amountMinor) - BigInt(position.settledMinor)
     ).toString();
+    const canSettle = BigInt(remainingMinor) > 0n && position.closedAt === null;
 
     return {
       id: position.id,
       assetCode,
+      kind: position.positionKind,
       kindLabel:
         TREASURY_POSITION_KIND_LABELS[position.positionKind] ?? position.positionKind,
       meaning: getPositionKindMeaning(position.positionKind),
@@ -542,8 +578,11 @@ export function presentTreasuryPositions(input: {
       settledLabel: formatMoneyValue(position.settledMinor, assetCode),
       remainingMinor,
       remainingLabel: formatMoneyValue(remainingMinor, assetCode),
+      status: canSettle ? "open" : "closed",
+      statusLabel: canSettle ? "Открыта" : "Закрыта",
+      createdAt: new Date(position.createdAt).toISOString(),
       createdAtLabel: formatDate(position.createdAt),
-      canSettle: BigInt(remainingMinor) > 0n && position.closedAt === null,
+      canSettle,
     };
   });
 }
@@ -551,8 +590,9 @@ export function presentTreasuryPositions(input: {
 export function presentTreasuryExceptions(input: {
   records: UnmatchedExternalRecordListItem[];
 }) {
-  return input.records.map((record) => ({
+  return input.records.map<TreasuryExceptionTableRow>((record) => ({
     id: record.externalRecordId,
+    receivedAt: new Date(record.receivedAt).toISOString(),
     receivedAtLabel: formatDate(record.receivedAt),
     sourceLabel: record.source,
     recordKindLabel: record.recordKind ?? "Не указан",
@@ -561,6 +601,7 @@ export function presentTreasuryExceptions(input: {
     resolutionHint: getExceptionResolutionHint(record),
     externalRecordId: record.externalRecordId,
     externalRecordShortId: shortId(record.externalRecordId),
+    record,
   }));
 }
 

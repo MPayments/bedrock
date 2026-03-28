@@ -4,6 +4,7 @@ import { Landmark } from "lucide-react";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
 import { TreasuryOperationDetail } from "@/features/treasury/workbench/components/operation-detail";
+import { presentTreasuryOperationDetail } from "@/features/treasury/workbench/lib/presentation";
 import { getTreasuryReferenceData } from "@/features/treasury/workbench/lib/reference-data";
 import {
   getTreasuryOperationTimeline,
@@ -32,11 +33,24 @@ export default async function TreasuryOperationDetailsPage({
     notFound();
   }
 
+  const detail = presentTreasuryOperationDetail({
+    accounts,
+    counterpartyEndpoints,
+    labels: {
+      assetLabels: references.assetLabels,
+      counterpartyLabels: references.counterpartyLabels,
+      customerLabels: references.customerLabels,
+      organizationLabels: references.organizationLabels,
+    },
+    operationTimeline,
+    treasuryEndpoints,
+  });
+
   return (
     <EntityListPageShell
       icon={Landmark}
-      title="Операция казначейства"
-      description="Один экран для ответа на четыре вопроса: что это за сценарий, где идут деньги, на каком он этапе и что оператору делать дальше."
+      title={detail.header.title}
+      description={detail.header.summary}
       fallback={<SectionPlaceholderPage title="Загрузка операции" />}
     >
       <TreasuryOperationDetail
@@ -47,6 +61,7 @@ export default async function TreasuryOperationDetailsPage({
         customerLabels={references.customerLabels}
         operationTimeline={operationTimeline}
         organizationLabels={references.organizationLabels}
+        showHeaderCopy={false}
         treasuryEndpoints={treasuryEndpoints}
       />
     </EntityListPageShell>

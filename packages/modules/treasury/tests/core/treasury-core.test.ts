@@ -669,6 +669,112 @@ describe("canonical treasury core", () => {
     ).toHaveLength(0);
   });
 
+  it("marks voided operations as terminal and rejects further lifecycle events", async () => {
+    const { accounts, operations, executions, store } = createCoreServices();
+
+    const sourceAccount = await accounts.commands.createTreasuryAccount({
+      kind: "bank",
+      ownerEntityId: "00000000-0000-4000-8000-000000000810",
+      operatorEntityId: "00000000-0000-4000-8000-000000000810",
+      assetId: "00000000-0000-4000-8000-000000000820",
+      provider: "bank",
+      networkOrRail: "swift",
+      accountReference: "BANK-VOID-1",
+      reconciliationMode: "manual",
+      finalityModel: "booked",
+      segregationModel: null,
+      canReceive: true,
+      canSend: true,
+      metadata: null,
+    });
+
+    const operation = await operations.commands.issueOperation({
+      operationKind: "payout",
+      idempotencyKey: "voided-operation",
+      economicOwnerEntityId: "00000000-0000-4000-8000-000000000810",
+      executingEntityId: "00000000-0000-4000-8000-000000000810",
+      sourceAccountId: sourceAccount.id,
+      assetId: sourceAccount.assetId,
+      amountMinor: "100",
+      obligationIds: [],
+      memo: null,
+    });
+
+    await operations.commands.approveOperation({ operationId: operation.id });
+
+    const instruction = await executions.commands.createExecutionInstruction({
+      operationId: operation.id,
+    });
+
+    const voided = await executions.commands.recordExecutionEvent({
+      instructionId: instruction.id,
+      eventKind: "voided",
+    });
+
+    expect(voided.operation.instructionStatus).toBe("void");
+    expect(store.operations.find((item) => item.id === operation.id)?.instructionStatus).toBe(
+      "void",
+    );
+
+    await expect(
+      executions.commands.recordExecutionEvent({
+        instructionId: instruction.id,
+        eventKind: "settled",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("still allows manual adjustment after an instruction is voided", async () => {
+    const { accounts, operations, executions } = createCoreServices();
+
+    const sourceAccount = await accounts.commands.createTreasuryAccount({
+      kind: "bank",
+      ownerEntityId: "00000000-0000-4000-8000-000000000830",
+      operatorEntityId: "00000000-0000-4000-8000-000000000830",
+      assetId: "00000000-0000-4000-8000-000000000840",
+      provider: "bank",
+      networkOrRail: "swift",
+      accountReference: "BANK-ADJUST-1",
+      reconciliationMode: "manual",
+      finalityModel: "booked",
+      segregationModel: null,
+      canReceive: true,
+      canSend: true,
+      metadata: null,
+    });
+
+    const operation = await operations.commands.issueOperation({
+      operationKind: "payout",
+      idempotencyKey: "voided-adjustment",
+      economicOwnerEntityId: "00000000-0000-4000-8000-000000000830",
+      executingEntityId: "00000000-0000-4000-8000-000000000830",
+      sourceAccountId: sourceAccount.id,
+      assetId: sourceAccount.assetId,
+      amountMinor: "100",
+      obligationIds: [],
+      memo: null,
+    });
+
+    await operations.commands.approveOperation({ operationId: operation.id });
+
+    const instruction = await executions.commands.createExecutionInstruction({
+      operationId: operation.id,
+    });
+
+    await executions.commands.recordExecutionEvent({
+      instructionId: instruction.id,
+      eventKind: "voided",
+    });
+
+    const adjustment = await executions.commands.recordExecutionEvent({
+      instructionId: instruction.id,
+      eventKind: "manual_adjustment",
+    });
+
+    expect(adjustment.operation.instructionStatus).toBe("void");
+    expect(adjustment.event.eventKind).toBe("manual_adjustment");
+  });
+
   it("enforces same-entity rules for intracompany transfers", async () => {
     const { accounts, operations, positions } = createCoreServices();
 

@@ -16,6 +16,7 @@ import type {
   TreasuryEndpointListItem,
   TreasuryOperationTimeline,
 } from "../lib/queries";
+import { canRecordOperatorExecutionEvent } from "../lib/flows";
 import { CreateExecutionInstructionDialog } from "./create-execution-instruction-dialog";
 import { RecordExecutionEventDialog } from "./record-execution-event-dialog";
 
@@ -46,6 +47,24 @@ export function TreasuryOperationActions({
   const router = useRouter();
   const operationId = operationTimeline.operation.id;
   const [pendingAction, setPendingAction] = React.useState<"approve" | "reserve" | null>(null);
+  const recordableInstructionIds = React.useMemo(
+    () =>
+      new Set(
+        operationTimeline.instructionItems
+          .filter((instruction) =>
+            canRecordOperatorExecutionEvent(instruction.instructionStatus),
+          )
+          .map((instruction) => instruction.id),
+      ),
+    [operationTimeline.instructionItems],
+  );
+  const recordableInstructions = React.useMemo(
+    () =>
+      instructions.filter((instruction) =>
+        recordableInstructionIds.has(instruction.id),
+      ),
+    [instructions, recordableInstructionIds],
+  );
 
   function submitAction(action: "approve" | "reserve") {
     setPendingAction(action);
@@ -119,9 +138,9 @@ export function TreasuryOperationActions({
           Создать инструкцию
         </CreateExecutionInstructionDialog>
       ) : null}
-      {instructions.length > 0 ? (
+      {recordableInstructions.length > 0 ? (
         <RecordExecutionEventDialog
-          instructions={instructions}
+          instructions={recordableInstructions}
           triggerVariant="outline"
         >
           Зафиксировать событие

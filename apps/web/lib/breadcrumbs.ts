@@ -81,7 +81,6 @@ const segmentMap: Record<string, SegmentConfig> = {
   type: { label: "Тип" },
   accounts: { label: "Счета", icon: "wallet" },
   operations: { label: "Операции" },
-  fx: { label: "FX", href: "/treasury/fx", icon: "arrow-right-left" },
   positions: { label: "Позиции", href: "/treasury/positions", icon: "calculator" },
   journal: { label: "Журнал операций" },
   unmatched: { label: "Исключения", href: "/treasury/unmatched", icon: "bell" },

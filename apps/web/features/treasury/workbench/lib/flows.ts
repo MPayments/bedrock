@@ -460,12 +460,23 @@ export function getPositionKindMeaning(positionKind: string) {
     case "intercompany_due_to":
       return "Это обязательство перед компанией группы, которое остается после исполнения и требует отдельного погашения.";
     case "in_transit":
-      return "Деньги находятся в пути между этапами исполнения и еще не дошли до финального состояния.";
+      return "Деньги в пути: исполнение еще не дошло до финального этапа.";
     case "suspense":
       return "Невыясненная позиция: факт движения есть, но экономический смысл нужно дополнительно разобрать.";
     default:
       return "Внутренняя позиция treasury, требующая отдельного закрытия.";
   }
+}
+
+const TERMINAL_OPERATOR_EVENT_STATUSES = new Set([
+  "settled",
+  "failed",
+  "returned",
+  "void",
+]);
+
+export function canRecordOperatorExecutionEvent(instructionStatus: string) {
+  return !TERMINAL_OPERATOR_EVENT_STATUSES.has(instructionStatus);
 }
 
 export function getBalanceGlossaryItems() {

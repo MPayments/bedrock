@@ -120,12 +120,6 @@ export const treasuryOperationsTableColumns: ColumnDef<TreasuryOperationTableRow
           {row.original.ownerLabel}
         </div>
       ),
-      meta: {
-        label: "Владелец",
-        variant: "text",
-        placeholder: "Поиск по владельцу...",
-      },
-      enableColumnFilter: true,
       enableSorting: true,
     },
     {
@@ -150,12 +144,6 @@ export const treasuryOperationsTableColumns: ColumnDef<TreasuryOperationTableRow
           </div>
         </div>
       ),
-      meta: {
-        label: "Маршрут и действие",
-        variant: "text",
-        placeholder: "Поиск по маршруту и действию...",
-      },
-      enableColumnFilter: true,
       enableSorting: false,
     },
     {

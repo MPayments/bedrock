@@ -48,7 +48,6 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/treasury");
     expect(hrefs).toContain("/treasury/accounts");
     expect(hrefs).toContain("/treasury/operations");
-    expect(hrefs).toContain("/treasury/fx");
     expect(hrefs).toContain("/treasury/positions");
     expect(hrefs).toContain("/users");
     expect(hrefs).toContain("/treasury/organizations");

@@ -256,10 +256,6 @@ function TreasuryOperationScenarioSection({
     <Card className="rounded-sm">
       <CardHeader className="border-b">
         <CardTitle>Сценарий операции</CardTitle>
-        <CardDescription>
-          Выберите операторский сценарий. Он определяет допустимый маршрут
-          денег, обязательные поля и следующий контрольный шаг.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 pt-4">
         {OPERATION_TYPE_ROWS.map((row) => (
@@ -312,11 +308,6 @@ function TreasuryOperationRouteSection(input: {
     <Card className="rounded-sm">
       <CardHeader className="border-b">
         <CardTitle>Маршрут денег</CardTitle>
-        <CardDescription>
-          Соберите маршрут без смены валюты: откуда списываем или куда ждем
-          деньги, какая сумма нужна и какой дополнительный маршрут допустим для
-          выбранного сценария.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         <div
@@ -341,8 +332,8 @@ function TreasuryOperationRouteSection(input: {
                 {renderSelectText({
                   placeholder: "Выберите счет казначейства",
                   value: input.sourceAccount
-                    ? input.accountLabelById[input.sourceAccount.id] ??
-                      input.sourceAccount.id
+                    ? (input.accountLabelById[input.sourceAccount.id] ??
+                      input.sourceAccount.id)
                     : null,
                 })}
               </SelectTrigger>
@@ -374,8 +365,8 @@ function TreasuryOperationRouteSection(input: {
                   {renderSelectText({
                     placeholder: "Выберите счет назначения",
                     value: input.destinationAccount
-                      ? input.accountLabelById[input.destinationAccount.id] ??
-                        input.destinationAccount.id
+                      ? (input.accountLabelById[input.destinationAccount.id] ??
+                        input.destinationAccount.id)
                       : null,
                   })}
                 </SelectTrigger>
@@ -397,7 +388,7 @@ function TreasuryOperationRouteSection(input: {
                   <span className="text-foreground font-medium">
                     {input.currentAssetLabel ?? input.sourceAccount.assetId}
                   </span>
-                  . Если нужен обмен валюты, используйте treasury FX.
+                  . Если нужен обмен валюты, используйте отдельный FX-документ.
                 </div>
               ) : null}
             </div>
@@ -424,7 +415,7 @@ function TreasuryOperationRouteSection(input: {
               <span>
                 {amountPreview
                   ? `${amountPreview}${input.currentAssetLabel ? ` ${input.currentAssetLabel}` : ""}`
-                  : input.currentAssetLabel ?? "—"}
+                  : (input.currentAssetLabel ?? "—")}
               </span>
             </div>
           </div>
@@ -475,10 +466,6 @@ function TreasuryOperationCommentSection({
     <Card className="rounded-sm">
       <CardHeader className="border-b">
         <CardTitle>Комментарий для следующего оператора</CardTitle>
-        <CardDescription>
-          Коротко объясните контекст: зачем создается операция и что должен
-          понять человек, который продолжит исполнение.
-        </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <div className="space-y-2">
@@ -519,10 +506,6 @@ function TreasuryOperationSummaryPanel(input: {
     <Card className="rounded-sm">
       <CardHeader className="border-b">
         <CardTitle>Сводка и правила</CardTitle>
-        <CardDescription>
-          Здесь видно, что именно будет создано, какие правила уже действуют и
-          где проходит граница между treasury-операцией и FX.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
@@ -586,7 +569,7 @@ function TreasuryOperationSummaryPanel(input: {
           <div className="text-sm font-medium">Если нужна смена валюты</div>
           <div className="text-muted-foreground mt-1 text-sm leading-6">
             Обычная treasury-операция не меняет актив. Для любого обмена валюты
-            используйте отдельный treasury FX workspace.
+            используйте отдельный FX-документ.
           </div>
         </div>
       </CardContent>
@@ -625,8 +608,9 @@ function TreasuryOperationRolesPanel(input: {
           </div>
           <Badge variant="outline">
             {input.sourceAccount
-              ? input.organizationLabelById[input.sourceAccount.ownerEntityId] ??
-                input.sourceAccount.ownerEntityId
+              ? (input.organizationLabelById[
+                  input.sourceAccount.ownerEntityId
+                ] ?? input.sourceAccount.ownerEntityId)
               : "Держатель счета не выбран"}
           </Badge>
         </div>
@@ -637,9 +621,9 @@ function TreasuryOperationRolesPanel(input: {
             label="Экономический владелец"
             value={
               input.effectiveEconomicOwnerEntityId
-                ? input.organizationLabelById[
+                ? (input.organizationLabelById[
                     input.effectiveEconomicOwnerEntityId
-                  ] ?? input.effectiveEconomicOwnerEntityId
+                  ] ?? input.effectiveEconomicOwnerEntityId)
                 : "Не определен"
             }
           />
@@ -647,8 +631,9 @@ function TreasuryOperationRolesPanel(input: {
             label="Исполняющая организация"
             value={
               input.effectiveExecutingEntityId
-                ? input.organizationLabelById[input.effectiveExecutingEntityId] ??
-                  input.effectiveExecutingEntityId
+                ? (input.organizationLabelById[
+                    input.effectiveExecutingEntityId
+                  ] ?? input.effectiveExecutingEntityId)
                 : "Не определена"
             }
           />
@@ -836,7 +821,10 @@ export function TreasuryOperationCreateForm({
   const organizationLabelById = React.useMemo(
     () =>
       Object.fromEntries(
-        organizations.map((organization) => [organization.id, organization.label]),
+        organizations.map((organization) => [
+          organization.id,
+          organization.label,
+        ]),
       ),
     [organizations],
   );
@@ -877,7 +865,7 @@ export function TreasuryOperationCreateForm({
     ? executingEntityId
     : derivedExecutingEntityId;
   const currentAssetLabel = sourceAccount
-    ? assetLabels[sourceAccount.assetId] ?? sourceAccount.assetId
+    ? (assetLabels[sourceAccount.assetId] ?? sourceAccount.assetId)
     : null;
   const selectedAccountsRequireFx =
     sourceAccount !== null &&
@@ -962,7 +950,7 @@ export function TreasuryOperationCreateForm({
       sourceAccount.assetId !== destinationAccount.assetId
     ) {
       toast.error(
-        "Для обмена между валютами используйте документ «Казначейский FX», а не обычную treasury-операцию.",
+        "Для обмена между валютами используйте отдельный FX-документ, а не обычную treasury-операцию.",
       );
       return;
     }
@@ -1012,7 +1000,8 @@ export function TreasuryOperationCreateForm({
           });
         },
         fallbackMessage: "Не удалось создать операцию казначейства",
-        parseData: async (response) => (await response.json()) as CreatedOperation,
+        parseData: async (response) =>
+          (await response.json()) as CreatedOperation,
       });
 
       if (!result.ok) {
@@ -1067,7 +1056,8 @@ export function TreasuryOperationCreateForm({
           destinationAccount={destinationAccount}
           destinationLabel={
             destinationAccount
-              ? accountLabelById[destinationAccount.id] ?? destinationAccount.id
+              ? (accountLabelById[destinationAccount.id] ??
+                destinationAccount.id)
               : "Не выбран"
           }
           kind={kind}
@@ -1077,7 +1067,7 @@ export function TreasuryOperationCreateForm({
           sourceAccount={sourceAccount}
           sourceLabel={
             sourceAccount
-              ? accountLabelById[sourceAccount.id] ?? sourceAccount.id
+              ? (accountLabelById[sourceAccount.id] ?? sourceAccount.id)
               : "Не выбран"
           }
         />

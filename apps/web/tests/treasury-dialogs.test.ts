@@ -6,7 +6,10 @@ import {
   buildInstructionSelectOption,
   buildPositionSettlementDialogModel,
 } from "@/features/treasury/workbench/lib/dialogs";
-import { getAllowedDestinationAccounts } from "@/features/treasury/workbench/lib/flows";
+import {
+  canRecordOperatorExecutionEvent,
+  getAllowedDestinationAccounts,
+} from "@/features/treasury/workbench/lib/flows";
 
 const accounts = [
   {
@@ -210,5 +213,15 @@ describe("treasury dialog helpers", () => {
     expect(instructionOption.description).toContain("USD");
     expect(settlementModel.facts[3]?.value).toContain("USD");
     expect(settlementModel.explanation.title).toContain("погашение");
+  });
+
+  it("treats only live instruction statuses as recordable from the operator page", () => {
+    expect(canRecordOperatorExecutionEvent("draft")).toBe(true);
+    expect(canRecordOperatorExecutionEvent("submitted")).toBe(true);
+    expect(canRecordOperatorExecutionEvent("partially_settled")).toBe(true);
+    expect(canRecordOperatorExecutionEvent("settled")).toBe(false);
+    expect(canRecordOperatorExecutionEvent("failed")).toBe(false);
+    expect(canRecordOperatorExecutionEvent("returned")).toBe(false);
+    expect(canRecordOperatorExecutionEvent("void")).toBe(false);
   });
 });

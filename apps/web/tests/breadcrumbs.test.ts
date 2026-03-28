@@ -14,11 +14,6 @@ describe("breadcrumbs", () => {
       { label: "Курсы", href: "/treasury/rates", icon: "chart-candlestick" },
     ]);
 
-    await expect(resolveBreadcrumbItems(["treasury", "fx"])).resolves.toEqual([
-      { label: "Казначейство", href: "/treasury", icon: "landmark" },
-      { label: "FX", href: "/treasury/fx", icon: "arrow-right-left" },
-    ]);
-
     await expect(resolveBreadcrumbItems(["treasury", "quotes"])).resolves.toEqual([
       { label: "Казначейство", href: "/treasury", icon: "landmark" },
       { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },

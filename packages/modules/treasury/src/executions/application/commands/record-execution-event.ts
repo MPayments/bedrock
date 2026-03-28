@@ -40,7 +40,7 @@ export class RecordExecutionEventCommand {
     }
 
     assertInstructionCanReceiveEvent(instruction, validated.eventKind);
-    assertOperationCanReceiveExecutionEvent(operation);
+    assertOperationCanReceiveExecutionEvent(operation, validated.eventKind);
 
     const previousEvents = await this.context.reads.listInstructionEvents(
       instruction.id,

@@ -3,15 +3,35 @@ import { Scale } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-import { TreasuryPositionsList } from "@/features/treasury/workbench/components/positions-list";
+import type { EntityListResult } from "@/components/entities/entity-table-shell";
+import { TreasuryPositionsTable } from "@/features/treasury/workbench/components/positions-table";
+import { presentTreasuryPositions, type TreasuryPositionTableRow } from "@/features/treasury/workbench/lib/presentation";
 import { getTreasuryReferenceData } from "@/features/treasury/workbench/lib/reference-data";
 import { listTreasuryPositions } from "@/features/treasury/workbench/lib/queries";
 
 export default async function TreasuryPositionsPage() {
-  const [positions, references] = await Promise.all([
-    listTreasuryPositions(),
-    getTreasuryReferenceData(),
-  ]);
+  const positionsPromise: Promise<EntityListResult<TreasuryPositionTableRow>> =
+    Promise.all([
+      listTreasuryPositions(),
+      getTreasuryReferenceData(),
+    ]).then(([positions, references]) => {
+      const data = presentTreasuryPositions({
+        labels: {
+          assetLabels: references.assetLabels,
+          counterpartyLabels: references.counterpartyLabels,
+          customerLabels: references.customerLabels,
+          organizationLabels: references.organizationLabels,
+        },
+        positions,
+      });
+
+      return {
+        data,
+        total: data.length,
+        limit: Math.max(data.length, 10),
+        offset: 0,
+      };
+    });
 
   return (
     <EntityListPageShell
@@ -22,13 +42,7 @@ export default async function TreasuryPositionsPage() {
         <DataTableSkeleton columnCount={7} rowCount={10} filterCount={3} />
       }
     >
-      <TreasuryPositionsList
-        assetLabels={references.assetLabels}
-        counterpartyLabels={references.counterpartyLabels}
-        customerLabels={references.customerLabels}
-        organizationLabels={references.organizationLabels}
-        positions={positions}
-      />
+      <TreasuryPositionsTable promise={positionsPromise} />
     </EntityListPageShell>
   );
 }

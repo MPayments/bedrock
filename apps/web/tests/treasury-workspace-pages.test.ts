@@ -81,12 +81,12 @@ vi.mock("@/features/treasury/workbench/components/operations-table", () => ({
   TreasuryOperationsTable: () => React.createElement("div", null, "operations-table"),
 }));
 
-vi.mock("@/features/treasury/workbench/components/positions-list", () => ({
-  TreasuryPositionsList: () => React.createElement("div", null, "positions-list"),
+vi.mock("@/features/treasury/workbench/components/positions-table", () => ({
+  TreasuryPositionsTable: () => React.createElement("div", null, "positions-table"),
 }));
 
-vi.mock("@/features/treasury/workbench/components/unmatched-records-list", () => ({
-  TreasuryUnmatchedRecordsList: () => React.createElement("div", null, "unmatched-list"),
+vi.mock("@/features/treasury/workbench/components/unmatched-records-table", () => ({
+  TreasuryUnmatchedRecordsTable: () => React.createElement("div", null, "unmatched-table"),
 }));
 
 const referenceData = {
@@ -169,7 +169,7 @@ describe("treasury workspace pages", () => {
     expect(getTreasuryReferenceData).toHaveBeenCalled();
   });
 
-  it("renders treasury operation create page as a non-fx route with an FX escape hatch", async () => {
+  it("renders treasury operation create page as the non-fx treasury entry", async () => {
     const { default: TreasuryOperationCreatePage } = await import(
       "@/app/(shell)/treasury/operations/create/page"
     );
@@ -184,21 +184,6 @@ describe("treasury workspace pages", () => {
     expect(getTreasuryReferenceData).toHaveBeenCalled();
   });
 
-  it("renders the treasury FX front door with launch and history entry points", async () => {
-    const { default: TreasuryFxPage } = await import(
-      "@/app/(shell)/treasury/fx/page"
-    );
-
-    const markup = renderToStaticMarkup(await TreasuryFxPage());
-
-    expect(markup).toContain("Казначейский FX");
-    expect(markup).toContain("Создать FX");
-    expect(markup).toContain("Журнал FX-документов");
-    expect(markup).toContain("Когда нужен FX");
-    expect(getFxQuotes).toHaveBeenCalledWith({ page: 1, perPage: 5 });
-    expect(getRateSources).toHaveBeenCalled();
-  });
-
   it("renders treasury positions as a settlement workspace", async () => {
     const { default: TreasuryPositionsPage } = await import(
       "@/app/(shell)/treasury/positions/page"
@@ -207,7 +192,7 @@ describe("treasury workspace pages", () => {
     const markup = renderToStaticMarkup(await TreasuryPositionsPage());
 
     expect(markup).toContain("Позиции казначейства");
-    expect(markup).toContain("positions-list");
+    expect(markup).toContain("positions-table");
     expect(listTreasuryPositions).toHaveBeenCalled();
     expect(getTreasuryReferenceData).toHaveBeenCalled();
   });
@@ -220,10 +205,9 @@ describe("treasury workspace pages", () => {
     const markup = renderToStaticMarkup(await TreasuryUnmatchedPage());
 
     expect(markup).toContain("Исключения исполнения");
-    expect(markup).toContain("unmatched-list");
+    expect(markup).toContain("unmatched-table");
     expect(listExecutionInstructions).toHaveBeenCalledWith({ limit: 200 });
     expect(listTreasuryOperations).toHaveBeenCalledWith({ limit: 200 });
-    expect(listUnmatchedExternalRecords).toHaveBeenCalledWith({ limit: 100 });
     expect(getTreasuryReferenceData).toHaveBeenCalled();
   });
 });

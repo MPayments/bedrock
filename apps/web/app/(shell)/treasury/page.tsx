@@ -48,14 +48,14 @@ export default async function TreasuryOverviewPage() {
           href: "/treasury/operations",
         },
         {
-          id: "fx",
-          label: "Treasury FX",
+          id: "quotes",
+          label: "FX-котировки",
           value: formatCount(quotes.total),
           description:
             staleSources > 0
-              ? `Просроченных FX-источников: ${formatCount(staleSources)}`
-              : "FX работает через отдельный treasury-owned сценарий.",
-          href: "/treasury/fx",
+              ? `Есть ${formatCount(staleSources)} просроченных источников курса`
+              : "Последние котировки и курсовые данные доступны в журналах treasury.",
+          href: "/treasury/quotes",
         },
         {
           id: "sources",
@@ -84,13 +84,6 @@ export default async function TreasuryOverviewPage() {
           title: "Операции",
           description: "Лента ручных операций с переходом в карточку и хронологию событий.",
           href: "/treasury/operations",
-        },
-        {
-          id: "fx",
-          title: "FX",
-          description:
-            "Отдельный front door для валютной конверсии: запуск FX, контроль котировок и проверка источников курса.",
-          href: "/treasury/fx",
         },
         {
           id: "accounts",
