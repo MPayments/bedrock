@@ -12,7 +12,10 @@ import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 import type { UserRole } from "@/lib/auth/types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
-import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import {
+  getDocumentTypeLabel,
+  isTreasuryOwnedDerivedDocumentType,
+} from "@/features/documents/lib/doc-types";
 import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import {
   getApprovalStatusLabel,
@@ -25,7 +28,6 @@ import {
   type DocumentDetailsDto,
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
-import { buildDocumentCreateHref } from "@/features/documents/lib/routes";
 
 import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
@@ -128,149 +130,6 @@ function buildDocumentHref(
   return `${basePath}/${document.docType}/${document.id}`;
 }
 
-function readPayloadString(payload: Record<string, unknown>, key: string) {
-  const value = payload[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function buildPaymentOrderCreateHref(document: DocumentDto) {
-  if (document.docType !== "incoming_invoice") {
-    return null;
-  }
-
-  const baseHref = buildDocumentCreateHref("payment_order");
-  if (!baseHref) {
-    return null;
-  }
-
-  const payload = isRecord(document.payload) ? document.payload : null;
-  const params = new URLSearchParams({
-    incomingInvoiceDocumentId: document.id,
-  });
-
-  if (payload) {
-    const contour = readPayloadString(payload, "contour");
-    const counterpartyId = readPayloadString(payload, "counterpartyId");
-    const organizationId = readPayloadString(payload, "organizationId");
-    const organizationRequisiteId = readPayloadString(
-      payload,
-      "organizationRequisiteId",
-    );
-    const allocatedCurrency = readPayloadString(payload, "currency");
-
-    if (contour) {
-      params.set("contour", contour);
-    }
-    if (counterpartyId) {
-      params.set("counterpartyId", counterpartyId);
-    }
-    if (organizationId) {
-      params.set("organizationId", organizationId);
-    }
-    if (organizationRequisiteId) {
-      params.set("organizationRequisiteId", organizationRequisiteId);
-    }
-    if (allocatedCurrency) {
-      params.set("allocatedCurrency", allocatedCurrency);
-    }
-  }
-
-  return `${baseHref}?${params.toString()}`;
-}
-
-function buildPaymentOrderResolutionHrefs(document: DocumentDto) {
-  if (
-    document.docType !== "payment_order" ||
-    document.postingStatus !== "posted" ||
-    document.lifecycleStatus !== "active"
-  ) {
-    return [];
-  }
-
-  const payload = isRecord(document.payload) ? document.payload : null;
-  if (!payload || readPayloadString(payload, "executionStatus") !== "sent") {
-    return [];
-  }
-
-  const incomingInvoiceDocumentId = readPayloadString(
-    payload,
-    "incomingInvoiceDocumentId",
-  );
-  const counterpartyId = readPayloadString(payload, "counterpartyId");
-  const counterpartyRequisiteId = readPayloadString(
-    payload,
-    "counterpartyRequisiteId",
-  );
-  const organizationId = readPayloadString(payload, "organizationId");
-  const organizationRequisiteId = readPayloadString(
-    payload,
-    "organizationRequisiteId",
-  );
-  const amount = readPayloadString(payload, "fundingAmount");
-  const currency = readPayloadString(payload, "fundingCurrency");
-  const allocatedCurrency = readPayloadString(payload, "allocatedCurrency");
-  const contour = readPayloadString(payload, "contour");
-
-  if (
-    !incomingInvoiceDocumentId ||
-    !counterpartyId ||
-    !counterpartyRequisiteId ||
-    !organizationRequisiteId ||
-    !amount ||
-    !currency ||
-    !allocatedCurrency
-  ) {
-    return [];
-  }
-
-  const baseHref = buildDocumentCreateHref("payment_order");
-  if (!baseHref) {
-    return [];
-  }
-
-  const baseParams = new URLSearchParams({
-    incomingInvoiceDocumentId,
-    sourcePaymentOrderDocumentId: document.id,
-    counterpartyId,
-    counterpartyRequisiteId,
-    organizationRequisiteId,
-    amount,
-    currency,
-    allocatedCurrency,
-  });
-
-  if (contour) {
-    baseParams.set("contour", contour);
-  }
-  if (organizationId) {
-    baseParams.set("organizationId", organizationId);
-  }
-
-  return [
-    {
-      label: "Отметить исполненным",
-      href: `${baseHref}?${new URLSearchParams({
-        ...Object.fromEntries(baseParams),
-        executionStatus: "settled",
-      }).toString()}`,
-    },
-    {
-      label: "Отменить",
-      href: `${baseHref}?${new URLSearchParams({
-        ...Object.fromEntries(baseParams),
-        executionStatus: "void",
-      }).toString()}`,
-    },
-    {
-      label: "Отметить ошибкой",
-      href: `${baseHref}?${new URLSearchParams({
-        ...Object.fromEntries(baseParams),
-        executionStatus: "failed",
-      }).toString()}`,
-    },
-  ];
-}
-
 export function DocumentDetailsView({
   details,
   documentBasePath,
@@ -283,10 +142,14 @@ export function DocumentDetailsView({
   formOptions: DocumentFormOptions;
 }) {
   const document = details.document;
+  const isDerivedTreasuryArtifact = isTreasuryOwnedDerivedDocumentType(
+    document.docType,
+  );
+  const interactiveAllowedActions = isDerivedTreasuryArtifact
+    ? []
+    : document.allowedActions;
   const computed = isRecord(details.computed) ? details.computed : null;
   const timeline = Array.isArray(computed?.timeline) ? computed.timeline : null;
-  const paymentOrderCreateHref = buildPaymentOrderCreateHref(document);
-  const paymentOrderResolutionHrefs = buildPaymentOrderResolutionHrefs(document);
   const paymentState =
     computed &&
     typeof computed.allocatedAmount === "string" &&
@@ -323,27 +186,10 @@ export function DocumentDetailsView({
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {paymentOrderCreateHref ? (
-                <Link
-                  href={paymentOrderCreateHref}
-                  className="inline-flex h-8 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted"
-                >
-                  Создать платежное поручение
-                </Link>
-              ) : null}
-              {paymentOrderResolutionHrefs.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="inline-flex h-8 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted"
-                >
-                  {item.label}
-                </Link>
-              ))}
               <DocumentActionButtons
                 docType={document.docType}
                 documentId={document.id}
-                allowedActions={document.allowedActions}
+                allowedActions={interactiveAllowedActions}
               />
             </div>
           </div>
@@ -409,11 +255,23 @@ export function DocumentDetailsView({
         </CardContent>
       </Card>
 
+      {isDerivedTreasuryArtifact ? (
+        <Card className="rounded-sm">
+          <CardHeader className="border-b">
+            <CardTitle>Связанный артефакт Treasury</CardTitle>
+            <CardDescription>
+              Этот документ хранится как supporting artifact. Исполнение и
+              жизненный цикл ведутся в Treasury, а не на странице документа.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
       <DocumentWorkbenchCard
         docType={document.docType}
         documentId={document.id}
         payload={document.payload}
-        allowedActions={document.allowedActions}
+        allowedActions={interactiveAllowedActions}
         userRole={userRole}
         options={formOptions}
       />

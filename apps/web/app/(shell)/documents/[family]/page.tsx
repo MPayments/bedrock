@@ -148,7 +148,7 @@ const FAMILY_CONFIG: Record<
     icon: ArrowRightLeft,
     title: "Переводы",
     description:
-      "Transfer workflow для intra/intercompany переводов и transfer resolution.",
+      "Transfer workflow для внутренних и межкомпанейских переводов.",
   },
   commercial: {
     icon: ReceiptText,

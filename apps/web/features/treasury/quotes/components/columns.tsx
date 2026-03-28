@@ -1,46 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
-import type { FxQuoteListItem } from "@/features/treasury/quotes/lib/queries";
+import {
+  type FxQuoteListRow,
+  getFxQuotePricingModeLabel,
+} from "@/features/treasury/quotes/lib/presentation";
+import { buildTreasuryQuoteDetailsHref } from "@/features/treasury/quotes/lib/routes";
 import { formatDate } from "@/lib/format";
 
-function getStatusLabel(status: FxQuoteListItem["status"]) {
-  switch (status) {
-    case "active":
-      return "Активна";
-    case "used":
-      return "Использована";
-    case "expired":
-      return "Истекла";
-    case "cancelled":
-      return "Отменена";
-  }
-}
-
-function getStatusVariant(
-  status: FxQuoteListItem["status"],
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "active":
-      return "default";
-    case "used":
-      return "secondary";
-    case "expired":
-      return "destructive";
-    case "cancelled":
-      return "outline";
-  }
-}
-
-function getPricingModeLabel(mode: FxQuoteListItem["pricingMode"]) {
-  return mode === "auto_cross" ? "Auto cross" : "Explicit route";
-}
-
-export const columns: ColumnDef<FxQuoteListItem>[] = [
+export const columns: ColumnDef<FxQuoteListRow>[] = [
   {
     accessorKey: "idempotencyKey",
     header: ({ column }) => (
@@ -70,9 +43,12 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
     ),
     cell: ({ row }) => (
       <div className="space-y-1">
-        <div className="font-medium">
+        <Link
+          className="font-medium hover:underline"
+          href={buildTreasuryQuoteDetailsHref(row.original.id)}
+        >
           {row.original.fromCurrency}/{row.original.toCurrency}
-        </div>
+        </Link>
         <div className="text-muted-foreground text-xs">
           {row.original.fromAmount} {row.original.fromCurrency} {"->"}{" "}
           {row.original.toAmount} {row.original.toCurrency}
@@ -82,21 +58,52 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
     enableSorting: false,
   },
   {
+    id: "stage",
+    accessorFn: (row) => row.stage.badgeLabel,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Этап FX" />
+    ),
+    cell: ({ row }) => {
+      const stage = row.original.stage;
+
+      return (
+        <div className="min-w-0 space-y-1">
+          <Badge variant={stage.badgeVariant}>{stage.badgeLabel}</Badge>
+          <div className="text-sm font-medium break-words">{stage.title}</div>
+          {row.original.linkedArtifact ? (
+            <Link
+              className="text-muted-foreground text-xs hover:underline"
+              href={row.original.linkedArtifact.href}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {row.original.linkedArtifact.label}
+            </Link>
+          ) : (
+            <div className="text-muted-foreground text-xs break-words">
+              {stage.contextLabel}
+            </div>
+          )}
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
     accessorKey: "pricingMode",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Модель" />
     ),
     cell: ({ row }) => (
       <Badge variant="outline">
-        {getPricingModeLabel(row.original.pricingMode)}
+        {getFxQuotePricingModeLabel(row.original.pricingMode)}
       </Badge>
     ),
     meta: {
       label: "Модель",
       variant: "multiSelect",
       options: [
-        { label: "Auto cross", value: "auto_cross" },
-        { label: "Explicit route", value: "explicit_route" },
+        { label: "Автоматический маршрут", value: "auto_cross" },
+        { label: "Явный маршрут", value: "explicit_route" },
       ],
     },
     enableColumnFilter: true,
@@ -107,13 +114,9 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Статус" />
     ),
-    cell: ({ row }) => (
-      <Badge variant={getStatusVariant(row.original.status)}>
-        {getStatusLabel(row.original.status)}
-      </Badge>
-    ),
+    cell: ({ row }) => <span>{row.original.status}</span>,
     meta: {
-      label: "Статус",
+      label: "Статус quote",
       variant: "multiSelect",
       options: [
         { label: "Активна", value: "active" },
@@ -124,19 +127,6 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
     },
     enableColumnFilter: true,
     enableSorting: true,
-  },
-  {
-    accessorKey: "usedByRef",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Использована в" />
-    ),
-    cell: ({ row }) =>
-      row.original.usedByRef ? (
-        <span className="font-mono text-xs">{row.original.usedByRef}</span>
-      ) : (
-        <span className="text-muted-foreground text-xs">-</span>
-      ),
-    enableSorting: false,
   },
   {
     accessorKey: "expiresAt",

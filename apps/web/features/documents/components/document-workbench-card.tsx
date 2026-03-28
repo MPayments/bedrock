@@ -11,7 +11,10 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 
 import type { UserRole } from "@/lib/auth/types";
-import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import {
+  getDocumentTypeLabel,
+  isTreasuryOwnedDerivedDocumentType,
+} from "@/features/documents/lib/doc-types";
 import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 
@@ -47,7 +50,9 @@ export function DocumentWorkbenchCard({
     [docType, userRole],
   );
 
-  const canEditDraft = allowedActions.includes("edit");
+  const isDerivedTreasuryArtifact = isTreasuryOwnedDerivedDocumentType(docType);
+  const canEditDraft =
+    allowedActions.includes("edit") && !isDerivedTreasuryArtifact;
 
   function DocumentWorkbenchTypedForm() {
     const {
@@ -61,12 +66,14 @@ export function DocumentWorkbenchCard({
             <div className="space-y-1">
               <CardTitle>Редактирование</CardTitle>
               <CardDescription>
-                {activeDefinition
-                  ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType, payload)}.`
-                  : "Для этого типа документа типизированная форма редактирования недоступна."}
+                {isDerivedTreasuryArtifact
+                  ? `Документ ${getDocumentTypeLabel(docType, payload)} доступен здесь только для просмотра.`
+                  : activeDefinition
+                    ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType, payload)}.`
+                    : "Для этого типа документа типизированная форма редактирования недоступна."}
               </CardDescription>
             </div>
-            {activeDefinition ? (
+            {activeDefinition && canEditDraft ? (
               <div className="flex items-center gap-2">
                 <DocumentTypedFormSubmitButton />
                 <DocumentTypedFormResetButton />
@@ -101,8 +108,9 @@ export function DocumentWorkbenchCard({
             <div className="space-y-1">
               <CardTitle>Редактирование</CardTitle>
               <CardDescription>
-                Для этого типа документа типизированная форма редактирования
-                недоступна.
+                {isDerivedTreasuryArtifact
+                  ? "Этот документ хранится как supporting artifact и не редактируется из Documents workspace."
+                  : "Для этого типа документа типизированная форма редактирования недоступна."}
               </CardDescription>
             </div>
           </CardHeader>

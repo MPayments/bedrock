@@ -54,26 +54,6 @@ export function TreasuryAccountsOverview({
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Как читать остатки</CardTitle>
-          <CardDescription>
-            В карточках ниже сначала показан человеческий идентификатор счета, а
-            затем — роль счета, провайдер и четыре bucket&apos;а остатка.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 pt-4 md:grid-cols-2 xl:grid-cols-4">
-          {glossaryItems.map((item) => (
-            <div key={item.label} className="rounded-xl border px-4 py-3">
-              <div className="text-sm font-medium">{item.label}</div>
-              <div className="text-muted-foreground mt-1 text-sm leading-6">
-                {item.description}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 lg:grid-cols-2">
         {items.map((account) => (
           <Card key={account.id} className="rounded-sm">

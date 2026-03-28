@@ -16,6 +16,8 @@ import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-ac
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
+import type { RequisiteTreasurySyncService } from "./composition/requisite-treasury-sync";
+import type { TreasuryArtifactWorkflow } from "./composition/treasury-artifact-workflow";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -68,12 +70,14 @@ export interface AppContext {
   treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
+  requisiteTreasurySyncService: RequisiteTreasurySyncService;
   usersService: UsersService;
   ledgerModule: LedgerModule;
   documentsModule: DocumentsModule;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
   integrationEventHandler: IntegrationEventHandler | null;
+  treasuryArtifactWorkflow: TreasuryArtifactWorkflow;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -96,10 +100,13 @@ export function createAppContext(env: Env): AppContext {
       applicationServices.organizationBootstrapWorkflow,
     requisiteAccountingWorkflow:
       applicationServices.requisiteAccountingWorkflow,
+    requisiteTreasurySyncService:
+      applicationServices.requisiteTreasurySyncService,
     usersService: core.usersService,
     documentsModule: applicationServices.documentsModule,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
     integrationEventHandler,
+    treasuryArtifactWorkflow: applicationServices.treasuryArtifactWorkflow,
   };
 }

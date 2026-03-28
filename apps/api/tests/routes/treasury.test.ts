@@ -49,6 +49,7 @@ function createTreasuryModuleStub() {
       queries: {
         listTreasuryOperations: vi.fn(),
         getOperationTimeline: vi.fn(),
+        listOperationDocumentLinks: vi.fn(),
       },
     },
     executions: {
@@ -77,17 +78,43 @@ function createTreasuryModuleStub() {
   };
 }
 
+function createDocumentsModuleStub() {
+  return {
+    documents: {
+      queries: {
+        listByIds: vi.fn(),
+      },
+    },
+  };
+}
+
+function createTreasuryArtifactWorkflowStub() {
+  return {
+    createPaymentOrderArtifact: vi.fn(),
+  };
+}
+
 function createTestApp() {
   const treasuryModule = createTreasuryModuleStub();
+  const documentsModule = createDocumentsModuleStub();
+  const treasuryArtifactWorkflow = createTreasuryArtifactWorkflowStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
     c.set("user", { id: "user-1" } as any);
+    c.set("requestContext", {} as any);
     await next();
   });
-  app.route("/", treasuryRoutes({ treasuryModule } as any));
+  app.route(
+    "/",
+    treasuryRoutes({
+      documentsModule,
+      treasuryArtifactWorkflow,
+      treasuryModule,
+    } as any),
+  );
 
-  return { app, treasuryModule };
+  return { app, treasuryArtifactWorkflow, treasuryModule, documentsModule };
 }
 
 describe("treasuryRoutes", () => {
@@ -461,6 +488,125 @@ describe("treasuryRoutes", () => {
     expect(
       treasuryModule.positions.queries.listTreasuryPositions,
     ).toHaveBeenCalledOnce();
+  });
+
+  it("routes treasury operation artifacts through treasury and documents modules", async () => {
+    const { app, treasuryModule, documentsModule } = createTestApp();
+    treasuryModule.operations.queries.listOperationDocumentLinks.mockResolvedValue([
+      {
+        id: "link-1",
+        documentId: "11111111-1111-4111-8111-111111111111",
+        linkKind: "operation",
+        targetId: "88888888-8888-4888-8888-888888888888",
+        createdAt: new Date("2026-03-27T10:00:00.000Z"),
+      },
+    ]);
+    documentsModule.documents.queries.listByIds.mockResolvedValue([
+      {
+        document: {
+          id: "11111111-1111-4111-8111-111111111111",
+          docType: "fx_execute",
+          docNo: "FX-1",
+          title: "Казначейский FX",
+          submissionStatus: "submitted",
+          approvalStatus: "approved",
+          postingStatus: "posted",
+          lifecycleStatus: "active",
+          occurredAt: new Date("2026-03-27T10:00:00.000Z"),
+          createdAt: new Date("2026-03-27T10:00:00.000Z"),
+        },
+        postingOperationId: "33333333-3333-4333-8333-333333333333",
+        allowedActions: [],
+      },
+    ]);
+
+    const response = await app.request(
+      "http://localhost/operations/88888888-8888-4888-8888-888888888888/artifacts",
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      treasuryModule.operations.queries.listOperationDocumentLinks,
+    ).toHaveBeenCalledWith({
+      operationId: "88888888-8888-4888-8888-888888888888",
+    });
+    expect(documentsModule.documents.queries.listByIds).toHaveBeenCalledWith([
+      "11111111-1111-4111-8111-111111111111",
+    ]);
+    await expect(response.json()).resolves.toMatchObject({
+      data: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          docType: "fx_execute",
+          docNo: "FX-1",
+          linkKinds: ["operation"],
+        },
+      ],
+    });
+  });
+
+  it("creates payout payment_order artifacts through treasury-owned workflow", async () => {
+    const { app, treasuryArtifactWorkflow } = createTestApp();
+    treasuryArtifactWorkflow.createPaymentOrderArtifact.mockResolvedValue({
+      artifact: {
+        allowedActions: [],
+        document: {
+          id: "11111111-1111-4111-8111-111111111111",
+          docType: "payment_order",
+          docNo: "PPO-1",
+          title: "Платежное поручение / Payment Order",
+          payload: {},
+          summary: null,
+          createIdempotencyKey: "treasury:operation:payment_order_artifact:1",
+          submissionStatus: "draft",
+          approvalStatus: "not_required",
+          postingStatus: "unposted",
+          lifecycleStatus: "active",
+          occurredAt: new Date("2026-03-27T10:00:00.000Z"),
+          createdAt: new Date("2026-03-27T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-27T10:00:00.000Z"),
+          createdBy: "user-1",
+          version: 1,
+          docNoPrefix: "PPO",
+          moduleId: "payment_order",
+          moduleVersion: 1,
+          payloadVersion: 1,
+          idempotencyKey: null,
+          cancelledAt: null,
+          submittedAt: null,
+          approvedAt: null,
+          postedAt: null,
+        },
+        postingOperationId: null,
+      },
+      created: true,
+      linkKinds: ["operation", "instruction"],
+    });
+
+    const response = await app.request(
+      "http://localhost/operations/88888888-8888-4888-8888-888888888888/artifacts/payment-order",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      treasuryArtifactWorkflow.createPaymentOrderArtifact,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      operationId: "88888888-8888-4888-8888-888888888888",
+      requestContext: {},
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      artifact: {
+        id: "11111111-1111-4111-8111-111111111111",
+        docType: "payment_order",
+        docNo: "PPO-1",
+        linkKinds: ["operation", "instruction"],
+      },
+      created: true,
+    });
   });
 
   it("routes obligation, operation, execution, allocation, and position commands", async () => {

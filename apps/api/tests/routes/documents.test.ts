@@ -401,6 +401,46 @@ describe("documentsRoutes mutation actions", () => {
     expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
   });
 
+  it("blocks public creation for payment_order documents", async () => {
+    const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
+
+    const response = await app.request("http://localhost/payment_order", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        createIdempotencyKey: "create-idem",
+        input: {
+          occurredAt: "2026-03-01T00:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error:
+        'Document type "payment_order" is system-only and cannot be mutated via public API',
+    });
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("blocks public lifecycle mutations for fx_execute documents", async () => {
+    const { app, documentsModule } = createTestApp({ role: "admin" });
+
+    const response = await app.request(
+      "http://localhost/fx_execute/11111111-1111-4111-8111-111111111111/submit",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error:
+        'Document type "fx_execute" is system-only and cannot be mutated via public API',
+    });
+    expect(documentsModule.lifecycle.commands.execute).not.toHaveBeenCalled();
+  });
+
   it("allows admins to approve period_close documents", async () => {
     const { app, documentsModule } = createTestApp({ role: "admin" });
     documentsModule.lifecycle.commands.execute.mockResolvedValue(

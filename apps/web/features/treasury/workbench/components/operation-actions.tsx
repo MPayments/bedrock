@@ -13,10 +13,14 @@ import { executeMutation } from "@/lib/resources/http";
 import type {
   CounterpartyEndpointListItem,
   TreasuryAccountListItem,
+  TreasuryOperationArtifact,
   TreasuryEndpointListItem,
   TreasuryOperationTimeline,
 } from "../lib/queries";
-import { canRecordOperatorExecutionEvent } from "../lib/flows";
+import {
+  canGeneratePaymentOrderArtifact,
+  canRecordOperatorExecutionEvent,
+} from "../lib/flows";
 import { CreateExecutionInstructionDialog } from "./create-execution-instruction-dialog";
 import { RecordExecutionEventDialog } from "./record-execution-event-dialog";
 
@@ -27,6 +31,7 @@ type InstructionOption = {
 
 export function TreasuryOperationActions({
   accounts,
+  artifacts,
   assetLabels,
   counterpartyEndpoints,
   counterpartyLabels,
@@ -36,6 +41,7 @@ export function TreasuryOperationActions({
   treasuryEndpoints,
 }: {
   accounts: TreasuryAccountListItem[];
+  artifacts: TreasuryOperationArtifact[];
   assetLabels: Record<string, string>;
   counterpartyEndpoints: CounterpartyEndpointListItem[];
   counterpartyLabels: Record<string, string>;
@@ -46,7 +52,9 @@ export function TreasuryOperationActions({
 }) {
   const router = useRouter();
   const operationId = operationTimeline.operation.id;
-  const [pendingAction, setPendingAction] = React.useState<"approve" | "reserve" | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<
+    "approve" | "payment-order" | "reserve" | null
+  >(null);
   const recordableInstructionIds = React.useMemo(
     () =>
       new Set(
@@ -64,6 +72,14 @@ export function TreasuryOperationActions({
         recordableInstructionIds.has(instruction.id),
       ),
     [instructions, recordableInstructionIds],
+  );
+  const canCreatePaymentOrderArtifact = React.useMemo(
+    () =>
+      canGeneratePaymentOrderArtifact({
+        artifacts,
+        operationTimeline,
+      }),
+    [artifacts, operationTimeline],
   );
 
   function submitAction(action: "approve" | "reserve") {
@@ -96,6 +112,39 @@ export function TreasuryOperationActions({
         action === "approve"
           ? "Операция одобрена"
           : "Средства зарезервированы",
+      );
+      router.refresh();
+    });
+  }
+
+  function createPaymentOrderArtifact() {
+    setPendingAction("payment-order");
+
+    React.startTransition(async () => {
+      const result = await executeMutation<{
+        artifact: { docNo: string; id: string };
+        created: boolean;
+      }>({
+        request: () =>
+          apiClient.v1.treasury.operations[":operationId"].artifacts[
+            "payment-order"
+          ].$post({
+            param: { operationId },
+          }),
+        fallbackMessage: "Не удалось сформировать платежное поручение",
+      });
+
+      setPendingAction(null);
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(
+        result.data.created
+          ? `Артефакт ${result.data.artifact.docNo} создан`
+          : `Артефакт ${result.data.artifact.docNo} уже существует`,
       );
       router.refresh();
     });
@@ -145,6 +194,18 @@ export function TreasuryOperationActions({
         >
           Зафиксировать событие
         </RecordExecutionEventDialog>
+      ) : null}
+      {canCreatePaymentOrderArtifact ? (
+        <Button
+          onClick={createPaymentOrderArtifact}
+          disabled={pendingAction !== null}
+          variant="outline"
+        >
+          {pendingAction === "payment-order" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : null}
+          Сформировать платежное поручение
+        </Button>
       ) : null}
     </div>
   );

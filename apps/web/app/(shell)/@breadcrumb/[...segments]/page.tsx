@@ -1,3 +1,4 @@
+import * as React from "react";
 import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
 import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { getCustomerById } from "@/features/entities/customers/lib/queries";
@@ -14,34 +15,45 @@ import {
   resolveDocumentCreateBreadcrumbItems,
 } from "@/features/documents/lib/breadcrumbs";
 import { getDocumentDetails } from "@/features/operations/documents/lib/queries";
+import { getFxQuoteDetails } from "@/features/treasury/quotes/lib/queries";
+import { buildTreasuryQuoteDetailsHref } from "@/features/treasury/quotes/lib/routes";
 import { getUserById } from "@/app/(shell)/users/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 
 type ResourceResolverConfig<TEntity> = {
   singularLabel: string;
-  hrefPrefix: string;
   getById: (id: string) => Promise<TEntity | null>;
   getLabel: (entity: TEntity) => string;
   getId: (entity: TEntity) => string;
+  resolveHrefPrefix?: (segments: string[]) => string;
+  hrefPrefix?: string;
 };
 
 function createResourceSegmentResolver<TEntity>(
   config: ResourceResolverConfig<TEntity>,
 ) {
-  return async ({ segment }: { segment: string }) => {
+  return async ({
+    segment,
+    segments,
+  }: {
+    segment: string;
+    segments: string[];
+  }) => {
     const entity = await config.getById(segment);
+    const hrefPrefix =
+      config.resolveHrefPrefix?.(segments) ?? config.hrefPrefix ?? "";
 
     if (!entity) {
       return {
         label: config.singularLabel,
-        href: `${config.hrefPrefix}/${segment}`,
+        href: hrefPrefix ? `${hrefPrefix}/${segment}` : undefined,
       };
     }
 
     return {
       label: config.getLabel(entity),
-      href: `${config.hrefPrefix}/${config.getId(entity)}`,
+      href: hrefPrefix ? `${hrefPrefix}/${config.getId(entity)}` : undefined,
     };
   };
 }
@@ -61,8 +73,28 @@ function resolvePairSegment({ segment }: { segment: string }) {
   return null;
 }
 
+async function resolveQuoteSegment({ segment }: { segment: string }) {
+  if (segment === "create") {
+    return null;
+  }
+
+  const details = await getFxQuoteDetails(segment);
+  if (!details) {
+    return {
+      label: "Котировка",
+      href: buildTreasuryQuoteDetailsHref(segment),
+    };
+  }
+
+  return {
+    label: `${details.quote.fromCurrency} / ${details.quote.toCurrency}`,
+    href: buildTreasuryQuoteDetailsHref(segment),
+  };
+}
+
 const dynamicResolvers = {
   rates: resolvePairSegment,
+  quotes: resolveQuoteSegment,
   counterparties: createResourceSegmentResolver({
     singularLabel: "Контрагент",
     hrefPrefix: "/entities/counterparties",
@@ -79,7 +111,10 @@ const dynamicResolvers = {
   }),
   organizations: createResourceSegmentResolver({
     singularLabel: "Организация",
-    hrefPrefix: "/entities/organizations",
+    resolveHrefPrefix: (segments) =>
+      segments.includes("treasury")
+        ? "/treasury/organizations"
+        : "/entities/organizations",
     getById: getOrganizationById,
     getLabel: (organization) => organization.shortName,
     getId: (organization) => organization.id,

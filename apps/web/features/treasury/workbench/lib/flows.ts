@@ -1,7 +1,9 @@
 import type {
   CounterpartyEndpointListItem,
   TreasuryAccountListItem,
+  TreasuryOperationArtifact,
   TreasuryOperationListItem,
+  TreasuryOperationTimeline,
 } from "./queries";
 
 export type TreasuryOperationFlowKind =
@@ -29,7 +31,10 @@ export type TreasuryFlowDescriptor = {
   nextStepHint: string;
   emptyStateText: string;
   exceptionHint: string;
-  destinationAccountMode: "none" | "same_entity_same_asset" | "cross_entity_same_asset";
+  destinationAccountMode:
+    | "none"
+    | "same_entity_same_asset"
+    | "cross_entity_same_asset";
 };
 
 export type OperationStageSummary = {
@@ -46,12 +51,13 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
     title: "Выплата",
     shortDescription: "Исходящий платеж внешнему получателю.",
     longDescription:
-      "Используйте для ручного исходящего платежа, когда деньги уходят внешнему контрагенту с treasury-счета.",
+      "Используйте для ручного исходящего платежа, когда деньги уходят внешнему контрагенту с казначейского счета.",
     sourceLabel: "Счет списания",
     destinationLabel: "Реквизиты получателя",
-    sourceRule: "Источник — treasury-счет, с которого реально списываются деньги.",
+    sourceRule:
+      "Источник — казначейский счет, с которого реально списываются деньги.",
     destinationRule:
-      "Счет назначения внутри treasury не нужен. После создания оформляется инструкция с внешними реквизитами получателя.",
+      "Счет назначения внутри казначейства не нужен. После создания оформляется инструкция с внешними реквизитами получателя.",
     amountRule: "Сумма задается в валюте счета списания, без смены актива.",
     requiredInputs: ["Счет списания", "Сумма", "Комментарий при необходимости"],
     nextStepHint:
@@ -65,20 +71,25 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
   collection: {
     id: "collection",
     title: "Поступление",
-    shortDescription: "Входящее поступление на treasury-счет.",
+    shortDescription: "Входящее поступление на казначейский счет.",
     longDescription:
-      "Используйте для ручного учета ожидаемого поступления денег на treasury-счет, когда нужно затем зафиксировать фактическое зачисление.",
+      "Используйте для ручного учета ожидаемого поступления денег на казначейский счет, когда нужно затем зафиксировать фактическое зачисление.",
     sourceLabel: "Счет зачисления",
     destinationLabel: "Внешний источник поступления",
-    sourceRule: "Источник — treasury-счет, на который ожидается фактическое зачисление.",
+    sourceRule:
+      "Источник — казначейский счет, на который ожидается фактическое зачисление.",
     destinationRule:
       "Внутренний счет назначения не выбирается. Детали плательщика и внешней записи фиксируются через инструкцию и событие исполнения.",
     amountRule: "Сумма задается в валюте счета зачисления, без конверсии.",
-    requiredInputs: ["Счет зачисления", "Сумма", "Комментарий при необходимости"],
+    requiredInputs: [
+      "Счет зачисления",
+      "Сумма",
+      "Комментарий при необходимости",
+    ],
     nextStepHint:
       "После создания поступления создайте инструкцию или дождитесь внешней записи и зафиксируйте событие исполнения.",
     emptyStateText:
-      "Здесь появятся ожидаемые поступления, когда их начнут вести через treasury, а не только через документы и сверку.",
+      "Здесь появятся ожидаемые поступления, когда их начнут вести через казначейство, а не только через документы и сверку.",
     exceptionHint:
       "Если поступление не удается сопоставить с внешней записью, оно должно попасть в исключения для ручного разбора.",
     destinationAccountMode: "none",
@@ -88,11 +99,12 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
     title: "Внутренний перевод",
     shortDescription: "Перевод между своими счетами одной организации.",
     longDescription:
-      "Используйте, когда деньги нужно перебросить между treasury-счетами одной и той же организации без смены валюты.",
+      "Используйте, когда деньги нужно перебросить между казначейскими счетами одной и той же организации без смены валюты.",
     sourceLabel: "Счет списания",
     destinationLabel: "Счет зачисления",
     sourceRule: "Источник и назначение должны принадлежать одной организации.",
-    destinationRule: "Разрешены только счета той же организации и в той же валюте.",
+    destinationRule:
+      "Разрешены только счета той же организации и в той же валюте.",
     amountRule: "Сумма одинакова на стороне списания и зачисления.",
     requiredInputs: ["Счет списания", "Счет зачисления", "Сумма"],
     nextStepHint:
@@ -111,10 +123,11 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
       "Используйте для перевода денег между компаниями группы, когда экономический владелец и исполняющая организация различаются.",
     sourceLabel: "Счет списания",
     destinationLabel: "Счет компании группы",
-    sourceRule: "Источник — treasury-счет исполняющей организации.",
+    sourceRule: "Источник - казначейский счет исполняющей организации.",
     destinationRule:
       "Назначение должно принадлежать другой компании группы, но оставаться в той же валюте.",
-    amountRule: "Сумма задается в валюте счета списания. Для сценария требуется юридическое основание.",
+    amountRule:
+      "Сумма задается в валюте счета списания. Для сценария требуется юридическое основание.",
     requiredInputs: [
       "Счет списания",
       "Счет компании группы",
@@ -124,7 +137,7 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
     nextStepHint:
       "После исполнения могут открыться межкомпанейские позиции, которые затем нужно будет отдельно погасить.",
     emptyStateText:
-      "Здесь будут внутригрупповые переводы, когда treasury начнет вести их как отдельный операторский сценарий.",
+      "Здесь будут внутригрупповые переводы, когда казначейство начнет вести их как отдельный операторский сценарий.",
     exceptionHint:
       "Если деньги дошли, но межкомпанейская позиция осталась открытой, закрывать ее нужно уже на странице позиций.",
     destinationAccountMode: "cross_entity_same_asset",
@@ -132,19 +145,21 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
   sweep: {
     id: "sweep",
     title: "Переброска ликвидности",
-    shortDescription: "Концентрация ликвидности между своими treasury-счетами.",
+    shortDescription: "Концентрация ликвидности между своими казначейскими счетами.",
     longDescription:
-      "Используйте для оперативной переброски ликвидности между своими treasury-счетами без смены владельца и без конверсии.",
+      "Используйте для оперативной переброски ликвидности между своими казначейскими счетами без смены владельца и без конверсии.",
     sourceLabel: "Счет списания",
     destinationLabel: "Счет концентрации",
     sourceRule: "Оба счета должны принадлежать одной организации.",
-    destinationRule: "Разрешены только счета той же организации и в той же валюте.",
-    amountRule: "Сумма остается в той же валюте и не меняет экономический смысл операции.",
+    destinationRule:
+      "Разрешены только счета той же организации и в той же валюте.",
+    amountRule:
+      "Сумма остается в той же валюте и не меняет экономический смысл операции.",
     requiredInputs: ["Счет списания", "Счет концентрации", "Сумма"],
     nextStepHint:
       "После исполнения проверьте, что ликвидность действительно сконцентрирована на нужном счете.",
     emptyStateText:
-      "Когда treasury начнет регулярно выравнивать ликвидность между счетами, такие операции будут группироваться здесь.",
+      "Когда казначейство начнет регулярно выравнивать ликвидность между счетами, такие операции будут группироваться здесь.",
     exceptionHint:
       "Если переброска зависла или вернулась, продолжать нужно через события исполнения, а не новой операцией поверх старой.",
     destinationAccountMode: "same_entity_same_asset",
@@ -152,20 +167,25 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
   return: {
     id: "return",
     title: "Возврат",
-    shortDescription: "Возврат ранее отправленных или ошибочно полученных денег.",
+    shortDescription:
+      "Возврат ранее отправленных или ошибочно полученных денег.",
     longDescription:
       "Используйте, когда нужно оформить отдельную возвратную операцию без валютной конверсии.",
     sourceLabel: "Счет списания",
     destinationLabel: "Реквизиты возврата",
-    sourceRule: "Источник — treasury-счет, с которого реально уходит возврат.",
+    sourceRule: "Источник - казначейский счет, с которого реально уходит возврат.",
     destinationRule:
       "Внутренний счет назначения не нужен: возврат завершается инструкцией и событиями исполнения.",
     amountRule: "Сумма задается в валюте счета списания, без смены актива.",
-    requiredInputs: ["Счет списания", "Сумма", "Комментарий с причиной возврата"],
+    requiredInputs: [
+      "Счет списания",
+      "Сумма",
+      "Комментарий с причиной возврата",
+    ],
     nextStepHint:
       "После создания возврат проходит обычный цикл исполнения. Особое внимание — к причине и связанным обязательствам.",
     emptyStateText:
-      "Отдельные возвраты будут видны здесь, когда оператор начнет оформлять их через treasury, а не как свободный комментарий.",
+      "Отдельные возвраты будут видны здесь, когда оператор начнет оформлять их через казначейство, а не как свободный комментарий.",
     exceptionHint:
       "Возврат нельзя лечить новой выплатой. Нужно зафиксировать правильные события исполнения и только потом решать, что делать дальше.",
     destinationAccountMode: "none",
@@ -173,15 +193,20 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
   adjustment: {
     id: "adjustment",
     title: "Корректировка",
-    shortDescription: "Ручная корректировка движения по treasury-счету.",
+    shortDescription: "Ручная корректировка движения по казначейскому счету.",
     longDescription:
       "Используйте только для ручной корректировки, когда нужно отразить нестандартное движение без смены валюты и без обычного платежного сценария.",
     sourceLabel: "Корректируемый счет",
     destinationLabel: "Дополнительный маршрут не требуется",
-    sourceRule: "Указывается treasury-счет, по которому нужна корректировка.",
+    sourceRule: "Указывается казначейский счет, по которому нужна корректировка.",
     destinationRule: "Счет назначения не используется.",
-    amountRule: "Сумма задается в валюте счета, к которому относится корректировка.",
-    requiredInputs: ["Корректируемый счет", "Сумма", "Обязательный комментарий"],
+    amountRule:
+      "Сумма задается в валюте счета, к которому относится корректировка.",
+    requiredInputs: [
+      "Корректируемый счет",
+      "Сумма",
+      "Обязательный комментарий",
+    ],
     nextStepHint:
       "Перед созданием корректировки убедитесь, что это действительно не выплата, не поступление и не возврат.",
     emptyStateText:
@@ -193,14 +218,15 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
   fx_execute: {
     id: "fx_execute",
     title: "Казначейский FX",
-    shortDescription: "Обмен одной валюты на другую с котировкой и финансовыми линиями.",
+    shortDescription:
+      "Обмен одной валюты на другую с котировкой и финансовыми линиями.",
     longDescription:
-      "Используйте для любого обмена валюты. FX ведется отдельным treasury-сценарием с реквизитами источника и назначения, котировкой, курсом и финансовыми линиями.",
+      "Используйте для любого обмена валюты. FX ведется отдельным казначейским сценарием с реквизитами источника и назначения, котировкой, курсом и финансовыми линиями.",
     sourceLabel: "Реквизиты списания",
     destinationLabel: "Реквизиты зачисления",
     sourceRule: "Источник и назначение должны быть разными реквизитами.",
     destinationRule:
-      "Реквизит назначения должен быть в другой валюте. FX нельзя оформлять через обычную treasury-операцию.",
+      "Реквизит назначения должен быть в другой валюте. FX нельзя оформлять через обычную казначейскую операцию.",
     amountRule:
       "Оператор должен понимать исходную валюту, валюту получения, курс, комиссию и финансовые линии до отправки документа.",
     requiredInputs: [
@@ -212,7 +238,7 @@ export const TREASURY_FLOW_DESCRIPTORS: Record<
     nextStepHint:
       "Запускайте FX из treasury front door, затем переходите в FX-документ и контролируйте котировку, курс и исполнение.",
     emptyStateText:
-      "FX-конверсии появятся здесь, когда treasury будет использовать отдельный FX workspace вместо обхода через общие документы.",
+      "FX-конверсии появятся здесь, когда казначейство будет использовать отдельный FX workspace вместо обхода через общие документы.",
     exceptionHint:
       "Если FX нельзя построить из-за отсутствия кросс-курса или некорректных реквизитов, оператор должен увидеть это как ожидаемое состояние, а не как runtime-ошибку.",
     destinationAccountMode: "none",
@@ -241,7 +267,9 @@ export function requiresDestinationAccount(kind: TreasuryOperationFlowKind) {
   return TREASURY_FLOW_DESCRIPTORS[kind].destinationAccountMode !== "none";
 }
 
-export function getAllowedDestinationRuleSummary(kind: TreasuryOperationFlowKind) {
+export function getAllowedDestinationRuleSummary(
+  kind: TreasuryOperationFlowKind,
+) {
   return TREASURY_FLOW_DESCRIPTORS[kind].destinationRule;
 }
 
@@ -390,7 +418,8 @@ export function buildOperationStageSummary(input: {
     default:
       return {
         title: "Состояние операции",
-        description: "Проверьте, какой этап уже пройден и какой шаг остается следующим.",
+        description:
+          "Проверьте, какой этап уже пройден и какой шаг остается следующим.",
       };
   }
 }
@@ -479,6 +508,63 @@ export function canRecordOperatorExecutionEvent(instructionStatus: string) {
   return !TERMINAL_OPERATOR_EVENT_STATUSES.has(instructionStatus);
 }
 
+const TERMINAL_PAYMENT_ORDER_ARTIFACT_EVENTS = new Set([
+  "failed",
+  "returned",
+  "voided",
+]);
+
+export function canGeneratePaymentOrderArtifact(input: {
+  artifacts: TreasuryOperationArtifact[];
+  operationTimeline: TreasuryOperationTimeline;
+}) {
+  if (input.operationTimeline.operation.operationKind !== "payout") {
+    return false;
+  }
+
+  if (
+    !input.operationTimeline.operation.sourceAccountId ||
+    !input.operationTimeline.operation.sourceAmountMinor ||
+    !input.operationTimeline.operation.sourceAssetId
+  ) {
+    return false;
+  }
+
+  if (
+    input.artifacts.some((artifact) => artifact.docType === "payment_order")
+  ) {
+    return false;
+  }
+
+  const incomingInvoiceArtifacts = input.artifacts.filter(
+    (artifact) =>
+      artifact.docType === "incoming_invoice" &&
+      artifact.linkKinds.includes("obligation"),
+  );
+
+  if (incomingInvoiceArtifacts.length !== 1) {
+    return false;
+  }
+
+  const payoutInstructions = input.operationTimeline.instructionItems.filter(
+    (instruction) => instruction.destinationEndpointId !== null,
+  );
+
+  if (payoutInstructions.length !== 1) {
+    return false;
+  }
+
+  if (
+    input.operationTimeline.eventItems.some((event) =>
+      TERMINAL_PAYMENT_ORDER_ARTIFACT_EVENTS.has(event.eventKind),
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function getBalanceGlossaryItems() {
   return [
     {
@@ -491,11 +577,13 @@ export function getBalanceGlossaryItems() {
     },
     {
       label: "Зарезервировано",
-      description: "Сумма уже отложена под операции и не должна тратиться повторно.",
+      description:
+        "Сумма уже отложена под операции и не должна тратиться повторно.",
     },
     {
       label: "Ожидает",
-      description: "Движение уже начато, но еще не дошло до финального результата.",
+      description:
+        "Движение уже начато, но еще не дошло до финального результата.",
     },
   ];
 }

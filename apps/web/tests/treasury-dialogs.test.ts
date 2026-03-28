@@ -7,6 +7,7 @@ import {
   buildPositionSettlementDialogModel,
 } from "@/features/treasury/workbench/lib/dialogs";
 import {
+  canGeneratePaymentOrderArtifact,
   canRecordOperatorExecutionEvent,
   getAllowedDestinationAccounts,
 } from "@/features/treasury/workbench/lib/flows";
@@ -223,5 +224,97 @@ describe("treasury dialog helpers", () => {
     expect(canRecordOperatorExecutionEvent("failed")).toBe(false);
     expect(canRecordOperatorExecutionEvent("returned")).toBe(false);
     expect(canRecordOperatorExecutionEvent("void")).toBe(false);
+  });
+
+  it("offers payment_order artifact generation only for eligible payout flows", () => {
+    expect(
+      canGeneratePaymentOrderArtifact({
+        artifacts: [
+          {
+            approvalStatus: "approved",
+            createdAt: new Date("2026-03-27T10:00:00.000Z"),
+            docNo: "IIN-1",
+            docType: "incoming_invoice",
+            id: "invoice-1",
+            lifecycleStatus: "active",
+            linkKinds: ["obligation"],
+            occurredAt: new Date("2026-03-27T09:00:00.000Z"),
+            postingOperationId: null,
+            postingStatus: "posted",
+            submissionStatus: "submitted",
+            title: "Incoming invoice",
+          },
+        ],
+        operationTimeline: {
+          eventItems: [],
+          instructionItems: [
+            {
+              destinationEndpointId: "cp-endpoint-1",
+              id: "instruction-1",
+              instructionStatus: "reserved",
+            },
+          ],
+          operation: {
+            id: "operation-1",
+            operationKind: "payout",
+            sourceAccountId: "account-usd-org-a",
+            sourceAmountMinor: "100000",
+            sourceAssetId: "asset-usd",
+          },
+        } as any,
+      }),
+    ).toBe(true);
+
+    expect(
+      canGeneratePaymentOrderArtifact({
+        artifacts: [
+          {
+            approvalStatus: "approved",
+            createdAt: new Date("2026-03-27T10:00:00.000Z"),
+            docNo: "IIN-1",
+            docType: "incoming_invoice",
+            id: "invoice-1",
+            lifecycleStatus: "active",
+            linkKinds: ["obligation"],
+            occurredAt: new Date("2026-03-27T09:00:00.000Z"),
+            postingOperationId: null,
+            postingStatus: "posted",
+            submissionStatus: "submitted",
+            title: "Incoming invoice",
+          },
+          {
+            approvalStatus: "not_required",
+            createdAt: new Date("2026-03-27T10:10:00.000Z"),
+            docNo: "PPO-1",
+            docType: "payment_order",
+            id: "payment-order-1",
+            lifecycleStatus: "active",
+            linkKinds: ["operation"],
+            occurredAt: new Date("2026-03-27T10:10:00.000Z"),
+            postingOperationId: null,
+            postingStatus: "unposted",
+            submissionStatus: "draft",
+            title: "Payment order",
+          },
+        ],
+        operationTimeline: {
+          eventItems: [],
+          instructionItems: [
+            {
+              destinationEndpointId: "cp-endpoint-1",
+              id: "instruction-1",
+              instructionStatus: "reserved",
+            },
+          ],
+          operation: {
+            id: "operation-1",
+            operationKind: "payout",
+            sourceAccountId: "account-usd-org-a",
+            sourceAmountMinor: "100000",
+            sourceAssetId: "asset-usd",
+          },
+        } as any,
+      }),
+    ).toBe(false);
   });
 });

@@ -90,6 +90,36 @@ const TreasuryOperationsResponseSchema = z.object({
   data: z.array(TreasuryOperationSchema),
 });
 
+const TreasuryOperationArtifactSchema = z.object({
+  id: z.uuid(),
+  docType: z.string(),
+  docNo: z.string(),
+  title: z.string(),
+  submissionStatus: z.enum(["draft", "submitted"]),
+  approvalStatus: z.enum(["not_required", "pending", "approved", "rejected"]),
+  postingStatus: z.enum([
+    "not_required",
+    "unposted",
+    "posting",
+    "posted",
+    "failed",
+  ]),
+  lifecycleStatus: z.enum(["active", "cancelled"]),
+  occurredAt: z.string(),
+  createdAt: z.string(),
+  postingOperationId: z.string().nullable(),
+  linkKinds: z.array(z.enum(["obligation", "operation", "instruction"])),
+});
+
+const TreasuryOperationArtifactsResponseSchema = z.object({
+  data: z.array(TreasuryOperationArtifactSchema),
+});
+
+const CreatePaymentOrderArtifactResponseSchema = z.object({
+  artifact: TreasuryOperationArtifactSchema,
+  created: z.boolean(),
+});
+
 const ExecutionInstructionsResponseSchema = z.object({
   data: z.array(ExecutionInstructionSchema),
 });
@@ -144,6 +174,48 @@ async function handleTreasuryRoute<T>(
     const mapped = toErrorResponse(error);
     return jsonOk(c, mapped.body, mapped.status);
   }
+}
+
+function buildArtifactLinkKindsByDocumentId(
+  links: {
+    documentId: string;
+    linkKind: "instruction" | "obligation" | "operation";
+  }[],
+) {
+  const linksByDocumentId = new Map<
+    string,
+    Set<"instruction" | "obligation" | "operation">
+  >();
+
+  for (const link of links) {
+    const existing = linksByDocumentId.get(link.documentId) ?? new Set();
+    existing.add(link.linkKind);
+    linksByDocumentId.set(link.documentId, existing);
+  }
+
+  return linksByDocumentId;
+}
+
+function mapTreasuryArtifact(input: {
+  document: Awaited<
+    ReturnType<AppContext["documentsModule"]["documents"]["queries"]["listByIds"]>
+  >[number];
+  linkKinds: Iterable<"instruction" | "obligation" | "operation">;
+}) {
+  return {
+    id: input.document.document.id,
+    docType: input.document.document.docType,
+    docNo: input.document.document.docNo,
+    title: input.document.document.title,
+    submissionStatus: input.document.document.submissionStatus,
+    approvalStatus: input.document.document.approvalStatus,
+    postingStatus: input.document.document.postingStatus,
+    lifecycleStatus: input.document.document.lifecycleStatus,
+    occurredAt: input.document.document.occurredAt.toISOString(),
+    createdAt: input.document.document.createdAt.toISOString(),
+    postingOperationId: input.document.postingOperationId,
+    linkKinds: [...input.linkKinds],
+  };
 }
 
 export function treasuryRoutes(ctx: AppContext) {
@@ -574,6 +646,72 @@ export function treasuryRoutes(ctx: AppContext) {
     },
   });
 
+  const listOperationArtifactsRoute = createRoute({
+    middleware: [requirePermission({ treasury: ["get"] })],
+    method: "get",
+    path: "/operations/{operationId}/artifacts",
+    tags: ["Treasury"],
+    summary: "List treasury operation artifacts",
+    request: {
+      params: OperationIdParamsSchema,
+    },
+    responses: {
+      200: {
+        description: "Treasury operation artifacts",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationArtifactsResponseSchema,
+          },
+        },
+      },
+      404: {
+        description: "Operation not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const createPaymentOrderArtifactRoute = createRoute({
+    middleware: [requirePermission({ treasury: ["update"] })],
+    method: "post",
+    path: "/operations/{operationId}/artifacts/payment-order",
+    tags: ["Treasury"],
+    summary: "Create payment order artifact for a payout operation",
+    request: {
+      params: OperationIdParamsSchema,
+    },
+    responses: {
+      200: {
+        description: "Payment order artifact created or reused",
+        content: {
+          "application/json": {
+            schema: CreatePaymentOrderArtifactResponseSchema,
+          },
+        },
+      },
+      400: {
+        description: "Operation is not eligible for payment order artifact generation",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      404: {
+        description: "Operation not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
   const createExecutionInstructionRoute = createRoute({
     middleware: [requirePermission({ treasury: ["create"] })],
     method: "post",
@@ -938,6 +1076,66 @@ export function treasuryRoutes(ctx: AppContext) {
             operationId,
           });
         return jsonOk(c, result, 200);
+      }),
+    )
+    .openapi(listOperationArtifactsRoute, async (c): Promise<any> =>
+      handleTreasuryRoute(c, async () => {
+        const { operationId } = c.req.valid("param");
+        const links =
+          await ctx.treasuryModule.operations.queries.listOperationDocumentLinks({
+            operationId,
+          });
+        const documentIds = [...new Set(links.map((link) => link.documentId))];
+        const documents =
+          await ctx.documentsModule.documents.queries.listByIds(documentIds);
+        const linksByDocumentId = buildArtifactLinkKindsByDocumentId(links);
+
+        const documentsById = new Map(
+          documents.map((item) => [item.document.id, item] as const),
+        );
+
+        return jsonOk(
+          c,
+          {
+            data: documentIds
+              .map((documentId) => {
+                const item = documentsById.get(documentId);
+                if (!item) {
+                  return null;
+                }
+
+                return mapTreasuryArtifact({
+                  document: item,
+                  linkKinds: linksByDocumentId.get(documentId) ?? new Set(),
+                });
+              })
+              .filter((item) => item !== null),
+          },
+          200,
+        );
+      }),
+    )
+    .openapi(createPaymentOrderArtifactRoute, async (c): Promise<any> =>
+      handleTreasuryRoute(c, async () => {
+        const { operationId } = c.req.valid("param");
+        const result =
+          await ctx.treasuryArtifactWorkflow.createPaymentOrderArtifact({
+            actorUserId: c.get("user")!.id,
+            operationId,
+            requestContext: c.get("requestContext"),
+          });
+
+        return jsonOk(
+          c,
+          {
+            artifact: mapTreasuryArtifact({
+              document: result.artifact,
+              linkKinds: result.linkKinds,
+            }),
+            created: result.created,
+          },
+          200,
+        );
       }),
     )
     .openapi(createExecutionInstructionRoute, async (c): Promise<any> =>

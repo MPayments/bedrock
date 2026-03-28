@@ -55,7 +55,7 @@ export function TreasuryOperationsTable({
         <CardHeader className="border-b">
           <CardTitle>Операции</CardTitle>
           <CardDescription>
-            Здесь появятся treasury-операции после их создания из этой рабочей
+            Здесь появятся казначейские операции после их создания из этой рабочей
             зоны.
           </CardDescription>
         </CardHeader>
@@ -63,7 +63,7 @@ export function TreasuryOperationsTable({
           <div className="rounded-xl border border-dashed px-4 py-6">
             <div className="text-sm font-medium">Операций пока нет</div>
             <div className="text-muted-foreground mt-1 text-sm leading-6">
-              Создайте первую treasury-операцию. Для валютной конверсии
+              Создайте первую казначейскую операцию. Для валютной конверсии
               используйте отдельный FX-документ.
             </div>
           </div>

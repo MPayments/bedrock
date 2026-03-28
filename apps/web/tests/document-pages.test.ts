@@ -130,4 +130,34 @@ describe("document pages", () => {
       }),
     ).rejects.toBe(NOT_FOUND);
   });
+
+  it("returns notFound for treasury-owned document create pages in documents workspace", async () => {
+    const { default: CreatePage } = await import(
+      "@/app/(shell)/documents/create/[docType]/page"
+    );
+
+    await expect(
+      CreatePage({
+        params: Promise.resolve({
+          docType: "fx_execute",
+        }),
+        searchParams: Promise.resolve({}),
+      }),
+    ).rejects.toBe(NOT_FOUND);
+  });
+
+  it("returns notFound for treasury-owned docType filters in documents family pages", async () => {
+    const { default: FamilyPage } = await import(
+      "@/app/(shell)/documents/[family]/page"
+    );
+
+    await expect(
+      FamilyPage({
+        params: Promise.resolve({
+          family: "ifrs",
+        }),
+        searchParams: Promise.resolve({ docType: "fx_execute" }),
+      }),
+    ).rejects.toBe(NOT_FOUND);
+  });
 });

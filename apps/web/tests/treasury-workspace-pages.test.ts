@@ -3,14 +3,25 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getOrganizations = vi.fn();
+const getFxQuoteDetails = vi.fn();
 const getFxQuotes = vi.fn();
 const getRateSources = vi.fn();
+const getServerSessionSnapshot = vi.fn();
+const getDocumentDetails = vi.fn();
+const getRequisiteById = vi.fn();
 const getTreasuryReferenceData = vi.fn();
 const listExecutionInstructions = vi.fn();
 const listTreasuryAccounts = vi.fn();
 const listTreasuryOperations = vi.fn();
 const listTreasuryPositions = vi.fn();
 const listUnmatchedExternalRecords = vi.fn();
+const getDocumentFormOptions = vi.fn();
+const createEmptyDocumentFormOptions = vi.fn(() => ({
+  counterparties: [],
+  customers: [],
+  organizations: [],
+  currencies: [],
+}));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -24,6 +35,23 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/data-table/skeleton", () => ({
   DataTableSkeleton: () => React.createElement("div", null, "data-table-skeleton"),
+}));
+
+vi.mock("@/lib/auth/session", () => ({
+  getServerSessionSnapshot,
+}));
+
+vi.mock("@/features/operations/documents/lib/queries", () => ({
+  getDocumentDetails,
+}));
+
+vi.mock("@/features/documents/lib/form-options", () => ({
+  getDocumentFormOptions,
+  createEmptyDocumentFormOptions,
+}));
+
+vi.mock("@/features/entities/requisites/lib/queries", () => ({
+  getRequisiteById,
 }));
 
 vi.mock("@/components/entities/entity-list-page-shell", () => ({
@@ -65,6 +93,7 @@ vi.mock("@/features/treasury/workbench/lib/queries", () => ({
 }));
 
 vi.mock("@/features/treasury/quotes/lib/queries", () => ({
+  getFxQuoteDetails,
   getFxQuotes,
 }));
 
@@ -87,6 +116,18 @@ vi.mock("@/features/treasury/workbench/components/positions-table", () => ({
 
 vi.mock("@/features/treasury/workbench/components/unmatched-records-table", () => ({
   TreasuryUnmatchedRecordsTable: () => React.createElement("div", null, "unmatched-table"),
+}));
+
+vi.mock("@/features/treasury/quotes/components/table", () => ({
+  FxQuotesTable: () => React.createElement("div", null, "quotes-table"),
+}));
+
+vi.mock("@/features/treasury/quotes/components/treasury-fx-create-form", () => ({
+  TreasuryFxCreateForm: () => React.createElement("div", null, "treasury-fx-create-form"),
+}));
+
+vi.mock("@/features/treasury/quotes/components/quote-detail", () => ({
+  FxQuoteDetail: () => React.createElement("div", null, "quote-detail"),
 }));
 
 const referenceData = {
@@ -132,6 +173,13 @@ describe("treasury workspace pages", () => {
       limit: 20,
       offset: 0,
     });
+    getServerSessionSnapshot.mockResolvedValue({ role: "admin" });
+    getDocumentFormOptions.mockResolvedValue({
+      counterparties: [],
+      customers: [],
+      organizations: [],
+      currencies: [],
+    });
     getTreasuryReferenceData.mockResolvedValue(referenceData);
     getFxQuotes.mockResolvedValue({
       data: [
@@ -146,6 +194,183 @@ describe("treasury workspace pages", () => {
         },
       ],
     });
+    getFxQuoteDetails.mockResolvedValue({
+      quote: {
+        id: "quote-1",
+        idempotencyKey: "quote-ref-1",
+        fromCurrencyId: "currency-usd",
+        toCurrencyId: "currency-eur",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: "100000",
+        toAmountMinor: "91500",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        dealDirection: null,
+        dealForm: null,
+        rateNum: "915",
+        rateDen: "1000",
+        status: "used",
+        usedByRef: "fx_execute:document-1",
+        usedAt: "2026-03-27T10:30:00.000Z",
+        expiresAt: "2026-03-27T10:15:00.000Z",
+        createdAt: "2026-03-27T10:00:00.000Z",
+      },
+      legs: [],
+      feeComponents: [],
+      financialLines: [],
+      pricingTrace: {},
+    });
+    getDocumentDetails.mockResolvedValue({
+      document: {
+        id: "document-1",
+        docType: "fx_execute",
+        docNo: "FX-1",
+        payloadVersion: 1,
+        payload: {
+          occurredAt: "2026-03-27T10:00:00.000Z",
+          ownershipMode: "cross_org",
+          sourceOrganizationId: "org-1",
+          sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
+          destinationOrganizationId: "org-1",
+          destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
+          amount: "1000",
+          amountMinor: "100000",
+          executionRef: "FX-EXEC-1",
+          financialLines: [],
+          quoteSnapshot: {
+            quoteId: "quote-1",
+            idempotencyKey: "quote-ref-1",
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: "100000",
+            toAmountMinor: "91500",
+            pricingMode: "auto_cross",
+            rateNum: "915",
+            rateDen: "1000",
+            expiresAt: "2026-03-27T10:15:00.000Z",
+            pricingTrace: {},
+            legs: [
+              {
+                idx: 1,
+                fromCurrency: "USD",
+                toCurrency: "EUR",
+                fromAmountMinor: "100000",
+                toAmountMinor: "91500",
+                rateNum: "915",
+                rateDen: "1000",
+                sourceKind: "bank",
+                sourceRef: null,
+                asOf: "2026-03-27T10:00:00.000Z",
+                executionCounterpartyId: null,
+              },
+            ],
+            financialLines: [],
+            snapshotHash:
+              "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          },
+        },
+        title: "Казначейский FX",
+        occurredAt: "2026-03-27T10:00:00.000Z",
+        submissionStatus: "draft",
+        approvalStatus: "not_required",
+        postingStatus: "unposted",
+        lifecycleStatus: "active",
+        allowedActions: [],
+        createIdempotencyKey: null,
+        amount: "1000",
+        currency: "USD",
+        memo: null,
+        counterpartyId: null,
+        customerId: null,
+        organizationRequisiteId: null,
+        searchText: "",
+        createdBy: "user-1",
+        submittedBy: null,
+        submittedAt: null,
+        approvedBy: null,
+        approvedAt: null,
+        rejectedBy: null,
+        rejectedAt: null,
+        cancelledBy: null,
+        cancelledAt: null,
+        postingStartedAt: null,
+        postedAt: null,
+        postingError: null,
+        createdAt: "2026-03-27T10:00:00.000Z",
+        updatedAt: "2026-03-27T10:00:00.000Z",
+        version: 1,
+        postingOperationId: null,
+      },
+      links: [],
+      parent: null,
+      children: [],
+      dependsOn: [],
+      compensates: [],
+      documentOperations: [],
+      ledgerOperations: [],
+    });
+    getRequisiteById
+      .mockResolvedValueOnce({
+        id: "00000000-0000-4000-8000-000000000111",
+        ownerType: "organization",
+        ownerId: "org-1",
+        providerId: "provider-1",
+        currencyId: "currency-usd",
+        kind: "bank",
+        label: "Multihansa USD",
+        description: "",
+        beneficiaryName: "",
+        institutionName: "",
+        institutionCountry: "",
+        accountNo: "",
+        corrAccount: "",
+        iban: "",
+        bic: "",
+        swift: "",
+        bankAddress: "",
+        network: "",
+        assetCode: "",
+        address: "",
+        memoTag: "",
+        accountRef: "",
+        subaccountRef: "",
+        contact: "",
+        notes: "",
+        isDefault: true,
+        createdAt: "",
+        updatedAt: "",
+      })
+      .mockResolvedValueOnce({
+        id: "00000000-0000-4000-8000-000000000112",
+        ownerType: "organization",
+        ownerId: "org-1",
+        providerId: "provider-1",
+        currencyId: "currency-eur",
+        kind: "bank",
+        label: "Multihansa EUR",
+        description: "",
+        beneficiaryName: "",
+        institutionName: "",
+        institutionCountry: "",
+        accountNo: "",
+        corrAccount: "",
+        iban: "",
+        bic: "",
+        swift: "",
+        bankAddress: "",
+        network: "",
+        assetCode: "",
+        address: "",
+        memoTag: "",
+        accountRef: "",
+        subaccountRef: "",
+        contact: "",
+        notes: "",
+        isDefault: true,
+        createdAt: "",
+        updatedAt: "",
+      });
     getRateSources.mockResolvedValue([
       { id: "source-1", isExpired: false },
       { id: "source-2", isExpired: true },
@@ -209,5 +434,50 @@ describe("treasury workspace pages", () => {
     expect(listExecutionInstructions).toHaveBeenCalledWith({ limit: 200 });
     expect(listTreasuryOperations).toHaveBeenCalledWith({ limit: 200 });
     expect(getTreasuryReferenceData).toHaveBeenCalled();
+  });
+
+  it("renders treasury quotes with a treasury-owned FX launch action", async () => {
+    const { default: TreasuryQuotesPage } = await import(
+      "@/app/(shell)/treasury/quotes/page"
+    );
+
+    const markup = renderToStaticMarkup(
+      await TreasuryQuotesPage({
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(markup).toContain("Котировки");
+    expect(markup).toContain("Новый FX");
+    expect(markup).toContain("/treasury/quotes/create");
+    expect(markup).toContain("quotes-table");
+  });
+
+  it("renders treasury-owned FX create page outside the documents workspace", async () => {
+    const { default: TreasuryFxCreatePage } = await import(
+      "@/app/(shell)/treasury/quotes/create/page"
+    );
+
+    const markup = renderToStaticMarkup(await TreasuryFxCreatePage());
+
+    expect(markup).toContain("Казначейский FX");
+    expect(markup).toContain("treasury-fx-create-form");
+  });
+
+  it("renders treasury quote details inside the treasury workspace", async () => {
+    const { default: TreasuryQuoteDetailPage } = await import(
+      "@/app/(shell)/treasury/quotes/[quoteRef]/page"
+    );
+
+    const markup = renderToStaticMarkup(
+      await TreasuryQuoteDetailPage({
+        params: Promise.resolve({ quoteRef: "quote-ref-1" }),
+      }),
+    );
+
+    expect(markup).toContain("USD / EUR");
+    expect(markup).toContain("Новый FX");
+    expect(markup).toContain("quote-detail");
+    expect(getFxQuoteDetails).toHaveBeenCalledWith("quote-ref-1");
   });
 });

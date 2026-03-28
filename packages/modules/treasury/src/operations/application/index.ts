@@ -5,6 +5,7 @@ import { IssueOperationCommand } from "./commands/issue-operation";
 import { ReserveOperationFundsCommand } from "./commands/reserve-operation-funds";
 import { GetOperationTimelineQuery } from "./queries/get-operation-timeline";
 import { ListTreasuryOperationsQuery } from "./queries/list-treasury-operations";
+import { ListOperationDocumentLinksQuery } from "./queries/list-operation-document-links";
 
 export function createTreasuryOperationsService(
   deps: TreasuryCoreServiceDeps,
@@ -15,6 +16,7 @@ export function createTreasuryOperationsService(
   const issueOperation = new IssueOperationCommand(context);
   const reserveOperationFunds = new ReserveOperationFundsCommand(context);
   const getOperationTimeline = new GetOperationTimelineQuery(context);
+  const listOperationDocumentLinks = new ListOperationDocumentLinksQuery(context);
   const listTreasuryOperations = new ListTreasuryOperationsQuery(context);
 
   return {
@@ -27,6 +29,8 @@ export function createTreasuryOperationsService(
     queries: {
       getOperationTimeline:
         getOperationTimeline.execute.bind(getOperationTimeline),
+      listOperationDocumentLinks:
+        listOperationDocumentLinks.execute.bind(listOperationDocumentLinks),
       listTreasuryOperations:
         listTreasuryOperations.execute.bind(listTreasuryOperations),
     },

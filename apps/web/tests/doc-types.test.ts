@@ -58,7 +58,9 @@ describe("document doc types", () => {
 
   it("enforces typed-form and create permissions for admin-only IFRS docs", () => {
     expect(hasTypedDocumentForm("fx_execute", "user")).toBe(true);
-    expect(canCreateDocumentType("fx_execute", "user")).toBe(true);
+    expect(canCreateDocumentType("fx_execute", "user")).toBe(false);
+    expect(canCreateDocumentType("payment_order", "user")).toBe(false);
+    expect(canCreateDocumentType("transfer_resolution", "user")).toBe(false);
     expect(hasTypedDocumentForm("fx_resolution", "admin")).toBe(false);
     expect(canCreateDocumentType("fx_resolution", "admin")).toBe(false);
 
@@ -90,23 +92,17 @@ describe("document doc types", () => {
       getDocumentsWorkspaceTypesForFamily("transfers", "user").map(
         (option) => option.value,
       ),
-    ).toEqual([
-      "transfer_intra",
-      "transfer_intercompany",
-      "transfer_resolution",
-    ]);
+    ).toEqual(["transfer_intra", "transfer_intercompany"]);
     expect(
       getDocumentsWorkspaceTypesForFamily("ifrs", "user").map(
         (option) => option.value,
       ),
-    ).toEqual(["fx_execute", "fx_resolution", "capital_funding"]);
+    ).toEqual(["capital_funding"]);
     expect(
       getDocumentsWorkspaceTypesForFamily("ifrs", "admin").map(
         (option) => option.value,
       ),
     ).toEqual([
-      "fx_execute",
-      "fx_resolution",
       "capital_funding",
       "period_close",
       "period_reopen",

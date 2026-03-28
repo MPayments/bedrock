@@ -63,6 +63,14 @@ import {
 } from "./document-plugin-adapters";
 import { createApiLedgerModule } from "./ledger-module";
 import { createApiPartiesModule } from "./parties-module";
+import {
+  createRequisiteTreasurySyncService,
+  type RequisiteTreasurySyncService,
+} from "./requisite-treasury-sync";
+import {
+  createTreasuryArtifactWorkflow,
+  type TreasuryArtifactWorkflow,
+} from "./treasury-artifact-workflow";
 import { createApiTreasuryModule } from "./treasury-module";
 import { db } from "../db/client";
 
@@ -72,10 +80,12 @@ export interface ApiApplicationServices {
   treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
+  requisiteTreasurySyncService: RequisiteTreasurySyncService;
   documentsModule: DocumentsModule;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
   integrationEventHandler: IntegrationEventHandler;
+  treasuryArtifactWorkflow: TreasuryArtifactWorkflow;
 }
 
 const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
@@ -169,6 +179,10 @@ export function createApplicationServices(
     db,
     createLedgerModule: createLedgerModuleForTransaction,
     currencies: currenciesPort,
+    logger,
+  });
+  const requisiteTreasurySyncService = createRequisiteTreasurySyncService({
+    db,
     logger,
   });
   const documentsAccountingPort = {
@@ -368,6 +382,13 @@ export function createApplicationServices(
     createLedgerModule: createLedgerModuleForTransaction,
     createDocumentsModule: createDocumentsModuleForTransaction,
   });
+  const treasuryArtifactWorkflow = createTreasuryArtifactWorkflow({
+    createDocumentsModule: createDocumentsModuleForTransaction,
+    currenciesService,
+    db,
+    documentsModule,
+    treasuryModule,
+  });
 
   const integrationEventHandler = createIntegrationEventHandler({
     createCustomer: partiesModule.customers.commands.create,
@@ -387,9 +408,11 @@ export function createApplicationServices(
     treasuryModule,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
+    requisiteTreasurySyncService,
     documentsModule,
     documentDraftWorkflow,
     documentPostingWorkflow,
     integrationEventHandler,
+    treasuryArtifactWorkflow,
   };
 }

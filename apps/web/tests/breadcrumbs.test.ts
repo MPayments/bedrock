@@ -19,6 +19,14 @@ describe("breadcrumbs", () => {
       { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
     ]);
 
+    await expect(
+      resolveBreadcrumbItems(["treasury", "quotes", "create"]),
+    ).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
+      { label: "Создать" },
+    ]);
+
     await expect(resolveBreadcrumbItems(["treasury", "accounts"])).resolves.toEqual([
       { label: "Казначейство", href: "/treasury", icon: "landmark" },
       { label: "Счета", href: "/treasury/accounts", icon: "wallet" },

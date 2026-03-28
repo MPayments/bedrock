@@ -10,7 +10,6 @@ import { RecentItemsCard } from "@/features/overview/ui/recent-items-card";
 const TRANSFER_DOC_TYPES = [
   "transfer_intra",
   "transfer_intercompany",
-  "transfer_resolution",
 ];
 const TRANSFERS_HREF = "/documents/transfers";
 
@@ -46,7 +45,7 @@ export default async function DashboardPage() {
           label: "Переводы",
           value: formatCount(transferDocuments.total),
           description:
-            "Внутренние/межкомпанейские переводы и документы.",
+            "Внутренние и межкомпанейские переводы.",
           href: TRANSFERS_HREF,
         },
         {

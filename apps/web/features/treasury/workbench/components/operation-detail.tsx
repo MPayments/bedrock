@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
@@ -16,9 +18,20 @@ import {
   TableRow,
 } from "@bedrock/sdk-ui/components/table";
 
+import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
+import {
+  getApprovalStatusLabel,
+  getLifecycleStatusLabel,
+  getPostingStatusLabel,
+  getSubmissionStatusLabel,
+} from "@/features/documents/lib/status-labels";
+import { formatDate } from "@/lib/format";
+
 import type {
   CounterpartyEndpointListItem,
   TreasuryAccountListItem,
+  TreasuryOperationArtifact,
   TreasuryEndpointListItem,
   TreasuryOperationTimeline,
 } from "../lib/queries";
@@ -32,6 +45,7 @@ type TreasuryOperationDetailProps = {
   counterpartyEndpoints: CounterpartyEndpointListItem[];
   counterpartyLabels: Record<string, string>;
   customerLabels: Record<string, string>;
+  artifacts?: TreasuryOperationArtifact[];
   operationTimeline: TreasuryOperationTimeline;
   organizationLabels: Record<string, string>;
   showHeaderCopy?: boolean;
@@ -72,6 +86,7 @@ function EmptySection({
 
 export function TreasuryOperationDetail({
   accounts,
+  artifacts = [],
   assetLabels,
   counterpartyEndpoints,
   counterpartyLabels,
@@ -128,6 +143,7 @@ export function TreasuryOperationDetail({
           <CardAction>
             <TreasuryOperationActions
               accounts={accounts}
+              artifacts={artifacts}
               assetLabels={assetLabels}
               counterpartyEndpoints={counterpartyEndpoints}
               counterpartyLabels={counterpartyLabels}
@@ -338,6 +354,87 @@ export function TreasuryOperationDetail({
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {artifacts.length > 0 ? (
+        <Card className="rounded-sm">
+          <CardHeader className="border-b">
+            <CardTitle>Связанные документы</CardTitle>
+            <CardDescription>
+              Поддерживающие документы и артефакты, которые уже привязаны к этой
+              операции или ее этапам.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Документ</TableHead>
+                  <TableHead>Роль в операции</TableHead>
+                  <TableHead>Статусы</TableHead>
+                  <TableHead>Дата</TableHead>
+                  <TableHead className="text-right">Открыть</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {artifacts.map((artifact) => {
+                  const href = buildDocumentDetailsHref(
+                    artifact.docType,
+                    artifact.id,
+                  );
+
+                  return (
+                    <TableRow key={artifact.id}>
+                      <TableCell>
+                        <div className="font-medium">{artifact.docNo}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {getDocumentTypeLabel(artifact.docType)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {artifact.linkKinds
+                          .map((linkKind) => {
+                            if (linkKind === "operation") {
+                              return "Операция";
+                            }
+                            if (linkKind === "instruction") {
+                              return "Инструкция";
+                            }
+
+                            return "Обязательство";
+                          })
+                          .join(" · ")}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <div>{getSubmissionStatusLabel(artifact.submissionStatus)}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {getApprovalStatusLabel(artifact.approvalStatus)} ·{" "}
+                          {getPostingStatusLabel(artifact.postingStatus)} ·{" "}
+                          {getLifecycleStatusLabel(artifact.lifecycleStatus)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {formatDate(artifact.occurredAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {href ? (
+                          <Link
+                            className="text-sm font-medium hover:underline"
+                            href={href}
+                          >
+                            Открыть
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

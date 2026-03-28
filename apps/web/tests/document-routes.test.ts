@@ -21,11 +21,11 @@ describe("document routes", () => {
     expect(buildDocumentTypeHref("fx_resolution")).toBe(
       "/documents/ifrs?docType=fx_resolution",
     );
-    expect(buildDocumentCreateHref("fx_execute")).toBe(
-      "/documents/create/fx_execute",
-    );
-    expect(buildDocumentCreateHref("transfer_resolution")).toBe(
-      "/documents/create/transfer_resolution",
+    expect(buildDocumentCreateHref("fx_execute")).toBeNull();
+    expect(buildDocumentCreateHref("payment_order")).toBeNull();
+    expect(buildDocumentCreateHref("transfer_resolution")).toBeNull();
+    expect(buildDocumentCreateHref("capital_funding")).toBe(
+      "/documents/create/capital_funding",
     );
     expect(
       buildDocumentDetailsHref("period_close", "doc-123"),

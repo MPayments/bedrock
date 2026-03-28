@@ -23,7 +23,7 @@ export default async function TreasuryOperationCreatePage() {
     <EntityListPageShell
       icon={Landmark}
       title="Новая операция казначейства"
-      description="Ручная treasury-операция без смены валюты."
+      description="Ручная казначейская операция без смены валюты."
       actions={
         <div className="shrink-0">
           <Button form={TREASURY_OPERATION_CREATE_FORM_ID} size="lg" type="submit">

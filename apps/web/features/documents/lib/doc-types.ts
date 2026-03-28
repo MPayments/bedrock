@@ -43,6 +43,12 @@ const TYPED_DOCUMENT_TYPE_SET = new Set(
 const CREATABLE_DOCUMENT_TYPE_SET = new Set(
   DOCUMENT_TYPES.filter((option) => option.creatable).map((option) => option.value),
 );
+const TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET = new Set<KnownDocumentType>([
+  "payment_order",
+  "fx_execute",
+  "transfer_resolution",
+  "fx_resolution",
+]);
 const DOCUMENT_METADATA = {
   ...IFRS_DOCUMENT_METADATA,
   ...COMMERCIAL_DOCUMENT_METADATA,
@@ -150,12 +156,17 @@ export function getDocumentsWorkspaceTypesForFamily(
   return DOCUMENT_TYPES.filter(
     (option) =>
       option.family === family &&
+      !TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET.has(option.value) &&
       isAllowedForRole(option, role),
   );
 }
 
 export function getTypeListDocumentOptions(role: UserRole): DocumentTypeOption[] {
-  return DOCUMENT_TYPES.filter((option) => isAllowedForRole(option, role));
+  return DOCUMENT_TYPES.filter(
+    (option) =>
+      !TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET.has(option.value) &&
+      isAllowedForRole(option, role),
+  );
 }
 
 export function getCreateDocumentTypeOptions(
@@ -164,6 +175,7 @@ export function getCreateDocumentTypeOptions(
   return DOCUMENT_TYPES.filter(
     (option) =>
       option.creatable &&
+      !TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET.has(option.value) &&
       isAllowedForRole(option, role),
   );
 }
@@ -189,6 +201,12 @@ export function canCreateDocumentType(docType: string, role: UserRole): boolean 
     return false;
   }
 
+  if (
+    TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET.has(docType as KnownDocumentType)
+  ) {
+    return false;
+  }
+
   const option = DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType);
   if (!option) {
     return false;
@@ -199,6 +217,12 @@ export function canCreateDocumentType(docType: string, role: UserRole): boolean 
 
 export function isAdminOnlyDocumentType(docType: string): boolean {
   return DOCUMENT_METADATA[docType as KnownDocumentType]?.adminOnly === true;
+}
+
+export function isTreasuryOwnedDerivedDocumentType(docType: string): boolean {
+  return TREASURY_OWNED_DERIVED_DOCUMENT_TYPE_SET.has(
+    docType as KnownDocumentType,
+  );
 }
 
 export function isAllowedDocumentsWorkspaceType(

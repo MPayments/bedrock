@@ -46,6 +46,36 @@ const TreasuryOperationsResponseSchema = z.object({
   data: z.array(TreasuryOperationSchema),
 });
 
+const TreasuryOperationArtifactsResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      docType: z.string(),
+      docNo: z.string(),
+      title: z.string(),
+      submissionStatus: z.enum(["draft", "submitted"]),
+      approvalStatus: z.enum([
+        "not_required",
+        "pending",
+        "approved",
+        "rejected",
+      ]),
+      postingStatus: z.enum([
+        "not_required",
+        "unposted",
+        "posting",
+        "posted",
+        "failed",
+      ]),
+      lifecycleStatus: z.enum(["active", "cancelled"]),
+      occurredAt: z.coerce.date(),
+      createdAt: z.coerce.date(),
+      postingOperationId: z.string().nullable(),
+      linkKinds: z.array(z.enum(["obligation", "operation", "instruction"])),
+    }),
+  ),
+});
+
 const TreasuryPositionsResponseSchema = z.object({
   data: z.array(TreasuryPositionSchema),
 });
@@ -152,6 +182,9 @@ export type CounterpartyEndpointListItem = z.infer<
 >;
 export type TreasuryOperationListItem = z.infer<typeof TreasuryOperationSchema>;
 export type TreasuryOperationTimeline = z.infer<typeof OperationTimelineItemSchema>;
+export type TreasuryOperationArtifact = z.infer<
+  typeof TreasuryOperationArtifactsResponseSchema
+>["data"][number];
 export type ExecutionInstructionListItem = z.infer<
   typeof ExecutionInstructionSchema
 >;
@@ -280,6 +313,28 @@ const getTreasuryOperationTimelineUncached = async (operationId: string) => {
 
 export const getTreasuryOperationTimeline = cache(
   getTreasuryOperationTimelineUncached,
+);
+
+const getTreasuryOperationArtifactsUncached = async (operationId: string) => {
+  const payload = await readEntityById({
+    id: operationId,
+    resourceName: "артефакты операции treasury",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+
+      return client.v1.treasury.operations[":operationId"].artifacts.$get(
+        { param: { operationId: validId } },
+        { init: { cache: "no-store" } },
+      );
+    },
+    schema: TreasuryOperationArtifactsResponseSchema,
+  });
+
+  return payload?.data ?? [];
+};
+
+export const getTreasuryOperationArtifacts = cache(
+  getTreasuryOperationArtifactsUncached,
 );
 
 export async function listTreasuryPositions(

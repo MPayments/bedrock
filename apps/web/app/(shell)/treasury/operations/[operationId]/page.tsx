@@ -7,6 +7,7 @@ import { TreasuryOperationDetail } from "@/features/treasury/workbench/component
 import { presentTreasuryOperationDetail } from "@/features/treasury/workbench/lib/presentation";
 import { getTreasuryReferenceData } from "@/features/treasury/workbench/lib/reference-data";
 import {
+  getTreasuryOperationArtifacts,
   getTreasuryOperationTimeline,
   listCounterpartyEndpoints,
   listTreasuryAccounts,
@@ -21,9 +22,17 @@ export default async function TreasuryOperationDetailsPage({
   params,
 }: PageProps) {
   const { operationId } = await params;
-  const [accounts, operationTimeline, references, treasuryEndpoints, counterpartyEndpoints] = await Promise.all([
+  const [
+    accounts,
+    operationTimeline,
+    operationArtifacts,
+    references,
+    treasuryEndpoints,
+    counterpartyEndpoints,
+  ] = await Promise.all([
     listTreasuryAccounts(),
     getTreasuryOperationTimeline(operationId),
+    getTreasuryOperationArtifacts(operationId),
     getTreasuryReferenceData(),
     listTreasuryEndpoints(),
     listCounterpartyEndpoints(),
@@ -55,6 +64,7 @@ export default async function TreasuryOperationDetailsPage({
     >
       <TreasuryOperationDetail
         accounts={accounts}
+        artifacts={operationArtifacts}
         assetLabels={references.assetLabels}
         counterpartyEndpoints={counterpartyEndpoints}
         counterpartyLabels={references.counterpartyLabels}

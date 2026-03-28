@@ -1,19 +1,18 @@
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { Database } from "@bedrock/platform/persistence";
 import type {
   CommercialTreasuryStatePort,
 } from "@bedrock/plugin-documents-commercial";
-import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
-import type { DocumentSnapshot } from "@bedrock/plugin-documents-sdk";
-import type { Database } from "@bedrock/platform/persistence";
-import type { TreasuryModule } from "@bedrock/treasury";
-import { DrizzleTreasuryCoreRepository } from "@bedrock/treasury/adapters/drizzle";
 import {
   IncomingInvoicePayloadSchema,
   OutgoingInvoicePayloadSchema,
   PaymentOrderPayloadSchema,
 } from "@bedrock/plugin-documents-commercial/validation";
+import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
+import type { TreasuryModule } from "@bedrock/treasury";
+import { DrizzleTreasuryCoreRepository } from "@bedrock/treasury/adapters/drizzle";
 
-type RequisiteRecord = {
+interface RequisiteRecord {
   id: string;
   ownerType: string;
   ownerId: string;
@@ -31,9 +30,9 @@ type RequisiteRecord = {
   memoTag: string | null;
   accountRef: string | null;
   subaccountRef: string | null;
-};
+}
 
-type RequisitesService = {
+interface RequisitesService {
   findById(requisiteId: string): Promise<RequisiteRecord>;
   resolveBindings(input: {
     requisiteIds: string[];
@@ -47,7 +46,7 @@ type RequisitesService = {
       bookAccountInstanceId: string;
     }[]
   >;
-};
+}
 
 function requireBinding(
   bindings: Awaited<ReturnType<RequisitesService["resolveBindings"]>>,

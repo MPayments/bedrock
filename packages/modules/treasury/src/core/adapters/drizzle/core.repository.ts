@@ -150,7 +150,7 @@ export class DrizzleTreasuryCoreRepository implements TreasuryCoreTx {
     canSend?: boolean;
     search?: string | null;
   }): Promise<TreasuryAccountRecord[]> {
-    const conditions = [];
+    const conditions = [isNull(schema.treasuryAccounts.archivedAt)];
 
     if (input?.ownerEntityId) {
       conditions.push(eq(schema.treasuryAccounts.ownerEntityId, input.ownerEntityId));
@@ -206,7 +206,7 @@ export class DrizzleTreasuryCoreRepository implements TreasuryCoreTx {
     endpointType?: string;
     search?: string | null;
   }): Promise<TreasuryEndpointRecord[]> {
-    const conditions = [];
+    const conditions = [isNull(schema.treasuryEndpoints.archivedAt)];
 
     if (input?.accountId) {
       conditions.push(eq(schema.treasuryEndpoints.accountId, input.accountId));
@@ -245,7 +245,7 @@ export class DrizzleTreasuryCoreRepository implements TreasuryCoreTx {
     endpointType?: string;
     search?: string | null;
   }): Promise<CounterpartyEndpointRecord[]> {
-    const conditions = [];
+    const conditions = [isNull(schema.counterpartyEndpoints.archivedAt)];
 
     if (input?.counterpartyId) {
       conditions.push(
@@ -397,6 +397,35 @@ export class DrizzleTreasuryCoreRepository implements TreasuryCoreTx {
       .select()
       .from(schema.treasuryDocumentLinks)
       .where(eq(schema.treasuryDocumentLinks.documentId, documentId))
+      .orderBy(asc(schema.treasuryDocumentLinks.createdAt));
+
+    return rows as TreasuryDocumentLinkRecord[];
+  }
+
+  async listDocumentLinksByTargetIds(
+    targetIds: string[],
+    input?: {
+      linkKinds?: TreasuryDocumentLinkRecord["linkKind"][];
+    },
+  ): Promise<TreasuryDocumentLinkRecord[]> {
+    if (targetIds.length === 0) {
+      return [];
+    }
+
+    const conditions = [
+      inArray(schema.treasuryDocumentLinks.targetId, targetIds),
+    ];
+
+    if (input?.linkKinds?.length) {
+      conditions.push(
+        inArray(schema.treasuryDocumentLinks.linkKind, input.linkKinds),
+      );
+    }
+
+    const rows = await this.db
+      .select()
+      .from(schema.treasuryDocumentLinks)
+      .where(and(...conditions))
       .orderBy(asc(schema.treasuryDocumentLinks.createdAt));
 
     return rows as TreasuryDocumentLinkRecord[];

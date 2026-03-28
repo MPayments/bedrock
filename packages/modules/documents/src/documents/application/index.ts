@@ -2,6 +2,7 @@ import { CreateDraftCommand } from "./commands/create-draft";
 import { UpdateDraftCommand } from "./commands/update-draft";
 import { GetDocumentQuery } from "./queries/get-document";
 import { GetDocumentDetailsQuery } from "./queries/get-document-details";
+import { ListDocumentsByIdsQuery } from "./queries/list-documents-by-ids";
 import { ListDocumentsQuery } from "./queries/list-documents";
 import type { DocumentsServiceDeps } from "./service-deps";
 
@@ -49,6 +50,10 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
     deps.registry,
     deps.policy,
   );
+  const listDocumentsByIds = new ListDocumentsByIdsQuery(
+    deps.documentsQuery,
+    deps.registry,
+  );
 
   return {
     commands: {
@@ -57,6 +62,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
     },
     queries: {
       list: listDocuments.execute.bind(listDocuments),
+      listByIds: listDocumentsByIds.execute.bind(listDocumentsByIds),
       get: getDocument.execute.bind(getDocument),
       getDetails: getDocumentDetails.execute.bind(getDocumentDetails),
     },

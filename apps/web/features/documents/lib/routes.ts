@@ -1,4 +1,5 @@
 import {
+  canCreateDocumentType,
   getDocumentsWorkspaceFamily,
   type DocumentsWorkspaceFamily,
 } from "./doc-types";
@@ -24,7 +25,7 @@ export function buildDocumentTypeHref(docType: string): string | null {
 
 export function buildDocumentCreateHref(docType: string): string | null {
   const family = getDocumentsWorkspaceFamily(docType);
-  if (!family) {
+  if (!family || !canCreateDocumentType(docType, "admin")) {
     return null;
   }
 

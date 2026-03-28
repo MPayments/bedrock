@@ -248,6 +248,12 @@ export interface TreasuryCoreReads {
     limit?: number;
   }): Promise<ExecutionInstructionRecord[]>;
   listDocumentLinks(documentId: string): Promise<TreasuryDocumentLinkRecord[]>;
+  listDocumentLinksByTargetIds(
+    targetIds: string[],
+    input?: {
+      linkKinds?: TreasuryDocumentLinkRecord["linkKind"][];
+    },
+  ): Promise<TreasuryDocumentLinkRecord[]>;
   listObligationsByIds(ids: string[]): Promise<ObligationRecord[]>;
   listOperationObligationLinks(
     operationId: string,

@@ -67,6 +67,50 @@ type PublicDocumentMutationAction =
   | "cancel"
   | "repost";
 
+const PUBLIC_MUTATION_BLOCKED_ACTIONS_BY_DOC_TYPE: Partial<
+  Record<string, Set<PublicDocumentMutationAction>>
+> = {
+  payment_order: new Set([
+    "create",
+    "update",
+    "submit",
+    "approve",
+    "reject",
+    "post",
+    "cancel",
+    "repost",
+  ]),
+  transfer_resolution: new Set([
+    "create",
+    "update",
+    "submit",
+    "approve",
+    "reject",
+    "post",
+    "cancel",
+    "repost",
+  ]),
+  fx_execute: new Set([
+    "update",
+    "submit",
+    "approve",
+    "reject",
+    "post",
+    "cancel",
+    "repost",
+  ]),
+  fx_resolution: new Set([
+    "create",
+    "update",
+    "submit",
+    "approve",
+    "reject",
+    "post",
+    "cancel",
+    "repost",
+  ]),
+};
+
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
 });
@@ -209,6 +253,12 @@ export function documentsRoutes(ctx: AppContext) {
     }
 
     if (isSystemOnlyDocumentType(input.docType)) {
+      throw new DocumentSystemOnlyTypeError(input.docType);
+    }
+
+    const blockedActions =
+      PUBLIC_MUTATION_BLOCKED_ACTIONS_BY_DOC_TYPE[input.docType];
+    if (blockedActions?.has(input.action)) {
       throw new DocumentSystemOnlyTypeError(input.docType);
     }
   }

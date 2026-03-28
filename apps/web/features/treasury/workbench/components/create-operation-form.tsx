@@ -9,7 +9,6 @@ import {
   ArrowUpRight,
   Building2,
   ChevronDown,
-  Loader2,
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
@@ -568,7 +567,7 @@ function TreasuryOperationSummaryPanel(input: {
         <div className="rounded-xl border border-dashed px-3 py-3">
           <div className="text-sm font-medium">Если нужна смена валюты</div>
           <div className="text-muted-foreground mt-1 text-sm leading-6">
-            Обычная treasury-операция не меняет актив. Для любого обмена валюты
+            Обычная казначейская операция не меняет актив. Для любого обмена валюты
             используйте отдельный FX-документ.
           </div>
         </div>
@@ -950,7 +949,7 @@ export function TreasuryOperationCreateForm({
       sourceAccount.assetId !== destinationAccount.assetId
     ) {
       toast.error(
-        "Для обмена между валютами используйте отдельный FX-документ, а не обычную treasury-операцию.",
+        "Для обмена между валютами используйте отдельный FX-документ, а не обычную казначейскую операцию.",
       );
       return;
     }

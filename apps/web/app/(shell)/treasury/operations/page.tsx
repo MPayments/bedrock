@@ -8,7 +8,10 @@ import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import type { EntityListResult } from "@/components/entities/entity-table-shell";
 import { TreasuryOperationsTable } from "@/features/treasury/workbench/components/operations-table";
-import { presentTreasuryOperationsTable, type TreasuryOperationTableRow } from "@/features/treasury/workbench/lib/presentation";
+import {
+  presentTreasuryOperationsTable,
+  type TreasuryOperationTableRow,
+} from "@/features/treasury/workbench/lib/presentation";
 import { getTreasuryReferenceData } from "@/features/treasury/workbench/lib/reference-data";
 import {
   listTreasuryAccounts,
@@ -17,34 +20,35 @@ import {
 
 export default async function TreasuryOperationsPage() {
   const createOperationHref = "/treasury/operations/create";
-  const operationsPromise: Promise<EntityListResult<TreasuryOperationTableRow>> =
-    Promise.all([
-      listTreasuryAccounts(),
-      listTreasuryOperations({ limit: 100 }),
-      getTreasuryReferenceData(),
-    ]).then(([accounts, operations, references]) => {
-      const data = presentTreasuryOperationsTable({
-        accounts,
-        labels: {
-          assetLabels: references.assetLabels,
-          organizationLabels: references.organizationLabels,
-        },
-        operations,
-      });
-
-      return {
-        data,
-        total: data.length,
-        limit: Math.max(data.length, 10),
-        offset: 0,
-      };
+  const operationsPromise: Promise<
+    EntityListResult<TreasuryOperationTableRow>
+  > = Promise.all([
+    listTreasuryAccounts(),
+    listTreasuryOperations({ limit: 100 }),
+    getTreasuryReferenceData(),
+  ]).then(([accounts, operations, references]) => {
+    const data = presentTreasuryOperationsTable({
+      accounts,
+      labels: {
+        assetLabels: references.assetLabels,
+        organizationLabels: references.organizationLabels,
+      },
+      operations,
     });
+
+    return {
+      data,
+      total: data.length,
+      limit: Math.max(data.length, 10),
+      offset: 0,
+    };
+  });
 
   return (
     <EntityListPageShell
       icon={Landmark}
       title="Операции казначейства"
-      description="Ручные treasury-операции: выплаты, поступления, внутренние переводы, возвраты и корректировки."
+      description="Ручные казначейские операции: выплаты, поступления, внутренние переводы, возвраты и корректировки."
       actions={
         <div className="shrink-0">
           <Button

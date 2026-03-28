@@ -350,6 +350,7 @@ export function requisitesRoutes(ctx: AppContext) {
 
       try {
         const requisite = await ctx.requisiteAccountingWorkflow.create(input);
+        await ctx.requisiteTreasurySyncService.sync(requisite);
         return c.json(requisite, 201);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -383,6 +384,7 @@ export function requisitesRoutes(ctx: AppContext) {
           id,
           input,
         );
+        await ctx.requisiteTreasurySyncService.sync(requisite);
         return c.json(requisite, 200);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -396,7 +398,18 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
+        const requisite = await ctx.partiesModule.requisites.queries.findById(
+          id,
+        );
+        if (!requisite) {
+          return c.json({ error: `Requisite not found: ${id}` }, 404);
+        }
+
         await ctx.partiesModule.requisites.commands.remove(id);
+        await ctx.requisiteTreasurySyncService.archive({
+          ...requisite,
+          archivedAt: new Date(),
+        });
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {

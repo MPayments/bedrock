@@ -1,4 +1,14 @@
+import Link from "next/link";
 import { Vault } from "lucide-react";
+
+import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 import { getFxQuotes } from "@/features/treasury/quotes/lib/queries";
@@ -32,6 +42,25 @@ export default async function TreasuryOverviewPage() {
       icon={Vault}
       title="Казначейство"
       description="Операционная панель для ручного казначейского процесса: счета, операции, позиции и исключения сверки."
+      aside={
+        <Card className="rounded-sm">
+          <CardHeader className="border-b">
+            <CardTitle>Казначейский FX</CardTitle>
+            <CardDescription>
+              Конверсию валюты запускайте из treasury, а не из Documents workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-4">
+            <p className="text-muted-foreground text-sm">
+              Создание FX использует `fx_execute` как артефакт исполнения, но
+              стартует из treasury.
+            </p>
+            <Button nativeButton={false} render={<Link href="/treasury/quotes/create" />}>
+              Открыть FX
+            </Button>
+          </CardContent>
+        </Card>
+      }
       stats={[
         {
           id: "accounts",

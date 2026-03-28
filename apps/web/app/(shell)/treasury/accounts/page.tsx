@@ -21,7 +21,7 @@ export default async function AccountsPage() {
     <EntityListPageShell
       icon={Wallet}
       title="Счета казначейства"
-      description="Исполняемые treasury-счета: сначала человеческая идентичность счета, затем роли, провайдер и четыре bucket’а остатка."
+      description="Исполняемые казначейские счета"
       fallback={
         <DataTableSkeleton columnCount={6} rowCount={8} filterCount={2} />
       }
