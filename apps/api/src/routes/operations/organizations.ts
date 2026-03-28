@@ -49,7 +49,7 @@ export function operationsOrganizationsRoutes(ctx: AppContext) {
   const updateRoute = createRoute({
     method: "patch", path: "/{id}",
     tags: ["Operations - Organizations"], summary: "Update organization",
-    request: { params: OpsIdParamSchema, body: { content: { "application/json": { schema: UpdateOrganizationInputSchema } }, required: true } },
+    request: { params: OpsIdParamSchema, body: { content: { "application/json": { schema: UpdateOrganizationInputSchema.omit({ id: true }) } }, required: true } },
     responses: { 200: { content: { "application/json": { schema: OrganizationSchema } }, description: "Updated" } },
   });
   const deleteRoute = createRoute({
@@ -66,16 +66,19 @@ export function operationsOrganizationsRoutes(ctx: AppContext) {
     request: { params: OpsIdParamSchema, query: ListBankDetailsQuerySchema },
     responses: { 200: { content: { "application/json": { schema: PaginatedBankDetailsSchema } }, description: "OK" } },
   });
+  const CreateBankDetailsBodySchema = CreateBankDetailsInputSchema.omit({
+    organizationId: true,
+  });
   const createBankRoute = createRoute({
     method: "post", path: "/{id}/banks",
     tags: ["Operations - Organizations"], summary: "Add bank details",
-    request: { params: OpsIdParamSchema, body: { content: { "application/json": { schema: CreateBankDetailsInputSchema } }, required: true } },
+    request: { params: OpsIdParamSchema, body: { content: { "application/json": { schema: CreateBankDetailsBodySchema } }, required: true } },
     responses: { 201: { content: { "application/json": { schema: BankDetailsSchema } }, description: "Created" } },
   });
   const updateBankRoute = createRoute({
     method: "patch", path: "/{id}/banks/{bankId}",
     tags: ["Operations - Organizations"], summary: "Update bank details",
-    request: { params: OpsIdBankIdParamSchema, body: { content: { "application/json": { schema: UpdateBankDetailsInputSchema } }, required: true } },
+    request: { params: OpsIdBankIdParamSchema, body: { content: { "application/json": { schema: UpdateBankDetailsInputSchema.omit({ id: true }) } }, required: true } },
     responses: { 200: { content: { "application/json": { schema: BankDetailsSchema } }, description: "Updated" } },
   });
   const deleteBankRoute = createRoute({
@@ -89,13 +92,28 @@ export function operationsOrganizationsRoutes(ctx: AppContext) {
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.operationsModule.organizations.queries.list(query);
-      return c.json(result, 200);
+      const enriched = result.data.map((org: any) => ({
+        ...org,
+        hasFiles: !!(org.signatureKey || org.sealKey),
+      }));
+      return c.json({ ...result, data: enriched }, 200);
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       const org = await ctx.operationsModule.organizations.queries.findById(id);
       if (!org) return c.json({ error: "Organization not found" }, 404);
-      return c.json(org, 200);
+      const banksResult = await ctx.operationsModule.organizations.bankDetails.queries.list({
+        organizationId: id,
+        limit: 200,
+        offset: 0,
+      });
+      const signatureUrl = (org as any).signatureKey
+        ? `/organizations/${id}/files/signature`
+        : null;
+      const sealUrl = (org as any).sealKey
+        ? `/organizations/${id}/files/seal`
+        : null;
+      return c.json({ ...org, banks: banksResult.data, signatureUrl, sealUrl }, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

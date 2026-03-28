@@ -26,7 +26,7 @@ export type ActivityEntity = (typeof ACTIVITY_ENTITY_VALUES)[number];
 export type ActivitySource = (typeof ACTIVITY_SOURCE_VALUES)[number];
 
 export const LogActivityInputSchema = z.object({
-  userId: z.number().int(),
+  userId: z.string(),
   action: z.enum(ACTIVITY_ACTION_VALUES),
   entityType: z.enum(ACTIVITY_ENTITY_VALUES),
   entityId: z.number().int(),

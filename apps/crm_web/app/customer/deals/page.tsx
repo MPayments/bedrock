@@ -31,11 +31,10 @@ interface DealItem {
 }
 
 interface DealsResponse {
-  items: DealItem[];
-  totalItems: number;
-  page: number;
+  data: DealItem[];
+  total: number;
   limit: number;
-  totalPages: number;
+  offset: number;
 }
 
 const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> =
@@ -123,7 +122,7 @@ export default function CustomerDealsPage() {
         setError(null);
 
         const params = new URLSearchParams({
-          page: page.toString(),
+          offset: ((page - 1) * limit).toString(),
           limit: limit.toString(),
         });
 
@@ -143,9 +142,9 @@ export default function CustomerDealsPage() {
         }
 
         const data: DealsResponse = await response.json();
-        setDeals(data.items);
-        setTotalPages(data.totalPages);
-        setTotalItems(data.totalItems);
+        setDeals(data.data ?? []);
+        setTotalPages(Math.ceil((data.total ?? 0) / limit));
+        setTotalItems(data.total ?? 0);
       } catch (err) {
         console.error("Error fetching deals:", err);
         setError(err instanceof Error ? err.message : "Ошибка загрузки сделок");

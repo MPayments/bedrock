@@ -149,7 +149,8 @@ export function NewContractDialog({
         throw new Error("Ошибка загрузки организаций");
       }
 
-      const data: Organization[] = await res.json();
+      const raw = await res.json();
+      const data: Organization[] = Array.isArray(raw) ? raw : raw.data ?? [];
       setOrganizations(data);
     } catch (err) {
       console.error("Organizations fetch error:", err);
@@ -178,7 +179,8 @@ export function NewContractDialog({
         throw new Error("Ошибка загрузки банков");
       }
 
-      const data: Bank[] = await res.json();
+      const raw = await res.json();
+      const data: Bank[] = Array.isArray(raw) ? raw : raw.data ?? [];
       setBanks(data);
     } catch (err) {
       console.error("Banks fetch error:", err);

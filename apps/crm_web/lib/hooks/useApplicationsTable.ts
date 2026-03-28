@@ -26,11 +26,10 @@ export interface ApplicationsRow {
 }
 
 export interface ApplicationsResponse {
-  items: ApplicationsRow[];
-  totalItems: number;
-  page: number;
+  data: ApplicationsRow[];
+  total: number;
   limit: number;
-  totalPages: number;
+  offset: number;
 }
 
 export interface ApplicationsStatistics {
@@ -63,7 +62,7 @@ export function useApplicationsTable(
   options: UseApplicationsTableOptions = {}
 ) {
   const {
-    initialStatusFilter = ["created"],
+    initialStatusFilter = ["forming", "created"],
     initialPageSize = 20,
     initialDateRange,
     initialColumnFilters = [],
@@ -119,7 +118,7 @@ export function useApplicationsTable(
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>(
     undefined
   );
-  const [selectedAgentId, setSelectedAgentId] = useState<number | undefined>(
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
     undefined
   );
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
@@ -152,9 +151,9 @@ export function useApplicationsTable(
         }
 
         const response: ApplicationsResponse = await res.json();
-        setData(response.items);
-        setTotalItems(response.totalItems);
-        setTotalPages(response.totalPages);
+        setData(response.data ?? []);
+        setTotalItems(response.total ?? 0);
+        setTotalPages(Math.ceil((response.total ?? 0) / pagination.pageSize));
       } catch (err) {
         console.error("Applications fetch error:", err);
         setError(err instanceof Error ? err.message : "Ошибка загрузки данных");

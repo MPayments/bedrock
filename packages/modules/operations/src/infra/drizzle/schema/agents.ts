@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   boolean,
   integer,
   jsonb,
@@ -12,40 +11,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { organizations, requisites } from "@bedrock/parties/schema";
-import { user } from "@bedrock/platform/auth-model/schema";
 
 export interface LocalizedText {
   ru?: string | null;
   en?: string | null;
 }
-
-// --- ops_agents (was: user) ---
-
-export const opsAgents = pgTable("ops_agents", {
-  id: serial("id").primaryKey(),
-  tgId: bigint("tg_id", { mode: "number" }).unique(),
-  userName: text("user_name"),
-  name: text("name").notNull(),
-  tag: text("tag"),
-  status: text("status").default("active").notNull(),
-  isAllowed: boolean("is_allowed").default(false).notNull(),
-  isAdmin: boolean("is_admin").default(false).notNull(),
-  role: text("role").default("agent").notNull(),
-  allowedBy: bigint("allowed_by", { mode: "number" }),
-  allowedAt: text("allowed_at"),
-  // Better Auth fields (kept for mpayments compatibility)
-  email: text("email").unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  // FK bridge to bedrock auth
-  bedrockUserId: text("bedrock_user_id").references(() => user.id),
-  createdAt: text("created_at")
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: text("updated_at")
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-});
 
 // --- ops_agent_organizations (was: agent_organizations) ---
 

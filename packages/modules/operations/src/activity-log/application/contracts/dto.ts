@@ -10,7 +10,7 @@ import {
 
 export const ActivityLogEntrySchema = z.object({
   id: z.number().int(),
-  userId: z.number().int(),
+  userId: z.string(),
   action: z.enum(ACTIVITY_ACTION_VALUES),
   entityType: z.enum(ACTIVITY_ENTITY_VALUES),
   entityId: z.number().int(),

@@ -131,8 +131,8 @@ export default function NewClientPage() {
         credentials: "include",
       });
       if (res.ok) {
-        const data = await res.json();
-        setSubAgents(data);
+        const raw = await res.json();
+        setSubAgents(Array.isArray(raw) ? raw : raw.data ?? []);
       }
     } catch (err) {
       console.error("Error loading sub-agents:", err);

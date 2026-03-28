@@ -8,7 +8,7 @@ export class ConsoleNotificationAdapter implements NotificationPort {
   async notifyDealStatusChanged(
     dealId: number,
     status: string,
-    agentId: number,
+    agentId: string,
   ): Promise<void> {
     this.logger.info("[notification:noop] Deal status changed", {
       dealId,
@@ -19,7 +19,7 @@ export class ConsoleNotificationAdapter implements NotificationPort {
 
   async notifyNewCalculation(
     calculationId: number,
-    agentId: number,
+    agentId: string,
   ): Promise<void> {
     this.logger.info("[notification:noop] New calculation", {
       calculationId,

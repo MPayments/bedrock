@@ -11,8 +11,6 @@
     "worker:documents-period-close": "tsx src/main.ts documents-period-close",
     "worker:balances": "tsx src/main.ts balances",
     "worker:treasury-rates": "tsx src/main.ts treasury-rates",
-    "worker:ops-s3-cleanup": "tsx src/main.ts ops-s3-cleanup",
-    "worker:ops-activity-log-cleanup": "tsx src/main.ts ops-activity-log-cleanup",
     "build": "tsgo",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"

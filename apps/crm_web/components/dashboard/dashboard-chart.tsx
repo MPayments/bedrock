@@ -21,18 +21,9 @@ import { BarChart3, FileText, TrendingUp } from "lucide-react";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface DealsStats {
-  total: number;
-  done: {
-    count: number;
-    totalAmount: number;
-    marginality: number;
-  };
-  inProgress: {
-    count: number;
-    totalAmount: number;
-  };
-  totalAmount: number;
-  period: string;
+  totalCount: number;
+  byStatus: Record<string, number>;
+  totalAmount: string;
 }
 
 export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
@@ -49,13 +40,19 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
         setIsLoading(true);
         setError(null);
 
-        // Преобразуем timeRange в period для API
-        let period: "day" | "week" | "month" = "month";
-        if (timeRange === "7d") period = "week";
-        else if (timeRange === "1d") period = "day";
+        const now = new Date();
+        const from = new Date(now);
+        if (timeRange === "1d") from.setDate(from.getDate() - 1);
+        else if (timeRange === "7d") from.setDate(from.getDate() - 7);
+        else from.setMonth(from.getMonth() - 1);
+
+        const params = new URLSearchParams({
+          dateFrom: from.toISOString().slice(0, 10),
+          dateTo: now.toISOString().slice(0, 10),
+        });
 
         const res = await fetch(
-          `${API_BASE_URL}/deals/stats?period=${period}`,
+          `${API_BASE_URL}/deals/stats?${params}`,
           {
             cache: "no-store",
             credentials: "include",
@@ -141,37 +138,26 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
         )}
         {!isLoading && !error && stats && (
           <div className="space-y-6">
-            {/* Закрытые сделки */}
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Кол-во сделок
+                  Всего сделок
                 </span>
-                <span className="text-xl font-bold">{stats.done.count}</span>
+                <span className="text-xl font-bold">{stats.totalCount}</span>
               </div>
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Сумма закрытых сделок
+                  Общая сумма
                 </span>
                 <span className="text-xl font-bold">
-                  {formatAmount(stats.done.totalAmount)} ₽
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-b pb-2">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Маржинальность
-                </span>
-                <span className="text-xl font-bold">
-                  {formatAmount(stats.done.marginality)} ₽
+                  {formatAmount(Number(stats.totalAmount))} ₽
                 </span>
               </div>
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Вознаграждение агентов
+                  Закрытые
                 </span>
-                <span className="text-xl font-bold">
-                  {formatAmount(stats.done.marginality * 0.15)} ₽
-                </span>
+                <span className="text-xl font-bold">{stats.byStatus["done"] ?? 0}</span>
               </div>
             </div>
 
@@ -179,18 +165,18 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
             <div className="space-y-3 rounded-lg bg-muted/50 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  Кол-во сделок в работе
+                  В работе
                 </span>
                 <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.inProgress.count}
+                  {stats.byStatus["in_progress"] ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  Сумма сделок в работе
+                  Новые
                 </span>
                 <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatAmount(stats.inProgress.totalAmount)} ₽
+                  {stats.byStatus["new"] ?? 0}
                 </span>
               </div>
             </div>

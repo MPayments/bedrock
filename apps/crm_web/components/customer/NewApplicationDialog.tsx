@@ -181,7 +181,7 @@ export function NewApplicationDialog({
       }
 
       const data = await res.json();
-      const applicationId = data.application.id;
+      const applicationId = data.id;
 
       // Success - close and navigate
       onOpenChange(false);

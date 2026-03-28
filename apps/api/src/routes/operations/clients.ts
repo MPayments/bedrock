@@ -254,7 +254,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
       query: z.object({
         q: z.string().optional(),
         limit: z.coerce.number().int().default(20),
-        page: z.coerce.number().int().default(1),
+        offset: z.coerce.number().int().default(0),
       }),
     },
     responses: {
@@ -288,12 +288,12 @@ export function operationsClientsRoutes(ctx: AppContext) {
 
   return app
     .openapi(searchRoute, async (c) => {
-      const { q, limit, page } = c.req.valid("query");
+      const { q, limit, offset } = c.req.valid("query");
       const result = await ctx.operationsModule.clients.queries.list({
-        page,
+        offset,
         limit,
-        sort: "createdAt",
-        order: "desc",
+        sortBy: "createdAt",
+        sortOrder: "desc",
         ...(q ? { search: q } : {}),
       } as any);
       return c.json(result, 200);
@@ -337,6 +337,16 @@ export function operationsClientsRoutes(ctx: AppContext) {
       const result = await ctx.operationsModule.clients.queries.list(query);
       return c.json(result, 200);
     })
+    .openapi(lookupRoute, async (c) => {
+      const { inn } = c.req.valid("query");
+      const searchCompany =
+        ctx.operationsModule.clients.queries.searchCompany;
+      if (!searchCompany) {
+        return c.json(null, 200);
+      }
+      const result = await searchCompany(inn);
+      return c.json(result, 200);
+    })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       const client = await ctx.operationsModule.clients.queries.findById(id);
@@ -361,16 +371,6 @@ export function operationsClientsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       await ctx.operationsModule.clients.commands.softDelete(id);
       return c.json({ deleted: true }, 200);
-    })
-    .openapi(lookupRoute, async (c) => {
-      const { inn } = c.req.valid("query");
-      const searchCompany =
-        ctx.operationsModule.clients.queries.searchCompany;
-      if (!searchCompany) {
-        return c.json(null, 200);
-      }
-      const result = await searchCompany(inn);
-      return c.json(result, 200);
     })
     .openapi(getContractRoute, async (c) => {
       const { id } = c.req.valid("param");
@@ -407,13 +407,14 @@ export function operationsClientsRoutes(ctx: AppContext) {
         return c.json({ error: "File is required" } as any, 400 as any);
       }
       const buffer = Buffer.from(await file.arrayBuffer());
+      const sessionUser = c.get("user")!;
       const result = await docs.commands.upload({
         clientId: id,
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
         buffer,
-        uploadedBy: c.get("user")?.id ? Number(c.get("user")!.id) : 0,
+        uploadedBy: sessionUser.id,
       });
       return c.json(result, 201);
     })

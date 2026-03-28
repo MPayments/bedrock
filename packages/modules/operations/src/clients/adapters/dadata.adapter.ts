@@ -60,7 +60,7 @@ export interface DadataAdapterConfig {
 }
 
 const DEFAULT_CONFIG: DadataAdapterConfig = {
-  apiUrl: "https://dadata.tbank.ru",
+  apiUrl: "https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest",
 };
 
 const INN_PATTERN = /^\d{10}$|^\d{12}$/;
@@ -77,7 +77,7 @@ export class DadataAdapter implements CompanyLookupPort {
       throw new Error("INN must be exactly 10 or 12 digits");
     }
 
-    const url = `${this.apiUrl}/api/v1/party`;
+    const url = `${this.apiUrl}/party`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -106,17 +106,17 @@ export class DadataAdapter implements CompanyLookupPort {
     const company = suggestion.data;
 
     return {
+      orgName: company.name?.full_with_opf || suggestion.value,
+      orgType: company.opf?.short || null,
+      directorName: company.management?.name || null,
+      position: company.management?.post || null,
+      directorBasis: company.opf?.short === "ИП" ? "ОГРНИП" : "Устав",
+      address: company.address?.unrestricted_value || company.address?.value || null,
       inn: company.inn,
       kpp: company.kpp || null,
       ogrn: company.ogrn || null,
-      name: company.name?.short_with_opf || suggestion.value,
-      fullName: company.name?.full_with_opf || null,
-      directorName: company.management?.name || null,
-      directorPosition: company.management?.post || null,
-      address: company.address?.unrestricted_value || company.address?.value || null,
       oktmo: company.address?.data?.oktmo || company.oktmo || null,
       okpo: company.okpo || null,
-      orgType: company.opf?.short || null,
     };
   }
 }

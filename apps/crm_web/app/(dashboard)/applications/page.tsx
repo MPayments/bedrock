@@ -42,7 +42,7 @@ import {
 export default function ApplicationsPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
   const [showNewApplicationDialog, setShowNewApplicationDialog] =
     useState(false);
 

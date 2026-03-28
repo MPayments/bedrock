@@ -1,7 +1,12 @@
 import { incline } from "lvovich";
-import { convert as convertNumberToWordsRu } from "number-to-words-ru";
-// @ts-ignore -- russian-nouns-js has no type declarations
-import { Case, Engine, Gender, createLemma } from "russian-nouns-js";
+// @ts-ignore -- CJS module, no named ESM exports
+import numberToWordsRu from "number-to-words-ru";
+
+const convertNumberToWordsRu = numberToWordsRu.convert;
+// @ts-ignore -- russian-nouns-js is a CJS/UMD package with no named ESM exports
+import RussianNouns from "russian-nouns-js";
+
+const { Case, Engine, Gender, createLemma } = RussianNouns;
 
 export type SupportedLang = "ru" | "en";
 

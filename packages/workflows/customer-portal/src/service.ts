@@ -11,8 +11,7 @@ export interface CustomerPortalWorkflowDeps {
 }
 
 export interface CustomerContext {
-  userId: number;
-  bedrockUserId?: string;
+  userId: string;
 }
 
 export class CustomerNotAuthorizedError extends Error {
@@ -25,7 +24,7 @@ export class CustomerNotAuthorizedError extends Error {
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ) {
-  async function getClientsByUserId(userId: number) {
+  async function getClientsByUserId(userId: string) {
     return deps.operations.clients.queries.list({
       userId,
       isDeleted: false,
@@ -37,7 +36,7 @@ export function createCustomerPortalWorkflow(
   }
 
   async function assertClientOwnership(
-    userId: number,
+    userId: string,
     clientId: number,
   ): Promise<void> {
     const client = await deps.operations.clients.queries.findById(clientId);

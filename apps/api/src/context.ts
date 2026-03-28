@@ -40,7 +40,7 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default("noreply@bedrock.app"),
-  DADATA_API_URL: z.string().default("https://dadata.tbank.ru"),
+  DADATA_API_URL: z.string().default("https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

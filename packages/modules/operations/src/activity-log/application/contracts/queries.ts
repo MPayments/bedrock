@@ -11,7 +11,7 @@ export const ACTIVITY_LOG_LIST_CONTRACT = {
   sortableColumns: ["createdAt"] as const,
   defaultSort: { id: "createdAt" as const, desc: true },
   filters: {
-    userId: { kind: "number" as const, cardinality: "single" as const, int: true },
+    userId: { kind: "string" as const, cardinality: "single" as const },
     action: {
       kind: "string" as const,
       cardinality: "single" as const,

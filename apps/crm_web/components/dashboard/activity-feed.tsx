@@ -189,7 +189,8 @@ export function ActivityFeed({ className }: { className?: string }) {
           credentials: "include",
         });
         if (res.ok) {
-          setActivities(await res.json());
+          const json = await res.json();
+          setActivities(json.data || []);
         }
       } catch (error) {
         console.error("Failed to fetch activities:", error);

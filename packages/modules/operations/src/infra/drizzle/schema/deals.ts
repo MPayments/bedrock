@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, serial, text } from "drizzle-orm/pg-core";
 
+import { user } from "@bedrock/platform/auth-model/schema";
+
 import type { LocalizedText } from "./agents";
-import { opsAgents, opsAgentOrganizationBankDetails } from "./agents";
+import { opsAgentOrganizationBankDetails } from "./agents";
 import { opsApplications } from "./applications";
 import { opsCalculations } from "./calculations";
 import { opsDealStatusEnum } from "./enums";
@@ -57,9 +59,8 @@ export const opsDealDocuments = pgTable("ops_deal_documents", {
   fileSize: integer("file_size").notNull(),
   mimeType: text("mime_type").notNull(),
   s3Key: text("s3_key").notNull(),
-  uploadedBy: integer("uploaded_by")
-    .notNull()
-    .references(() => opsAgents.id),
+  uploadedBy: text("uploaded_by")
+    .references(() => user.id),
   description: text("description"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
@@ -94,9 +95,9 @@ export const opsDealDocumentsRelations = relations(
       fields: [opsDealDocuments.dealId],
       references: [opsDeals.id],
     }),
-    uploader: one(opsAgents, {
+    uploader: one(user, {
       fields: [opsDealDocuments.uploadedBy],
-      references: [opsAgents.id],
+      references: [user.id],
     }),
   }),
 );

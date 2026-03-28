@@ -136,7 +136,7 @@ export default function ClientsReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
   const [exporting, setExporting] = useState(false);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
@@ -197,7 +197,7 @@ export default function ClientsReportsPage() {
     getQueryParams,
   } = useDealsTable({
     initialStatusFilter,
-    initialPageSize: 10000, // Очень большое значение, чтобы показать все записи
+    initialPageSize: 200, // Максимальное значение (ограничение API)
     initialDateRange, // Передаём начальный диапазон дат сразу
     reportCurrencyCode,
   });

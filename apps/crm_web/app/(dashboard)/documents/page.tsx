@@ -79,7 +79,8 @@ export default function DocumentsPage() {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Ошибка загрузки организаций");
-        const data: Organization[] = await res.json();
+        const raw = await res.json();
+        const data: Organization[] = Array.isArray(raw) ? raw : raw.data ?? [];
         setOrganizations(data);
       } catch (err) {
         console.error("Error loading organizations:", err);

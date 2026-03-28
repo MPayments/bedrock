@@ -4,14 +4,14 @@ import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 export const TodoSchema = z.object({
   id: z.number().int(),
-  agentId: z.number().int(),
+  agentId: z.string(),
   applicationId: z.number().int().nullable().optional(),
   title: z.string(),
   description: z.string().nullable().optional(),
   completed: z.boolean(),
   order: z.number().int(),
   dueDate: z.string().nullable().optional(),
-  assignedBy: z.number().int().nullable().optional(),
+  assignedBy: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

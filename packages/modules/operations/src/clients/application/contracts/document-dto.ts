@@ -7,7 +7,7 @@ export const ClientDocumentSchema = z.object({
   fileSize: z.number().int(),
   mimeType: z.string(),
   s3Key: z.string(),
-  uploadedBy: z.number().int(),
+  uploadedBy: z.string().nullable(),
   description: z.string().nullable(),
   createdAt: z.string(),
 });
@@ -20,7 +20,7 @@ export const UploadClientDocumentInputSchema = z.object({
   fileSize: z.number().int().positive(),
   mimeType: z.string().min(1),
   s3Key: z.string().min(1),
-  uploadedBy: z.number().int(),
+  uploadedBy: z.string().nullable(),
   description: z.string().nullable().optional(),
 });
 

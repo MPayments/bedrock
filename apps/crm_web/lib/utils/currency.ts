@@ -33,7 +33,10 @@ function getLocaleForCurrency(currencyCode: string): string {
  * @param currency - ISO currency code (e.g. "USD", "RUB")
  * @returns Formatted string like "1 234.56 ₽" or "$1,234.56"
  */
-export function formatCurrency(value: number, currency: string): string {
+export function formatCurrency(value: number, currency: string | undefined | null): string {
+  if (!currency) {
+    return new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  }
   const currencyUpper = currency.toUpperCase();
   const symbol = CURRENCY_SYMBOLS[currencyUpper];
 

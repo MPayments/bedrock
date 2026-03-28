@@ -69,7 +69,7 @@ export function createDealCommissionWorkflow(
 
     async processDealCompletion(input: {
       dealId: number;
-      agentId: number;
+      agentId: string;
       commission: string;
     }) {
       const { dealId, agentId, commission } = input;
@@ -92,7 +92,7 @@ export function createDealCommissionWorkflow(
 
     async processDealCompletionWithCalculation(input: {
       dealId: number;
-      agentId: number;
+      agentId: string;
       totalWithExpensesInBase: string;
       costPrice?: string | null;
       subAgentCommissionPercent?: number | null;

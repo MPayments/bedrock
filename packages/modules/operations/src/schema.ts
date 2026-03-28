@@ -5,8 +5,7 @@ import {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agents
-  opsAgents,
+  // Agent organizations & sub-agents
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
   opsSubAgents,
@@ -37,10 +36,6 @@ import {
   // Activity log
   opsActivityLog,
   opsActivityLogRelations,
-  // Auth
-  opsSessions,
-  opsAccounts,
-  opsVerifications,
   // Telegram
   opsTelegrafSessions,
   // S3
@@ -54,8 +49,7 @@ export {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agents
-  opsAgents,
+  // Agent organizations & sub-agents
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
   opsSubAgents,
@@ -86,10 +80,6 @@ export {
   // Activity log
   opsActivityLog,
   opsActivityLogRelations,
-  // Auth
-  opsSessions,
-  opsAccounts,
-  opsVerifications,
   // Telegram
   opsTelegrafSessions,
   // S3
@@ -103,8 +93,7 @@ export const schema = {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agents
-  opsAgents,
+  // Agent organizations & sub-agents
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
   opsSubAgents,
@@ -135,10 +124,6 @@ export const schema = {
   // Activity log
   opsActivityLog,
   opsActivityLogRelations,
-  // Auth
-  opsSessions,
-  opsAccounts,
-  opsVerifications,
   // Telegram
   opsTelegrafSessions,
   // S3

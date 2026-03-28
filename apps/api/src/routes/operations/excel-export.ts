@@ -135,16 +135,16 @@ export async function exportDealsXlsx(ctx: AppContext, query: Record<string, unk
 
   for (const deal of result.data) {
     ws.addRow({
-      id: (deal as any).id,
-      createdAt: (deal as any).createdAt,
-      clientName: (deal as any).clientName ?? "",
-      amount: (deal as any).amount ?? (deal as any).amountOriginal,
-      currencyCode: (deal as any).currencyCode,
-      status: (deal as any).status,
-      agentName: (deal as any).agentName ?? "",
-      comment: (deal as any).comment ?? "",
-      rate: (deal as any).rate,
-      feePercentage: (deal as any).feePercentage,
+      id: deal.id,
+      createdAt: deal.createdAt,
+      clientName: deal.client,
+      amount: deal.amount,
+      currencyCode: deal.currency,
+      status: deal.status,
+      agentName: deal.agentName,
+      comment: deal.comment ?? "",
+      rate: "",
+      feePercentage: deal.feePercentage,
     });
   }
 

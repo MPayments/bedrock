@@ -76,15 +76,9 @@ interface Client {
   corrAccount: string | null;
 }
 
-interface Agent {
-  id: number;
-  name: string;
-  email: string;
-}
-
 interface Application {
   id: number;
-  agentId: number | null;
+  agentId: string | null;
   clientId: number;
   status: "forming" | "created" | "rejected" | "finished";
   reason: string | null;
@@ -93,8 +87,6 @@ interface Application {
   requestedCurrency: string | null;
   createdAt: string;
   updatedAt: string;
-  client?: Client;
-  agent?: Agent;
 }
 
 interface Calculation {
@@ -118,11 +110,6 @@ interface Calculation {
   sentToClient: number;
   status: string;
   createdAt: string;
-}
-
-interface ApplicationDetailResponse {
-  application: Application;
-  calculations: Calculation[];
 }
 
 const STATUS_LABELS: Record<
@@ -165,9 +152,11 @@ export default function ApplicationDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
 
-  const [data, setData] = useState<ApplicationDetailResponse | null>(null);
+  const [application, setApplication] = useState<Application | null>(null);
+  const [calculations, setCalculations] = useState<Calculation[]>([]);
+  const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCalculationDialog, setShowCalculationDialog] = useState(false);
@@ -194,21 +183,45 @@ export default function ApplicationDetailPage() {
       setLoading(true);
       setError(null);
 
-      const url = `${API_BASE_URL}/applications/${applicationId}`;
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
         cache: "no-store",
         credentials: "include",
       });
 
       if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error("Заявка не найдена");
-        }
+        if (res.status === 404) throw new Error("Заявка не найдена");
         throw new Error(`Ошибка загрузки: ${res.status}`);
       }
 
-      const response: ApplicationDetailResponse = await res.json();
-      setData(response);
+      const app: Application = await res.json();
+      setApplication(app);
+
+      // Fetch client details
+      try {
+        const clientRes = await fetch(`${API_BASE_URL}/clients/${app.clientId}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (clientRes.ok) {
+          setClient(await clientRes.json());
+        }
+      } catch {
+        // Client details are optional
+      }
+
+      // Fetch calculations for this application
+      try {
+        const calcRes = await fetch(
+          `${API_BASE_URL}/calculations?applicationId=${app.id}`,
+          { cache: "no-store", credentials: "include" },
+        );
+        if (calcRes.ok) {
+          const calcData = await calcRes.json();
+          setCalculations(Array.isArray(calcData) ? calcData : calcData.data ?? []);
+        }
+      } catch {
+        // Calculations are optional
+      }
     } catch (err) {
       console.error("Application fetch error:", err);
       setError(err instanceof Error ? err.message : "Ошибка загрузки данных");
@@ -312,7 +325,7 @@ export default function ApplicationDetailPage() {
   };
 
   const handleEditComment = () => {
-    setCommentValue(data?.application.comment || "");
+    setCommentValue(application?.comment || "");
     setIsEditingComment(true);
   };
 
@@ -388,7 +401,7 @@ export default function ApplicationDetailPage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !application) {
     return (
       <div className="space-y-4">
         <Button variant="outline" size="sm" onClick={() => router.back()}>
@@ -400,8 +413,6 @@ export default function ApplicationDetailPage() {
       </div>
     );
   }
-
-  const { application, calculations } = data;
 
   return (
     <div className="space-y-4">
@@ -594,8 +605,8 @@ export default function ApplicationDetailPage() {
                       Агент
                     </div>
                     <div className="text-base">
-                      {application.agent ? (
-                        `${application.agent.name} (${application.agent.email})`
+                      {application.agentId ? (
+                        `Агент #${application.agentId}`
                       ) : (
                         <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
                           Не назначен
@@ -821,92 +832,92 @@ export default function ApplicationDetailPage() {
               <CardTitle>Информация о клиенте</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {application.client ? (
+              {client ? (
                 <div className="space-y-3">
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">
                       Название организации
                     </div>
                     <div className="text-base font-medium">
-                      {application.client.orgName}
+                      {client.orgName}
                     </div>
                   </div>
-                  {application.client.orgType && (
+                  {client.orgType && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         Тип организации
                       </div>
                       <div className="text-base">
-                        {application.client.orgType}
+                        {client.orgType}
                       </div>
                     </div>
                   )}
-                  {application.client.directorName && (
+                  {client.directorName && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         Руководитель
                       </div>
                       <div className="text-base">
-                        {application.client.directorName}
+                        {client.directorName}
                       </div>
-                      {application.client.position && (
+                      {client.position && (
                         <div className="text-sm text-muted-foreground">
-                          {application.client.position}
+                          {client.position}
                         </div>
                       )}
                     </div>
                   )}
-                  {application.client.inn && (
+                  {client.inn && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         ИНН
                       </div>
-                      <div className="text-base">{application.client.inn}</div>
+                      <div className="text-base">{client.inn}</div>
                     </div>
                   )}
-                  {application.client.kpp && (
+                  {client.kpp && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         КПП
                       </div>
-                      <div className="text-base">{application.client.kpp}</div>
+                      <div className="text-base">{client.kpp}</div>
                     </div>
                   )}
-                  {application.client.ogrn && (
+                  {client.ogrn && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         ОГРН
                       </div>
-                      <div className="text-base">{application.client.ogrn}</div>
+                      <div className="text-base">{client.ogrn}</div>
                     </div>
                   )}
-                  {application.client.phone && (
+                  {client.phone && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         Телефон
                       </div>
                       <div className="text-base">
-                        {application.client.phone}
+                        {client.phone}
                       </div>
                     </div>
                   )}
-                  {application.client.email && (
+                  {client.email && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         Email
                       </div>
                       <div className="text-base">
-                        {application.client.email}
+                        {client.email}
                       </div>
                     </div>
                   )}
-                  {application.client.address && (
+                  {client.address && (
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
                         Адрес
                       </div>
                       <div className="text-base">
-                        {application.client.address}
+                        {client.address}
                       </div>
                     </div>
                   )}
@@ -919,7 +930,7 @@ export default function ApplicationDetailPage() {
             </CardContent>
           </Card>
 
-          {application.client?.bankName && (
+          {client?.bankName && (
             <Card>
               <CardHeader>
                 <CardTitle>Банковские реквизиты</CardTitle>
@@ -929,35 +940,35 @@ export default function ApplicationDetailPage() {
                   <div className="text-sm font-medium text-muted-foreground">
                     Банк
                   </div>
-                  <div className="text-base">{application.client.bankName}</div>
+                  <div className="text-base">{client.bankName}</div>
                 </div>
-                {application.client.account && (
+                {client.account && (
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">
                       Расчётный счёт
                     </div>
                     <div className="text-base font-mono text-sm">
-                      {application.client.account}
+                      {client.account}
                     </div>
                   </div>
                 )}
-                {application.client.bic && (
+                {client.bic && (
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">
                       БИК
                     </div>
                     <div className="text-base font-mono text-sm">
-                      {application.client.bic}
+                      {client.bic}
                     </div>
                   </div>
                 )}
-                {application.client.corrAccount && (
+                {client.corrAccount && (
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">
                       Корр. счёт
                     </div>
                     <div className="text-base font-mono text-sm">
-                      {application.client.corrAccount}
+                      {client.corrAccount}
                     </div>
                   </div>
                 )}

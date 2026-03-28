@@ -361,7 +361,7 @@ export function createApplicationServices(
     : undefined;
 
   const companyLookup = new DadataAdapter({
-    apiUrl: env?.DADATA_API_URL ?? "https://dadata.tbank.ru",
+    apiUrl: env?.DADATA_API_URL ?? "https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest",
   });
 
   const operationsModule = createApiOperationsModule({
@@ -393,6 +393,7 @@ export function createApplicationServices(
     templateRenderer: templateAdapter,
     pdfConverter: createLibreOfficeConvertAdapter(),
     templateManager: templateAdapter,
+    objectStorage,
     logger,
   });
 

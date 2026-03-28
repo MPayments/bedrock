@@ -16,7 +16,7 @@ export const DEALS_LIST_CONTRACT = {
       cardinality: "multi" as const,
       enumValues: DEAL_STATUS_VALUES,
     },
-    agentId: { kind: "number" as const, cardinality: "single" as const, int: true },
+    agentId: { kind: "string" as const, cardinality: "single" as const },
     clientId: { kind: "number" as const, cardinality: "single" as const, int: true },
     dateFrom: { kind: "string" as const, cardinality: "single" as const },
     dateTo: { kind: "string" as const, cardinality: "single" as const },

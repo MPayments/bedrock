@@ -10,7 +10,7 @@ export function buildDealsQueryParams(
     sorting: SortingState;
     columnFilters: ColumnFiltersState;
     selectedClientId?: number;
-    selectedAgentId?: number;
+    selectedAgentId?: string;
     dateRange?: DateRange;
   },
   options?: { includePagination?: boolean }
@@ -29,7 +29,7 @@ export function buildDealsQueryParams(
 
   // Пагинация
   if (includePagination) {
-    searchParams.set("page", (pagination.pageIndex + 1).toString());
+    searchParams.set("offset", (pagination.pageIndex * pagination.pageSize).toString());
     searchParams.set("limit", pagination.pageSize.toString());
   }
 

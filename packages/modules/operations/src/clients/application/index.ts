@@ -88,7 +88,7 @@ function createClientDocumentsSubservice(
         fileSize: number;
         mimeType: string;
         buffer: Buffer;
-        uploadedBy: number;
+        uploadedBy: string | null;
         description?: string | null;
       }) {
         const s3Key = `clients/${input.clientId}/${Date.now()}-${input.fileName}`;

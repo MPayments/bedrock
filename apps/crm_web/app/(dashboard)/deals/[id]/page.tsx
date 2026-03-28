@@ -141,7 +141,7 @@ interface Calculation {
 
 interface Application {
   id: number;
-  agentId: number;
+  agentId: string | null;
   clientId: number;
   status: string;
   reason: string | null;
@@ -319,7 +319,7 @@ export default function DealDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
 
   const [data, setData] = useState<DealDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -415,46 +415,32 @@ export default function DealDetailPage() {
 
   const dealId = params?.id as string;
 
+  const VALID_TRANSITIONS: Record<DealStatus, DealStatus[]> = {
+    preparing_documents: ["awaiting_funds", "cancelled"],
+    awaiting_funds: ["awaiting_payment", "cancelled"],
+    awaiting_payment: ["closing_documents", "cancelled"],
+    closing_documents: ["cancelled"],
+    done: [],
+    cancelled: [],
+  };
+
   const getAvailableStatuses = (
     currentStatus: DealStatus,
     hasContract: boolean,
   ): Array<{ status: DealStatus; disabled: boolean; reason?: string }> => {
-    // Закрытые и отменённые сделки не могут менять статус
-    if (currentStatus === "done" || currentStatus === "cancelled") {
-      return [];
-    }
+    const allowed = VALID_TRANSITIONS[currentStatus] ?? [];
+    if (allowed.length === 0) return [];
 
-    // Все возможные статусы кроме done (он через кнопку "Закрыть сделку")
-    const allStatuses: DealStatus[] = [
-      "preparing_documents",
-      "awaiting_funds",
-      "awaiting_payment",
-      "closing_documents",
-      "cancelled",
-    ];
-
-    // Исключаем текущий статус
-    const available = allStatuses
-      .filter((s) => s !== currentStatus)
-      .map((status) => {
-        // Валидация: нельзя перейти на статусы после preparing_documents без контракта
-        if (!hasContract) {
-          if (status !== "preparing_documents" && status !== "cancelled") {
-            return {
-              status,
-              disabled: true,
-              reason: "Необходимо загрузить контракт или инвойс",
-            };
-          }
-        }
-
+    return allowed.map((status) => {
+      if (!hasContract && status !== "cancelled") {
         return {
           status,
-          disabled: false,
+          disabled: true,
+          reason: "Необходимо загрузить контракт или инвойс",
         };
-      });
-
-    return available;
+      }
+      return { status, disabled: false };
+    });
   };
 
   const handleStatusUpdate = async (newStatus: DealStatus) => {
@@ -599,7 +585,7 @@ export default function DealDetailPage() {
         },
       };
 
-      const res = await fetch(`${API_BASE_URL}/deals/${dealId}/invoice`, {
+      const res = await fetch(`${API_BASE_URL}/deals/${dealId}/details`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -681,7 +667,7 @@ export default function DealDetailPage() {
         contractDate: convertDateFromInputFormat(contractForm.contractDate),
       };
 
-      const res = await fetch(`${API_BASE_URL}/deals/${dealId}/contract`, {
+      const res = await fetch(`${API_BASE_URL}/deals/${dealId}/details`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -884,7 +870,17 @@ export default function DealDetailPage() {
         );
       }
 
-      const blob = await res.blob();
+      const data = await res.json();
+      if (!data.url) {
+        throw new Error("Ссылка на файл не найдена");
+      }
+
+      const fileRes = await fetch(data.url);
+      if (!fileRes.ok) {
+        throw new Error(`Ошибка скачивания файла: ${fileRes.status}`);
+      }
+
+      const blob = await fileRes.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = downloadUrl;

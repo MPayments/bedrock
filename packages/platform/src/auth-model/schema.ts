@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { bigint, pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -19,6 +19,15 @@ export const user = pgTable("user", {
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", { withTimezone: true }),
   twoFactorEnabled: boolean("two_factor_enabled"),
+  // Agent-specific fields (merged from ops_agents)
+  tgId: bigint("tg_id", { mode: "number" }).unique(),
+  userName: text("user_name"),
+  tag: text("tag"),
+  status: text("status").default("active"),
+  isAllowed: boolean("is_allowed").default(false),
+  isAdmin: boolean("is_admin").default(false),
+  allowedBy: text("allowed_by"),
+  allowedAt: text("allowed_at"),
 });
 
 export const twoFactor = pgTable(

@@ -96,7 +96,7 @@ export function NewApplicationDialog({
       }
 
       const data = await res.json();
-      const applicationId = data.application.id;
+      const applicationId = data.id;
 
       // Успешное создание - переходим на страницу заявки
       onOpenChange(false);

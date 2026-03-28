@@ -34,11 +34,10 @@ export interface DealsRow {
 }
 
 export interface DealsResponse {
-  items: DealsRow[];
-  totalItems: number;
-  page: number;
+  data: DealsRow[];
+  total: number;
   limit: number;
-  totalPages: number;
+  offset: number;
 }
 
 export interface DealsStatistics {
@@ -112,7 +111,7 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>(
     undefined
   );
-  const [selectedAgentId, setSelectedAgentId] = useState<number | undefined>(
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
     undefined
   );
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
@@ -147,9 +146,9 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
         }
 
         const response: DealsResponse = await res.json();
-        setData(response.items);
-        setTotalItems(response.totalItems);
-        setTotalPages(response.totalPages);
+        setData(response.data ?? []);
+        setTotalItems(response.total ?? 0);
+        setTotalPages(Math.ceil((response.total ?? 0) / pagination.pageSize));
       } catch (err) {
         console.error("Deals fetch error:", err);
         setError(err instanceof Error ? err.message : "Ошибка загрузки данных");

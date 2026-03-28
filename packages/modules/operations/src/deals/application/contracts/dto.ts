@@ -38,7 +38,7 @@ export type Deal = z.infer<typeof DealSchema>;
 
 export const AgentBonusSchema = z.object({
   id: z.number().int(),
-  agentId: z.number().int(),
+  agentId: z.string(),
   dealId: z.number().int(),
   commission: z.string(),
   createdAt: z.string(),
@@ -54,7 +54,7 @@ export const DealDocumentSchema = z.object({
   fileSize: z.number().int(),
   mimeType: z.string(),
   s3Key: z.string(),
-  uploadedBy: z.number().int(),
+  uploadedBy: z.string().nullable(),
   description: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -66,12 +66,36 @@ export const PaginatedDealsSchema = createPaginatedListSchema(DealSchema);
 
 export type PaginatedDeals = z.infer<typeof PaginatedDealsSchema>;
 
+export const DealListRowSchema = z.object({
+  id: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  closedAt: z.string().nullable(),
+  client: z.string(),
+  clientId: z.number().int(),
+  amount: z.number(),
+  currency: z.string(),
+  amountInBase: z.number(),
+  baseCurrencyCode: z.string(),
+  status: z.enum(DEAL_STATUS_VALUES),
+  agentName: z.string(),
+  comment: z.string().nullable(),
+  feePercentage: z.number(),
+});
+
+export type DealListRow = z.infer<typeof DealListRowSchema>;
+
+export const PaginatedDealListRowsSchema =
+  createPaginatedListSchema(DealListRowSchema);
+
+export type PaginatedDealListRows = z.infer<typeof PaginatedDealListRowsSchema>;
+
 export interface DealWithDetails {
   deal: Deal;
   application: {
     id: number;
     clientId: number;
-    agentId: number | null;
+    agentId: string | null;
     status: string;
     requestedAmount: string | null;
     requestedCurrency: string | null;
@@ -84,6 +108,11 @@ export interface DealWithDetails {
     rate: string | null;
     feePercentage: string | null;
     feeAmount: string | null;
+    feeAmountInBase: string;
+    additionalExpenses: string;
+    additionalExpensesCurrencyCode: string | null;
+    additionalExpensesInBase: string;
+    totalInBase: string;
     totalWithExpensesInBase: string | null;
   } | null;
   client: {
@@ -92,7 +121,7 @@ export interface DealWithDetails {
     inn: string | null;
   } | null;
   agent: {
-    id: number;
+    id: string;
     name: string;
   } | null;
   latestBonus: AgentBonus | null;

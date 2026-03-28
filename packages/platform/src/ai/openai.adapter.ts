@@ -143,6 +143,70 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
     return this.extractFromText(text);
   }
 
+  async extractFromBuffer<T extends z.ZodTypeAny>(
+    buffer: Buffer,
+    mimeType: string,
+    schema: T,
+  ): Promise<z.infer<T>> {
+    if (mimeType === "application/pdf") {
+      const base64 = buffer.toString("base64");
+      const dataUrl = `data:application/pdf;base64,${base64}`;
+
+      const result = await generateObject({
+        model: this.openai(this.model),
+        messages: [
+          { role: "system", content: SYSTEM_EXTRACT },
+          {
+            role: "user",
+            content: [
+              { type: "file", data: dataUrl, mimeType: "application/pdf" },
+            ],
+          },
+        ],
+        schema: jsonSchema<z.infer<T>>(
+          toJSONSchema(schema) as Parameters<typeof jsonSchema>[0],
+          {
+            validate: (value) => {
+              const parsed = schema.safeParse(value);
+              if (parsed.success) return { success: true, value: parsed.data };
+              return { success: false, error: new Error(JSON.stringify(parsed.error)) };
+            },
+          },
+        ),
+      });
+      return result.object;
+    }
+
+    // Word documents
+    if (
+      mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimeType === "application/msword"
+    ) {
+      const { value: text } = await mammoth.extractRawText({ buffer });
+      if (!text.trim()) throw new Error("Failed to extract text from DOCX.");
+      return this.extractTextWithSchema(text, schema);
+    }
+
+    // Excel documents
+    if (
+      mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      mimeType === "application/vnd.ms-excel"
+    ) {
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheets: string[] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        if (!sheet) continue;
+        sheets.push(`--- Sheet: ${sheetName} ---\n${XLSX.utils.sheet_to_csv(sheet)}`);
+      }
+      const text = sheets.join("\n\n");
+      if (!text.trim()) throw new Error("Failed to extract data from XLSX.");
+      return this.extractTextWithSchema(text, schema);
+    }
+
+    throw new Error(`Unsupported mime type: ${mimeType}`);
+  }
+
   async translateFields(
     data: Record<string, string>,
     fromLang: string,
@@ -195,6 +259,30 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
       schema: createDocumentSchema(),
     });
 
+    return result.object;
+  }
+
+  private async extractTextWithSchema<T extends z.ZodTypeAny>(
+    text: string,
+    schema: T,
+  ): Promise<z.infer<T>> {
+    const result = await generateObject({
+      model: this.openai(this.model),
+      messages: [
+        { role: "system", content: SYSTEM_EXTRACT },
+        { role: "user", content: text },
+      ],
+      schema: jsonSchema<z.infer<T>>(
+        toJSONSchema(schema) as Parameters<typeof jsonSchema>[0],
+        {
+          validate: (value) => {
+            const parsed = schema.safeParse(value);
+            if (parsed.success) return { success: true, value: parsed.data };
+            return { success: false, error: new Error(JSON.stringify(parsed.error)) };
+          },
+        },
+      ),
+    });
     return result.object;
   }
 }

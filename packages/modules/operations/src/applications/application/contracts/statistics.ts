@@ -3,7 +3,7 @@ import { z } from "zod";
 // --- Statistics ---
 
 export const ApplicationsStatisticsQuerySchema = z.object({
-  agentId: z.coerce.number().int().optional(),
+  agentId: z.string().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
 });
@@ -15,6 +15,7 @@ export type ApplicationsStatisticsQuery = z.infer<
 export const ApplicationsStatisticsSchema = z.object({
   totalCount: z.number(),
   byStatus: z.record(z.string(), z.number()),
+  totalAmountInBase: z.number(),
 });
 
 export type ApplicationsStatistics = z.infer<
@@ -24,7 +25,7 @@ export type ApplicationsStatistics = z.infer<
 // --- By Day ---
 
 export const ApplicationsByDayQuerySchema = z.object({
-  agentId: z.coerce.number().int().optional(),
+  agentId: z.string().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
 });

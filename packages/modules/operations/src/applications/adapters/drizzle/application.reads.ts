@@ -20,8 +20,14 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { opsApplications } from "../../../infra/drizzle/schema";
-import type { Application } from "../../application/contracts/dto";
+import { user } from "@bedrock/platform/auth-model/schema";
+
+import {
+  opsApplications,
+  opsCalculations,
+  opsClients,
+} from "../../../infra/drizzle/schema";
+import type { Application, ApplicationListRow } from "../../application/contracts/dto";
 import type { ListApplicationsQuery } from "../../application/contracts/queries";
 import type {
   ApplicationsByDayEntry,
@@ -50,7 +56,7 @@ export class DrizzleApplicationReads implements ApplicationReads {
 
   async list(
     input: ListApplicationsQuery,
-  ): Promise<PaginatedList<Application>> {
+  ): Promise<PaginatedList<ApplicationListRow>> {
     const conditions: SQL[] = [];
 
     if (input.agentId) {
@@ -68,10 +74,10 @@ export class DrizzleApplicationReads implements ApplicationReads {
       );
     }
     if (input.dateFrom) {
-      conditions.push(gte(opsApplications.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsApplications.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsApplications.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsApplications.createdAt}::date`, input.dateTo));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -83,22 +89,78 @@ export class DrizzleApplicationReads implements ApplicationReads {
       opsApplications.createdAt,
     );
 
+    // Subquery: latest calculation per application
+    const latestCalc = this.db
+      .select({
+        applicationId: opsCalculations.applicationId,
+        maxId: sql<number>`max(${opsCalculations.id})`.as("max_calc_id"),
+      })
+      .from(opsCalculations)
+      .groupBy(opsCalculations.applicationId)
+      .as("latest_calc");
+
+    const selectFields = {
+      id: opsApplications.id,
+      createdAt: opsApplications.createdAt,
+      updatedAt: opsApplications.updatedAt,
+      status: opsApplications.status,
+      comment: opsApplications.comment,
+      clientId: opsApplications.clientId,
+      client: opsClients.orgName,
+      agentName: user.name,
+      requestedAmount: opsApplications.requestedAmount,
+      requestedCurrency: opsApplications.requestedCurrency,
+      calcOriginalAmount: opsCalculations.originalAmount,
+      calcCurrencyCode: opsCalculations.currencyCode,
+      calcTotalWithExpensesInBase: opsCalculations.totalWithExpensesInBase,
+      calcBaseCurrencyCode: opsCalculations.baseCurrencyCode,
+      hasCalcId: latestCalc.maxId,
+    };
+
+    const baseQuery = this.db
+      .select(selectFields)
+      .from(opsApplications)
+      .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
+      .leftJoin(user, eq(opsApplications.agentId, user.id))
+      .leftJoin(
+        latestCalc,
+        eq(opsApplications.id, latestCalc.applicationId),
+      )
+      .leftJoin(opsCalculations, eq(latestCalc.maxId, opsCalculations.id))
+      .where(where);
+
+    const countQuery = this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(opsApplications)
+      .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
+      .where(where);
+
     const [rows, countRows] = await Promise.all([
-      this.db
-        .select()
-        .from(opsApplications)
-        .where(where)
+      baseQuery
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
         .offset(input.offset),
-      this.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(opsApplications)
-        .where(where),
+      countQuery,
     ]);
 
+    const data: ApplicationListRow[] = rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt as string,
+      updatedAt: r.updatedAt as string,
+      client: r.client ?? "",
+      clientId: r.clientId,
+      amount: Number(r.calcOriginalAmount ?? r.requestedAmount) || 0,
+      currency: r.calcCurrencyCode ?? r.requestedCurrency ?? "RUB",
+      amountInBase: Number(r.calcTotalWithExpensesInBase) || 0,
+      baseCurrencyCode: r.calcBaseCurrencyCode ?? "RUB",
+      hasCalculation: r.hasCalcId != null,
+      agentName: r.agentName ?? "",
+      comment: (r.comment as string) ?? null,
+      status: r.status,
+    }));
+
     return {
-      data: rows as Application[],
+      data,
       total: countRows[0]?.total ?? 0,
       limit: input.limit,
       offset: input.offset,
@@ -161,10 +223,10 @@ export class DrizzleApplicationReads implements ApplicationReads {
       conditions.push(eq(opsApplications.agentId, input.agentId));
     }
     if (input.dateFrom) {
-      conditions.push(gte(opsApplications.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsApplications.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsApplications.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsApplications.createdAt}::date`, input.dateTo));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -184,7 +246,26 @@ export class DrizzleApplicationReads implements ApplicationReads {
       totalCount += row.count;
     }
 
-    return { totalCount, byStatus };
+    // Sum totalWithExpensesInBase from latest calculation per application
+    const latestCalc = this.db
+      .select({
+        applicationId: opsCalculations.applicationId,
+        maxId: sql<number>`max(${opsCalculations.id})`.as("max_calc_id"),
+      })
+      .from(opsCalculations)
+      .groupBy(opsCalculations.applicationId)
+      .as("latest_calc_stats");
+
+    const [amountRow] = await this.db
+      .select({
+        total: sql<string>`coalesce(sum(${opsCalculations.totalWithExpensesInBase}::numeric), 0)::text`,
+      })
+      .from(opsApplications)
+      .innerJoin(latestCalc, eq(opsApplications.id, latestCalc.applicationId))
+      .innerJoin(opsCalculations, eq(latestCalc.maxId, opsCalculations.id))
+      .where(where);
+
+    return { totalCount, byStatus, totalAmountInBase: Number(amountRow?.total) || 0 };
   }
 
   async getByDay(
@@ -195,10 +276,10 @@ export class DrizzleApplicationReads implements ApplicationReads {
       conditions.push(eq(opsApplications.agentId, input.agentId));
     }
     if (input.dateFrom) {
-      conditions.push(gte(opsApplications.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsApplications.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsApplications.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsApplications.createdAt}::date`, input.dateTo));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 

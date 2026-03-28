@@ -25,8 +25,8 @@ export interface TodoItem {
   title: string;
   description?: string;
   dueDate?: string;
-  agentId?: number;
-  assignedBy?: number;
+  agentId?: string;
+  assignedBy?: string;
   completed?: boolean;
   order?: number;
 }
@@ -49,13 +49,13 @@ export function TaskDialog({
   defaultDate,
 }: TaskDialogProps) {
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
   const currentUserId = (session?.user as any)?.id;
 
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [dueDate, setDueDate] = React.useState<Date | undefined>(undefined);
-  const [assigneeId, setAssigneeId] = React.useState<number | undefined>(
+  const [assigneeId, setAssigneeId] = React.useState<string | undefined>(
     undefined
   );
   const [isSaving, setIsSaving] = React.useState(false);

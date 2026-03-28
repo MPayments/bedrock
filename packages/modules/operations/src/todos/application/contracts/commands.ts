@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const CreateTodoInputSchema = z.object({
-  agentId: z.number().int(),
+  agentId: z.string(),
   applicationId: z.number().int().nullable().optional(),
   title: z.string().min(1),
   description: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
-  assignedBy: z.number().int().nullable().optional(),
+  assignedBy: z.string().nullable().optional(),
   order: z.number().int().default(0),
 });
 

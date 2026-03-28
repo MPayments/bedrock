@@ -6,7 +6,7 @@ export interface UploadDealDocumentInput {
   fileSize: number;
   mimeType: string;
   s3Key: string;
-  uploadedBy: number;
+  uploadedBy: string | null;
   description?: string | null;
 }
 

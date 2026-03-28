@@ -40,8 +40,10 @@ interface ClientRow {
 }
 
 interface ClientsResponse {
-  items: ClientRow[];
+  data: ClientRow[];
   total: number;
+  limit: number;
+  offset: number;
 }
 
 // Custom hook для debounce
@@ -121,8 +123,8 @@ export default function ClientsPage() {
         }
 
         const response: ClientsResponse = await res.json();
-        setData(response.items);
-        setTotalItems(response.total);
+        setData(response.data ?? []);
+        setTotalItems(response.total ?? 0);
       } catch (err) {
         console.error("Clients fetch error:", err);
         setError(err instanceof Error ? err.message : "Ошибка загрузки данных");

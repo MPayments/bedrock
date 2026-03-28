@@ -7,9 +7,8 @@ export {
   opsActivitySourceEnum,
 } from "./enums";
 
-// Agents & organizations
+// Agent organizations & sub-agents
 export {
-  opsAgents,
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
   opsSubAgents,
@@ -49,9 +48,6 @@ export { opsTodos, opsTodosRelations } from "./tasks";
 
 // Activity log
 export { opsActivityLog, opsActivityLogRelations } from "./activity-log";
-
-// Auth (mpayments-specific, separate from bedrock auth)
-export { opsSessions, opsAccounts, opsVerifications } from "./auth";
 
 // Telegram
 export { opsTelegrafSessions } from "./telegram";

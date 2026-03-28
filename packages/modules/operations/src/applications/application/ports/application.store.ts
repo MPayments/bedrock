@@ -4,7 +4,7 @@ import type { Application } from "../contracts/dto";
 export interface ApplicationStore {
   findById(id: number): Promise<Application | null>;
   create(input: {
-    agentId: number | null;
+    agentId: string | null;
     clientId: number;
     status: ApplicationStatus;
     requestedAmount?: string;
@@ -16,6 +16,6 @@ export interface ApplicationStore {
     reason?: string,
   ): Promise<Application | null>;
   updateComment(id: number, comment: string): Promise<Application | null>;
-  assignAgent(id: number, agentId: number): Promise<Application | null>;
+  assignAgent(id: number, agentId: string): Promise<Application | null>;
   remove(id: number): Promise<boolean>;
 }

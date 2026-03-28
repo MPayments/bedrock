@@ -41,7 +41,7 @@ export const ClientSchema = z.object({
   isDeleted: z.boolean(),
   contractId: z.number().int().nullable(),
   subAgentId: z.number().int().nullable(),
-  userId: z.number().int().nullable(),
+  userId: z.string().nullable(),
   counterpartyId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),

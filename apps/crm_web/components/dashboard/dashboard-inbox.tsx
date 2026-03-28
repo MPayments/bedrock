@@ -53,7 +53,7 @@ export function DashboardInbox({ className }: HTMLAttributes<HTMLDivElement>) {
       if (!res.ok) throw new Error("Failed to fetch applications");
 
       const data = await res.json();
-      setApplications(data || []);
+      setApplications(data.data || []);
     } catch (err) {
       console.error("Inbox error:", err);
       setError("Ошибка загрузки");

@@ -31,11 +31,10 @@ interface ApplicationItem {
 }
 
 interface ApplicationsResponse {
-  items: ApplicationItem[];
-  totalItems: number;
-  page: number;
+  data: ApplicationItem[];
+  total: number;
   limit: number;
-  totalPages: number;
+  offset: number;
 }
 
 const STATUS_CONFIG: Record<
@@ -115,7 +114,7 @@ export default function CustomerApplicationsPage() {
       setError(null);
 
       const params = new URLSearchParams({
-        page: page.toString(),
+        offset: ((page - 1) * limit).toString(),
         limit: limit.toString(),
       });
 
@@ -135,9 +134,9 @@ export default function CustomerApplicationsPage() {
       }
 
       const data: ApplicationsResponse = await response.json();
-      setApplications(data.items);
-      setTotalPages(data.totalPages);
-      setTotalItems(data.totalItems);
+      setApplications(data.data ?? []);
+      setTotalPages(Math.ceil((data.total ?? 0) / limit));
+      setTotalItems(data.total ?? 0);
     } catch (err) {
       console.error("Error fetching applications:", err);
       setError(err instanceof Error ? err.message : "Ошибка загрузки заявок");

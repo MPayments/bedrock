@@ -48,11 +48,10 @@ export class DrizzleOrganizationReads implements OrganizationReads {
         ilike(opsAgentOrganizations.name, `%${input.name}%`),
       );
     }
-    if (input.isActive !== undefined) {
-      conditions.push(
-        eq(opsAgentOrganizations.isActive, input.isActive),
-      );
-    }
+    const isActive = input.isActive ?? true;
+    conditions.push(
+      eq(opsAgentOrganizations.isActive, isActive),
+    );
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const orderByFn = resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;

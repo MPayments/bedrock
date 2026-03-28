@@ -7,7 +7,7 @@ export interface ApplicationsQueryParamsInput {
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
   selectedClientId?: number;
-  selectedAgentId?: number;
+  selectedAgentId?: string;
   dateRange?: DateRange;
 }
 
@@ -34,7 +34,7 @@ export function buildApplicationsQueryParams(
 
   // Пагинация
   if (includePagination) {
-    params.set("page", String(pagination.pageIndex + 1));
+    params.set("offset", String(pagination.pageIndex * pagination.pageSize));
     params.set("limit", String(pagination.pageSize));
   }
 

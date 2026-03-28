@@ -2,11 +2,11 @@ export interface NotificationPort {
   notifyDealStatusChanged(
     dealId: number,
     status: string,
-    agentId: number,
+    agentId: string,
   ): Promise<void>;
   notifyNewCalculation(
     calculationId: number,
-    agentId: number,
+    agentId: string,
   ): Promise<void>;
   notifyApplicationCreated(applicationId: number): Promise<void>;
 }

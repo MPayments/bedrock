@@ -3,7 +3,7 @@ import { z } from "zod";
 import { APPLICATION_STATUS_VALUES } from "../../domain/application-status";
 
 export const CreateApplicationInputSchema = z.object({
-  agentId: z.number().int().nullable().optional(),
+  agentId: z.string().nullable().optional(),
   clientId: z.number().int(),
   source: z.enum(["web", "bot"]).default("web"),
   requestedAmount: z.string().optional(),
@@ -35,7 +35,7 @@ export type UpdateApplicationCommentInput = z.infer<
 
 export const TakeApplicationInputSchema = z.object({
   applicationId: z.number().int(),
-  agentId: z.number().int(),
+  agentId: z.string(),
 });
 
 export type TakeApplicationInput = z.infer<typeof TakeApplicationInputSchema>;

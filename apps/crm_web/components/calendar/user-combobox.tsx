@@ -22,15 +22,15 @@ import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   isAdmin: boolean;
 }
 
 interface UserComboboxProps {
-  value?: number;
-  onValueChange?: (value: number | undefined) => void;
+  value?: string;
+  onValueChange?: (value: string | undefined) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -64,7 +64,8 @@ export function UserCombobox({
         throw new Error(`Ошибка загрузки: ${res.status}`);
       }
 
-      const data: User[] = await res.json();
+      const raw = await res.json();
+      const data: User[] = Array.isArray(raw) ? raw : raw.data ?? [];
       setUsers(data);
     } catch (err) {
       console.error("Users fetch error:", err);
@@ -92,7 +93,7 @@ export function UserCombobox({
   }, [users, searchQuery]);
 
   // Обработчик выбора пользователя
-  const handleSelect = (userId: number) => {
+  const handleSelect = (userId: string) => {
     if (value === userId) {
       // Если выбран тот же пользователь - снимаем выбор
       onValueChange?.(undefined);

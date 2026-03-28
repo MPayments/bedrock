@@ -1,7 +1,8 @@
 import { relations, sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
-import { opsAgents } from "./agents";
+import { user } from "@bedrock/platform/auth-model/schema";
+
 import {
   opsActivityActionEnum,
   opsActivityEntityEnum,
@@ -12,9 +13,9 @@ import {
 
 export const opsActivityLog = pgTable("ops_activity_log", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
+  userId: text("user_id")
     .notNull()
-    .references(() => opsAgents.id),
+    .references(() => user.id),
   action: opsActivityActionEnum("action").notNull(),
   entityType: opsActivityEntityEnum("entity_type").notNull(),
   entityId: integer("entity_id").notNull(),
@@ -29,9 +30,9 @@ export const opsActivityLog = pgTable("ops_activity_log", {
 export const opsActivityLogRelations = relations(
   opsActivityLog,
   ({ one }) => ({
-    user: one(opsAgents, {
+    user: one(user, {
       fields: [opsActivityLog.userId],
-      references: [opsAgents.id],
+      references: [user.id],
     }),
   }),
 );

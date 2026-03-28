@@ -90,8 +90,11 @@ export default function OrganizationsPage() {
           throw new Error(`Ошибка загрузки: ${res.status}`);
         }
 
-        const response: OrganizationRow[] = await res.json();
-        setData(response);
+        const response = await res.json();
+        const items: OrganizationRow[] = Array.isArray(response)
+          ? response
+          : response.data ?? [];
+        setData(items);
       } catch (err) {
         console.error("Organizations fetch error:", err);
         setError(err instanceof Error ? err.message : "Ошибка загрузки данных");

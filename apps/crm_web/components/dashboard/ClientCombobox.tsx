@@ -97,7 +97,7 @@ export function ClientCombobox({
         }
 
         const data = await res.json();
-        const items: Client[] = data.items ?? data;
+        const items: Client[] = data.data ?? data.items ?? [];
 
         if (append) {
           setClients((prev) => [...prev, ...items]);

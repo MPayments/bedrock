@@ -21,7 +21,10 @@ export const CreateClientInputSchema = z.object({
   directorBasisI18n: LocalizedTextSchema,
   address: z.string().nullable().optional(),
   addressI18n: LocalizedTextSchema,
-  email: z.string().email().nullable().optional(),
+  email: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().email().nullable().optional(),
+  ),
   phone: z.string().nullable().optional(),
   inn: z.string().nullable().optional(),
   kpp: z.string().nullable().optional(),

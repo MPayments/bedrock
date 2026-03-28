@@ -1,16 +1,17 @@
 import { relations, sql } from "drizzle-orm";
 import { boolean, integer, pgTable, serial, text } from "drizzle-orm/pg-core";
 
-import { opsAgents } from "./agents";
+import { user } from "@bedrock/platform/auth-model/schema";
+
 import { opsApplications } from "./applications";
 
 // --- ops_todos (was: todos) ---
 
 export const opsTodos = pgTable("ops_todos", {
   id: serial("id").primaryKey(),
-  agentId: integer("agent_id")
+  agentId: text("agent_id")
     .notNull()
-    .references(() => opsAgents.id),
+    .references(() => user.id),
   applicationId: integer("application_id").references(
     () => opsApplications.id,
   ),
@@ -18,7 +19,7 @@ export const opsTodos = pgTable("ops_todos", {
   completed: boolean("completed").default(false).notNull(),
   order: integer("order").notNull().default(0),
   dueDate: text("due_date"),
-  assignedBy: integer("assigned_by").references(() => opsAgents.id),
+  assignedBy: text("assigned_by").references(() => user.id),
   description: text("description"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
@@ -29,14 +30,14 @@ export const opsTodos = pgTable("ops_todos", {
 });
 
 export const opsTodosRelations = relations(opsTodos, ({ one }) => ({
-  agent: one(opsAgents, {
+  agent: one(user, {
     fields: [opsTodos.agentId],
-    references: [opsAgents.id],
+    references: [user.id],
     relationName: "todoAgent",
   }),
-  assignedByUser: one(opsAgents, {
+  assignedByUser: one(user, {
     fields: [opsTodos.assignedBy],
-    references: [opsAgents.id],
+    references: [user.id],
     relationName: "todoAssigner",
   }),
   application: one(opsApplications, {

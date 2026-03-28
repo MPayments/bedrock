@@ -5,7 +5,7 @@ import {
   DealDocumentSchema,
   DealSchema,
   ListDealsQuerySchema,
-  PaginatedDealsSchema,
+  PaginatedDealListRowsSchema,
   SetAgentBonusInputSchema,
   UpdateDealDetailsInputSchema,
   UpdateDealStatusInputSchema,
@@ -32,7 +32,7 @@ export function operationsDealsRoutes(ctx: AppContext) {
     request: { query: ListDealsQuerySchema },
     responses: {
       200: {
-        content: { "application/json": { schema: PaginatedDealsSchema } },
+        content: { "application/json": { schema: PaginatedDealListRowsSchema } },
         description: "Paginated list of deals",
       },
     },
@@ -217,8 +217,8 @@ export function operationsDealsRoutes(ctx: AppContext) {
     summary: "Get deals grouped by status",
     responses: {
       200: {
-        content: { "application/json": { schema: DealsByStatusSchema } },
-        description: "By-status breakdown",
+        content: { "application/json": { schema: z.any() } },
+        description: "Deals grouped by status category",
       },
     },
   });
@@ -310,6 +310,26 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
   });
 
+  const generateDealDocumentRoute = createRoute({
+    method: "get",
+    path: "/{id}/documents/{type}",
+    tags: ["Operations - Deals"],
+    summary: "Generate deal document (application, invoice, acceptance)",
+    request: {
+      params: OpsIdParamSchema.extend({
+        type: z.enum(["application", "invoice", "acceptance"]),
+      }),
+      query: z.object({
+        format: z.enum(["docx", "pdf"]).default("docx"),
+        lang: z.enum(["ru", "en"]).default("ru"),
+      }),
+    },
+    responses: {
+      200: { description: "Document file" },
+      404: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Not found" },
+    },
+  });
+
   const downloadDealDocumentRoute = createRoute({
     method: "get",
     path: "/{id}/documents/{docId}/download",
@@ -323,12 +343,48 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
   });
 
+  const invoiceUploadRoute = createRoute({
+    method: "post",
+    path: "/{id}/invoice/upload",
+    tags: ["Operations - Deals"],
+    summary: "Upload invoice file and extract data via AI",
+    request: { params: OpsIdParamSchema },
+    responses: {
+      200: { content: { "application/json": { schema: z.object({ success: z.boolean(), data: z.any() }) } }, description: "Extracted invoice data" },
+      400: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Bad request" },
+      404: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Not found" },
+    },
+  });
+
+  const LocalizedTextSchema = z.object({
+    ru: z.string().nullable().optional(),
+    en: z.string().nullable().optional(),
+  }).optional();
+
+  const invoiceSchema = z.object({
+    invoiceNumber: z.string(),
+    invoiceDate: z.string().describe("Date of the invoice in format dd.mm.yyyy. For example: 01.05.2025"),
+    companyName: z.string(),
+    companyNameI18n: LocalizedTextSchema,
+    bankName: z.string(),
+    bankNameI18n: LocalizedTextSchema,
+    account: z.string(),
+    swiftCode: z.string(),
+  });
+
   return app
     .openapi(statisticsRoute, async (c) => {
       const query = c.req.valid("query");
       const result =
         await ctx.operationsModule.deals.queries.getStatistics(query);
-      return c.json(result, 200);
+      const activeStatuses = ["preparing_documents", "awaiting_funds", "awaiting_payment", "closing_documents"];
+      const activeCount = activeStatuses.reduce((sum, s) => sum + (result.byStatus[s] ?? 0), 0);
+      return c.json({
+        ...result,
+        totalAmountInBase: Number(result.totalAmount) || 0,
+        activeCount,
+        doneCount: result.byStatus["done"] ?? 0,
+      }, 200);
     })
     .openapi(byDayRoute, async (c) => {
       const query = c.req.valid("query");
@@ -336,24 +392,96 @@ export function operationsDealsRoutes(ctx: AppContext) {
       return c.json({ data }, 200);
     })
     .openapi(byStatusRoute, async (c) => {
-      const data = await ctx.operationsModule.deals.queries.getByStatus();
-      return c.json({ data }, 200);
+      const grouped = await ctx.operationsModule.deals.queries.listGroupedByStatus();
+      return c.json(grouped, 200);
+    })
+    .openapi(statsRoute, async (c) => {
+      const query = c.req.valid("query");
+      const result = await ctx.operationsModule.deals.queries.getStatistics(query);
+      const activeStatuses = ["preparing_documents", "awaiting_funds", "awaiting_payment", "closing_documents"];
+      const activeCount = activeStatuses.reduce((sum, s) => sum + (result.byStatus[s] ?? 0), 0);
+      return c.json({
+        ...result,
+        totalAmountInBase: Number(result.totalAmount) || 0,
+        activeCount,
+        doneCount: result.byStatus["done"] ?? 0,
+      }, 200);
     })
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.operationsModule.deals.queries.list(query);
       return c.json(result, 200);
     })
+    .openapi(invoiceUploadRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      if (!ctx.documentExtraction) {
+        return c.json({ error: "AI extraction not configured" }, 400);
+      }
+
+      const deal = await ctx.operationsModule.deals.queries.findById(id);
+      if (!deal) return c.json({ error: "Deal not found" }, 404);
+
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!file || typeof file === "string") {
+        return c.json({ error: "File is required" }, 400);
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const extractedData = await ctx.documentExtraction.extractFromBuffer(
+        buffer,
+        file.type,
+        invoiceSchema,
+      );
+
+      return c.json({ success: true, data: extractedData }, 200);
+    })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       const deal =
         await ctx.operationsModule.deals.queries.findByIdWithDetails(id);
       if (!deal) return c.json({ error: "Deal not found" }, 404);
-      return c.json(deal, 200);
+
+      // Enrich with contract, organization, organizationBank, subAgent
+      let contract = null;
+      let organization = null;
+      let organizationBank = null;
+      let subAgent = null;
+
+      if (deal.application?.clientId) {
+        contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
+      }
+
+      if (deal.deal.agentOrganizationBankDetailsId) {
+        organizationBank = await ctx.operationsModule.organizations.bankDetails.queries.findById(
+          deal.deal.agentOrganizationBankDetailsId,
+        );
+        if (organizationBank) {
+          organization = await ctx.operationsModule.organizations.queries.findById(
+            (organizationBank as any).organizationId,
+          );
+        }
+      }
+
+      return c.json({
+        ...deal,
+        contract,
+        organization,
+        organizationBank,
+        subAgent,
+      }, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       const result = await ctx.operationsModule.deals.commands.create(input);
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "create", entityType: "deal",
+          entityId: result.id, source: "web",
+        }).catch(() => {});
+      }
       return c.json(result, 201);
     })
     .openapi(updateStatusRoute, async (c) => {
@@ -364,6 +492,13 @@ export function operationsDealsRoutes(ctx: AppContext) {
           ...input,
           id,
         });
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "status_change", entityType: "deal",
+          entityId: id, source: "web", metadata: { status: input.status },
+        }).catch(() => {});
+      }
       return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(updateDetailsRoute, async (c) => {
@@ -374,6 +509,13 @@ export function operationsDealsRoutes(ctx: AppContext) {
           ...input,
           id,
         });
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "update", entityType: "deal",
+          entityId: id, source: "web",
+        }).catch(() => {});
+      }
       return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(setBonusRoute, async (c) => {
@@ -413,6 +555,13 @@ export function operationsDealsRoutes(ctx: AppContext) {
     .openapi(closeDealRoute, async (c) => {
       const { id } = c.req.valid("param");
       const result = await ctx.operationsModule.deals.commands.updateStatus({ id, status: "done" });
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "status_change", entityType: "deal",
+          entityId: id, source: "web", metadata: { status: "done" },
+        }).catch(() => {});
+      }
       return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(exportExcelRoute, async (c) => {
@@ -426,11 +575,6 @@ export function operationsDealsRoutes(ctx: AppContext) {
         },
       });
     })
-    .openapi(statsRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result = await ctx.operationsModule.deals.queries.getStatistics(query);
-      return c.json(result, 200);
-    })
     .openapi(uploadDealDocumentRoute, async (c) => {
       const { id } = c.req.valid("param");
       const docs = ctx.operationsModule.deals.documents;
@@ -441,16 +585,78 @@ export function operationsDealsRoutes(ctx: AppContext) {
       if (!file || typeof file === "string") {
         return c.json({ error: "File is required" }, 400 as any);
       }
+      const description = typeof body.description === "string" ? body.description : null;
       const buffer = Buffer.from(await file.arrayBuffer());
+      const sessionUser = c.get("user")!;
       const result = await docs.commands.upload({
         dealId: id,
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
         buffer,
-        uploadedBy: c.get("user")?.id ? Number(c.get("user")!.id) : 0,
+        uploadedBy: sessionUser.id,
+        description,
       });
       return c.json(result, 201);
+    })
+    .openapi(generateDealDocumentRoute, async (c) => {
+      const { id, type } = c.req.valid("param");
+      const { format, lang } = c.req.valid("query");
+
+      const deal = await ctx.operationsModule.deals.queries.findByIdWithDetails(id);
+      if (!deal) return c.json({ error: "Deal not found" }, 404);
+
+      let contract = null;
+      let organization = null;
+      let organizationBank = null;
+
+      if (deal.application?.clientId) {
+        contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
+      }
+
+      if (deal.deal.agentOrganizationBankDetailsId) {
+        organizationBank = await ctx.operationsModule.organizations.bankDetails.queries.findById(
+          deal.deal.agentOrganizationBankDetailsId,
+        );
+        if (organizationBank) {
+          organization = await ctx.operationsModule.organizations.queries.findById(
+            (organizationBank as any).organizationId,
+          );
+        }
+      }
+
+      // Fetch client details
+      let client = null;
+      if (deal.application?.clientId) {
+        client = await ctx.operationsModule.clients.queries.findById(deal.application.clientId);
+      }
+      if (!client) return c.json({ error: "Client not found" }, 404);
+
+      try {
+        const result = await ctx.documentGenerationWorkflow.generateDealDocument({
+          templateType: type,
+          deal: deal.deal as unknown as Record<string, unknown>,
+          calculation: (deal.calculation ?? {}) as Record<string, unknown>,
+          client: client as unknown as Record<string, unknown>,
+          contract: (contract ?? {}) as Record<string, unknown>,
+          organization: (organization ?? {}) as Record<string, unknown>,
+          organizationBank: (organizationBank ?? {}) as Record<string, unknown>,
+          format,
+          lang,
+        });
+
+        return new Response(new Uint8Array(result.buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": result.mimeType,
+            "Content-Disposition": `attachment; filename="${encodeURIComponent(result.fileName)}"`,
+          },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        ctx.logger.error("Document generation failed", { error: message, stack: (err as Error).stack });
+        return c.json({ error: message }, 500 as any);
+      }
     })
     .openapi(downloadDealDocumentRoute, async (c) => {
       const { docId } = c.req.valid("param");

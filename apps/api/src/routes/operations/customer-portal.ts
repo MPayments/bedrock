@@ -137,10 +137,8 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     })
     .openapi(listClientsRoute, async (c) => {
       const user = c.get("user")!;
-      // userId in ops context is the agent/user integer ID
-      // For customer portal, we need to resolve from bedrock user.id
       const result = await ctx.customerPortalWorkflow.getClients({
-        userId: Number(user.id),
+        userId: user.id,
       });
       return c.json(result, 200);
     })
@@ -148,7 +146,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       const user = c.get("user")!;
       const input = c.req.valid("json");
       const result = await ctx.customerPortalWorkflow.createClient(
-        { userId: Number(user.id) },
+        { userId: user.id },
         input,
       );
       return c.json(result, 201);
@@ -157,7 +155,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       const user = c.get("user")!;
       const query = c.req.valid("query");
       const result = await ctx.customerPortalWorkflow.listMyApplications(
-        { userId: Number(user.id) },
+        { userId: user.id },
         query,
       );
       return c.json(result, 200);
@@ -166,7 +164,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       const user = c.get("user")!;
       const query = c.req.valid("query");
       const result = await ctx.customerPortalWorkflow.listMyDeals(
-        { userId: Number(user.id) },
+        { userId: user.id },
         query,
       );
       return c.json(result, 200);
@@ -176,7 +174,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       try {
         const result = await ctx.customerPortalWorkflow.getDealById(
-          { userId: Number(user.id) },
+          { userId: user.id },
           id,
         );
         return c.json(result, 200);

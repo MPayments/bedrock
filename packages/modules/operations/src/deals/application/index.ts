@@ -61,6 +61,7 @@ export function createDealsService(deps: DealsServiceDeps) {
       getStatistics: deps.reads.getStatistics.bind(deps.reads),
       getByDay: deps.reads.getByDay.bind(deps.reads),
       getByStatus: deps.reads.getByStatus.bind(deps.reads),
+      listGroupedByStatus: deps.reads.listGroupedByStatus.bind(deps.reads),
     },
     documents,
   };
@@ -84,7 +85,7 @@ function createDealDocumentsSubservice(
         fileSize: number;
         mimeType: string;
         buffer: Buffer;
-        uploadedBy: number;
+        uploadedBy: string | null;
         description?: string | null;
       }) {
         const s3Key = `deals/${input.dealId}/${Date.now()}-${input.fileName}`;

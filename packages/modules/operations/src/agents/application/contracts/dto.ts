@@ -3,19 +3,18 @@ import { z } from "zod";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 export const AgentProfileSchema = z.object({
-  id: z.number().int(),
+  id: z.string(),
   tgId: z.number().nullable(),
   userName: z.string().nullable(),
   name: z.string(),
   tag: z.string().nullable(),
-  status: z.string(),
-  isAllowed: z.boolean(),
-  isAdmin: z.boolean(),
-  role: z.string(),
-  email: z.string().nullable(),
-  bedrockUserId: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  status: z.string().nullable(),
+  isAllowed: z.boolean().nullable(),
+  isAdmin: z.boolean().nullable(),
+  role: z.string().nullable(),
+  email: z.string(),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
 });
 
 export type AgentProfile = z.infer<typeof AgentProfileSchema>;

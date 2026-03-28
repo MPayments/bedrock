@@ -63,8 +63,8 @@ export class ClientHasApplicationsError extends OperationsError {
 }
 
 export class AgentNotFoundError extends NotFoundError {
-  constructor(id: number) {
-    super("Agent", String(id));
+  constructor(id: string) {
+    super("Agent", id);
   }
 }
 

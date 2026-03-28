@@ -12,9 +12,8 @@ export const APPLICATIONS_LIST_CONTRACT = {
   defaultSort: { id: "createdAt" as const, desc: true },
   filters: {
     agentId: {
-      kind: "number" as const,
+      kind: "string" as const,
       cardinality: "single" as const,
-      int: true,
     },
     clientId: {
       kind: "number" as const,

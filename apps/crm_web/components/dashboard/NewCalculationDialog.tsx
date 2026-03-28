@@ -574,7 +574,7 @@ export function NewCalculationDialog({
                           Курс {result.currencyCode}/{result.baseCurrencyCode || "RUB"}:
                         </span>
                         <span className="font-medium">
-                          {result.rate.toFixed(4)}
+                          {parseFloat(result.rate).toFixed(4)}
                         </span>
                       </div>
                       <div className="flex justify-between">

@@ -22,14 +22,14 @@ import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface Agent {
-  id: number;
+  id: string;
   name: string;
   email: string;
 }
 
 interface AgentComboboxProps {
-  value?: number;
-  onValueChange?: (value: number | undefined) => void;
+  value?: string;
+  onValueChange?: (value: string | undefined) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -64,8 +64,8 @@ export function AgentCombobox({
         throw new Error(`Ошибка загрузки: ${res.status}`);
       }
 
-      const data: Agent[] = await res.json();
-      setAgents(data);
+      const data = await res.json();
+      setAgents(data.data ?? data);
     } catch (err) {
       console.error("Agents fetch error:", err);
     } finally {
@@ -92,7 +92,7 @@ export function AgentCombobox({
   }, [agents, searchQuery]);
 
   // Обработчик выбора агента
-  const handleSelect = (agentId: number) => {
+  const handleSelect = (agentId: string) => {
     if (value === agentId) {
       // Если выбран тот же агент - снимаем выбор
       onValueChange?.(undefined);

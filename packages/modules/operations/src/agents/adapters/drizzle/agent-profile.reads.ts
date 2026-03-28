@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
 
+import { user } from "@bedrock/platform/auth-model/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
@@ -7,24 +8,23 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { opsAgents } from "../../../infra/drizzle/schema";
 import type { AgentProfile } from "../../application/contracts/dto";
 import type { ListAgentsQuery } from "../../application/contracts/queries";
 import type { AgentProfileReads } from "../../application/ports/agent-profile.reads";
 
 const AGENT_SORT_COLUMN_MAP = {
-  name: opsAgents.name,
-  createdAt: opsAgents.createdAt,
+  name: user.name,
+  createdAt: user.createdAt,
 } as const;
 
 export class DrizzleAgentProfileReads implements AgentProfileReads {
   constructor(private readonly db: Queryable) {}
 
-  async findById(id: number): Promise<AgentProfile | null> {
+  async findById(id: string): Promise<AgentProfile | null> {
     const [row] = await this.db
       .select()
-      .from(opsAgents)
-      .where(eq(opsAgents.id, id))
+      .from(user)
+      .where(eq(user.id, id))
       .limit(1);
     return (row as AgentProfile) ?? null;
   }
@@ -32,8 +32,8 @@ export class DrizzleAgentProfileReads implements AgentProfileReads {
   async findByTgId(tgId: number): Promise<AgentProfile | null> {
     const [row] = await this.db
       .select()
-      .from(opsAgents)
-      .where(eq(opsAgents.tgId, tgId))
+      .from(user)
+      .where(eq(user.tgId, tgId))
       .limit(1);
     return (row as AgentProfile) ?? null;
   }
@@ -41,8 +41,8 @@ export class DrizzleAgentProfileReads implements AgentProfileReads {
   async findByEmail(email: string): Promise<AgentProfile | null> {
     const [row] = await this.db
       .select()
-      .from(opsAgents)
-      .where(eq(opsAgents.email, email))
+      .from(user)
+      .where(eq(user.email, email))
       .limit(1);
     return (row as AgentProfile) ?? null;
   }
@@ -50,20 +50,25 @@ export class DrizzleAgentProfileReads implements AgentProfileReads {
   async list(input: ListAgentsQuery): Promise<PaginatedList<AgentProfile>> {
     const conditions: SQL[] = [];
 
+    // Only show users with agent-related roles
+    conditions.push(
+      sql`(${user.role} = 'agent' OR ${user.role} = 'admin' OR ${user.role} IS NULL)`,
+    );
+
     if (input.status) {
-      conditions.push(eq(opsAgents.status, input.status));
+      conditions.push(eq(user.status, input.status));
     }
     if (input.isAllowed !== undefined) {
-      conditions.push(eq(opsAgents.isAllowed, input.isAllowed));
+      conditions.push(eq(user.isAllowed, input.isAllowed));
     }
     if (input.isAdmin !== undefined) {
-      conditions.push(eq(opsAgents.isAdmin, input.isAdmin));
+      conditions.push(eq(user.isAdmin, input.isAdmin));
     }
     if (input.role) {
-      conditions.push(eq(opsAgents.role, input.role));
+      conditions.push(eq(user.role, input.role));
     }
     if (input.name) {
-      conditions.push(ilike(opsAgents.name, `%${input.name}%`));
+      conditions.push(ilike(user.name, `%${input.name}%`));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -71,20 +76,20 @@ export class DrizzleAgentProfileReads implements AgentProfileReads {
     const orderByColumn = resolveSortValue(
       input.sortBy,
       AGENT_SORT_COLUMN_MAP,
-      opsAgents.name,
+      user.name,
     );
 
     const [rows, countRows] = await Promise.all([
       this.db
         .select()
-        .from(opsAgents)
+        .from(user)
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
         .offset(input.offset),
       this.db
         .select({ total: sql<number>`count(*)::int` })
-        .from(opsAgents)
+        .from(user)
         .where(where),
     ]);
 
@@ -99,14 +104,14 @@ export class DrizzleAgentProfileReads implements AgentProfileReads {
   async listAllowed(): Promise<AgentProfile[]> {
     const rows = await this.db
       .select()
-      .from(opsAgents)
+      .from(user)
       .where(
         and(
-          eq(opsAgents.isAllowed, true),
-          eq(opsAgents.status, "active"),
+          eq(user.isAllowed, true),
+          eq(user.status, "active"),
         ),
       )
-      .orderBy(asc(opsAgents.name));
+      .orderBy(asc(user.name));
     return rows as AgentProfile[];
   }
 }

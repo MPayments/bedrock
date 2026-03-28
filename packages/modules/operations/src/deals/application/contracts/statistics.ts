@@ -3,7 +3,7 @@ import { z } from "zod";
 // --- Statistics ---
 
 export const DealsStatisticsQuerySchema = z.object({
-  agentId: z.coerce.number().int().optional(),
+  agentId: z.string().optional(),
   clientId: z.coerce.number().int().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
@@ -22,7 +22,7 @@ export type DealsStatistics = z.infer<typeof DealsStatisticsSchema>;
 // --- By Day ---
 
 export const DealsByDayQuerySchema = z.object({
-  agentId: z.coerce.number().int().optional(),
+  agentId: z.string().optional(),
   clientId: z.coerce.number().int().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),

@@ -10,9 +10,10 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { counterparties } from "@bedrock/parties/schema";
+import { user } from "@bedrock/platform/auth-model/schema";
 
 import type { LocalizedText } from "./agents";
-import { opsAgents, opsSubAgents } from "./agents";
+import { opsSubAgents } from "./agents";
 import { opsContracts } from "./contracts";
 
 // --- ops_clients (was: clients) ---
@@ -49,7 +50,7 @@ export const opsClients = pgTable("ops_clients", {
   isDeleted: boolean("is_deleted").default(false).notNull(),
   contractId: integer("contract_id").references(() => opsContracts.id),
   subAgentId: integer("sub_agent_id").references(() => opsSubAgents.id),
-  userId: integer("user_id").references(() => opsAgents.id),
+  userId: text("user_id").references(() => user.id),
   // FK bridge to bedrock parties
   counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
   createdAt: text("created_at")
@@ -71,9 +72,8 @@ export const opsClientDocuments = pgTable("ops_client_documents", {
   fileSize: integer("file_size").notNull(),
   mimeType: text("mime_type").notNull(),
   s3Key: text("s3_key").notNull(),
-  uploadedBy: integer("uploaded_by")
-    .notNull()
-    .references(() => opsAgents.id),
+  uploadedBy: text("uploaded_by")
+    .references(() => user.id),
   description: text("description"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
@@ -94,9 +94,9 @@ export const opsClientsRelations = relations(opsClients, ({ one, many }) => ({
     fields: [opsClients.subAgentId],
     references: [opsSubAgents.id],
   }),
-  user: one(opsAgents, {
+  user: one(user, {
     fields: [opsClients.userId],
-    references: [opsAgents.id],
+    references: [user.id],
   }),
   documents: many(opsClientDocuments),
 }));
@@ -108,9 +108,9 @@ export const opsClientDocumentsRelations = relations(
       fields: [opsClientDocuments.clientId],
       references: [opsClients.id],
     }),
-    uploader: one(opsAgents, {
+    uploader: one(user, {
       fields: [opsClientDocuments.uploadedBy],
-      references: [opsAgents.id],
+      references: [user.id],
     }),
   }),
 );

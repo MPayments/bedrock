@@ -52,12 +52,12 @@ type TodoItem = {
   title: string;
   completed: boolean;
   order: number;
-  agentId: number;
+  agentId: string;
   dueDate?: string;
-  assignedBy?: number;
+  assignedBy?: string;
   description?: string;
   assignedByUser?: {
-    id: number;
+    id: string;
     name: string;
   };
 };
@@ -189,12 +189,12 @@ function DraggableTodoRow({
 export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();
   const agentId = (session?.user as any)?.id;
-  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const isAdmin = session?.user?.role === "admin";
 
   const [items, setItems] = useState<TodoItem[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDate, setNewTaskDate] = useState<Date | undefined>(undefined);
-  const [newTaskAssignee, setNewTaskAssignee] = useState<number | undefined>(
+  const [newTaskAssignee, setNewTaskAssignee] = useState<string | undefined>(
     undefined
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -219,7 +219,7 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
       );
       if (response.ok) {
         const data = await response.json();
-        setItems(data);
+        setItems(Array.isArray(data) ? data : data.data ?? []);
       }
     } catch (error) {
       console.error("Failed to load todos:", error);

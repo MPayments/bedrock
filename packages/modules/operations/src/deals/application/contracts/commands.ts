@@ -60,7 +60,7 @@ export type UpdateDealDetailsInput = z.infer<
 >;
 
 export const SetAgentBonusInputSchema = z.object({
-  agentId: z.number().int(),
+  agentId: z.string(),
   dealId: z.number().int(),
   commission: z.string(),
 });

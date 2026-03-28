@@ -21,8 +21,8 @@ interface TodoItem {
   title: string;
   completed?: boolean;
   dueDate?: string;
-  agentId?: number;
-  assignedBy?: number;
+  agentId?: string;
+  assignedBy?: string;
   description?: string;
 }
 

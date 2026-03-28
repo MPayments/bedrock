@@ -20,7 +20,7 @@ export class DrizzleApplicationStore implements ApplicationStore {
   }
 
   async create(input: {
-    agentId: number | null;
+    agentId: string | null;
     clientId: number;
     status: ApplicationStatus;
     requestedAmount?: string;
@@ -70,7 +70,7 @@ export class DrizzleApplicationStore implements ApplicationStore {
 
   async assignAgent(
     id: number,
-    agentId: number,
+    agentId: string,
   ): Promise<Application | null> {
     const [updated] = await this.db
       .update(opsApplications)

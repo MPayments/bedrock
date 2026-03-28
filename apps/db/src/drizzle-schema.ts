@@ -51,6 +51,8 @@ export {
   customers,
   organizations,
   organizationRequisiteBindings,
+  partyCountryCodeEnum,
+  partyKindEnum,
   requisiteKindEnum,
   requisiteOwnerTypeEnum,
   requisiteProviders,
@@ -78,7 +80,6 @@ export {
   opsActivityEntityEnum,
   opsActivitySourceEnum,
   // Tables
-  opsAgents,
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
   opsSubAgents,
@@ -92,9 +93,6 @@ export {
   opsAgentBonus,
   opsTodos,
   opsActivityLog,
-  opsSessions,
-  opsAccounts,
-  opsVerifications,
   opsTelegrafSessions,
   opsS3CleanupQueue,
 } from "@bedrock/operations/schema";

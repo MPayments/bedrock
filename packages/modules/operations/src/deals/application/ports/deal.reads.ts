@@ -4,6 +4,7 @@ import type {
   AgentBonus,
   Deal,
   DealDocument,
+  DealListRow,
   DealWithDetails,
 } from "../contracts/dto";
 import type { ListDealsQuery } from "../contracts/queries";
@@ -15,10 +16,17 @@ import type {
   DealsStatistics,
 } from "../contracts/statistics";
 
+export interface GroupedDealsByStatus {
+  pending: DealListRow[];
+  inProgress: DealListRow[];
+  done: DealListRow[];
+}
+
 export interface DealReads {
   findById(id: number): Promise<Deal | null>;
   findByIdWithDetails(id: number): Promise<DealWithDetails | null>;
-  list(input: ListDealsQuery): Promise<PaginatedList<Deal>>;
+  list(input: ListDealsQuery): Promise<PaginatedList<DealListRow>>;
+  listGroupedByStatus(): Promise<GroupedDealsByStatus>;
   listDocuments(dealId: number): Promise<DealDocument[]>;
   getLatestBonusForDeal(dealId: number): Promise<AgentBonus | null>;
   getStatistics(input: DealsStatisticsQuery): Promise<DealsStatistics>;

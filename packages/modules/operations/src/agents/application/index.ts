@@ -40,6 +40,7 @@ export function createAgentsService(deps: AgentsServiceDeps) {
   return {
     queries: {
       findById: findById.execute.bind(findById),
+      findByEmail: deps.reads.findByEmail.bind(deps.reads),
       list: listAgents.execute.bind(listAgents),
       listAllowed: deps.reads.listAllowed.bind(deps.reads),
     },

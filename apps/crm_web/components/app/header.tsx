@@ -52,142 +52,64 @@ export function AppHeader() {
     async function loadRates() {
       try {
         setIsLoading(true);
-        setError(null);
-
-        const currencies = ["USD", "EUR", "CNY"];
-        const promises = currencies.map(async (currency) => {
-          const res = await fetch(
-            `/v1/treasury/rates/latest?base=${currency}&quote=RUB`,
-            {
-              cache: "no-store",
-              credentials: "include",
-            },
-          );
-          if (!res.ok) throw new Error(`Failed to fetch ${currency}`);
-          const data = await res.json();
-          const rate = Number(data.rateNum) / Number(data.rateDen || 1);
-          return {
-            currency,
-            rate,
-            previous: rate,
-          };
-        });
-
-        const results = await Promise.all(promises);
-        if (!isCancelled) {
-          const ratesData = results.reduce(
-            (acc, { currency, rate }) => {
-              acc[currency as "USD" | "EUR" | "CNY"] = rate;
-              return acc;
-            },
-            {} as {
-              USD: number;
-              EUR: number;
-              CNY: number;
-            },
-          );
-
-          const prevRatesData = results.reduce(
-            (acc, { currency, previous }) => {
-              if (typeof previous === "number") {
-                acc[currency as "USD" | "EUR" | "CNY"] = previous;
-              }
-              return acc;
-            },
-            {} as {
-              USD?: number;
-              EUR?: number;
-              CNY?: number;
-            },
-          );
-
-          setRates(ratesData);
-          if (prevRatesData.USD && prevRatesData.EUR && prevRatesData.CNY) {
-            setPrevRates({
-              USD: prevRatesData.USD,
-              EUR: prevRatesData.EUR,
-              CNY: prevRatesData.CNY,
-            });
-          }
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          console.error("CBR rates error:", err);
-          setError("Ошибка загрузки");
-        }
-      } finally {
-        if (!isCancelled) setIsLoading(false);
-      }
-    }
-    loadRates();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadInvestingRates() {
-      try {
         setIsInvestingLoading(true);
+        setError(null);
         setInvestingError(null);
 
-        const currencies = ["USD", "EUR", "CNY"];
-        const promises = currencies.map(async (currency) => {
-          const res = await fetch(
-            `/v1/treasury/rates/latest?base=${currency}&quote=RUB`,
-            {
-              cache: "no-store",
-              credentials: "include",
-            },
-          );
-          if (!res.ok) throw new Error(`Failed to fetch ${currency}`);
-          const data = await res.json();
-          const rate = Number(data.rateNum) / Number(data.rateDen || 1);
-          return {
-            currency,
-            rate,
-            trend: "neutral" as const,
+        const currencies = ["USD", "EUR", "CNY"] as const;
+        const results = await Promise.all(
+          currencies.map(async (currency) => {
+            try {
+              const res = await fetch(
+                `/v1/treasury/rates/latest?base=${currency}&quote=RUB`,
+                { cache: "no-store", credentials: "include" },
+              );
+              if (!res.ok) return { currency, rate: null };
+              const data = await res.json();
+              const rate = Number(data.rateNum) / Number(data.rateDen || 1);
+              return { currency, rate };
+            } catch {
+              return { currency, rate: null };
+            }
+          }),
+        );
+
+        if (isCancelled) return;
+
+        const hasAny = results.some((r) => r.rate !== null);
+        if (hasAny) {
+          const ratesData = {} as { USD: number; EUR: number; CNY: number };
+          const investingData = {} as {
+            USD: { rate: number; trend?: "up" | "down" | "neutral" };
+            EUR: { rate: number; trend?: "up" | "down" | "neutral" };
+            CNY: { rate: number; trend?: "up" | "down" | "neutral" };
           };
-        });
-
-        const results = await Promise.all(promises);
-        // const results = [
-        //   { currency: "USD", rate: 30, trend: "up" },
-        //   { currency: "EUR", rate: 40, trend: "up" },
-        //   { currency: "CNY", rate: 5, trend: "up" },
-        // ] as {
-        //   currency: "USD" | "EUR" | "CNY";
-        //   rate: number;
-        //   trend?: "up" | "down" | "neutral";
-        // }[];
-        if (!isCancelled) {
-          const ratesData = results.reduce(
-            (acc, { currency, rate, trend }) => {
-              acc[currency as "USD" | "EUR" | "CNY"] = { rate, trend };
-              return acc;
-            },
-            {} as {
-              USD: { rate: number; trend?: "up" | "down" | "neutral" };
-              EUR: { rate: number; trend?: "up" | "down" | "neutral" };
-              CNY: { rate: number; trend?: "up" | "down" | "neutral" };
-            },
-          );
-
-          setInvestingRates(ratesData);
+          for (const r of results) {
+            if (r.rate !== null) {
+              ratesData[r.currency] = r.rate;
+              investingData[r.currency] = { rate: r.rate, trend: "neutral" };
+            }
+          }
+          setRates(ratesData);
+          setPrevRates(ratesData);
+          setInvestingRates(investingData);
+        } else {
+          setError("Нет данных");
+          setInvestingError("Нет данных");
         }
-      } catch (err) {
+      } catch {
         if (!isCancelled) {
-          console.error("Investing rates error:", err);
+          setError("Ошибка загрузки");
           setInvestingError("Ошибка загрузки");
         }
       } finally {
-        if (!isCancelled) setIsInvestingLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+          setIsInvestingLoading(false);
+        }
       }
     }
-
-    loadInvestingRates();
+    loadRates();
     return () => {
       isCancelled = true;
     };
@@ -269,7 +191,7 @@ export function AppHeader() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </NavigationMenuItem>
-              {(session?.user as any)?.isAdmin && (
+              {session?.user?.role === "admin" && (
                 <NavigationMenuItem>
                   <NavigationMenuLink
                     asChild
@@ -330,39 +252,18 @@ export function AppHeader() {
             )}
             {rates && !isLoading && !error && (
               <div className="flex items-center gap-4 font-mono">
-                <span className="inline-flex items-center gap-1">
-                  USD {rates.USD.toFixed(2)} ₽
-                  {prevRates &&
-                    (rates.USD > prevRates.USD ? (
-                      <ArrowUpRight className="h-3 w-3 text-green-600" />
-                    ) : rates.USD < prevRates.USD ? (
-                      <ArrowDownRight className="h-3 w-3 text-red-600" />
-                    ) : (
+                {(["USD", "EUR", "CNY"] as const).map((cur) =>
+                  rates[cur] != null ? (
+                    <span key={cur} className="inline-flex items-center gap-1">
+                      {cur} {rates[cur].toFixed(2)} ₽
                       <Minus className="h-3 w-3 text-gray-400" />
-                    ))}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  EUR {rates.EUR.toFixed(2)} ₽
-                  {prevRates &&
-                    (rates.EUR > prevRates.EUR ? (
-                      <ArrowUpRight className="h-3 w-3 text-green-600" />
-                    ) : rates.EUR < prevRates.EUR ? (
-                      <ArrowDownRight className="h-3 w-3 text-red-600" />
-                    ) : (
-                      <Minus className="h-3 w-3 text-gray-400" />
-                    ))}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  CNY {rates.CNY.toFixed(2)} ₽
-                  {prevRates &&
-                    (rates.CNY > prevRates.CNY ? (
-                      <ArrowUpRight className="h-3 w-3 text-green-600" />
-                    ) : rates.CNY < prevRates.CNY ? (
-                      <ArrowDownRight className="h-3 w-3 text-red-600" />
-                    ) : (
-                      <Minus className="h-3 w-3 text-gray-400" />
-                    ))}
-                </span>
+                    </span>
+                  ) : (
+                    <span key={cur} className="inline-flex items-center gap-1 text-muted-foreground">
+                      {cur} —
+                    </span>
+                  ),
+                )}
               </div>
             )}
           </div>
@@ -377,42 +278,26 @@ export function AppHeader() {
             )}
             {investingRates && !isInvestingLoading && !investingError && (
               <div className="flex items-center gap-4 font-mono">
-                <span className="inline-flex items-center gap-1">
-                  USD {investingRates.USD.rate.toFixed(2)} ₽
-                  {investingRates.USD.trend === "up" && (
-                    <ArrowUpRight className="h-3 w-3 text-green-600" />
-                  )}
-                  {investingRates.USD.trend === "down" && (
-                    <ArrowDownRight className="h-3 w-3 text-red-600" />
-                  )}
-                  {investingRates.USD.trend === "neutral" && (
-                    <Minus className="h-3 w-3 text-gray-400" />
-                  )}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  EUR {investingRates.EUR.rate.toFixed(2)} ₽
-                  {investingRates.EUR.trend === "up" && (
-                    <ArrowUpRight className="h-3 w-3 text-green-600" />
-                  )}
-                  {investingRates.EUR.trend === "down" && (
-                    <ArrowDownRight className="h-3 w-3 text-red-600" />
-                  )}
-                  {investingRates.EUR.trend === "neutral" && (
-                    <Minus className="h-3 w-3 text-gray-400" />
-                  )}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  CNY {investingRates.CNY.rate.toFixed(2)} ₽
-                  {investingRates.CNY.trend === "up" && (
-                    <ArrowUpRight className="h-3 w-3 text-green-600" />
-                  )}
-                  {investingRates.CNY.trend === "down" && (
-                    <ArrowDownRight className="h-3 w-3 text-red-600" />
-                  )}
-                  {investingRates.CNY.trend === "neutral" && (
-                    <Minus className="h-3 w-3 text-gray-400" />
-                  )}
-                </span>
+                {(["USD", "EUR", "CNY"] as const).map((cur) =>
+                  investingRates[cur] ? (
+                    <span key={cur} className="inline-flex items-center gap-1">
+                      {cur} {investingRates[cur].rate.toFixed(2)} ₽
+                      {investingRates[cur].trend === "up" && (
+                        <ArrowUpRight className="h-3 w-3 text-green-600" />
+                      )}
+                      {investingRates[cur].trend === "down" && (
+                        <ArrowDownRight className="h-3 w-3 text-red-600" />
+                      )}
+                      {investingRates[cur].trend === "neutral" && (
+                        <Minus className="h-3 w-3 text-gray-400" />
+                      )}
+                    </span>
+                  ) : (
+                    <span key={cur} className="inline-flex items-center gap-1 text-muted-foreground">
+                      {cur} —
+                    </span>
+                  ),
+                )}
               </div>
             )}
           </div>

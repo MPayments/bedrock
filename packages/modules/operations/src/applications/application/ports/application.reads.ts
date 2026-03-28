@@ -1,6 +1,6 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
-import type { Application } from "../contracts/dto";
+import type { Application, ApplicationListRow } from "../contracts/dto";
 import type { ListApplicationsQuery } from "../contracts/queries";
 import type {
   ApplicationsByDayQuery,
@@ -11,7 +11,7 @@ import type {
 
 export interface ApplicationReads {
   findById(id: number): Promise<Application | null>;
-  list(input: ListApplicationsQuery): Promise<PaginatedList<Application>>;
+  list(input: ListApplicationsQuery): Promise<PaginatedList<ApplicationListRow>>;
   countByClientId(clientId: number): Promise<number>;
   listUnassigned(input: {
     limit: number;

@@ -82,9 +82,13 @@ export {
   type UpdateApplicationStatusInput,
 } from "./applications/application/contracts/commands";
 export {
+  ApplicationListRowSchema,
   ApplicationSchema,
+  PaginatedApplicationListRowsSchema,
   PaginatedApplicationsSchema,
+  type ApplicationListRow,
   type Application,
+  type PaginatedApplicationListRows,
   type PaginatedApplications,
 } from "./applications/application/contracts/dto";
 export {
@@ -139,12 +143,16 @@ export {
 export {
   AgentBonusSchema,
   DealDocumentSchema,
+  DealListRowSchema,
   DealSchema,
+  PaginatedDealListRowsSchema,
   PaginatedDealsSchema,
   type AgentBonus,
   type Deal,
   type DealDocument,
+  type DealListRow,
   type DealWithDetails,
+  type PaginatedDealListRows,
   type PaginatedDeals,
 } from "./deals/application/contracts/dto";
 export {

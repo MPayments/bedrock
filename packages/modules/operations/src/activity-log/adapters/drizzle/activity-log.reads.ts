@@ -1,9 +1,10 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
+import { user } from "@bedrock/platform/auth-model/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
-import { opsActivityLog, opsAgents } from "../../../infra/drizzle/schema";
+import { opsActivityLog } from "../../../infra/drizzle/schema";
 import type { ActivityLogEntry } from "../../application/contracts/dto";
 import type { ListActivitiesQuery } from "../../application/contracts/queries";
 import type { ActivityLogReads } from "../../application/ports/activity-log.reads";
@@ -51,10 +52,10 @@ export class DrizzleActivityLogReads implements ActivityLogReads {
           source: opsActivityLog.source,
           metadata: opsActivityLog.metadata,
           createdAt: opsActivityLog.createdAt,
-          userName: opsAgents.name,
+          userName: user.name,
         })
         .from(opsActivityLog)
-        .leftJoin(opsAgents, eq(opsActivityLog.userId, opsAgents.id))
+        .leftJoin(user, eq(opsActivityLog.userId, user.id))
         .where(where)
         .orderBy(desc(opsActivityLog.createdAt))
         .limit(input.limit)

@@ -11,7 +11,7 @@ import {
 import type { ApplicationsCommandUnitOfWork } from "../ports/applications.uow";
 
 export class ApplicationAlreadyAssignedError extends OperationsError {
-  constructor(id: number, existingAgentId: number) {
+  constructor(id: number, existingAgentId: string) {
     super(
       `Application ${id} is already assigned to agent ${existingAgentId}`,
     );

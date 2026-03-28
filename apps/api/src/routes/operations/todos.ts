@@ -113,10 +113,10 @@ export function operationsTodosRoutes(ctx: AppContext) {
       const { month } = c.req.valid("query");
       // Fetch all todos for the month using the list query
       const result = await ctx.operationsModule.todos.queries.list({
-        page: 1,
-        limit: 1000,
-        sort: "order",
-        order: "asc",
+        offset: 0,
+        limit: 200,
+        sortBy: "order",
+        sortOrder: "asc",
       });
       // Group by dueDate
       const grouped: Record<string, unknown[]> = { noDueDate: [] };

@@ -13,7 +13,7 @@ export const CLIENTS_LIST_CONTRACT = {
     inn: { kind: "string" as const, cardinality: "single" as const },
     isDeleted: { kind: "boolean" as const, cardinality: "single" as const },
     subAgentId: { kind: "number" as const, cardinality: "single" as const, int: true },
-    userId: { kind: "number" as const, cardinality: "single" as const, int: true },
+    userId: { kind: "string" as const, cardinality: "single" as const },
     search: { kind: "string" as const, cardinality: "single" as const },
   },
 } satisfies ListQueryContract<

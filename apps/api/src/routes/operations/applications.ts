@@ -6,6 +6,7 @@ import {
   CreateDealInputSchema,
   DealSchema,
   ListApplicationsQuerySchema,
+  PaginatedApplicationListRowsSchema,
   PaginatedApplicationsSchema,
   TakeApplicationInputSchema,
   UpdateApplicationCommentInputSchema,
@@ -33,7 +34,7 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: {
-          "application/json": { schema: PaginatedApplicationsSchema },
+          "application/json": { schema: PaginatedApplicationListRowsSchema },
         },
         description: "Paginated list of applications",
       },
@@ -89,10 +90,10 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: TakeApplicationInputSchema.omit({ applicationId: true }),
+            schema: z.object({ agentId: z.string().optional() }),
           },
         },
-        required: true,
+        required: false,
       },
     },
     responses: {
@@ -182,7 +183,10 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: CreateDealInputSchema.omit({ applicationId: true }),
+            schema: CreateDealInputSchema.omit({
+              applicationId: true,
+              agentOrganizationBankDetailsId: true,
+            }).extend({ bankId: z.number().int() }),
           },
         },
         required: true,
@@ -263,7 +267,7 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     summary: "Get available banks for deal creation",
     request: { params: OpsIdParamSchema },
     responses: {
-      200: { content: { "application/json": { schema: z.array(z.any()) } }, description: "Banks" },
+      200: { content: { "application/json": { schema: z.any() } }, description: "Banks" },
     },
   });
 
@@ -324,15 +328,27 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
       const result =
         await ctx.operationsModule.applications.commands.create(input);
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "create", entityType: "application",
+          entityId: result.id, source: "web",
+        }).catch(() => {});
+      }
       return c.json(result, 201);
     })
     .openapi(takeRoute, async (c) => {
       const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
+      const body = c.req.valid("json");
+      const sessionUser = c.get("user")!;
       const result = await ctx.operationsModule.applications.commands.take({
-        ...input,
+        agentId: body.agentId ?? sessionUser.id,
         applicationId: id,
       });
+      ctx.operationsModule.activityLog.commands.log({
+        userId: sessionUser.id, action: "update", entityType: "application",
+        entityId: id, source: "web", metadata: { subAction: "take" },
+      }).catch(() => {});
       return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(rejectRoute, async (c) => {
@@ -342,6 +358,13 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
           id,
           status: "rejected",
         });
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "status_change", entityType: "application",
+          entityId: id, source: "web", metadata: { status: "rejected" },
+        }).catch(() => {});
+      }
       return c.json(result!, 200);
     })
     .openapi(commentRoute, async (c) => {
@@ -352,14 +375,22 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
           ...input,
           id,
         });
+      const sessionUser = c.get("user");
+      if (sessionUser) {
+        ctx.operationsModule.activityLog.commands.log({
+          userId: sessionUser.id, action: "comment", entityType: "application",
+          entityId: id, source: "web",
+        }).catch(() => {});
+      }
       return c.json(result!, 200);
     })
     .openapi(createDealRoute, async (c) => {
       const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
+      const { bankId, ...rest } = c.req.valid("json");
       const result = await ctx.operationsModule.deals.commands.create({
-        ...input,
+        ...rest,
         applicationId: id,
+        agentOrganizationBankDetailsId: bankId,
       });
       return c.json(result, 201);
     })
@@ -369,10 +400,28 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       return c.json({ deleted: true }, 200);
     })
     .openapi(appBanksRoute, async (c) => {
-      // Return organizations with bank details for deal creation
-      const orgs = await ctx.operationsModule.organizations.queries.list({
-        limit: 100, offset: 0, sortBy: "createdAt", sortOrder: "desc",
+      const { id } = c.req.valid("param");
+      // Chain: application → client → contract → organization → bank details
+      const app = await ctx.operationsModule.applications.queries.findById(id);
+      if (!app) return c.json([], 200);
+
+      const contract = await ctx.operationsModule.contracts.queries.findByClient(app.clientId);
+      if (!contract) {
+        return c.json([], 200);
+      }
+
+      const banksResult = await ctx.operationsModule.organizations.bankDetails.queries.list({
+        organizationId: contract.agentOrganizationId,
+        limit: 200,
+        offset: 0,
       });
-      return c.json(orgs.data, 200);
+
+      const mapped = banksResult.data.map((bank: any) => ({
+        id: bank.id,
+        name: bank.name,
+        organizationId: bank.organizationId,
+        currencyCode: bank.currencyCode,
+      }));
+      return c.json(mapped, 200);
     });
 }

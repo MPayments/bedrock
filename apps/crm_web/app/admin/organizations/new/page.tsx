@@ -269,8 +269,6 @@ export default function NewOrganizationPage() {
     setError(null);
 
     try {
-      const formData = new FormData();
-
       const normalizedData: CreateOrganizationWithBanksInput = {
         ...data,
         nameI18n: {
@@ -322,31 +320,14 @@ export default function NewOrganizationPage() {
         })),
       };
 
-      // Добавляем данные организации как JSON
       const { banks, ...organizationData } = normalizedData;
-      
-      // Добавляем все поля организации
-      Object.entries(organizationData).forEach(([key, value]) => {
-        if (value !== undefined && value !== "") {
-          if (typeof value === "object" && value !== null) {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, String(value));
-          }
-        }
-      });
 
-      // Добавляем банки как JSON строку
-      formData.append("banks", JSON.stringify(banks));
-
-      // Добавляем обрезанные изображения
-      formData.append("signature", signatureBlob, "signature.png");
-      formData.append("seal", sealBlob, "seal.png");
-
+      // 1. Создаём организацию (JSON)
       const res = await fetch(`${API_BASE_URL}/organizations`, {
         method: "POST",
         credentials: "include",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(organizationData),
       });
 
       if (!res.ok) {
@@ -355,6 +336,29 @@ export default function NewOrganizationPage() {
       }
 
       const organization = await res.json();
+      const orgId = organization.id;
+
+      // 2. Создаём банковские реквизиты
+      for (const bank of banks) {
+        await fetch(`${API_BASE_URL}/organizations/${orgId}/banks`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bank),
+        });
+      }
+
+      // 3. Загружаем файлы (multipart)
+      const fileData = new FormData();
+      fileData.append("signature", signatureBlob, "signature.png");
+      fileData.append("seal", sealBlob, "seal.png");
+
+      await fetch(`${API_BASE_URL}/organizations/${orgId}/files`, {
+        method: "POST",
+        credentials: "include",
+        body: fileData,
+      });
+
       router.push(`/admin/organizations`);
     } catch (err) {
       console.error("Create organization error:", err);

@@ -7,9 +7,10 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
+import { user } from "@bedrock/platform/auth-model/schema";
+
 import {
   opsAgentBonus,
-  opsAgents,
   opsApplications,
   opsCalculations,
   opsClients,
@@ -20,6 +21,7 @@ import type {
   AgentBonus,
   Deal,
   DealDocument,
+  DealListRow,
   DealWithDetails,
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
@@ -84,6 +86,11 @@ export class DrizzleDealReads implements DealReads {
         rate: opsCalculations.rate,
         feePercentage: opsCalculations.feePercentage,
         feeAmount: opsCalculations.feeAmount,
+        feeAmountInBase: opsCalculations.feeAmountInBase,
+        additionalExpenses: opsCalculations.additionalExpenses,
+        additionalExpensesCurrencyCode: opsCalculations.additionalExpensesCurrencyCode,
+        additionalExpensesInBase: opsCalculations.additionalExpensesInBase,
+        totalInBase: opsCalculations.totalInBase,
         totalWithExpensesInBase: opsCalculations.totalWithExpensesInBase,
       })
       .from(opsCalculations)
@@ -110,11 +117,11 @@ export class DrizzleDealReads implements DealReads {
     if (appRow?.agentId) {
       const [agentRow] = await this.db
         .select({
-          id: opsAgents.id,
-          name: opsAgents.name,
+          id: user.id,
+          name: user.name,
         })
-        .from(opsAgents)
-        .where(eq(opsAgents.id, appRow.agentId))
+        .from(user)
+        .where(eq(user.id, appRow.agentId))
         .limit(1);
       agent = agentRow ?? null;
     }
@@ -132,7 +139,7 @@ export class DrizzleDealReads implements DealReads {
     };
   }
 
-  async list(input: ListDealsQuery): Promise<PaginatedList<Deal>> {
+  async list(input: ListDealsQuery): Promise<PaginatedList<DealListRow>> {
     const conditions: SQL[] = [];
 
     if (input.status && input.status.length > 0) {
@@ -145,34 +152,18 @@ export class DrizzleDealReads implements DealReads {
     }
 
     if (input.agentId) {
-      const appIds = await this.db
-        .select({ id: opsApplications.id })
-        .from(opsApplications)
-        .where(eq(opsApplications.agentId, input.agentId));
-      const ids = appIds.map((a) => a.id);
-      if (ids.length === 0) {
-        return { data: [], total: 0, limit: input.limit, offset: input.offset };
-      }
-      conditions.push(inArray(opsDeals.applicationId, ids));
+      conditions.push(eq(opsApplications.agentId, input.agentId));
     }
 
     if (input.clientId) {
-      const appIds = await this.db
-        .select({ id: opsApplications.id })
-        .from(opsApplications)
-        .where(eq(opsApplications.clientId, input.clientId));
-      const ids = appIds.map((a) => a.id);
-      if (ids.length === 0) {
-        return { data: [], total: 0, limit: input.limit, offset: input.offset };
-      }
-      conditions.push(inArray(opsDeals.applicationId, ids));
+      conditions.push(eq(opsApplications.clientId, input.clientId));
     }
 
     if (input.dateFrom) {
-      conditions.push(gte(opsDeals.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsDeals.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsDeals.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsDeals.createdAt}::date`, input.dateTo));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -184,26 +175,147 @@ export class DrizzleDealReads implements DealReads {
       opsDeals.createdAt,
     );
 
+    const selectFields = {
+      id: opsDeals.id,
+      createdAt: opsDeals.createdAt,
+      updatedAt: opsDeals.updatedAt,
+      closedAt: opsDeals.closedAt,
+      status: opsDeals.status,
+      comment: opsDeals.comment,
+      client: opsClients.orgName,
+      clientId: opsApplications.clientId,
+      amount: opsCalculations.originalAmount,
+      currency: opsCalculations.currencyCode,
+      amountInBase: opsCalculations.totalWithExpensesInBase,
+      baseCurrencyCode: opsCalculations.baseCurrencyCode,
+      agentName: user.name,
+      feePercentage: opsCalculations.feePercentage,
+    };
+
+    const baseQuery = this.db
+      .select(selectFields)
+      .from(opsDeals)
+      .innerJoin(
+        opsApplications,
+        eq(opsDeals.applicationId, opsApplications.id),
+      )
+      .innerJoin(
+        opsCalculations,
+        eq(opsDeals.calculationId, opsCalculations.id),
+      )
+      .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
+      .leftJoin(user, eq(opsApplications.agentId, user.id))
+      .where(where);
+
+    const countQuery = this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(opsDeals)
+      .innerJoin(
+        opsApplications,
+        eq(opsDeals.applicationId, opsApplications.id),
+      )
+      .innerJoin(
+        opsCalculations,
+        eq(opsDeals.calculationId, opsCalculations.id),
+      )
+      .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
+      .leftJoin(user, eq(opsApplications.agentId, user.id))
+      .where(where);
+
     const [rows, countRows] = await Promise.all([
-      this.db
-        .select()
-        .from(opsDeals)
-        .where(where)
+      baseQuery
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
         .offset(input.offset),
-      this.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(opsDeals)
-        .where(where),
+      countQuery,
     ]);
 
+    const data: DealListRow[] = rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt as string,
+      updatedAt: r.updatedAt as string,
+      closedAt: (r.closedAt as string) ?? null,
+      client: r.client ?? "",
+      clientId: r.clientId,
+      amount: Number(r.amount) || 0,
+      currency: r.currency ?? "RUB",
+      amountInBase: Number(r.amountInBase) || 0,
+      baseCurrencyCode: r.baseCurrencyCode ?? "RUB",
+      status: r.status,
+      agentName: r.agentName ?? "",
+      comment: (r.comment as string) ?? null,
+      feePercentage: Number(r.feePercentage) || 0,
+    }));
+
     return {
-      data: rows as unknown as Deal[],
+      data,
       total: countRows[0]?.total ?? 0,
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async listGroupedByStatus() {
+    const selectFields = {
+      id: opsDeals.id,
+      createdAt: opsDeals.createdAt,
+      updatedAt: opsDeals.updatedAt,
+      closedAt: opsDeals.closedAt,
+      status: opsDeals.status,
+      comment: opsDeals.comment,
+      client: opsClients.orgName,
+      clientId: opsApplications.clientId,
+      amount: opsCalculations.originalAmount,
+      currency: opsCalculations.currencyCode,
+      amountInBase: opsCalculations.totalWithExpensesInBase,
+      baseCurrencyCode: opsCalculations.baseCurrencyCode,
+      agentName: user.name,
+      feePercentage: opsCalculations.feePercentage,
+    };
+
+    const fetchGroup = async (statuses: string[]): Promise<DealListRow[]> => {
+      const rows = await this.db
+        .select(selectFields)
+        .from(opsDeals)
+        .innerJoin(
+          opsApplications,
+          eq(opsDeals.applicationId, opsApplications.id),
+        )
+        .innerJoin(
+          opsCalculations,
+          eq(opsDeals.calculationId, opsCalculations.id),
+        )
+        .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
+        .leftJoin(user, eq(opsApplications.agentId, user.id))
+        .where(inArray(opsDeals.status, statuses as typeof opsDeals.status.enumValues))
+        .orderBy(desc(opsDeals.createdAt))
+        .limit(20);
+
+      return rows.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt as string,
+        updatedAt: r.updatedAt as string,
+        closedAt: (r.closedAt as string) ?? null,
+        client: r.client ?? "",
+        clientId: r.clientId,
+        amount: Number(r.amount) || 0,
+        currency: r.currency ?? "RUB",
+        amountInBase: Number(r.amountInBase) || 0,
+        baseCurrencyCode: r.baseCurrencyCode ?? "RUB",
+        status: r.status,
+        agentName: r.agentName ?? "",
+        comment: (r.comment as string) ?? null,
+        feePercentage: Number(r.feePercentage) || 0,
+      }));
+    };
+
+    const [pending, inProgress, done] = await Promise.all([
+      fetchGroup(["preparing_documents", "awaiting_funds"]),
+      fetchGroup(["awaiting_payment", "closing_documents"]),
+      fetchGroup(["done"]),
+    ]);
+
+    return { pending, inProgress, done };
   }
 
   async listDocuments(dealId: number): Promise<DealDocument[]> {
@@ -250,10 +362,10 @@ export class DrizzleDealReads implements DealReads {
       conditions.push(inArray(opsDeals.applicationId, ids));
     }
     if (input.dateFrom) {
-      conditions.push(gte(opsDeals.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsDeals.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsDeals.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsDeals.createdAt}::date`, input.dateTo));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -273,7 +385,15 @@ export class DrizzleDealReads implements DealReads {
       totalCount += row.count;
     }
 
-    return { totalCount, byStatus, totalAmount: "0" };
+    const [amountRow] = await this.db
+      .select({
+        total: sql<string>`coalesce(sum(${opsCalculations.totalWithExpensesInBase}::numeric), 0)::text`,
+      })
+      .from(opsDeals)
+      .innerJoin(opsCalculations, eq(opsDeals.calculationId, opsCalculations.id))
+      .where(where);
+
+    return { totalCount, byStatus, totalAmount: amountRow?.total ?? "0" };
   }
 
   async getByDay(input: DealsByDayQuery): Promise<DealsByDayEntry[]> {
@@ -297,10 +417,10 @@ export class DrizzleDealReads implements DealReads {
       conditions.push(inArray(opsDeals.applicationId, ids));
     }
     if (input.dateFrom) {
-      conditions.push(gte(opsDeals.createdAt, input.dateFrom));
+      conditions.push(gte(sql`${opsDeals.createdAt}::date`, input.dateFrom));
     }
     if (input.dateTo) {
-      conditions.push(lte(opsDeals.createdAt, input.dateTo));
+      conditions.push(lte(sql`${opsDeals.createdAt}::date`, input.dateTo));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
