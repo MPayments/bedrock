@@ -1,12 +1,16 @@
 import {
   account,
   accountRelations,
+  agentProfiles,
+  agentProfilesRelations,
   customerMemberships,
   session,
   sessionRelations,
   twoFactor,
   twoFactorRelations,
   user,
+  userAccessStates,
+  userAccessStatesRelations,
   userRelations,
   verification,
 } from "@bedrock/iam/schema";
@@ -41,6 +45,10 @@ const authSchema = {
   sessionRelations,
   accountRelations,
   twoFactorRelations,
+  agentProfiles,
+  agentProfilesRelations,
+  userAccessStates,
+  userAccessStatesRelations,
 };
 const partiesSchema = {
   customers,

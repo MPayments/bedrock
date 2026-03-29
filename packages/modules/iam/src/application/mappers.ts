@@ -1,4 +1,5 @@
 import type { User, UserWithLastSession } from "../contracts";
+import { UserAccount } from "../domain/user-account";
 import { toUserRoleOrNull } from "../domain/user-role";
 import type {
   IamUserRecord,
@@ -21,5 +22,14 @@ export function toUserWithLastSession(
     ...toUser(row.user),
     lastSessionAt: row.lastSessionAt,
     lastSessionIp: row.lastSessionIp,
+  };
+}
+
+export function toUserFromAccount(userAccount: UserAccount): User {
+  const snapshot = userAccount.toSnapshot();
+
+  return {
+    ...snapshot,
+    role: snapshot.role,
   };
 }

@@ -1,11 +1,24 @@
 import {
-  Entity,
+  AggregateRoot,
   normalizeOptionalText,
   normalizeRequiredText,
 } from "@bedrock/shared/core";
 
 import { UserEmail } from "./user-email";
-import { type UserRole, toUserRoleOrNull } from "./user-role";
+import {
+  shouldProvisionAgentProfile,
+  type UserRole,
+  toUserRoleOrNull,
+} from "./user-role";
+
+export interface CreateUserAccountProps {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified?: boolean;
+  image?: string | null;
+  role: UserRole | null;
+}
 
 export interface UpdateUserProfileProps {
   name: string;
@@ -47,12 +60,32 @@ function normalizeUserAccountSnapshot(
   };
 }
 
-export class UserAccount extends Entity<string> {
+export class UserAccount extends AggregateRoot<string> {
   private readonly snapshot: UserAccountSnapshot;
 
   private constructor(snapshot: UserAccountSnapshot) {
     super({ id: snapshot.id, props: {} });
     this.snapshot = normalizeUserAccountSnapshot(snapshot);
+  }
+
+  static create(
+    input: CreateUserAccountProps,
+    now: Date,
+  ): UserAccount {
+    return new UserAccount({
+      id: input.id,
+      name: input.name,
+      email: input.email,
+      emailVerified: input.emailVerified ?? true,
+      image: input.image ?? null,
+      role: input.role,
+      banned: false,
+      banReason: null,
+      banExpires: null,
+      twoFactorEnabled: false,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 
   static fromSnapshot(snapshot: UserAccountSnapshot): UserAccount {
@@ -95,6 +128,27 @@ export class UserAccount extends Entity<string> {
       banExpires: null,
       updatedAt: now,
     });
+  }
+
+  requiresAgentProfile(): boolean {
+    return shouldProvisionAgentProfile(this.snapshot.role);
+  }
+
+  sameState(other: UserAccount): boolean {
+    const left = this.snapshot;
+    const right = other.snapshot;
+
+    return (
+      left.name === right.name &&
+      left.email === right.email &&
+      left.emailVerified === right.emailVerified &&
+      left.image === right.image &&
+      left.role === right.role &&
+      left.banned === right.banned &&
+      left.banReason === right.banReason &&
+      left.banExpires?.getTime() === right.banExpires?.getTime() &&
+      left.twoFactorEnabled === right.twoFactorEnabled
+    );
   }
 
   toSnapshot(): UserAccountSnapshot {

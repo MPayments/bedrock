@@ -1,7 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { account, session, user } from "../../../src/schema";
-import { createDrizzleIamIdentityStore } from "../../../src/adapters/drizzle";
+import {
+  account,
+  agentProfiles,
+  session,
+  user,
+  userAccessStates,
+} from "../../../src/schema";
+import {
+  DrizzleAgentProfileStore,
+  DrizzleCredentialAccountStore,
+  DrizzleIamUsersReads,
+  DrizzleUserAccountRepository,
+  DrizzleUserSessionsStore,
+} from "../../../src/adapters/drizzle";
+import { UserAccount } from "../../../src/domain/user-account";
 
 function createUserRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -14,72 +27,104 @@ function createUserRow(overrides: Partial<Record<string, unknown>> = {}) {
     banned: false,
     banReason: null,
     banExpires: null,
-    twoFactorEnabled: null,
+    twoFactorEnabled: false,
     createdAt: new Date("2026-03-01T00:00:00.000Z"),
     updatedAt: new Date("2026-03-01T00:00:00.000Z"),
     ...overrides,
   };
 }
 
-describe("createDrizzleIamIdentityStore", () => {
+function createUserAccount(overrides: Partial<Record<string, unknown>> = {}) {
+  return UserAccount.fromSnapshot(createUserRow(overrides) as any);
+}
+
+function createTwoFactorSubqueryBuilder() {
+  return {
+    from: vi.fn(() => ({
+      groupBy: vi.fn(() => ({
+        as: vi.fn(() => ({ userId: "two_factor_users.user_id" })),
+      })),
+    })),
+  };
+}
+
+function createJoinedSelectOneBuilder(result: unknown | null) {
+  const limit = vi.fn(async () => (result == null ? [] : [result]));
+  const where = vi.fn(() => ({ limit }));
+  const joinChain = {
+    leftJoin: vi.fn(() => joinChain),
+    where,
+  };
+
+  return {
+    from: vi.fn(() => joinChain),
+    where,
+    limit,
+  };
+}
+
+function createJoinedListBuilder(rows: unknown[]) {
+  const offset = vi.fn(async () => rows);
+  const limit = vi.fn(() => ({ offset }));
+  const orderBy = vi.fn(() => ({ limit }));
+  const where = vi.fn(() => ({ orderBy }));
+  const joinChain = {
+    leftJoin: vi.fn(() => joinChain),
+    where,
+  };
+
+  return {
+    from: vi.fn(() => joinChain),
+    where,
+    orderBy,
+    limit,
+    offset,
+  };
+}
+
+function createCountBuilder(total: number) {
+  const where = vi.fn(async () => [{ total }]);
+  const joinChain = {
+    leftJoin: vi.fn(() => joinChain),
+    where,
+  };
+
+  return {
+    from: vi.fn(() => joinChain),
+    where,
+  };
+}
+
+function createSimpleSelectOneBuilder(result: unknown | null) {
+  const limit = vi.fn(async () => (result == null ? [] : [result]));
+  const where = vi.fn(() => ({ limit }));
+
+  return {
+    from: vi.fn(() => ({ where })),
+    where,
+    limit,
+  };
+}
+
+function createSessionSelectBuilder(result: unknown | null) {
+  const limit = vi.fn(async () => (result == null ? [] : [result]));
+  const orderBy = vi.fn(() => ({ limit }));
+  const where = vi.fn(() => ({ orderBy }));
+
+  return {
+    from: vi.fn(() => ({ where })),
+    where,
+    orderBy,
+    limit,
+  };
+}
+
+describe("IAM drizzle adapters", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("creates a user and credential account in one transaction", async () => {
-    const createdUser = createUserRow();
-
-    const insertUserValues = vi.fn(() => ({
-      returning: vi.fn(async () => [createdUser]),
-    }));
-    const insertAccountValues = vi.fn(async () => undefined);
-    const tx = {
-      insert: vi
-        .fn()
-        .mockReturnValueOnce({ values: insertUserValues })
-        .mockReturnValueOnce({ values: insertAccountValues }),
-    };
-    const db = {
-      transaction: vi.fn(
-        async (callback: (value: typeof tx) => Promise<unknown>) =>
-          callback(tx),
-      ),
-    };
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("user-1")
-      .mockReturnValueOnce("account-1");
-
-    const store = createDrizzleIamIdentityStore({ db: db as any });
-
-    const result = await store.createUserWithCredential({
-      name: "Alice",
-      email: "alice@example.com",
-      passwordHash: "hashed-password",
-      role: "admin",
-      emailVerified: true,
-      now: new Date("2026-03-01T00:00:00.000Z"),
-    });
-
-    expect(result).toEqual(createdUser);
-    expect(tx.insert).toHaveBeenNthCalledWith(1, user);
-    expect(insertUserValues).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "user-1",
-        email: "alice@example.com",
-        role: "admin",
-      }),
-    );
-    expect(tx.insert).toHaveBeenNthCalledWith(2, account);
-    expect(insertAccountValues).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "account-1",
-        userId: "user-1",
-        password: "hashed-password",
-      }),
-    );
-  });
-
-  it("lists users with paging metadata", async () => {
+  it("lists users with paging metadata through the reads adapter", async () => {
     const rows = [
       createUserRow(),
       createUserRow({
@@ -89,36 +134,18 @@ describe("createDrizzleIamIdentityStore", () => {
         role: "viewer",
       }),
     ];
-    const listOffset = vi.fn(async () => rows);
-    const listLimit = vi.fn(() => ({
-      offset: listOffset,
-    }));
-    const listOrderBy = vi.fn(() => ({
-      limit: listLimit,
-    }));
-    const listWhere = vi.fn(() => ({
-      orderBy: listOrderBy,
-    }));
-    const countWhere = vi.fn(async () => [{ total: 7 }]);
     const db = {
       select: vi
         .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: listWhere,
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: countWhere,
-          })),
-        }),
+        .mockReturnValueOnce(createTwoFactorSubqueryBuilder())
+        .mockReturnValueOnce(createJoinedListBuilder(rows))
+        .mockReturnValueOnce(createCountBuilder(7)),
     };
 
-    const store = createDrizzleIamIdentityStore({ db: db as any });
+    const reads = new DrizzleIamUsersReads(db as any);
 
     await expect(
-      store.listUsers({
+      reads.listUsers({
         limit: 2,
         offset: 4,
         sortBy: "email",
@@ -132,106 +159,122 @@ describe("createDrizzleIamIdentityStore", () => {
       limit: 2,
       offset: 4,
     });
-
-    expect(listWhere).toHaveBeenCalledOnce();
-    expect(listOrderBy).toHaveBeenCalledOnce();
-    expect(listLimit).toHaveBeenCalledWith(2);
-    expect(listOffset).toHaveBeenCalledWith(4);
-    expect(countWhere).toHaveBeenCalledOnce();
   });
 
-  it("finds users by id and email and returns null when they are missing", async () => {
-    const foundById = createUserRow();
-    const foundByEmail = createUserRow({
-      id: "user-2",
-      email: "bob@example.com",
-      name: "Bob",
-    });
+  it("loads a user with last session metadata through the reads adapter", async () => {
+    const lastSession = new Date("2026-03-01T02:00:00.000Z");
     const db = {
       select: vi
         .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [foundById]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [foundByEmail]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => []),
-            })),
-          })),
-        }),
+        .mockReturnValueOnce(createTwoFactorSubqueryBuilder())
+        .mockReturnValueOnce(createJoinedSelectOneBuilder(createUserRow()))
+        .mockReturnValueOnce(
+          createSessionSelectBuilder({
+            createdAt: lastSession,
+            ipAddress: "127.0.0.1",
+          }),
+        ),
     };
 
-    const store = createDrizzleIamIdentityStore({ db: db as any });
+    const reads = new DrizzleIamUsersReads(db as any);
 
-    await expect(store.findUserById("user-1")).resolves.toEqual(foundById);
-    await expect(store.findUserByEmail("bob@example.com")).resolves.toEqual(
-      foundByEmail,
-    );
-    await expect(store.findUserById("missing")).resolves.toBeNull();
+    await expect(reads.getUserWithLastSession("user-1")).resolves.toEqual({
+      user: createUserRow(),
+      lastSessionAt: lastSession,
+      lastSessionIp: "127.0.0.1",
+    });
   });
 
-  it("updates mutable user fields and clears bans on unban", async () => {
-    const updatedUser = createUserRow({
-      name: "Alice Cooper",
-      email: "alice.cooper@example.com",
-      role: "viewer",
-    });
-    const unbannedUser = createUserRow({
-      banned: false,
-      banReason: null,
-      banExpires: null,
-    });
-    const firstWhere = vi.fn(() => ({
-      returning: vi.fn(async () => [updatedUser]),
-    }));
-    const firstSet = vi.fn(() => ({
-      where: firstWhere,
-    }));
-    const secondWhere = vi.fn(() => ({
-      returning: vi.fn(async () => [unbannedUser]),
-    }));
-    const secondSet = vi.fn(() => ({
-      where: secondWhere,
-    }));
-    const db = {
-      update: vi
+  it("finds and saves user aggregates through the repository", async () => {
+    const repositoryDb = {
+      select: vi
+        .fn()
+        .mockReturnValueOnce(createTwoFactorSubqueryBuilder())
+        .mockReturnValueOnce(createJoinedSelectOneBuilder(createUserRow()))
+        .mockReturnValueOnce(createSimpleSelectOneBuilder(null)),
+      insert: vi
         .fn()
         .mockReturnValueOnce({
-          set: firstSet,
+          values: vi.fn(async () => undefined),
         })
         .mockReturnValueOnce({
-          set: secondSet,
+          values: vi.fn(() => ({
+            onConflictDoUpdate: vi.fn(async () => undefined),
+          })),
         }),
     };
 
-    const store = createDrizzleIamIdentityStore({ db: db as any });
+    const repository = new DrizzleUserAccountRepository(repositoryDb as any);
 
-    await expect(
-      store.updateUser({
-        id: "user-1",
-        name: "Alice Cooper",
-        email: "alice.cooper@example.com",
-        role: "viewer",
-      }),
-    ).resolves.toEqual(updatedUser);
-    await expect(store.unbanUser("user-1")).resolves.toEqual(unbannedUser);
+    const found = await repository.findById("user-1");
+    expect(found?.toSnapshot()).toEqual(createUserAccount().toSnapshot());
+
+    const created = createUserAccount({
+      id: "user-2",
+      email: "bob@example.com",
+      name: "Bob",
+      role: "customer",
+    });
+    const saved = await repository.save(created);
+
+    expect(saved.toSnapshot()).toEqual(created.toSnapshot());
+    expect(repositoryDb.insert).toHaveBeenNthCalledWith(1, user);
+    expect(repositoryDb.insert).toHaveBeenNthCalledWith(2, userAccessStates);
   });
 
-  it("updates credentials, deletes sessions, and exposes last-session metadata", async () => {
-    const lastSession = new Date("2026-03-01T02:00:00.000Z");
+  it("updates existing users and access state through the repository", async () => {
+    const updateWhere = vi.fn(async () => undefined);
+    const updateSet = vi.fn(() => ({ where: updateWhere }));
     const db = {
+      select: vi.fn().mockReturnValueOnce(createSimpleSelectOneBuilder({ id: "user-1" })),
+      update: vi.fn(() => ({ set: updateSet })),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onConflictDoUpdate: vi.fn(async () => undefined),
+        })),
+      })),
+    };
+
+    const repository = new DrizzleUserAccountRepository(db as any);
+    const updated = createUserAccount({
+      name: "Alice Cooper",
+      email: "alice.cooper@example.com",
+      banned: true,
+      banReason: "policy",
+    });
+
+    await expect(repository.save(updated)).resolves.toEqual(updated);
+    expect(db.update).toHaveBeenCalledWith(user);
+    expect(updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Alice Cooper",
+        email: "alice.cooper@example.com",
+      }),
+    );
+  });
+
+  it("handles credential, session, and agent-profile stores", async () => {
+    const credentialsDb = {
+      select: vi.fn().mockReturnValueOnce(
+        createSimpleSelectOneBuilder({
+          id: "account-1",
+          userId: "user-1",
+          providerId: "credential",
+          password: "hashed-password",
+        }),
+      ),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(async () => [
+            {
+              id: "account-2",
+              userId: "user-2",
+              providerId: "credential",
+              password: "hashed-password-2",
+            },
+          ]),
+        })),
+      })),
       update: vi.fn(() => ({
         set: vi.fn(() => ({
           where: vi.fn(() => ({
@@ -240,113 +283,70 @@ describe("createDrizzleIamIdentityStore", () => {
                 id: "account-1",
                 userId: "user-1",
                 providerId: "credential",
-                password: "hashed-password-2",
+                password: "hashed-password-3",
               },
             ]),
           })),
         })),
       })),
+    };
+    const sessionDb = {
       delete: vi.fn(() => ({
         where: vi.fn(async () => undefined),
       })),
-      select: vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [
-                {
-                  id: "account-1",
-                  userId: "user-1",
-                  providerId: "credential",
-                  password: "hashed-password",
-                },
-              ]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [createUserRow()]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn(() => ({
-                limit: vi.fn(async () => [
-                  {
-                    createdAt: lastSession,
-                    ipAddress: "127.0.0.1",
-                  },
-                ]),
-              })),
-            })),
-          })),
-        }),
+    };
+    const agentProfileDb = {
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(async () => undefined),
+        })),
+      })),
     };
 
-    const store = createDrizzleIamIdentityStore({ db: db as any });
+    const credentials = new DrizzleCredentialAccountStore(credentialsDb as any);
+    const sessions = new DrizzleUserSessionsStore(sessionDb as any);
+    const agentProfileStore = new DrizzleAgentProfileStore(agentProfileDb as any);
 
-    await expect(store.getCredentialByUserId("user-1")).resolves.toEqual({
+    await expect(credentials.findByUserId("user-1")).resolves.toEqual({
       id: "account-1",
       userId: "user-1",
       providerId: "credential",
       password: "hashed-password",
     });
     await expect(
-      store.updateCredentialPassword({
-        userId: "user-1",
+      credentials.create({
+        id: "account-2",
+        userId: "user-2",
         passwordHash: "hashed-password-2",
+        now: new Date("2026-03-01T00:00:00.000Z"),
+      }),
+    ).resolves.toEqual({
+      id: "account-2",
+      userId: "user-2",
+      providerId: "credential",
+      password: "hashed-password-2",
+    });
+    await expect(
+      credentials.updatePassword({
+        userId: "user-1",
+        passwordHash: "hashed-password-3",
       }),
     ).resolves.toEqual({
       id: "account-1",
       userId: "user-1",
       providerId: "credential",
-      password: "hashed-password-2",
+      password: "hashed-password-3",
     });
-    await expect(store.deleteSessionsForUser("user-1")).resolves.toBeUndefined();
-    await expect(store.getUserWithLastSession("user-1")).resolves.toEqual({
-      user: createUserRow(),
-      lastSessionAt: lastSession,
-      lastSessionIp: "127.0.0.1",
-    });
-  });
-
-  it("bans users and clears sessions in a transaction", async () => {
-    const updatedUser = createUserRow({
-      banned: true,
-      banReason: "policy",
-    });
-    const tx = {
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(async () => [updatedUser]),
-          })),
-        })),
-      })),
-      delete: vi.fn(() => ({
-        where: vi.fn(async () => undefined),
-      })),
-    };
-    const db = {
-      transaction: vi.fn(
-        async (callback: (value: typeof tx) => Promise<unknown>) =>
-          callback(tx),
-      ),
-    };
-
-    const store = createDrizzleIamIdentityStore({ db: db as any });
-
+    await expect(sessions.deleteForUser("user-1")).resolves.toBeUndefined();
     await expect(
-      store.banUser({
-        id: "user-1",
-        banReason: "policy",
+      agentProfileStore.ensureProvisioned({
+        userId: "user-1",
+        now: new Date("2026-03-01T00:00:00.000Z"),
       }),
-    ).resolves.toEqual(updatedUser);
-    expect(tx.delete).toHaveBeenCalledWith(session);
+    ).resolves.toBeUndefined();
+
+    expect(sessionDb.delete).toHaveBeenCalledWith(session);
+    expect(agentProfileDb.insert).toHaveBeenCalledWith(agentProfiles);
+    expect(credentialsDb.insert).toHaveBeenCalledWith(account);
   });
 });

@@ -9,9 +9,10 @@ import {
   createBetterAuthPasswordHasher,
 } from "@bedrock/iam/adapters/better-auth";
 import {
-  createDrizzleIamIdentityStore,
   DrizzleCustomerMembershipReads,
   DrizzleCustomerMembershipsUnitOfWork,
+  DrizzleIamUsersReads,
+  DrizzleIamUsersUnitOfWork,
 } from "@bedrock/iam/adapters/drizzle";
 import type { LedgerModule } from "@bedrock/ledger";
 import {
@@ -40,7 +41,10 @@ export interface ApiCoreServices {
 export function createCoreServices(): ApiCoreServices {
   const logger = createConsoleLogger({ app: "bedrock-api" });
   const idempotency = createIdempotencyService({ logger });
-  const authStore = createDrizzleIamIdentityStore({ db });
+  const iamReads = new DrizzleIamUsersReads(db);
+  const iamCommandUow = new DrizzleIamUsersUnitOfWork({
+    persistence: createPersistenceContext(db),
+  });
   const passwordHasher = createBetterAuthPasswordHasher();
   const ledgerModule = createApiLedgerModule({
     db,
@@ -53,7 +57,8 @@ export function createCoreServices(): ApiCoreServices {
     logger,
   });
   const iamService = createIamService({
-    identityStore: authStore,
+    reads: iamReads,
+    commandUow: iamCommandUow,
     passwordHasher,
     logger,
   });

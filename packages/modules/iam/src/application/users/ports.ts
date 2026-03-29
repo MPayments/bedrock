@@ -1,4 +1,5 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import type { UserAccount } from "../../domain/user-account";
 
 export interface IamUserRecord {
   id: string;
@@ -28,55 +29,87 @@ export interface IamUserWithLastSessionRecord {
   lastSessionIp: string | null;
 }
 
-export interface IamIdentityQueryRepository {
-  listUsers(input: {
-    limit: number;
-    offset: number;
-    sortBy?: "name" | "email" | "role" | "createdAt";
-    sortOrder?: "asc" | "desc";
-    name?: string;
-    email?: string;
-    roles?: string[];
-    banned?: boolean;
-  }): Promise<PaginatedList<IamUserRecord>>;
-  findUserById(id: string): Promise<IamUserRecord | null>;
-  findUserByEmail(email: string): Promise<IamUserRecord | null>;
-  getCredentialByUserId(userId: string): Promise<IamCredentialRecord | null>;
+export type ListIamUsersInput = {
+  limit: number;
+  offset: number;
+  sortBy?: "name" | "email" | "role" | "createdAt";
+  sortOrder?: "asc" | "desc";
+  name?: string;
+  email?: string;
+  roles?: string[];
+  banned?: boolean;
+};
+
+export type CreateIamUserWithCredentialInput = {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role?: string | null;
+  emailVerified?: boolean;
+  now?: Date;
+  provisionAgentProfile?: boolean;
+};
+
+export type UpdateIamUserInput = {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string | null;
+  provisionAgentProfile?: boolean;
+};
+
+export type UpdateIamCredentialPasswordInput = {
+  userId: string;
+  passwordHash: string;
+};
+
+export type BanIamUserInput = {
+  id: string;
+  banReason?: string | null;
+  banExpires?: Date | null;
+};
+
+export interface IamUsersReads {
+  listUsers(input: ListIamUsersInput): Promise<PaginatedList<IamUserRecord>>;
   getUserWithLastSession(
     userId: string,
   ): Promise<IamUserWithLastSessionRecord | null>;
 }
 
-export interface IamIdentityCommandRepository {
-  createUserWithCredential(input: {
-    name: string;
-    email: string;
-    passwordHash: string;
-    role?: string | null;
-    emailVerified?: boolean;
-    now?: Date;
-  }): Promise<IamUserRecord>;
-  updateUser(input: {
-    id: string;
-    name?: string;
-    email?: string;
-    role?: string | null;
-  }): Promise<IamUserRecord | null>;
-  updateCredentialPassword(input: {
-    userId: string;
-    passwordHash: string;
-  }): Promise<IamCredentialRecord | null>;
-  banUser(input: {
-    id: string;
-    banReason?: string | null;
-    banExpires?: Date | null;
-  }): Promise<IamUserRecord | null>;
-  unbanUser(userId: string): Promise<IamUserRecord | null>;
+export interface UserAccountRepository {
+  findById(id: string): Promise<UserAccount | null>;
+  findByEmail(email: string): Promise<UserAccount | null>;
+  save(userAccount: UserAccount): Promise<UserAccount>;
 }
 
-export interface IamIdentityStore
-  extends IamIdentityQueryRepository,
-    IamIdentityCommandRepository
-{
-  deleteSessionsForUser(userId: string): Promise<void>;
+export interface CredentialAccountStore {
+  findByUserId(userId: string): Promise<IamCredentialRecord | null>;
+  create(input: {
+    id: string;
+    userId: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<IamCredentialRecord>;
+  updatePassword(
+    input: UpdateIamCredentialPasswordInput,
+  ): Promise<IamCredentialRecord | null>;
+}
+
+export interface UserSessionsStore {
+  deleteForUser(userId: string): Promise<void>;
+}
+
+export interface AgentProfileStore {
+  ensureProvisioned(input: { userId: string; now: Date }): Promise<void>;
+}
+
+export interface IamUsersCommandTx {
+  users: UserAccountRepository;
+  credentials: CredentialAccountStore;
+  sessions: UserSessionsStore;
+  agentProfiles: AgentProfileStore;
+}
+
+export interface IamUsersCommandUnitOfWork {
+  run<T>(work: (tx: IamUsersCommandTx) => Promise<T>): Promise<T>;
 }

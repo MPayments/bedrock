@@ -15,7 +15,6 @@ const SessionResponseSchema = z.looseObject({
     email: z.string(),
     image: z.string().nullable().optional(),
     role: z.string().optional(),
-    isAdmin: z.boolean().optional(),
   }),
 });
 
@@ -33,10 +32,9 @@ const CustomerPortalProfileSchema = z.object({
 
 export function resolveRole(user: {
   role?: string;
-  isAdmin?: boolean;
 }): CrmRole {
   if (user.role === "customer") return "customer";
-  if (user.role === "admin" || user.isAdmin) return "admin";
+  if (user.role === "admin") return "admin";
   return "agent";
 }
 
@@ -128,7 +126,6 @@ export async function fetchSessionSnapshot(input: {
       email: parsedSession.data.user.email,
       id: parsedSession.data.user.id,
       image: parsedSession.data.user.image ?? null,
-      isAdmin: parsedSession.data.user.isAdmin,
       name: parsedSession.data.user.name,
     },
   };

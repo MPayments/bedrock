@@ -47,6 +47,7 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
     const created: { email: string; password: string }[] = [];
 
     for (const seed of USER_SEEDS) {
+        const now = new Date();
         const [existing] = await db
             .select({ id: schema.user.id })
             .from(schema.user)
@@ -59,10 +60,28 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
                     `User id mismatch for ${seed.email}: expected ${seed.id}, got ${existing.id}`,
                 );
             }
+            await db.insert(schema.userAccessStates).values({
+                userId: seed.id,
+                banned: false,
+                banReason: null,
+                banExpires: null,
+                createdAt: now,
+                updatedAt: now,
+            }).onConflictDoNothing();
+
+            if (seed.role === "admin" || seed.role === "agent") {
+                await db.insert(schema.agentProfiles).values({
+                    userId: seed.id,
+                    status: "active",
+                    isAllowed: false,
+                    createdAt: now,
+                    updatedAt: now,
+                }).onConflictDoNothing();
+            }
+
             continue;
         }
 
-        const now = new Date();
         const passwordHash = await hashPassword(seed.password);
 
         await db.insert(schema.user).values({
@@ -84,6 +103,25 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
             createdAt: now,
             updatedAt: now,
         });
+
+        await db.insert(schema.userAccessStates).values({
+            userId: seed.id,
+            banned: false,
+            banReason: null,
+            banExpires: null,
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        if (seed.role === "admin" || seed.role === "agent") {
+            await db.insert(schema.agentProfiles).values({
+                userId: seed.id,
+                status: "active",
+                isAllowed: false,
+                createdAt: now,
+                updatedAt: now,
+            });
+        }
 
         created.push({ email: seed.email, password: seed.password });
     }

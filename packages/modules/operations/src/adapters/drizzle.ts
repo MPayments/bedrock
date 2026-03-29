@@ -2,8 +2,6 @@
 export { DrizzleActivityLogReads } from "../activity-log/adapters/drizzle/activity-log.reads";
 export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activity-log.store";
 
-// Agents
-export { DrizzleAgentProfileReads } from "../agents/adapters/drizzle/agent-profile.reads";
 export { DrizzleSubAgentReads } from "../agents/adapters/drizzle/sub-agent.reads";
 export { DrizzleSubAgentStore } from "../agents/adapters/drizzle/sub-agent.store";
 export { DrizzleSubAgentsUnitOfWork } from "../agents/adapters/drizzle/sub-agents.uow";

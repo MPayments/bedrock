@@ -129,7 +129,7 @@ export function profileRoutes(ctx: AppContext) {
       const userId = c.get("user")!.id;
 
       try {
-        const user = await ctx.iamService.findById(userId);
+        const user = await ctx.iamService.queries.findById(userId);
         return c.json(serializeUserWithSession(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -144,7 +144,7 @@ export function profileRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const user = await ctx.iamService.update(userId, input);
+        const user = await ctx.iamService.commands.update(userId, input);
         return c.json(serializeUser(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -163,7 +163,7 @@ export function profileRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        await ctx.iamService.changeOwnPassword(userId, input);
+        await ctx.iamService.commands.changeOwnPassword(userId, input);
         return c.json({ success: true }, 200);
       } catch (error) {
         if (error instanceof InvalidPasswordError) {

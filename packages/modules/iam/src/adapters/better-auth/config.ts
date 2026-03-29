@@ -4,7 +4,7 @@ import {
   twoFactor,
   user,
   verification,
-} from "../drizzle/auth-schema";
+} from "../drizzle/schema/auth-schema";
 
 export const betterAuthSchema = {
   account,

@@ -10,7 +10,7 @@ import {
 
 import { customers } from "@bedrock/parties/schema";
 
-import { user } from "../../../adapters/drizzle/auth-schema";
+import { user } from "../../../adapters/drizzle/schema/auth-schema";
 
 export const customerMemberships = pgTable(
   "customer_memberships",

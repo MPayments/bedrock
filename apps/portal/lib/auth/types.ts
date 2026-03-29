@@ -18,7 +18,6 @@ export type UserSessionSnapshot = {
     name: string;
     email: string;
     image: string | null;
-    isAdmin?: boolean;
   } | null;
   session: {
     id: string;

@@ -60,10 +60,12 @@ export {
 } from "@bedrock/parties/schema";
 export {
   account,
+  agentProfiles,
   customerMemberships,
   session,
   twoFactor,
   user,
+  userAccessStates,
   verification,
 } from "@bedrock/iam/schema";
 export { actionReceipts } from "@bedrock/platform/idempotency-postgres/schema";

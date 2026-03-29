@@ -8,18 +8,28 @@ import {
   user,
   userRelations,
   verification,
-} from "./adapters/drizzle/auth-schema";
+} from "./adapters/drizzle/schema/auth-schema";
+import {
+  agentProfiles,
+  agentProfilesRelations,
+  userAccessStates,
+  userAccessStatesRelations,
+} from "./adapters/drizzle/schema/business-schema";
 import { customerMemberships } from "./customer-memberships/adapters/drizzle/schema";
 
 export {
   account,
   accountRelations,
+  agentProfiles,
+  agentProfilesRelations,
   customerMemberships,
   session,
   sessionRelations,
   twoFactor,
   twoFactorRelations,
   user,
+  userAccessStates,
+  userAccessStatesRelations,
   userRelations,
   verification,
 };
@@ -34,5 +44,9 @@ export const schema = {
   sessionRelations,
   accountRelations,
   twoFactorRelations,
+  agentProfiles,
+  agentProfilesRelations,
+  userAccessStates,
+  userAccessStatesRelations,
   customerMemberships,
 };

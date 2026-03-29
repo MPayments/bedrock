@@ -2,33 +2,47 @@ import {
   noopLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
+import {
+  createModuleRuntime,
+  type Clock,
+  type ModuleRuntime,
+  type UuidGenerator,
+} from "@bedrock/shared/core";
 
 import type { IamPasswordHasherPort } from "./external-ports";
 import type {
-  IamIdentityCommandRepository,
-  IamIdentityQueryRepository,
+  IamUsersCommandUnitOfWork,
+  IamUsersReads,
 } from "../users/ports";
 
 export interface IamServiceDeps {
-  identityStore: IamIdentityQueryRepository & IamIdentityCommandRepository;
+  reads: IamUsersReads;
+  commandUow: IamUsersCommandUnitOfWork;
   passwordHasher: IamPasswordHasherPort;
   logger?: Logger;
+  now?: Clock;
+  generateUuid?: UuidGenerator;
 }
 
 export interface IamServiceContext {
-  identityQueries: IamIdentityQueryRepository;
-  identityCommands: IamIdentityCommandRepository;
+  reads: IamUsersReads;
+  commandUow: IamUsersCommandUnitOfWork;
   passwordHasher: IamPasswordHasherPort;
-  log: Logger;
+  runtime: ModuleRuntime;
 }
 
 export function createIamServiceContext(
   deps: IamServiceDeps,
 ): IamServiceContext {
   return {
-    identityQueries: deps.identityStore,
-    identityCommands: deps.identityStore,
+    reads: deps.reads,
+    commandUow: deps.commandUow,
     passwordHasher: deps.passwordHasher,
-    log: deps.logger?.child({ service: "iam" }) ?? noopLogger,
+    runtime: createModuleRuntime({
+      logger: deps.logger ?? noopLogger,
+      now: deps.now,
+      generateUuid: deps.generateUuid,
+      service: "iam.users",
+    }),
   };
 }

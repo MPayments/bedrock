@@ -15,6 +15,13 @@
       "when": 1774790770536,
       "tag": "0001_complex_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774800516095,
+      "tag": "0002_tough_brother_voodoo",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,5 @@
 import { relations } from "drizzle-orm";
 import {
-  bigint,
   boolean,
   index,
   pgTable,
@@ -22,18 +21,6 @@ export const user = pgTable("user", {
     .$onUpdate(() => new Date())
     .notNull(),
   role: text("role"),
-  banned: boolean("banned").default(false),
-  banReason: text("ban_reason"),
-  banExpires: timestamp("ban_expires", { withTimezone: true }),
-  twoFactorEnabled: boolean("two_factor_enabled"),
-  tgId: bigint("tg_id", { mode: "number" }).unique(),
-  userName: text("user_name"),
-  tag: text("tag"),
-  status: text("status").default("active"),
-  isAllowed: boolean("is_allowed").default(false),
-  isAdmin: boolean("is_admin").default(false),
-  allowedBy: text("allowed_by"),
-  allowedAt: text("allowed_at"),
 });
 
 export const twoFactor = pgTable(

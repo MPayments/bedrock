@@ -300,7 +300,7 @@ export function createApplicationServices(
     rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
     async isActorExemptFromApproval({ actorUserId }) {
       try {
-        return (await iamService.findById(actorUserId)).role === "admin";
+        return (await iamService.queries.findById(actorUserId)).role === "admin";
       } catch (error) {
         if (error instanceof UserNotFoundError) {
           return false;

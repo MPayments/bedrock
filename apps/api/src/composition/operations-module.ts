@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { DrizzleIamAgentProfileReads } from "@bedrock/iam/adapters/drizzle";
 import {
   createOperationsModule,
   type OperationsModule,
@@ -8,7 +9,6 @@ import {
 import {
   DrizzleActivityLogReads,
   DrizzleActivityLogStore,
-  DrizzleAgentProfileReads,
   DrizzleApplicationReads,
   DrizzleBankDetailsReads,
   DrizzleCalculationReads,
@@ -53,7 +53,7 @@ export function createApiOperationsModule(input: {
     // Reads
     activityLogReads: new DrizzleActivityLogReads(input.db),
     activityLogStore: new DrizzleActivityLogStore(input.db),
-    agentProfileReads: new DrizzleAgentProfileReads(input.db),
+    agentProfileReads: new DrizzleIamAgentProfileReads(input.db),
     applicationReads: new DrizzleApplicationReads(input.db),
     calculationReads: new DrizzleCalculationReads(input.db),
     contractReads: new DrizzleContractReads(input.db),
