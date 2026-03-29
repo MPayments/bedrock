@@ -4,11 +4,27 @@ import { createCustomerPortalWorkflow } from "../src";
 
 function createWorkflow(overrides?: {
   clients?: { data: Array<{ id: number; customerId: string | null; isDeleted: boolean }> };
-  memberships?: Array<{ customerId: string; userId: string }>;
+  memberships?: Array<{
+    customerId: string;
+    id?: string;
+    role?: string;
+    status?: string;
+    userId: string;
+  }>;
   customerId?: string;
+  user?: {
+    banned?: boolean | null;
+    role?: string | null;
+  };
 }) {
   const memberships = overrides?.memberships ?? [
-    { customerId: "customer-1", userId: "user-1" },
+    {
+      customerId: "customer-1",
+      id: "membership-1",
+      role: "owner",
+      status: "active",
+      userId: "user-1",
+    },
   ];
   const clientListResult = {
     data: overrides?.clients?.data ?? [
@@ -87,6 +103,15 @@ function createWorkflow(overrides?: {
         ),
       },
     },
+    users: {
+      queries: {
+        findById: vi.fn(async () => ({
+          id: "user-1",
+          banned: overrides?.user?.banned ?? false,
+          role: overrides?.user?.role ?? "customer",
+        })),
+      },
+    },
   };
   const parties = {
     customers: {
@@ -110,6 +135,12 @@ function createWorkflow(overrides?: {
       iam: iam as never,
       parties: parties as never,
       logger: { info: vi.fn() } as never,
+      persistence: {
+        db: {} as never,
+        runInTransaction: vi.fn(async () => {
+          throw new Error("Unexpected transaction in test");
+        }),
+      },
     }),
   };
 }
@@ -118,8 +149,20 @@ describe("customer portal workflow", () => {
   it("derives accessible clients from memberships instead of legacy user ids", async () => {
     const { operations, workflow } = createWorkflow({
       memberships: [
-        { customerId: "customer-1", userId: "user-1" },
-        { customerId: "customer-2", userId: "user-1" },
+        {
+          customerId: "customer-1",
+          id: "membership-1",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
+        {
+          customerId: "customer-2",
+          id: "membership-2",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
       ],
     });
 
@@ -135,15 +178,28 @@ describe("customer portal workflow", () => {
 
   it("reports membership-backed portal access in the profile", async () => {
     const { workflow } = createWorkflow({
-      memberships: [{ customerId: "customer-1", userId: "user-1" }],
+      memberships: [
+        {
+          customerId: "customer-1",
+          id: "membership-1",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
+      ],
+      user: {
+        role: "user",
+      },
     });
 
     await expect(workflow.getProfile({ userId: "user-1" })).resolves.toEqual(
       expect.objectContaining({
+        hasCrmAccess: true,
         hasCustomerPortalAccess: true,
         memberships: [
           expect.objectContaining({
             customerId: "customer-1",
+            status: "active",
             userId: "user-1",
           }),
         ],
@@ -161,6 +217,8 @@ describe("customer portal workflow", () => {
 
     expect(iam.customerMemberships.commands.upsert).toHaveBeenCalledWith({
       customerId: "customer-1",
+      role: "owner",
+      status: "active",
       userId: "user-1",
     });
   });
@@ -170,7 +228,15 @@ describe("customer portal workflow", () => {
       clients: {
         data: [{ id: 101, customerId: "customer-2", isDeleted: false }],
       },
-      memberships: [{ customerId: "customer-1", userId: "user-1" }],
+      memberships: [
+        {
+          customerId: "customer-1",
+          id: "membership-1",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
+      ],
     });
 
     await expect(

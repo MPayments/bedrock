@@ -8,6 +8,7 @@ export default async function PortalLayout({
   children: React.ReactNode;
 }) {
   const session = await requirePortalSession();
+  const showPortalNavigation = session.hasCustomerPortalAccess;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
@@ -15,7 +16,7 @@ export default async function PortalLayout({
       <main className="mx-auto flex-1 w-full max-w-5xl px-4 py-4 pb-20 md:px-6 md:pb-4 lg:px-8">
         {children}
       </main>
-      <PortalMobileNav />
+      {showPortalNavigation ? <PortalMobileNav /> : null}
     </div>
   );
 }

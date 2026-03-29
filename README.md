@@ -56,8 +56,18 @@ The short version:
 Start infrastructure:
 
 ```bash
-docker compose -f ops/infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.dev.yml up -d
 ```
+
+Port contract:
+
+- API: `http://localhost:3000`
+- Postgres on the host: `127.0.0.1:5432`
+- Finance: `http://localhost:3001`
+- CRM: `http://localhost:3002`
+- Portal: `http://localhost:3003`
+- TigerBeetle on the host: `127.0.0.1:3555`
+- TigerBeetle inside Docker Compose: `bedrock-tigerbeetle:3000`
 
 Install dependencies:
 

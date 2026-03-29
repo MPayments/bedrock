@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
+import { createPersistenceContext } from "@bedrock/platform/persistence";
+
 import { createCustomerMembershipsService } from "../../src";
 import {
   DrizzleCustomerMembershipReads,
   DrizzleCustomerMembershipsUnitOfWork,
 } from "../../src/adapters/drizzle";
 import { db, pool } from "./setup";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 describe("iam customer memberships integration", () => {
   it("upserts and lists memberships by user id", async () => {
@@ -53,6 +54,9 @@ describe("iam customer memberships integration", () => {
     expect(memberships[0]).toEqual(
       expect.objectContaining({
         customerId,
+        id: expect.any(String),
+        role: "owner",
+        status: "active",
         userId,
       }),
     );

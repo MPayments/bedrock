@@ -9,6 +9,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -40,6 +41,7 @@ const navItems = [
 export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
   const pathname = usePathname();
   const router = useRouter();
+  const showPortalNavigation = session.hasCustomerPortalAccess;
 
   const userName = session.user?.name || "";
   const userEmail = session.user?.email || "";
@@ -68,28 +70,34 @@ export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
           </span>
         </div>
 
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+        {showPortalNavigation ? (
+          <nav className="hidden items-center gap-1 md:flex">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        ) : (
+          <div className="hidden text-sm text-muted-foreground md:block">
+            Клиентский доступ не настроен
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {session.canAccessDashboard ? (
@@ -119,16 +127,18 @@ export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col gap-0.5">
-                  <p className="truncate text-sm font-medium">
-                    {userName || "Клиент"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {userEmail}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="truncate text-sm font-medium">
+                      {userName || "Клиент"}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {userEmail}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               {session.canAccessDashboard ? (
                 <DropdownMenuItem render={<a href={CRM_BASE_URL} />}>

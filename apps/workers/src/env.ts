@@ -15,7 +15,7 @@ const workerIntervals = Object.fromEntries(
 ) satisfies Record<string, number>;
 
 export const env = {
-  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",
+  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3555",
   TB_CLUSTER_ID: BigInt(process.env.TB_CLUSTER_ID ?? "0"),
   WORKERS_MONITORING_HOST: process.env.WORKERS_MONITORING_HOST ?? "0.0.0.0",
   WORKERS_MONITORING_PORT: Number(

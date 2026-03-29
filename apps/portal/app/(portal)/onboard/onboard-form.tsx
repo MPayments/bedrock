@@ -271,6 +271,7 @@ export function OnboardForm() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify(payload),
       });

@@ -61,6 +61,7 @@ export {
 export {
   account,
   agentProfiles,
+  customerBootstrapClaims,
   customerMemberships,
   session,
   twoFactor,

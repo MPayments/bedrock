@@ -25,6 +25,8 @@ services:
       dockerfile: Dockerfile
     container_name: bedrock-tigerbeetle
     restart: unless-stopped
+    ports:
+      - "3555:3000"
     security_opt:
       - seccomp=unconfined
     cap_add:

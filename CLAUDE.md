@@ -46,7 +46,7 @@ bun run knip                           # Unused dependency detection
 ### Database
 
 ```bash
-docker compose -f ops/infra/docker-compose.yml up -d   # Start Postgres + TigerBeetle
+docker compose -f infra/docker-compose.dev.yml up -d   # Start Postgres + TigerBeetle
 bun run db:nuke                        # Drop all tables
 bun run db:migrate                     # Apply migrations
 bun run db:seed                        # Run all seed scripts

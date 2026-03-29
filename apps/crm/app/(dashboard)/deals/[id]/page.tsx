@@ -46,6 +46,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -1097,7 +1098,9 @@ export default function DealDetailPage() {
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Выбрать статус</DropdownMenuLabel>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Выбрать статус</DropdownMenuLabel>
+                      </DropdownMenuGroup>
                       <DropdownMenuSeparator />
                       {availableStatuses.map((item) =>
                         item.disabled && item.reason ? (
@@ -1156,7 +1159,9 @@ export default function DealDetailPage() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Документы</DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Документы</DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   <DropdownMenuItem
                     onClick={() => setIsInvoiceDialogOpen(true)}
                   >

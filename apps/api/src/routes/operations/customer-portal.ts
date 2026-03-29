@@ -17,10 +17,12 @@ import {
 
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
+import { getRequestContext } from "../../middleware/idempotency";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 
 const CustomerPortalProfileSchema = z.object({
   customers: z.array(CustomerSchema),
+  hasCrmAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
   memberships: z.array(CustomerMembershipSchema),
 });
@@ -91,7 +93,6 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "post",
     path: "/clients",
     tags: ["Operations - Customer Portal"],
-    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "Create client as customer",
     request: {
       body: {
@@ -100,6 +101,14 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       },
     },
     responses: {
+      400: {
+        content: { "application/json": { schema: OpsErrorSchema } },
+        description: "Missing Idempotency-Key",
+      },
+      403: {
+        content: { "application/json": { schema: OpsErrorSchema } },
+        description: "Not authorized",
+      },
       201: {
         content: { "application/json": { schema: ClientSchema } },
         description: "Client created",
@@ -203,11 +212,30 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     .openapi(createClientRoute, async (c) => {
       const user = c.get("user")!;
       const input = c.req.valid("json");
-      const result = await ctx.customerPortalWorkflow.createClient(
-        { userId: user.id },
-        input,
-      );
-      return c.json(result, 201);
+      const idempotencyKey = getRequestContext(c)?.idempotencyKey;
+
+      if (!idempotencyKey) {
+        return c.json({ error: "Missing Idempotency-Key header" }, 400);
+      }
+
+      try {
+        const result = await ctx.customerPortalWorkflow.createClient(
+          { userId: user.id },
+          input,
+          { idempotencyKey },
+        );
+
+        return c.json(result, 201);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
     })
     .openapi(listApplicationsRoute, async (c) => {
       const user = c.get("user")!;

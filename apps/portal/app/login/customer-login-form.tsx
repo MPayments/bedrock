@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import { authClient } from "@/lib/auth-client";
 
 type Mode = "login" | "register";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function CustomerLoginForm() {
   const router = useRouter();
@@ -29,20 +30,57 @@ export function CustomerLoginForm() {
 
     try {
       if (mode === "register") {
-        await authClient.signUp.email({
+        const registrationResponse = await fetch(
+          `${API_URL}/api/customer-auth/register`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              email,
+              password,
+              name,
+            }),
+          },
+        );
+
+        if (!registrationResponse.ok) {
+          const payload = (await registrationResponse
+            .json()
+            .catch(() => null)) as { error?: string } | null;
+          setError(
+            payload?.error ??
+              "Не удалось зарегистрироваться. Попробуйте позже.",
+          );
+          return;
+        }
+
+        const signInResult = await authClient.signIn.email({
           email,
           password,
-          name,
-          callbackURL: "/",
+          callbackURL: "/onboard",
         });
+
+        if (signInResult.error) {
+          setError(signInResult.error.message ?? "Не удалось войти в портал.");
+          return;
+        }
       } else {
-        await authClient.signIn.email({
+        const signInResult = await authClient.signIn.email({
           email,
           password,
           callbackURL: "/",
         });
+
+        if (signInResult.error) {
+          setError(signInResult.error.message ?? "Неверный email или пароль.");
+          return;
+        }
       }
-      router.push("/");
+
+      router.push(mode === "register" ? "/onboard" : "/");
       router.refresh();
     } catch (submitError) {
       setError(

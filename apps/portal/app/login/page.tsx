@@ -14,9 +14,7 @@ export default async function PortalLoginPage() {
     if (session.hasCustomerPortalAccess) {
       redirect("/");
     }
-    if (session.canAccessDashboard) {
-      redirect(CRM_BASE_URL);
-    }
+    redirect("/");
   }
 
   return (

@@ -3,6 +3,7 @@ import {
   accountRelations,
   agentProfiles,
   agentProfilesRelations,
+  customerBootstrapClaims,
   customerMemberships,
   session,
   sessionRelations,
@@ -47,12 +48,12 @@ const authSchema = {
   twoFactorRelations,
   agentProfiles,
   agentProfilesRelations,
+  customerBootstrapClaims,
   userAccessStates,
   userAccessStatesRelations,
 };
 const partiesSchema = {
   customers,
-  customerMemberships,
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,

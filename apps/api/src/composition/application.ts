@@ -378,11 +378,13 @@ export function createApplicationServices(
     operations: operationsModule,
     iam: {
       customerMemberships: customerMembershipsService,
+      users: iamService,
     },
     parties: {
       customers: partiesModule.customers,
     },
     logger,
+    persistence: createPersistenceContext(db),
   });
 
   // Document generation workflow

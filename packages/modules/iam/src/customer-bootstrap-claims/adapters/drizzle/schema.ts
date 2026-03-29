@@ -6,24 +6,27 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  integer,
 } from "drizzle-orm/pg-core";
 
 import { customers } from "@bedrock/parties/schema";
 
 import { user } from "../../../adapters/drizzle/schema/auth-schema";
 
-export const customerMemberships = pgTable(
-  "customer_memberships",
+export const customerBootstrapClaims = pgTable(
+  "customer_bootstrap_claims",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    role: text("role").notNull().default("owner"),
-    status: text("status").notNull().default("active"),
+    normalizedInn: text("normalized_inn").notNull(),
+    normalizedKpp: text("normalized_kpp").notNull().default(""),
+    clientId: integer("client_id"),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -33,16 +36,14 @@ export const customerMemberships = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    index("customer_memberships_user_id_idx").on(table.userId),
-    uniqueIndex("customer_memberships_customer_user_idx").on(
-      table.customerId,
+    index("customer_bootstrap_claims_user_id_idx").on(table.userId),
+    uniqueIndex("customer_bootstrap_claims_user_inn_kpp_idx").on(
       table.userId,
+      table.normalizedInn,
+      table.normalizedKpp,
     ),
   ],
 );
 
-export const schema = {
-  customerMemberships,
-};
-
-export type CustomerMembershipRow = typeof customerMemberships.$inferSelect;
+export type CustomerBootstrapClaimRow =
+  typeof customerBootstrapClaims.$inferSelect;

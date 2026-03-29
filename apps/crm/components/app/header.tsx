@@ -141,7 +141,7 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                   asChild
                   className={navigationMenuTriggerStyle()}
                 >
-                  <Link href="/clients">Клиенты</Link>
+                  <Link href="/customers">Клиенты</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -182,7 +182,9 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                     <DropdownMenuItem render={<Link href="/reports/deals" />}>
                       По сделкам
                     </DropdownMenuItem>
-                    <DropdownMenuItem render={<Link href="/reports/clients" />}>
+                    <DropdownMenuItem
+                      render={<Link href="/reports/customers" />}
+                    >
                       По клиентам
                     </DropdownMenuItem>
                   </DropdownMenuContent>

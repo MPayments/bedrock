@@ -20,6 +20,7 @@ export class DrizzleCustomerMembershipReads implements CustomerMembershipReads {
         and(
           eq(customerMemberships.customerId, input.customerId),
           eq(customerMemberships.userId, input.userId),
+          eq(customerMemberships.status, "active"),
         ),
       )
       .limit(1);

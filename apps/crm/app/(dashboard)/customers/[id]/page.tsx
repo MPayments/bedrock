@@ -518,7 +518,7 @@ export default function ClientDetailPage() {
         throw new Error(data.message || `Ошибка удаления: ${res.status}`);
       }
 
-      router.push("/clients");
+      router.push("/customers");
     } catch (err) {
       console.error("Delete client error:", err);
       setError(err instanceof Error ? err.message : "Ошибка удаления клиента");

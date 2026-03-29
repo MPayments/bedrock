@@ -27,24 +27,29 @@ const CustomerPortalProfileSchema = z.object({
       description: z.string().nullable().optional(),
     }),
   ),
+  hasCrmAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
 });
 
 export function resolveRole(user: {
   role?: string;
 }): CrmRole {
-  if (user.role === "customer") return "customer";
   if (user.role === "admin") return "admin";
-  return "agent";
+  if (user.role === "agent") return "agent";
+  if (user.role === "customer") return "customer";
+  if (user.role === "finance") return "finance";
+  if (user.role === "user") return "user";
+  return null;
 }
 
 export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return {
     canAccessDashboard: false,
     customerPortalCustomers: [],
+    hasCrmAccess: false,
     hasCustomerPortalAccess: false,
     isAuthenticated: false,
-    role: "agent",
+    role: null,
     session: null,
     user: null,
   };
@@ -53,6 +58,7 @@ export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
 export function getPreferredHomePath(session: UserSessionSnapshot): string {
   if (session.canAccessDashboard) return "/";
   if (session.hasCustomerPortalAccess) return PORTAL_BASE_URL;
+  if (session.isAuthenticated) return `${PORTAL_BASE_URL}/onboard`;
   return `${PORTAL_BASE_URL}/login`;
 }
 
@@ -61,12 +67,18 @@ export async function fetchSessionSnapshot(input: {
   cookie: string;
 }): Promise<UserSessionSnapshot> {
   const apiUrl = input.apiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-  const sessionResponse = await fetch(`${apiUrl}/api/auth/get-session`, {
-    cache: "no-store",
-    headers: {
-      cookie: input.cookie,
-    },
-  });
+  let sessionResponse: Response;
+
+  try {
+    sessionResponse = await fetch(`${apiUrl}/api/auth/get-session`, {
+      cache: "no-store",
+      headers: {
+        cookie: input.cookie,
+      },
+    });
+  } catch {
+    return createAnonymousSessionSnapshot();
+  }
 
   if (!sessionResponse.ok) {
     return createAnonymousSessionSnapshot();
@@ -80,6 +92,7 @@ export async function fetchSessionSnapshot(input: {
   }
 
   const role = resolveRole(parsedSession.data.user);
+  let hasCrmAccess = false;
   let hasCustomerPortalAccess = false;
   let customerPortalCustomers: UserSessionSnapshot["customerPortalCustomers"] =
     [];
@@ -99,6 +112,7 @@ export async function fetchSessionSnapshot(input: {
       const profilePayload = await customerProfileResponse.json();
       const parsedProfile = CustomerPortalProfileSchema.safeParse(profilePayload);
       if (parsedProfile.success) {
+        hasCrmAccess = parsedProfile.data.hasCrmAccess;
         hasCustomerPortalAccess = parsedProfile.data.hasCustomerPortalAccess;
         customerPortalCustomers = parsedProfile.data.customers.map((customer) => ({
           description: customer.description ?? null,
@@ -113,8 +127,9 @@ export async function fetchSessionSnapshot(input: {
   }
 
   return {
-    canAccessDashboard: role !== "customer",
+    canAccessDashboard: hasCrmAccess,
     customerPortalCustomers,
+    hasCrmAccess,
     hasCustomerPortalAccess,
     isAuthenticated: true,
     role,

@@ -8,13 +8,25 @@ import type { CustomerMembershipStore } from "../../application/ports/customer-m
 export class DrizzleCustomerMembershipStore implements CustomerMembershipStore {
   constructor(private readonly db: Queryable) {}
 
-  async upsert(input: { customerId: string; userId: string }) {
+  async upsert(input: {
+    customerId: string;
+    userId: string;
+    role: string;
+    status: string;
+  }) {
     const [membership] = await this.db
       .insert(customerMemberships)
       .values(input)
       .onConflictDoUpdate({
-        target: [customerMemberships.customerId, customerMemberships.userId],
-        set: { updatedAt: sql`now()` },
+        target: [
+          customerMemberships.customerId,
+          customerMemberships.userId,
+        ],
+        set: {
+          role: input.role,
+          status: input.status,
+          updatedAt: sql`now()`,
+        },
       })
       .returning();
 

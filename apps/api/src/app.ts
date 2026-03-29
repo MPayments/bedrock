@@ -29,6 +29,7 @@ import {
   treasuryRatesRoutes,
   usersRoutes,
 } from "./routes";
+import { customerAuthRoutes } from "./routes/customer-auth";
 
 const env = parseEnv();
 
@@ -100,6 +101,8 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
+
+app.route("/api/customer-auth", customerAuthRoutes(ctx));
 
 app.use("*", authMiddleware());
 app.use("*", requestContextMiddleware());

@@ -11,6 +11,28 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  redirects: async () => [
+    {
+      source: "/clients",
+      destination: "/customers",
+      permanent: false,
+    },
+    {
+      source: "/clients/:path*",
+      destination: "/customers/:path*",
+      permanent: false,
+    },
+    {
+      source: "/reports/clients",
+      destination: "/reports/customers",
+      permanent: false,
+    },
+    {
+      source: "/reports/clients/:path*",
+      destination: "/reports/customers/:path*",
+      permanent: false,
+    },
+  ],
   turbopack: {
     root: path.resolve(dirname, "../.."),
   },

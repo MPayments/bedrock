@@ -1,4 +1,5 @@
 export { DrizzleAgentProfileStore } from "./agent-profile.store";
+export { DrizzleCustomerBootstrapClaimStore } from "../../customer-bootstrap-claims/adapters/drizzle/customer-bootstrap-claim.store";
 export { DrizzleCredentialAccountStore } from "./credential-account.store";
 export { DrizzleIamAgentProfileReads } from "./agent-profile.reads";
 export { DrizzleIamUsersReads } from "./users.reads";

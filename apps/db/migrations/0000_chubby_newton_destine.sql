@@ -106,6 +106,20 @@ CREATE TABLE "action_receipts" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "agent_profiles" (
+	"user_id" text PRIMARY KEY NOT NULL,
+	"tg_id" bigint,
+	"user_name" text,
+	"tag" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"is_allowed" boolean DEFAULT false NOT NULL,
+	"allowed_by" text,
+	"allowed_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "agent_profiles_tg_id_unique" UNIQUE("tg_id")
+);
+--> statement-breakpoint
 CREATE TABLE "balance_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"book_id" uuid NOT NULL,
@@ -264,6 +278,28 @@ CREATE TABLE "currencies" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "currencies_precision_non_negative" CHECK ("currencies"."precision" >= 0)
+);
+--> statement-breakpoint
+CREATE TABLE "customer_bootstrap_claims" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"normalized_inn" text NOT NULL,
+	"normalized_kpp" text DEFAULT '' NOT NULL,
+	"client_id" integer,
+	"customer_id" uuid,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "customer_memberships" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"role" text DEFAULT 'owner' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "customers" (
@@ -663,6 +699,7 @@ CREATE TABLE "ops_clients" (
 	"sub_agent_id" integer,
 	"user_id" text,
 	"counterparty_id" uuid,
+	"customer_id" uuid,
 	"created_at" text DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	"updated_at" text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -970,20 +1007,16 @@ CREATE TABLE "user" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"role" text,
-	"banned" boolean DEFAULT false,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "user_access_states" (
+	"user_id" text PRIMARY KEY NOT NULL,
+	"banned" boolean DEFAULT false NOT NULL,
 	"ban_reason" text,
 	"ban_expires" timestamp with time zone,
-	"two_factor_enabled" boolean,
-	"tg_id" bigint,
-	"user_name" text,
-	"tag" text,
-	"status" text DEFAULT 'active',
-	"is_allowed" boolean DEFAULT false,
-	"is_admin" boolean DEFAULT false,
-	"allowed_by" text,
-	"allowed_at" text,
-	CONSTRAINT "user_email_unique" UNIQUE("email"),
-	CONSTRAINT "user_tg_id_unique" UNIQUE("tg_id")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "verification" (
@@ -1000,6 +1033,8 @@ ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_package
 ALTER TABLE "accounting_pack_assignments" ADD CONSTRAINT "accounting_pack_assignments_pack_checksum_accounting_pack_versions_checksum_fk" FOREIGN KEY ("pack_checksum") REFERENCES "public"."accounting_pack_versions"("checksum") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_report_line_mappings" ADD CONSTRAINT "accounting_report_line_mappings_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_profiles" ADD CONSTRAINT "agent_profiles_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_profiles" ADD CONSTRAINT "agent_profiles_allowed_by_user_id_fk" FOREIGN KEY ("allowed_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "balance_events" ADD CONSTRAINT "balance_events_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "balance_holds" ADD CONSTRAINT "balance_holds_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1013,6 +1048,10 @@ ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_
 ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_memberships_group_id_counterparty_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_parent_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_bootstrap_claims" ADD CONSTRAINT "customer_bootstrap_claims_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_bootstrap_claims" ADD CONSTRAINT "customer_bootstrap_claims_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_events" ADD CONSTRAINT "document_events_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_from_document_id_documents_id_fk" FOREIGN KEY ("from_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_to_document_id_documents_id_fk" FOREIGN KEY ("to_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1046,6 +1085,7 @@ ALTER TABLE "ops_clients" ADD CONSTRAINT "ops_clients_contract_id_ops_contracts_
 ALTER TABLE "ops_clients" ADD CONSTRAINT "ops_clients_sub_agent_id_ops_sub_agents_id_fk" FOREIGN KEY ("sub_agent_id") REFERENCES "public"."ops_sub_agents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ops_clients" ADD CONSTRAINT "ops_clients_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ops_clients" ADD CONSTRAINT "ops_clients_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ops_clients" ADD CONSTRAINT "ops_clients_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ops_contracts" ADD CONSTRAINT "ops_contracts_agent_organization_id_ops_agent_organizations_id_fk" FOREIGN KEY ("agent_organization_id") REFERENCES "public"."ops_agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ops_contracts" ADD CONSTRAINT "ops_contracts_agent_organization_bank_details_id_ops_agent_organization_bank_details_id_fk" FOREIGN KEY ("agent_organization_bank_details_id") REFERENCES "public"."ops_agent_organization_bank_details"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ops_deal_documents" ADD CONSTRAINT "ops_deal_documents_deal_id_ops_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."ops_deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1076,6 +1116,7 @@ ALTER TABLE "requisites" ADD CONSTRAINT "requisites_currency_id_currencies_id_fk
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tb_transfer_plans" ADD CONSTRAINT "tb_transfer_plans_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "two_factor" ADD CONSTRAINT "two_factor_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_access_states" ADD CONSTRAINT "user_access_states_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "accounting_close_packages_period_revision_uq" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
 CREATE INDEX "accounting_close_packages_lookup_idx" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
@@ -1090,6 +1131,8 @@ CREATE UNIQUE INDEX "accounting_report_line_mappings_uq" ON "accounting_report_l
 CREATE INDEX "accounting_report_line_mappings_lookup_idx" ON "accounting_report_line_mappings" USING btree ("report_kind","account_no","effective_from","effective_to");--> statement-breakpoint
 CREATE UNIQUE INDEX "action_receipts_scope_key_uq" ON "action_receipts" USING btree ("scope","idempotency_key");--> statement-breakpoint
 CREATE INDEX "action_receipts_scope_created_idx" ON "action_receipts" USING btree ("scope","created_at");--> statement-breakpoint
+CREATE INDEX "agent_profiles_status_idx" ON "agent_profiles" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "agent_profiles_is_allowed_idx" ON "agent_profiles" USING btree ("is_allowed");--> statement-breakpoint
 CREATE INDEX "balance_events_subject_created_idx" ON "balance_events" USING btree ("book_id","subject_type","subject_id","currency","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "balance_events_operation_subject_uq" ON "balance_events" USING btree ("operation_id","subject_type","subject_id","currency","event_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "balance_holds_subject_ref_uq" ON "balance_holds" USING btree ("book_id","subject_type","subject_id","currency","hold_ref");--> statement-breakpoint
@@ -1110,6 +1153,10 @@ CREATE INDEX "counterparty_group_memberships_group_idx" ON "counterparty_group_m
 CREATE UNIQUE INDEX "counterparty_groups_code_uq" ON "counterparty_groups" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "counterparty_groups_parent_idx" ON "counterparty_groups" USING btree ("parent_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "currencies_code_uq" ON "currencies" USING btree ("code");--> statement-breakpoint
+CREATE INDEX "customer_bootstrap_claims_user_id_idx" ON "customer_bootstrap_claims" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_bootstrap_claims_user_inn_kpp_idx" ON "customer_bootstrap_claims" USING btree ("user_id","normalized_inn","normalized_kpp");--> statement-breakpoint
+CREATE INDEX "customer_memberships_user_id_idx" ON "customer_memberships" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_memberships_customer_user_idx" ON "customer_memberships" USING btree ("customer_id","user_id");--> statement-breakpoint
 CREATE INDEX "document_events_document_created_idx" ON "document_events" USING btree ("document_id","created_at");--> statement-breakpoint
 CREATE INDEX "document_links_from_type_idx" ON "document_links" USING btree ("from_document_id","link_type");--> statement-breakpoint
 CREATE INDEX "document_links_to_type_idx" ON "document_links" USING btree ("to_document_id","link_type");--> statement-breakpoint
@@ -1181,4 +1228,5 @@ CREATE UNIQUE INDEX "tb_plan_transfer_uq" ON "tb_transfer_plans" USING btree ("t
 CREATE INDEX "tb_plan_post_idx" ON "tb_transfer_plans" USING btree ("operation_id","line_no");--> statement-breakpoint
 CREATE INDEX "tb_plan_status_idx" ON "tb_transfer_plans" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "two_factor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "user_access_states_banned_idx" ON "user_access_states" USING btree ("banned");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");

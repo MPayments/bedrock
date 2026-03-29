@@ -276,7 +276,7 @@ export default function ClientsPage() {
             )}
             Выгрузить XLSX
           </Button>
-          <Button onClick={() => router.push("/clients/new")}>
+          <Button onClick={() => router.push("/customers/new")}>
             <Plus className="mr-2 h-4 w-4" /> Добавить клиента
           </Button>
         </div>
@@ -335,7 +335,9 @@ export default function ClientsPage() {
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => router.push(`/clients/${row.original.id}`)}
+                      onClick={() =>
+                        router.push(`/customers/${row.original.id}`)
+                      }
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>

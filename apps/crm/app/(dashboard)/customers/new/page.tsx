@@ -461,7 +461,7 @@ export default function NewClientPage() {
       }
 
       const client = await res.json();
-      router.push(`/clients/${client.id}`);
+      router.push(`/customers/${client.id}`);
     } catch (err) {
       console.error("Create client error:", err);
       setError(err instanceof Error ? err.message : "Ошибка создания клиента");

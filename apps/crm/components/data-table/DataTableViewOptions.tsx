@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -33,7 +34,9 @@ export function DataTableViewOptions<TData>({
         Вид
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Скрыть колонки</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Скрыть колонки</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()
