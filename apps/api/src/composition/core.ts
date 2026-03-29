@@ -1,7 +1,19 @@
 import type { AccountingModule } from "@bedrock/accounting";
+import {
+  createCustomerMembershipsService,
+  createIamService,
+  type CustomerMembershipsService,
+  type IamService,
+} from "@bedrock/iam";
+import {
+  createBetterAuthPasswordHasher,
+} from "@bedrock/iam/adapters/better-auth";
+import {
+  createDrizzleIamIdentityStore,
+  DrizzleCustomerMembershipReads,
+  DrizzleCustomerMembershipsUnitOfWork,
+} from "@bedrock/iam/adapters/drizzle";
 import type { LedgerModule } from "@bedrock/ledger";
-import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
-import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
 import {
   createIdempotencyService,
   type IdempotencyPort,
@@ -11,7 +23,6 @@ import {
   type Logger,
 } from "@bedrock/platform/observability/logger";
 import { createPersistenceContext } from "@bedrock/platform/persistence";
-import { createUsersService, type UsersService } from "@bedrock/users";
 
 import { createApiAccountingModule } from "./accounting-module";
 import { createApiLedgerModule } from "./ledger-module";
@@ -22,13 +33,14 @@ export interface ApiCoreServices {
   accountingModule: AccountingModule;
   idempotency: IdempotencyPort;
   ledgerModule: LedgerModule;
-  usersService: UsersService;
+  iamService: IamService;
+  customerMembershipsService: CustomerMembershipsService;
 }
 
 export function createCoreServices(): ApiCoreServices {
   const logger = createConsoleLogger({ app: "bedrock-api" });
   const idempotency = createIdempotencyService({ logger });
-  const authStore = createDrizzleAuthIdentityStore({ db });
+  const authStore = createDrizzleIamIdentityStore({ db });
   const passwordHasher = createBetterAuthPasswordHasher();
   const ledgerModule = createApiLedgerModule({
     db,
@@ -40,10 +52,16 @@ export function createCoreServices(): ApiCoreServices {
     persistence: createPersistenceContext(db),
     logger,
   });
-  const usersService = createUsersService({
+  const iamService = createIamService({
     identityStore: authStore,
     passwordHasher,
     logger,
+  });
+  const customerMembershipsService = createCustomerMembershipsService({
+    commandUow: new DrizzleCustomerMembershipsUnitOfWork({
+      persistence: createPersistenceContext(db),
+    }),
+    reads: new DrizzleCustomerMembershipReads(db),
   });
 
   return {
@@ -51,6 +69,7 @@ export function createCoreServices(): ApiCoreServices {
     accountingModule,
     idempotency,
     ledgerModule,
-    usersService,
+    iamService,
+    customerMembershipsService,
   };
 }

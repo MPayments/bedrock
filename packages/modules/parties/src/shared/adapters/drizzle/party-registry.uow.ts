@@ -8,11 +8,6 @@ import {
 import { DrizzleCounterpartyGroupHierarchyReads } from "../../../counterparties/adapters/drizzle/counterparty-group-hierarchy.reads";
 import { DrizzleCounterpartyGroupRepository } from "../../../counterparties/adapters/drizzle/counterparty-group.repository";
 import { DrizzleCounterpartyRepository } from "../../../counterparties/adapters/drizzle/counterparty.repository";
-import { DrizzleCustomerMembershipStore } from "../../../customer-memberships/adapters/drizzle/customer-membership.store";
-import type {
-  CustomerMembershipsCommandTx,
-  CustomerMembershipsCommandUnitOfWork,
-} from "../../../customer-memberships/application/ports/customer-memberships.uow";
 import type {
   CounterpartiesCommandTx,
   CounterpartiesCommandUnitOfWork,
@@ -37,7 +32,6 @@ import type {
 
 type PartyRegistryTx =
   & CounterpartiesCommandTx
-  & CustomerMembershipsCommandTx
   & CustomersCommandTx
   & OrganizationsCommandTx
   & RequisitesCommandTx;
@@ -46,7 +40,6 @@ function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
   const counterpartyGroups = new DrizzleCounterpartyGroupRepository(tx);
 
   return {
-    customerMembershipStore: new DrizzleCustomerMembershipStore(tx),
     customerStore: new DrizzleCustomerStore(tx),
     organizationStore: new DrizzleOrganizationStore(tx),
     counterparties: new DrizzleCounterpartyRepository(tx),
@@ -61,7 +54,6 @@ function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
 export class DrizzlePartyRegistryUnitOfWork
   implements
     CounterpartiesCommandUnitOfWork,
-    CustomerMembershipsCommandUnitOfWork,
     CustomersCommandUnitOfWork,
     OrganizationsCommandUnitOfWork,
     RequisitesCommandUnitOfWork

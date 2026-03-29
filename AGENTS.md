@@ -263,7 +263,7 @@ export class Organization extends Entity<string> {
 - Pass IDs, `now`, configs, and already-loaded related state in from application.
 - Examples:
   - `packages/modules/documents/src/domain/document.ts`
-  - `packages/modules/users/src/domain/user-email.ts`
+  - `packages/modules/iam/src/domain/user-email.ts`
   - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
 
 ### Model cross-entity rules as set or planning objects
@@ -300,7 +300,7 @@ if (plan.promotedId) {
 
 - Wrap validated, normalized primitives in `ValueObject` when the concept has its own rules and behavior.
 - Examples:
-  - `packages/modules/users/src/domain/user-email.ts`
+  - `packages/modules/iam/src/domain/user-email.ts`
   - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
 
 ## Code Conventions

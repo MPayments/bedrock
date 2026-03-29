@@ -2,6 +2,9 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 
 import {
+  CustomerMembershipSchema,
+} from "@bedrock/iam/contracts";
+import {
   ApplicationSchema,
   ClientSchema,
   CreateClientInputSchema,
@@ -9,7 +12,6 @@ import {
   PaginatedClientsSchema,
 } from "@bedrock/operations/contracts";
 import {
-  CustomerMembershipSchema,
   CustomerSchema,
 } from "@bedrock/parties/contracts";
 

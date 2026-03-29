@@ -1,7 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { integer, pgTable, serial, text } from "drizzle-orm/pg-core";
 
-import { user } from "@bedrock/platform/auth-model/schema";
+import { user } from "@bedrock/iam/schema";
 
 import { opsDeals } from "./deals";
 

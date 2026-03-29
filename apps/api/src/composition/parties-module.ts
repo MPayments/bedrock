@@ -6,7 +6,6 @@ import {
   type PartiesModuleDeps,
 } from "@bedrock/parties";
 import {
-  DrizzleCustomerMembershipReads,
   DrizzleCounterpartiesQueries,
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartyReads,
@@ -45,7 +44,6 @@ export function createApiPartiesModule(input: {
     generateUuid: input.generateUuid ?? randomUUID,
     documents: input.documents,
     currencies: input.currencies,
-    customerMembershipReads: new DrizzleCustomerMembershipReads(input.db),
     customerReads: new DrizzleCustomerReads(input.db),
     counterpartyReads: new DrizzleCounterpartyReads(input.db),
     counterpartyGroupReads: new DrizzleCounterpartyGroupReads(input.db),

@@ -17,12 +17,12 @@ import {
   InvalidPasswordError,
   UserEmailConflictError,
   UserNotFoundError,
-} from "@bedrock/users";
+} from "@bedrock/iam";
 
 import { profileRoutes } from "../../src/routes/profile";
 import { usersRoutes } from "../../src/routes/users";
 
-function createUsersServiceStub() {
+function createIamServiceStub() {
   return {
     list: vi.fn(),
     findById: vi.fn(),
@@ -65,7 +65,7 @@ function createUserWithSession() {
 }
 
 function createTestApp() {
-  const usersService = createUsersServiceStub();
+  const iamService = createIamServiceStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -73,10 +73,10 @@ function createTestApp() {
     await next();
   });
 
-  app.route("/users", usersRoutes({ usersService } as any));
-  app.route("/profile", profileRoutes({ usersService } as any));
+  app.route("/users", usersRoutes({ iamService } as any));
+  app.route("/profile", profileRoutes({ iamService } as any));
 
-  return { app, usersService };
+  return { app, iamService };
 }
 
 describe("users and profile routes", () => {
@@ -86,21 +86,21 @@ describe("users and profile routes", () => {
   });
 
   it("routes user admin actions through the service and serializes responses", async () => {
-    const { app, usersService } = createTestApp();
+    const { app, iamService } = createTestApp();
     const user = createUser();
     const userWithSession = createUserWithSession();
-    usersService.list.mockResolvedValue({
+    iamService.list.mockResolvedValue({
       data: [user],
       total: 1,
       limit: 20,
       offset: 0,
     });
-    usersService.findById.mockResolvedValue(userWithSession);
-    usersService.create.mockResolvedValue(user);
-    usersService.update.mockResolvedValue(user);
-    usersService.changePassword.mockResolvedValue(undefined);
-    usersService.ban.mockResolvedValue(user);
-    usersService.unban.mockResolvedValue(user);
+    iamService.findById.mockResolvedValue(userWithSession);
+    iamService.create.mockResolvedValue(user);
+    iamService.update.mockResolvedValue(user);
+    iamService.changePassword.mockResolvedValue(undefined);
+    iamService.ban.mockResolvedValue(user);
+    iamService.unban.mockResolvedValue(user);
 
     const listResponse = await app.request("http://localhost/users");
     const getResponse = await app.request("http://localhost/users/user-1");
@@ -171,45 +171,45 @@ describe("users and profile routes", () => {
     expect(banResponse.status).toBe(200);
     expect(unbanResponse.status).toBe(200);
 
-    expect(usersService.list).toHaveBeenCalledWith({
+    expect(iamService.list).toHaveBeenCalledWith({
       limit: 20,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
     });
-    expect(usersService.findById).toHaveBeenCalledWith("user-1");
-    expect(usersService.create).toHaveBeenCalledWith({
+    expect(iamService.findById).toHaveBeenCalledWith("user-1");
+    expect(iamService.create).toHaveBeenCalledWith({
       name: "Alice",
       email: "alice@example.com",
       password: "secret-123",
       role: "admin",
     });
-    expect(usersService.update).toHaveBeenCalledWith("user-1", {
+    expect(iamService.update).toHaveBeenCalledWith("user-1", {
       name: "Alice 2",
     });
-    expect(usersService.changePassword).toHaveBeenCalledWith("user-1", {
+    expect(iamService.changePassword).toHaveBeenCalledWith("user-1", {
       newPassword: "secret-456",
     });
-    expect(usersService.ban).toHaveBeenCalledWith("user-1", {
+    expect(iamService.ban).toHaveBeenCalledWith("user-1", {
       banReason: "policy",
     });
-    expect(usersService.unban).toHaveBeenCalledWith("user-1");
+    expect(iamService.unban).toHaveBeenCalledWith("user-1");
   });
 
   it("maps users route service errors to HTTP responses", async () => {
-    const { app, usersService } = createTestApp();
-    usersService.findById.mockRejectedValue(new UserNotFoundError("missing"));
-    usersService.create.mockRejectedValue(
+    const { app, iamService } = createTestApp();
+    iamService.findById.mockRejectedValue(new UserNotFoundError("missing"));
+    iamService.create.mockRejectedValue(
       new UserEmailConflictError("alice@example.com"),
     );
-    usersService.update.mockRejectedValue(
+    iamService.update.mockRejectedValue(
       new UserEmailConflictError("alice@example.com"),
     );
-    usersService.changePassword.mockRejectedValue(
+    iamService.changePassword.mockRejectedValue(
       new UserNotFoundError("missing"),
     );
-    usersService.ban.mockRejectedValue(new UserNotFoundError("missing"));
-    usersService.unban.mockRejectedValue(new UserNotFoundError("missing"));
+    iamService.ban.mockRejectedValue(new UserNotFoundError("missing"));
+    iamService.unban.mockRejectedValue(new UserNotFoundError("missing"));
 
     await expect(
       app.request("http://localhost/users/missing").then((response) => ({
@@ -267,12 +267,12 @@ describe("users and profile routes", () => {
   });
 
   it("routes profile actions through the service and maps profile errors", async () => {
-    const { app, usersService } = createTestApp();
+    const { app, iamService } = createTestApp();
     const user = createUser();
     const userWithSession = createUserWithSession();
-    usersService.findById.mockResolvedValueOnce(userWithSession);
-    usersService.update.mockResolvedValueOnce(user);
-    usersService.changeOwnPassword.mockResolvedValueOnce(undefined);
+    iamService.findById.mockResolvedValueOnce(userWithSession);
+    iamService.update.mockResolvedValueOnce(user);
+    iamService.changeOwnPassword.mockResolvedValueOnce(undefined);
 
     const getResponse = await app.request("http://localhost/profile");
     const updateResponse = await app.request("http://localhost/profile", {
@@ -295,23 +295,23 @@ describe("users and profile routes", () => {
     expect(getResponse.status).toBe(200);
     expect(updateResponse.status).toBe(200);
     expect(changePasswordResponse.status).toBe(200);
-    expect(usersService.findById).toHaveBeenCalledWith("user-1");
-    expect(usersService.update).toHaveBeenCalledWith("user-1", {
+    expect(iamService.findById).toHaveBeenCalledWith("user-1");
+    expect(iamService.update).toHaveBeenCalledWith("user-1", {
       name: "Alice 2",
     });
-    expect(usersService.changeOwnPassword).toHaveBeenCalledWith("user-1", {
+    expect(iamService.changeOwnPassword).toHaveBeenCalledWith("user-1", {
       currentPassword: "old-secret",
       newPassword: "new-secret",
     });
 
-    usersService.findById.mockRejectedValueOnce(new UserNotFoundError("user-1"));
-    usersService.update.mockRejectedValueOnce(
+    iamService.findById.mockRejectedValueOnce(new UserNotFoundError("user-1"));
+    iamService.update.mockRejectedValueOnce(
       new UserEmailConflictError("alice@example.com"),
     );
-    usersService.changeOwnPassword.mockRejectedValueOnce(
+    iamService.changeOwnPassword.mockRejectedValueOnce(
       new InvalidPasswordError(),
     );
-    usersService.changeOwnPassword.mockRejectedValueOnce(
+    iamService.changeOwnPassword.mockRejectedValueOnce(
       new UserNotFoundError("user-1"),
     );
 

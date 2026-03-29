@@ -6,13 +6,7 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 
-import {
-  account,
-  session,
-  twoFactor as authTwoFactor,
-  user as authUser,
-  verification,
-} from "@bedrock/platform/auth-model";
+import { betterAuthSchema } from "@bedrock/iam/adapters/better-auth";
 
 import { ac, admin, agent, customer, user } from "./permissions";
 import { db } from "../db/client";
@@ -37,13 +31,7 @@ const auth = betterAuth({
   },
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: {
-      account,
-      session,
-      twoFactor: authTwoFactor,
-      user: authUser,
-      verification,
-    },
+    schema: betterAuthSchema,
   }),
   plugins: [
     openApiPlugin(),

@@ -9,7 +9,6 @@ import {
   type PartiesModuleDeps,
 } from "@bedrock/parties";
 import {
-  DrizzleCustomerMembershipReads,
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
@@ -66,7 +65,6 @@ function createWorkflowPartiesModule(input: {
       hasDocumentsForCustomer: async () => false,
     },
     currencies: input.currencies,
-    customerMembershipReads: new DrizzleCustomerMembershipReads(input.tx),
     customerReads: new DrizzleCustomerReads(input.tx),
     counterpartyReads: new DrizzleCounterpartyReads(input.tx),
     counterpartyGroupReads: new DrizzleCounterpartyGroupReads(input.tx),

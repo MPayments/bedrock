@@ -69,7 +69,7 @@ function createWorkflow(overrides?: {
       },
     },
   };
-  const parties = {
+  const iam = {
     customerMemberships: {
       commands: {
         upsert: vi.fn(async (input) => input),
@@ -87,6 +87,8 @@ function createWorkflow(overrides?: {
         ),
       },
     },
+  };
+  const parties = {
     customers: {
       queries: {
         findById: vi.fn(async (customerId: string) => ({
@@ -101,9 +103,11 @@ function createWorkflow(overrides?: {
 
   return {
     operations,
+    iam,
     parties,
     workflow: createCustomerPortalWorkflow({
       operations: operations as never,
+      iam: iam as never,
       parties: parties as never,
       logger: { info: vi.fn() } as never,
     }),
@@ -148,14 +152,14 @@ describe("customer portal workflow", () => {
   });
 
   it("upserts a membership after customer client creation", async () => {
-    const { parties, workflow } = createWorkflow();
+    const { iam, workflow } = createWorkflow();
 
     await workflow.createClient(
       { userId: "user-1" },
       { orgName: "Acme Corp" } as never,
     );
 
-    expect(parties.customerMemberships.commands.upsert).toHaveBeenCalledWith({
+    expect(iam.customerMemberships.commands.upsert).toHaveBeenCalledWith({
       customerId: "customer-1",
       userId: "user-1",
     });

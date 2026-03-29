@@ -4,10 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./auth-betterauth": "./src/auth-betterauth/index.ts",
-    "./auth-betterauth/*": "./src/auth-betterauth/*.ts",
-    "./auth-model": "./src/auth-model/index.ts",
-    "./auth-model/*": "./src/auth-model/*.ts",
     "./idempotency": "./src/idempotency/index.ts",
     "./idempotency/*": "./src/idempotency/*.ts",
     "./idempotency-postgres": "./src/idempotency-postgres/index.ts",
@@ -39,7 +35,6 @@
     "@aws-sdk/s3-request-presigner": "^3.800.0",
     "@bedrock/shared": "workspace:*",
     "ai": "^4.0.0",
-    "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1",
     "mammoth": "^1.8.0",
     "pg": "^8.17.2",

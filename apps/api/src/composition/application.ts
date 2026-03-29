@@ -11,6 +11,7 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import { UserNotFoundError } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
 import { ConsoleNotificationAdapter } from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
@@ -23,7 +24,6 @@ import { createCommercialDocumentModules } from "@bedrock/plugin-documents-comme
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import type { TreasuryModule } from "@bedrock/treasury";
-import { UserNotFoundError } from "@bedrock/users";
 import {
   createCustomerPortalWorkflow,
   type CustomerPortalWorkflow,
@@ -110,10 +110,11 @@ export function createApplicationServices(
 ): ApiApplicationServices {
   const {
     accountingModule,
+    customerMembershipsService,
     idempotency,
+    iamService,
     ledgerModule,
     logger,
-    usersService,
   } =
     platform;
   const ledgerReadPort = {
@@ -299,7 +300,7 @@ export function createApplicationServices(
     rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
     async isActorExemptFromApproval({ actorUserId }) {
       try {
-        return (await usersService.findById(actorUserId)).role === "admin";
+        return (await iamService.findById(actorUserId)).role === "admin";
       } catch (error) {
         if (error instanceof UserNotFoundError) {
           return false;
@@ -375,7 +376,12 @@ export function createApplicationServices(
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
     operations: operationsModule,
-    parties: partiesModule,
+    iam: {
+      customerMemberships: customerMembershipsService,
+    },
+    parties: {
+      customers: partiesModule.customers,
+    },
     logger,
   });
 

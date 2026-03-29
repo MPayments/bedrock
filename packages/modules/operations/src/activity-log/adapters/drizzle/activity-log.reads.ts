@@ -1,6 +1,6 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
-import { user } from "@bedrock/platform/auth-model/schema";
+import { user } from "@bedrock/iam/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 

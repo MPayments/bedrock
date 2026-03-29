@@ -18,8 +18,8 @@ import {
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
+import { user } from "@bedrock/iam/schema";
 import { counterparties, customers, requisites } from "@bedrock/parties/schema";
-import { user } from "@bedrock/platform/auth-model/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =

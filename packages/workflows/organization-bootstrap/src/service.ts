@@ -6,7 +6,6 @@ import {
   type PartiesModuleDeps,
 } from "@bedrock/parties";
 import {
-  DrizzleCustomerMembershipReads,
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
@@ -60,7 +59,6 @@ function createWorkflowPartiesModule(input: {
         return new Map();
       },
     },
-    customerMembershipReads: new DrizzleCustomerMembershipReads(input.tx),
     customerReads: new DrizzleCustomerReads(input.tx),
     counterpartyReads: new DrizzleCounterpartyReads(input.tx),
     counterpartyGroupReads: new DrizzleCounterpartyGroupReads(input.tx),

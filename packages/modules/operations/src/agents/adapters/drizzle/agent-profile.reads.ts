@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
 
-import { user } from "@bedrock/platform/auth-model/schema";
+import { user } from "@bedrock/iam/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,

@@ -1,3 +1,15 @@
+import {
+  account,
+  accountRelations,
+  customerMemberships,
+  session,
+  sessionRelations,
+  twoFactor,
+  twoFactorRelations,
+  user,
+  userRelations,
+  verification,
+} from "@bedrock/iam/schema";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
@@ -7,7 +19,6 @@ import {
   counterparties,
   counterpartyGroupMemberships,
   counterpartyGroups,
-  customerMemberships,
   customers,
   organizations,
   organizationRequisiteBindings,
@@ -16,17 +27,6 @@ import {
   requisiteProviders,
   requisites,
 } from "@bedrock/parties/schema";
-import {
-  account,
-  accountRelations,
-  session,
-  sessionRelations,
-  twoFactor,
-  twoFactorRelations,
-  user,
-  userRelations,
-  verification,
-} from "@bedrock/platform/auth-model/schema";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 import { schema as treasurySchema } from "@bedrock/treasury/schema";

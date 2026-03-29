@@ -6,7 +6,6 @@ import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { db, pool } from "./setup";
 import { createPartiesModule } from "../../src";
 import {
-  DrizzleCustomerMembershipReads,
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartiesQueries,
   DrizzleCounterpartyReads,
@@ -39,9 +38,10 @@ export function createIntegrationRuntime(options?: {
       },
       currencies: {
         async assertCurrencyExists(id) {
-          const result = await pool.query("select 1 from currencies where id = $1", [
-            id,
-          ]);
+          const result = await pool.query(
+            "select 1 from currencies where id = $1",
+            [id],
+          );
 
           if (result.rowCount === 0) {
             throw new Error(`Currency not found: ${id}`);
@@ -64,7 +64,6 @@ export function createIntegrationRuntime(options?: {
           return new Map(result.rows.map((row) => [row.id, row.code]));
         },
       },
-      customerMembershipReads: new DrizzleCustomerMembershipReads(db),
       customerReads: new DrizzleCustomerReads(db),
       counterpartyReads: new DrizzleCounterpartyReads(db),
       counterpartyGroupReads: new DrizzleCounterpartyGroupReads(db),

@@ -48,7 +48,6 @@ export {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyKindEnum,
-  customerMemberships,
   customers,
   organizations,
   organizationRequisiteBindings,
@@ -61,11 +60,12 @@ export {
 } from "@bedrock/parties/schema";
 export {
   account,
+  customerMemberships,
   session,
   twoFactor,
   user,
   verification,
-} from "@bedrock/platform/auth-model/schema";
+} from "@bedrock/iam/schema";
 export { actionReceipts } from "@bedrock/platform/idempotency-postgres/schema";
 export {
   reconciliationExceptions,

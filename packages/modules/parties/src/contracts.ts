@@ -1,18 +1,4 @@
 export {
-  UpsertCustomerMembershipInputSchema,
-  type UpsertCustomerMembershipInput,
-} from "./customer-memberships/application/contracts/commands";
-export {
-  CustomerMembershipSchema,
-  type CustomerMembership,
-} from "./customer-memberships/application/contracts/dto";
-export {
-  HasCustomerMembershipInputSchema,
-  ListCustomerMembershipsByUserIdInputSchema,
-  type HasCustomerMembershipInput,
-  type ListCustomerMembershipsByUserIdInput,
-} from "./customer-memberships/application/contracts/queries";
-export {
   CreateCustomerInputSchema,
   UpdateCustomerInputSchema,
   type CreateCustomerInput,

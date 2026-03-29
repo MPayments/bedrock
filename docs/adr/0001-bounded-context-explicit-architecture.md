@@ -237,8 +237,8 @@ Examples:
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/service.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/application/shared/context.ts`
 - small service facade using shared application context:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/service.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/application/shared/context.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/iam/src/service.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/iam/src/application/shared/context.ts`
 - rich domain and package-local assets:
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/compile-pack.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/resolve-posting-plan.ts`

@@ -30,6 +30,7 @@
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
@@ -39,7 +40,6 @@
         "@bedrock/plugin-documents-sdk": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/treasury": "workspace:*",
-        "@bedrock/users": "workspace:*",
         "@bedrock/workflow-customer-portal": "workspace:*",
         "@bedrock/workflow-document-drafts": "workspace:*",
         "@bedrock/workflow-document-generation": "workspace:*",
@@ -121,6 +121,7 @@
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
@@ -149,6 +150,7 @@
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/plugin-documents-commercial": "workspace:*",
         "@bedrock/plugin-documents-ifrs": "workspace:*",
@@ -157,7 +159,6 @@
         "@bedrock/sdk-ui": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/treasury": "workspace:*",
-        "@bedrock/users": "workspace:*",
         "@hookform/resolvers": "^5.2.2",
         "@tanstack/react-table": "^8.21.3",
         "better-auth": "^1.4.18",
@@ -227,6 +228,7 @@
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
@@ -297,6 +299,7 @@
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
@@ -309,6 +312,28 @@
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/modules/iam": {
+      "name": "@bedrock/iam",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/parties": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+        "better-auth": "^1.4.18",
+        "drizzle-orm": "^0.45.1",
+        "zod": "^4.1.11",
+      },
+      "devDependencies": {
+        "@bedrock/test-utils": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "@types/pg": "^8.16.0",
+        "eslint": "^9.31.0",
+        "pg": "^8.18.0",
         "typescript": "^5.8.3",
         "vitest": "^4.0.18",
       },
@@ -338,6 +363,7 @@
       "name": "@bedrock/operations",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
@@ -423,22 +449,6 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/modules/users": {
-      "name": "@bedrock/users",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/platform": "workspace:*",
-        "@bedrock/shared": "workspace:*",
-        "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
     "packages/platform": {
       "name": "@bedrock/platform",
       "version": "0.0.0",
@@ -448,7 +458,6 @@
         "@aws-sdk/s3-request-presigner": "^3.800.0",
         "@bedrock/shared": "workspace:*",
         "ai": "^4.0.0",
-        "better-auth": "^1.4.18",
         "drizzle-orm": "^0.45.1",
         "mammoth": "^1.8.0",
         "pg": "^8.17.2",
@@ -635,6 +644,7 @@
       "name": "@bedrock/workflow-customer-portal",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/iam": "workspace:*",
         "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
@@ -906,6 +916,8 @@
 
     "@bedrock/eslint-config": ["@bedrock/eslint-config@workspace:packages/tooling/eslint-config"],
 
+    "@bedrock/iam": ["@bedrock/iam@workspace:packages/modules/iam"],
+
     "@bedrock/ledger": ["@bedrock/ledger@workspace:packages/modules/ledger"],
 
     "@bedrock/operations": ["@bedrock/operations@workspace:packages/modules/operations"],
@@ -933,8 +945,6 @@
     "@bedrock/treasury": ["@bedrock/treasury@workspace:packages/modules/treasury"],
 
     "@bedrock/typescript-config": ["@bedrock/typescript-config@workspace:packages/tooling/typescript-config"],
-
-    "@bedrock/users": ["@bedrock/users@workspace:packages/modules/users"],
 
     "@bedrock/workflow-customer-portal": ["@bedrock/workflow-customer-portal@workspace:packages/workflows/customer-portal"],
 
@@ -2840,6 +2850,8 @@
 
     "@bedrock/documents/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/iam/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
     "@bedrock/ledger/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/operations/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
@@ -2865,8 +2877,6 @@
     "@bedrock/test-utils/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/treasury/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/users/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-customer-portal/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
@@ -3060,6 +3070,8 @@
 
     "@bedrock/documents/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
+    "@bedrock/iam/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
     "@bedrock/ledger/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/operations/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
@@ -3083,8 +3095,6 @@
     "@bedrock/test-utils/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/treasury/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/users/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-customer-portal/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

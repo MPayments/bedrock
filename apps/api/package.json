@@ -27,7 +27,7 @@
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/treasury": "workspace:*",
-    "@bedrock/users": "workspace:*",
+    "@bedrock/iam": "workspace:*",
     "@bedrock/workflow-customer-portal": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-document-generation": "workspace:*",

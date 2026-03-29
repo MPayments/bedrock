@@ -15,7 +15,7 @@ export default defineConfig({
       "packages/modules/parties/vitest.config.ts",
       "packages/modules/reconciliation/vitest.config.ts",
       "packages/modules/treasury/vitest.config.ts",
-      "packages/modules/users/vitest.config.ts",
+      "packages/modules/iam/vitest.config.ts",
       "packages/platform/vitest.config.ts",
       "packages/plugins/documents-commercial/vitest.config.ts",
       "packages/plugins/documents-ifrs/vitest.config.ts",

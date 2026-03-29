@@ -4,8 +4,6 @@ export { DrizzleCounterpartyGroupRepository } from "../counterparties/adapters/d
 export { DrizzleCounterpartiesQueries } from "../counterparties/adapters/drizzle/counterparties.queries";
 export { DrizzleCounterpartyReads } from "../counterparties/adapters/drizzle/counterparty.reads";
 export { DrizzleCounterpartyRepository } from "../counterparties/adapters/drizzle/counterparty.repository";
-export { DrizzleCustomerMembershipReads } from "../customer-memberships/adapters/drizzle/customer-membership.reads";
-export { DrizzleCustomerMembershipStore } from "../customer-memberships/adapters/drizzle/customer-membership.store";
 export { DrizzleCustomerReads } from "../customers/adapters/drizzle/customer.reads";
 export { DrizzleCustomersQueries } from "../customers/adapters/drizzle/customers.queries";
 export { DrizzleCustomerStore } from "../customers/adapters/drizzle/customer.store";

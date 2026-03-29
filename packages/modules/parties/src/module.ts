@@ -9,9 +9,6 @@ import { createCounterpartiesService } from "./counterparties/application";
 import type { CounterpartiesCommandUnitOfWork } from "./counterparties/application/ports/counterparties.uow";
 import type { CounterpartyGroupReads } from "./counterparties/application/ports/counterparty-group.reads";
 import type { CounterpartyReads } from "./counterparties/application/ports/counterparty.reads";
-import { createCustomerMembershipsService } from "./customer-memberships/application";
-import type { CustomerMembershipReads } from "./customer-memberships/application/ports/customer-membership.reads";
-import type { CustomerMembershipsCommandUnitOfWork } from "./customer-memberships/application/ports/customer-memberships.uow";
 import { createCustomersService } from "./customers/application";
 import type { CustomerReads } from "./customers/application/ports/customer.reads";
 import type { CustomersCommandUnitOfWork } from "./customers/application/ports/customers.uow";
@@ -27,7 +24,6 @@ import type { RequisitesCommandUnitOfWork } from "./requisites/application/ports
 import type { PartyRegistryDocumentsReadPort } from "./shared/application/documents-read.port";
 
 export type PartiesModuleUnitOfWork = CounterpartiesCommandUnitOfWork &
-  CustomerMembershipsCommandUnitOfWork &
   CustomersCommandUnitOfWork &
   OrganizationsCommandUnitOfWork &
   RequisitesCommandUnitOfWork;
@@ -38,7 +34,6 @@ export interface PartiesModuleDeps {
   generateUuid: UuidGenerator;
   documents: PartyRegistryDocumentsReadPort;
   currencies: RequisitesCurrenciesPort;
-  customerMembershipReads: CustomerMembershipReads;
   customerReads: CustomerReads;
   counterpartyReads: CounterpartyReads;
   counterpartyGroupReads: CounterpartyGroupReads;
@@ -61,10 +56,6 @@ export function createPartiesModule(deps: PartiesModuleDeps) {
     });
 
   return {
-    customerMemberships: createCustomerMembershipsService({
-      commandUow: deps.unitOfWork,
-      reads: deps.customerMembershipReads,
-    }),
     customers: createCustomersService({
       commandUow: deps.unitOfWork,
       runtime: createRuntime("parties.customers"),

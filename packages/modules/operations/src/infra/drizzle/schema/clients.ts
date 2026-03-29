@@ -9,8 +9,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { user } from "@bedrock/iam/schema";
 import { counterparties, customers } from "@bedrock/parties/schema";
-import { user } from "@bedrock/platform/auth-model/schema";
 
 import type { LocalizedText } from "./agents";
 import { opsSubAgents } from "./agents";

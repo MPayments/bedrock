@@ -20,7 +20,7 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { user } from "@bedrock/platform/auth-model/schema";
+import { user } from "@bedrock/iam/schema";
 
 import {
   opsApplications,

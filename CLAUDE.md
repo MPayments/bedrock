@@ -69,7 +69,7 @@ apps/workers      — Background job runners
 apps/db           — Schema aggregation, migrations, seeds (never owns domain tables)
 packages/shared   — Stable primitives (@bedrock/shared/core, /money, /reference-data, /parties, /requisites)
 packages/modules/ — 13 bounded-context business packages (@bedrock/ledger, @bedrock/accounting, etc.)
-packages/platform — Runtime infrastructure via subpaths (@bedrock/platform/persistence, /auth-model, /observability, etc.)
+packages/platform — Runtime infrastructure via subpaths (@bedrock/platform/persistence, /observability, etc.)
 packages/workflows/  — Cross-module orchestration
 packages/plugins/    — Document plugin extensions
 packages/sdk/        — API client and UI components

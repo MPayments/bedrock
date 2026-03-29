@@ -1,3 +1,4 @@
+import type { CustomerMembershipsService } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
 import type { DealWithDetails } from "@bedrock/operations/contracts";
 import type { PartiesModule } from "@bedrock/parties";
@@ -8,7 +9,10 @@ export interface CustomerPortalWorkflowDeps {
     OperationsModule,
     "applications" | "calculations" | "deals" | "clients"
   >;
-  parties: Pick<PartiesModule, "customerMemberships" | "customers">;
+  iam: {
+    customerMemberships: CustomerMembershipsService;
+  };
+  parties: Pick<PartiesModule, "customers">;
   logger: Logger;
 }
 
@@ -29,9 +33,7 @@ export interface CustomerPortalProfile {
   >[];
   hasCustomerPortalAccess: boolean;
   memberships: Awaited<
-    ReturnType<
-      PartiesModule["customerMemberships"]["queries"]["listByUserId"]
-    >
+    ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
   >;
 }
 
@@ -39,7 +41,7 @@ export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ) {
   async function listMembershipsByUserId(userId: string) {
-    return deps.parties.customerMemberships.queries.listByUserId({ userId });
+    return deps.iam.customerMemberships.queries.listByUserId({ userId });
   }
 
   async function listAuthorizedCustomerIds(userId: string) {
@@ -80,7 +82,7 @@ export function createCustomerPortalWorkflow(
     }
 
     const hasMembership =
-      await deps.parties.customerMemberships.queries.hasMembership({
+      await deps.iam.customerMemberships.queries.hasMembership({
         customerId: client.customerId,
         userId,
       });
@@ -130,7 +132,7 @@ export function createCustomerPortalWorkflow(
         clientId: result.id,
       });
       if (result.customerId) {
-        await deps.parties.customerMemberships.commands.upsert({
+        await deps.iam.customerMemberships.commands.upsert({
           customerId: result.customerId,
           userId: ctx.userId,
         });

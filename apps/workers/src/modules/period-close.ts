@@ -8,7 +8,7 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { user } from "@bedrock/platform/auth-model/schema";
+import { user } from "@bedrock/iam/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import {
