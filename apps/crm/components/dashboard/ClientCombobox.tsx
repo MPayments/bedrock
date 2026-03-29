@@ -4,7 +4,7 @@ import * as React from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Command,
   CommandEmpty,
@@ -12,12 +12,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "@bedrock/sdk-ui/components/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
 
@@ -156,25 +156,31 @@ export function ClientCombobox({
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={true}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-[300px] justify-between", className)}
-          disabled={disabled}
-        >
-          {selectedClient ? (
-            <OverflowTooltip tooltipText={selectedClient.orgName} disabled={open}>
-              {selectedClient.orgName}
-            </OverflowTooltip>
-          ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
-          )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn("w-[300px] justify-between", className)}
+            disabled={disabled}
+          />
+        }
+      >
+        {selectedClient ? (
+          <OverflowTooltip tooltipText={selectedClient.orgName} disabled={open}>
+            {selectedClient.orgName}
+          </OverflowTooltip>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="max-h-[284px] p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+      <PopoverContent
+        className="max-h-[284px] p-0"
+        align="start"
+        style={{ width: "var(--anchor-width)" }}
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Поиск клиента..."

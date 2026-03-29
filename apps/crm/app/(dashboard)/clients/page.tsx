@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Plus, Search, Download, Loader2 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -20,13 +20,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@bedrock/sdk-ui/components/table";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
 import { API_BASE_URL } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
 
 interface ClientRow {
   id: number;

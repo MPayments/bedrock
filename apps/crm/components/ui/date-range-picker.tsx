@@ -19,13 +19,13 @@ import { ru } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Calendar } from "@bedrock/sdk-ui/components/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 
 export interface DateRangePickerProps {
   value?: DateRange;
@@ -153,18 +153,20 @@ export function DateRangePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "justify-start text-left font-normal",
-            !value?.from && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {formatDateRange(value)}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn(
+              "justify-start text-left font-normal",
+              !value?.from && "text-muted-foreground",
+              className
+            )}
+          />
+        }
+      >
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {formatDateRange(value)}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align={align}>
         <div className="flex">

@@ -21,19 +21,19 @@ import {
   Globe,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@bedrock/sdk-ui/components/select";
 import {
   Form,
   FormControl,
@@ -1143,7 +1143,9 @@ export default function NewClientPage() {
                               <Label>Выберите субагента</Label>
                               <Select
                                 value={selectedSubAgentId}
-                                onValueChange={setSelectedSubAgentId}
+                                onValueChange={(value) =>
+                                  setSelectedSubAgentId(value ?? "")
+                                }
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Выберите субагента..." />

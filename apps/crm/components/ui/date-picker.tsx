@@ -6,13 +6,13 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Calendar } from "@bedrock/sdk-ui/components/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 
 export interface DatePickerProps {
   value?: Date;
@@ -49,25 +49,27 @@ export function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          disabled={disabled}
-          className={cn(
-            "justify-start text-left font-normal",
-            !value && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "d MMMM yyyy", { locale: ru }) : placeholder}
-          {allowClear && value && (
-            <X
-              className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
-              onClick={handleClear}
-            />
-          )}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            disabled={disabled}
+            className={cn(
+              "justify-start text-left font-normal",
+              !value && "text-muted-foreground",
+              className
+            )}
+          />
+        }
+      >
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {value ? format(value, "d MMMM yyyy", { locale: ru }) : placeholder}
+        {allowClear && value && (
+          <X
+            className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
+            onClick={handleClear}
+          />
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align={align}>
         <Calendar

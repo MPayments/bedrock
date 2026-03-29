@@ -1,4 +1,3 @@
-import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { Settings2 } from "lucide-react";
 import { Table } from "@tanstack/react-table";
 
@@ -8,8 +7,9 @@ import {
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "../ui/dropdown-menu";
-import { Button } from "../ui/button";
+  DropdownMenuTrigger,
+} from "@bedrock/sdk-ui/components/dropdown-menu";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
@@ -20,15 +20,17 @@ export function DataTableViewOptions<TData>({
 }: DataTableViewOptionsProps<TData>) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="hidden h-8 ml-auto lg:flex"
-        >
-          <Settings2 className="size-4" />
-          Вид
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto hidden h-8 lg:flex"
+          />
+        }
+      >
+        <Settings2 className="size-4" />
+        Вид
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel>Скрыть колонки</DropdownMenuLabel>

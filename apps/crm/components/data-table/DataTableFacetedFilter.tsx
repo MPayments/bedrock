@@ -11,11 +11,11 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "../ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Separator } from "../ui/separator";
+} from "@bedrock/sdk-ui/components/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@bedrock/sdk-ui/components/popover";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 interface DataTableFacetedFilterProps<
   TData,
@@ -45,48 +45,45 @@ export function DataTableFacetedFilter<
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border">
-          <PlusCircle className="size-4" />
-          {title}
-          {selectedValues?.size > 0 && (
-            <>
-              <Separator orientation="vertical" className="h-4 mx-2" />
-              <Badge
-                variant="secondary"
-                className="px-1 font-normal rounded-sm lg:hidden"
-              >
-                {selectedValues.size}
-              </Badge>
-              <div className="hidden space-x-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge
-                    variant="secondary"
-                    className="px-1 font-normal rounded-sm"
-                  >
-                    {selectedValues.size} выбрано
-                  </Badge>
-                ) : (
-                  Array.from(selectedValues)
-                    .map((value) => options[value])
-                    .map(({ label, colorClass, icon: Icon }) => (
-                      <Badge
-                        key={String(label)}
-                        variant="secondary"
-                        className={cn(
-                          "px-1 font-normal rounded-sm",
-                          colorClass
-                        )}
-                      >
-                        {Icon && <Icon className="inline-block w-4 h-4 mr-1" />}
-                        {label}
-                      </Badge>
-                    ))
-                )}
-              </div>
-            </>
-          )}
-        </Button>
+      <PopoverTrigger
+        render={<Button variant="outline" size="sm" className="h-8 border" />}
+      >
+        <PlusCircle className="size-4" />
+        {title}
+        {selectedValues?.size > 0 && (
+          <>
+            <Separator orientation="vertical" className="mx-2 h-4" />
+            <Badge
+              variant="secondary"
+              className="rounded-sm px-1 font-normal lg:hidden"
+            >
+              {selectedValues.size}
+            </Badge>
+            <div className="hidden space-x-1 lg:flex">
+              {selectedValues.size > 2 ? (
+                <Badge
+                  variant="secondary"
+                  className="rounded-sm px-1 font-normal"
+                >
+                  {selectedValues.size} выбрано
+                </Badge>
+              ) : (
+                Array.from(selectedValues)
+                  .map((value) => options[value])
+                  .map(({ label, colorClass, icon: Icon }) => (
+                    <Badge
+                      key={String(label)}
+                      variant="secondary"
+                      className={cn("rounded-sm px-1 font-normal", colorClass)}
+                    >
+                      {Icon && <Icon className="mr-1 inline-block h-4 w-4" />}
+                      {label}
+                    </Badge>
+                  ))
+              )}
+            </div>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="start">
         <Command>

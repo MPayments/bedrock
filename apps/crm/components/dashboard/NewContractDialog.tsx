@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
 import { API_BASE_URL } from "@/lib/constants";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -29,7 +29,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 
 // Компонент для отображения текста с ellipsis и popover для полного текста
 function TruncatedText({
@@ -43,20 +43,18 @@ function TruncatedText({
 }) {
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <div className={className}>
-          <div className="font-medium truncate cursor-pointer" title={text}>
-            {text}
-          </div>
-          {subText && (
-            <div
-              className="text-sm text-muted-foreground truncate"
-              title={subText}
-            >
-              {subText}
-            </div>
-          )}
+      <PopoverTrigger render={<div className={className} />}>
+        <div className="cursor-pointer truncate font-medium" title={text}>
+          {text}
         </div>
+        {subText && (
+          <div
+            className="truncate text-sm text-muted-foreground"
+            title={subText}
+          >
+            {subText}
+          </div>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-80 p-3" side="top">
         <div className="space-y-1">

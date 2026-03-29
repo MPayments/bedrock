@@ -4,8 +4,8 @@ import { ArrowLeftRight, Briefcase, ChevronLeft, Download, Loader2 } from "lucid
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
 
 type DealStatus =

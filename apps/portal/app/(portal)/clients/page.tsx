@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface Client {
@@ -90,11 +90,14 @@ export default function PortalClientsPage() {
             </p>
           </div>
         </div>
-        <Button asChild size="sm" className="gap-2">
-          <Link href="/onboard">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Добавить</span>
-          </Link>
+        <Button
+          size="sm"
+          className="gap-2"
+          nativeButton={false}
+          render={<Link href="/onboard" />}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Добавить</span>
         </Button>
       </div>
 

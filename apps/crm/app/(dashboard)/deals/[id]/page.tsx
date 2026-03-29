@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   ChevronLeft,
   FileText,
@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/constants";
 import { useSession } from "@/lib/auth-client";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@bedrock/sdk-ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +50,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,14 +61,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@bedrock/sdk-ui/components/tooltip";
 import { cn } from "@/lib/utils";
 import {
   format as formatFns,
@@ -78,12 +78,12 @@ import {
   setMinutes,
 } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar } from "@bedrock/sdk-ui/components/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 
 type DealStatus =
   | "preparing_documents"
@@ -1090,11 +1090,11 @@ export default function DealDetailPage() {
 
                 return availableStatuses.length > 0 ? (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="default" size="sm">
-                        Изменить статус
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
+                    <DropdownMenuTrigger
+                      render={<Button variant="default" size="sm" />}
+                    >
+                      Изменить статус
+                      <ChevronDown className="ml-2 h-4 w-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Выбрать статус</DropdownMenuLabel>
@@ -1102,21 +1102,19 @@ export default function DealDetailPage() {
                       {availableStatuses.map((item) =>
                         item.disabled && item.reason ? (
                           <Tooltip key={item.status}>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                  }}
-                                  disabled={true}
-                                  className="cursor-not-allowed opacity-50"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    {STATUS_LABELS[item.status]}
-                                    <Info className="h-3 w-3 text-muted-foreground" />
-                                  </span>
-                                </DropdownMenuItem>
-                              </div>
+                            <TooltipTrigger render={<div />}>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                }}
+                                disabled={true}
+                                className="cursor-not-allowed opacity-50"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {STATUS_LABELS[item.status]}
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </span>
+                              </DropdownMenuItem>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{item.reason}</p>
@@ -1151,11 +1149,11 @@ export default function DealDetailPage() {
 
               {/* Меню действий (Загрузка документов) */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    Загрузка документов
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" />}
+                >
+                  Загрузка документов
+                  <ChevronDown className="ml-2 h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Документы</DropdownMenuLabel>
@@ -2316,18 +2314,21 @@ export default function DealDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Дата создания</Label>
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !datesForm.createdAt && "text-muted-foreground",
-                      )}
-                      disabled={isSavingDates}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Дата создания</Label>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !datesForm.createdAt && "text-muted-foreground",
+                          )}
+                          disabled={isSavingDates}
+                        />
+                      }
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {datesForm.createdAt
@@ -2335,8 +2336,7 @@ export default function DealDetailPage() {
                             locale: ru,
                           })
                         : "Выберите дату"}
-                    </Button>
-                  </PopoverTrigger>
+                    </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
@@ -2383,18 +2383,21 @@ export default function DealDetailPage() {
                 </Popover>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Дата закрытия</Label>
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !datesForm.closedAt && "text-muted-foreground",
-                      )}
-                      disabled={isSavingDates}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Дата закрытия</Label>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !datesForm.closedAt && "text-muted-foreground",
+                          )}
+                          disabled={isSavingDates}
+                        />
+                      }
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {datesForm.closedAt
@@ -2402,8 +2405,7 @@ export default function DealDetailPage() {
                             locale: ru,
                           })
                         : "Не указана"}
-                    </Button>
-                  </PopoverTrigger>
+                    </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"

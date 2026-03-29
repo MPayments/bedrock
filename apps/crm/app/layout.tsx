@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import "@bedrock/sdk-ui/globals.css";
 import "./globals.css";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -26,7 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased  bg-accent`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-accent antialiased`}
+        style={
+          {
+            "--font-sans": "var(--font-geist-sans)",
+          } as React.CSSProperties
+        }
       >
         {children}
       </body>

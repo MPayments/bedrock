@@ -5,7 +5,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@bedrock/sdk-ui/components/tooltip";
 import { cn } from "@/lib/utils";
 
 interface OverflowTooltipProps {
@@ -40,10 +40,10 @@ export function OverflowTooltip({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <span ref={ref} className={cn("truncate", className)}>
-          {children}
-        </span>
+      <TooltipTrigger
+        render={<span ref={ref} className={cn("truncate", className)} />}
+      >
+        {children}
       </TooltipTrigger>
       {isOverflowing && !disabled && (
         <TooltipContent>{tooltipText}</TooltipContent>

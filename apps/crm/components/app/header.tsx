@@ -17,8 +17,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@bedrock/sdk-ui/components/avatar";
 import { signOut } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
@@ -162,23 +162,28 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className={`${navigationMenuTriggerStyle()} cursor-pointer flex items-center gap-2`}
-                    >
-                      Отчеты
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        className={`${navigationMenuTriggerStyle()} flex cursor-pointer items-center gap-2`}
+                      />
+                    }
+                  >
+                    Отчеты
+                    <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-[200px]">
-                    <DropdownMenuItem asChild>
-                      <Link href="/reports/application">По заявкам</Link>
+                    <DropdownMenuItem
+                      render={<Link href="/reports/application" />}
+                    >
+                      По заявкам
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/reports/deals">По сделкам</Link>
+                    <DropdownMenuItem render={<Link href="/reports/deals" />}>
+                      По сделкам
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/reports/clients">По клиентам</Link>
+                    <DropdownMenuItem render={<Link href="/reports/clients" />}>
+                      По клиентам
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -205,26 +210,31 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
               </a>
             ) : null}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 font-semibold cursor-pointer">
-                  <Avatar className="h-8 w-8 rounded-lg mr-2">
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback className="bg-muted">CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {session.user?.name ?? "—"}
-                    </span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {session.user?.email ?? ""}
-                    </span>
-                  </div>
-                </button>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="flex cursor-pointer items-center gap-2 rounded-md bg-background px-4 py-2 text-sm font-semibold font-medium outline-none transition-[color,box-shadow] hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50"
+                  />
+                }
+              >
+                <Avatar className="mr-2 h-8 w-8 rounded-lg">
+                  <AvatarImage src="https://github.com/shadcn.png" />
+                  <AvatarFallback className="bg-muted">CN</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">
+                    {session.user?.name ?? "—"}
+                  </span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    {session.user?.email ?? ""}
+                  </span>
+                </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[220px]">
                 {session.hasCustomerPortalAccess ? (
-                  <DropdownMenuItem asChild>
-                    <a href={PORTAL_BASE_URL}>Кабинет клиента</a>
+                  <DropdownMenuItem render={<a href={PORTAL_BASE_URL} />}>
+                    Кабинет клиента
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem

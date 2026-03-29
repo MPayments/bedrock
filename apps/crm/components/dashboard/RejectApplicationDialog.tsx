@@ -8,11 +8,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Label } from "@bedrock/sdk-ui/components/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { API_BASE_URL } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 

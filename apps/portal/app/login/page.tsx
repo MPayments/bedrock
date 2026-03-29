@@ -1,7 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 import { CRM_BASE_URL } from "@/lib/constants";
 
@@ -22,11 +22,15 @@ export default async function PortalLoginPage() {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
       <div className="p-4">
-        <Button variant="ghost" size="sm" className="h-9 px-2" asChild>
-          <a href={`${CRM_BASE_URL}/login`}>
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Для сотрудников
-          </a>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 px-2"
+          nativeButton={false}
+          render={<a href={`${CRM_BASE_URL}/login`} />}
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Для сотрудников
         </Button>
       </div>
 

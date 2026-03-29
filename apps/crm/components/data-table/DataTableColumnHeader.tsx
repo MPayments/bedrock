@@ -8,8 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Button } from "../ui/button";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -47,21 +47,23 @@ export function DataTableColumnHeader<TData, TValue>({
       )}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-3 h-8 data-[state=open]:bg-accent"
-          >
-            <span className={alignClass}>{title}</span>
-            {column.getIsSorted() === "desc" ? (
-              <ArrowDown className="w-4 h-4 ml-2" />
-            ) : column.getIsSorted() === "asc" ? (
-              <ArrowUp className="w-4 h-4 ml-2" />
-            ) : (
-              <ChevronsUpDown className="w-4 h-4 ml-2" />
-            )}
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-3 h-8 data-[state=open]:bg-accent"
+            />
+          }
+        >
+          <span className={alignClass}>{title}</span>
+          {column.getIsSorted() === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : column.getIsSorted() === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : (
+            <ChevronsUpDown className="ml-2 h-4 w-4" />
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>

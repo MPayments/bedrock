@@ -11,7 +11,7 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Plus } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -19,8 +19,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+} from "@bedrock/sdk-ui/components/table";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { DataTableTextFilter } from "@/components/data-table/DataTableTextFilter";
 import { DataTableFacetedFilter } from "@/components/data-table/DataTableFacetedFilter";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";

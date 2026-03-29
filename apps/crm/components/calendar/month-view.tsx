@@ -14,7 +14,7 @@ import {
 } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 interface TodoItem {
   id?: number;

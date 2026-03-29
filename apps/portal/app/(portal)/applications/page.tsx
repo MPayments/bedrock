@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { NewApplicationDialog } from "@/components/portal/new-application-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
 
 type ApplicationStatus = "forming" | "created" | "rejected" | "finished";

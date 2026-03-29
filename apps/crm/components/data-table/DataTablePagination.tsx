@@ -11,8 +11,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { Button } from "../ui/button";
+} from "@bedrock/sdk-ui/components/select";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;

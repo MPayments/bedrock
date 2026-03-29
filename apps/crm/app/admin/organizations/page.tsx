@@ -22,7 +22,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -30,12 +30,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@bedrock/sdk-ui/components/table";
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { API_BASE_URL } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -4,18 +4,18 @@ import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { FileText, Download, Loader2, Languages, Building2 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@bedrock/sdk-ui/components/select";
 import { API_BASE_URL } from "@/lib/constants";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 
@@ -283,7 +283,11 @@ export default function DocumentsPage() {
                     ? String(selectedOrganizationId)
                     : undefined
                 }
-                onValueChange={handleSelectOrganization}
+                onValueChange={(value) => {
+                  if (value) {
+                    handleSelectOrganization(value);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите организацию" />

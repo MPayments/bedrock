@@ -7,9 +7,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 type CurrencyCode = "USD" | "EUR" | "RUB" | "TRY" | "AED" | "CNY";
 

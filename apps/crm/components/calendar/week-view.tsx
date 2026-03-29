@@ -11,7 +11,7 @@ import {
 } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 
 interface TodoItem {
   id?: number;

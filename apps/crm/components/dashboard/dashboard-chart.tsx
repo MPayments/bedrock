@@ -7,16 +7,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
+} from "@bedrock/sdk-ui/components/select";
 import { cn } from "@/lib/utils";
-import { Button } from "../ui/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { BarChart3, FileText, TrendingUp } from "lucide-react";
 import { API_BASE_URL } from "@/lib/constants";
 
@@ -99,7 +99,10 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
           </CardTitle>
         </div>
 
-        <Select value={timeRange} onValueChange={setTimeRange}>
+        <Select
+          value={timeRange}
+          onValueChange={(value) => setTimeRange(value ?? "30d")}
+        >
           <SelectTrigger
             className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
             aria-label="Select a value"

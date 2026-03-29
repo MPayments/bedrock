@@ -32,20 +32,20 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useSession } from "@/lib/auth-client";
 
-import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardTitle, CardHeader } from "@bedrock/sdk-ui/components/card";
+import { Table, TableBody, TableCell, TableRow } from "@bedrock/sdk-ui/components/table";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { UserCombobox } from "@/components/calendar/user-combobox";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { ListTodo } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/popover";
 
 type TodoItem = {
   id: number;
@@ -162,10 +162,8 @@ function DraggableTodoRow({
       </TableCell>
       <TableCell className="float-right space-x-2">
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <CalendarIcon size={16} />
-            </Button>
+          <PopoverTrigger render={<Button variant="ghost" size="icon" />}>
+            <CalendarIcon size={16} />
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
             <DatePicker

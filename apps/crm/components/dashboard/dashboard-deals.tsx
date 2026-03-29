@@ -1,9 +1,9 @@
 "use client";
 
 import type { HTMLAttributes } from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "../ui/badge";
+import { Card, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/constants";

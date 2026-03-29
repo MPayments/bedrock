@@ -11,9 +11,9 @@ import {
 import { format, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { ru } from "date-fns/locale";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Card, CardContent, CardHeader } from "@bedrock/sdk-ui/components/card";
+import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import { MonthView } from "./month-view";
 import { WeekView } from "./week-view";
 import { TaskDialog, type TodoItem } from "./task-dialog";

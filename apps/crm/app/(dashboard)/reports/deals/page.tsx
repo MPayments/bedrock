@@ -27,7 +27,7 @@ import {
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -35,15 +35,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+} from "@bedrock/sdk-ui/components/table";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@bedrock/sdk-ui/components/select";
 import { DataTableFacetedFilter } from "@/components/data-table/DataTableFacetedFilter";
 import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
@@ -56,7 +56,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart";
+} from "@bedrock/sdk-ui/components/chart";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
 import {
@@ -371,7 +371,11 @@ export default function DealsReportsPage() {
             </span>
             <Select
               value={reportCurrencyCode}
-              onValueChange={handleReportCurrencyChange}
+              onValueChange={(value) => {
+                if (value) {
+                  handleReportCurrencyChange(value);
+                }
+              }}
             >
               <SelectTrigger className="h-8 w-[90px]">
                 <SelectValue />

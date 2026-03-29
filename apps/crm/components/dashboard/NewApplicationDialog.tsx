@@ -9,8 +9,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { API_BASE_URL } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { ClientCombobox } from "./ClientCombobox";

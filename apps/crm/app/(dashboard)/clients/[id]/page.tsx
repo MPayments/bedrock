@@ -25,11 +25,11 @@ import {
   Globe,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,14 +59,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@bedrock/sdk-ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import { clientSchema, type ClientFormData } from "@/lib/validation";
 import {
   Select,
@@ -74,7 +74,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@bedrock/sdk-ui/components/select";
 
 interface SubAgent {
   id: number;
@@ -679,16 +679,16 @@ export default function ClientDetailPage() {
           {!isEditing ? (
             <>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" disabled={downloadingContract}>
-                    {downloadingContract ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileText className="mr-2 h-4 w-4" />
-                    )}
-                    Агентский договор
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" disabled={downloadingContract} />}
+                >
+                  {downloadingContract ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
+                  Агентский договор
+                  <ChevronDown className="ml-2 h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setContractDialogOpen(true)}>

@@ -8,19 +8,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@bedrock/sdk-ui/components/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+} from "@bedrock/sdk-ui/components/select";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { API_BASE_URL } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -332,9 +332,11 @@ export function NewCalculationDialog({
                 </label>
                 <Select
                   value={formData.currency}
-                  onValueChange={(value: CurrencyCode) =>
-                    updateFormData({ currency: value })
-                  }
+                  onValueChange={(value) => {
+                    if (value) {
+                      updateFormData({ currency: value as CurrencyCode });
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Выберите валюту" />
@@ -355,9 +357,13 @@ export function NewCalculationDialog({
                 </label>
                 <Select
                   value={formData.baseCurrencyCode || "RUB"}
-                  onValueChange={(value: CurrencyCode) =>
-                    updateFormData({ baseCurrencyCode: value })
-                  }
+                  onValueChange={(value) => {
+                    if (value) {
+                      updateFormData({
+                        baseCurrencyCode: value as CurrencyCode,
+                      });
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Выберите базовую валюту" />
@@ -381,9 +387,11 @@ export function NewCalculationDialog({
                 </label>
                 <Select
                   value={formData.rateSource}
-                  onValueChange={(value: RateSource) =>
-                    updateFormData({ rateSource: value })
-                  }
+                  onValueChange={(value) => {
+                    if (value) {
+                      updateFormData({ rateSource: value as RateSource });
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Выберите источник" />
@@ -473,9 +481,13 @@ export function NewCalculationDialog({
                 </label>
                 <Select
                   value={formData.additionalExpensesCurrency || "none"}
-                  onValueChange={(value: CurrencyCode | "none") => {
-                    updateFormData({ additionalExpensesCurrency: value });
-                    if (value === "none") {
+                  onValueChange={(value) => {
+                    const nextValue = (value ?? "none") as
+                      | CurrencyCode
+                      | "none";
+
+                    updateFormData({ additionalExpensesCurrency: nextValue });
+                    if (nextValue === "none") {
                       updateFormData({
                         additionalExpenses: undefined,
                         additionalExpensesRate: undefined,

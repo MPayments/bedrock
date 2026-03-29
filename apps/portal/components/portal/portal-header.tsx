@@ -4,8 +4,8 @@ import { Briefcase, Building2, FileText, LogOut, PanelsTopLeft } from "lucide-re
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@bedrock/sdk-ui/components/avatar";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import { signOut } from "@/lib/auth-client";
 import { CRM_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
@@ -93,26 +93,30 @@ export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
 
         <div className="flex items-center gap-2">
           {session.canAccessDashboard ? (
-            <Button variant="outline" size="sm" asChild className="h-9">
-              <a href={CRM_BASE_URL}>
-                <PanelsTopLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Открыть CRM</span>
-              </a>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              nativeButton={false}
+              render={<a href={CRM_BASE_URL} />}
+            >
+              <PanelsTopLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Открыть CRM</span>
             </Button>
           ) : null}
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 gap-2 px-2 sm:px-3">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-primary/10 text-xs text-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden max-w-[140px] truncate sm:inline">
-                  {userName || userEmail}
-                </span>
-              </Button>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="sm" className="h-9 gap-2 px-2 sm:px-3" />}
+            >
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden max-w-[140px] truncate sm:inline">
+                {userName || userEmail}
+              </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="font-normal">
@@ -127,8 +131,8 @@ export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {session.canAccessDashboard ? (
-                <DropdownMenuItem asChild>
-                  <a href={CRM_BASE_URL}>Открыть CRM</a>
+                <DropdownMenuItem render={<a href={CRM_BASE_URL} />}>
+                  Открыть CRM
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem

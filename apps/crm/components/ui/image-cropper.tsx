@@ -15,8 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { Loader2 } from "lucide-react";
 
 // Fixed dimensions for A4 document compatibility (display size in docx)

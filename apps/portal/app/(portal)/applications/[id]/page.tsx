@@ -4,20 +4,20 @@ import { Calendar, ChevronLeft, Download, Eye, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@bedrock/sdk-ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import { API_BASE_URL } from "@/lib/constants";
 
 type ApplicationStatus = "forming" | "created" | "rejected" | "finished";
@@ -249,11 +249,11 @@ export default function PortalApplicationDetailPage() {
                   </div>
 
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4" />
-                        Действия
-                      </Button>
+                    <DropdownMenuTrigger
+                      render={<Button variant="outline" size="sm" />}
+                    >
+                      <Download className="h-4 w-4" />
+                      Действия
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setSelectedCalculation(calculation)}>

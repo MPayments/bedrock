@@ -5,10 +5,10 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import { authClient } from "@/lib/auth-client";
 
 type Mode = "login" | "register";

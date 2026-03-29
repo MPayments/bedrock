@@ -8,9 +8,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Label } from "@bedrock/sdk-ui/components/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { API_BASE_URL } from "@/lib/constants";
 import { Loader2 } from "lucide-react";

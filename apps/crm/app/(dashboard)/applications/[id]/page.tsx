@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   ChevronLeft,
   Plus,
@@ -27,7 +27,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -35,7 +35,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@bedrock/sdk-ui/components/table";
 import { NewCalculationDialog } from "@/components/dashboard/NewCalculationDialog";
 import { ViewCalculationDialog } from "@/components/dashboard/ViewCalculationDialog";
 import { RejectApplicationDialog } from "@/components/dashboard/RejectApplicationDialog";
@@ -50,7 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 type CurrencyCode = "USD" | "EUR" | "RUB";
 
@@ -775,15 +775,17 @@ export default function ApplicationDetailPage() {
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    title="Скачать"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      title="Скачать"
+                                    />
+                                  }
+                                >
+                                  <Download className="h-4 w-4" />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem

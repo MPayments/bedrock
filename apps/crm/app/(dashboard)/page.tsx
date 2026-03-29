@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
 import { ScrollText } from "lucide-react";
 import { DashboardTodo } from "@/components/dashboard/dashboard-todo";
 import { DashboardApplications } from "@/components/dashboard/dashboard-applications";

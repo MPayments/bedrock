@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Command,
   CommandEmpty,
@@ -22,7 +22,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "@bedrock/sdk-ui/components/command";
 import {
   Dialog,
   DialogContent,
@@ -30,17 +30,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@bedrock/sdk-ui/components/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@bedrock/sdk-ui/components/select";
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -192,13 +192,19 @@ export function NewApplicationDialog({
             <div className="space-y-2">
               <Label>Организация</Label>
               <Popover open={clientsOpen} onOpenChange={setClientsOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between">
-                    {selectedClientId
-                      ? clients.find((client) => client.id === selectedClientId)?.orgName
-                      : "Выберите организацию"}
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                  </Button>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    />
+                  }
+                >
+                  {selectedClientId
+                    ? clients.find((client) => client.id === selectedClientId)?.orgName
+                    : "Выберите организацию"}
+                  <ChevronsUpDown className="h-4 w-4 opacity-50" />
                 </PopoverTrigger>
                 <PopoverContent className="w-[320px] p-0">
                   <Command>
@@ -252,7 +258,10 @@ export function NewApplicationDialog({
 
             <div className="space-y-2">
               <Label>Валюта</Label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <Select
+                value={currency}
+                onValueChange={(value) => setCurrency(value ?? "USD")}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
