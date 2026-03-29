@@ -67,6 +67,7 @@ export class DrizzleDealReads implements DealReads {
       .select({
         id: opsApplications.id,
         clientId: opsApplications.clientId,
+        counterpartyId: opsApplications.counterpartyId,
         agentId: opsApplications.agentId,
         status: opsApplications.status,
         requestedAmount: opsApplications.requestedAmount,
@@ -158,6 +159,9 @@ export class DrizzleDealReads implements DealReads {
     if (input.clientId) {
       conditions.push(eq(opsApplications.clientId, input.clientId));
     }
+    if (input.counterpartyId) {
+      conditions.push(eq(opsDeals.counterpartyId, input.counterpartyId));
+    }
 
     if (input.dateFrom) {
       conditions.push(gte(sql`${opsDeals.createdAt}::date`, input.dateFrom));
@@ -184,6 +188,7 @@ export class DrizzleDealReads implements DealReads {
       comment: opsDeals.comment,
       client: opsClients.orgName,
       clientId: opsApplications.clientId,
+      counterpartyId: opsDeals.counterpartyId,
       amount: opsCalculations.originalAmount,
       currency: opsCalculations.currencyCode,
       amountInBase: opsCalculations.totalWithExpensesInBase,
@@ -237,6 +242,7 @@ export class DrizzleDealReads implements DealReads {
       closedAt: (r.closedAt as string) ?? null,
       client: r.client ?? "",
       clientId: r.clientId,
+      counterpartyId: r.counterpartyId,
       amount: Number(r.amount) || 0,
       currency: r.currency ?? "RUB",
       amountInBase: Number(r.amountInBase) || 0,
@@ -265,6 +271,7 @@ export class DrizzleDealReads implements DealReads {
       comment: opsDeals.comment,
       client: opsClients.orgName,
       clientId: opsApplications.clientId,
+      counterpartyId: opsApplications.counterpartyId,
       amount: opsCalculations.originalAmount,
       currency: opsCalculations.currencyCode,
       amountInBase: opsCalculations.totalWithExpensesInBase,
@@ -298,6 +305,7 @@ export class DrizzleDealReads implements DealReads {
         closedAt: (r.closedAt as string) ?? null,
         client: r.client ?? "",
         clientId: r.clientId,
+        counterpartyId: r.counterpartyId,
         amount: Number(r.amount) || 0,
         currency: r.currency ?? "RUB",
         amountInBase: Number(r.amountInBase) || 0,

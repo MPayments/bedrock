@@ -15,6 +15,7 @@ export const DealSchema = z.object({
   id: z.number().int(),
   applicationId: z.number().int(),
   calculationId: z.number().int(),
+  counterpartyId: z.string().uuid().nullable(),
   agentOrganizationBankDetailsId: z.number().int(),
   status: z.enum(DEAL_STATUS_VALUES),
   invoiceNumber: z.string().nullable(),
@@ -73,6 +74,7 @@ export const DealListRowSchema = z.object({
   closedAt: z.string().nullable(),
   client: z.string(),
   clientId: z.number().int(),
+  counterpartyId: z.string().uuid().nullable(),
   amount: z.number(),
   currency: z.string(),
   amountInBase: z.number(),
@@ -95,6 +97,7 @@ export interface DealWithDetails {
   application: {
     id: number;
     clientId: number;
+    counterpartyId: string | null;
     agentId: string | null;
     status: string;
     requestedAmount: string | null;

@@ -1,35 +1,48 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { COUNTRIES as countries } from "@bedrock/shared/reference-data/countries";
 import {
+  Archive,
+  Building2,
   ChevronLeft,
-  Save,
-  Loader2,
-  Trash2,
-  Pencil,
-  FileText,
   Download,
-  ChevronDown,
-  UserPlus,
-  Upload as UploadIcon,
   File,
   FileImage,
+  FileText,
   FileType,
-  Archive,
-  Paperclip,
-  Languages,
   Globe,
+  Loader2,
+  Paperclip,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Upload as UploadIcon,
+  UserPlus,
 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
+import { z } from "zod";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { COUNTRIES } from "@bedrock/shared/reference-data/countries";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@bedrock/sdk-ui/components/dialog";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@bedrock/sdk-ui/components/select";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+
+import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,160 +52,143 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { API_BASE_URL } from "@/lib/constants";
-import { translateFieldsToEnglish } from "@/lib/translate-fields";
-import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@bedrock/sdk-ui/components/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@bedrock/sdk-ui/components/dropdown-menu";
-import { clientSchema, type ClientFormData } from "@/lib/validation";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
 
-interface SubAgent {
+type SubAgent = {
+  commission: number;
   id: number;
   name: string;
-  commission: number;
-}
+};
 
-interface ClientDocument {
-  id: number;
-  clientId: number;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  description: string | null;
-  uploadedBy: number;
+type CustomerLegalEntity = {
+  account: string | null;
+  address: string | null;
+  bankAddress: string | null;
+  bankCountry: string | null;
+  bankName: string | null;
+  bic: string | null;
+  contractNumber: string | null;
+  corrAccount: string | null;
+  counterpartyId: string;
+  country: string | null;
   createdAt: string;
-  updatedAt: string;
-}
-
-interface ClientData {
-  id: string;
-  legacyClientId: number | null;
-  legacyProfileStatus: "linked" | "missing";
-  externalRef: string | null;
-  description: string | null;
-  orgName: string;
-  orgNameI18n?: { ru?: string | null; en?: string | null } | null;
-  orgType: string | null;
-  orgTypeI18n?: { ru?: string | null; en?: string | null } | null;
+  directorBasis: string | null;
+  directorName: string | null;
+  email: string | null;
+  externalId: string | null;
+  fullName: string;
+  hasLegacyShell: boolean;
   inn: string | null;
   kpp: string | null;
   ogrn: string | null;
-  oktmo: string | null;
   okpo: string | null;
-  directorName: string | null;
-  directorNameI18n?: { ru?: string | null; en?: string | null } | null;
-  position: string | null;
-  positionI18n?: { ru?: string | null; en?: string | null } | null;
-  directorBasis: string | null;
-  directorBasisI18n?: { ru?: string | null; en?: string | null } | null;
-  address: string | null;
-  addressI18n?: { ru?: string | null; en?: string | null } | null;
-  email: string | null;
+  oktmo: string | null;
+  orgName: string;
+  orgType: string | null;
   phone: string | null;
-  bankName: string | null;
-  bankNameI18n?: { ru?: string | null; en?: string | null } | null;
-  bankAddress: string | null;
-  bankAddressI18n?: { ru?: string | null; en?: string | null } | null;
-  account: string | null;
-  bic: string | null;
-  corrAccount: string | null;
-  contractNumber: string | null;
+  position: string | null;
+  relationshipKind: "customer_owned" | "external";
+  shortName: string;
   subAgent: SubAgent | null;
-  createdAt: string;
   updatedAt: string;
+};
+
+type CustomerWorkspaceDetail = {
+  createdAt: string;
+  description: string | null;
+  displayName: string;
+  externalRef: string | null;
+  id: string;
+  legalEntities: CustomerLegalEntity[];
+  legalEntityCount: number;
+  primaryCounterpartyId: string | null;
+  updatedAt: string;
+};
+
+type ClientDocument = {
+  createdAt: string;
+  description: string | null;
+  fileName: string;
+  fileSize: number;
+  id: number;
+  mimeType: string;
+  updatedAt: string;
+  uploadedBy: string | null;
+};
+
+const legalEntityFormSchema = z.object({
+  account: z.string().optional(),
+  address: z.string().optional(),
+  bankAddress: z.string().optional(),
+  bankCountry: z.string().max(2).optional(),
+  bankName: z.string().optional(),
+  bic: z.string().optional(),
+  corrAccount: z.string().optional(),
+  directorBasis: z.string().optional(),
+  directorName: z.string().optional(),
+  email: z.string().optional(),
+  inn: z.string().optional(),
+  kpp: z.string().optional(),
+  ogrn: z.string().optional(),
+  okpo: z.string().optional(),
+  oktmo: z.string().optional(),
+  orgName: z.string().min(1, "Название юридического лица обязательно"),
+  orgType: z.string().optional(),
+  phone: z.string().optional(),
+  position: z.string().optional(),
+});
+
+type LegalEntityFormData = z.infer<typeof legalEntityFormSchema>;
+
+const createLegalEntitySchema = z.object({
+  address: z.string().optional(),
+  country: z.string().max(2).optional(),
+  directorName: z.string().optional(),
+  email: z.string().optional(),
+  inn: z.string().optional(),
+  orgName: z.string().min(1, "Название юридического лица обязательно"),
+  phone: z.string().optional(),
+});
+
+type CreateLegalEntityFormData = z.infer<typeof createLegalEntitySchema>;
+
+function normalizeOptionalText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
-function clientToFormData(client: ClientData): ClientFormData {
+function legalEntityToFormValues(
+  legalEntity: CustomerLegalEntity | null,
+): LegalEntityFormData {
   return {
-    orgName: client.orgName || "",
-    orgNameI18n: {
-      ru: client.orgNameI18n?.ru || "",
-      en: client.orgNameI18n?.en || "",
-    },
-    orgType: client.orgType || "",
-    orgTypeI18n: {
-      ru: client.orgTypeI18n?.ru || "",
-      en: client.orgTypeI18n?.en || "",
-    },
-    inn: client.inn || "",
-    kpp: client.kpp || "",
-    ogrn: client.ogrn || "",
-    oktmo: client.oktmo || "",
-    okpo: client.okpo || "",
-    directorName: client.directorName || "",
-    directorNameI18n: {
-      ru: client.directorNameI18n?.ru || "",
-      en: client.directorNameI18n?.en || "",
-    },
-    position: client.position || "",
-    positionI18n: {
-      ru: client.positionI18n?.ru || "",
-      en: client.positionI18n?.en || "",
-    },
-    directorBasis: client.directorBasis || "",
-    directorBasisI18n: {
-      ru: client.directorBasisI18n?.ru || "",
-      en: client.directorBasisI18n?.en || "",
-    },
-    address: client.address || "",
-    addressI18n: {
-      ru: client.addressI18n?.ru || "",
-      en: client.addressI18n?.en || "",
-    },
-    email: client.email || "",
-    phone: client.phone || "",
-    bankName: client.bankName || "",
-    bankNameI18n: {
-      ru: client.bankNameI18n?.ru || "",
-      en: client.bankNameI18n?.en || "",
-    },
-    bankAddress: client.bankAddress || "",
-    bankAddressI18n: {
-      ru: client.bankAddressI18n?.ru || "",
-      en: client.bankAddressI18n?.en || "",
-    },
-    account: client.account || "",
-    bic: client.bic || "",
-    corrAccount: client.corrAccount || "",
+    account: legalEntity?.account ?? "",
+    address: legalEntity?.address ?? "",
+    bankAddress: legalEntity?.bankAddress ?? "",
+    bankCountry: legalEntity?.bankCountry ?? "",
+    bankName: legalEntity?.bankName ?? "",
+    bic: legalEntity?.bic ?? "",
+    corrAccount: legalEntity?.corrAccount ?? "",
+    directorBasis: legalEntity?.directorBasis ?? "",
+    directorName: legalEntity?.directorName ?? "",
+    email: legalEntity?.email ?? "",
+    inn: legalEntity?.inn ?? "",
+    kpp: legalEntity?.kpp ?? "",
+    ogrn: legalEntity?.ogrn ?? "",
+    okpo: legalEntity?.okpo ?? "",
+    oktmo: legalEntity?.oktmo ?? "",
+    orgName: legalEntity?.orgName ?? "",
+    orgType: legalEntity?.orgType ?? "",
+    phone: legalEntity?.phone ?? "",
+    position: legalEntity?.position ?? "",
   };
 }
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  const units = ["Bytes", "KB", "MB", "GB"];
+  const unitIndex = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${Math.round((bytes / Math.pow(1024, unitIndex)) * 100) / 100} ${units[unitIndex]}`;
 }
 
 function getFileIcon(mimeType: string) {
@@ -208,143 +204,367 @@ function getFileIcon(mimeType: string) {
   if (mimeType === "application/zip") {
     return <Archive className="h-5 w-5" />;
   }
+
   return <Paperclip className="h-5 w-5" />;
 }
 
-export default function ClientDetailPage() {
-  const router = useRouter();
+async function downloadResponseAsFile(
+  response: Response,
+  fallbackFileName: string,
+) {
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+
+  const contentDisposition = response.headers.get("Content-Disposition");
+  const matchedFileName =
+    contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackFileName;
+  anchor.download = decodeURIComponent(matchedFileName);
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(anchor);
+}
+
+export default function CustomerDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const customerId = params.id as string;
 
-  const [client, setClient] = useState<ClientData | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [workspace, setWorkspace] = useState<CustomerWorkspaceDetail | null>(null);
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
+    string | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contractDialogOpen, setContractDialogOpen] = useState(false);
-  const [downloadingContract, setDownloadingContract] = useState(false);
-  const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
-
-  // Перевод на английский
-  const [translating, setTranslating] = useState(false);
-
-  // Документы клиента
+  const [isEditing, setIsEditing] = useState(false);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
-  const [isUploadDocumentDialogOpen, setIsUploadDocumentDialogOpen] =
-    useState(false);
-  const [uploadDocumentFile, setUploadDocumentFile] = useState<File | null>(
-    null,
-  );
-  const [uploadDocumentDescription, setUploadDocumentDescription] =
-    useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(
     null,
   );
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [downloadingContract, setDownloadingContract] = useState(false);
+  const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDocumentFile, setUploadDocumentFile] = useState<File | null>(null);
+  const [uploadDocumentDescription, setUploadDocumentDescription] = useState("");
+  const [newLegalEntityOpen, setNewLegalEntityOpen] = useState(false);
+  const [creatingLegalEntity, setCreatingLegalEntity] = useState(false);
+  const [customerDescription, setCustomerDescription] = useState("");
+  const [customerExternalRef, setCustomerExternalRef] = useState("");
 
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientSchema),
+  const legalEntityForm = useForm<LegalEntityFormData>({
+    defaultValues: legalEntityToFormValues(null),
+    resolver: zodResolver(legalEntityFormSchema),
+  });
+  const createLegalEntityForm = useForm<CreateLegalEntityFormData>({
     defaultValues: {
-      orgName: "",
-      orgNameI18n: { ru: "", en: "" },
-      orgType: "",
-      orgTypeI18n: { ru: "", en: "" },
-      inn: "",
-      kpp: "",
-      ogrn: "",
-      oktmo: "",
-      okpo: "",
-      directorName: "",
-      directorNameI18n: { ru: "", en: "" },
-      position: "",
-      positionI18n: { ru: "", en: "" },
-      directorBasis: "",
-      directorBasisI18n: { ru: "", en: "" },
       address: "",
-      addressI18n: { ru: "", en: "" },
+      country: "",
+      directorName: "",
       email: "",
+      inn: "",
+      orgName: "",
       phone: "",
-      bankName: "",
-      bankNameI18n: { ru: "", en: "" },
-      bankAddress: "",
-      bankAddressI18n: { ru: "", en: "" },
-      account: "",
-      bic: "",
-      corrAccount: "",
     },
-    mode: "onBlur",
+    resolver: zodResolver(createLegalEntitySchema),
   });
 
-  const fetchDocuments = useCallback(async (targetLegacyClientId: number | null) => {
-    if (!targetLegacyClientId) {
-      setDocuments([]);
-      return;
-    }
+  const selectedLegalEntity = useMemo(
+    () =>
+      workspace?.legalEntities.find(
+        (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
+      ) ??
+      workspace?.legalEntities[0] ??
+      null,
+    [selectedCounterpartyId, workspace],
+  );
 
-    try {
-      setLoadingDocuments(true);
-      const res = await fetch(
-        `${API_BASE_URL}/clients/${targetLegacyClientId}/documents`,
-        {
-          credentials: "include",
-        },
-      );
+  const isPrimaryLegalEntity =
+    workspace !== null &&
+    selectedLegalEntity !== null &&
+    (workspace.primaryCounterpartyId === selectedLegalEntity.counterpartyId ||
+      (!workspace.primaryCounterpartyId &&
+        workspace.legalEntities[0]?.counterpartyId ===
+          selectedLegalEntity.counterpartyId));
 
-      if (!res.ok) {
-        throw new Error(`Ошибка загрузки: ${res.status}`);
+  const fetchDocuments = useCallback(
+    async (counterpartyId: string | null) => {
+      if (!counterpartyId) {
+        setDocuments([]);
+        return;
       }
 
-      const docs: ClientDocument[] = await res.json();
-      setDocuments(docs);
-    } catch (err) {
-      console.error("Documents fetch error:", err);
-      setError(
-        err instanceof Error ? err.message : "Ошибка загрузки документов",
-      );
-    } finally {
-      setLoadingDocuments(false);
-    }
-  }, []);
+      try {
+        setLoadingDocuments(true);
+        const response = await fetch(
+          `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/documents`,
+          {
+            credentials: "include",
+          },
+        );
 
-  const fetchClient = useCallback(async () => {
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки документов: ${response.status}`);
+        }
+
+        const data: ClientDocument[] = await response.json();
+        setDocuments(data);
+      } catch (fetchError) {
+        console.error("Failed to fetch documents", fetchError);
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Не удалось загрузить документы",
+        );
+      } finally {
+        setLoadingDocuments(false);
+      }
+    },
+    [customerId],
+  );
+
+  const fetchWorkspace = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+        cache: "no-store",
         credentials: "include",
       });
 
-      if (!res.ok) {
-        if (res.status === 404) {
+      if (!response.ok) {
+        if (response.status === 404) {
           throw new Error("Клиент не найден");
         }
-        throw new Error(`Ошибка загрузки: ${res.status}`);
+
+        throw new Error(`Ошибка загрузки: ${response.status}`);
       }
 
-      const data: ClientData = await res.json();
-      setClient(data);
-      form.reset(clientToFormData(data));
-      await fetchDocuments(data.legacyClientId);
-    } catch (err) {
-      console.error("Fetch client error:", err);
-      setError(err instanceof Error ? err.message : "Ошибка загрузки клиента");
+      const data: CustomerWorkspaceDetail = await response.json();
+      setWorkspace(data);
+      setCustomerDescription(data.description ?? "");
+      setCustomerExternalRef(data.externalRef ?? "");
+      setSelectedCounterpartyId((current) => {
+        if (
+          current &&
+          data.legalEntities.some(
+            (legalEntity) => legalEntity.counterpartyId === current,
+          )
+        ) {
+          return current;
+        }
+
+        return (
+          data.primaryCounterpartyId ??
+          data.legalEntities[0]?.counterpartyId ??
+          null
+        );
+      });
+    } catch (fetchError) {
+      console.error("Failed to fetch customer workspace", fetchError);
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Не удалось загрузить клиента",
+      );
     } finally {
       setLoading(false);
     }
-  }, [customerId, fetchDocuments, form]);
+  }, [customerId]);
 
-  const handleDocumentUpload = async () => {
-    if (!uploadDocumentFile) {
-      setError("Выберите файл для загрузки");
+  useEffect(() => {
+    void fetchWorkspace();
+  }, [fetchWorkspace]);
+
+  useEffect(() => {
+    legalEntityForm.reset(legalEntityToFormValues(selectedLegalEntity));
+  }, [legalEntityForm, selectedLegalEntity]);
+
+  useEffect(() => {
+    void fetchDocuments(selectedLegalEntity?.counterpartyId ?? null);
+  }, [fetchDocuments, selectedLegalEntity?.counterpartyId]);
+
+  async function handleSave(data: LegalEntityFormData) {
+    if (!workspace || !selectedLegalEntity) {
       return;
     }
-    if (!client?.legacyClientId) {
-      setError(
-        "Для этого клиента legacy-профиль ещё не создан. Загрузка документов пока недоступна.",
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const legalEntityPayload = {
+        account: normalizeOptionalText(data.account),
+        address: normalizeOptionalText(data.address),
+        bankAddress: normalizeOptionalText(data.bankAddress),
+        bankCountry: normalizeOptionalText(data.bankCountry)?.toUpperCase() ?? null,
+        bankName: normalizeOptionalText(data.bankName),
+        bic: normalizeOptionalText(data.bic),
+        corrAccount: normalizeOptionalText(data.corrAccount),
+        directorBasis: normalizeOptionalText(data.directorBasis),
+        directorName: normalizeOptionalText(data.directorName),
+        email: normalizeOptionalText(data.email),
+        inn: normalizeOptionalText(data.inn),
+        kpp: normalizeOptionalText(data.kpp),
+        ogrn: normalizeOptionalText(data.ogrn),
+        okpo: normalizeOptionalText(data.okpo),
+        oktmo: normalizeOptionalText(data.oktmo),
+        orgName: data.orgName.trim(),
+        orgType: normalizeOptionalText(data.orgType),
+        phone: normalizeOptionalText(data.phone),
+        position: normalizeOptionalText(data.position),
+      };
+
+      const legalEntityResponse = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}`,
+        {
+          body: JSON.stringify(legalEntityPayload),
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "PATCH",
+        },
       );
+
+      if (!legalEntityResponse.ok) {
+        const message = await legalEntityResponse
+          .json()
+          .catch(() => ({ error: "Ошибка сохранения юридического лица" }));
+        throw new Error(message.error ?? "Ошибка сохранения юридического лица");
+      }
+
+      const customerPayload: Record<string, string | null> = {
+        description: normalizeOptionalText(customerDescription),
+        externalRef: normalizeOptionalText(customerExternalRef),
+      };
+      if (isPrimaryLegalEntity) {
+        customerPayload.displayName = data.orgName.trim();
+      }
+
+      const customerResponse = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+        body: JSON.stringify(customerPayload),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+
+      if (!customerResponse.ok) {
+        const message = await customerResponse
+          .json()
+          .catch(() => ({ error: "Ошибка сохранения клиента" }));
+        throw new Error(message.error ?? "Ошибка сохранения клиента");
+      }
+
+      setIsEditing(false);
+      await fetchWorkspace();
+    } catch (saveError) {
+      console.error("Failed to save customer workspace", saveError);
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Не удалось сохранить изменения",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchive() {
+    try {
+      setDeleting(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+        credentials: "include",
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка архивации клиента" }));
+        throw new Error(message.error ?? "Ошибка архивации клиента");
+      }
+
+      router.push("/customers");
+    } catch (deleteError) {
+      console.error("Failed to archive customer workspace", deleteError);
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось архивировать клиента",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleCreateLegalEntity(values: CreateLegalEntityFormData) {
+    if (!workspace) {
+      return;
+    }
+
+    try {
+      setCreatingLegalEntity(true);
+      setError(null);
+
+      const response = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities`,
+        {
+          body: JSON.stringify({
+            address: normalizeOptionalText(values.address),
+            country: normalizeOptionalText(values.country)?.toUpperCase() ?? null,
+            directorName: normalizeOptionalText(values.directorName),
+            email: normalizeOptionalText(values.email),
+            inn: normalizeOptionalText(values.inn),
+            orgName: values.orgName.trim(),
+            phone: normalizeOptionalText(values.phone),
+          }),
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка создания юридического лица" }));
+        throw new Error(message.error ?? "Ошибка создания юридического лица");
+      }
+
+      const created: CustomerLegalEntity = await response.json();
+      createLegalEntityForm.reset();
+      setNewLegalEntityOpen(false);
+      setSelectedCounterpartyId(created.counterpartyId);
+      await fetchWorkspace();
+    } catch (createError) {
+      console.error("Failed to create legal entity", createError);
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Не удалось создать юридическое лицо",
+      );
+    } finally {
+      setCreatingLegalEntity(false);
+    }
+  }
+
+  async function handleUploadDocument() {
+    if (!selectedLegalEntity || !uploadDocumentFile) {
       return;
     }
 
@@ -352,328 +572,145 @@ export default function ClientDetailPage() {
       setUploadingDocument(true);
       const formData = new FormData();
       formData.append("file", uploadDocumentFile);
-      // Передаем оригинальное имя файла отдельно для правильной кодировки
-      formData.append("fileName", uploadDocumentFile.name);
-      if (uploadDocumentDescription) {
-        formData.append("description", uploadDocumentDescription);
+      if (uploadDocumentDescription.trim()) {
+        formData.append("description", uploadDocumentDescription.trim());
       }
 
-      const res = await fetch(
-        `${API_BASE_URL}/clients/${client.legacyClientId}/documents`,
+      const response = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents`,
         {
-          method: "POST",
-          credentials: "include",
           body: formData,
+          credentials: "include",
+          method: "POST",
         },
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Ошибка загрузки: ${res.status}`);
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка загрузки документа" }));
+        throw new Error(message.error ?? "Ошибка загрузки документа");
       }
 
-      setIsUploadDocumentDialogOpen(false);
-      setUploadDocumentFile(null);
+      setUploadDialogOpen(false);
       setUploadDocumentDescription("");
-      await fetchDocuments(client.legacyClientId);
-    } catch (err) {
-      console.error("Document upload error:", err);
+      setUploadDocumentFile(null);
+      await fetchDocuments(selectedLegalEntity.counterpartyId);
+      await fetchWorkspace();
+    } catch (uploadError) {
+      console.error("Failed to upload document", uploadError);
       setError(
-        err instanceof Error ? err.message : "Ошибка загрузки документа",
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Не удалось загрузить документ",
       );
     } finally {
       setUploadingDocument(false);
     }
-  };
+  }
 
-  const handleDocumentDownload = async (
-    documentId: number,
-    fileName: string,
-  ) => {
-    if (!client?.legacyClientId) {
-      setError(
-        "Для этого клиента legacy-профиль ещё не создан. Скачивание документов пока недоступно.",
-      );
+  async function handleDownloadDocument(document: ClientDocument) {
+    if (!selectedLegalEntity) {
       return;
     }
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/clients/${client.legacyClientId}/documents/${documentId}/download`,
+      const response = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents/${document.id}/download`,
         {
           credentials: "include",
         },
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Ошибка скачивания: ${res.status}`,
-        );
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка скачивания документа" }));
+        throw new Error(message.error ?? "Ошибка скачивания документа");
       }
 
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(downloadUrl);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error("Document download error:", err);
+      await downloadResponseAsFile(response, document.fileName);
+    } catch (downloadError) {
+      console.error("Failed to download document", downloadError);
       setError(
-        err instanceof Error ? err.message : "Ошибка скачивания документа",
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Не удалось скачать документ",
       );
     }
-  };
+  }
 
-  const handleDocumentDelete = async (documentId: number) => {
-    if (!client?.legacyClientId) {
-      setError(
-        "Для этого клиента legacy-профиль ещё не создан. Удаление документов пока недоступно.",
-      );
+  async function handleDeleteDocument(documentId: number) {
+    if (!selectedLegalEntity) {
       return;
     }
 
     try {
       setDeletingDocumentId(documentId);
-      const res = await fetch(
-        `${API_BASE_URL}/clients/${client.legacyClientId}/documents/${documentId}`,
+      const response = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents/${documentId}`,
         {
-          method: "DELETE",
           credentials: "include",
+          method: "DELETE",
         },
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Ошибка удаления: ${res.status}`);
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка удаления документа" }));
+        throw new Error(message.error ?? "Ошибка удаления документа");
       }
 
-      await fetchDocuments(client.legacyClientId);
-    } catch (err) {
-      console.error("Document delete error:", err);
+      await fetchDocuments(selectedLegalEntity.counterpartyId);
+    } catch (deleteError) {
+      console.error("Failed to delete document", deleteError);
       setError(
-        err instanceof Error ? err.message : "Ошибка удаления документа",
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить документ",
       );
     } finally {
       setDeletingDocumentId(null);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchClient();
-  }, [fetchClient]);
-
-  const onSubmit = async (data: ClientFormData) => {
-    setSaving(true);
-    setError(null);
+  async function handleDownloadContract(format: "docx" | "pdf") {
+    if (!selectedLegalEntity) {
+      return;
+    }
 
     try {
-      const payload = {
-        ...data,
-        orgNameI18n: {
-          ru: data.orgName || undefined,
-          en: data.orgNameI18n?.en || undefined,
+      setDownloadingContract(true);
+      const response = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/contract?format=${format}&lang=${contractLang}`,
+        {
+          credentials: "include",
         },
-        orgTypeI18n: {
-          ru: data.orgType || undefined,
-          en: data.orgTypeI18n?.en || undefined,
-        },
-        directorNameI18n: {
-          ru: data.directorName || undefined,
-          en: data.directorNameI18n?.en || undefined,
-        },
-        positionI18n: {
-          ru: data.position || undefined,
-          en: data.positionI18n?.en || undefined,
-        },
-        directorBasisI18n: {
-          ru: data.directorBasis || undefined,
-          en: data.directorBasisI18n?.en || undefined,
-        },
-        addressI18n: {
-          ru: data.address || undefined,
-          en: data.addressI18n?.en || undefined,
-        },
-        bankNameI18n: {
-          ru: data.bankName || undefined,
-          en: data.bankNameI18n?.en || undefined,
-        },
-        bankAddressI18n: {
-          ru: data.bankAddress || undefined,
-          en: data.bankAddressI18n?.en || undefined,
-        },
-      };
+      );
 
-      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Ошибка сохранения: ${res.status}`,
-        );
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка скачивания договора" }));
+        throw new Error(message.error ?? "Ошибка скачивания договора");
       }
 
-      const updatedClient: ClientData = await res.json();
-      setClient(updatedClient);
-      form.reset(clientToFormData(updatedClient));
-      setIsEditing(false);
-    } catch (err) {
-      console.error("Save client error:", err);
+      await downloadResponseAsFile(
+        response,
+        `customer-contract-${selectedLegalEntity.counterpartyId}.${format}`,
+      );
+    } catch (downloadError) {
+      console.error("Failed to download contract", downloadError);
       setError(
-        err instanceof Error ? err.message : "Ошибка сохранения клиента",
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Не удалось скачать договор",
       );
     } finally {
-      setSaving(false);
+      setDownloadingContract(false);
     }
-  };
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `Ошибка удаления: ${res.status}`);
-      }
-
-      router.push("/customers");
-    } catch (err) {
-      console.error("Delete client error:", err);
-      setError(err instanceof Error ? err.message : "Ошибка удаления клиента");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleTranslateToEnglish = async () => {
-    setTranslating(true);
-    setError(null);
-
-    try {
-      const values = form.getValues();
-      const ruFields: Record<string, string> = {
-        orgName: values.orgName,
-        orgType: values.orgType,
-        directorName: values.directorName,
-        position: values.position,
-        directorBasis: values.directorBasis,
-        address: values.address || "",
-        bankName: values.bankName || "",
-        bankAddress: values.bankAddress || "",
-      };
-
-      const translated = await translateFieldsToEnglish(ruFields);
-
-      const mapping: Record<string, string> = {
-        orgName: "orgNameI18n.en",
-        orgType: "orgTypeI18n.en",
-        directorName: "directorNameI18n.en",
-        position: "positionI18n.en",
-        directorBasis: "directorBasisI18n.en",
-        address: "addressI18n.en",
-        bankName: "bankNameI18n.en",
-        bankAddress: "bankAddressI18n.en",
-      };
-
-      for (const [key, enField] of Object.entries(mapping)) {
-        if (translated[key]) {
-          form.setValue(enField as any, translated[key], {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Translation error:", err);
-      setError(
-        err instanceof Error ? err.message : "Ошибка перевода полей"
-      );
-    } finally {
-      setTranslating(false);
-    }
-  };
-
-  const handleCancel = () => {
-    if (client) {
-      form.reset(clientToFormData(client));
-    }
-    setIsEditing(false);
-  };
-
-  const handleDownloadContract = useCallback(
-    async (format: "docx" | "pdf") => {
-      if (!client?.legacyClientId) {
-        setError(
-          "Для этого клиента legacy-профиль ещё не создан. Формирование договора пока недоступно.",
-        );
-        return;
-      }
-
-      try {
-        setDownloadingContract(true);
-        setError(null);
-
-        const res = await fetch(
-          `${API_BASE_URL}/documents/clients/${client.legacyClientId}/contract?format=${format}&lang=${contractLang}`,
-          {
-            credentials: "include",
-          },
-        );
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Ошибка скачивания: ${res.status}`,
-          );
-        }
-
-        const blob = await res.blob();
-        const contentDisposition = res.headers.get("Content-Disposition");
-        let filename = `contract.${format}`;
-
-        if (contentDisposition) {
-          const match = contentDisposition.match(/filename="?([^"]+)"?/);
-          if (match?.[1]) {
-            filename = decodeURIComponent(match[1]);
-          }
-        }
-
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } catch (err) {
-        console.error("Download contract error:", err);
-        setError(
-          err instanceof Error ? err.message : "Ошибка скачивания контракта",
-        );
-      } finally {
-        setDownloadingContract(false);
-      }
-    },
-    [client?.legacyClientId, contractLang],
-  );
+  }
 
   if (loading) {
     return (
@@ -683,1081 +720,596 @@ export default function ClientDetailPage() {
     );
   }
 
-  if (error && !client) {
+  if (!workspace) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-        </div>
-        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Назад
+        </Button>
+        <Card className="border-destructive">
+          <CardContent className="py-6">
+            <p className="text-sm text-destructive">
+              {error ?? "Клиент не найден"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!client) return null;
-
   return (
     <div className="space-y-4">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-4">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Назад
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{client.orgName}</h1>
-            {client.legacyProfileStatus === "missing" ? (
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold">{workspace.displayName}</h1>
+            <p className="text-sm text-muted-foreground">
+              {workspace.legalEntityCount}{" "}
+              {workspace.legalEntityCount === 1
+                ? "юридическое лицо"
+                : workspace.legalEntityCount < 5
+                  ? "юридических лица"
+                  : "юридических лиц"}
+            </p>
+            {!selectedLegalEntity ? (
               <p className="text-sm text-amber-600">
-                Legacy-профиль ещё не создан. Документы и договор станут
-                доступны после первого сохранения профиля.
+                У клиента пока нет юридических лиц. Добавьте первое юридическое
+                лицо, чтобы продолжить.
+              </p>
+            ) : !selectedLegalEntity.hasLegacyShell ? (
+              <p className="text-sm text-amber-600">
+                Execution-shell будет создан автоматически при первом
+                договоре, документе или заявке.
               </p>
             ) : null}
-            {client.contractNumber && (
-              <p className="text-sm text-muted-foreground">
-                Агентский договор: {client.contractNumber}
-              </p>
-            )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {!isEditing ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={<Button variant="outline" disabled={downloadingContract} />}
-                >
-                  {downloadingContract ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileText className="mr-2 h-4 w-4" />
-                  )}
-                  Агентский договор
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    disabled={!client.legacyClientId}
-                    onClick={() => setContractDialogOpen(true)}
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Создать / Редактировать
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => handleDownloadContract("docx")}
-                    disabled={downloadingContract || !client.legacyClientId}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Скачать DOCX
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleDownloadContract("pdf")}
-                    disabled={downloadingContract || !client.legacyClientId}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Скачать PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                <Pencil className="mr-2 h-4 w-4" /> Редактировать
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" disabled={deleting}>
-                    {deleting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Удалить
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Удалить клиента?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Вы уверены, что хотите удалить клиента «{client.orgName}»?
-                      Это действие нельзя отменить.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>
-                      Удалить
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={handleTranslateToEnglish}
-                disabled={translating || saving}
-              >
-                {translating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Перевод...
-                  </>
-                ) : (
-                  <>
-                    <Languages className="mr-2 h-4 w-4" />
-                    Заполнить EN поля
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Отмена
-              </Button>
-              <Button onClick={form.handleSubmit(onSubmit)} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Сохранение...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Сохранить
-                  </>
-                )}
-              </Button>
-            </>
-          )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setNewLegalEntityOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить юр. лицо
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsEditing((current) => !current)}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            {isEditing ? "Отменить редактирование" : "Редактировать"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setContractDialogOpen(true)}
+            disabled={!selectedLegalEntity}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Создать / редактировать договор
+          </Button>
+          <ArchiveCustomerButton deleting={deleting} onConfirm={handleArchive} />
         </div>
       </div>
 
-      {error && (
+      {error ? (
         <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <Form {...form}>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Основные данные организации */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Данные организации</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="orgName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Название организации{" "}
-                      {isEditing && <span className="text-destructive">*</span>}
-                    </FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="ООО «Компания»" {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Паспорт клиента</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label>Каноническое имя клиента</Label>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              {workspace.displayName}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Для primary юридического лица это имя зеркалится из поля
+              организации.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer-external-ref">External Ref</Label>
+            {isEditing ? (
+              <Input
+                id="customer-external-ref"
+                value={customerExternalRef}
+                onChange={(event) => setCustomerExternalRef(event.target.value)}
+                placeholder="Например: crm-0001"
               />
-              <FormField
-                control={form.control}
-                name="orgNameI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Название организации (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="Company name in English"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="orgType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Тип организации{" "}
-                      {isEditing && <span className="text-destructive">*</span>}
-                    </FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="ООО, ИП, АО..." {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="orgTypeI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Тип организации (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="LLC, Ltd..." {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="inn"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        ИНН{" "}
-                        {isEditing && (
-                          <span className="text-destructive">*</span>
-                        )}
-                      </FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="1234567890" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="kpp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>КПП</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="123456789" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            ) : (
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                {workspace.externalRef ?? "Не указан"}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="ogrn"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ОГРН</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="1234567890123" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="okpo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ОКПО</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="12345678" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Создан</Label>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              {new Date(workspace.createdAt).toLocaleString("ru-RU")}
+            </div>
+          </div>
+          <div className="space-y-2 lg:col-span-3">
+            <Label htmlFor="customer-description">Описание</Label>
+            {isEditing ? (
+              <Textarea
+                id="customer-description"
+                value={customerDescription}
+                onChange={(event) => setCustomerDescription(event.target.value)}
+                placeholder="Описание клиента"
+                rows={3}
+              />
+            ) : (
+              <div className="min-h-[88px] rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                {workspace.description ?? "Описание не указано"}
               </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-              <FormField
-                control={form.control}
-                name="oktmo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ОКТМО</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="12345678901" {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Директор */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Руководитель</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="directorName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      ФИО директора{" "}
-                      {isEditing && <span className="text-destructive">*</span>}
-                    </FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="Иванов Иван Иванович" {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="directorNameI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ФИО директора (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="Director full name in English"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="position"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Должность{" "}
-                      {isEditing && <span className="text-destructive">*</span>}
-                    </FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="Генеральный директор" {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="positionI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Должность (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="Director position in English"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="directorBasis"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Основание полномочий{" "}
-                      {isEditing && <span className="text-destructive">*</span>}
-                    </FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input placeholder="Устава" {...field} />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="directorBasisI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Основание полномочий (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="Authority basis in English"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              <CardTitle className="text-lg">Контакты</CardTitle>
-
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Адрес</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="г. Москва, ул. Примерная, д. 1"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="addressI18n.en"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Адрес (EN)</FormLabel>
-                    <FormControl>
-                      {isEditing ? (
-                        <Input
-                          placeholder="Legal address in English"
-                          {...field}
-                        />
-                      ) : (
-                        <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                          {field.value || (
-                            <span className="text-muted-foreground">
-                              Не указано
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input
-                            type="email"
-                            placeholder="info@company.ru"
-                            {...field}
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Телефон</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="+7 (999) 123-45-67" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Банковские реквизиты */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg">Банковские реквизиты</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="bankName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Название банка</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="ПАО Сбербанк" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bankNameI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Название банка (EN)</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input
-                            placeholder="Bank name in English"
-                            {...field}
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="bankAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Адрес банка</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="г. Москва" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bankAddressI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Адрес банка (EN)</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input
-                            placeholder="Bank address in English"
-                            {...field}
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="bankCountry"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Страна банка</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value || ""}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Выберите страну" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {countries.map((c) => (
-                                <SelectItem key={c.alpha2} value={c.alpha2}>
-                                  {c.emoji} {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value ? (
-                              (() => {
-                                const country = countries.find(
-                                  (c) => c.alpha2 === field.value
-                                );
-                                return country
-                                  ? `${country.emoji} ${country.name}`
-                                  : field.value;
-                              })()
-                            ) : (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-3">
-                <FormField
-                  control={form.control}
-                  name="account"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Расчётный счёт</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input
-                            placeholder="40702810123456789012"
-                            {...field}
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="bic"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>БИК</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input placeholder="044525225" {...field} />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="corrAccount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Корр. счёт</FormLabel>
-                      <FormControl>
-                        {isEditing ? (
-                          <Input
-                            placeholder="30101810400000000225"
-                            {...field}
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                            {field.value || (
-                              <span className="text-muted-foreground">
-                                Не указано
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Субагент */}
-          {client.subAgent && (
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  Субагент
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label className="text-muted-foreground text-xs">Имя</Label>
-                    <p className="font-medium">{client.subAgent.name}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-muted-foreground text-xs">
-                      Комиссия
-                    </Label>
-                    <p className="font-medium">{client.subAgent.commission}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Загруженные документы */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <File className="h-5 w-5" />
-                  Загруженные документы
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsUploadDocumentDialogOpen(true)}
-                  disabled={!client.legacyClientId}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Юридические лица
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {workspace.legalEntities.length > 0 ? (
+            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+              <div className="space-y-3">
+                <Label>Активное юридическое лицо</Label>
+                <Select
+                  value={selectedLegalEntity?.counterpartyId ?? ""}
+                  onValueChange={(value) => setSelectedCounterpartyId(value)}
                 >
-                  <UploadIcon className="mr-2 h-4 w-4" />
-                  Загрузить документ
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingDocuments ? (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  Загрузка документов...
-                </div>
-              ) : documents.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  Нет загруженных документов
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          {getFileIcon(doc.mimeType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {doc.fileName}
-                          </div>
-                          {doc.description && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {doc.description}
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            {formatFileSize(doc.fileSize)} •{" "}
-                            {new Date(doc.createdAt).toLocaleString("ru-RU")}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() =>
-                            handleDocumentDownload(doc.id, doc.fileName)
-                          }
-                          title="Скачать"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDocumentDelete(doc.id)}
-                          disabled={deletingDocumentId === doc.id}
-                          title="Удалить"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </Form>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите юридическое лицо" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workspace.legalEntities.map((legalEntity) => (
+                      <SelectItem
+                        key={legalEntity.counterpartyId}
+                        value={legalEntity.counterpartyId}
+                      >
+                        {legalEntity.shortName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-      {/* Диалог загрузки документа */}
-      <Dialog
-        open={isUploadDocumentDialogOpen}
-        onOpenChange={setIsUploadDocumentDialogOpen}
-      >
-        <DialogContent className="sm:max-w-[425px]">
+                <div className="space-y-2">
+                  {workspace.legalEntities.map((legalEntity) => {
+                    const isSelected =
+                      legalEntity.counterpartyId ===
+                      selectedLegalEntity?.counterpartyId;
+                    const isPrimary =
+                      workspace.primaryCounterpartyId ===
+                        legalEntity.counterpartyId ||
+                      (!workspace.primaryCounterpartyId &&
+                        workspace.legalEntities[0]?.counterpartyId ===
+                          legalEntity.counterpartyId);
+
+                    return (
+                      <button
+                        key={legalEntity.counterpartyId}
+                        className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/40"
+                        }`}
+                        onClick={() =>
+                          setSelectedCounterpartyId(legalEntity.counterpartyId)
+                        }
+                        type="button"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
+                              {legalEntity.shortName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {legalEntity.inn
+                                ? `ИНН: ${legalEntity.inn}`
+                                : "ИНН не указан"}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            {isPrimary ? (
+                              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                                Primary
+                              </span>
+                            ) : null}
+                            {!legalEntity.hasLegacyShell ? (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-700">
+                                shell позже
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedLegalEntity ? (
+                <form
+                  className="space-y-4"
+                  onSubmit={legalEntityForm.handleSubmit(handleSave)}
+                >
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Название юр. лица"
+                      name="orgName"
+                      required
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Тип организации"
+                      name="orgType"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="ИНН"
+                      name="inn"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="КПП"
+                      name="kpp"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="ОГРН"
+                      name="ogrn"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="ОКПО"
+                      name="okpo"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="ОКТМО"
+                      name="oktmo"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Email"
+                      name="email"
+                      type="email"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Телефон"
+                      name="phone"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Директор"
+                      name="directorName"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Должность"
+                      name="position"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Основание полномочий"
+                      name="directorBasis"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Адрес"
+                      name="address"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Название банка"
+                      name="bankName"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Адрес банка"
+                      name="bankAddress"
+                    />
+                    <SelectField
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Страна банка"
+                      name="bankCountry"
+                      options={COUNTRIES.map((country) => ({
+                        label: `${country.emoji} ${country.name}`,
+                        value: country.alpha2,
+                      }))}
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Расчетный счёт"
+                      name="account"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="БИК"
+                      name="bic"
+                    />
+                    <Field
+                      disabled={!isEditing}
+                      form={legalEntityForm}
+                      label="Корр. счёт"
+                      name="corrAccount"
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Системные привязки
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm">
+                        <InfoRow
+                          label="Counterparty ID"
+                          value={selectedLegalEntity.counterpartyId}
+                        />
+                        <InfoRow
+                          label="Relationship"
+                          value={selectedLegalEntity.relationshipKind}
+                        />
+                        <InfoRow
+                          label="Legacy shell"
+                          value={
+                            selectedLegalEntity.hasLegacyShell
+                              ? "Привязан"
+                              : "Будет создан по требованию"
+                          }
+                        />
+                        <InfoRow
+                          label="Договор"
+                          value={
+                            selectedLegalEntity.contractNumber ?? "Не создан"
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+
+                    {selectedLegalEntity.subAgent ? (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">
+                            Субагент
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm">
+                          <InfoRow
+                            label="Имя"
+                            value={selectedLegalEntity.subAgent.name}
+                          />
+                          <InfoRow
+                            label="Комиссия"
+                            value={`${selectedLegalEntity.subAgent.commission}%`}
+                          />
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">
+                            Субагент
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground">
+                          Субагент не назначен.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <File className="h-4 w-4" />
+                          Документы
+                        </CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUploadDialogOpen(true)}
+                          type="button"
+                        >
+                          <UploadIcon className="mr-2 h-4 w-4" />
+                          Загрузить документ
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingDocuments ? (
+                        <div className="flex justify-center py-6">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : documents.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Документы ещё не загружены.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {documents.map((document) => (
+                            <div
+                              key={document.id}
+                              className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <div className="shrink-0">
+                                  {getFileIcon(document.mimeType)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium">
+                                    {document.fileName}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(document.fileSize)} •{" "}
+                                    {new Date(document.createdAt).toLocaleString(
+                                      "ru-RU",
+                                    )}
+                                  </p>
+                                  {document.description ? (
+                                    <p className="truncate text-xs text-muted-foreground">
+                                      {document.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    void handleDownloadDocument(document)
+                                  }
+                                  type="button"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={deletingDocumentId === document.id}
+                                  onClick={() =>
+                                    void handleDeleteDocument(document.id)
+                                  }
+                                  type="button"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value={contractLang}
+                      onValueChange={(value) =>
+                        setContractLang((value as "ru" | "en") ?? "ru")
+                      }
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ru">Русский</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      disabled={downloadingContract}
+                      onClick={() => void handleDownloadContract("docx")}
+                      type="button"
+                    >
+                      {downloadingContract ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Скачать DOCX
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={downloadingContract}
+                      onClick={() => void handleDownloadContract("pdf")}
+                      type="button"
+                    >
+                      {downloadingContract ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Скачать PDF
+                    </Button>
+                    <Button disabled={!isEditing || saving} type="submit">
+                      {saving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      Сохранить изменения
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              У этого клиента пока нет юридических лиц.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
-              Выберите файл для загрузки и добавьте описание (необязательно)
+              Документ будет привязан к выбранному юридическому лицу.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="documentFile">Файл</Label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="document-file">Файл</Label>
               <Input
-                id="documentFile"
+                id="document-file"
+                onChange={(event) =>
+                  setUploadDocumentFile(event.target.files?.[0] ?? null)
+                }
                 type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setUploadDocumentFile(file);
-                  }
-                }}
-                disabled={uploadingDocument}
               />
-              {uploadDocumentFile && (
-                <p className="text-sm text-muted-foreground">
-                  {uploadDocumentFile.name} (
-                  {formatFileSize(uploadDocumentFile.size)})
-                </p>
-              )}
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="documentDescription">
-                Описание (необязательно)
-              </Label>
+            <div className="space-y-2">
+              <Label htmlFor="document-description">Описание</Label>
               <Input
-                id="documentDescription"
+                id="document-description"
+                onChange={(event) =>
+                  setUploadDocumentDescription(event.target.value)
+                }
+                placeholder="Например: подписанный договор"
                 value={uploadDocumentDescription}
-                onChange={(e) => setUploadDocumentDescription(e.target.value)}
-                placeholder="Например: Подписанный договор"
-                disabled={uploadingDocument}
               />
             </div>
           </div>
@@ -1765,35 +1317,260 @@ export default function ClientDetailPage() {
             <Button
               variant="outline"
               onClick={() => {
-                setIsUploadDocumentDialogOpen(false);
-                setUploadDocumentFile(null);
+                setUploadDialogOpen(false);
                 setUploadDocumentDescription("");
+                setUploadDocumentFile(null);
               }}
-              disabled={uploadingDocument}
+              type="button"
             >
               Отмена
             </Button>
             <Button
-              onClick={handleDocumentUpload}
-              disabled={uploadingDocument || !uploadDocumentFile}
+              disabled={!uploadDocumentFile || uploadingDocument}
+              onClick={() => void handleUploadDocument()}
+              type="button"
             >
-              {uploadingDocument ? "Загрузка..." : "Загрузить"}
+              {uploadingDocument ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Загрузить
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Модальное окно создания договора */}
-      {client.legacyClientId ? (
+      <Dialog open={newLegalEntityOpen} onOpenChange={setNewLegalEntityOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить юридическое лицо</DialogTitle>
+            <DialogDescription>
+              Создайте новое customer-owned юридическое лицо для этого клиента.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={createLegalEntityForm.handleSubmit(handleCreateLegalEntity)}
+          >
+            <Field
+              disabled={creatingLegalEntity}
+              form={createLegalEntityForm}
+              label="Название юр. лица"
+              name="orgName"
+              required
+            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field
+                disabled={creatingLegalEntity}
+                form={createLegalEntityForm}
+                label="ИНН"
+                name="inn"
+              />
+              <Field
+                disabled={creatingLegalEntity}
+                form={createLegalEntityForm}
+                label="Email"
+                name="email"
+                type="email"
+              />
+              <Field
+                disabled={creatingLegalEntity}
+                form={createLegalEntityForm}
+                label="Телефон"
+                name="phone"
+              />
+              <Field
+                disabled={creatingLegalEntity}
+                form={createLegalEntityForm}
+                label="Директор"
+                name="directorName"
+              />
+              <SelectField
+                disabled={creatingLegalEntity}
+                form={createLegalEntityForm}
+                label="Страна"
+                name="country"
+                options={COUNTRIES.map((country) => ({
+                  label: `${country.emoji} ${country.name}`,
+                  value: country.alpha2,
+                }))}
+              />
+            </div>
+            <Field
+              disabled={creatingLegalEntity}
+              form={createLegalEntityForm}
+              label="Адрес"
+              name="address"
+            />
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setNewLegalEntityOpen(false)}
+                type="button"
+              >
+                Отмена
+              </Button>
+              <Button disabled={creatingLegalEntity} type="submit">
+                {creatingLegalEntity ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Создать юр. лицо
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {selectedLegalEntity ? (
         <NewContractDialog
-          open={contractDialogOpen}
+          counterpartyId={selectedLegalEntity.counterpartyId}
+          customerId={customerId}
           onOpenChange={setContractDialogOpen}
-          clientId={client.legacyClientId}
           onSuccess={() => {
-            void fetchClient();
+            void fetchWorkspace();
           }}
+          open={contractDialogOpen}
         />
       ) : null}
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs uppercase text-muted-foreground">{label}</p>
+      <p className="break-words">{value}</p>
+    </div>
+  );
+}
+
+function Field<TFieldValues extends FieldValues>({
+  disabled,
+  form,
+  label,
+  name,
+  required = false,
+  type = "text",
+}: {
+  disabled: boolean;
+  form: UseFormReturn<TFieldValues>;
+  label: string;
+  name: Path<TFieldValues>;
+  required?: boolean;
+  type?: string;
+}) {
+  const error =
+    (form.formState.errors[name] as { message?: string } | undefined)?.message ??
+    null;
+  const value = (form.watch(name) as unknown as string | undefined) ?? "";
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </Label>
+      <Input
+        disabled={disabled}
+        id={name}
+        onChange={(event) =>
+          form.setValue(name, event.target.value as TFieldValues[typeof name], {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+        type={type}
+        value={value}
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+function SelectField<TFieldValues extends FieldValues>({
+  disabled,
+  form,
+  label,
+  name,
+  options,
+}: {
+  disabled: boolean;
+  form: UseFormReturn<TFieldValues>;
+  label: string;
+  name: Path<TFieldValues>;
+  options: Array<{ label: string; value: string }>;
+}) {
+  const value = (form.watch(name) as unknown as string | undefined) ?? "";
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Select
+        value={value}
+        onValueChange={(nextValue) =>
+          form.setValue(name, nextValue as TFieldValues[typeof name], {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+      >
+        <SelectTrigger disabled={disabled} id={name}>
+          <SelectValue placeholder="Не выбрано" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function ArchiveCustomerButton({
+  deleting,
+  onConfirm,
+}: {
+  deleting: boolean;
+  onConfirm: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)} type="button">
+        <Trash2 className="mr-2 h-4 w-4" />
+        Архивировать клиента
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Архивировать клиента?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие архивирует связанные execution-shell записи. Канонический
+              customer и memberships останутся.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={() => {
+                void onConfirm();
+              }}
+            >
+              {deleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Архивировать
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

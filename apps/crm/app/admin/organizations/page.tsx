@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface OrganizationRow {
-  id: number;
+  id: string;
   name: string;
   orgType: string | null;
   country: string | null;
@@ -91,9 +91,20 @@ export default function OrganizationsPage() {
         }
 
         const response = await res.json();
-        const items: OrganizationRow[] = Array.isArray(response)
-          ? response
-          : response.data ?? [];
+        const rawItems = Array.isArray(response) ? response : response.data ?? [];
+        const items: OrganizationRow[] = rawItems.map((item: any) => ({
+          banksCount: item.banksCount ?? 0,
+          city: item.city ?? null,
+          country: item.country ?? null,
+          createdAt: item.createdAt,
+          directorName: item.directorName ?? null,
+          hasFiles: item.hasFiles ?? false,
+          id: item.id,
+          inn: item.inn ?? null,
+          isActive: item.isActive ?? true,
+          name: item.shortName ?? item.fullName ?? "",
+          orgType: item.orgType ?? null,
+        }));
         setData(items);
       } catch (err) {
         console.error("Organizations fetch error:", err);

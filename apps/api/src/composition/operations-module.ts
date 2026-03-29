@@ -41,6 +41,7 @@ export function createApiOperationsModule(input: {
   persistence?: PersistenceContext;
   objectStorage?: OperationsModuleDeps["objectStorage"];
   companyLookup?: OperationsModuleDeps["companyLookup"];
+  counterparties?: OperationsModuleDeps["counterparties"];
   notification?: OperationsModuleDeps["notification"];
 }): OperationsModule {
   const persistence = input.persistence ?? createPersistenceContext(input.db);
@@ -76,6 +77,7 @@ export function createApiOperationsModule(input: {
     // Optional ports
     objectStorage: input.objectStorage,
     companyLookup: input.companyLookup,
+    counterparties: input.counterparties,
     notification: input.notification,
   });
 }

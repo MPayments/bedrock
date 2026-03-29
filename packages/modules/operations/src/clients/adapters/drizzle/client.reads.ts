@@ -29,13 +29,13 @@ export class DrizzleClientReads implements ClientReads {
     return (row as unknown as Client) ?? null;
   }
 
-  async findActiveByCustomerId(customerId: string): Promise<Client | null> {
+  async findActiveByCounterpartyId(counterpartyId: string): Promise<Client | null> {
     const [row] = await this.db
       .select()
       .from(opsClients)
       .where(
         and(
-          eq(opsClients.customerId, customerId),
+          eq(opsClients.counterpartyId, counterpartyId),
           eq(opsClients.isDeleted, false),
         ),
       )
@@ -111,8 +111,8 @@ export class DrizzleClientReads implements ClientReads {
     };
   }
 
-  async listActiveByCustomerIds(customerIds: string[]): Promise<Client[]> {
-    if (customerIds.length === 0) {
+  async listActiveByCounterpartyIds(counterpartyIds: string[]): Promise<Client[]> {
+    if (counterpartyIds.length === 0) {
       return [];
     }
 
@@ -121,7 +121,7 @@ export class DrizzleClientReads implements ClientReads {
       .from(opsClients)
       .where(
         and(
-          inArray(opsClients.customerId, customerIds),
+          inArray(opsClients.counterpartyId, counterpartyIds),
           eq(opsClients.isDeleted, false),
         ),
       )
@@ -130,11 +130,11 @@ export class DrizzleClientReads implements ClientReads {
     const deduped = new Map<string, Client>();
     for (const row of rows) {
       const client = row as unknown as Client;
-      if (!client.customerId || deduped.has(client.customerId)) {
+      if (!client.counterpartyId || deduped.has(client.counterpartyId)) {
         continue;
       }
 
-      deduped.set(client.customerId, client);
+      deduped.set(client.counterpartyId, client);
     }
 
     return [...deduped.values()];

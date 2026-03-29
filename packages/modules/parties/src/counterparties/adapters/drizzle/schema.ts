@@ -15,6 +15,7 @@ import {
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
 
 import { customers } from "../../../customers/adapters/drizzle/schema";
+import { COUNTERPARTY_RELATIONSHIP_KIND_VALUES } from "../../domain/relationship-kind";
 import { PARTY_KIND_VALUES } from "../../../shared/domain/party-kind";
 
 export const counterpartyKindEnum = pgEnum(
@@ -27,10 +28,18 @@ export const counterpartyCountryCodeEnum = pgEnum(
   COUNTRY_ALPHA2_CODES,
 );
 
+export const counterpartyRelationshipKindEnum = pgEnum(
+  "counterparty_relationship_kind",
+  COUNTERPARTY_RELATIONSHIP_KIND_VALUES,
+);
+
 export const counterparties = pgTable("counterparties", {
   id: uuid("id").primaryKey().defaultRandom(),
   externalId: text("external_id"),
   customerId: uuid("customer_id").references(() => customers.id),
+  relationshipKind: counterpartyRelationshipKindEnum("relationship_kind")
+    .notNull()
+    .default("external"),
   shortName: text("short_name").notNull(),
   fullName: text("full_name").notNull(),
   description: text("description"),
@@ -102,6 +111,7 @@ export const schema = {
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
+  counterpartyRelationshipKindEnum,
 };
 
 export type CounterpartyRow = typeof counterparties.$inferSelect;

@@ -43,6 +43,7 @@ export class DrizzleDealStore implements DealStore {
       .values({
         applicationId: input.applicationId,
         calculationId: input.calculationId,
+        counterpartyId: input.counterpartyId ?? null,
         agentOrganizationBankDetailsId: input.agentOrganizationBankDetailsId,
         invoiceNumber: input.invoiceNumber ?? null,
         invoiceDate: input.invoiceDate ?? null,

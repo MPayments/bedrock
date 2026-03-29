@@ -21,10 +21,19 @@ export class CreateApplicationCommand {
       const status: ApplicationStatus = validated.agentId
         ? "created"
         : "forming";
+      const client =
+        await tx.clientStore.findActiveByCounterpartyId(validated.counterpartyId);
+
+      if (!client) {
+        throw new Error(
+          `Active client shell not found for counterparty ${validated.counterpartyId}`,
+        );
+      }
 
       const created = await tx.applicationStore.create({
         agentId: validated.agentId ?? null,
-        clientId: validated.clientId,
+        clientId: client.id,
+        counterpartyId: validated.counterpartyId,
         status,
         requestedAmount: validated.requestedAmount,
         requestedCurrency: validated.requestedCurrency,
@@ -33,6 +42,7 @@ export class CreateApplicationCommand {
       this.runtime.log.info("Application created", {
         id: created.id,
         clientId: created.clientId,
+        counterpartyId: created.counterpartyId,
         status,
       });
 

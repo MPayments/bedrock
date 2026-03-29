@@ -22,6 +22,7 @@ export class DrizzleApplicationStore implements ApplicationStore {
   async create(input: {
     agentId: string | null;
     clientId: number;
+    counterpartyId: string | null;
     status: ApplicationStatus;
     requestedAmount?: string;
     requestedCurrency?: string;
@@ -31,6 +32,7 @@ export class DrizzleApplicationStore implements ApplicationStore {
       .values({
         agentId: input.agentId,
         clientId: input.clientId,
+        counterpartyId: input.counterpartyId,
         status: input.status,
         requestedAmount: input.requestedAmount,
         requestedCurrency: input.requestedCurrency,

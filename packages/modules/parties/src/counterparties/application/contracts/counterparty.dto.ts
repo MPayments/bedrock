@@ -6,11 +6,13 @@ import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
+import { CounterpartyRelationshipKindSchema } from "../../domain/relationship-kind";
 
 export const CounterpartySchema = z.object({
   id: z.uuid(),
   externalId: z.string().nullable(),
   customerId: z.uuid().nullable(),
+  relationshipKind: CounterpartyRelationshipKindSchema,
   shortName: z.string(),
   fullName: z.string(),
   description: z.string().nullable(),

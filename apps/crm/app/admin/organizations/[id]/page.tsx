@@ -63,8 +63,9 @@ interface Bank {
 }
 
 interface Organization {
-  id: number;
-  name: string;
+  id: string;
+  shortName: string;
+  fullName: string;
   nameI18n?: LocalizedText;
   orgType: string | null;
   orgTypeI18n?: LocalizedText;
@@ -101,7 +102,7 @@ const toLocalizedFormValue = (localized?: LocalizedText) => ({
 
 function organizationToFormData(org: Organization): EditOrganizationWithBanksInput {
   return {
-    name: org.name || "",
+    name: org.shortName || "",
     nameI18n: toLocalizedFormValue(org.nameI18n),
     orgType: org.orgType || "",
     orgTypeI18n: toLocalizedFormValue(org.orgTypeI18n),
@@ -412,14 +413,18 @@ export default function OrganizationViewPage() {
       };
 
       // 1. Update organization fields
-      const { banks, ...orgData } = normalizedData;
+      const { banks, name, ...orgData } = normalizedData;
       const orgRes = await fetch(
         `${API_BASE_URL}/organizations/${organizationId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(orgData),
+          body: JSON.stringify({
+            ...orgData,
+            fullName: name,
+            shortName: name,
+          }),
         },
       );
 
@@ -629,7 +634,7 @@ export default function OrganizationViewPage() {
             <ChevronLeft className="mr-2 h-4 w-4" /> Назад
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{organization.name}</h1>
+            <h1 className="text-2xl font-bold">{organization.shortName}</h1>
             <p className="text-sm text-muted-foreground">
               {organization.orgType && `${organization.orgType} • `}
               {organization.inn && `ИНН: ${organization.inn}`}

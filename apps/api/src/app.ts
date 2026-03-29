@@ -1,6 +1,7 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { sql } from "drizzle-orm";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
@@ -158,7 +159,7 @@ function createV1Routes(ctx: AppContext) {
 }
 
 const v1 = createV1Routes(ctx);
-const _routes = new OpenAPIHono<{ Variables: AuthVariables }>().route("/v1", v1);
+const clientRoutes = new Hono().route("/v1", v1);
 
 app.route("/v1", v1);
 
@@ -193,4 +194,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof _routes;
+export type AppType = typeof clientRoutes;

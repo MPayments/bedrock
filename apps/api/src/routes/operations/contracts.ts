@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   ContractSchema,
@@ -11,8 +11,47 @@ import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsDeletedSchema, OpsErrorSchema, OpsIdParamSchema } from "./common";
+import {
+  findCanonicalOrganizationByLegacyId,
+  resolveLegacyHoldingOrganizationByCanonicalId,
+} from "../organization-bridge";
 
-const PaginatedContractsSchema = createPaginatedListSchema(ContractSchema);
+const PublicContractSchema = ContractSchema.omit({
+  agentOrganizationId: true,
+}).extend({
+  organizationId: z.string().uuid().nullable(),
+});
+
+const PublicCreateContractInputSchema = CreateContractInputSchema.omit({
+  agentOrganizationId: true,
+}).extend({
+  organizationId: z.string().uuid(),
+});
+
+const PublicUpdateContractInputSchema = UpdateContractInputSchema.omit({
+  agentOrganizationId: true,
+  id: true,
+}).extend({
+  organizationId: z.string().uuid().optional(),
+});
+
+const PaginatedContractsSchema = createPaginatedListSchema(PublicContractSchema);
+
+async function serializeContractForPublic(
+  ctx: AppContext,
+  contract: z.infer<typeof ContractSchema>,
+) {
+  const { agentOrganizationId: _agentOrganizationId, ...rest } = contract;
+  const organization = await findCanonicalOrganizationByLegacyId(
+    ctx,
+    contract.agentOrganizationId,
+  );
+
+  return {
+    ...rest,
+    organizationId: organization?.id ?? null,
+  };
+}
 
 export function operationsContractsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -39,7 +78,7 @@ export function operationsContractsRoutes(ctx: AppContext) {
     request: { params: OpsIdParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: ContractSchema } },
+        content: { "application/json": { schema: PublicContractSchema } },
         description: "Contract found",
       },
       404: {
@@ -56,13 +95,15 @@ export function operationsContractsRoutes(ctx: AppContext) {
     summary: "Create contract",
     request: {
       body: {
-        content: { "application/json": { schema: CreateContractInputSchema } },
+        content: {
+          "application/json": { schema: PublicCreateContractInputSchema },
+        },
         required: true,
       },
     },
     responses: {
       201: {
-        content: { "application/json": { schema: ContractSchema } },
+        content: { "application/json": { schema: PublicContractSchema } },
         description: "Contract created",
       },
     },
@@ -76,13 +117,15 @@ export function operationsContractsRoutes(ctx: AppContext) {
     request: {
       params: OpsIdParamSchema,
       body: {
-        content: { "application/json": { schema: UpdateContractInputSchema.omit({ id: true }) } },
+        content: {
+          "application/json": { schema: PublicUpdateContractInputSchema },
+        },
         required: true,
       },
     },
     responses: {
       200: {
-        content: { "application/json": { schema: ContractSchema } },
+        content: { "application/json": { schema: PublicContractSchema } },
         description: "Contract updated",
       },
     },
@@ -106,29 +149,56 @@ export function operationsContractsRoutes(ctx: AppContext) {
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.operationsModule.contracts.queries.list(query);
-      return c.json(result, 200);
+      return c.json(
+        {
+          ...result,
+          data: await Promise.all(
+            result.data.map((contract) => serializeContractForPublic(ctx, contract)),
+          ),
+        },
+        200,
+      );
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       const contract =
         await ctx.operationsModule.contracts.queries.findById(id);
       if (!contract) return c.json({ error: "Contract not found" }, 404);
-      return c.json(contract, 200);
+      return c.json(await serializeContractForPublic(ctx, contract), 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
-      const result =
-        await ctx.operationsModule.contracts.commands.create(input);
-      return c.json(result, 201);
+      const legacyOrganization =
+        await resolveLegacyHoldingOrganizationByCanonicalId(input.organizationId);
+      const { organizationId: _organizationId, ...rest } = input;
+      const result = await ctx.operationsModule.contracts.commands.create({
+        ...rest,
+        agentOrganizationId: legacyOrganization.id,
+      });
+      return c.json(await serializeContractForPublic(ctx, result), 201);
     })
     .openapi(updateRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
+      const { organizationId, ...rest } = input;
+      const legacyOrganization =
+        organizationId === undefined
+          ? null
+          : await resolveLegacyHoldingOrganizationByCanonicalId(organizationId);
       const result = await ctx.operationsModule.contracts.commands.update({
-        ...input,
+        ...rest,
+        ...(legacyOrganization
+          ? { agentOrganizationId: legacyOrganization.id }
+          : {}),
         id,
       });
-      return c.json(result as NonNullable<typeof result>, 200);
+      return c.json(
+        await serializeContractForPublic(
+          ctx,
+          result as NonNullable<typeof result>,
+        ),
+        200,
+      );
     })
     .openapi(deleteRoute, async (c) => {
       const { id } = c.req.valid("param");

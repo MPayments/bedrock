@@ -175,7 +175,7 @@ interface Client {
 interface Contract {
   id: number;
   clientId: number;
-  agentOrganizationId: number;
+  organizationId: string | null;
   contractNumber: string;
   contractDate: string;
   createdAt: string;
@@ -184,7 +184,7 @@ interface Contract {
 
 interface OrganizationBank {
   id: number;
-  organizationId: number;
+  organizationId: string | null;
   name: string;
   account: string;
   bic: string;
@@ -196,8 +196,8 @@ interface OrganizationBank {
 }
 
 interface Organization {
-  id: number;
-  name: string;
+  id: string;
+  shortName: string;
   fullName: string | null;
   inn: string | null;
   kpp: string | null;
@@ -2201,7 +2201,9 @@ export default function DealDetailPage() {
                 <div className="text-sm font-medium text-muted-foreground">
                   Название
                 </div>
-                <div className="text-base font-medium">{organization.name}</div>
+                <div className="text-base font-medium">
+                  {organization.shortName}
+                </div>
               </div>
               {organization.fullName && (
                 <div>

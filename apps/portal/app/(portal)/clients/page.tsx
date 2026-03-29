@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, FileText, Loader2, MapPin, Phone, Plus } from "lucide-react";
+import { Building2, FileText, Loader2, Phone, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,26 +16,32 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 
 interface Client {
-  address: string | null;
-  customerId: string;
-  description: string | null;
+  counterpartyId: string;
+  hasLegacyShell: boolean;
   inn: string | null;
-  directorName: string | null;
+  phone: string | null;
+  relationshipKind: "customer_owned" | "external";
+  shortName: string;
+}
+
+interface CustomerContext {
+  customerId: string;
   displayName: string;
   externalRef: string | null;
-  legacyClientId: number | null;
-  legacyProfileStatus: "linked" | "missing";
-  phone: string | null;
+  description: string | null;
+  legalEntities: Client[];
+  legalEntityCount: number;
+  primaryCounterpartyId: string | null;
 }
 
 interface CustomerClientsResponse {
-  data: Client[];
+  data: CustomerContext[];
   total: number;
 }
 
 export default function PortalClientsPage() {
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
+  const [customers, setCustomers] = useState<CustomerContext[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +57,7 @@ export default function PortalClientsPage() {
         }
 
         const data: CustomerClientsResponse = await response.json();
-        setClients(data.data);
+        setCustomers(data.data);
       } catch (error) {
         console.error("Error fetching clients:", error);
         router.push("/onboard");
@@ -79,10 +85,10 @@ export default function PortalClientsPage() {
           <div>
             <h1 className="text-2xl font-bold">Мои организации</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {clients.length}{" "}
-              {clients.length === 1
+              {customers.length}{" "}
+              {customers.length === 1
                 ? "организация"
-                : clients.length < 5
+                : customers.length < 5
                   ? "организации"
                   : "организаций"}
             </p>
@@ -100,9 +106,9 @@ export default function PortalClientsPage() {
       </div>
 
       <div className="space-y-3">
-        {clients.map((client) => (
+        {customers.map((customer) => (
           <Card
-            key={client.customerId}
+            key={customer.customerId}
             className="transition-colors hover:bg-muted/50"
           >
             <CardHeader className="pb-2">
@@ -110,51 +116,54 @@ export default function PortalClientsPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="h-5 w-5 shrink-0 text-primary" />
                   <CardTitle className="truncate text-base">
-                    {client.displayName}
+                    {customer.displayName}
                   </CardTitle>
                 </div>
-                {client.inn ? (
+                {customer.externalRef ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    ИНН: {client.inn}
+                    Ref: {customer.externalRef}
                   </span>
                 ) : null}
               </div>
-              {client.directorName ? (
+              {customer.description ? (
                 <CardDescription className="mt-1 text-sm">
-                  {client.directorName}
-                </CardDescription>
-              ) : client.description ? (
-                <CardDescription className="mt-1 text-sm">
-                  {client.description}
+                  {customer.description}
                 </CardDescription>
               ) : null}
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                {client.phone ? (
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5" />
-                    <span>{client.phone}</span>
+              <div className="space-y-3">
+                {customer.legalEntities.map((legalEntity) => (
+                  <div
+                    key={legalEntity.counterpartyId}
+                    className="rounded-lg border border-border/60 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          {legalEntity.shortName}
+                        </p>
+                        {legalEntity.inn ? (
+                          <p className="text-xs text-muted-foreground">
+                            ИНН: {legalEntity.inn}
+                          </p>
+                        ) : null}
+                      </div>
+                      {!legalEntity.hasLegacyShell ? (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700">
+                          shell будет создан автоматически
+                        </span>
+                      ) : null}
+                    </div>
+                    {legalEntity.phone ? (
+                      <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>{legalEntity.phone}</span>
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-                {client.address ? (
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{client.address}</span>
-                  </div>
-                ) : null}
+                ))}
               </div>
-              {client.legacyProfileStatus === "missing" ? (
-                <p className="mt-3 text-sm text-amber-600">
-                  Для этой организации legacy-профиль ещё не создан. Заявки и
-                  документы будут доступны после его подключения.
-                </p>
-              ) : null}
-              {client.externalRef ? (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Ref: {client.externalRef}
-                </p>
-              ) : null}
             </CardContent>
           </Card>
         ))}

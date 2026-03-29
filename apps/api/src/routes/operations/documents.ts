@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
+import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
 
 const FIELD_METADATA: Record<string, { label: string; category: string }> = {
   date: { label: "Дата", category: "Документ" },
@@ -110,7 +111,7 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
     summary: "List available document templates",
     request: {
       query: z.object({
-        organizationId: z.coerce.number().int().optional(),
+        organizationId: z.string().uuid().optional(),
       }),
     },
     responses: {
@@ -136,7 +137,7 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
     request: {
       params: z.object({ name: z.string() }),
       query: z.object({
-        organizationId: z.coerce.number().int().optional(),
+        organizationId: z.string().uuid().optional(),
       }),
     },
     responses: {
@@ -171,7 +172,7 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
               templateName: z.string().min(1),
               data: z.record(z.string(), z.string()),
               format: z.enum(["docx", "pdf"]).default("docx"),
-              organizationId: z.number().int().optional(),
+              organizationId: z.string().uuid().optional(),
             }),
           },
         },
@@ -224,13 +225,28 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
       const contract =
         await ctx.operationsModule.contracts.queries.findByClient(id);
       if (!contract) return c.json({ error: "Contract not found" }, 404);
+      const organization = contract.agentOrganizationId
+        ? await findCanonicalOrganizationByLegacyId(
+            ctx,
+            contract.agentOrganizationId,
+          )
+        : null;
+      const organizationBank =
+        contract.agentOrganizationBankDetailsId != null
+          ? await ctx.operationsModule.organizations.bankDetails.queries.findById(
+              contract.agentOrganizationBankDetailsId,
+            )
+          : null;
+      if (!organization || !organizationBank) {
+        return c.json({ error: "Organization not found" }, 404);
+      }
 
       const result =
         await ctx.documentGenerationWorkflow.generateClientContract({
           client: client as unknown as Record<string, unknown>,
           contract: contract as unknown as Record<string, unknown>,
-          organization: {} as Record<string, unknown>,
-          organizationBank: {} as Record<string, unknown>,
+          organization: (organization ?? {}) as Record<string, unknown>,
+          organizationBank: (organizationBank ?? {}) as Record<string, unknown>,
           format,
           lang,
         });

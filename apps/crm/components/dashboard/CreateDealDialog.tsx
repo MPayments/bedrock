@@ -27,7 +27,7 @@ interface Calculation {
 interface Bank {
   id: number;
   name: string;
-  organizationId: number;
+  organizationId: string | null;
   currencyCode?: string;
 }
 

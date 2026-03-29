@@ -65,6 +65,9 @@ export class DrizzleApplicationReads implements ApplicationReads {
     if (input.clientId) {
       conditions.push(eq(opsApplications.clientId, input.clientId));
     }
+    if (input.counterpartyId) {
+      conditions.push(eq(opsApplications.counterpartyId, input.counterpartyId));
+    }
     if (input.status && input.status.length > 0) {
       conditions.push(
         inArray(
@@ -106,6 +109,7 @@ export class DrizzleApplicationReads implements ApplicationReads {
       status: opsApplications.status,
       comment: opsApplications.comment,
       clientId: opsApplications.clientId,
+      counterpartyId: opsApplications.counterpartyId,
       client: opsClients.orgName,
       agentName: user.name,
       requestedAmount: opsApplications.requestedAmount,
@@ -149,6 +153,7 @@ export class DrizzleApplicationReads implements ApplicationReads {
       updatedAt: r.updatedAt as string,
       client: r.client ?? "",
       clientId: r.clientId,
+      counterpartyId: r.counterpartyId,
       amount: Number(r.calcOriginalAmount ?? r.requestedAmount) || 0,
       currency: r.calcCurrencyCode ?? r.requestedCurrency ?? "RUB",
       amountInBase: Number(r.calcTotalWithExpensesInBase) || 0,

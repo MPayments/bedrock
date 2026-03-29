@@ -11,6 +11,10 @@ import {
   type CountryCode,
   type PartyKind,
 } from "../../shared/domain/party-kind";
+import {
+  COUNTERPARTY_RELATIONSHIP_KIND_VALUES,
+  type CounterpartyRelationshipKind,
+} from "./relationship-kind";
 
 function normalizeOptionalText(
   value: string | null | undefined,
@@ -41,6 +45,7 @@ export interface CounterpartySnapshot {
   id: string;
   externalId: string | null;
   customerId: string | null;
+  relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
   fullName: string;
   description: string | null;
@@ -55,6 +60,7 @@ export interface CreateCounterpartyProps {
   id: string;
   externalId: string | null;
   customerId: string | null;
+  relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
   fullName: string;
   description: string | null;
@@ -66,6 +72,7 @@ export interface CreateCounterpartyProps {
 export interface UpdateCounterpartyProps {
   externalId: string | null;
   customerId: string | null;
+  relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
   fullName: string;
   description: string | null;
@@ -81,6 +88,22 @@ function normalizePartyKind(value: PartyKind): PartyKind {
     `Unsupported counterparty kind: ${normalized}`,
     {
       code: "counterparty.kind_invalid",
+      meta: { value: normalized },
+    },
+  );
+
+  return normalized;
+}
+
+function normalizeRelationshipKind(
+  value: CounterpartyRelationshipKind,
+): CounterpartyRelationshipKind {
+  const normalized = value;
+  invariant(
+    COUNTERPARTY_RELATIONSHIP_KIND_VALUES.includes(normalized),
+    `Unsupported counterparty relationship kind: ${normalized}`,
+    {
+      code: "counterparty.relationship_kind_invalid",
       meta: { value: normalized },
     },
   );
@@ -113,6 +136,7 @@ function normalizeCounterpartySnapshot(
     ...snapshot,
     externalId: normalizeOptionalText(snapshot.externalId),
     customerId: snapshot.customerId ?? null,
+    relationshipKind: normalizeRelationshipKind(snapshot.relationshipKind),
     shortName: normalizeRequiredText(
       snapshot.shortName,
       "counterparty.short_name_required",
@@ -159,6 +183,7 @@ export class Counterparty extends AggregateRoot<string> {
       id: input.id,
       externalId: input.externalId,
       customerId: input.customerId,
+      relationshipKind: input.relationshipKind,
       shortName: input.shortName,
       fullName: input.fullName,
       description: input.description,
@@ -176,11 +201,12 @@ export class Counterparty extends AggregateRoot<string> {
 
     counterparty.raiseDomainEvent({
       name: "counterparty.created",
-      payload: {
-        counterpartyId: counterparty.id,
-        customerId: input.customerId,
-      },
-    });
+        payload: {
+          counterpartyId: counterparty.id,
+          customerId: input.customerId,
+          relationshipKind: input.relationshipKind,
+        },
+      });
 
     return counterparty;
   }
@@ -215,17 +241,19 @@ export class Counterparty extends AggregateRoot<string> {
         customerId: input.customerId,
         managedGroupId: deps.managedGroupId ?? null,
       }),
+      relationshipKind: input.relationshipKind,
       updatedAt: deps.now,
     });
 
     if (!this.sameState(next)) {
       next.raiseDomainEvent({
         name: "counterparty.updated",
-        payload: {
-          counterpartyId: next.id,
-          customerId: input.customerId,
-        },
-      });
+          payload: {
+            counterpartyId: next.id,
+            customerId: input.customerId,
+            relationshipKind: input.relationshipKind,
+          },
+        });
     }
 
     return next;
@@ -239,6 +267,7 @@ export class Counterparty extends AggregateRoot<string> {
       {
         externalId: this.snapshot.externalId,
         customerId: null,
+        relationshipKind: "external",
         shortName: this.snapshot.shortName,
         fullName: this.snapshot.fullName,
         description: this.snapshot.description,

@@ -141,7 +141,11 @@ export default function DealsPage() {
             <div className="flex flex-1 flex-wrap items-center gap-2">
               <ClientCombobox
                 value={selectedClientId}
-                onValueChange={setSelectedClientId}
+                onValueChange={(value) =>
+                  setSelectedClientId(
+                    typeof value === "number" ? value : undefined,
+                  )
+                }
                 placeholder="Выбрать клиента..."
                 className="w-[250px]"
               />

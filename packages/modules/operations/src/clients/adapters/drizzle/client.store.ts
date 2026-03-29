@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
@@ -15,6 +15,21 @@ export class DrizzleClientStore implements ClientStore {
       .select()
       .from(opsClients)
       .where(eq(opsClients.id, id))
+      .limit(1);
+    return (row as unknown as Client) ?? null;
+  }
+
+  async findActiveByCounterpartyId(counterpartyId: string): Promise<Client | null> {
+    const [row] = await this.db
+      .select()
+      .from(opsClients)
+      .where(
+        and(
+          eq(opsClients.counterpartyId, counterpartyId),
+          eq(opsClients.isDeleted, false),
+        ),
+      )
+      .orderBy(desc(opsClients.updatedAt), desc(opsClients.createdAt))
       .limit(1);
     return (row as unknown as Client) ?? null;
   }

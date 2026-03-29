@@ -37,8 +37,8 @@ interface ClientRow {
   email: string | null;
   phone: string | null;
   createdAt: string;
-  legacyClientId: number | null;
-  legacyProfileStatus: "linked" | "missing";
+  legalEntityCount: number;
+  primaryCounterpartyId: string | null;
 }
 
 interface ClientsResponse {

@@ -24,6 +24,7 @@ import {
   counterparties,
   counterpartyGroupMemberships,
   counterpartyGroups,
+  counterpartyRelationshipKindEnum,
   customers,
   organizations,
   organizationRequisiteBindings,
@@ -52,11 +53,24 @@ const authSchema = {
   userAccessStates,
   userAccessStatesRelations,
 };
-const partiesSchema = {
+const partiesSchema: {
+  customers: typeof customers;
+  counterparties: typeof counterparties;
+  counterpartyGroups: typeof counterpartyGroups;
+  counterpartyGroupMemberships: typeof counterpartyGroupMemberships;
+  counterpartyRelationshipKindEnum: typeof counterpartyRelationshipKindEnum;
+  organizations: typeof organizations;
+  requisiteOwnerTypeEnum: typeof requisiteOwnerTypeEnum;
+  requisiteKindEnum: typeof requisiteKindEnum;
+  requisiteProviders: typeof requisiteProviders;
+  requisites: typeof requisites;
+  organizationRequisiteBindings: typeof organizationRequisiteBindings;
+} = {
   customers,
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
+  counterpartyRelationshipKindEnum,
   organizations,
   requisiteOwnerTypeEnum,
   requisiteKindEnum,

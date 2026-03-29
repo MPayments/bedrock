@@ -4,7 +4,7 @@ import { APPLICATION_STATUS_VALUES } from "../../domain/application-status";
 
 export const CreateApplicationInputSchema = z.object({
   agentId: z.string().nullable().optional(),
-  clientId: z.number().int(),
+  counterpartyId: z.string().uuid(),
   source: z.enum(["web", "bot"]).default("web"),
   requestedAmount: z.string().optional(),
   requestedCurrency: z.string().optional(),

@@ -39,6 +39,7 @@ export class UpdateCounterpartyCommand {
         {
           externalId: snapshot.externalId,
           customerId: snapshot.customerId,
+          relationshipKind: snapshot.relationshipKind,
           shortName: snapshot.shortName,
           fullName: snapshot.fullName,
           description: snapshot.description,

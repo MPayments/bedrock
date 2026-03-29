@@ -23,17 +23,19 @@ import { API_BASE_URL } from "@/lib/constants";
 
 interface Client {
   id: number;
+  counterpartyId: string | null;
   orgName: string;
   inn: string | null;
   directorName: string | null;
 }
 
 interface ClientComboboxProps {
-  value?: number;
-  onValueChange?: (value: number | undefined) => void;
+  value?: number | string;
+  onValueChange?: (value: number | string | undefined) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  valueField?: "clientId" | "counterpartyId";
 }
 
 // Custom hook для debounce
@@ -59,6 +61,7 @@ export function ClientCombobox({
   placeholder = "Выберите клиента...",
   className,
   disabled = false,
+  valueField = "clientId",
 }: ClientComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [clients, setClients] = React.useState<Client[]>([]);
@@ -73,7 +76,11 @@ export function ClientCombobox({
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500);
 
   // Найти выбранного клиента
-  const selectedClient = clients.find((client) => client.id === value);
+  const selectedClient = clients.find((client) =>
+    valueField === "counterpartyId"
+      ? client.counterpartyId === value
+      : client.id === value,
+  );
 
   // Загрузка клиентов с сервера
   const fetchClients = React.useCallback(
@@ -144,12 +151,12 @@ export function ClientCombobox({
   );
 
   // Обработчик выбора клиента
-  const handleSelect = (clientId: number) => {
-    if (value === clientId) {
+  const handleSelect = (nextValue: number | string) => {
+    if (value === nextValue) {
       // Если выбран тот же клиент - снимаем выбор
       onValueChange?.(undefined);
     } else {
-      onValueChange?.(clientId);
+      onValueChange?.(nextValue);
     }
     setOpen(false);
   };
@@ -199,12 +206,26 @@ export function ClientCombobox({
                     <CommandItem
                       key={client.id}
                       value={client.id.toString()}
-                      onSelect={() => handleSelect(client.id)}
+                      onSelect={() =>
+                        valueField === "counterpartyId"
+                          ? client.counterpartyId
+                            ? handleSelect(client.counterpartyId)
+                            : undefined
+                          : handleSelect(client.id)
+                      }
+                      disabled={
+                        valueField === "counterpartyId" && !client.counterpartyId
+                      }
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          value === client.id ? "opacity-100" : "opacity-0"
+                          value ===
+                            (valueField === "counterpartyId"
+                              ? client.counterpartyId
+                              : client.id)
+                            ? "opacity-100"
+                            : "opacity-0"
                         )}
                       />
                       <div className="flex flex-col min-w-0">
@@ -216,6 +237,11 @@ export function ClientCombobox({
                             ИНН: {client.inn}
                           </span>
                         )}
+                        {!client.counterpartyId ? (
+                          <span className="text-xs text-amber-600">
+                            counterparty ещё не привязан
+                          </span>
+                        ) : null}
                       </div>
                     </CommandItem>
                   ))}

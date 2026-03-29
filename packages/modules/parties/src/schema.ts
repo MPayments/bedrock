@@ -4,6 +4,7 @@ import {
   counterpartyGroups,
   counterparties,
   counterpartyKindEnum,
+  counterpartyRelationshipKindEnum,
 } from "./counterparties/adapters/drizzle/schema";
 import { customers } from "./customers/adapters/drizzle/schema";
 import {
@@ -25,6 +26,7 @@ export {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyKindEnum,
+  counterpartyRelationshipKindEnum,
   customers,
   organizations,
   partyCountryCodeEnum,
@@ -46,6 +48,7 @@ export const schema = {
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
+  counterpartyRelationshipKindEnum,
   requisiteOwnerTypeEnum,
   requisiteKindEnum,
   requisiteProviders,

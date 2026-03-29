@@ -14,6 +14,9 @@ import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
+import {
+  CounterpartyRelationshipKindSchema,
+} from "../../domain/relationship-kind";
 import type { Counterparty } from "../../application/contracts/counterparty.dto";
 import type { ListCounterpartiesQuery } from "../../application/contracts/counterparty.queries";
 import type { CounterpartyReads } from "../../application/ports/counterparty.reads";
@@ -21,6 +24,7 @@ import type { CounterpartyReads } from "../../application/ports/counterparty.rea
 const COUNTERPARTY_SORT_COLUMN_MAP = {
   shortName: counterparties.shortName,
   fullName: counterparties.fullName,
+  relationshipKind: counterparties.relationshipKind,
   country: counterparties.country,
   kind: counterparties.kind,
   createdAt: counterparties.createdAt,
@@ -66,6 +70,15 @@ export class DrizzleCounterpartyReads implements CounterpartyReads {
 
     if (input.externalId) {
       conditions.push(eq(counterparties.externalId, input.externalId));
+    }
+
+    const relationshipKinds = input.relationshipKind?.map((value) =>
+      CounterpartyRelationshipKindSchema.parse(value),
+    );
+    if (relationshipKinds?.length) {
+      conditions.push(
+        inArray(counterparties.relationshipKind, relationshipKinds),
+      );
     }
 
     if (input.shortName) {

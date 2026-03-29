@@ -77,6 +77,7 @@ export class DrizzleCounterpartyRepository implements CounterpartyRepository {
         id: counterparty.id,
         externalId: counterparty.externalId,
         customerId: counterparty.customerId,
+        relationshipKind: counterparty.relationshipKind,
         shortName: counterparty.shortName,
         fullName: counterparty.fullName,
         description: counterparty.description,
@@ -94,6 +95,7 @@ export class DrizzleCounterpartyRepository implements CounterpartyRepository {
       .set({
         externalId: counterparty.externalId,
         customerId: counterparty.customerId,
+        relationshipKind: counterparty.relationshipKind,
         shortName: counterparty.shortName,
         fullName: counterparty.fullName,
         description: counterparty.description,

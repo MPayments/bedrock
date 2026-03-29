@@ -20,6 +20,10 @@ export const APPLICATIONS_LIST_CONTRACT = {
       cardinality: "single" as const,
       int: true,
     },
+    counterpartyId: {
+      kind: "string" as const,
+      cardinality: "single" as const,
+    },
     status: {
       kind: "string" as const,
       cardinality: "multi" as const,

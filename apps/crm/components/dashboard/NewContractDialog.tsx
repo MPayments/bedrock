@@ -71,8 +71,8 @@ function TruncatedText({
 }
 
 interface Organization {
-  id: number;
-  name: string;
+  id: string;
+  shortName: string;
   inn?: string;
   city?: string;
 }
@@ -85,7 +85,7 @@ interface Bank {
 }
 
 interface ContractFormData {
-  agentOrganizationId?: number;
+  organizationId?: string;
   agentOrganizationBankDetailsId?: number;
   agentFee: string;
   fixedFee: string;
@@ -94,7 +94,8 @@ interface ContractFormData {
 interface NewContractDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  clientId: number;
+  counterpartyId: string;
+  customerId: string;
   onSuccess?: () => void;
 }
 
@@ -103,7 +104,8 @@ type Step = "organization" | "bank" | "fees";
 export function NewContractDialog({
   open,
   onOpenChange,
-  clientId,
+  counterpartyId,
+  customerId,
   onSuccess,
 }: NewContractDialogProps) {
   const [step, setStep] = useState<Step>("organization");
@@ -161,7 +163,7 @@ export function NewContractDialog({
   }, []);
 
   // Загрузка банков для выбранной организации
-  const fetchBanks = useCallback(async (orgId: number) => {
+  const fetchBanks = useCallback(async (orgId: string) => {
     try {
       setLoadingBanks(true);
       setError(null);
@@ -193,7 +195,7 @@ export function NewContractDialog({
   // Проверка, заполнена ли форма
   const isFormDirty = () => {
     return (
-      formData.agentOrganizationId !== undefined ||
+      formData.organizationId !== undefined ||
       formData.agentOrganizationBankDetailsId !== undefined ||
       formData.agentFee !== "" ||
       formData.fixedFee !== ""
@@ -221,8 +223,8 @@ export function NewContractDialog({
 
   // Переход к следующему шагу
   const handleNextStep = async () => {
-    if (step === "organization" && formData.agentOrganizationId) {
-      await fetchBanks(formData.agentOrganizationId);
+    if (step === "organization" && formData.organizationId) {
+      await fetchBanks(formData.organizationId);
       setStep("bank");
     } else if (step === "bank" && formData.agentOrganizationBankDetailsId) {
       setStep("fees");
@@ -242,7 +244,7 @@ export function NewContractDialog({
 
   // Создание контракта
   const handleCreate = async () => {
-    if (!formData.agentOrganizationId || !formData.agentOrganizationBankDetailsId) {
+    if (!formData.organizationId || !formData.agentOrganizationBankDetailsId) {
       setError("Пожалуйста, выберите организацию и банк");
       return;
     }
@@ -251,17 +253,20 @@ export function NewContractDialog({
       setCreating(true);
       setError(null);
 
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}/contract`, {
+      const res = await fetch(
+        `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/contract`,
+        {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          agentOrganizationId: formData.agentOrganizationId,
+          organizationId: formData.organizationId,
           agentOrganizationBankDetailsId: formData.agentOrganizationBankDetailsId,
           agentFee: formData.agentFee || undefined,
           fixedFee: formData.fixedFee || undefined,
         }),
-      });
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -288,7 +293,7 @@ export function NewContractDialog({
   };
 
   const selectedOrganization = organizations.find(
-    (org) => org.id === formData.agentOrganizationId
+    (org) => org.id === formData.organizationId
   );
   const selectedBank = banks.find(
     (bank) => bank.id === formData.agentOrganizationBankDetailsId
@@ -310,7 +315,7 @@ export function NewContractDialog({
       case "organization":
         return "Выберите организацию-агента для договора";
       case "bank":
-        return `Выберите банковские реквизиты для ${selectedOrganization?.name || "организации"}`;
+        return `Выберите банковские реквизиты для ${selectedOrganization?.shortName || "организации"}`;
       case "fees":
         return "Укажите комиссии для агентского договора";
     }
@@ -319,7 +324,7 @@ export function NewContractDialog({
   const canProceed = () => {
     switch (step) {
       case "organization":
-        return formData.agentOrganizationId !== undefined;
+        return formData.organizationId !== undefined;
       case "bank":
         return formData.agentOrganizationBankDetailsId !== undefined;
       case "fees":
@@ -349,11 +354,11 @@ export function NewContractDialog({
                   </div>
                 ) : (
                   <RadioGroup
-                    value={formData.agentOrganizationId?.toString() || ""}
+                    value={formData.organizationId || ""}
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        agentOrganizationId: parseInt(value),
+                        organizationId: value,
                         agentOrganizationBankDetailsId: undefined,
                       }))
                     }
@@ -382,7 +387,7 @@ export function NewContractDialog({
                               className="flex-1 min-w-0 cursor-pointer font-normal"
                             >
                               <TruncatedText
-                                text={org.name}
+                                text={org.shortName}
                                 subText={subText}
                                 className="min-w-0"
                               />
@@ -472,9 +477,9 @@ export function NewContractDialog({
                     </div>
                     <div
                       className="font-medium truncate max-w-full"
-                      title={selectedOrganization?.name}
+                      title={selectedOrganization?.shortName}
                     >
-                      {selectedOrganization?.name}
+                      {selectedOrganization?.shortName}
                     </div>
                   </div>
                   <div className="min-w-0 overflow-hidden">

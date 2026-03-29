@@ -21,6 +21,7 @@ import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { exportApplicationsXlsx, xlsxFilename } from "./excel-export";
+import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
 
 export function operationsApplicationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -416,11 +417,19 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         offset: 0,
       });
 
+      const organizationId = contract.agentOrganizationId
+        ? (
+            await findCanonicalOrganizationByLegacyId(
+              ctx,
+              contract.agentOrganizationId,
+            )
+          )?.id ?? null
+        : null;
       const mapped = banksResult.data.map((bank: any) => ({
+        currencyCode: bank.currencyCode,
         id: bank.id,
         name: bank.name,
-        organizationId: bank.organizationId,
-        currencyCode: bank.currencyCode,
+        organizationId,
       }));
       return c.json(mapped, 200);
     });

@@ -59,13 +59,6 @@ export class CreateClientCommand {
       let counterpartyId: string | null =
         normalized.counterpartyId ?? null;
 
-      if (this.counterparties && !counterpartyId) {
-        counterpartyId = await this.counterparties.findOrCreateCounterparty({
-          displayName: normalized.orgName,
-          externalRef: normalized.inn ?? null,
-        });
-      }
-
       const created = await tx.clientStore.create({
         ...normalized,
         counterpartyId,
@@ -83,6 +76,32 @@ export class CreateClientCommand {
               id: created.id,
               customerId,
             });
+      let shellClient = clientWithCustomer ?? created;
+
+      if (this.counterparties) {
+        if (counterpartyId) {
+          await this.counterparties.syncCustomerOwnedCounterparty({
+            counterpartyId,
+            country: normalized.bankCountry ?? null,
+            customerId,
+            displayName: normalized.orgName,
+            externalId: normalized.inn ?? null,
+          });
+        } else {
+          counterpartyId =
+            await this.counterparties.createCustomerOwnedCounterparty({
+              country: normalized.bankCountry ?? null,
+              customerId,
+              displayName: normalized.orgName,
+              externalId: normalized.inn ?? null,
+            });
+          shellClient =
+            (await tx.clientStore.update({
+              id: created.id,
+              counterpartyId,
+            })) ?? shellClient;
+        }
+      }
 
       // Auto-create contract if contract fields are provided
       if (
@@ -117,7 +136,7 @@ export class CreateClientCommand {
           customerId,
         });
 
-        return withContract ?? clientWithCustomer ?? created;
+        return withContract ?? shellClient;
       }
 
       this.runtime.log.info("Client created", {
@@ -127,7 +146,7 @@ export class CreateClientCommand {
         customerId,
       });
 
-      return clientWithCustomer ?? created;
+      return shellClient;
     });
   }
 }

@@ -41,7 +41,7 @@ export interface CustomerPortalWorkflowDeps {
     customerMemberships: CustomerMembershipsService;
     users: Pick<IamService, "queries">;
   };
-  parties: Pick<PartiesModule, "customers">;
+  parties: Pick<PartiesModule, "counterparties" | "customers">;
   logger: Logger;
   persistence: PersistenceContext;
 }
@@ -74,22 +74,42 @@ type CanonicalCustomer = Awaited<
 type LegacyClient = Awaited<
   ReturnType<OperationsModule["clients"]["queries"]["findById"]>
 >;
+type CanonicalCounterparty = Awaited<
+  ReturnType<PartiesModule["counterparties"]["queries"]["findById"]>
+>;
+type CanonicalCounterpartyListItem = Awaited<
+  ReturnType<PartiesModule["counterparties"]["queries"]["list"]>
+>["data"][number];
 type CustomerMembership = Awaited<
   ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
 >[number];
 
-export interface CustomerPortalCustomerContext {
+export interface CustomerPortalLegalEntity {
   address: string | null;
+  counterpartyId: string;
+  country: string | null;
+  createdAt: string;
+  directorName: string | null;
+  externalId: string | null;
+  fullName: string;
+  hasLegacyShell: boolean;
+  inn: string | null;
+  phone: string | null;
+  relationshipKind: "customer_owned" | "external";
+  shortName: string;
+  updatedAt: string;
+  email: string | null;
+}
+
+export interface CustomerPortalCustomerContext {
   createdAt: string;
   customerId: string;
   description: string | null;
-  directorName: string | null;
   displayName: string;
   externalRef: string | null;
-  inn: string | null;
-  legacyClientId: number | null;
-  legacyProfileStatus: "linked" | "missing";
-  phone: string | null;
+  legalEntities: CustomerPortalLegalEntity[];
+  legalEntityCount: number;
+  primaryCounterpartyId: string | null;
   updatedAt: string;
 }
 
@@ -153,6 +173,51 @@ function canAccessCrm(role: string | null, banned: boolean | null): boolean {
 
 function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function createClientShellFromCounterparty(input: {
+  counterparty: CanonicalCounterparty;
+  customerId: string;
+}): CreateClientInput {
+  return {
+    account: null,
+    address: null,
+    addressI18n: null,
+    agentFee: null,
+    agentOrganizationBankDetailsId: null,
+    agentOrganizationId: null,
+    bankAddress: null,
+    bankAddressI18n: null,
+    bankCountry: input.counterparty.country ?? null,
+    bankName: null,
+    bankNameI18n: null,
+    bic: null,
+    contractDate: null,
+    contractId: null,
+    contractNumber: null,
+    corrAccount: null,
+    counterpartyId: input.counterparty.id,
+    customerId: input.customerId,
+    directorBasis: null,
+    directorBasisI18n: null,
+    directorName: null,
+    directorNameI18n: null,
+    email: null,
+    fixedFee: null,
+    inn: input.counterparty.externalId ?? null,
+    kpp: null,
+    ogrn: null,
+    okpo: null,
+    oktmo: null,
+    orgName: input.counterparty.shortName,
+    orgNameI18n: null,
+    orgType: null,
+    orgTypeI18n: null,
+    phone: null,
+    position: null,
+    positionI18n: null,
+    subAgentId: null,
+  };
 }
 
 export function createCustomerPortalWorkflow(
@@ -221,6 +286,105 @@ export function createCustomerPortalWorkflow(
       status: "active",
       userId: input.userId,
     });
+  }
+
+  async function listCustomerOwnedCounterpartiesByCustomerId(
+    customerIds: string[],
+  ) {
+    const uniqueCustomerIds = Array.from(new Set(customerIds));
+    const rows = await Promise.all(
+      uniqueCustomerIds.map(async (customerId) => {
+        const result = await deps.parties.counterparties.queries.list({
+          customerId,
+          relationshipKind: ["customer_owned"],
+          limit: 200,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+        return [customerId, result.data] as const;
+      }),
+    );
+
+    return new Map<string, CanonicalCounterpartyListItem[]>(rows);
+  }
+
+  async function listActiveShellsByCounterpartyId(counterpartyIds: string[]) {
+    const rows =
+      await deps.operations.clients.queries.listActiveByCounterpartyIds(
+        counterpartyIds,
+      );
+
+    return new Map(
+      rows
+        .filter((row) => Boolean(row.counterpartyId))
+        .map((row) => [row.counterpartyId!, row] as const),
+    );
+  }
+
+  function mapLegalEntity(input: {
+    counterparty: CanonicalCounterpartyListItem;
+    shell?: LegacyClient | null;
+  }): CustomerPortalLegalEntity {
+    const { counterparty, shell } = input;
+
+    return {
+      address: shell?.address ?? null,
+      counterpartyId: counterparty.id,
+      country: counterparty.country ?? null,
+      createdAt: serializeDate(counterparty.createdAt),
+      directorName: shell?.directorName ?? null,
+      email: shell?.email ?? null,
+      externalId: counterparty.externalId,
+      fullName: counterparty.fullName,
+      hasLegacyShell: Boolean(shell),
+      inn: shell?.inn ?? counterparty.externalId ?? null,
+      phone: shell?.phone ?? null,
+      relationshipKind: counterparty.relationshipKind,
+      shortName: counterparty.shortName,
+      updatedAt: serializeDate(counterparty.updatedAt),
+    };
+  }
+
+  async function ensureCustomerOwnedCounterpartyRecord(
+    counterpartyId: string,
+  ): Promise<CanonicalCounterparty> {
+    const counterparty =
+      await deps.parties.counterparties.queries.findById(counterpartyId);
+    if (
+      !counterparty ||
+      !counterparty.customerId ||
+      counterparty.relationshipKind !== "customer_owned"
+    ) {
+      throw new CustomerNotAuthorizedError(
+        `Counterparty ${counterpartyId} is not a customer-owned legal entity`,
+      );
+    }
+
+    return counterparty;
+  }
+
+  async function ensureActiveShellForCounterparty(counterpartyId: string) {
+    const existingShell =
+      await deps.operations.clients.queries.findActiveByCounterpartyId(
+        counterpartyId,
+      );
+    if (existingShell) {
+      return existingShell;
+    }
+
+    const counterparty =
+      await ensureCustomerOwnedCounterpartyRecord(counterpartyId);
+    const customer = await deps.parties.customers.queries.findById(
+      counterparty.customerId!,
+    );
+
+    return deps.operations.clients.commands.create(
+      createClientShellFromCounterparty({
+        counterparty,
+        customerId: customer.id,
+      }),
+    );
   }
 
   async function createBootstrapClient(input: {
@@ -295,28 +459,6 @@ export function createCustomerPortalWorkflow(
     });
   }
 
-  async function getClientsByUserId(userId: string) {
-    const customerIds = await listAuthorizedCustomerIds(userId);
-    if (customerIds.length === 0) {
-      return {
-        data: [],
-        total: 0,
-        limit: 100,
-        offset: 0,
-      };
-    }
-
-    const clients =
-      await deps.operations.clients.queries.listActiveByCustomerIds(customerIds);
-
-    return {
-      data: clients,
-      total: clients.length,
-      limit: 100,
-      offset: 0,
-    };
-  }
-
   async function getCustomerContextsByUserId(
     userId: string,
   ): Promise<CustomerPortalCustomerContext[]> {
@@ -325,33 +467,35 @@ export function createCustomerPortalWorkflow(
       return [];
     }
 
-    const [customers, legacyClients]: [CanonicalCustomer[], LegacyClient[]] =
-      await Promise.all([
-        deps.parties.customers.queries.listByIds(customerIds),
-        deps.operations.clients.queries.listActiveByCustomerIds(customerIds),
-      ]);
-    const legacyClientByCustomerId = new Map<string, LegacyClient>(
-      legacyClients
-        .filter((client) => Boolean(client.customerId))
-        .map((client) => [client.customerId!, client] as const),
+    const customers = await deps.parties.customers.queries.listByIds(customerIds);
+    const counterpartiesByCustomerId =
+      await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
+    const shellMap = await listActiveShellsByCounterpartyId(
+      [...counterpartiesByCustomerId.values()].flat().map(
+        (counterparty) => counterparty.id,
+      ),
     );
 
     return customers
       .map((customer) => {
-        const legacyClient = legacyClientByCustomerId.get(customer.id) ?? null;
+        const legalEntities = (
+          counterpartiesByCustomerId.get(customer.id) ?? []
+        ).map((counterparty) =>
+          mapLegalEntity({
+            counterparty,
+            shell: shellMap.get(counterparty.id) ?? null,
+          }),
+        );
 
         return {
-          address: legacyClient?.address ?? null,
           createdAt: serializeDate(customer.createdAt),
           customerId: customer.id,
           description: customer.description,
-          directorName: legacyClient?.directorName ?? null,
           displayName: customer.displayName,
           externalRef: customer.externalRef,
-          inn: legacyClient?.inn ?? null,
-          legacyClientId: legacyClient?.id ?? null,
-          legacyProfileStatus: legacyClient ? "linked" : "missing",
-          phone: legacyClient?.phone ?? null,
+          legalEntities,
+          legalEntityCount: legalEntities.length,
+          primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
           updatedAt: serializeDate(customer.updatedAt),
         } satisfies CustomerPortalCustomerContext;
       })
@@ -382,6 +526,27 @@ export function createCustomerPortalWorkflow(
         `Client ${clientId} not found or not owned by user ${userId}`,
       );
     }
+  }
+
+  async function assertCounterpartyOwnership(
+    userId: string,
+    counterpartyId: string,
+  ): Promise<CanonicalCounterparty> {
+    const counterparty =
+      await ensureCustomerOwnedCounterpartyRecord(counterpartyId);
+
+    const hasMembership =
+      await deps.iam.customerMemberships.queries.hasMembership({
+        customerId: counterparty.customerId!,
+        userId,
+      });
+    if (!hasMembership) {
+      throw new CustomerNotAuthorizedError(
+        `Counterparty ${counterpartyId} not found or not owned by user ${userId}`,
+      );
+    }
+
+    return counterparty;
   }
 
   async function getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile> {
@@ -464,7 +629,11 @@ export function createCustomerPortalWorkflow(
     getProfile,
 
     async getClients(ctx: CustomerContext) {
-      return getClientsByUserId(ctx.userId);
+      const data = await getCustomerContextsByUserId(ctx.userId);
+      return {
+        data,
+        total: data.length,
+      };
     },
 
     async getCustomerContexts(ctx: CustomerContext) {
@@ -489,7 +658,11 @@ export function createCustomerPortalWorkflow(
         );
       }
 
-      await assertClientOwnership(ctx.userId, application.clientId);
+      if (application.counterpartyId) {
+        await assertCounterpartyOwnership(ctx.userId, application.counterpartyId);
+      } else {
+        await assertClientOwnership(ctx.userId, application.clientId);
+      }
       const calculations = await deps.operations.calculations.queries.list({
         applicationId,
         limit: 50,
@@ -507,15 +680,16 @@ export function createCustomerPortalWorkflow(
     async createApplication(
       ctx: CustomerContext,
       input: {
-        clientId: number;
+        counterpartyId: string;
         requestedAmount?: string;
         requestedCurrency?: string;
       },
     ) {
-      await assertClientOwnership(ctx.userId, input.clientId);
+      await assertCounterpartyOwnership(ctx.userId, input.counterpartyId);
+      await ensureActiveShellForCounterparty(input.counterpartyId);
 
       const result = await deps.operations.applications.commands.create({
-        clientId: input.clientId,
+        counterpartyId: input.counterpartyId,
         source: "web",
         requestedAmount: input.requestedAmount,
         requestedCurrency: input.requestedCurrency,
@@ -524,7 +698,7 @@ export function createCustomerPortalWorkflow(
 
       deps.logger.info("Customer created application", {
         userId: ctx.userId,
-        clientId: input.clientId,
+        counterpartyId: input.counterpartyId,
         applicationId: result.id,
       });
 
@@ -535,23 +709,24 @@ export function createCustomerPortalWorkflow(
       ctx: CustomerContext,
       input?: { limit?: number; offset?: number },
     ) {
-      const clientsResult = await getClientsByUserId(ctx.userId);
-      const clientIds = clientsResult.data.map((client: LegacyClient) => client.id);
+      const customerIds = await listAuthorizedCustomerIds(ctx.userId);
+      const counterpartiesByCustomerId =
+        await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
+      const counterpartyIds = [...counterpartiesByCustomerId.values()]
+        .flat()
+        .map((counterparty) => counterparty.id);
 
-      if (clientIds.length === 0) {
+      if (counterpartyIds.length === 0) {
         return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
       }
 
-      // Fetch applications for all customer's clients
-      // Uses clientId filter — currently supports single clientId,
-      // so we fetch per-client and merge
       const allApps: Awaited<
         ReturnType<OperationsModule["applications"]["queries"]["list"]>
       >["data"] = [];
       let totalCount = 0;
-      for (const clientId of clientIds) {
+      for (const counterpartyId of counterpartyIds) {
         const result = await deps.operations.applications.queries.list({
-          clientId,
+          counterpartyId,
           limit: 200,
           offset: 0,
           sortBy: "createdAt",
@@ -593,7 +768,11 @@ export function createCustomerPortalWorkflow(
           `Application ${applicationId} not found`,
         );
       }
-      await assertClientOwnership(ctx.userId, app.clientId);
+      if (app.counterpartyId) {
+        await assertCounterpartyOwnership(ctx.userId, app.counterpartyId);
+      } else {
+        await assertClientOwnership(ctx.userId, app.clientId);
+      }
 
       return deps.operations.calculations.queries.list({
         applicationId,
@@ -608,10 +787,14 @@ export function createCustomerPortalWorkflow(
       ctx: CustomerContext,
       input?: { limit?: number; offset?: number },
     ) {
-      const clientsResult = await getClientsByUserId(ctx.userId);
-      const clientIds = clientsResult.data.map((client: LegacyClient) => client.id);
+      const customerIds = await listAuthorizedCustomerIds(ctx.userId);
+      const counterpartiesByCustomerId =
+        await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
+      const counterpartyIds = [...counterpartiesByCustomerId.values()]
+        .flat()
+        .map((counterparty) => counterparty.id);
 
-      if (clientIds.length === 0) {
+      if (counterpartyIds.length === 0) {
         return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
       }
 
@@ -619,9 +802,9 @@ export function createCustomerPortalWorkflow(
         ReturnType<OperationsModule["deals"]["queries"]["list"]>
       >["data"] = [];
       let totalCount = 0;
-      for (const clientId of clientIds) {
+      for (const counterpartyId of counterpartyIds) {
         const result = await deps.operations.deals.queries.list({
-          clientId,
+          counterpartyId,
           limit: 200,
           offset: 0,
           sortBy: "createdAt",
@@ -656,7 +839,12 @@ export function createCustomerPortalWorkflow(
       if (!detail) {
         throw new CustomerNotAuthorizedError(`Deal ${dealId} not found`);
       }
-      if (detail.client) {
+      if (detail.application.counterpartyId) {
+        await assertCounterpartyOwnership(
+          ctx.userId,
+          detail.application.counterpartyId,
+        );
+      } else if (detail.client) {
         await assertClientOwnership(ctx.userId, detail.client.id);
       }
       return detail;

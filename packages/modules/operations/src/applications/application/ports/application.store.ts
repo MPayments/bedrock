@@ -6,6 +6,7 @@ export interface ApplicationStore {
   create(input: {
     agentId: string | null;
     clientId: number;
+    counterpartyId: string | null;
     status: ApplicationStatus;
     requestedAmount?: string;
     requestedCurrency?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -33,7 +33,11 @@ import {
 } from "@bedrock/sdk-ui/components/dialog";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@bedrock/sdk-ui/components/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@bedrock/sdk-ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -44,16 +48,28 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+interface CustomerLegalEntity {
+  counterpartyId: string;
+  hasLegacyShell: boolean;
+  inn: string | null;
+  shortName: string;
+}
+
 interface CustomerContext {
   customerId: string;
   displayName: string;
-  legacyClientId: number | null;
-  legacyProfileStatus: "linked" | "missing";
+  legalEntities: CustomerLegalEntity[];
+  primaryCounterpartyId: string | null;
 }
 
 interface CustomerClientsResponse {
   data: CustomerContext[];
   total: number;
+}
+
+interface LegalEntityOption extends CustomerLegalEntity {
+  customerDisplayName: string;
+  customerId: string;
 }
 
 interface NewApplicationDialogProps {
@@ -79,12 +95,31 @@ export function NewApplicationDialog({
   const [customers, setCustomers] = useState<CustomerContext[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientsOpen, setClientsOpen] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
+    string | undefined
+  >(undefined);
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const legalEntities = useMemo<LegalEntityOption[]>(
+    () =>
+      customers.flatMap((customer) =>
+        customer.legalEntities.map((legalEntity) => ({
+          ...legalEntity,
+          customerDisplayName: customer.displayName,
+          customerId: customer.customerId,
+        })),
+      ),
+    [customers],
+  );
+
+  const selectedLegalEntity =
+    legalEntities.find(
+      (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
+    ) ?? null;
 
   useEffect(() => {
     if (open && customers.length === 0) {
@@ -93,17 +128,26 @@ export function NewApplicationDialog({
   }, [customers.length, open]);
 
   useEffect(() => {
-    if (!open || selectedCustomerId || customers.length === 0) {
+    if (!open || selectedCounterpartyId || legalEntities.length === 0) {
       return;
     }
 
-    const firstLinkedCustomer = customers.find(
-      (customer) => customer.legacyClientId != null,
-    );
-    if (firstLinkedCustomer) {
-      setSelectedCustomerId(firstLinkedCustomer.customerId);
+    const preferredCounterparty =
+      customers
+        .flatMap((customer) =>
+          customer.legalEntities.map((legalEntity) => ({
+            counterpartyId: legalEntity.counterpartyId,
+            preferred:
+              customer.primaryCounterpartyId === legalEntity.counterpartyId,
+          })),
+        )
+        .find((item) => item.preferred)?.counterpartyId ??
+      legalEntities[0]?.counterpartyId;
+
+    if (preferredCounterparty) {
+      setSelectedCounterpartyId(preferredCounterparty);
     }
-  }, [customers, open, selectedCustomerId]);
+  }, [customers, legalEntities, open, selectedCounterpartyId]);
 
   async function fetchClients() {
     try {
@@ -118,15 +162,6 @@ export function NewApplicationDialog({
 
       const data: CustomerClientsResponse = await response.json();
       setCustomers(data.data ?? []);
-
-      const firstLinkedCustomer = data.data.find(
-        (customer) => customer.legacyClientId != null,
-      );
-      if (data.total === 1 && data.data[0]?.legacyClientId != null) {
-        setSelectedCustomerId(data.data[0].customerId);
-      } else if (firstLinkedCustomer) {
-        setSelectedCustomerId(firstLinkedCustomer.customerId);
-      }
     } catch (fetchError) {
       console.error("Error fetching clients:", fetchError);
       setError("Не удалось загрузить организации");
@@ -136,19 +171,8 @@ export function NewApplicationDialog({
   }
 
   async function handleCreate() {
-    const selectedCustomer = customers.find(
-      (customer) => customer.customerId === selectedCustomerId,
-    );
-    const selectedClientId = selectedCustomer?.legacyClientId ?? null;
-
-    if (!selectedCustomerId) {
-      setError("Выберите организацию");
-      return;
-    }
-    if (!selectedClientId) {
-      setError(
-        "Для выбранной организации legacy-профиль ещё не создан. Создание заявок пока недоступно.",
-      );
+    if (!selectedCounterpartyId) {
+      setError("Выберите юридическое лицо");
       return;
     }
 
@@ -163,7 +187,7 @@ export function NewApplicationDialog({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          clientId: selectedClientId,
+          counterpartyId: selectedCounterpartyId,
           requestedAmount: amount || undefined,
           requestedCurrency: currency,
         }),
@@ -191,15 +215,15 @@ export function NewApplicationDialog({
   }
 
   function resetState() {
-      setError(null);
-      setAmount("");
-      setCurrency("USD");
-      setSelectedCustomerId(undefined);
-      setShowCloseConfirm(false);
+    setError(null);
+    setAmount("");
+    setCurrency("USD");
+    setSelectedCounterpartyId(undefined);
+    setShowCloseConfirm(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && (amount || selectedCustomerId)) {
+    if (!nextOpen && (amount || selectedCounterpartyId)) {
       setShowCloseConfirm(true);
       return;
     }
@@ -216,13 +240,13 @@ export function NewApplicationDialog({
           <DialogHeader>
             <DialogTitle>Новая заявка</DialogTitle>
             <DialogDescription>
-              Создайте заявку по одной из ваших организаций.
+              Создайте заявку по одному из ваших юридических лиц.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Организация</Label>
+              <Label>Юридическое лицо</Label>
               <Popover open={clientsOpen} onOpenChange={setClientsOpen}>
                 <PopoverTrigger
                   render={
@@ -233,41 +257,50 @@ export function NewApplicationDialog({
                     />
                   }
                 >
-                  {selectedCustomerId
-                    ? customers.find(
-                        (customer) => customer.customerId === selectedCustomerId,
-                      )?.displayName
-                    : "Выберите организацию"}
+                  {selectedLegalEntity
+                    ? `${selectedLegalEntity.customerDisplayName} / ${selectedLegalEntity.shortName}`
+                    : "Выберите юридическое лицо"}
                   <ChevronsUpDown className="h-4 w-4 opacity-50" />
                 </PopoverTrigger>
-                <PopoverContent className="w-[320px] p-0">
+                <PopoverContent className="w-[360px] p-0">
                   <Command>
-                    <CommandInput placeholder="Поиск организации..." />
+                    <CommandInput placeholder="Поиск юридического лица..." />
                     <CommandList>
-                      <CommandEmpty>Организации не найдены</CommandEmpty>
+                      <CommandEmpty>Юридические лица не найдены</CommandEmpty>
                       <CommandGroup>
-                        {customers.map((customer) => (
+                        {legalEntities.map((legalEntity) => (
                           <CommandItem
-                            key={customer.customerId}
-                            value={customer.displayName}
+                            key={legalEntity.counterpartyId}
+                            value={`${legalEntity.customerDisplayName} ${legalEntity.shortName}`}
                             onSelect={() => {
-                              setSelectedCustomerId(customer.customerId);
+                              setSelectedCounterpartyId(
+                                legalEntity.counterpartyId,
+                              );
                               setClientsOpen(false);
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedCustomerId === customer.customerId
+                                selectedCounterpartyId ===
+                                  legalEntity.counterpartyId
                                   ? "opacity-100"
                                   : "opacity-0",
                               )}
                             />
                             <div className="flex flex-col gap-0.5">
-                              <span>{customer.displayName}</span>
-                              {customer.legacyProfileStatus === "missing" ? (
+                              <span>{legalEntity.shortName}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {legalEntity.customerDisplayName}
+                              </span>
+                              {legalEntity.inn ? (
+                                <span className="text-xs text-muted-foreground">
+                                  ИНН: {legalEntity.inn}
+                                </span>
+                              ) : null}
+                              {!legalEntity.hasLegacyShell ? (
                                 <span className="text-xs text-amber-600">
-                                  legacy-профиль ещё не создан
+                                  shell будет создан автоматически
                                 </span>
                               ) : null}
                             </div>
@@ -281,17 +314,13 @@ export function NewApplicationDialog({
               {loadingClients ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Загрузка организаций...
+                  Загрузка юридических лиц...
                 </div>
               ) : null}
-              {!loadingClients &&
-              selectedCustomerId &&
-              customers.find(
-                (customer) => customer.customerId === selectedCustomerId,
-              )?.legacyClientId == null ? (
+              {!loadingClients && selectedLegalEntity && !selectedLegalEntity.hasLegacyShell ? (
                 <p className="text-sm text-amber-600">
-                  Для выбранной организации legacy-профиль ещё не создан.
-                  Создание заявок пока недоступно.
+                  Для выбранного юридического лица execution-shell будет
+                  создан автоматически при создании заявки.
                 </p>
               ) : null}
             </div>
@@ -326,9 +355,7 @@ export function NewApplicationDialog({
               </Select>
             </div>
 
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
 
           <DialogFooter>

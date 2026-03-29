@@ -10,6 +10,7 @@ const ORGANIZATIONS_SORTABLE_COLUMNS = [
   "fullName",
   "country",
   "kind",
+  "isActive",
   "createdAt",
   "updatedAt",
 ] as const;
@@ -19,6 +20,7 @@ interface OrganizationsListFilters {
   fullName: { kind: "string"; cardinality: "single" };
   country: { kind: "string"; cardinality: "multi" };
   kind: { kind: "string"; cardinality: "multi" };
+  isActive: { kind: "boolean"; cardinality: "single" };
 }
 
 export const ORGANIZATIONS_LIST_CONTRACT: ListQueryContract<
@@ -32,6 +34,7 @@ export const ORGANIZATIONS_LIST_CONTRACT: ListQueryContract<
     fullName: { kind: "string", cardinality: "single" },
     country: { kind: "string", cardinality: "multi" },
     kind: { kind: "string", cardinality: "multi" },
+    isActive: { kind: "boolean", cardinality: "single" },
   },
 };
 

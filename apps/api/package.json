@@ -5,12 +5,12 @@
   "type": "module",
   "exports": {
     "./types": {
-      "types": "./dist/types.d.ts",
+      "types": "./src/types.ts",
       "default": "./dist/types.js"
     }
   },
   "scripts": {
-    "build": "tsgo --project tsconfig.json",
+    "build": "node ./build.mjs",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "check-types": "tsgo --noEmit --project tsconfig.json",

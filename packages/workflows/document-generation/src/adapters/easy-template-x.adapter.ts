@@ -15,14 +15,14 @@ export interface EasyTemplateXAdapterConfig {
 export function createEasyTemplateXAdapter(
   config: EasyTemplateXAdapterConfig,
 ): TemplateRendererPort & {
-  parseTags(templateType: string, organizationId?: number): Promise<string[]>;
-  listTemplates(organizationId?: number): Promise<string[]>;
+  parseTags(templateType: string, organizationId?: string): Promise<string[]>;
+  listTemplates(organizationId?: string): Promise<string[]>;
 } {
   const { templatesDir, objectStorage, logger } = config;
 
   async function getTemplateBuffer(
     templateName: string,
-    organizationId?: number,
+    organizationId?: string,
   ): Promise<Buffer> {
     if (organizationId != null && objectStorage) {
       try {
@@ -52,7 +52,7 @@ export function createEasyTemplateXAdapter(
       templateType: string,
       data: Record<string, unknown>,
       _locale: string,
-      organizationId?: number,
+      organizationId?: string,
     ): Promise<Buffer> {
       const templateName = templateType.endsWith(".docx")
         ? templateType
@@ -71,7 +71,7 @@ export function createEasyTemplateXAdapter(
 
     async parseTags(
       templateType: string,
-      organizationId?: number,
+      organizationId?: string,
     ): Promise<string[]> {
       const templateName = templateType.endsWith(".docx")
         ? templateType
@@ -95,7 +95,7 @@ export function createEasyTemplateXAdapter(
       return [...new Set(names)];
     },
 
-    async listTemplates(organizationId?: number): Promise<string[]> {
+    async listTemplates(organizationId?: string): Promise<string[]> {
       const localFiles = fs.existsSync(templatesDir)
         ? (await fs.promises.readdir(templatesDir)).filter((f) =>
             f.endsWith(".docx"),

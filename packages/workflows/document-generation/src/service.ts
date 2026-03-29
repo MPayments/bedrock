@@ -22,7 +22,7 @@ export interface TemplateRendererPort {
     templateType: string,
     data: Record<string, unknown>,
     locale: string,
-    organizationId?: number,
+    organizationId?: string,
   ): Promise<Buffer>;
 }
 
@@ -31,8 +31,8 @@ export interface PdfConverterPort {
 }
 
 export interface TemplateManagerPort {
-  parseTags(templateType: string, organizationId?: number): Promise<string[]>;
-  listTemplates(organizationId?: number): Promise<string[]>;
+  parseTags(templateType: string, organizationId?: string): Promise<string[]>;
+  listTemplates(organizationId?: string): Promise<string[]>;
 }
 
 export interface DocumentGenerationWorkflowDeps {
@@ -57,7 +57,7 @@ export function createDocumentGenerationWorkflow(
     data: Record<string, unknown>,
     locale: string,
     format: DocumentFormat,
-    organizationId?: number,
+    organizationId?: string,
   ): Promise<{ buffer: Buffer; mimeType: string }> {
     const docxBuffer = await deps.templateRenderer.renderDocx(
       templateType,
@@ -74,13 +74,31 @@ export function createDocumentGenerationWorkflow(
     return { buffer: docxBuffer, mimeType: MIME_TYPES.docx! };
   }
 
-  async function fetchOrgFiles(organizationId: number): Promise<OrgFiles> {
+  async function fetchOrgFiles(
+    organization: Record<string, unknown>,
+  ): Promise<OrgFiles> {
     if (!deps.objectStorage) {
       throw new Error("Object storage not configured");
     }
 
-    const signatureKey: string = `organizations/${organizationId}/signature.png`;
-    const sealKey: string = `organizations/${organizationId}/seal.png`;
+    const organizationId =
+      typeof organization.id === "string" ? organization.id : null;
+    const signatureKey =
+      typeof organization.signatureKey === "string"
+        ? organization.signatureKey
+        : organizationId
+          ? `organizations/${organizationId}/signature.png`
+          : null;
+    const sealKey =
+      typeof organization.sealKey === "string"
+        ? organization.sealKey
+        : organizationId
+          ? `organizations/${organizationId}/seal.png`
+          : null;
+
+    if (!signatureKey || !sealKey) {
+      throw new Error("Organization files are not configured");
+    }
 
     const [signatureBuffer, sealBuffer] = await Promise.all([
       deps.objectStorage.download(signatureKey),
@@ -126,7 +144,7 @@ export function createDocumentGenerationWorkflow(
     }): Promise<GeneratedDocument> {
       const format = input.format ?? "docx";
       const lang = input.lang ?? "ru";
-      const orgFiles = await fetchOrgFiles(input.organization.id as number);
+      const orgFiles = await fetchOrgFiles(input.organization);
 
       const data = assembleClientContractData(
         input.client,
@@ -142,7 +160,9 @@ export function createDocumentGenerationWorkflow(
         data,
         lang,
         format,
-        input.organization.id as number,
+        typeof input.organization.id === "string"
+          ? input.organization.id
+          : undefined,
       );
 
       const ext = format === "pdf" ? "pdf" : "docx";
@@ -166,7 +186,7 @@ export function createDocumentGenerationWorkflow(
       const format = input.format ?? "docx";
       const lang = input.lang ?? "ru";
       const date = input.date ?? new Date();
-      const orgFiles = await fetchOrgFiles(input.organization.id as number);
+      const orgFiles = await fetchOrgFiles(input.organization);
 
       const assemblers = {
         application: assembleApplicationData,
@@ -191,7 +211,9 @@ export function createDocumentGenerationWorkflow(
         data,
         lang,
         format,
-        input.organization.id as number,
+        typeof input.organization.id === "string"
+          ? input.organization.id
+          : undefined,
       );
 
       const ext = format === "pdf" ? "pdf" : "docx";
@@ -204,7 +226,7 @@ export function createDocumentGenerationWorkflow(
       calculationData: Record<string, unknown>;
       format?: DocumentFormat;
       lang?: DocumentLang;
-      organizationId?: number;
+      organizationId?: string;
     }): Promise<GeneratedDocument> {
       const format = input.format ?? "pdf";
       const lang = input.lang ?? "ru";
@@ -229,14 +251,16 @@ export function createDocumentGenerationWorkflow(
       templateName: string;
       data: Record<string, string>;
       format?: DocumentFormat;
-      organizationId?: number;
+      organizationId?: string;
     }): Promise<GeneratedDocument> {
       const format = input.format ?? "docx";
       const mergedData: Record<string, unknown> = { ...input.data };
 
       if (input.organizationId && deps.objectStorage) {
         try {
-          const orgFiles = await fetchOrgFiles(input.organizationId);
+          const orgFiles = await fetchOrgFiles({
+            id: input.organizationId,
+          });
           mergedData.signature = orgFiles.signature;
           mergedData.stamp = orgFiles.stamp;
         } catch {
@@ -262,14 +286,14 @@ export function createDocumentGenerationWorkflow(
       return { fileName, mimeType, buffer };
     },
 
-    async listTemplates(organizationId?: number): Promise<string[]> {
+    async listTemplates(organizationId?: string): Promise<string[]> {
       if (!deps.templateManager) return [];
       return deps.templateManager.listTemplates(organizationId);
     },
 
     async getTemplateFields(
       templateName: string,
-      organizationId?: number,
+      organizationId?: string,
     ): Promise<string[]> {
       if (!deps.templateManager) return [];
       return deps.templateManager.parseTags(templateName, organizationId);

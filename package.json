@@ -48,7 +48,7 @@
   "devDependencies": {
     "@types/node": "^25.3.0",
     "@types/pg": "^8.16.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260315.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260329.1",
     "@vitest/coverage-v8": "^4.0.18",
     "dependency-cruiser": "^17.3.9",
     "eslint": "^9.31.0",

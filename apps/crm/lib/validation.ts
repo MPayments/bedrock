@@ -141,7 +141,7 @@ export const createClientSchema = clientSchema.extend({
   contractDate: z.string().optional(),
   agentFee: z.string().optional(),
   fixedFee: z.string().optional(),
-  agentOrganizationId: z.number().optional(),
+  organizationId: z.string().uuid().optional(),
   agentOrganizationBankDetailsId: z.number().optional(),
 });
 
@@ -333,10 +333,7 @@ const fixedFeeSchema = z
   );
 
 export const contractSchema = z.object({
-  agentOrganizationId: z
-    .number({ error: "Организация обязательна" })
-    .int()
-    .positive(),
+  organizationId: z.string().uuid("Организация обязательна"),
   agentOrganizationBankDetailsId: z
     .number({ error: "Банк обязателен" })
     .int()

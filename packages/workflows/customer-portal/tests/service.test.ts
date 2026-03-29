@@ -3,7 +3,28 @@ import { describe, expect, it, vi } from "vitest";
 import { createCustomerPortalWorkflow } from "../src";
 
 function createWorkflow(overrides?: {
-  clients?: { data: Array<{ id: number; customerId: string | null; isDeleted: boolean }> };
+  clients?: {
+    data: Array<{
+      counterpartyId: string | null;
+      customerId: string | null;
+      id: number;
+      isDeleted: boolean;
+    }>;
+  };
+  counterpartiesByCustomerId?: Record<
+    string,
+    Array<{
+      country?: string | null;
+      createdAt?: Date;
+      customerId: string;
+      externalId?: string | null;
+      fullName?: string;
+      id: string;
+      relationshipKind?: "customer_owned" | "external";
+      shortName?: string;
+      updatedAt?: Date;
+    }>
+  >;
   memberships?: Array<{
     customerId: string;
     id?: string;
@@ -28,11 +49,31 @@ function createWorkflow(overrides?: {
   ];
   const clientListResult = {
     data: overrides?.clients?.data ?? [
-      { id: 101, customerId: "customer-1", isDeleted: false },
+      {
+        counterpartyId: "counterparty-1",
+        customerId: "customer-1",
+        id: 101,
+        isDeleted: false,
+      },
     ],
     total: overrides?.clients?.data?.length ?? 1,
     limit: 100,
     offset: 0,
+  };
+  const counterpartiesByCustomerId = overrides?.counterpartiesByCustomerId ?? {
+    "customer-1": [
+      {
+        country: "RU",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        customerId: "customer-1",
+        externalId: "7700000000",
+        fullName: "Customer counterparty",
+        id: "counterparty-1",
+        relationshipKind: "customer_owned",
+        shortName: "Customer counterparty",
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ],
   };
   const operations = {
     applications: {
@@ -62,22 +103,26 @@ function createWorkflow(overrides?: {
     clients: {
       commands: {
         create: vi.fn(async () => ({
+          counterpartyId: "counterparty-202",
           id: 202,
           customerId: overrides?.customerId ?? "customer-1",
         })),
       },
       queries: {
-        findActiveByCustomerId: vi.fn(async (customerId: string) =>
-          clientListResult.data.find((client) => client.customerId === customerId) ?? null,
+        findActiveByCounterpartyId: vi.fn(async (counterpartyId: string) =>
+          clientListResult.data.find(
+            (client) => client.counterpartyId === counterpartyId,
+          ) ?? null,
         ),
         findById: vi.fn(async (id: number) =>
           clientListResult.data.find((client) => client.id === id) ?? null,
         ),
         list: vi.fn(async () => clientListResult),
-        listActiveByCustomerIds: vi.fn(async (customerIds: string[]) =>
+        listActiveByCounterpartyIds: vi.fn(async (counterpartyIds: string[]) =>
           clientListResult.data.filter(
             (client) =>
-              client.customerId !== null && customerIds.includes(client.customerId),
+              client.counterpartyId !== null &&
+              counterpartyIds.includes(client.counterpartyId),
           ),
         ),
       },
@@ -123,6 +168,57 @@ function createWorkflow(overrides?: {
     },
   };
   const parties = {
+    counterparties: {
+      queries: {
+        findById: vi.fn(async (counterpartyId: string) => {
+          for (const items of Object.values(counterpartiesByCustomerId)) {
+            const match = items.find((item) => item.id === counterpartyId);
+            if (match) {
+              return {
+                country: match.country ?? null,
+                createdAt:
+                  match.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
+                customerId: match.customerId,
+                description: null,
+                externalId: match.externalId ?? null,
+                fullName: match.fullName ?? match.shortName ?? counterpartyId,
+                id: match.id,
+                kind: "legal_entity",
+                relationshipKind: match.relationshipKind ?? "customer_owned",
+                shortName: match.shortName ?? match.fullName ?? counterpartyId,
+                updatedAt:
+                  match.updatedAt ?? new Date("2026-01-01T00:00:00.000Z"),
+              };
+            }
+          }
+
+          return null;
+        }),
+        list: vi.fn(async ({ customerId }: { customerId?: string }) => ({
+          data:
+            customerId && counterpartiesByCustomerId[customerId]
+              ? counterpartiesByCustomerId[customerId].map((item) => ({
+                  country: item.country ?? null,
+                  createdAt:
+                    item.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
+                  customerId: item.customerId,
+                  description: null,
+                  externalId: item.externalId ?? null,
+                  fullName: item.fullName ?? item.shortName ?? item.id,
+                  id: item.id,
+                  kind: "legal_entity",
+                  relationshipKind: item.relationshipKind ?? "customer_owned",
+                  shortName: item.shortName ?? item.fullName ?? item.id,
+                  updatedAt:
+                    item.updatedAt ?? new Date("2026-01-01T00:00:00.000Z"),
+                }))
+              : [],
+          limit: 200,
+          offset: 0,
+          total: customerId ? (counterpartiesByCustomerId[customerId]?.length ?? 0) : 0,
+        })),
+      },
+    },
     customers: {
       queries: {
         findById: vi.fn(async (customerId: string) => ({
@@ -167,8 +263,40 @@ function createWorkflow(overrides?: {
 }
 
 describe("customer portal workflow", () => {
-  it("derives accessible clients from memberships instead of legacy user ids", async () => {
+  it("derives accessible customer contexts from memberships", async () => {
     const { operations, workflow } = createWorkflow({
+      clients: {
+        data: [
+          {
+            counterpartyId: "counterparty-1",
+            customerId: "customer-1",
+            id: 101,
+            isDeleted: false,
+          },
+          {
+            counterpartyId: "counterparty-2",
+            customerId: "customer-2",
+            id: 102,
+            isDeleted: false,
+          },
+        ],
+      },
+      counterpartiesByCustomerId: {
+        "customer-1": [
+          {
+            customerId: "customer-1",
+            id: "counterparty-1",
+            shortName: "Entity 1",
+          },
+        ],
+        "customer-2": [
+          {
+            customerId: "customer-2",
+            id: "counterparty-2",
+            shortName: "Entity 2",
+          },
+        ],
+      },
       memberships: [
         {
           customerId: "customer-1",
@@ -189,10 +317,9 @@ describe("customer portal workflow", () => {
 
     await workflow.getClients({ userId: "user-1" });
 
-    expect(operations.clients.queries.listActiveByCustomerIds).toHaveBeenCalledWith([
-      "customer-1",
-      "customer-2",
-    ]);
+    expect(
+      operations.clients.queries.listActiveByCounterpartyIds,
+    ).toHaveBeenCalledWith(["counterparty-1", "counterparty-2"]);
   });
 
   it("reports membership-backed portal access in the profile", async () => {
@@ -242,7 +369,7 @@ describe("customer portal workflow", () => {
     });
   });
 
-  it("returns canonical customer contexts with legacy shell pointers", async () => {
+  it("returns canonical customer contexts with legal entities", async () => {
     const { workflow } = createWorkflow({
       memberships: [
         {
@@ -261,7 +388,32 @@ describe("customer portal workflow", () => {
         },
       ],
       clients: {
-        data: [{ id: 101, customerId: "customer-1", isDeleted: false }],
+        data: [
+          {
+            counterpartyId: "counterparty-1",
+            customerId: "customer-1",
+            id: 101,
+            isDeleted: false,
+          },
+        ],
+      },
+      counterpartiesByCustomerId: {
+        "customer-1": [
+          {
+            customerId: "customer-1",
+            externalId: "7700000000",
+            id: "counterparty-1",
+            shortName: "Acme RU",
+          },
+        ],
+        "customer-2": [
+          {
+            customerId: "customer-2",
+            externalId: "8800000000",
+            id: "counterparty-2",
+            shortName: "Acme EU",
+          },
+        ],
       },
     });
 
@@ -272,14 +424,28 @@ describe("customer portal workflow", () => {
         expect.objectContaining({
           customerId: "customer-1",
           displayName: "Customer customer-1",
-          legacyClientId: 101,
-          legacyProfileStatus: "linked",
+          legalEntities: [
+            expect.objectContaining({
+              counterpartyId: "counterparty-1",
+              hasLegacyShell: true,
+              shortName: "Acme RU",
+            }),
+          ],
+          legalEntityCount: 1,
+          primaryCounterpartyId: "counterparty-1",
         }),
         expect.objectContaining({
           customerId: "customer-2",
           displayName: "Customer customer-2",
-          legacyClientId: null,
-          legacyProfileStatus: "missing",
+          legalEntities: [
+            expect.objectContaining({
+              counterpartyId: "counterparty-2",
+              hasLegacyShell: false,
+              shortName: "Acme EU",
+            }),
+          ],
+          legalEntityCount: 1,
+          primaryCounterpartyId: "counterparty-2",
         }),
       ],
       total: 2,
@@ -289,7 +455,14 @@ describe("customer portal workflow", () => {
   it("rejects access when the client customer is not in the user's memberships", async () => {
     const { workflow } = createWorkflow({
       clients: {
-        data: [{ id: 101, customerId: "customer-2", isDeleted: false }],
+        data: [
+          {
+            counterpartyId: "counterparty-2",
+            customerId: "customer-2",
+            id: 101,
+            isDeleted: false,
+          },
+        ],
       },
       memberships: [
         {

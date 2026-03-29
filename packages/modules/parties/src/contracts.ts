@@ -16,6 +16,11 @@ export {
   type ListCustomersQuery,
 } from "./customers/application/contracts/queries";
 export {
+  COUNTERPARTY_RELATIONSHIP_KIND_VALUES,
+  CounterpartyRelationshipKindSchema,
+  type CounterpartyRelationshipKind,
+} from "./counterparties/domain/relationship-kind";
+export {
   CreateCounterpartyInputSchema,
   UpdateCounterpartyInputSchema,
   type CreateCounterpartyInput,

@@ -4,6 +4,7 @@ import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
+import { CounterpartyRelationshipKindSchema } from "../../domain/relationship-kind";
 
 function trimToNull(value: string | null | undefined): string | null {
   if (value === null || value === undefined) {
@@ -18,6 +19,7 @@ export const CreateCounterpartyInputSchema = z.object({
   shortName: z.string().trim().min(1, "shortName is required"),
   fullName: z.string().trim().min(1, "fullName is required"),
   kind: PartyKindSchema.default("legal_entity"),
+  relationshipKind: CounterpartyRelationshipKindSchema.default("external"),
   country: CountryCodeSchema.nullish().transform((value) => value ?? null),
   externalId: z
     .string()
@@ -44,6 +46,7 @@ export const UpdateCounterpartyInputSchema = z.object({
   shortName: z.string().trim().min(1).exactOptional(),
   fullName: z.string().trim().min(1).exactOptional(),
   kind: PartyKindSchema.exactOptional(),
+  relationshipKind: CounterpartyRelationshipKindSchema.exactOptional(),
   country: CountryCodeSchema.nullable().exactOptional(),
   externalId: z
     .string()

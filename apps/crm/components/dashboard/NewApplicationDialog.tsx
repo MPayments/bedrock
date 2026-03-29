@@ -37,7 +37,9 @@ export function NewApplicationDialog({
   onSuccess,
 }: NewApplicationDialogProps) {
   const router = useRouter();
-  const [selectedClientId, setSelectedClientId] = useState<number | undefined>(
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
+    string | undefined
+  >(
     undefined
   );
   const [creating, setCreating] = useState(false);
@@ -47,7 +49,7 @@ export function NewApplicationDialog({
 
   // Проверка, заполнена ли форма
   const isFormDirty = () => {
-    return selectedClientId !== undefined;
+    return selectedCounterpartyId !== undefined;
   };
 
   // Обработка закрытия с предупреждением
@@ -60,7 +62,7 @@ export function NewApplicationDialog({
     onOpenChange(newOpen);
     // Сброс состояния при закрытии
     if (!newOpen) {
-      setSelectedClientId(undefined);
+      setSelectedCounterpartyId(undefined);
       setError(null);
     }
   };
@@ -69,13 +71,13 @@ export function NewApplicationDialog({
     setShowCloseConfirm(false);
     setPendingClose(false);
     onOpenChange(false);
-    setSelectedClientId(undefined);
+    setSelectedCounterpartyId(undefined);
     setError(null);
   };
 
   const handleCreate = async () => {
-    if (!selectedClientId) {
-      setError("Пожалуйста, выберите клиента");
+    if (!selectedCounterpartyId) {
+      setError("Пожалуйста, выберите юридическое лицо");
       return;
     }
 
@@ -87,7 +89,7 @@ export function NewApplicationDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ clientId: selectedClientId }),
+        body: JSON.stringify({ counterpartyId: selectedCounterpartyId }),
       });
 
       if (!res.ok) {
@@ -106,7 +108,7 @@ export function NewApplicationDialog({
       router.push(`/applications/${applicationId}`);
 
       // Сброс формы
-      setSelectedClientId(undefined);
+      setSelectedCounterpartyId(undefined);
     } catch (err) {
       console.error("Create application error:", err);
       setError(err instanceof Error ? err.message : "Ошибка создания заявки");
@@ -116,7 +118,7 @@ export function NewApplicationDialog({
   };
 
   const canCreate = () => {
-    return selectedClientId !== undefined && !creating;
+    return selectedCounterpartyId !== undefined && !creating;
   };
 
   return (
@@ -126,24 +128,29 @@ export function NewApplicationDialog({
           <DialogHeader>
             <DialogTitle>Новая заявка</DialogTitle>
             <DialogDescription>
-              Выберите клиента для создания новой заявки.
+              Выберите юридическое лицо для создания новой заявки.
             </DialogDescription>
           </DialogHeader>
 
           <div className="w-full min-w-0 py-4 space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Клиент <span className="text-red-500">*</span>
+                Юридическое лицо <span className="text-red-500">*</span>
               </label>
               <ClientCombobox
-                value={selectedClientId}
-                onValueChange={setSelectedClientId}
-                placeholder="Выберите клиента..."
+                value={selectedCounterpartyId}
+                onValueChange={(value) =>
+                  setSelectedCounterpartyId(
+                    typeof value === "string" ? value : undefined,
+                  )
+                }
+                placeholder="Выберите юридическое лицо..."
                 className="w-full"
+                valueField="counterpartyId"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Выберите клиента из списка или начните вводить название
-                организации
+                Выберите юридическое лицо из списка или начните вводить
+                название организации
               </p>
             </div>
 

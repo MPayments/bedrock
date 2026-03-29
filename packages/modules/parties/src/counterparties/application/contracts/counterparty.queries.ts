@@ -17,6 +17,7 @@ const COUNTERPARTIES_SORTABLE_COLUMNS = [
 interface CounterpartiesListFilters {
   customerId: { kind: "string"; cardinality: "single" };
   externalId: { kind: "string"; cardinality: "single" };
+  relationshipKind: { kind: "string"; cardinality: "multi" };
   shortName: { kind: "string"; cardinality: "single" };
   fullName: { kind: "string"; cardinality: "single" };
   country: { kind: "string"; cardinality: "multi" };
@@ -33,6 +34,7 @@ export const COUNTERPARTIES_LIST_CONTRACT: ListQueryContract<
   filters: {
     customerId: { kind: "string", cardinality: "single" },
     externalId: { kind: "string", cardinality: "single" },
+    relationshipKind: { kind: "string", cardinality: "multi" },
     shortName: { kind: "string", cardinality: "single" },
     fullName: { kind: "string", cardinality: "single" },
     country: { kind: "string", cardinality: "multi" },

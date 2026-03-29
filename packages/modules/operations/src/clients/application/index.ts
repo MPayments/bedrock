@@ -10,10 +10,8 @@ import type { ClientReads } from "./ports/client.reads";
 import type { ClientsCommandUnitOfWork } from "./ports/clients.uow";
 import type { CompanyLookupPort } from "./ports/company-lookup.port";
 import type { CounterpartiesPort } from "./ports/counterparties.port";
-import { FindActiveClientByCustomerIdQuery } from "./queries/find-active-client-by-customer-id";
 import { FindClientByIdQuery } from "./queries/find-client-by-id";
 import { ListClientsQuery } from "./queries/list-clients";
-import { ListActiveClientsByCustomerIdsQuery } from "./queries/list-active-clients-by-customer-ids";
 import { SearchCompanyQuery } from "./queries/search-company";
 
 export interface ClientsServiceDeps {
@@ -33,19 +31,17 @@ export function createClientsService(deps: ClientsServiceDeps) {
     deps.commandUow,
     deps.counterparties,
   );
-  const updateClient = new UpdateClientCommand(deps.runtime, deps.commandUow);
+  const updateClient = new UpdateClientCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.counterparties,
+  );
   const softDeleteClient = new SoftDeleteClientCommand(
     deps.runtime,
     deps.commandUow,
   );
   const findById = new FindClientByIdQuery(deps.reads);
-  const findActiveByCustomerId = new FindActiveClientByCustomerIdQuery(
-    deps.reads,
-  );
   const listClients = new ListClientsQuery(deps.reads);
-  const listActiveClientsByCustomerIds = new ListActiveClientsByCustomerIdsQuery(
-    deps.reads,
-  );
 
   const searchCompany = deps.companyLookup
     ? new SearchCompanyQuery(deps.companyLookup)
@@ -67,13 +63,12 @@ export function createClientsService(deps: ClientsServiceDeps) {
       softDelete: softDeleteClient.execute.bind(softDeleteClient),
     },
     queries: {
-      findActiveByCustomerId:
-        findActiveByCustomerId.execute.bind(findActiveByCustomerId),
+      findActiveByCounterpartyId:
+        deps.reads.findActiveByCounterpartyId.bind(deps.reads),
       findById: findById.execute.bind(findById),
       list: listClients.execute.bind(listClients),
-      listActiveByCustomerIds: listActiveClientsByCustomerIds.execute.bind(
-        listActiveClientsByCustomerIds,
-      ),
+      listActiveByCounterpartyIds:
+        deps.reads.listActiveByCounterpartyIds.bind(deps.reads),
       ...(searchCompany && {
         searchCompany: searchCompany.execute.bind(searchCompany),
       }),

@@ -4,38 +4,60 @@ import type { CounterpartiesPort } from "../application/ports/counterparties.por
 
 export interface PartiesCounterpartiesAdapterDeps {
   createCounterparty: PartiesModule["counterparties"]["commands"]["create"];
-  listCounterparties: PartiesModule["counterparties"]["queries"]["list"];
+  findCounterpartyById: PartiesModule["counterparties"]["queries"]["findById"];
+  updateCounterparty: PartiesModule["counterparties"]["commands"]["update"];
+}
+
+function normalizeCountryCode(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return normalized.length === 2 ? normalized : null;
 }
 
 export class PartiesCounterpartiesAdapter implements CounterpartiesPort {
   constructor(private readonly deps: PartiesCounterpartiesAdapterDeps) {}
 
-  async findOrCreateCounterparty(input: {
+  async createCustomerOwnedCounterparty(input: {
+    country?: string | null;
+    customerId: string;
     displayName: string;
-    externalRef?: string | null;
+    externalId?: string | null;
   }): Promise<string> {
-    if (input.externalRef) {
-      const existing = await this.deps.listCounterparties({
-        externalId: input.externalRef,
-        limit: 1,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-
-      if (existing.data.length > 0) {
-        return existing.data[0]!.id;
-      }
-    }
-
     const counterparty = await this.deps.createCounterparty({
       shortName: input.displayName,
       fullName: input.displayName,
       kind: "legal_entity",
-      country: "RU",
-      externalId: input.externalRef ?? null,
+      relationshipKind: "customer_owned",
+      country: normalizeCountryCode(input.country),
+      customerId: input.customerId,
+      externalId: input.externalId ?? null,
     });
 
     return counterparty.id;
+  }
+
+  async syncCustomerOwnedCounterparty(input: {
+    counterpartyId: string;
+    country?: string | null;
+    customerId: string;
+    displayName: string;
+    externalId?: string | null;
+  }): Promise<void> {
+    const existing = await this.deps.findCounterpartyById(input.counterpartyId);
+    if (!existing) {
+      throw new Error(`Counterparty ${input.counterpartyId} not found`);
+    }
+
+    await this.deps.updateCounterparty(input.counterpartyId, {
+      shortName: input.displayName,
+      fullName: input.displayName,
+      relationshipKind: "customer_owned",
+      country: normalizeCountryCode(input.country),
+      customerId: input.customerId,
+      externalId: input.externalId ?? null,
+    });
   }
 }

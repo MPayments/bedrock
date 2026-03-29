@@ -34,6 +34,7 @@ export { PartiesCounterpartiesAdapter } from "../clients/adapters/parties-counte
 // Organizations
 export { DrizzleOrganizationReads } from "../organizations/adapters/drizzle/organization.reads";
 export { DrizzleOrganizationStore } from "../organizations/adapters/drizzle/organization.store";
+export { DrizzleHoldingOrganizationBridge } from "../organizations/adapters/drizzle/holding-organization-bridge";
 export { DrizzleBankDetailsReads } from "../organizations/adapters/drizzle/bank-details.reads";
 export { DrizzleBankDetailsStore } from "../organizations/adapters/drizzle/bank-details.store";
 export { DrizzleOrganizationsUnitOfWork } from "../organizations/adapters/drizzle/organizations.uow";

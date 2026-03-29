@@ -1,7 +1,8 @@
 import { relations, sql } from "drizzle-orm";
-import { integer, jsonb, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
 import { user } from "@bedrock/iam/schema";
+import { counterparties } from "@bedrock/parties/schema";
 
 import type { LocalizedText } from "./agents";
 import { opsAgentOrganizationBankDetails } from "./agents";
@@ -19,6 +20,7 @@ export const opsDeals = pgTable("ops_deals", {
   calculationId: integer("calculation_id")
     .notNull()
     .references(() => opsCalculations.id),
+  counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
   agentOrganizationBankDetailsId: integer(
     "agent_organization_bank_details_id",
   )
@@ -80,6 +82,10 @@ export const opsDealsRelations = relations(opsDeals, ({ one, many }) => ({
   calculation: one(opsCalculations, {
     fields: [opsDeals.calculationId],
     references: [opsCalculations.id],
+  }),
+  counterparty: one(counterparties, {
+    fields: [opsDeals.counterpartyId],
+    references: [counterparties.id],
   }),
   organizationBank: one(opsAgentOrganizationBankDetails, {
     fields: [opsDeals.agentOrganizationBankDetailsId],

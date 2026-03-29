@@ -320,14 +320,19 @@ export default function NewOrganizationPage() {
         })),
       };
 
-      const { banks, ...organizationData } = normalizedData;
+      const { banks, name, ...organizationData } = normalizedData;
+      const canonicalOrganizationData = {
+        ...organizationData,
+        fullName: name,
+        shortName: name,
+      };
 
       // 1. Создаём организацию (JSON)
       const res = await fetch(`${API_BASE_URL}/organizations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(organizationData),
+        body: JSON.stringify(canonicalOrganizationData),
       });
 
       if (!res.ok) {

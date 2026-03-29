@@ -38,7 +38,11 @@ export class CreateDealCommand {
         );
       }
 
-      const deal = await tx.dealStore.create(validated);
+      const deal = await tx.dealStore.create({
+        ...validated,
+        counterpartyId:
+          validated.counterpartyId ?? application.counterpartyId ?? undefined,
+      });
 
       // Set application status to finished
       await tx.applicationStore.updateStatus(

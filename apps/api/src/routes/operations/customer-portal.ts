@@ -6,10 +6,10 @@ import {
 } from "@bedrock/iam/contracts";
 import {
   ApplicationSchema,
+  CreateApplicationInputSchema,
   ClientSchema,
   CreateClientInputSchema,
   DealSchema,
-  PaginatedClientsSchema,
 } from "@bedrock/operations/contracts";
 import {
   CustomerSchema,
@@ -27,18 +27,32 @@ const CustomerPortalProfileSchema = z.object({
   memberships: z.array(CustomerMembershipSchema),
 });
 
-const CustomerPortalCustomerContextSchema = z.object({
+const CustomerPortalLegalEntitySchema = z.object({
   address: z.string().nullable(),
+  counterpartyId: z.string().uuid(),
+  country: z.string().nullable(),
+  createdAt: z.string(),
+  directorName: z.string().nullable(),
+  email: z.string().nullable(),
+  externalId: z.string().nullable(),
+  fullName: z.string(),
+  hasLegacyShell: z.boolean(),
+  inn: z.string().nullable(),
+  phone: z.string().nullable(),
+  relationshipKind: z.enum(["customer_owned", "external"]),
+  shortName: z.string(),
+  updatedAt: z.string(),
+});
+
+const CustomerPortalCustomerContextSchema = z.object({
   createdAt: z.string(),
   customerId: z.string().uuid(),
   description: z.string().nullable(),
-  directorName: z.string().nullable(),
   displayName: z.string(),
   externalRef: z.string().nullable(),
-  inn: z.string().nullable(),
-  legacyClientId: z.number().int().nullable(),
-  legacyProfileStatus: z.enum(["linked", "missing"]),
-  phone: z.string().nullable(),
+  legalEntities: z.array(CustomerPortalLegalEntitySchema),
+  legalEntityCount: z.number().int(),
+  primaryCounterpartyId: z.string().uuid().nullable(),
   updatedAt: z.string(),
 });
 
@@ -103,8 +117,12 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     summary: "List customer's clients",
     responses: {
       200: {
-        content: { "application/json": { schema: PaginatedClientsSchema } },
-        description: "Customer's clients",
+        content: {
+          "application/json": {
+            schema: CustomerPortalCustomerContextsSchema,
+          },
+        },
+        description: "Customer's canonical customer contexts",
       },
     },
   });
@@ -170,6 +188,38 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       200: {
         content: { "application/json": { schema: z.any() } },
         description: "Customer's applications",
+      },
+    },
+  });
+
+  const createApplicationRoute = createRoute({
+    method: "post",
+    path: "/applications",
+    tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Create customer application",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateApplicationInputSchema.pick({
+              counterpartyId: true,
+              requestedAmount: true,
+              requestedCurrency: true,
+            }),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: { "application/json": { schema: ApplicationSchema } },
+        description: "Application created",
+      },
+      403: {
+        content: { "application/json": { schema: OpsErrorSchema } },
+        description: "Not authorized",
       },
     },
   });
@@ -290,6 +340,25 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
         query,
       );
       return c.json(result, 200);
+    })
+    .openapi(createApplicationRoute, async (c) => {
+      const user = c.get("user")!;
+      const input = c.req.valid("json");
+      try {
+        const result = await ctx.customerPortalWorkflow.createApplication(
+          { userId: user.id },
+          input,
+        );
+        return c.json(result, 201);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+        throw error;
+      }
     })
     .openapi(getApplicationRoute, async (c) => {
       const user = c.get("user")!;

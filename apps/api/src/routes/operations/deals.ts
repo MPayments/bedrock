@@ -20,6 +20,7 @@ import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { exportDealsXlsx, xlsxFilename } from "./excel-export";
+import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
 
 export function operationsDealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -458,7 +459,8 @@ export function operationsDealsRoutes(ctx: AppContext) {
           deal.deal.agentOrganizationBankDetailsId,
         );
         if (organizationBank) {
-          organization = await ctx.operationsModule.organizations.queries.findById(
+          organization = await findCanonicalOrganizationByLegacyId(
+            ctx,
             (organizationBank as any).organizationId,
           );
         }
@@ -619,7 +621,8 @@ export function operationsDealsRoutes(ctx: AppContext) {
           deal.deal.agentOrganizationBankDetailsId,
         );
         if (organizationBank) {
-          organization = await ctx.operationsModule.organizations.queries.findById(
+          organization = await findCanonicalOrganizationByLegacyId(
+            ctx,
             (organizationBank as any).organizationId,
           );
         }
@@ -631,6 +634,9 @@ export function operationsDealsRoutes(ctx: AppContext) {
         client = await ctx.operationsModule.clients.queries.findById(deal.application.clientId);
       }
       if (!client) return c.json({ error: "Client not found" }, 404);
+      if (!organization || !organizationBank) {
+        return c.json({ error: "Organization not found" }, 404);
+      }
 
       try {
         const result = await ctx.documentGenerationWorkflow.generateDealDocument({

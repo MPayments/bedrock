@@ -43,8 +43,8 @@ interface TemplateField {
 }
 
 interface Organization {
-  id: number;
-  name: string;
+  id: string;
+  shortName: string;
 }
 
 export default function DocumentsPage() {
@@ -60,7 +60,7 @@ export default function DocumentsPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<
-    number | null
+    string | null
   >(null);
 
   const [format, setFormat] = useState<"docx" | "pdf">("docx");
@@ -93,7 +93,7 @@ export default function DocumentsPage() {
   }, []);
 
   const loadTemplates = useCallback(
-    async (orgId: number) => {
+    async (orgId: string) => {
       setLoadingTemplates(true);
       setTemplates([]);
       setSelectedTemplate(null);
@@ -119,10 +119,9 @@ export default function DocumentsPage() {
 
   const handleSelectOrganization = useCallback(
     (orgId: string) => {
-      const id = parseInt(orgId);
-      setSelectedOrganizationId(id);
+      setSelectedOrganizationId(orgId);
       setError(null);
-      loadTemplates(id);
+      loadTemplates(orgId);
     },
     [loadTemplates],
   );
@@ -295,7 +294,7 @@ export default function DocumentsPage() {
                 <SelectContent>
                   {organizations.map((org) => (
                     <SelectItem key={org.id} value={String(org.id)}>
-                      {org.name}
+                      {org.shortName}
                     </SelectItem>
                   ))}
                 </SelectContent>

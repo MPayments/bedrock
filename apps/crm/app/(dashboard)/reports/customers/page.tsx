@@ -545,7 +545,11 @@ export default function ClientsReportsPage() {
               />
               <ClientCombobox
                 value={selectedClientId}
-                onValueChange={setSelectedClientId}
+                onValueChange={(value) =>
+                  setSelectedClientId(
+                    typeof value === "number" ? value : undefined,
+                  )
+                }
                 placeholder="Выбрать клиента..."
                 className="w-[250px]"
               />

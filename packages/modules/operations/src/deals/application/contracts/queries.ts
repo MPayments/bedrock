@@ -18,6 +18,10 @@ export const DEALS_LIST_CONTRACT = {
     },
     agentId: { kind: "string" as const, cardinality: "single" as const },
     clientId: { kind: "number" as const, cardinality: "single" as const, int: true },
+    counterpartyId: {
+      kind: "string" as const,
+      cardinality: "single" as const,
+    },
     dateFrom: { kind: "string" as const, cardinality: "single" as const },
     dateTo: { kind: "string" as const, cardinality: "single" as const },
   },

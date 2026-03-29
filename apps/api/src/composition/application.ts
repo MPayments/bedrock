@@ -13,7 +13,10 @@ import {
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
-import { ConsoleNotificationAdapter } from "@bedrock/operations/adapters/drizzle";
+import {
+  ConsoleNotificationAdapter,
+  PartiesCounterpartiesAdapter,
+} from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
@@ -371,6 +374,11 @@ export function createApplicationServices(
     notification: new ConsoleNotificationAdapter(logger),
     objectStorage,
     companyLookup,
+    counterparties: new PartiesCounterpartiesAdapter({
+      createCounterparty: partiesModule.counterparties.commands.create,
+      findCounterpartyById: partiesModule.counterparties.queries.findById,
+      updateCounterparty: partiesModule.counterparties.commands.update,
+    }),
   });
 
   // Customer portal workflow
@@ -381,6 +389,7 @@ export function createApplicationServices(
       users: iamService,
     },
     parties: {
+      counterparties: partiesModule.counterparties,
       customers: partiesModule.customers,
     },
     logger,
