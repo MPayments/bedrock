@@ -125,6 +125,25 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     },
   });
 
+  const getApplicationRoute = createRoute({
+    method: "get",
+    path: "/applications/{id}",
+    tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Get customer's application details",
+    request: { params: OpsIdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Application details",
+      },
+      403: {
+        content: { "application/json": { schema: OpsErrorSchema } },
+        description: "Not authorized",
+      },
+    },
+  });
+
   const listDealsRoute = createRoute({
     method: "get",
     path: "/deals",
@@ -196,6 +215,25 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
         query,
       );
       return c.json(result, 200);
+    })
+    .openapi(getApplicationRoute, async (c) => {
+      const user = c.get("user")!;
+      const { id } = c.req.valid("param");
+      try {
+        const result = await ctx.customerPortalWorkflow.getApplicationById(
+          { userId: user.id },
+          id,
+        );
+        return c.json(result, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+        throw error;
+      }
     })
     .openapi(listDealsRoute, async (c) => {
       const user = c.get("user")!;

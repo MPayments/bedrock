@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOut } from "@/lib/auth-client";
+import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
 
 export function AppHeader({ session }: { session: UserSessionSnapshot }) {
@@ -196,12 +197,12 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
           </NavigationMenu>
           <div className="flex items-center gap-3">
             {session.hasCustomerPortalAccess ? (
-              <Link
-                href="/customer"
+              <a
+                href={PORTAL_BASE_URL}
                 className="hidden md:inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
               >
                 Кабинет клиента
-              </Link>
+              </a>
             ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -223,7 +224,7 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
               <DropdownMenuContent align="end" className="w-[220px]">
                 {session.hasCustomerPortalAccess ? (
                   <DropdownMenuItem asChild>
-                    <Link href="/customer">Кабинет клиента</Link>
+                    <a href={PORTAL_BASE_URL}>Кабинет клиента</a>
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem

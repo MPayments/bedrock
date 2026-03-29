@@ -8,7 +8,7 @@
 # Deployment:
 #   1. docker compose up db-migrate    # apply migrations
 #   2. docker compose up db-seed       # seed data (first deploy only)
-#   3. docker compose up -d tigerbeetle api finance workers
+#   3. docker compose up -d tigerbeetle api finance crm portal workers
 #
 # Access: http://<SERVER_IP> (Traefik catch-all, priority=1)
 # ---------------------------------------------------------------------------
@@ -133,6 +133,60 @@ services:
       - "traefik.http.routers.bedrock-finance.priority=1"
       - "traefik.http.routers.bedrock-finance.entrypoints=web,websecure"
       - "traefik.http.services.bedrock-finance.loadbalancer.server.port=3000"
+
+  crm:
+    build:
+      context: ..
+      dockerfile: apps/crm/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://bedrock-api:3000
+        NEXT_PUBLIC_PORTAL_URL: ${NEXT_PUBLIC_PORTAL_URL}
+    container_name: bedrock-crm
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://bedrock-api:3000
+      NEXT_PUBLIC_PORTAL_URL: ${NEXT_PUBLIC_PORTAL_URL}
+      NODE_ENV: production
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.bedrock-crm.rule=Host(`crm.multihansa.com`)"
+      - "traefik.http.routers.bedrock-crm.priority=10"
+      - "traefik.http.routers.bedrock-crm.entrypoints=web,websecure"
+      - "traefik.http.services.bedrock-crm.loadbalancer.server.port=3000"
+
+  portal:
+    build:
+      context: ..
+      dockerfile: apps/portal/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://bedrock-api:3000
+        NEXT_PUBLIC_CRM_URL: ${NEXT_PUBLIC_CRM_URL}
+    container_name: bedrock-portal
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://bedrock-api:3000
+      NEXT_PUBLIC_CRM_URL: ${NEXT_PUBLIC_CRM_URL}
+      NODE_ENV: production
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.bedrock-portal.rule=Host(`portal.multihansa.com`)"
+      - "traefik.http.routers.bedrock-portal.priority=10"
+      - "traefik.http.routers.bedrock-portal.entrypoints=web,websecure"
+      - "traefik.http.services.bedrock-portal.loadbalancer.server.port=3000"
 
   workers:
     build:

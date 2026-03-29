@@ -48,6 +48,7 @@ The short version:
 - `apps/db` - DB tooling and seed runners
 - `apps/crm` - CRM app (`http://localhost:3002`)
 - `apps/finance` - Finance app (`http://localhost:3001`)
+- `apps/portal` - Customer portal (`http://localhost:3003`)
 - `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
 
 ## Local Setup
@@ -77,6 +78,7 @@ Run a renamed frontend directly from the repo root:
 ```bash
 bun run dev:finance
 bun run dev:crm
+bun run dev:portal
 ```
 
 Run workers:

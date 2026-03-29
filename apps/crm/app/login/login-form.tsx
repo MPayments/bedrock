@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/auth-client";
+import { PORTAL_BASE_URL } from "@/lib/constants";
 
 export function LoginForm() {
   const router = useRouter();
@@ -103,16 +104,15 @@ export function LoginForm() {
             <p className="mb-3 text-sm text-muted-foreground">
               Вы клиент компании?
             </p>
-            <Link
-              href="/login/customer"
+            <a
+              href={`${PORTAL_BASE_URL}/login`}
               className="inline-block w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             >
               Вход для клиентов
-            </Link>
+            </a>
           </div>
         </form>
       </div>
     </div>
   );
 }
-

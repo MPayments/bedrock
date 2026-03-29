@@ -20,6 +20,7 @@
     "dev": "turbo run dev --concurrency 100",
     "dev:crm": "turbo run dev --filter=crm",
     "dev:finance": "turbo run dev --filter=finance",
+    "dev:portal": "turbo run dev --filter=portal",
     "lint": "turbo run lint",
     "check:architecture": "node ./scripts/check-architecture.mjs",
     "check:manifests": "node ./scripts/check-manifests.mjs",

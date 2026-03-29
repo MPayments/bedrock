@@ -64,6 +64,7 @@ Migration policy is **baseline-only hard cutover**: `db:nuke -> db:migrate -> db
 apps/api          — Hono API server (port 3000)
 apps/crm          — Next.js CRM frontend (port 3002)
 apps/finance      — Next.js finance frontend (port 3001, imports types from api/dist)
+apps/portal       — Next.js customer portal (port 3003)
 apps/workers      — Background job runners
 apps/db           — Schema aggregation, migrations, seeds (never owns domain tables)
 packages/shared   — Stable primitives (@bedrock/shared/core, /money, /reference-data, /parties, /requisites)

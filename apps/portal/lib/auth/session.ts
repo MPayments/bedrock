@@ -4,7 +4,9 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { fetchSessionSnapshot, getPreferredHomePath } from "./access";
+import { CRM_BASE_URL } from "@/lib/constants";
+
+import { fetchSessionSnapshot } from "./access";
 import type { UserSessionSnapshot } from "./types";
 
 async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
@@ -16,24 +18,13 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
 
 export const getServerSessionSnapshot = cache(readSessionSnapshot);
 
-export async function requireDashboardSession() {
+export async function requirePortalSession() {
   const session = await getServerSessionSnapshot();
   if (!session.isAuthenticated) {
     redirect("/login");
   }
-  if (!session.canAccessDashboard) {
-    redirect(getPreferredHomePath(session));
-  }
-  return session;
-}
-
-export async function requireAdminSession() {
-  const session = await getServerSessionSnapshot();
-  if (!session.isAuthenticated) {
-    redirect("/login");
-  }
-  if (session.role !== "admin") {
-    redirect(getPreferredHomePath(session));
+  if (!session.hasCustomerPortalAccess) {
+    redirect(session.canAccessDashboard ? CRM_BASE_URL : "/login");
   }
   return session;
 }

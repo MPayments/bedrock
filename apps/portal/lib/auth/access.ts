@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-import { PORTAL_BASE_URL } from "@/lib/constants";
-
-import type { CrmRole, UserSessionSnapshot } from "./types";
+import type { AppRole, UserSessionSnapshot } from "./types";
 
 const SessionResponseSchema = z.looseObject({
   session: z.looseObject({
@@ -34,7 +32,7 @@ const CustomerPortalProfileSchema = z.object({
 export function resolveRole(user: {
   role?: string;
   isAdmin?: boolean;
-}): CrmRole {
+}): AppRole {
   if (user.role === "customer") return "customer";
   if (user.role === "admin" || user.isAdmin) return "admin";
   return "agent";
@@ -52,17 +50,16 @@ export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   };
 }
 
-export function getPreferredHomePath(session: UserSessionSnapshot): string {
-  if (session.canAccessDashboard) return "/";
-  if (session.hasCustomerPortalAccess) return PORTAL_BASE_URL;
-  return `${PORTAL_BASE_URL}/login`;
+export function getCrmHomeUrl(): string {
+  return process.env.NEXT_PUBLIC_CRM_URL ?? "http://localhost:3002";
 }
 
 export async function fetchSessionSnapshot(input: {
   apiUrl?: string;
   cookie: string;
 }): Promise<UserSessionSnapshot> {
-  const apiUrl = input.apiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl =
+    input.apiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
   const sessionResponse = await fetch(`${apiUrl}/api/auth/get-session`, {
     cache: "no-store",
     headers: {
@@ -102,12 +99,14 @@ export async function fetchSessionSnapshot(input: {
       const parsedProfile = CustomerPortalProfileSchema.safeParse(profilePayload);
       if (parsedProfile.success) {
         hasCustomerPortalAccess = parsedProfile.data.hasCustomerPortalAccess;
-        customerPortalCustomers = parsedProfile.data.customers.map((customer) => ({
-          description: customer.description ?? null,
-          displayName: customer.displayName,
-          externalRef: customer.externalRef ?? null,
-          id: customer.id,
-        }));
+        customerPortalCustomers = parsedProfile.data.customers.map(
+          (customer) => ({
+            description: customer.description ?? null,
+            displayName: customer.displayName,
+            externalRef: customer.externalRef ?? null,
+            id: customer.id,
+          }),
+        );
       }
     }
   } catch {
