@@ -12,7 +12,7 @@ Bedrock is a financial platform (ledger, balances, FX, fees, reconciliation) bui
 
 ```bash
 bun run build                          # Build all packages (dependency order via Turbo)
-bun run build --filter=api             # Build API only (required after apps/api changes — web imports API types from dist/)
+bun run build --filter=api             # Build API only (required after apps/api changes — finance imports API types from dist/)
 bun run dev                            # Watch mode for all apps
 ```
 
@@ -61,8 +61,9 @@ Migration policy is **baseline-only hard cutover**: `db:nuke -> db:migrate -> db
 ### Workspace Topology
 
 ```
-apps/api          — Hono API server (port 3002)
-apps/web          — Next.js frontend (port 3001, imports types from api/dist)
+apps/api          — Hono API server (port 3000)
+apps/crm          — Next.js CRM frontend (port 3002)
+apps/finance      — Next.js finance frontend (port 3001, imports types from api/dist)
 apps/workers      — Background job runners
 apps/db           — Schema aggregation, migrations, seeds (never owns domain tables)
 packages/shared   — Stable primitives (@bedrock/shared/core, /money, /reference-data, /parties, /requisites)

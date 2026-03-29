@@ -10,7 +10,7 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 - `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/persistence`, `@bedrock/platform/worker-runtime`, and related subpaths
 - `packages/plugins/*` - document plugins and plugin SDK packages
 - `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
-- `apps/*` - API/Web/Workers/DB composition
+- `apps/*` - API/CRM/Finance/Workers/DB composition
 - `ops/*` - infra entrypoints
 
 Runtime import contract:
@@ -44,9 +44,10 @@ The short version:
 
 ## Apps
 
-- `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/api` - API adapter (`http://localhost:3000`)
 - `apps/db` - DB tooling and seed runners
-- `apps/web` - Web app (`http://localhost:3001`)
+- `apps/crm` - CRM app (`http://localhost:3002`)
+- `apps/finance` - Finance app (`http://localhost:3001`)
 - `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
 
 ## Local Setup
@@ -69,6 +70,13 @@ Run all apps:
 
 ```bash
 bun run dev
+```
+
+Run a renamed frontend directly from the repo root:
+
+```bash
+bun run dev:finance
+bun run dev:crm
 ```
 
 Run workers:

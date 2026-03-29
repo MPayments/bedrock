@@ -18,6 +18,8 @@
     "db:seed:requisites": "bun run --filter=db db:seed:requisites",
     "db:studio": "bun run --filter=db db:studio",
     "dev": "turbo run dev --concurrency 100",
+    "dev:crm": "turbo run dev --filter=crm",
+    "dev:finance": "turbo run dev --filter=finance",
     "lint": "turbo run lint",
     "check:architecture": "node ./scripts/check-architecture.mjs",
     "check:manifests": "node ./scripts/check-manifests.mjs",

@@ -8,7 +8,7 @@
 # Deployment:
 #   1. docker compose up db-migrate    # apply migrations
 #   2. docker compose up db-seed       # seed data (first deploy only)
-#   3. docker compose up -d tigerbeetle api web workers
+#   3. docker compose up -d tigerbeetle api finance workers
 #
 # Access: http://<SERVER_IP> (Traefik catch-all, priority=1)
 # ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ services:
       tigerbeetle:
         condition: service_started
     environment:
-      PORT: 3002
+      PORT: 3000
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -109,17 +109,17 @@ services:
       - dokploy-network
     restart: unless-stopped
 
-  web:
+  finance:
     build:
       context: ..
-      dockerfile: apps/web/Dockerfile
+      dockerfile: apps/finance/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://bedrock-api:3002
-    container_name: bedrock-web
+        NEXT_PUBLIC_API_URL: http://bedrock-api:3000
+    container_name: bedrock-finance
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_URL: http://bedrock-api:3002
+      NEXT_PUBLIC_API_URL: http://bedrock-api:3000
       NODE_ENV: production
     networks:
       - dokploy-network
@@ -129,10 +129,10 @@ services:
     labels:                                                                                                                                                                
       - "traefik.enable=true"                                 
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.bedrock-web.rule=Host(`finance.multihansa.com`) || PathPrefix(`/`)"                                                                                     
-      - "traefik.http.routers.bedrock-web.priority=1"                                                                                                                      
-      - "traefik.http.routers.bedrock-web.entrypoints=web,websecure"                                                                                                                 
-      - "traefik.http.services.bedrock-web.loadbalancer.server.port=3000" 
+      - "traefik.http.routers.bedrock-finance.rule=Host(`finance.multihansa.com`) || PathPrefix(`/`)"
+      - "traefik.http.routers.bedrock-finance.priority=1"
+      - "traefik.http.routers.bedrock-finance.entrypoints=web,websecure"
+      - "traefik.http.services.bedrock-finance.loadbalancer.server.port=3000"
 
   workers:
     build:

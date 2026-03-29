@@ -6,7 +6,7 @@ export default defineConfig({
       "tests/guardrails/vitest.config.ts",
       "apps/api/vitest.config.ts",
       "apps/db/vitest.config.ts",
-      "apps/web/vitest.config.ts",
+      "apps/finance/vitest.config.ts",
       "apps/workers/vitest.config.ts",
       "packages/modules/accounting/vitest.config.ts",
       "packages/modules/currencies/vitest.config.ts",

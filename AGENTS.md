@@ -5,7 +5,7 @@
 Bedrock is a financial platform (ledger, treasury, fees, FX, transfers) built as a **Turborepo monorepo**.
 
 ```
-apps/        — applications (api: Hono, web: Next.js)
+apps/        — applications (api: Hono, crm/finance: Next.js)
 packages/    — shared domain and infrastructure packages
 ops/         — infra entrypoints
 ```
@@ -321,7 +321,7 @@ if (plan.promotedId) {
 
 - Workspace linting uses ESLint flat config.
 - Backend apps and packages that run `eslint` from their own cwd must provide a local `eslint.config.js` that re-exports `@bedrock/eslint-config/backend`.
-- `apps/web` must keep its local `eslint.config.js` based on `@bedrock/eslint-config/next-js`.
+- `apps/finance` must keep its local `eslint.config.js` based on `@bedrock/eslint-config/next-js`.
 - Any workspace package that imports `@bedrock/eslint-config/*` from a local ESLint config must declare `@bedrock/eslint-config` in `devDependencies`.
 
 ### Import order
@@ -390,7 +390,7 @@ export class OrderNotFoundError extends ServiceError {
 
 ## Build Requirements
 
-- After modifying any files in `apps/api/`, you **must** rebuild the API package so that the generated type definitions (`dist/`) stay up to date (the web app imports the client types from the built output):
+- After modifying any files in `apps/api/`, you **must** rebuild the API package so that the generated type definitions (`dist/`) stay up to date (the finance app imports the client types from the built output):
 
 ```bash
 bun run build --filter=api
