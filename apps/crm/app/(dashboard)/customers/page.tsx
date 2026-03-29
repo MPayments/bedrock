@@ -29,14 +29,16 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 
 interface ClientRow {
-  id: number;
-  orgName: string;
+  id: string;
+  displayName: string;
+  externalRef: string | null;
   inn: string | null;
   directorName: string | null;
   email: string | null;
   phone: string | null;
-  address: string | null;
   createdAt: string;
+  legacyClientId: number | null;
+  legacyProfileStatus: "linked" | "missing";
 }
 
 interface ClientsResponse {
@@ -112,7 +114,7 @@ export default function ClientsPage() {
           params.set("q", debouncedSearchQuery);
         }
 
-        const url = `${API_BASE_URL}/clients/search?${params.toString()}`;
+        const url = `${API_BASE_URL}/customers?${params.toString()}`;
         const res = await fetch(url, {
           cache: "no-store",
           credentials: "include",
@@ -141,7 +143,7 @@ export default function ClientsPage() {
     try {
       setExporting(true);
 
-      const res = await fetch(`${API_BASE_URL}/clients/export/xlsx`, {
+      const res = await fetch(`${API_BASE_URL}/customers/export/xlsx`, {
         credentials: "include",
       });
 
@@ -153,7 +155,7 @@ export default function ClientsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `clients_${new Date().toISOString().split("T")[0]}.xlsx`;
+      a.download = `customers_${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -182,12 +184,21 @@ export default function ClientsPage() {
         },
       },
       {
-        accessorKey: "orgName",
+        accessorKey: "displayName",
         meta: { label: "Организация" },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Организация" />
         ),
         enableSorting: false,
+      },
+      {
+        accessorKey: "externalRef",
+        meta: { label: "Ref" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Ref" />
+        ),
+        enableSorting: false,
+        cell: ({ getValue }) => getValue<string | null>() || "—",
       },
       {
         accessorKey: "inn",

@@ -68,6 +68,31 @@ export interface CustomerPortalProfile {
   >;
 }
 
+type CanonicalCustomer = Awaited<
+  ReturnType<PartiesModule["customers"]["queries"]["findById"]>
+>;
+type LegacyClient = Awaited<
+  ReturnType<OperationsModule["clients"]["queries"]["findById"]>
+>;
+type CustomerMembership = Awaited<
+  ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
+>[number];
+
+export interface CustomerPortalCustomerContext {
+  address: string | null;
+  createdAt: string;
+  customerId: string;
+  description: string | null;
+  directorName: string | null;
+  displayName: string;
+  externalRef: string | null;
+  inn: string | null;
+  legacyClientId: number | null;
+  legacyProfileStatus: "linked" | "missing";
+  phone: string | null;
+  updatedAt: string;
+}
+
 type CustomerPortalBootstrapTx = {
   bootstrapClaimStore: DrizzleCustomerBootstrapClaimStore;
   clientStore: DrizzleClientStore;
@@ -126,6 +151,10 @@ function canAccessCrm(role: string | null, banned: boolean | null): boolean {
   return role === "admin" || role === "agent" || role === "user";
 }
 
+function serializeDate(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ) {
@@ -145,12 +174,18 @@ export function createCustomerPortalWorkflow(
 
   async function listActiveMembershipsByUserId(userId: string) {
     const memberships = await listMembershipsByUserId(userId);
-    return memberships.filter((membership) => membership.status === "active");
+    return memberships.filter(
+      (membership: CustomerMembership) => membership.status === "active",
+    );
   }
 
   async function listAuthorizedCustomerIds(userId: string) {
     const memberships = await listActiveMembershipsByUserId(userId);
-    return [...new Set(memberships.map((membership) => membership.customerId))];
+    return Array.from(
+      new Set<string>(
+        memberships.map((membership: CustomerMembership) => membership.customerId),
+      ),
+    );
   }
 
   async function getCrmAccess(userId: string) {
@@ -202,7 +237,8 @@ export function createCustomerPortalWorkflow(
     const normalizedKpp = normalizeBootstrapKeyPart(input.createInput.kpp);
     const normalizedInput = normalizeBootstrapCreateInput(input.createInput);
 
-    return bootstrapTransactional.withTransaction(async (tx) => {
+    return bootstrapTransactional.withTransaction(
+      async (tx: CustomerPortalBootstrapTx) => {
       const claim = await tx.bootstrapClaimStore.lockByKey({
         normalizedInn,
         normalizedKpp,
@@ -270,14 +306,59 @@ export function createCustomerPortalWorkflow(
       };
     }
 
-    return deps.operations.clients.queries.list({
-      customerId: customerIds,
-      isDeleted: false,
+    const clients =
+      await deps.operations.clients.queries.listActiveByCustomerIds(customerIds);
+
+    return {
+      data: clients,
+      total: clients.length,
       limit: 100,
       offset: 0,
-      sortBy: "createdAt",
-      sortOrder: "desc",
-    });
+    };
+  }
+
+  async function getCustomerContextsByUserId(
+    userId: string,
+  ): Promise<CustomerPortalCustomerContext[]> {
+    const customerIds = await listAuthorizedCustomerIds(userId);
+    if (customerIds.length === 0) {
+      return [];
+    }
+
+    const [customers, legacyClients]: [CanonicalCustomer[], LegacyClient[]] =
+      await Promise.all([
+        deps.parties.customers.queries.listByIds(customerIds),
+        deps.operations.clients.queries.listActiveByCustomerIds(customerIds),
+      ]);
+    const legacyClientByCustomerId = new Map<string, LegacyClient>(
+      legacyClients
+        .filter((client) => Boolean(client.customerId))
+        .map((client) => [client.customerId!, client] as const),
+    );
+
+    return customers
+      .map((customer) => {
+        const legacyClient = legacyClientByCustomerId.get(customer.id) ?? null;
+
+        return {
+          address: legacyClient?.address ?? null,
+          createdAt: serializeDate(customer.createdAt),
+          customerId: customer.id,
+          description: customer.description,
+          directorName: legacyClient?.directorName ?? null,
+          displayName: customer.displayName,
+          externalRef: customer.externalRef,
+          inn: legacyClient?.inn ?? null,
+          legacyClientId: legacyClient?.id ?? null,
+          legacyProfileStatus: legacyClient ? "linked" : "missing",
+          phone: legacyClient?.phone ?? null,
+          updatedAt: serializeDate(customer.updatedAt),
+        } satisfies CustomerPortalCustomerContext;
+      })
+      .sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+      );
   }
 
   async function assertClientOwnership(
@@ -306,16 +387,16 @@ export function createCustomerPortalWorkflow(
   async function getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile> {
     const memberships = await listMembershipsByUserId(ctx.userId);
     const activeMemberships = memberships.filter(
-      (membership) => membership.status === "active",
+      (membership: CustomerMembership) => membership.status === "active",
     );
-    const customerIds = [
-      ...new Set(activeMemberships.map((membership) => membership.customerId)),
-    ];
-    const customers = await Promise.all(
-      customerIds.map((customerId) =>
-        deps.parties.customers.queries.findById(customerId),
+    const customerIds = Array.from(
+      new Set<string>(
+        activeMemberships.map(
+          (membership: CustomerMembership) => membership.customerId,
+        ),
       ),
     );
+    const customers = await deps.parties.customers.queries.listByIds(customerIds);
     const hasCrmAccess = await getCrmAccess(ctx.userId);
 
     return {
@@ -386,6 +467,14 @@ export function createCustomerPortalWorkflow(
       return getClientsByUserId(ctx.userId);
     },
 
+    async getCustomerContexts(ctx: CustomerContext) {
+      const data = await getCustomerContextsByUserId(ctx.userId);
+      return {
+        data,
+        total: data.length,
+      };
+    },
+
     async getClientById(ctx: CustomerContext, clientId: number) {
       await assertClientOwnership(ctx.userId, clientId);
       return deps.operations.clients.queries.findById(clientId);
@@ -447,7 +536,7 @@ export function createCustomerPortalWorkflow(
       input?: { limit?: number; offset?: number },
     ) {
       const clientsResult = await getClientsByUserId(ctx.userId);
-      const clientIds = clientsResult.data.map((c) => c.id);
+      const clientIds = clientsResult.data.map((client: LegacyClient) => client.id);
 
       if (clientIds.length === 0) {
         return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
@@ -456,7 +545,9 @@ export function createCustomerPortalWorkflow(
       // Fetch applications for all customer's clients
       // Uses clientId filter — currently supports single clientId,
       // so we fetch per-client and merge
-      const allApps = [];
+      const allApps: Awaited<
+        ReturnType<OperationsModule["applications"]["queries"]["list"]>
+      >["data"] = [];
       let totalCount = 0;
       for (const clientId of clientIds) {
         const result = await deps.operations.applications.queries.list({
@@ -472,7 +563,10 @@ export function createCustomerPortalWorkflow(
 
       // Sort by createdAt desc and paginate in memory
       allApps.sort(
-        (a, b) =>
+        (
+          a: (typeof allApps)[number],
+          b: (typeof allApps)[number],
+        ) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
 
@@ -515,13 +609,15 @@ export function createCustomerPortalWorkflow(
       input?: { limit?: number; offset?: number },
     ) {
       const clientsResult = await getClientsByUserId(ctx.userId);
-      const clientIds = clientsResult.data.map((c) => c.id);
+      const clientIds = clientsResult.data.map((client: LegacyClient) => client.id);
 
       if (clientIds.length === 0) {
         return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
       }
 
-      const allDeals = [];
+      const allDeals: Awaited<
+        ReturnType<OperationsModule["deals"]["queries"]["list"]>
+      >["data"] = [];
       let totalCount = 0;
       for (const clientId of clientIds) {
         const result = await deps.operations.deals.queries.list({
@@ -536,7 +632,10 @@ export function createCustomerPortalWorkflow(
       }
 
       allDeals.sort(
-        (a, b) =>
+        (
+          a: (typeof allDeals)[number],
+          b: (typeof allDeals)[number],
+        ) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
 

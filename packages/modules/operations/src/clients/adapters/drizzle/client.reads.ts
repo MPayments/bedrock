@@ -29,6 +29,22 @@ export class DrizzleClientReads implements ClientReads {
     return (row as unknown as Client) ?? null;
   }
 
+  async findActiveByCustomerId(customerId: string): Promise<Client | null> {
+    const [row] = await this.db
+      .select()
+      .from(opsClients)
+      .where(
+        and(
+          eq(opsClients.customerId, customerId),
+          eq(opsClients.isDeleted, false),
+        ),
+      )
+      .orderBy(desc(opsClients.updatedAt), desc(opsClients.createdAt))
+      .limit(1);
+
+    return (row as unknown as Client) ?? null;
+  }
+
   async list(input: ListClientsQuery): Promise<PaginatedList<Client>> {
     const conditions: SQL[] = [];
 
@@ -93,5 +109,34 @@ export class DrizzleClientReads implements ClientReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async listActiveByCustomerIds(customerIds: string[]): Promise<Client[]> {
+    if (customerIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.db
+      .select()
+      .from(opsClients)
+      .where(
+        and(
+          inArray(opsClients.customerId, customerIds),
+          eq(opsClients.isDeleted, false),
+        ),
+      )
+      .orderBy(desc(opsClients.updatedAt), desc(opsClients.createdAt));
+
+    const deduped = new Map<string, Client>();
+    for (const row of rows) {
+      const client = row as unknown as Client;
+      if (!client.customerId || deduped.has(client.customerId)) {
+        continue;
+      }
+
+      deduped.set(client.customerId, client);
+    }
+
+    return [...deduped.values()];
   }
 }

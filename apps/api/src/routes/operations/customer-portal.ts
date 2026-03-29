@@ -15,16 +15,36 @@ import {
   CustomerSchema,
 } from "@bedrock/parties/contracts";
 
+import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { getRequestContext } from "../../middleware/idempotency";
-import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 
 const CustomerPortalProfileSchema = z.object({
   customers: z.array(CustomerSchema),
   hasCrmAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
   memberships: z.array(CustomerMembershipSchema),
+});
+
+const CustomerPortalCustomerContextSchema = z.object({
+  address: z.string().nullable(),
+  createdAt: z.string(),
+  customerId: z.string().uuid(),
+  description: z.string().nullable(),
+  directorName: z.string().nullable(),
+  displayName: z.string(),
+  externalRef: z.string().nullable(),
+  inn: z.string().nullable(),
+  legacyClientId: z.number().int().nullable(),
+  legacyProfileStatus: z.enum(["linked", "missing"]),
+  phone: z.string().nullable(),
+  updatedAt: z.string(),
+});
+
+const CustomerPortalCustomerContextsSchema = z.object({
+  data: z.array(CustomerPortalCustomerContextSchema),
+  total: z.number().int(),
 });
 
 function requireCustomerPortalAccess(
@@ -85,6 +105,24 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
       200: {
         content: { "application/json": { schema: PaginatedClientsSchema } },
         description: "Customer's clients",
+      },
+    },
+  });
+
+  const listCustomerContextsRoute = createRoute({
+    method: "get",
+    path: "/customers",
+    tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "List customer's canonical customer contexts",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CustomerPortalCustomerContextsSchema,
+          },
+        },
+        description: "Customer portal customer contexts",
       },
     },
   });
@@ -205,6 +243,13 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     .openapi(listClientsRoute, async (c) => {
       const user = c.get("user")!;
       const result = await ctx.customerPortalWorkflow.getClients({
+        userId: user.id,
+      });
+      return c.json(result, 200);
+    })
+    .openapi(listCustomerContextsRoute, async (c) => {
+      const user = c.get("user")!;
+      const result = await ctx.customerPortalWorkflow.getCustomerContexts({
         userId: user.id,
       });
       return c.json(result, 200);

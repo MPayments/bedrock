@@ -8,6 +8,7 @@ import { operationsAgentsRoutes } from "./agents";
 import { operationsApplicationsRoutes } from "./applications";
 import { operationsCalculationsRoutes } from "./calculations";
 import { operationsClientsRoutes } from "./clients";
+import { operationsCustomersRoutes } from "./customers";
 import { operationsContractsRoutes } from "./contracts";
 import { operationsCustomerPortalRoutes } from "./customer-portal";
 import { operationsDealsRoutes } from "./deals";
@@ -18,6 +19,7 @@ import { operationsTodosRoutes } from "./todos";
 export function operationsRoutes(ctx: AppContext) {
   return new OpenAPIHono<{ Variables: AuthVariables }>()
     .route("/clients", operationsClientsRoutes(ctx))
+    .route("/customers", operationsCustomersRoutes(ctx))
     .route("/applications", operationsApplicationsRoutes(ctx))
     .route("/calculations", operationsCalculationsRoutes(ctx))
     .route("/deals", operationsDealsRoutes(ctx))

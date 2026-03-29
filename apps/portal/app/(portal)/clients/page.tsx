@@ -16,12 +16,16 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 
 interface Client {
-  id: number;
-  orgName: string;
+  address: string | null;
+  customerId: string;
+  description: string | null;
   inn: string | null;
   directorName: string | null;
+  displayName: string;
+  externalRef: string | null;
+  legacyClientId: number | null;
+  legacyProfileStatus: "linked" | "missing";
   phone: string | null;
-  address: string | null;
 }
 
 interface CustomerClientsResponse {
@@ -47,12 +51,6 @@ export default function PortalClientsPage() {
         }
 
         const data: CustomerClientsResponse = await response.json();
-
-        if (data.total === 0) {
-          router.push("/onboard");
-          return;
-        }
-
         setClients(data.data);
       } catch (error) {
         console.error("Error fetching clients:", error);
@@ -103,12 +101,17 @@ export default function PortalClientsPage() {
 
       <div className="space-y-3">
         {clients.map((client) => (
-          <Card key={client.id} className="transition-colors hover:bg-muted/50">
+          <Card
+            key={client.customerId}
+            className="transition-colors hover:bg-muted/50"
+          >
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="h-5 w-5 shrink-0 text-primary" />
-                  <CardTitle className="truncate text-base">{client.orgName}</CardTitle>
+                  <CardTitle className="truncate text-base">
+                    {client.displayName}
+                  </CardTitle>
                 </div>
                 {client.inn ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
@@ -119,6 +122,10 @@ export default function PortalClientsPage() {
               {client.directorName ? (
                 <CardDescription className="mt-1 text-sm">
                   {client.directorName}
+                </CardDescription>
+              ) : client.description ? (
+                <CardDescription className="mt-1 text-sm">
+                  {client.description}
                 </CardDescription>
               ) : null}
             </CardHeader>
@@ -137,6 +144,17 @@ export default function PortalClientsPage() {
                   </div>
                 ) : null}
               </div>
+              {client.legacyProfileStatus === "missing" ? (
+                <p className="mt-3 text-sm text-amber-600">
+                  Для этой организации legacy-профиль ещё не создан. Заявки и
+                  документы будут доступны после его подключения.
+                </p>
+              ) : null}
+              {client.externalRef ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Ref: {client.externalRef}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         ))}

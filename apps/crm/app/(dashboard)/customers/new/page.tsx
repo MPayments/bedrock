@@ -446,7 +446,7 @@ export default function NewClientPage() {
         payload.subAgentId = parseInt(selectedSubAgentId, 10);
       }
 
-      const res = await fetch(`${API_BASE_URL}/clients`, {
+      const res = await fetch(`${API_BASE_URL}/customers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -460,8 +460,8 @@ export default function NewClientPage() {
         throw new Error(errorData.message || `Ошибка создания: ${res.status}`);
       }
 
-      const client = await res.json();
-      router.push(`/customers/${client.id}`);
+      const customer = await res.json();
+      router.push(`/customers/${customer.id}`);
     } catch (err) {
       console.error("Create client error:", err);
       setError(err instanceof Error ? err.message : "Ошибка создания клиента");

@@ -67,7 +67,7 @@ export function customerAuthRoutes(ctx: AppContext) {
         ...input,
         role: "customer",
       });
-      return c.json({ success: true }, 201);
+      return c.json({ success: true as const }, 201);
     } catch (error) {
       if (error instanceof UserEmailConflictError) {
         return c.json({ error: error.message }, 409);

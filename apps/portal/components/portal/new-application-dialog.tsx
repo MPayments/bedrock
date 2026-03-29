@@ -44,13 +44,15 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-interface Client {
-  id: number;
-  orgName: string;
+interface CustomerContext {
+  customerId: string;
+  displayName: string;
+  legacyClientId: number | null;
+  legacyProfileStatus: "linked" | "missing";
 }
 
 interface CustomerClientsResponse {
-  data: Client[];
+  data: CustomerContext[];
   total: number;
 }
 
@@ -74,10 +76,10 @@ export function NewApplicationDialog({
   onSuccess,
 }: NewApplicationDialogProps) {
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
+  const [customers, setCustomers] = useState<CustomerContext[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientsOpen, setClientsOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [creating, setCreating] = useState(false);
@@ -85,15 +87,28 @@ export function NewApplicationDialog({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   useEffect(() => {
-    if (open && clients.length === 0) {
+    if (open && customers.length === 0) {
       void fetchClients();
     }
-  }, [clients.length, open]);
+  }, [customers.length, open]);
+
+  useEffect(() => {
+    if (!open || selectedCustomerId || customers.length === 0) {
+      return;
+    }
+
+    const firstLinkedCustomer = customers.find(
+      (customer) => customer.legacyClientId != null,
+    );
+    if (firstLinkedCustomer) {
+      setSelectedCustomerId(firstLinkedCustomer.customerId);
+    }
+  }, [customers, open, selectedCustomerId]);
 
   async function fetchClients() {
     try {
       setLoadingClients(true);
-      const response = await fetch(`${API_BASE_URL}/customer/clients`, {
+      const response = await fetch(`${API_BASE_URL}/customer/customers`, {
         credentials: "include",
       });
 
@@ -102,10 +117,15 @@ export function NewApplicationDialog({
       }
 
       const data: CustomerClientsResponse = await response.json();
-      setClients(data.data ?? []);
+      setCustomers(data.data ?? []);
 
-      if (data.total === 1 && data.data[0]) {
-        setSelectedClientId(data.data[0].id);
+      const firstLinkedCustomer = data.data.find(
+        (customer) => customer.legacyClientId != null,
+      );
+      if (data.total === 1 && data.data[0]?.legacyClientId != null) {
+        setSelectedCustomerId(data.data[0].customerId);
+      } else if (firstLinkedCustomer) {
+        setSelectedCustomerId(firstLinkedCustomer.customerId);
       }
     } catch (fetchError) {
       console.error("Error fetching clients:", fetchError);
@@ -116,8 +136,19 @@ export function NewApplicationDialog({
   }
 
   async function handleCreate() {
-    if (!selectedClientId) {
+    const selectedCustomer = customers.find(
+      (customer) => customer.customerId === selectedCustomerId,
+    );
+    const selectedClientId = selectedCustomer?.legacyClientId ?? null;
+
+    if (!selectedCustomerId) {
       setError("Выберите организацию");
+      return;
+    }
+    if (!selectedClientId) {
+      setError(
+        "Для выбранной организации legacy-профиль ещё не создан. Создание заявок пока недоступно.",
+      );
       return;
     }
 
@@ -160,14 +191,15 @@ export function NewApplicationDialog({
   }
 
   function resetState() {
-    setError(null);
-    setAmount("");
-    setCurrency("USD");
-    setShowCloseConfirm(false);
+      setError(null);
+      setAmount("");
+      setCurrency("USD");
+      setSelectedCustomerId(undefined);
+      setShowCloseConfirm(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && (amount || selectedClientId)) {
+    if (!nextOpen && (amount || selectedCustomerId)) {
       setShowCloseConfirm(true);
       return;
     }
@@ -201,8 +233,10 @@ export function NewApplicationDialog({
                     />
                   }
                 >
-                  {selectedClientId
-                    ? clients.find((client) => client.id === selectedClientId)?.orgName
+                  {selectedCustomerId
+                    ? customers.find(
+                        (customer) => customer.customerId === selectedCustomerId,
+                      )?.displayName
                     : "Выберите организацию"}
                   <ChevronsUpDown className="h-4 w-4 opacity-50" />
                 </PopoverTrigger>
@@ -212,24 +246,31 @@ export function NewApplicationDialog({
                     <CommandList>
                       <CommandEmpty>Организации не найдены</CommandEmpty>
                       <CommandGroup>
-                        {clients.map((client) => (
+                        {customers.map((customer) => (
                           <CommandItem
-                            key={client.id}
-                            value={client.orgName}
+                            key={customer.customerId}
+                            value={customer.displayName}
                             onSelect={() => {
-                              setSelectedClientId(client.id);
+                              setSelectedCustomerId(customer.customerId);
                               setClientsOpen(false);
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedClientId === client.id
+                                selectedCustomerId === customer.customerId
                                   ? "opacity-100"
                                   : "opacity-0",
                               )}
                             />
-                            {client.orgName}
+                            <div className="flex flex-col gap-0.5">
+                              <span>{customer.displayName}</span>
+                              {customer.legacyProfileStatus === "missing" ? (
+                                <span className="text-xs text-amber-600">
+                                  legacy-профиль ещё не создан
+                                </span>
+                              ) : null}
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -242,6 +283,16 @@ export function NewApplicationDialog({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Загрузка организаций...
                 </div>
+              ) : null}
+              {!loadingClients &&
+              selectedCustomerId &&
+              customers.find(
+                (customer) => customer.customerId === selectedCustomerId,
+              )?.legacyClientId == null ? (
+                <p className="text-sm text-amber-600">
+                  Для выбранной организации legacy-профиль ещё не создан.
+                  Создание заявок пока недоступно.
+                </p>
               ) : null}
             </div>
 

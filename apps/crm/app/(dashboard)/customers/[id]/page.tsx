@@ -95,7 +95,11 @@ interface ClientDocument {
 }
 
 interface ClientData {
-  id: number;
+  id: string;
+  legacyClientId: number | null;
+  legacyProfileStatus: "linked" | "missing";
+  externalRef: string | null;
+  description: string | null;
   orgName: string;
   orgNameI18n?: { ru?: string | null; en?: string | null } | null;
   orgType: string | null;
@@ -210,7 +214,7 @@ function getFileIcon(mimeType: string) {
 export default function ClientDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const clientId = params.id as string;
+  const customerId = params.id as string;
 
   const [client, setClient] = useState<ClientData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -273,39 +277,20 @@ export default function ClientDetailPage() {
     mode: "onBlur",
   });
 
-  const fetchClient = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error("Клиент не найден");
-        }
-        throw new Error(`Ошибка загрузки: ${res.status}`);
-      }
-
-      const data: ClientData = await res.json();
-      setClient(data);
-      form.reset(clientToFormData(data));
-    } catch (err) {
-      console.error("Fetch client error:", err);
-      setError(err instanceof Error ? err.message : "Ошибка загрузки клиента");
-    } finally {
-      setLoading(false);
+  const fetchDocuments = useCallback(async (targetLegacyClientId: number | null) => {
+    if (!targetLegacyClientId) {
+      setDocuments([]);
+      return;
     }
-  }, [clientId, form]);
 
-  const fetchDocuments = useCallback(async () => {
     try {
       setLoadingDocuments(true);
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}/documents`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/clients/${targetLegacyClientId}/documents`,
+        {
+          credentials: "include",
+        },
+      );
 
       if (!res.ok) {
         throw new Error(`Ошибка загрузки: ${res.status}`);
@@ -321,11 +306,45 @@ export default function ClientDetailPage() {
     } finally {
       setLoadingDocuments(false);
     }
-  }, [clientId]);
+  }, []);
+
+  const fetchClient = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error("Клиент не найден");
+        }
+        throw new Error(`Ошибка загрузки: ${res.status}`);
+      }
+
+      const data: ClientData = await res.json();
+      setClient(data);
+      form.reset(clientToFormData(data));
+      await fetchDocuments(data.legacyClientId);
+    } catch (err) {
+      console.error("Fetch client error:", err);
+      setError(err instanceof Error ? err.message : "Ошибка загрузки клиента");
+    } finally {
+      setLoading(false);
+    }
+  }, [customerId, fetchDocuments, form]);
 
   const handleDocumentUpload = async () => {
     if (!uploadDocumentFile) {
       setError("Выберите файл для загрузки");
+      return;
+    }
+    if (!client?.legacyClientId) {
+      setError(
+        "Для этого клиента legacy-профиль ещё не создан. Загрузка документов пока недоступна.",
+      );
       return;
     }
 
@@ -339,11 +358,14 @@ export default function ClientDetailPage() {
         formData.append("description", uploadDocumentDescription);
       }
 
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}/documents`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/clients/${client.legacyClientId}/documents`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -353,7 +375,7 @@ export default function ClientDetailPage() {
       setIsUploadDocumentDialogOpen(false);
       setUploadDocumentFile(null);
       setUploadDocumentDescription("");
-      await fetchDocuments();
+      await fetchDocuments(client.legacyClientId);
     } catch (err) {
       console.error("Document upload error:", err);
       setError(
@@ -368,9 +390,16 @@ export default function ClientDetailPage() {
     documentId: number,
     fileName: string,
   ) => {
+    if (!client?.legacyClientId) {
+      setError(
+        "Для этого клиента legacy-профиль ещё не создан. Скачивание документов пока недоступно.",
+      );
+      return;
+    }
+
     try {
       const res = await fetch(
-        `${API_BASE_URL}/clients/${clientId}/documents/${documentId}/download`,
+        `${API_BASE_URL}/clients/${client.legacyClientId}/documents/${documentId}/download`,
         {
           credentials: "include",
         },
@@ -401,10 +430,17 @@ export default function ClientDetailPage() {
   };
 
   const handleDocumentDelete = async (documentId: number) => {
+    if (!client?.legacyClientId) {
+      setError(
+        "Для этого клиента legacy-профиль ещё не создан. Удаление документов пока недоступно.",
+      );
+      return;
+    }
+
     try {
       setDeletingDocumentId(documentId);
       const res = await fetch(
-        `${API_BASE_URL}/clients/${clientId}/documents/${documentId}`,
+        `${API_BASE_URL}/clients/${client.legacyClientId}/documents/${documentId}`,
         {
           method: "DELETE",
           credentials: "include",
@@ -416,7 +452,7 @@ export default function ClientDetailPage() {
         throw new Error(errorData.message || `Ошибка удаления: ${res.status}`);
       }
 
-      await fetchDocuments();
+      await fetchDocuments(client.legacyClientId);
     } catch (err) {
       console.error("Document delete error:", err);
       setError(
@@ -429,8 +465,7 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     fetchClient();
-    fetchDocuments();
-  }, [fetchClient, fetchDocuments]);
+  }, [fetchClient]);
 
   const onSubmit = async (data: ClientFormData) => {
     setSaving(true);
@@ -473,7 +508,7 @@ export default function ClientDetailPage() {
         },
       };
 
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}`, {
+      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -508,7 +543,7 @@ export default function ClientDetailPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/clients/${clientId}`, {
+      const res = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -584,12 +619,19 @@ export default function ClientDetailPage() {
 
   const handleDownloadContract = useCallback(
     async (format: "docx" | "pdf") => {
+      if (!client?.legacyClientId) {
+        setError(
+          "Для этого клиента legacy-профиль ещё не создан. Формирование договора пока недоступно.",
+        );
+        return;
+      }
+
       try {
         setDownloadingContract(true);
         setError(null);
 
         const res = await fetch(
-          `${API_BASE_URL}/documents/clients/${clientId}/contract?format=${format}&lang=${contractLang}`,
+          `${API_BASE_URL}/documents/clients/${client.legacyClientId}/contract?format=${format}&lang=${contractLang}`,
           {
             credentials: "include",
           },
@@ -630,7 +672,7 @@ export default function ClientDetailPage() {
         setDownloadingContract(false);
       }
     },
-    [clientId, contractLang],
+    [client?.legacyClientId, contractLang],
   );
 
   if (loading) {
@@ -668,6 +710,12 @@ export default function ClientDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{client.orgName}</h1>
+            {client.legacyProfileStatus === "missing" ? (
+              <p className="text-sm text-amber-600">
+                Legacy-профиль ещё не создан. Документы и договор станут
+                доступны после первого сохранения профиля.
+              </p>
+            ) : null}
             {client.contractNumber && (
               <p className="text-sm text-muted-foreground">
                 Агентский договор: {client.contractNumber}
@@ -691,21 +739,24 @@ export default function ClientDetailPage() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setContractDialogOpen(true)}>
+                  <DropdownMenuItem
+                    disabled={!client.legacyClientId}
+                    onClick={() => setContractDialogOpen(true)}
+                  >
                     <FileText className="mr-2 h-4 w-4" />
                     Создать / Редактировать
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleDownloadContract("docx")}
-                    disabled={downloadingContract}
+                    disabled={downloadingContract || !client.legacyClientId}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Скачать DOCX
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDownloadContract("pdf")}
-                    disabled={downloadingContract}
+                    disabled={downloadingContract || !client.legacyClientId}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Скачать PDF
@@ -1590,6 +1641,7 @@ export default function ClientDetailPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsUploadDocumentDialogOpen(true)}
+                  disabled={!client.legacyClientId}
                 >
                   <UploadIcon className="mr-2 h-4 w-4" />
                   Загрузить документ
@@ -1732,14 +1784,16 @@ export default function ClientDetailPage() {
       </Dialog>
 
       {/* Модальное окно создания договора */}
-      <NewContractDialog
-        open={contractDialogOpen}
-        onOpenChange={setContractDialogOpen}
-        clientId={parseInt(clientId)}
-        onSuccess={() => {
-          fetchClient();
-        }}
-      />
+      {client.legacyClientId ? (
+        <NewContractDialog
+          open={contractDialogOpen}
+          onOpenChange={setContractDialogOpen}
+          clientId={client.legacyClientId}
+          onSuccess={() => {
+            void fetchClient();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

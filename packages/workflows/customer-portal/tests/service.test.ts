@@ -67,10 +67,19 @@ function createWorkflow(overrides?: {
         })),
       },
       queries: {
+        findActiveByCustomerId: vi.fn(async (customerId: string) =>
+          clientListResult.data.find((client) => client.customerId === customerId) ?? null,
+        ),
         findById: vi.fn(async (id: number) =>
           clientListResult.data.find((client) => client.id === id) ?? null,
         ),
         list: vi.fn(async () => clientListResult),
+        listActiveByCustomerIds: vi.fn(async (customerIds: string[]) =>
+          clientListResult.data.filter(
+            (client) =>
+              client.customerId !== null && customerIds.includes(client.customerId),
+          ),
+        ),
       },
     },
     deals: {
@@ -121,7 +130,19 @@ function createWorkflow(overrides?: {
           displayName: `Customer ${customerId}`,
           externalRef: null,
           description: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         })),
+        listByIds: vi.fn(async (customerIds: string[]) =>
+          customerIds.map((customerId) => ({
+            id: customerId,
+            displayName: `Customer ${customerId}`,
+            externalRef: null,
+            description: null,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          })),
+        ),
       },
     },
   };
@@ -168,12 +189,10 @@ describe("customer portal workflow", () => {
 
     await workflow.getClients({ userId: "user-1" });
 
-    expect(operations.clients.queries.list).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customerId: ["customer-1", "customer-2"],
-        isDeleted: false,
-      }),
-    );
+    expect(operations.clients.queries.listActiveByCustomerIds).toHaveBeenCalledWith([
+      "customer-1",
+      "customer-2",
+    ]);
   });
 
   it("reports membership-backed portal access in the profile", async () => {
@@ -220,6 +239,50 @@ describe("customer portal workflow", () => {
       role: "owner",
       status: "active",
       userId: "user-1",
+    });
+  });
+
+  it("returns canonical customer contexts with legacy shell pointers", async () => {
+    const { workflow } = createWorkflow({
+      memberships: [
+        {
+          customerId: "customer-1",
+          id: "membership-1",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
+        {
+          customerId: "customer-2",
+          id: "membership-2",
+          role: "owner",
+          status: "active",
+          userId: "user-1",
+        },
+      ],
+      clients: {
+        data: [{ id: 101, customerId: "customer-1", isDeleted: false }],
+      },
+    });
+
+    await expect(
+      workflow.getCustomerContexts({ userId: "user-1" }),
+    ).resolves.toEqual({
+      data: [
+        expect.objectContaining({
+          customerId: "customer-1",
+          displayName: "Customer customer-1",
+          legacyClientId: 101,
+          legacyProfileStatus: "linked",
+        }),
+        expect.objectContaining({
+          customerId: "customer-2",
+          displayName: "Customer customer-2",
+          legacyClientId: null,
+          legacyProfileStatus: "missing",
+        }),
+      ],
+      total: 2,
     });
   });
 
