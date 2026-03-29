@@ -7,6 +7,7 @@ import {
   counterparties,
   counterpartyGroupMemberships,
   counterpartyGroups,
+  customerMemberships,
   customers,
   organizations,
   organizationRequisiteBindings,
@@ -43,6 +44,7 @@ const authSchema = {
 };
 const partiesSchema = {
   customers,
+  customerMemberships,
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,

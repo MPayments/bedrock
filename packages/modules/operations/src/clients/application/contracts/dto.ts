@@ -43,6 +43,7 @@ export const ClientSchema = z.object({
   subAgentId: z.number().int().nullable(),
   userId: z.string().nullable(),
   counterpartyId: z.string().nullable(),
+  customerId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

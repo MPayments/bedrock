@@ -16,6 +16,7 @@ import type {
   CalculationsCommandTx,
   CalculationsCommandUnitOfWork,
 } from "../../../calculations/application/ports/calculations.uow";
+import { DrizzleCustomerBridge } from "../../../clients/adapters/drizzle/customer-bridge";
 import { DrizzleClientStore } from "../../../clients/adapters/drizzle/client.store";
 import type {
   ClientsCommandTx,
@@ -51,6 +52,7 @@ function bindOperationsTx(tx: Transaction): OperationsTx {
     calculationStore: new DrizzleCalculationStore(tx),
     dealStore: new DrizzleDealStore(tx),
     clientStore: new DrizzleClientStore(tx),
+    customerBridge: new DrizzleCustomerBridge(tx),
     applicationReads,
     todoStore,
   };

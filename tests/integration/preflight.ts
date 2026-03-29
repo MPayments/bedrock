@@ -4,6 +4,7 @@ const REQUIRED_TABLES = [
   { schemaName: "drizzle", tableName: "__drizzle_migrations" },
   { schemaName: "public", tableName: "books" },
   { schemaName: "public", tableName: "organizations" },
+  { schemaName: "public", tableName: "customer_memberships" },
   { schemaName: "public", tableName: "requisite_providers" },
   { schemaName: "public", tableName: "requisites" },
   { schemaName: "public", tableName: "organization_requisite_bindings" },
@@ -23,6 +24,10 @@ const REQUIRED_COLUMNS = [
   {
     tableName: "documents",
     columnName: "organization_requisite_id",
+  },
+  {
+    tableName: "ops_clients",
+    columnName: "customer_id",
   },
 ] as const;
 

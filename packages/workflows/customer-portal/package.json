@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@bedrock/operations": "workspace:*",
+    "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*"
   },
   "devDependencies": {

@@ -7,11 +7,11 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  await requireDashboardSession();
+  const session = await requireDashboardSession();
 
   return (
     <>
-      <AppHeader />
+      <AppHeader session={session} />
       <main className="mx-auto max-w-[1920px] p-4">{children}</main>
     </>
   );

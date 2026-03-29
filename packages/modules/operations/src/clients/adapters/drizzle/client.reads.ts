@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
@@ -48,6 +48,9 @@ export class DrizzleClientReads implements ClientReads {
     }
     if (input.userId) {
       conditions.push(eq(opsClients.userId, input.userId));
+    }
+    if (input.customerId && input.customerId.length > 0) {
+      conditions.push(inArray(opsClients.customerId, input.customerId));
     }
     // Full-text search across orgName, inn, directorName
     if (input.search) {

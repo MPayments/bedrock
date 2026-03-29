@@ -52,6 +52,11 @@ interface Client {
   orgName: string;
 }
 
+interface CustomerClientsResponse {
+  data: Client[];
+  total: number;
+}
+
 interface NewApplicationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,9 +94,9 @@ export function NewApplicationDialog({
   // Fetch clients when dialog opens
   useEffect(() => {
     if (open && clients.length === 0) {
-      fetchClients();
+      void fetchClients();
     }
-  }, [open]);
+  }, [open, clients.length]);
 
   const fetchClients = async () => {
     try {
@@ -104,12 +109,12 @@ export function NewApplicationDialog({
         throw new Error("Ошибка загрузки организаций");
       }
 
-      const data = await response.json();
-      setClients(data);
+      const data: CustomerClientsResponse = await response.json();
+      setClients(data.data);
 
       // Auto-select if only one client
-      if (data.length === 1) {
-        setSelectedClientId(data[0].id);
+      if (data.total === 1 && data.data[0]) {
+        setSelectedClientId(data.data[0].id);
       }
     } catch (err) {
       console.error("Error fetching clients:", err);

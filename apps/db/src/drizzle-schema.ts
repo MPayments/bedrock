@@ -48,6 +48,7 @@ export {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyKindEnum,
+  customerMemberships,
   customers,
   organizations,
   organizationRequisiteBindings,

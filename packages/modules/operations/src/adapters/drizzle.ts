@@ -26,6 +26,7 @@ export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";
 export { DrizzleDealDocumentStore } from "../deals/adapters/drizzle/deal-document.store";
 
 // Clients
+export { DrizzleCustomerBridge } from "../clients/adapters/drizzle/customer-bridge";
 export { DrizzleClientReads } from "../clients/adapters/drizzle/client.reads";
 export { DrizzleClientStore } from "../clients/adapters/drizzle/client.store";
 export { DrizzleClientDocumentReads } from "../clients/adapters/drizzle/client-document.reads";

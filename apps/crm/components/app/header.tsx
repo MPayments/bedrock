@@ -1,14 +1,15 @@
 "use client";
 
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import {
@@ -17,22 +18,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { API_BASE_URL } from "@/lib/constants";
-import { signOut, useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOut } from "@/lib/auth-client";
+import type { UserSessionSnapshot } from "@/lib/auth/types";
 
-export function AppHeader() {
+export function AppHeader({ session }: { session: UserSessionSnapshot }) {
   const router = useRouter();
-  const { data: session } = useSession();
   const [rates, setRates] = useState<{
-    USD: number;
-    EUR: number;
-    CNY: number;
-  } | null>(null);
-  const [prevRates, setPrevRates] = useState<{
     USD: number;
     EUR: number;
     CNY: number;
@@ -91,7 +83,6 @@ export function AppHeader() {
             }
           }
           setRates(ratesData);
-          setPrevRates(ratesData);
           setInvestingRates(investingData);
         } else {
           setError("Нет данных");
@@ -191,7 +182,7 @@ export function AppHeader() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </NavigationMenuItem>
-              {session?.user?.role === "admin" && (
+              {session.role === "admin" && (
                 <NavigationMenuItem>
                   <NavigationMenuLink
                     asChild
@@ -203,41 +194,50 @@ export function AppHeader() {
               )}
             </NavigationMenuList>
           </NavigationMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 font-semibold cursor-pointer">
-                <Avatar className="h-8 w-8 rounded-lg mr-2">
-                  <AvatarImage src="https://github.com/shadcn.png" />
-                  <AvatarFallback className="bg-muted">CN</AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">
-                    {session?.user?.name ?? "—"}
-                  </span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {session?.user?.email ?? ""}
-                  </span>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px]">
-              <DropdownMenuItem asChild>
-                <Link href="#">Профиль</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href="#"
-                  onClick={async (e) => {
-                    e.preventDefault();
+          <div className="flex items-center gap-3">
+            {session.hasCustomerPortalAccess ? (
+              <Link
+                href="/customer"
+                className="hidden md:inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
+              >
+                Кабинет клиента
+              </Link>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 font-semibold cursor-pointer">
+                  <Avatar className="h-8 w-8 rounded-lg mr-2">
+                    <AvatarImage src="https://github.com/shadcn.png" />
+                    <AvatarFallback className="bg-muted">CN</AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">
+                      {session.user?.name ?? "—"}
+                    </span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {session.user?.email ?? ""}
+                    </span>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[220px]">
+                {session.hasCustomerPortalAccess ? (
+                  <DropdownMenuItem asChild>
+                    <Link href="/customer">Кабинет клиента</Link>
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem
+                  onClick={async () => {
                     await signOut();
                     router.push("/login");
+                    router.refresh();
                   }}
                 >
                   Выйти
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           {/* <div>user</div> */}
         </header>
       </div>

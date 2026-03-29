@@ -6,6 +6,7 @@ import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { db, pool } from "./setup";
 import { createPartiesModule } from "../../src";
 import {
+  DrizzleCustomerMembershipReads,
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartiesQueries,
   DrizzleCounterpartyReads,
@@ -63,6 +64,7 @@ export function createIntegrationRuntime(options?: {
           return new Map(result.rows.map((row) => [row.id, row.code]));
         },
       },
+      customerMembershipReads: new DrizzleCustomerMembershipReads(db),
       customerReads: new DrizzleCustomerReads(db),
       counterpartyReads: new DrizzleCounterpartyReads(db),
       counterpartyGroupReads: new DrizzleCounterpartyGroupReads(db),

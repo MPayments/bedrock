@@ -1,45 +1,26 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
-async function getSessionRole(request: NextRequest): Promise<string | null> {
-  try {
-    const cookie = request.headers.get("cookie") ?? "";
-    const response = await fetch(`${API_URL}/api/auth/get-session`, {
-      headers: { cookie },
-      cache: "no-store",
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    if (!data?.user) return null;
-
-    if (data.user.role === "customer") return "customer";
-    if (data.user.role === "admin" || data.user.isAdmin) return "admin";
-    return "agent";
-  } catch {
-    return null;
-  }
-}
+import { fetchSessionSnapshot, getPreferredHomePath } from "@/lib/auth/access";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const role = await getSessionRole(request);
+  const session = await fetchSessionSnapshot({
+    cookie: request.headers.get("cookie") ?? "",
+  });
 
-  // Customer routes - only customers allowed
   if (pathname.startsWith("/customer")) {
-    if (!role) {
+    if (!session.isAuthenticated) {
       return NextResponse.redirect(new URL("/login/customer", request.url));
     }
-    if (role !== "customer") {
-      return NextResponse.redirect(new URL("/", request.url));
+    if (!session.hasCustomerPortalAccess) {
+      return NextResponse.redirect(
+        new URL(session.canAccessDashboard ? "/" : "/login/customer", request.url),
+      );
     }
     return NextResponse.next();
   }
 
-  // Dashboard routes - admins and agents only
   if (
     pathname.startsWith("/applications") ||
     pathname.startsWith("/deals") ||
@@ -48,11 +29,13 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/reports") ||
     pathname === "/"
   ) {
-    if (!role) {
+    if (!session.isAuthenticated) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    if (role === "customer") {
-      return NextResponse.redirect(new URL("/customer", request.url));
+    if (!session.canAccessDashboard) {
+      return NextResponse.redirect(
+        new URL(getPreferredHomePath(session), request.url),
+      );
     }
     return NextResponse.next();
   }

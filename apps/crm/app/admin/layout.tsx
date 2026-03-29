@@ -7,11 +7,11 @@ export default async function AdminLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
   return (
     <>
-      <AppHeader />
+      <AppHeader session={session} />
       <main className="mx-auto max-w-[1920px] p-4">{children}</main>
     </>
   );

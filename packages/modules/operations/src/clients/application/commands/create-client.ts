@@ -70,6 +70,19 @@ export class CreateClientCommand {
         ...normalized,
         counterpartyId,
       });
+      const customerId = await tx.customerBridge.ensureLinkedCustomer({
+        customerId: created.customerId,
+        displayName: created.orgName,
+        legacyClientId: created.id,
+        nextCustomerId: this.runtime.generateUuid(),
+      });
+      const clientWithCustomer =
+        created.customerId === customerId
+          ? created
+          : await tx.clientStore.update({
+              id: created.id,
+              customerId,
+            });
 
       // Auto-create contract if contract fields are provided
       if (
@@ -87,7 +100,7 @@ export class CreateClientCommand {
             validated.agentOrganizationBankDetailsId,
         });
 
-        await tx.clientStore.update({
+        const withContract = await tx.clientStore.update({
           id: created.id,
           contractId: contract.id,
         });
@@ -96,15 +109,25 @@ export class CreateClientCommand {
           clientId: created.id,
           contractId: contract.id,
         });
+
+        this.runtime.log.info("Client created", {
+          id: created.id,
+          orgName: created.orgName,
+          counterpartyId,
+          customerId,
+        });
+
+        return withContract ?? clientWithCustomer ?? created;
       }
 
       this.runtime.log.info("Client created", {
         id: created.id,
         orgName: created.orgName,
         counterpartyId,
+        customerId,
       });
 
-      return created;
+      return clientWithCustomer ?? created;
     });
   }
 }

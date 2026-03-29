@@ -8,26 +8,53 @@ import {
   DealSchema,
   PaginatedClientsSchema,
 } from "@bedrock/operations/contracts";
+import {
+  CustomerMembershipSchema,
+  CustomerSchema,
+} from "@bedrock/parties/contracts";
 
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 
-function requireCustomerRole(): MiddlewareHandler<{
+const CustomerPortalProfileSchema = z.object({
+  customers: z.array(CustomerSchema),
+  hasCustomerPortalAccess: z.boolean(),
+  memberships: z.array(CustomerMembershipSchema),
+});
+
+function requireCustomerPortalAccess(
+  ctx: AppContext,
+): MiddlewareHandler<{
   Variables: AuthVariables;
 }> {
   return async (c, next) => {
     const user = c.get("user");
-    if (!user || user.role !== "customer") {
-      return c.json({ error: "Forbidden: customer role required" }, 403);
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
     }
+
+    try {
+      await ctx.customerPortalWorkflow.assertPortalAccess({
+        userId: user.id,
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "CustomerNotAuthorizedError"
+      ) {
+        return c.json({ error: error.message }, 403);
+      }
+
+      throw error;
+    }
+
     await next();
   };
 }
 
 export function operationsCustomerPortalRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
-  app.use("*", requireCustomerRole());
 
   const getProfileRoute = createRoute({
     method: "get",
@@ -36,7 +63,9 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     summary: "Get customer profile",
     responses: {
       200: {
-        content: { "application/json": { schema: z.any() } },
+        content: {
+          "application/json": { schema: CustomerPortalProfileSchema },
+        },
         description: "Customer profile",
       },
     },
@@ -46,6 +75,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "get",
     path: "/clients",
     tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "List customer's clients",
     responses: {
       200: {
@@ -59,6 +89,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "post",
     path: "/clients",
     tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "Create client as customer",
     request: {
       body: {
@@ -78,6 +109,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "get",
     path: "/applications",
     tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "List customer's applications",
     request: {
       query: z.object({
@@ -97,6 +129,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "get",
     path: "/deals",
     tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "List customer's deals",
     request: {
       query: z.object({
@@ -116,6 +149,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     method: "get",
     path: "/deals/{id}",
     tags: ["Operations - Customer Portal"],
+    middleware: [requireCustomerPortalAccess(ctx)],
     summary: "Get customer's deal details",
     request: { params: OpsIdParamSchema },
     responses: {
@@ -133,7 +167,10 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
   return app
     .openapi(getProfileRoute, async (c) => {
       const user = c.get("user")!;
-      return c.json({ id: user.id, email: user.email, role: user.role }, 200);
+      const result = await ctx.customerPortalWorkflow.getProfile({
+        userId: user.id,
+      });
+      return c.json(result, 200);
     })
     .openapi(listClientsRoute, async (c) => {
       const user = c.get("user")!;

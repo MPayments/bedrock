@@ -51,6 +51,8 @@ export const CreateClientInputSchema = z.object({
   agentOrganizationBankDetailsId: z.number().int().nullable().optional(),
   // FK bridge to bedrock parties (auto-set by CounterpartiesPort)
   counterpartyId: z.string().uuid().nullable().optional(),
+  // FK bridge to canonical Bedrock customers (auto-set by CustomerBridgePort)
+  customerId: z.string().uuid().nullable().optional(),
 });
 
 export type CreateClientInput = z.infer<typeof CreateClientInputSchema>;

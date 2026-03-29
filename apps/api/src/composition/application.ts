@@ -375,6 +375,7 @@ export function createApplicationServices(
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
     operations: operationsModule,
+    parties: partiesModule,
     logger,
   });
 

@@ -52,6 +52,8 @@ export class DrizzleClientStore implements ClientStore {
         bankCountry: input.bankCountry ?? null,
         subAgentId: input.subAgentId ?? null,
         contractId: input.contractId ?? null,
+        customerId: input.customerId ?? null,
+        counterpartyId: input.counterpartyId ?? null,
       })
       .returning();
     return created! as unknown as Client;

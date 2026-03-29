@@ -31,6 +31,11 @@ interface Client {
   createdAt: string | null;
 }
 
+interface CustomerClientsResponse {
+  data: Client[];
+  total: number;
+}
+
 export default function CustomerClientsPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
@@ -49,14 +54,14 @@ export default function CustomerClientsPage() {
           return;
         }
 
-        const data = await response.json();
+        const data: CustomerClientsResponse = await response.json();
 
-        if (data.length === 0) {
+        if (data.total === 0) {
           router.push("/customer/onboard");
           return;
         }
 
-        setClients(data);
+        setClients(data.data);
       } catch (error) {
         console.error("Error fetching clients:", error);
         router.push("/customer/onboard");

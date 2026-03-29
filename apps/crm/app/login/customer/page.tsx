@@ -1,9 +1,17 @@
+import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getPreferredHomePath } from "@/lib/auth/access";
+import { getServerSessionSnapshot } from "@/lib/auth/session";
 import { CustomerLoginForm } from "./customer-login-form";
 
-export default function CustomerLoginPage() {
+export default async function CustomerLoginPage() {
+  const session = await getServerSessionSnapshot();
+  if (session.isAuthenticated) {
+    redirect(getPreferredHomePath(session));
+  }
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
       {/* Back button - fixed at top for mobile */}

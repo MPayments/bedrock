@@ -22,7 +22,7 @@ export class UpdateClientCommand {
         throw new ClientNotFoundError(validated.id);
       }
 
-      const updated = await tx.clientStore.update(validated);
+      let finalClient = await tx.clientStore.update(validated);
 
       // Auto-manage contract if contract fields are provided
       if (
@@ -45,10 +45,10 @@ export class UpdateClientCommand {
             agentOrganizationBankDetailsId:
               validated.agentOrganizationBankDetailsId,
           });
-          await tx.clientStore.update({
+          finalClient = await tx.clientStore.update({
             id: validated.id,
             contractId: contract.id,
-          });
+          }) ?? finalClient;
 
           this.runtime.log.info("Contract auto-created for client", {
             clientId: validated.id,
@@ -70,10 +70,10 @@ export class UpdateClientCommand {
               validated.agentOrganizationBankDetailsId,
           });
           await tx.contractStore.softDelete(existingContract.id);
-          await tx.clientStore.update({
+          finalClient = await tx.clientStore.update({
             id: validated.id,
             contractId: newContract.id,
-          });
+          }) ?? finalClient;
 
           this.runtime.log.info("Contract replaced for client", {
             clientId: validated.id,
@@ -98,10 +98,22 @@ export class UpdateClientCommand {
           });
         }
       }
+      const syncedCustomerId = await tx.customerBridge.ensureLinkedCustomer({
+        customerId: finalClient?.customerId ?? existing.customerId,
+        displayName: finalClient?.orgName ?? existing.orgName,
+        legacyClientId: validated.id,
+        nextCustomerId: existing.customerId ?? this.runtime.generateUuid(),
+      });
+      if ((finalClient?.customerId ?? existing.customerId) !== syncedCustomerId) {
+        finalClient = await tx.clientStore.update({
+          id: validated.id,
+          customerId: syncedCustomerId,
+        }) ?? finalClient;
+      }
 
       this.runtime.log.info("Client updated", { id: validated.id });
 
-      return updated;
+      return finalClient;
     });
   }
 }

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/constants";
 
+interface CustomerClientsResponse {
+  data: { id: number }[];
+  total: number;
+}
+
 /**
  * Customer root page - redirects to appropriate page based on clients status
  * - Has clients → /customer/clients
@@ -25,9 +30,9 @@ export default function CustomerDashboard() {
           return;
         }
 
-        const clients = await response.json();
+        const clients: CustomerClientsResponse = await response.json();
 
-        if (clients.length === 0) {
+        if (clients.total === 0) {
           router.push("/customer/onboard");
         } else {
           router.push("/customer/clients");

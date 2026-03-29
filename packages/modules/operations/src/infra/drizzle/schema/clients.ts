@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/parties/schema";
+import { counterparties, customers } from "@bedrock/parties/schema";
 import { user } from "@bedrock/platform/auth-model/schema";
 
 import type { LocalizedText } from "./agents";
@@ -53,6 +53,9 @@ export const opsClients = pgTable("ops_clients", {
   userId: text("user_id").references(() => user.id),
   // FK bridge to bedrock parties
   counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
+  customerId: uuid("customer_id").references(() => customers.id, {
+    onDelete: "set null",
+  }),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
@@ -97,6 +100,10 @@ export const opsClientsRelations = relations(opsClients, ({ one, many }) => ({
   user: one(user, {
     fields: [opsClients.userId],
     references: [user.id],
+  }),
+  customer: one(customers, {
+    fields: [opsClients.customerId],
+    references: [customers.id],
   }),
   documents: many(opsClientDocuments),
 }));
