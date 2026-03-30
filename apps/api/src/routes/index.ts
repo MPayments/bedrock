@@ -1,3 +1,4 @@
+export { agreementsRoutes } from "./agreements";
 export { accountingRoutes } from "./accounting";
 export { balancesRoutes } from "./balances";
 export { counterpartiesRoutes } from "./counterparties";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { AccountingModule } from "@bedrock/accounting";
+import type { AgreementsModule } from "@bedrock/agreements";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
 import type { IamService } from "@bedrock/iam";
@@ -62,6 +63,7 @@ export interface AppContext {
   env: Env;
   logger: Logger;
   accountingModule: AccountingModule;
+  agreementsModule: AgreementsModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
@@ -87,6 +89,7 @@ export function createAppContext(env: Env): AppContext {
     env,
     logger: core.logger,
     accountingModule: core.accountingModule,
+    agreementsModule: applicationServices.agreementsModule,
     ledgerModule: core.ledgerModule,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,

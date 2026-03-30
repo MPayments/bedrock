@@ -1,4 +1,5 @@
 import type { AccountingModule } from "@bedrock/accounting";
+import type { AgreementsModule } from "@bedrock/agreements";
 import {
   createCurrenciesService,
   type CurrenciesService,
@@ -13,11 +14,14 @@ import {
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
+import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
 import {
   ConsoleNotificationAdapter,
   PartiesCounterpartiesAdapter,
 } from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
+import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
+import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import {
   bindPersistenceSession,
   createPersistenceContext,
@@ -54,11 +58,8 @@ import {
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
 
-import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
-import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
-import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
-
 import { createApiAccountingModule } from "./accounting-module";
+import { createApiAgreementsModule } from "./agreements-module";
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
@@ -72,6 +73,7 @@ import type { Env } from "../context";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
+  agreementsModule: AgreementsModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
@@ -168,6 +170,13 @@ export function createApplicationServices(
     },
     currencies: currenciesPort,
     logger,
+  });
+  const agreementsModule = createApiAgreementsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
@@ -421,6 +430,7 @@ export function createApplicationServices(
     : undefined;
 
   return {
+    agreementsModule,
     partiesModule,
     currenciesService,
     treasuryModule,

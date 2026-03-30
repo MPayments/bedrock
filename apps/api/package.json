@@ -17,6 +17,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/agreements": "workspace:*",
     "@bedrock/operations": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",

@@ -1,4 +1,13 @@
 export {
+  agreementFeeRules,
+  agreementFeeRuleKindEnum,
+  agreementFeeRuleUnitEnum,
+  agreementParties,
+  agreementPartyRoleEnum,
+  agreements,
+  agreementVersions,
+} from "@bedrock/agreements/schema";
+export {
   accountingClosePackages,
   accountingPackAssignments,
   accountingPackVersions,

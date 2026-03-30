@@ -8,6 +8,7 @@ import {
 const statements = {
   ...defaultStatements,
   customers: ["create", "list", "update", "delete"],
+  agreements: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
@@ -59,6 +60,7 @@ export const ac = createAccessControl(statements);
 export const admin = ac.newRole({
   ...adminAc.statements,
   customers: ["create", "list", "update", "delete"],
+  agreements: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
@@ -104,6 +106,7 @@ export const admin = ac.newRole({
 export const user = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
   treasury_rates: ["list"],
@@ -128,6 +131,7 @@ export const user = ac.newRole({
 export const agent = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
   treasury_rates: ["list"],

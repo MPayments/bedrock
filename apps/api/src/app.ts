@@ -15,6 +15,7 @@ import {
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
+  agreementsRoutes,
   balancesRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
@@ -143,6 +144,7 @@ app.get("/health", async (c) => {
 function createV1Routes(ctx: AppContext) {
   return new OpenAPIHono<{ Variables: AuthVariables }>()
     .route("/accounting", accountingRoutes(ctx))
+    .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
