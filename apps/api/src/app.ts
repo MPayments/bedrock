@@ -22,6 +22,7 @@ import {
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
+  dealsRoutes,
   documentsRoutes,
   operationsRoutes,
   organizationsRoutes,
@@ -152,6 +153,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
     .route("/customers", customersRoutes(ctx))
     .route("/currencies", currenciesRoutes(ctx))
+    .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))

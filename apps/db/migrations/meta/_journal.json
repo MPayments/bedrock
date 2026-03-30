@@ -78,6 +78,13 @@
       "when": 1774886609542,
       "tag": "0010_ambiguous_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774891095211,
+      "tag": "0011_jazzy_black_knight",
+      "breakpoints": true
     }
   ]
 }

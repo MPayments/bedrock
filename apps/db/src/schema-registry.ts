@@ -1,5 +1,6 @@
 import { schema as agreementsSchema } from "@bedrock/agreements/schema";
 import { schema as calculationsSchema } from "@bedrock/calculations/schema";
+import { schema as dealsSchema } from "@bedrock/deals/schema";
 import {
   account,
   accountRelations,
@@ -88,6 +89,7 @@ export type Schema =
   & typeof authSchema
   & typeof agreementsSchema
   & typeof calculationsSchema
+  & typeof dealsSchema
   & typeof ledgerSchema
   & typeof accountingSchema
   & typeof partiesSchema
@@ -102,6 +104,7 @@ const schemaInternal: Schema = {
   ...authSchema,
   ...agreementsSchema,
   ...calculationsSchema,
+  ...dealsSchema,
   ...ledgerSchema,
   ...accountingSchema,
   ...partiesSchema,

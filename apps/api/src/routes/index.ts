@@ -6,6 +6,7 @@ export { counterpartiesRoutes } from "./counterparties";
 export { counterpartyGroupsRoutes } from "./counterparty-groups";
 export { customersRoutes } from "./customers";
 export { currenciesRoutes } from "./currencies";
+export { dealsRoutes } from "./deals";
 export { documentsRoutes } from "./documents";
 export { organizationsRoutes } from "./organizations";
 export { profileRoutes } from "./profile";

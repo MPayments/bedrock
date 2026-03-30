@@ -12,6 +12,7 @@ const statements = {
   calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
+  deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
@@ -65,6 +66,7 @@ export const admin = ac.newRole({
   calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
+  deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
@@ -112,6 +114,7 @@ export const user = ac.newRole({
   calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
+  deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list"],
   organizations: ["list"],
   documents: ["create", "list", "get", "update", "submit"],
@@ -138,6 +141,7 @@ export const agent = ac.newRole({
   calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
+  deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list"],
   organizations: ["list"],
   documents: ["create", "list", "get", "update", "submit"],

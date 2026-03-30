@@ -54,4 +54,26 @@ describe("auth permissions", () => {
     ]);
     expect((customer as any).statements.calculations).toBeUndefined();
   });
+
+  it("grants deals permissions to internal roles only", () => {
+    expect((admin as any).statements.deals).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((user as any).statements.deals).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((agent as any).statements.deals).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((customer as any).statements.deals).toBeUndefined();
+  });
 });

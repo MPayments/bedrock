@@ -16,6 +16,19 @@ export {
   calculationSnapshots,
 } from "@bedrock/calculations/schema";
 export {
+  dealApprovalStatusEnum,
+  dealApprovalTypeEnum,
+  dealApprovals,
+  dealLegKindEnum,
+  dealLegs,
+  dealParticipantRoleEnum,
+  dealParticipants,
+  deals,
+  dealStatusEnum,
+  dealStatusHistory,
+  dealTypeEnum,
+} from "@bedrock/deals/schema";
+export {
   accountingClosePackages,
   accountingPackAssignments,
   accountingPackVersions,

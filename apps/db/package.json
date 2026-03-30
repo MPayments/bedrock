@@ -28,6 +28,7 @@
     "@bedrock/agreements": "workspace:*",
     "@bedrock/calculations": "workspace:*",
     "@bedrock/currencies": "workspace:*",
+    "@bedrock/deals": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/ledger": "workspace:*",
