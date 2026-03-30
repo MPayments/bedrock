@@ -20,8 +20,6 @@ import {
   DrizzleOperationsUnitOfWork,
   DrizzleOrganizationReads,
   DrizzleOrganizationsUnitOfWork,
-  DrizzleSubAgentReads,
-  DrizzleSubAgentsUnitOfWork,
   DrizzleTodoReads,
   DrizzleTodosUnitOfWork,
 } from "@bedrock/operations/adapters/drizzle";
@@ -62,13 +60,11 @@ export function createApiOperationsModule(input: {
     clientDocumentReads: new DrizzleClientDocumentReads(input.db),
     clientDocumentStore: new DrizzleClientDocumentStore(input.db),
     dealDocumentStore: new DrizzleDealDocumentStore(input.db),
-    subAgentReads: new DrizzleSubAgentReads(input.db),
     organizationReads: new DrizzleOrganizationReads(input.db),
     todoReads: new DrizzleTodoReads(input.db),
 
     // UoW
     unitOfWork: new DrizzleOperationsUnitOfWork({ persistence }),
-    subAgentUow: new DrizzleSubAgentsUnitOfWork({ persistence }),
     organizationsUow: new DrizzleOrganizationsUnitOfWork({ persistence }),
     todosUow: new DrizzleTodosUnitOfWork({ persistence }),
 

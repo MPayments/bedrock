@@ -10,8 +10,6 @@ import type { ActivityLogReads } from "./activity-log/application/ports/activity
 import type { ActivityLogStore } from "./activity-log/application/ports/activity-log.store";
 import { createAgentsService } from "./agents/application";
 import type { AgentProfileReads } from "./agents/application/ports/agent-profile.reads";
-import type { SubAgentReads } from "./agents/application/ports/sub-agent.reads";
-import type { SubAgentsCommandUnitOfWork } from "./agents/application/ports/sub-agents.uow";
 import { createApplicationsService } from "./applications/application";
 import type { ApplicationReads } from "./applications/application/ports/application.reads";
 import type { ApplicationsCommandUnitOfWork } from "./applications/application/ports/applications.uow";
@@ -61,13 +59,11 @@ export interface OperationsModuleDeps {
   contractReads: ContractReads;
   dealReads: DealReads;
   clientReads: ClientReads;
-  subAgentReads: SubAgentReads;
   organizationReads: OrganizationReads;
   todoReads: TodoReads;
 
   // UoW
   unitOfWork: OperationsModuleUnitOfWork;
-  subAgentUow: SubAgentsCommandUnitOfWork;
   organizationsUow: OrganizationsCommandUnitOfWork;
   todosUow: TodosCommandUnitOfWork;
 
@@ -102,8 +98,6 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
     }),
     agents: createAgentsService({
       reads: deps.agentProfileReads,
-      subAgentReads: deps.subAgentReads,
-      subAgentUow: deps.subAgentUow,
       runtime: createRuntime("operations.agents"),
     }),
     contracts: createContractsService({

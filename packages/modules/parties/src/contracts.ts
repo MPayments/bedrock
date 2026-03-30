@@ -92,6 +92,12 @@ export {
   type UpdateRequisiteProviderInput,
 } from "./requisites/application/contracts/commands";
 export {
+  CreateSubAgentProfileInputSchema,
+  UpdateSubAgentProfileInputSchema,
+  type CreateSubAgentProfileInput,
+  type UpdateSubAgentProfileInput,
+} from "./sub-agent-profiles/application/contracts/commands";
+export {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
@@ -123,6 +129,17 @@ export {
   type UpdateRequisiteInput,
   type UpsertRequisiteAccountingBindingInput,
 } from "./requisites/application/contracts/requisites";
+export {
+  PaginatedSubAgentProfilesSchema,
+  SubAgentProfileSchema,
+  type PaginatedSubAgentProfiles,
+  type SubAgentProfile,
+} from "./sub-agent-profiles/application/contracts/dto";
+export {
+  ListSubAgentProfilesQuerySchema,
+  SUB_AGENT_PROFILES_LIST_CONTRACT,
+  type ListSubAgentProfilesQuery,
+} from "./sub-agent-profiles/application/contracts/queries";
 export {
   REQUISITE_KIND_VALUES,
   REQUISITE_OWNER_TYPE_VALUES,

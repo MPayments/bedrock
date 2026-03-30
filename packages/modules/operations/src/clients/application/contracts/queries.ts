@@ -12,7 +12,7 @@ export const CLIENTS_LIST_CONTRACT = {
     orgName: { kind: "string" as const, cardinality: "single" as const },
     inn: { kind: "string" as const, cardinality: "single" as const },
     isDeleted: { kind: "boolean" as const, cardinality: "single" as const },
-    subAgentId: { kind: "number" as const, cardinality: "single" as const, int: true },
+    subAgentCounterpartyId: { kind: "string" as const, cardinality: "single" as const },
     userId: { kind: "string" as const, cardinality: "single" as const },
     customerId: { kind: "string" as const, cardinality: "multi" as const },
     search: { kind: "string" as const, cardinality: "single" as const },

@@ -136,7 +136,7 @@ export const clientSchema = z.object({
 });
 
 export const createClientSchema = clientSchema.extend({
-  subAgentId: z.number().optional(),
+  subAgentCounterpartyId: z.string().uuid().optional(),
   contractNumber: z.string().optional(),
   contractDate: z.string().optional(),
   agentFee: z.string().optional(),

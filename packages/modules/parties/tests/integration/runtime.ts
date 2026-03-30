@@ -18,6 +18,7 @@ import {
   DrizzleRequisiteProviderReads,
   DrizzleRequisiteReads,
   DrizzleRequisitesQueries,
+  DrizzleSubAgentProfileReads,
 } from "../../src/adapters/drizzle";
 
 export function createIntegrationRuntime(options?: {
@@ -71,6 +72,7 @@ export function createIntegrationRuntime(options?: {
       requisiteReads: new DrizzleRequisiteReads(db),
       requisiteProviderReads: new DrizzleRequisiteProviderReads(db),
       requisiteBindingReads: new DrizzleRequisiteBindingReads(db),
+      subAgentProfileReads: new DrizzleSubAgentProfileReads(db),
       unitOfWork: new DrizzlePartyRegistryUnitOfWork({
         persistence: createPersistenceContext(db),
       }),

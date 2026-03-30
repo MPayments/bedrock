@@ -56,9 +56,13 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 
 type SubAgent = {
-  commission: number;
-  id: number;
-  name: string;
+  commissionRate: number;
+  counterpartyId: string;
+  country: string | null;
+  fullName: string;
+  isActive: boolean;
+  kind: "individual" | "legal_entity";
+  shortName: string;
 };
 
 type CustomerLegalEntity = {
@@ -91,6 +95,7 @@ type CustomerLegalEntity = {
   relationshipKind: "customer_owned" | "external";
   shortName: string;
   subAgent: SubAgent | null;
+  subAgentCounterpartyId: string | null;
   updatedAt: string;
 };
 
@@ -1114,11 +1119,11 @@ export default function CustomerDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                           <InfoRow
                             label="Имя"
-                            value={selectedLegalEntity.subAgent.name}
+                            value={selectedLegalEntity.subAgent.shortName}
                           />
                           <InfoRow
                             label="Комиссия"
-                            value={`${selectedLegalEntity.subAgent.commission}%`}
+                            value={`${selectedLegalEntity.subAgent.commissionRate}%`}
                           />
                         </CardContent>
                       </Card>

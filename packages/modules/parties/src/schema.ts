@@ -19,6 +19,7 @@ import {
   requisiteProviders,
   requisites,
 } from "./requisites/adapters/drizzle/schema";
+import { subAgentProfiles } from "./sub-agent-profiles/adapters/drizzle/schema";
 
 export {
   counterparties,
@@ -36,6 +37,7 @@ export {
   requisiteOwnerTypeEnum,
   requisiteProviders,
   requisites,
+  subAgentProfiles,
 };
 
 export const schema = {
@@ -54,4 +56,5 @@ export const schema = {
   requisiteProviders,
   requisites,
   organizationRequisiteBindings,
+  subAgentProfiles,
 };

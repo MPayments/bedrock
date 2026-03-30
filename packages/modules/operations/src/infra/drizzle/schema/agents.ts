@@ -4,7 +4,6 @@ import {
   integer,
   jsonb,
   pgTable,
-  real,
   serial,
   text,
   uuid,
@@ -87,11 +86,3 @@ export const opsAgentOrganizationBankDetails = pgTable(
       .notNull(),
   },
 );
-
-// --- ops_sub_agents (was: sub_agents) ---
-
-export const opsSubAgents = pgTable("ops_sub_agents", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  commission: real("commission").notNull(),
-});

@@ -39,7 +39,7 @@ export const CreateClientInputSchema = z.object({
   bic: z.string().nullable().optional(),
   corrAccount: z.string().nullable().optional(),
   bankCountry: z.string().nullable().optional(),
-  subAgentId: z.number().int().nullable().optional(),
+  subAgentCounterpartyId: z.string().uuid().nullable().optional(),
   // Contract info (auto-managed)
   contractId: z.number().int().nullable().optional(),
   // Contract fields for auto-creation

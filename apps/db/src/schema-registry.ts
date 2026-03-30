@@ -32,6 +32,7 @@ import {
   requisiteOwnerTypeEnum,
   requisiteProviders,
   requisites,
+  subAgentProfiles,
 } from "@bedrock/parties/schema";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
@@ -65,6 +66,7 @@ const partiesSchema: {
   requisiteProviders: typeof requisiteProviders;
   requisites: typeof requisites;
   organizationRequisiteBindings: typeof organizationRequisiteBindings;
+  subAgentProfiles: typeof subAgentProfiles;
 } = {
   customers,
   counterparties,
@@ -77,6 +79,7 @@ const partiesSchema: {
   requisiteProviders,
   requisites,
   organizationRequisiteBindings,
+  subAgentProfiles,
 };
 
 export type Schema =

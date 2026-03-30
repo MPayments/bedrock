@@ -7,11 +7,10 @@ export {
   opsActivitySourceEnum,
 } from "./enums";
 
-// Agent organizations & sub-agents
+// Agent organizations
 export {
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
-  opsSubAgents,
 } from "./agents";
 export type { LocalizedText } from "./agents";
 

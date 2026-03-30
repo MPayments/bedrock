@@ -5,10 +5,9 @@ import {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agent organizations & sub-agents
+  // Agent organizations
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
-  opsSubAgents,
   // Clients
   opsClients,
   opsClientDocuments,
@@ -49,10 +48,9 @@ export {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agent organizations & sub-agents
+  // Agent organizations
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
-  opsSubAgents,
   // Clients
   opsClients,
   opsClientDocuments,
@@ -93,10 +91,9 @@ export const schema = {
   opsActivityActionEnum,
   opsActivityEntityEnum,
   opsActivitySourceEnum,
-  // Agent organizations & sub-agents
+  // Agent organizations
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
-  opsSubAgents,
   // Clients
   opsClients,
   opsClientDocuments,

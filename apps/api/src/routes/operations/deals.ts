@@ -453,9 +453,21 @@ export function operationsDealsRoutes(ctx: AppContext) {
       let organization = null;
       let organizationRequisite = null;
       let subAgent = null;
+      let client = null;
 
       if (deal.application?.clientId) {
-        contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
+        [client, contract] = await Promise.all([
+          ctx.operationsModule.clients.queries.findById(deal.application.clientId),
+          ctx.operationsModule.contracts.queries.findByClient(
+            deal.application.clientId,
+          ),
+        ]);
+      }
+
+      if (client?.subAgentCounterpartyId) {
+        subAgent = await ctx.partiesModule.subAgentProfiles.queries.findById(
+          client.subAgentCounterpartyId,
+        );
       }
 
       if (deal.deal.organizationRequisiteId) {

@@ -59,8 +59,10 @@ export class DrizzleClientReads implements ClientReads {
     } else {
       conditions.push(eq(opsClients.isDeleted, false));
     }
-    if (input.subAgentId) {
-      conditions.push(eq(opsClients.subAgentId, input.subAgentId));
+    if (input.subAgentCounterpartyId) {
+      conditions.push(
+        eq(opsClients.subAgentCounterpartyId, input.subAgentCounterpartyId),
+      );
     }
     if (input.userId) {
       conditions.push(eq(opsClients.userId, input.userId));

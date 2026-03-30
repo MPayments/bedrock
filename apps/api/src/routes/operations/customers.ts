@@ -6,11 +6,13 @@ import {
   OrganizationNotFoundError,
 } from "@bedrock/parties";
 import {
-  ClientDocumentSchema,
+  SubAgentProfileSchema,
+} from "@bedrock/parties/contracts";
+import {
+  ClientDocumentSchema as OperationsClientDocumentSchema,
   ClientSchema,
   ContractSchema,
   CreateClientInputSchema,
-  SubAgentSchema,
 } from "@bedrock/operations/contracts";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
@@ -83,11 +85,12 @@ const CustomerLegalEntitySchema = z.object({
   positionI18n: ClientSchema.shape.positionI18n,
   relationshipKind: z.enum(["customer_owned", "external"]),
   shortName: z.string(),
-  subAgent: SubAgentSchema.nullable(),
+  subAgent: SubAgentProfileSchema.nullable(),
+  subAgentCounterpartyId: z.string().uuid().nullable(),
   updatedAt: z.string(),
 });
 
-const CustomerLegalEntityDocumentSchema = ClientDocumentSchema.omit({
+const CustomerLegalEntityDocumentSchema = OperationsClientDocumentSchema.omit({
   clientId: true,
 });
 
@@ -422,17 +425,16 @@ async function mapCustomerLegalEntity(
   shell?: LegacyClient | null,
 ) {
   const legacyShell = shell ?? null;
-  const contractNumber = legacyShell
-    ? (
-        await ctx.operationsModule.contracts.queries.findByClient(legacyShell.id)
-      )?.contractNumber ?? null
-    : null;
-  const subAgent =
-    legacyShell?.subAgentId != null
-      ? await ctx.operationsModule.agents.subAgents.queries.findById(
-          legacyShell.subAgentId,
+  const [contract, subAgent] = await Promise.all([
+    legacyShell
+      ? ctx.operationsModule.contracts.queries.findByClient(legacyShell.id)
+      : Promise.resolve(null),
+    legacyShell?.subAgentCounterpartyId
+      ? ctx.partiesModule.subAgentProfiles.queries.findById(
+          legacyShell.subAgentCounterpartyId,
         )
-      : null;
+      : Promise.resolve(null),
+  ]);
 
   return {
     account: legacyShell?.account ?? null,
@@ -444,7 +446,7 @@ async function mapCustomerLegalEntity(
     bankName: legacyShell?.bankName ?? null,
     bankNameI18n: legacyShell?.bankNameI18n ?? null,
     bic: legacyShell?.bic ?? null,
-    contractNumber,
+    contractNumber: contract?.contractNumber ?? null,
     corrAccount: legacyShell?.corrAccount ?? null,
     counterpartyId: counterparty.id,
     country: counterparty.country ?? null,
@@ -472,6 +474,7 @@ async function mapCustomerLegalEntity(
     relationshipKind: counterparty.relationshipKind,
     shortName: counterparty.shortName,
     subAgent,
+    subAgentCounterpartyId: legacyShell?.subAgentCounterpartyId ?? null,
     updatedAt: serializeDate(counterparty.updatedAt),
   };
 }
@@ -528,7 +531,9 @@ async function mapCustomerWorkspaceDetail(
   };
 }
 
-function stripClientIdFromDocument(document: z.infer<typeof ClientDocumentSchema>) {
+function stripClientIdFromDocument(
+  document: z.infer<typeof OperationsClientDocumentSchema>,
+) {
   const { clientId: _clientId, ...rest } = document;
   return rest;
 }
@@ -648,7 +653,7 @@ async function ensureActiveShellForCounterparty(
         phone: null,
         position: null,
         positionI18n: null,
-        subAgentId: null,
+        subAgentCounterpartyId: null,
       },
     }),
   );
@@ -1408,7 +1413,10 @@ export function operationsCustomersRoutes(ctx: AppContext) {
         phone: patch.phone ?? shell?.phone ?? null,
         position: patch.position ?? shell?.position ?? null,
         positionI18n: patch.positionI18n ?? shell?.positionI18n ?? null,
-        subAgentId: patch.subAgentId ?? shell?.subAgentId ?? null,
+        subAgentCounterpartyId:
+          patch.subAgentCounterpartyId ??
+          shell?.subAgentCounterpartyId ??
+          null,
       };
 
       const result = await upsertLegalEntity(ctx, {

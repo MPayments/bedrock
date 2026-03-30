@@ -216,7 +216,7 @@ function createClientShellFromCounterparty(input: {
     phone: null,
     position: null,
     positionI18n: null,
-    subAgentId: null,
+    subAgentCounterpartyId: null,
   };
 }
 

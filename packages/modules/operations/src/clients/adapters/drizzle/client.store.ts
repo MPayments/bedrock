@@ -65,7 +65,7 @@ export class DrizzleClientStore implements ClientStore {
         bic: input.bic ?? null,
         corrAccount: input.corrAccount ?? null,
         bankCountry: input.bankCountry ?? null,
-        subAgentId: input.subAgentId ?? null,
+        subAgentCounterpartyId: input.subAgentCounterpartyId ?? null,
         contractId: input.contractId ?? null,
         customerId: input.customerId ?? null,
         counterpartyId: input.counterpartyId ?? null,

@@ -13,7 +13,6 @@ import { user } from "@bedrock/iam/schema";
 import { counterparties, customers } from "@bedrock/parties/schema";
 
 import type { LocalizedText } from "./agents";
-import { opsSubAgents } from "./agents";
 import { opsContracts } from "./contracts";
 
 // --- ops_clients (was: clients) ---
@@ -49,7 +48,10 @@ export const opsClients = pgTable("ops_clients", {
   bankCountry: text("bank_country"),
   isDeleted: boolean("is_deleted").default(false).notNull(),
   contractId: integer("contract_id").references(() => opsContracts.id),
-  subAgentId: integer("sub_agent_id").references(() => opsSubAgents.id),
+  subAgentCounterpartyId: uuid("sub_agent_counterparty_id").references(
+    () => counterparties.id,
+    { onDelete: "set null" },
+  ),
   userId: text("user_id").references(() => user.id),
   // FK bridge to bedrock parties
   counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
@@ -93,9 +95,9 @@ export const opsClientsRelations = relations(opsClients, ({ one, many }) => ({
     fields: [opsClients.contractId],
     references: [opsContracts.id],
   }),
-  subAgent: one(opsSubAgents, {
-    fields: [opsClients.subAgentId],
-    references: [opsSubAgents.id],
+  subAgentCounterparty: one(counterparties, {
+    fields: [opsClients.subAgentCounterpartyId],
+    references: [counterparties.id],
   }),
   user: one(user, {
     fields: [opsClients.userId],

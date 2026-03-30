@@ -57,6 +57,7 @@ export {
   requisiteOwnerTypeEnum,
   requisiteProviders,
   requisites,
+  subAgentProfiles,
 } from "@bedrock/parties/schema";
 export {
   account,
@@ -86,7 +87,6 @@ export {
   // Tables
   opsAgentOrganizations,
   opsAgentOrganizationBankDetails,
-  opsSubAgents,
   opsClients,
   opsClientDocuments,
   opsContracts,

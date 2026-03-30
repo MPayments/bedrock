@@ -2,10 +2,6 @@
 export { DrizzleActivityLogReads } from "../activity-log/adapters/drizzle/activity-log.reads";
 export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activity-log.store";
 
-export { DrizzleSubAgentReads } from "../agents/adapters/drizzle/sub-agent.reads";
-export { DrizzleSubAgentStore } from "../agents/adapters/drizzle/sub-agent.store";
-export { DrizzleSubAgentsUnitOfWork } from "../agents/adapters/drizzle/sub-agents.uow";
-
 // Contracts
 export { DrizzleContractReads } from "../contracts/adapters/drizzle/contract.reads";
 export { DrizzleContractStore } from "../contracts/adapters/drizzle/contract.store";

@@ -47,9 +47,11 @@ import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import { clientSchema, type ClientFormData } from "@/lib/validation";
 
 interface SubAgent {
-  id: number;
+  id: string;
   name: string;
   commission: number;
+  kind: "individual" | "legal_entity";
+  isActive: boolean;
 }
 
 export default function NewClientPage() {
@@ -78,6 +80,9 @@ export default function NewClientPage() {
   const [createNewSubAgent, setCreateNewSubAgent] = useState(false);
   const [newSubAgentName, setNewSubAgentName] = useState("");
   const [newSubAgentCommission, setNewSubAgentCommission] = useState("");
+  const [newSubAgentKind, setNewSubAgentKind] = useState<
+    "individual" | "legal_entity"
+  >("individual");
   const [creatingSubAgent, setCreatingSubAgent] = useState(false);
   const [subAgentErrors, setSubAgentErrors] = useState<{
     name?: string;
@@ -375,16 +380,18 @@ export default function NewClientPage() {
         body: JSON.stringify({
           name: newSubAgentName.trim(),
           commission: parseFloat(newSubAgentCommission),
+          kind: newSubAgentKind,
         }),
       });
 
       if (res.ok) {
         const newSubAgent = await res.json();
         setSubAgents((prev) => [...prev, newSubAgent]);
-        setSelectedSubAgentId(newSubAgent.id.toString());
+        setSelectedSubAgentId(newSubAgent.id);
         setCreateNewSubAgent(false);
         setNewSubAgentName("");
         setNewSubAgentCommission("");
+        setNewSubAgentKind("individual");
         setSubAgentErrors({});
       } else {
         const data = await res.json().catch(() => ({}));
@@ -443,7 +450,7 @@ export default function NewClientPage() {
 
       // Добавляем субагента если выбран
       if (addSubAgent && selectedSubAgentId) {
-        payload.subAgentId = parseInt(selectedSubAgentId, 10);
+        payload.subAgentCounterpartyId = selectedSubAgentId;
       }
 
       const res = await fetch(`${API_BASE_URL}/customers`, {
@@ -1154,7 +1161,7 @@ export default function NewClientPage() {
                                   {subAgents.map((agent) => (
                                     <SelectItem
                                       key={agent.id}
-                                      value={agent.id.toString()}
+                                      value={agent.id}
                                     >
                                       {agent.name} ({agent.commission}%)
                                     </SelectItem>
@@ -1193,6 +1200,7 @@ export default function NewClientPage() {
                                   setCreateNewSubAgent(false);
                                   setNewSubAgentName("");
                                   setNewSubAgentCommission("");
+                                  setNewSubAgentKind("individual");
                                   setSubAgentErrors({});
                                 }}
                               >
@@ -1264,6 +1272,29 @@ export default function NewClientPage() {
                                     {subAgentErrors.commission}
                                   </p>
                                 )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Тип субагента</Label>
+                                <Select
+                                  value={newSubAgentKind}
+                                  onValueChange={(value) =>
+                                    setNewSubAgentKind(
+                                      value as "individual" | "legal_entity",
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="individual">
+                                      Физическое лицо
+                                    </SelectItem>
+                                    <SelectItem value="legal_entity">
+                                      Юридическое лицо
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
 

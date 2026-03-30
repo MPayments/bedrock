@@ -219,9 +219,13 @@ interface Agent {
 }
 
 interface SubAgent {
-  id: number;
-  name: string;
-  commission: number;
+  counterpartyId: string;
+  shortName: string;
+  fullName: string;
+  commissionRate: number;
+  kind: "individual" | "legal_entity";
+  country: string | null;
+  isActive: boolean;
 }
 
 interface DealDocument {
@@ -1442,7 +1446,7 @@ export default function DealDetailPage() {
                     Субагент
                   </div>
                   <div className="text-base">
-                    {subAgent.name} ({subAgent.commission}%)
+                    {subAgent.shortName} ({subAgent.commissionRate}%)
                   </div>
                 </div>
               )}
