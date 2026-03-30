@@ -1,8 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { IdParamSchema } from "../../common";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
+import { requirePermission } from "../../middleware/permission";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
+import { findCompatibilityCalculationById } from "./calculations-compat";
 import { resolveEffectiveCompatibilityContractByClientId } from "./contracts-compat";
 import {
   getOrganizationBankRequisiteOrThrow,
@@ -65,12 +68,13 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
 
   // Export calculation as DOCX/PDF
   const exportCalculationRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["list"] })],
     method: "get",
     path: "/calculations/{id}/export",
     tags: ["Operations - Documents"],
     summary: "Export calculation as DOCX/PDF",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       query: z.object({
         format: z.enum(["docx", "pdf"]).default("pdf"),
         lang: z.enum(["ru", "en"]).default("ru"),
@@ -201,8 +205,7 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const { format, lang } = c.req.valid("query");
 
-      const calculation =
-        await ctx.operationsModule.calculations.queries.findById(id);
+      const calculation = await findCompatibilityCalculationById(id);
       if (!calculation) return c.json({ error: "Calculation not found" }, 404);
 
       const result =

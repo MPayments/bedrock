@@ -411,6 +411,8 @@
       "name": "@bedrock/operations",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/calculations": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
@@ -692,6 +694,8 @@
       "name": "@bedrock/workflow-customer-portal",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/calculations": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",

@@ -41,7 +41,7 @@ interface Application {
 }
 
 interface Calculation {
-  id: number;
+  id: string;
   currencyCode: string;
   originalAmount: string;
   feePercentage: string;
@@ -122,7 +122,7 @@ export default function PortalApplicationDetailPage() {
     }
   }, [applicationId]);
 
-  async function handleDownload(calculationId: number, format: "pdf" | "docx") {
+  async function handleDownload(calculationId: string, format: "pdf" | "docx") {
     const response = await fetch(
       `${API_BASE_URL}/documents/calculations/${calculationId}/export?format=${format}`,
       {

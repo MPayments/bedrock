@@ -402,6 +402,8 @@ export function createApplicationServices(
 
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
+    calculations: calculationsModule,
+    currencies: currenciesService,
     operations: operationsModule,
     iam: {
       customerMemberships: customerMembershipsService,

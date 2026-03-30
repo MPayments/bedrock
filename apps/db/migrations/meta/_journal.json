@@ -71,6 +71,13 @@
       "when": 1774881896645,
       "tag": "0009_lumpy_kylun",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774886609542,
+      "tag": "0010_ambiguous_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

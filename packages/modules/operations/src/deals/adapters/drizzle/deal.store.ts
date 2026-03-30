@@ -16,6 +16,13 @@ import type { AgentBonus, Deal } from "../../application/contracts/dto";
 import type { DealStatus } from "../../domain/deal-status";
 import type { DealStore } from "../../application/ports/deal.store";
 
+function mapDealRow(row: typeof opsDeals.$inferSelect): Deal {
+  return {
+    ...row,
+    calculationId: row.calculationUuid ?? String(row.calculationId ?? ""),
+  } as unknown as Deal;
+}
+
 export class DrizzleDealStore implements DealStore {
   constructor(private readonly db: Queryable) {}
 
@@ -25,7 +32,7 @@ export class DrizzleDealStore implements DealStore {
       .from(opsDeals)
       .where(eq(opsDeals.id, id))
       .limit(1);
-    return (row as unknown as Deal) ?? null;
+    return row ? mapDealRow(row) : null;
   }
 
   async findByApplicationId(applicationId: number): Promise<Deal | null> {
@@ -34,7 +41,7 @@ export class DrizzleDealStore implements DealStore {
       .from(opsDeals)
       .where(eq(opsDeals.applicationId, applicationId))
       .limit(1);
-    return (row as unknown as Deal) ?? null;
+    return row ? mapDealRow(row) : null;
   }
 
   async create(input: CreateDealInput): Promise<Deal> {
@@ -42,7 +49,8 @@ export class DrizzleDealStore implements DealStore {
       .insert(opsDeals)
       .values({
         applicationId: input.applicationId,
-        calculationId: input.calculationId,
+        calculationId: null,
+        calculationUuid: input.calculationId,
         counterpartyId: input.counterpartyId ?? null,
         organizationRequisiteId: input.organizationRequisiteId,
         invoiceNumber: input.invoiceNumber ?? null,
@@ -60,7 +68,7 @@ export class DrizzleDealStore implements DealStore {
         status: "preparing_documents",
       })
       .returning();
-    return created! as unknown as Deal;
+    return mapDealRow(created!);
   }
 
   async updateStatus(
@@ -81,7 +89,7 @@ export class DrizzleDealStore implements DealStore {
       .set(set)
       .where(eq(opsDeals.id, id))
       .returning();
-    return (updated as unknown as Deal) ?? null;
+    return updated ? mapDealRow(updated) : null;
   }
 
   async updateDetails(input: UpdateDealDetailsInput): Promise<Deal | null> {
@@ -91,7 +99,7 @@ export class DrizzleDealStore implements DealStore {
       .set({ ...data, updatedAt: sql`CURRENT_TIMESTAMP` })
       .where(eq(opsDeals.id, id))
       .returning();
-    return (updated as unknown as Deal) ?? null;
+    return updated ? mapDealRow(updated) : null;
   }
 
   async remove(id: number): Promise<boolean> {

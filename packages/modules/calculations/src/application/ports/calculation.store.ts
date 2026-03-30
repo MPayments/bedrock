@@ -8,6 +8,11 @@ export interface CreateCalculationRootInput {
   isActive?: boolean;
 }
 
+export interface CreateCalculationApplicationLinkInput {
+  applicationId: number;
+  calculationId: string;
+}
+
 export interface CreateCalculationSnapshotInput {
   additionalExpensesAmountMinor: bigint;
   additionalExpensesCurrencyId: string | null;
@@ -44,6 +49,9 @@ export interface CreateCalculationLineStoredInput {
 }
 
 export interface CalculationStore {
+  createCalculationApplicationLink(
+    input: CreateCalculationApplicationLinkInput,
+  ): Promise<void>;
   createCalculationLines(
     input: CreateCalculationLineStoredInput[],
   ): Promise<void>;

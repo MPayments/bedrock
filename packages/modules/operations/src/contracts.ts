@@ -95,23 +95,6 @@ export {
   type ApplicationsStatisticsQuery,
 } from "./applications/application/contracts/statistics";
 
-// --- Calculations ---
-export {
-  CreateCalculationInputSchema,
-  type CreateCalculationInput,
-} from "./calculations/application/contracts/commands";
-export {
-  CalculationSchema,
-  PaginatedCalculationsSchema,
-  type Calculation,
-  type PaginatedCalculations,
-} from "./calculations/application/contracts/dto";
-export {
-  CALCULATIONS_LIST_CONTRACT,
-  ListCalculationsQuerySchema,
-  type ListCalculationsQuery,
-} from "./calculations/application/contracts/queries";
-
 // --- Deals ---
 export {
   CreateDealInputSchema,

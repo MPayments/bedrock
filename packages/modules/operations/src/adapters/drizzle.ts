@@ -6,10 +6,6 @@ export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activi
 export { DrizzleApplicationReads } from "../applications/adapters/drizzle/application.reads";
 export { DrizzleApplicationStore } from "../applications/adapters/drizzle/application.store";
 
-// Calculations
-export { DrizzleCalculationReads } from "../calculations/adapters/drizzle/calculation.reads";
-export { DrizzleCalculationStore } from "../calculations/adapters/drizzle/calculation.store";
-
 // Deals
 export { DrizzleDealReads } from "../deals/adapters/drizzle/deal.reads";
 export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";

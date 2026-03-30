@@ -90,7 +90,7 @@ interface Application {
 }
 
 interface Calculation {
-  id: number;
+  id: string;
   applicationId: number;
   currencyCode: string;
   originalAmount: string;
@@ -165,7 +165,7 @@ export default function ApplicationDetailPage() {
   const [selectedCalculation, setSelectedCalculation] =
     useState<Calculation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [calculationToDelete, setCalculationToDelete] = useState<number | null>(
+  const [calculationToDelete, setCalculationToDelete] = useState<string | null>(
     null
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -246,7 +246,7 @@ export default function ApplicationDetailPage() {
     setShowViewCalculationDialog(true);
   };
 
-  const handleDeleteCalculation = (calculationId: number) => {
+  const handleDeleteCalculation = (calculationId: string) => {
     setCalculationToDelete(calculationId);
     setShowDeleteConfirm(true);
   };
@@ -281,7 +281,7 @@ export default function ApplicationDetailPage() {
   };
 
   const handleDownloadCalculation = async (
-    calculationId: number,
+    calculationId: string,
     format: "pdf" | "docx"
   ) => {
     try {

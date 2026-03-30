@@ -24,9 +24,9 @@ import { user } from "@bedrock/iam/schema";
 
 import {
   opsApplications,
-  opsCalculations,
   opsClients,
 } from "../../../infra/drizzle/schema";
+import { listLatestCompatibilityCalculationsByApplicationIds } from "../../../shared/adapters/drizzle/calculation-compat";
 import type { Application, ApplicationListRow } from "../../application/contracts/dto";
 import type { ListApplicationsQuery } from "../../application/contracts/queries";
 import type {
@@ -92,16 +92,6 @@ export class DrizzleApplicationReads implements ApplicationReads {
       opsApplications.createdAt,
     );
 
-    // Subquery: latest calculation per application
-    const latestCalc = this.db
-      .select({
-        applicationId: opsCalculations.applicationId,
-        maxId: sql<number>`max(${opsCalculations.id})`.as("max_calc_id"),
-      })
-      .from(opsCalculations)
-      .groupBy(opsCalculations.applicationId)
-      .as("latest_calc");
-
     const selectFields = {
       id: opsApplications.id,
       createdAt: opsApplications.createdAt,
@@ -114,11 +104,6 @@ export class DrizzleApplicationReads implements ApplicationReads {
       agentName: user.name,
       requestedAmount: opsApplications.requestedAmount,
       requestedCurrency: opsApplications.requestedCurrency,
-      calcOriginalAmount: opsCalculations.originalAmount,
-      calcCurrencyCode: opsCalculations.currencyCode,
-      calcTotalWithExpensesInBase: opsCalculations.totalWithExpensesInBase,
-      calcBaseCurrencyCode: opsCalculations.baseCurrencyCode,
-      hasCalcId: latestCalc.maxId,
     };
 
     const baseQuery = this.db
@@ -126,11 +111,6 @@ export class DrizzleApplicationReads implements ApplicationReads {
       .from(opsApplications)
       .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
       .leftJoin(user, eq(opsApplications.agentId, user.id))
-      .leftJoin(
-        latestCalc,
-        eq(opsApplications.id, latestCalc.applicationId),
-      )
-      .leftJoin(opsCalculations, eq(latestCalc.maxId, opsCalculations.id))
       .where(where);
 
     const countQuery = this.db
@@ -147,22 +127,35 @@ export class DrizzleApplicationReads implements ApplicationReads {
       countQuery,
     ]);
 
-    const data: ApplicationListRow[] = rows.map((r) => ({
-      id: r.id,
-      createdAt: r.createdAt as string,
-      updatedAt: r.updatedAt as string,
-      client: r.client ?? "",
-      clientId: r.clientId,
-      counterpartyId: r.counterpartyId,
-      amount: Number(r.calcOriginalAmount ?? r.requestedAmount) || 0,
-      currency: r.calcCurrencyCode ?? r.requestedCurrency ?? "RUB",
-      amountInBase: Number(r.calcTotalWithExpensesInBase) || 0,
-      baseCurrencyCode: r.calcBaseCurrencyCode ?? "RUB",
-      hasCalculation: r.hasCalcId != null,
-      agentName: r.agentName ?? "",
-      comment: (r.comment as string) ?? null,
-      status: r.status,
-    }));
+    const latestCalculations =
+      await listLatestCompatibilityCalculationsByApplicationIds(
+        this.db,
+        rows.map((row) => row.id),
+      );
+
+    const data: ApplicationListRow[] = rows.map((r) => {
+      const latestCalculation = latestCalculations.get(r.id);
+
+      return {
+        id: r.id,
+        createdAt: r.createdAt as string,
+        updatedAt: r.updatedAt as string,
+        client: r.client ?? "",
+        clientId: r.clientId,
+        counterpartyId: r.counterpartyId,
+        amount:
+          Number(latestCalculation?.originalAmount ?? r.requestedAmount) || 0,
+        currency:
+          latestCalculation?.currencyCode ?? r.requestedCurrency ?? "RUB",
+        amountInBase:
+          Number(latestCalculation?.totalWithExpensesInBase) || 0,
+        baseCurrencyCode: latestCalculation?.baseCurrencyCode ?? "RUB",
+        hasCalculation: latestCalculation != null,
+        agentName: r.agentName ?? "",
+        comment: (r.comment as string) ?? null,
+        status: r.status,
+      };
+    });
 
     return {
       data,
@@ -251,26 +244,23 @@ export class DrizzleApplicationReads implements ApplicationReads {
       totalCount += row.count;
     }
 
-    // Sum totalWithExpensesInBase from latest calculation per application
-    const latestCalc = this.db
-      .select({
-        applicationId: opsCalculations.applicationId,
-        maxId: sql<number>`max(${opsCalculations.id})`.as("max_calc_id"),
-      })
-      .from(opsCalculations)
-      .groupBy(opsCalculations.applicationId)
-      .as("latest_calc_stats");
-
-    const [amountRow] = await this.db
-      .select({
-        total: sql<string>`coalesce(sum(${opsCalculations.totalWithExpensesInBase}::numeric), 0)::text`,
-      })
+    const filteredApplications = await this.db
+      .select({ id: opsApplications.id })
       .from(opsApplications)
-      .innerJoin(latestCalc, eq(opsApplications.id, latestCalc.applicationId))
-      .innerJoin(opsCalculations, eq(latestCalc.maxId, opsCalculations.id))
       .where(where);
 
-    return { totalCount, byStatus, totalAmountInBase: Number(amountRow?.total) || 0 };
+    const latestCalculations =
+      await listLatestCompatibilityCalculationsByApplicationIds(
+        this.db,
+        filteredApplications.map((application) => application.id),
+      );
+    const totalAmountInBase = [...latestCalculations.values()].reduce(
+      (sum, calculation) =>
+        sum + (Number(calculation.totalWithExpensesInBase) || 0),
+      0,
+    );
+
+    return { totalCount, byStatus, totalAmountInBase };
   }
 
   async getByDay(

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { integer, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
+import { calculations } from "@bedrock/calculations/schema";
 import { fxQuotes } from "@bedrock/treasury/schema";
 
 import { opsApplications } from "./applications";
@@ -9,6 +10,7 @@ import { opsApplications } from "./applications";
 
 export const opsCalculations = pgTable("ops_calculations", {
   id: serial("id").primaryKey(),
+  calculationId: uuid("calculation_id").unique().references(() => calculations.id),
   applicationId: integer("application_id")
     .notNull()
     .references(() => opsApplications.id),

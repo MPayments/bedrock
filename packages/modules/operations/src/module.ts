@@ -13,9 +13,6 @@ import type { AgentProfileReads } from "./agents/application/ports/agent-profile
 import { createApplicationsService } from "./applications/application";
 import type { ApplicationReads } from "./applications/application/ports/application.reads";
 import type { ApplicationsCommandUnitOfWork } from "./applications/application/ports/applications.uow";
-import { createCalculationsService } from "./calculations/application";
-import type { CalculationReads } from "./calculations/application/ports/calculation.reads";
-import type { CalculationsCommandUnitOfWork } from "./calculations/application/ports/calculations.uow";
 import { createClientsService } from "./clients/application";
 import type { ClientDocumentReads } from "./clients/application/ports/client-document.reads";
 import type { ClientDocumentStore } from "./clients/application/ports/client-document.store";
@@ -37,7 +34,6 @@ import type { TodoReads } from "./todos/application/ports/todo.reads";
 import type { TodosCommandUnitOfWork } from "./todos/application/ports/todos.uow";
 
 export type OperationsModuleUnitOfWork = ApplicationsCommandUnitOfWork &
-  CalculationsCommandUnitOfWork &
   DealsCommandUnitOfWork &
   ClientsCommandUnitOfWork;
 
@@ -51,7 +47,6 @@ export interface OperationsModuleDeps {
   activityLogStore: ActivityLogStore;
   agentProfileReads: AgentProfileReads;
   applicationReads: ApplicationReads;
-  calculationReads: CalculationReads;
   dealReads: DealReads;
   clientReads: ClientReads;
   organizationReads: OrganizationReads;
@@ -99,11 +94,6 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
       runtime: createRuntime("operations.applications"),
       commandUow: deps.unitOfWork,
       reads: deps.applicationReads,
-    }),
-    calculations: createCalculationsService({
-      runtime: createRuntime("operations.calculations"),
-      commandUow: deps.unitOfWork,
-      reads: deps.calculationReads,
     }),
     deals: createDealsService({
       runtime: createRuntime("operations.deals"),

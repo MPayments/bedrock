@@ -15,6 +15,7 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
+  calculationApplicationLinks,
   calculationLines,
   calculations,
   calculationSnapshots,
@@ -206,6 +207,31 @@ export class DrizzleCalculationReads implements CalculationReads {
     };
   }
 
+  async findApplicationIdByCalculationId(id: string): Promise<number | null> {
+    const [row] = await this.db
+      .select({ applicationId: calculationApplicationLinks.applicationId })
+      .from(calculationApplicationLinks)
+      .where(eq(calculationApplicationLinks.calculationId, id))
+      .limit(1);
+
+    return row?.applicationId ?? null;
+  }
+
+  async findLatestByApplicationId(
+    applicationId: number,
+  ): Promise<Calculation | null> {
+    const [row] = (await this.baseSelect()
+      .innerJoin(
+        calculationApplicationLinks,
+        eq(calculationApplicationLinks.calculationId, calculations.id),
+      )
+      .where(eq(calculationApplicationLinks.applicationId, applicationId))
+      .orderBy(desc(calculations.createdAt), desc(calculations.id))
+      .limit(1)) as CalculationRow[];
+
+    return row ? mapCalculation(row) : null;
+  }
+
   async list(
     input: ListCalculationsQuery,
   ): Promise<PaginatedList<Calculation>> {
@@ -247,6 +273,19 @@ export class DrizzleCalculationReads implements CalculationReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async listByApplicationId(applicationId: number): Promise<Calculation[]> {
+    const rows = (await this.baseSelect()
+      .innerJoin(
+        calculationApplicationLinks,
+        eq(calculationApplicationLinks.calculationId, calculations.id),
+      )
+      .where(eq(calculationApplicationLinks.applicationId, applicationId))
+      .orderBy(desc(calculations.createdAt), desc(calculations.id))) as
+      CalculationRow[];
+
+    return rows.map(mapCalculation);
   }
 
   private baseSelect() {

@@ -16,7 +16,7 @@ import { API_BASE_URL } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 
 interface Calculation {
-  id: number;
+  id: string;
   currencyCode: string;
   originalAmount: string;
   totalWithExpensesInBase: string;
@@ -52,7 +52,7 @@ export function CreateDealDialog({
 }: CreateDealDialogProps) {
   const [step, setStep] = useState<Step>("calculation");
   const [selectedCalculationId, setSelectedCalculationId] = useState<
-    number | null
+    string | null
   >(null);
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -231,9 +231,7 @@ export function CreateDealDialog({
             <>
               <RadioGroup
                 value={selectedCalculationId?.toString() || ""}
-                onValueChange={(value) =>
-                  setSelectedCalculationId(parseInt(value))
-                }
+                onValueChange={(value) => setSelectedCalculationId(value)}
               >
                 <div className="space-y-3">
                   {calculations.map((calc) => (

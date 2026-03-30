@@ -3,103 +3,37 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import { z } from "zod";
 
-import { CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE } from "../../domain/constants";
-import {
-  CalculationFxQuoteCurrencyMismatchError,
-  CalculationFxQuoteRateMismatchError,
-} from "../../errors";
+import { CALCULATIONS_CREATE_FOR_APPLICATION_IDEMPOTENCY_SCOPE } from "../../domain/constants";
 import {
   CreateCalculationInputSchema,
   normalizeCreateCalculationInput,
   type CreateCalculationInput,
-  type NormalizedCreateCalculationInput,
 } from "../contracts/commands";
 import type { CalculationDetails } from "../contracts/dto";
 import type { CalculationsCommandUnitOfWork } from "../ports/calculations.uow";
 import type { CalculationReferencesPort } from "../ports/references.port";
-import { persistCalculation } from "./create-calculation-record";
+import {
+  persistCalculation,
+} from "./create-calculation-record";
+import {
+  validateCurrencyReferences,
+  validateQuoteProvenance,
+} from "./create-calculation";
 
-const CreateCalculationCommandInputSchema = CreateCalculationInputSchema.extend({
-  actorUserId: z.string().trim().min(1),
-  idempotencyKey: z.string().trim().min(1).max(255),
-});
+const CreateCalculationForApplicationCommandInputSchema =
+  CreateCalculationInputSchema.extend({
+    actorUserId: z.string().trim().min(1),
+    applicationId: z.coerce.number().int(),
+    idempotencyKey: z.string().trim().min(1).max(255),
+  });
 
-type CreateCalculationCommandInput = CreateCalculationInput & {
+type CreateCalculationForApplicationCommandInput = CreateCalculationInput & {
   actorUserId: string;
+  applicationId: number;
   idempotencyKey: string;
 };
 
-export async function validateCurrencyReferences(
-  input: NormalizedCreateCalculationInput,
-  references: CalculationReferencesPort,
-) {
-  const ids = new Set<string>([
-    input.calculationCurrencyId,
-    input.baseCurrencyId,
-  ]);
-
-  if (input.additionalExpensesCurrencyId) {
-    ids.add(input.additionalExpensesCurrencyId);
-  }
-
-  await Promise.all(Array.from(ids).map((id) => references.assertCurrencyExists(id)));
-}
-
-export async function validateQuoteProvenance(
-  input: NormalizedCreateCalculationInput,
-  references: CalculationReferencesPort,
-) {
-  if (!input.fxQuoteId) {
-    return;
-  }
-
-  const quote = await references.findFxQuoteById(input.fxQuoteId);
-
-  if (!quote) {
-    throw new NotFoundError("FX quote", input.fxQuoteId);
-  }
-
-  if (
-    input.rateSource === "fx_quote" &&
-    (quote.fromCurrencyId !== input.calculationCurrencyId ||
-      quote.toCurrencyId !== input.baseCurrencyId)
-  ) {
-    throw new CalculationFxQuoteCurrencyMismatchError(input.fxQuoteId, "primary");
-  }
-
-  if (
-    input.rateSource === "fx_quote" &&
-    (quote.rateNum !== input.rateNum || quote.rateDen !== input.rateDen)
-  ) {
-    throw new CalculationFxQuoteRateMismatchError(input.fxQuoteId, "primary");
-  }
-
-  if (input.additionalExpensesRateSource !== "fx_quote") {
-    return;
-  }
-
-  if (
-    input.additionalExpensesCurrencyId !== quote.fromCurrencyId ||
-    input.baseCurrencyId !== quote.toCurrencyId
-  ) {
-    throw new CalculationFxQuoteCurrencyMismatchError(
-      input.fxQuoteId,
-      "additional_expenses",
-    );
-  }
-
-  if (
-    input.additionalExpensesRateNum !== quote.rateNum ||
-    input.additionalExpensesRateDen !== quote.rateDen
-  ) {
-    throw new CalculationFxQuoteRateMismatchError(
-      input.fxQuoteId,
-      "additional_expenses",
-    );
-  }
-}
-
-export class CreateCalculationCommand {
+export class CreateCalculationForApplicationCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: CalculationsCommandUnitOfWork,
@@ -107,8 +41,11 @@ export class CreateCalculationCommand {
     private readonly references: CalculationReferencesPort,
   ) {}
 
-  async execute(raw: CreateCalculationCommandInput): Promise<CalculationDetails> {
-    const validated = CreateCalculationCommandInputSchema.parse(raw);
+  async execute(
+    raw: CreateCalculationForApplicationCommandInput,
+  ): Promise<CalculationDetails> {
+    const validated =
+      CreateCalculationForApplicationCommandInputSchema.parse(raw);
     const normalized = normalizeCreateCalculationInput(validated);
 
     await validateCurrencyReferences(normalized, this.references);
@@ -117,9 +54,10 @@ export class CreateCalculationCommand {
     return this.commandUow.run((tx) =>
       this.idempotency.withIdempotencyTx({
         tx: tx.transaction,
-        scope: CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE,
+        scope: CALCULATIONS_CREATE_FOR_APPLICATION_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {
+          applicationId: validated.applicationId,
           calculationCurrencyId: validated.calculationCurrencyId,
           originalAmountMinor: validated.originalAmountMinor,
           feeBps: validated.feeBps,
@@ -161,6 +99,7 @@ export class CreateCalculationCommand {
         },
         handler: async () =>
           persistCalculation({
+            applicationId: validated.applicationId,
             normalized,
             runtime: this.runtime,
             tx,

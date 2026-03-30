@@ -12,7 +12,7 @@ const LocalizedTextSchema = z
 
 export const CreateDealInputSchema = z.object({
   applicationId: z.number().int(),
-  calculationId: z.number().int(),
+  calculationId: z.string().uuid(),
   counterpartyId: z.string().uuid().optional(),
   organizationRequisiteId: z.string().uuid(),
   invoiceNumber: z.string().nullable().optional(),

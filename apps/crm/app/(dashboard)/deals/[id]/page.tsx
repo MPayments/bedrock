@@ -97,7 +97,7 @@ type DealStatus =
 interface Deal {
   id: number;
   applicationId: number;
-  calculationId: number;
+  calculationId: string;
   organizationRequisiteId: string | null;
   status: DealStatus;
   invoiceNumber: string | null;
@@ -118,7 +118,7 @@ interface Deal {
 }
 
 interface Calculation {
-  id: number;
+  id: string;
   applicationId: number;
   currencyCode: string;
   originalAmount: string;

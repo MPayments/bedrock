@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  serializeCompatibilityCalculation,
+  type CalculationsModule,
+  type CalculationCompatibilityCurrency,
+} from "@bedrock/calculations";
+import type { CurrenciesService } from "@bedrock/currencies";
+import {
   type CustomerMembershipsService,
   type IamService,
   UserNotFoundError,
@@ -33,10 +39,9 @@ type LocalizedText = {
 };
 
 export interface CustomerPortalWorkflowDeps {
-  operations: Pick<
-    OperationsModule,
-    "applications" | "calculations" | "deals" | "clients"
-  >;
+  calculations: Pick<CalculationsModule, "calculations">;
+  currencies: Pick<CurrenciesService, "findById">;
+  operations: Pick<OperationsModule, "applications" | "deals" | "clients">;
   iam: {
     customerMemberships: CustomerMembershipsService;
     users: Pick<IamService, "queries">;
@@ -175,6 +180,28 @@ function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+async function buildCalculationCurrencyMetadata(
+  deps: CustomerPortalWorkflowDeps,
+  currencyIds: string[],
+) {
+  const uniqueIds = Array.from(new Set(currencyIds.filter(Boolean)));
+  const entries = await Promise.all(
+    uniqueIds.map(async (currencyId) => {
+      const currency = await deps.currencies.findById(currencyId);
+      return [
+        currencyId,
+        {
+          id: currency.id,
+          code: currency.code,
+          precision: currency.precision,
+        } satisfies CalculationCompatibilityCurrency,
+      ] as const;
+    }),
+  );
+
+  return new Map(entries);
+}
+
 function createClientShellFromCounterparty(input: {
   counterparty: CanonicalCounterparty;
   customerId: string;
@@ -211,6 +238,32 @@ function createClientShellFromCounterparty(input: {
     positionI18n: null,
     subAgentCounterpartyId: null,
   };
+}
+
+async function serializeCompatibilityCalculationsForApplication(
+  deps: CustomerPortalWorkflowDeps,
+  applicationId: number,
+  calculations: Awaited<
+    ReturnType<CalculationsModule["calculations"]["queries"]["listByApplicationId"]>
+  >,
+) {
+  const currencyMetadata = await buildCalculationCurrencyMetadata(
+    deps,
+    calculations.flatMap((calculation) => [
+      calculation.currentSnapshot.calculationCurrencyId,
+      calculation.currentSnapshot.baseCurrencyId,
+      calculation.currentSnapshot.additionalExpensesCurrencyId ?? "",
+    ]),
+  );
+
+  return calculations.map((calculation) =>
+    serializeCompatibilityCalculation({
+      applicationId,
+      calculation,
+      currencies: currencyMetadata,
+      sentToClient: 0,
+    }),
+  );
 }
 
 export function createCustomerPortalWorkflow(
@@ -656,17 +709,18 @@ export function createCustomerPortalWorkflow(
       } else {
         await assertClientOwnership(ctx.userId, application.clientId);
       }
-      const calculations = await deps.operations.calculations.queries.list({
-        applicationId,
-        limit: 50,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
+      const calculations =
+        await deps.calculations.calculations.queries.listByApplicationId(
+          applicationId,
+        );
 
       return {
         application,
-        calculations: calculations.data,
+        calculations: await serializeCompatibilityCalculationsForApplication(
+          deps,
+          applicationId,
+          calculations,
+        ),
       };
     },
 
@@ -767,13 +821,21 @@ export function createCustomerPortalWorkflow(
         await assertClientOwnership(ctx.userId, app.clientId);
       }
 
-      return deps.operations.calculations.queries.list({
-        applicationId,
+      const calculations =
+        await deps.calculations.calculations.queries.listByApplicationId(
+          applicationId,
+        );
+
+      return {
+        data: await serializeCompatibilityCalculationsForApplication(
+          deps,
+          applicationId,
+          calculations,
+        ),
+        total: calculations.length,
         limit: 50,
         offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
+      };
     },
 
     async listMyDeals(

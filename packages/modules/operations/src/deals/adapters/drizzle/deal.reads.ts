@@ -17,6 +17,10 @@ import {
   opsDealDocuments,
   opsDeals,
 } from "../../../infra/drizzle/schema";
+import {
+  getCompatibilityCalculationById,
+  listCompatibilityCalculationsByIds,
+} from "../../../shared/adapters/drizzle/calculation-compat";
 import type {
   AgentBonus,
   Deal,
@@ -39,6 +43,13 @@ const DEAL_SORT_COLUMN_MAP = {
   updatedAt: opsDeals.updatedAt,
 } as const;
 
+function mapDealRow(row: typeof opsDeals.$inferSelect): Deal {
+  return {
+    ...row,
+    calculationId: row.calculationUuid ?? String(row.calculationId ?? ""),
+  } as unknown as Deal;
+}
+
 export class DrizzleDealReads implements DealReads {
   constructor(private readonly db: Queryable) {}
 
@@ -48,7 +59,7 @@ export class DrizzleDealReads implements DealReads {
       .from(opsDeals)
       .where(eq(opsDeals.id, id))
       .limit(1);
-    return (row as unknown as Deal) ?? null;
+    return row ? mapDealRow(row) : null;
   }
 
   async findByIdWithDetails(id: number): Promise<DealWithDetails | null> {
@@ -60,7 +71,7 @@ export class DrizzleDealReads implements DealReads {
 
     if (!dealRow) return null;
 
-    const deal = dealRow as unknown as Deal;
+    const deal = mapDealRow(dealRow);
 
     // Fetch application
     const [appRow] = await this.db
@@ -77,26 +88,21 @@ export class DrizzleDealReads implements DealReads {
       .where(eq(opsApplications.id, deal.applicationId))
       .limit(1);
 
-    // Fetch calculation
-    const [calcRow] = await this.db
-      .select({
-        id: opsCalculations.id,
-        originalAmount: opsCalculations.originalAmount,
-        currencyCode: opsCalculations.currencyCode,
-        baseCurrencyCode: opsCalculations.baseCurrencyCode,
-        rate: opsCalculations.rate,
-        feePercentage: opsCalculations.feePercentage,
-        feeAmount: opsCalculations.feeAmount,
-        feeAmountInBase: opsCalculations.feeAmountInBase,
-        additionalExpenses: opsCalculations.additionalExpenses,
-        additionalExpensesCurrencyCode: opsCalculations.additionalExpensesCurrencyCode,
-        additionalExpensesInBase: opsCalculations.additionalExpensesInBase,
-        totalInBase: opsCalculations.totalInBase,
-        totalWithExpensesInBase: opsCalculations.totalWithExpensesInBase,
-      })
-      .from(opsCalculations)
-      .where(eq(opsCalculations.id, deal.calculationId))
-      .limit(1);
+    let calculationUuid = dealRow.calculationUuid ?? null;
+
+    if (!calculationUuid && dealRow.calculationId != null) {
+      const [legacyCalculation] = await this.db
+        .select({ calculationId: opsCalculations.calculationId })
+        .from(opsCalculations)
+        .where(eq(opsCalculations.id, dealRow.calculationId))
+        .limit(1);
+
+      calculationUuid = legacyCalculation?.calculationId ?? null;
+    }
+
+    const calcRow = calculationUuid
+      ? await getCompatibilityCalculationById(this.db, calculationUuid)
+      : null;
 
     // Fetch client
     let client: DealWithDetails["client"] = null;
@@ -186,15 +192,11 @@ export class DrizzleDealReads implements DealReads {
       closedAt: opsDeals.closedAt,
       status: opsDeals.status,
       comment: opsDeals.comment,
+      calculationId: opsDeals.calculationUuid,
       client: opsClients.orgName,
       clientId: opsApplications.clientId,
       counterpartyId: opsDeals.counterpartyId,
-      amount: opsCalculations.originalAmount,
-      currency: opsCalculations.currencyCode,
-      amountInBase: opsCalculations.totalWithExpensesInBase,
-      baseCurrencyCode: opsCalculations.baseCurrencyCode,
       agentName: user.name,
-      feePercentage: opsCalculations.feePercentage,
     };
 
     const baseQuery = this.db
@@ -203,10 +205,6 @@ export class DrizzleDealReads implements DealReads {
       .innerJoin(
         opsApplications,
         eq(opsDeals.applicationId, opsApplications.id),
-      )
-      .innerJoin(
-        opsCalculations,
-        eq(opsDeals.calculationId, opsCalculations.id),
       )
       .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
       .leftJoin(user, eq(opsApplications.agentId, user.id))
@@ -218,10 +216,6 @@ export class DrizzleDealReads implements DealReads {
       .innerJoin(
         opsApplications,
         eq(opsDeals.applicationId, opsApplications.id),
-      )
-      .innerJoin(
-        opsCalculations,
-        eq(opsDeals.calculationId, opsCalculations.id),
       )
       .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
       .leftJoin(user, eq(opsApplications.agentId, user.id))
@@ -235,23 +229,36 @@ export class DrizzleDealReads implements DealReads {
       countQuery,
     ]);
 
-    const data: DealListRow[] = rows.map((r) => ({
-      id: r.id,
-      createdAt: r.createdAt as string,
-      updatedAt: r.updatedAt as string,
-      closedAt: (r.closedAt as string) ?? null,
-      client: r.client ?? "",
-      clientId: r.clientId,
-      counterpartyId: r.counterpartyId,
-      amount: Number(r.amount) || 0,
-      currency: r.currency ?? "RUB",
-      amountInBase: Number(r.amountInBase) || 0,
-      baseCurrencyCode: r.baseCurrencyCode ?? "RUB",
-      status: r.status,
-      agentName: r.agentName ?? "",
-      comment: (r.comment as string) ?? null,
-      feePercentage: Number(r.feePercentage) || 0,
-    }));
+    const calculations = await listCompatibilityCalculationsByIds(
+      this.db,
+      rows
+        .map((row) => row.calculationId)
+        .filter((calculationId): calculationId is string => Boolean(calculationId)),
+    );
+
+    const data: DealListRow[] = rows.map((r) => {
+      const calculation = r.calculationId
+        ? calculations.get(r.calculationId)
+        : null;
+
+      return {
+        id: r.id,
+        createdAt: r.createdAt as string,
+        updatedAt: r.updatedAt as string,
+        closedAt: (r.closedAt as string) ?? null,
+        client: r.client ?? "",
+        clientId: r.clientId,
+        counterpartyId: r.counterpartyId,
+        amount: Number(calculation?.originalAmount) || 0,
+        currency: calculation?.currencyCode ?? "RUB",
+        amountInBase: Number(calculation?.totalWithExpensesInBase) || 0,
+        baseCurrencyCode: calculation?.baseCurrencyCode ?? "RUB",
+        status: r.status,
+        agentName: r.agentName ?? "",
+        comment: (r.comment as string) ?? null,
+        feePercentage: Number(calculation?.feePercentage) || 0,
+      };
+    });
 
     return {
       data,
@@ -269,15 +276,11 @@ export class DrizzleDealReads implements DealReads {
       closedAt: opsDeals.closedAt,
       status: opsDeals.status,
       comment: opsDeals.comment,
+      calculationId: opsDeals.calculationUuid,
       client: opsClients.orgName,
       clientId: opsApplications.clientId,
       counterpartyId: opsApplications.counterpartyId,
-      amount: opsCalculations.originalAmount,
-      currency: opsCalculations.currencyCode,
-      amountInBase: opsCalculations.totalWithExpensesInBase,
-      baseCurrencyCode: opsCalculations.baseCurrencyCode,
       agentName: user.name,
-      feePercentage: opsCalculations.feePercentage,
     };
 
     const fetchGroup = async (statuses: string[]): Promise<DealListRow[]> => {
@@ -288,33 +291,42 @@ export class DrizzleDealReads implements DealReads {
           opsApplications,
           eq(opsDeals.applicationId, opsApplications.id),
         )
-        .innerJoin(
-          opsCalculations,
-          eq(opsDeals.calculationId, opsCalculations.id),
-        )
         .innerJoin(opsClients, eq(opsApplications.clientId, opsClients.id))
         .leftJoin(user, eq(opsApplications.agentId, user.id))
         .where(inArray(opsDeals.status, statuses as typeof opsDeals.status.enumValues))
         .orderBy(desc(opsDeals.createdAt))
         .limit(20);
 
-      return rows.map((r) => ({
-        id: r.id,
-        createdAt: r.createdAt as string,
-        updatedAt: r.updatedAt as string,
-        closedAt: (r.closedAt as string) ?? null,
-        client: r.client ?? "",
-        clientId: r.clientId,
-        counterpartyId: r.counterpartyId,
-        amount: Number(r.amount) || 0,
-        currency: r.currency ?? "RUB",
-        amountInBase: Number(r.amountInBase) || 0,
-        baseCurrencyCode: r.baseCurrencyCode ?? "RUB",
-        status: r.status,
-        agentName: r.agentName ?? "",
-        comment: (r.comment as string) ?? null,
-        feePercentage: Number(r.feePercentage) || 0,
-      }));
+      const calculations = await listCompatibilityCalculationsByIds(
+        this.db,
+        rows
+          .map((row) => row.calculationId)
+          .filter((calculationId): calculationId is string => Boolean(calculationId)),
+      );
+
+      return rows.map((r) => {
+        const calculation = r.calculationId
+          ? calculations.get(r.calculationId)
+          : null;
+
+        return {
+          id: r.id,
+          createdAt: r.createdAt as string,
+          updatedAt: r.updatedAt as string,
+          closedAt: (r.closedAt as string) ?? null,
+          client: r.client ?? "",
+          clientId: r.clientId,
+          counterpartyId: r.counterpartyId,
+          amount: Number(calculation?.originalAmount) || 0,
+          currency: calculation?.currencyCode ?? "RUB",
+          amountInBase: Number(calculation?.totalWithExpensesInBase) || 0,
+          baseCurrencyCode: calculation?.baseCurrencyCode ?? "RUB",
+          status: r.status,
+          agentName: r.agentName ?? "",
+          comment: (r.comment as string) ?? null,
+          feePercentage: Number(calculation?.feePercentage) || 0,
+        };
+      });
     };
 
     const [pending, inProgress, done] = await Promise.all([
@@ -393,15 +405,28 @@ export class DrizzleDealReads implements DealReads {
       totalCount += row.count;
     }
 
-    const [amountRow] = await this.db
+    const amountRows = await this.db
       .select({
-        total: sql<string>`coalesce(sum(${opsCalculations.totalWithExpensesInBase}::numeric), 0)::text`,
+        calculationId: opsDeals.calculationUuid,
       })
       .from(opsDeals)
-      .innerJoin(opsCalculations, eq(opsDeals.calculationId, opsCalculations.id))
       .where(where);
 
-    return { totalCount, byStatus, totalAmount: amountRow?.total ?? "0" };
+    const calculations = await listCompatibilityCalculationsByIds(
+      this.db,
+      amountRows
+        .map((row) => row.calculationId)
+        .filter((calculationId): calculationId is string => Boolean(calculationId)),
+    );
+    const totalAmount = [...calculations.values()]
+      .reduce(
+        (sum, calculation) =>
+          sum + (Number(calculation.totalWithExpensesInBase) || 0),
+        0,
+      )
+      .toString();
+
+    return { totalCount, byStatus, totalAmount };
   }
 
   async getByDay(input: DealsByDayQuery): Promise<DealsByDayEntry[]> {

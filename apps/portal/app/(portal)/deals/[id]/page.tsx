@@ -34,7 +34,7 @@ interface Deal {
 }
 
 interface Calculation {
-  id: number;
+  id: string;
   currencyCode: string;
   originalAmount: string;
   totalAmount: string;

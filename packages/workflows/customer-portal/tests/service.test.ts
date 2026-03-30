@@ -90,16 +90,6 @@ function createWorkflow(overrides?: {
         })),
       },
     },
-    calculations: {
-      queries: {
-        list: vi.fn(async () => ({
-          data: [],
-          total: 0,
-          limit: 50,
-          offset: 0,
-        })),
-      },
-    },
     clients: {
       commands: {
         create: vi.fn(async () => ({
@@ -138,6 +128,20 @@ function createWorkflow(overrides?: {
         })),
       },
     },
+  };
+  const calculations = {
+    calculations: {
+      queries: {
+        listByApplicationId: vi.fn(async () => []),
+      },
+    },
+  };
+  const currencies = {
+    findById: vi.fn(async (currencyId: string) => ({
+      code: currencyId === "usd-id" ? "USD" : "RUB",
+      id: currencyId,
+      precision: 2,
+    })),
   };
   const iam = {
     customerMemberships: {
@@ -248,6 +252,8 @@ function createWorkflow(overrides?: {
     iam,
     parties,
     workflow: createCustomerPortalWorkflow({
+      calculations: calculations as never,
+      currencies: currencies as never,
       operations: operations as never,
       iam: iam as never,
       parties: parties as never,

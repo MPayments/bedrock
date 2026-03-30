@@ -19,7 +19,12 @@ import {
 
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
+import { requirePermission } from "../../middleware/permission";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
+import {
+  archiveCompatibilityCalculation,
+  findCompatibilityCalculationById,
+} from "./calculations-compat";
 import { exportApplicationsXlsx, xlsxFilename } from "./excel-export";
 import { getOrganizationBankRequisiteOrThrow } from "../organization-requisites";
 import { resolveEffectiveCompatibilityContractByClientId } from "./contracts-compat";
@@ -252,12 +257,13 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
   });
 
   const deleteCalculationRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["delete"] })],
     method: "delete",
     path: "/{id}/calculations/{calcId}",
     tags: ["Operations - Applications"],
     summary: "Delete calculation from application",
     request: {
-      params: OpsIdParamSchema.extend({ calcId: z.coerce.number().int() }),
+      params: OpsIdParamSchema.extend({ calcId: z.string().uuid() }),
     },
     responses: {
       200: {
@@ -445,8 +451,13 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       return c.json(result, 201);
     })
     .openapi(deleteCalculationRoute, async (c) => {
-      const { calcId } = c.req.valid("param");
-      await ctx.operationsModule.calculations.commands.delete(calcId);
+      const { id, calcId } = c.req.valid("param");
+      const calculation = await findCompatibilityCalculationById(calcId);
+      if (!calculation || calculation.applicationId !== id) {
+        return c.json({ error: "Calculation not found" }, 404);
+      }
+
+      await archiveCompatibilityCalculation(ctx, calcId);
       return c.json({ deleted: true }, 200);
     });
 }

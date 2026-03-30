@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
+import { calculations } from "@bedrock/calculations/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties, requisites } from "@bedrock/parties/schema";
 
@@ -17,8 +18,8 @@ export const opsDeals = pgTable("ops_deals", {
     .notNull()
     .references(() => opsApplications.id),
   calculationId: integer("calculation_id")
-    .notNull()
     .references(() => opsCalculations.id),
+  calculationUuid: uuid("calculation_uuid").references(() => calculations.id),
   counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
   organizationRequisiteId: uuid("organization_requisite_id").references(
     () => requisites.id,
@@ -79,6 +80,10 @@ export const opsDealsRelations = relations(opsDeals, ({ one, many }) => ({
   calculation: one(opsCalculations, {
     fields: [opsDeals.calculationId],
     references: [opsCalculations.id],
+  }),
+  canonicalCalculation: one(calculations, {
+    fields: [opsDeals.calculationUuid],
+    references: [calculations.id],
   }),
   counterparty: one(counterparties, {
     fields: [opsDeals.counterpartyId],

@@ -14,7 +14,7 @@ const LocalizedTextSchema = z
 export const DealSchema = z.object({
   id: z.number().int(),
   applicationId: z.number().int(),
-  calculationId: z.number().int(),
+  calculationId: z.string().uuid(),
   counterpartyId: z.string().uuid().nullable(),
   organizationRequisiteId: z.string().uuid().nullable(),
   status: z.enum(DEAL_STATUS_VALUES),
@@ -104,7 +104,7 @@ export interface DealWithDetails {
     requestedCurrency: string | null;
   };
   calculation: {
-    id: number;
+    id: string;
     originalAmount: string | null;
     currencyCode: string | null;
     baseCurrencyCode: string | null;

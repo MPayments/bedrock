@@ -14,7 +14,7 @@ import { Separator } from "@bedrock/sdk-ui/components/separator";
 type CurrencyCode = "USD" | "EUR" | "RUB" | "TRY" | "AED" | "CNY";
 
 interface Calculation {
-  id: number;
+  id: string;
   applicationId: number;
   currencyCode: string;
   originalAmount: string;

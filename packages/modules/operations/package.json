@@ -20,6 +20,8 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/calculations": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",

@@ -11,11 +11,6 @@ import type {
   ApplicationsCommandTx,
   ApplicationsCommandUnitOfWork,
 } from "../../../applications/application/ports/applications.uow";
-import { DrizzleCalculationStore } from "../../../calculations/adapters/drizzle/calculation.store";
-import type {
-  CalculationsCommandTx,
-  CalculationsCommandUnitOfWork,
-} from "../../../calculations/application/ports/calculations.uow";
 import { DrizzleCustomerBridge } from "../../../clients/adapters/drizzle/customer-bridge";
 import { DrizzleClientStore } from "../../../clients/adapters/drizzle/client.store";
 import type {
@@ -30,7 +25,6 @@ import type {
 import { DrizzleTodoStore } from "../../../todos/adapters/drizzle/todo.store";
 
 type OperationsTx = ApplicationsCommandTx &
-  CalculationsCommandTx &
   DealsCommandTx &
   ClientsCommandTx;
 
@@ -41,7 +35,6 @@ function bindOperationsTx(tx: Transaction): OperationsTx {
 
   return {
     applicationStore,
-    calculationStore: new DrizzleCalculationStore(tx),
     dealStore: new DrizzleDealStore(tx),
     clientStore: new DrizzleClientStore(tx),
     customerBridge: new DrizzleCustomerBridge(tx),
@@ -53,7 +46,6 @@ function bindOperationsTx(tx: Transaction): OperationsTx {
 export class DrizzleOperationsUnitOfWork
   implements
     ApplicationsCommandUnitOfWork,
-    CalculationsCommandUnitOfWork,
     DealsCommandUnitOfWork,
     ClientsCommandUnitOfWork
 {
