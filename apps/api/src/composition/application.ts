@@ -25,7 +25,6 @@ import { UserNotFoundError } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
 import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
 import {
-  ConsoleNotificationAdapter,
   PartiesCounterpartiesAdapter,
 } from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
@@ -469,8 +468,6 @@ export function createApplicationServices(
   const operationsModule = createApiOperationsModule({
     db,
     logger,
-    notification: new ConsoleNotificationAdapter(logger),
-    objectStorage,
     companyLookup,
     counterparties: new PartiesCounterpartiesAdapter({
       createCounterparty: partiesModule.counterparties.commands.create,

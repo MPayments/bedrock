@@ -14,18 +14,6 @@ export class ContractNotFoundError extends NotFoundError {
   }
 }
 
-export class ApplicationNotFoundError extends NotFoundError {
-  constructor(id: number) {
-    super("Application", String(id));
-  }
-}
-
-export class ApplicationInvalidStatusTransitionError extends OperationsError {
-  constructor(from: string, to: string) {
-    super(`Invalid application status transition: ${from} → ${to}`);
-  }
-}
-
 export class CalculationNotFoundError extends NotFoundError {
   constructor(id: number) {
     super("Calculation", String(id));
@@ -35,18 +23,6 @@ export class CalculationNotFoundError extends NotFoundError {
 export class DealNotFoundError extends NotFoundError {
   constructor(id: number) {
     super("Deal", String(id));
-  }
-}
-
-export class DealInvalidStatusTransitionError extends OperationsError {
-  constructor(from: string, to: string) {
-    super(`Invalid deal status transition: ${from} → ${to}`);
-  }
-}
-
-export class DealAlreadyExistsForApplicationError extends OperationsError {
-  constructor(applicationId: number) {
-    super(`Deal already exists for application: ${applicationId}`);
   }
 }
 

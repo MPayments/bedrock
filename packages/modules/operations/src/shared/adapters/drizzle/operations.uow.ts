@@ -6,11 +6,6 @@ import {
 } from "@bedrock/platform/persistence";
 
 import { DrizzleApplicationReads } from "../../../applications/adapters/drizzle/application.reads";
-import { DrizzleApplicationStore } from "../../../applications/adapters/drizzle/application.store";
-import type {
-  ApplicationsCommandTx,
-  ApplicationsCommandUnitOfWork,
-} from "../../../applications/application/ports/applications.uow";
 import { DrizzleCustomerBridge } from "../../../clients/adapters/drizzle/customer-bridge";
 import { DrizzleClientStore } from "../../../clients/adapters/drizzle/client.store";
 import type {
@@ -24,28 +19,21 @@ import type {
 } from "../../../deals/application/ports/deals.uow";
 import { DrizzleTodoStore } from "../../../todos/adapters/drizzle/todo.store";
 
-type OperationsTx = ApplicationsCommandTx &
-  DealsCommandTx &
-  ClientsCommandTx;
+type OperationsTx = DealsCommandTx & ClientsCommandTx;
 
 function bindOperationsTx(tx: Transaction): OperationsTx {
-  const applicationStore = new DrizzleApplicationStore(tx);
   const applicationReads = new DrizzleApplicationReads(tx);
-  const todoStore = new DrizzleTodoStore(tx);
 
   return {
-    applicationStore,
     dealStore: new DrizzleDealStore(tx),
     clientStore: new DrizzleClientStore(tx),
     customerBridge: new DrizzleCustomerBridge(tx),
     applicationReads,
-    todoStore,
   };
 }
 
 export class DrizzleOperationsUnitOfWork
   implements
-    ApplicationsCommandUnitOfWork,
     DealsCommandUnitOfWork,
     ClientsCommandUnitOfWork
 {

@@ -3,11 +3,6 @@ export { DrizzleActivityLogReads } from "../activity-log/adapters/drizzle/activi
 export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activity-log.store";
 
 // Applications
-export { DrizzleApplicationReads } from "../applications/adapters/drizzle/application.reads";
-export { DrizzleApplicationStore } from "../applications/adapters/drizzle/application.store";
-
-// Deals
-export { DrizzleDealReads } from "../deals/adapters/drizzle/deal.reads";
 export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";
 
 // Clients
@@ -29,6 +24,3 @@ export { DrizzleTodosUnitOfWork } from "../todos/adapters/drizzle/todos.uow";
 
 // UoW
 export { DrizzleOperationsUnitOfWork } from "../shared/adapters/drizzle/operations.uow";
-
-// Notification
-export { ConsoleNotificationAdapter } from "../shared/adapters/console-notification.adapter";

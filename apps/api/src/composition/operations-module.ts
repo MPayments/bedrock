@@ -9,9 +9,7 @@ import {
 import {
   DrizzleActivityLogReads,
   DrizzleActivityLogStore,
-  DrizzleApplicationReads,
   DrizzleClientReads,
-  DrizzleDealReads,
   DrizzleOperationsUnitOfWork,
   DrizzleOrganizationReads,
   DrizzleOrganizationsUnitOfWork,
@@ -31,10 +29,8 @@ export function createApiOperationsModule(input: {
   now?: OperationsModuleDeps["now"];
   generateUuid?: OperationsModuleDeps["generateUuid"];
   persistence?: PersistenceContext;
-  objectStorage?: OperationsModuleDeps["objectStorage"];
   companyLookup?: OperationsModuleDeps["companyLookup"];
   counterparties?: OperationsModuleDeps["counterparties"];
-  notification?: OperationsModuleDeps["notification"];
 }): OperationsModule {
   const persistence = input.persistence ?? createPersistenceContext(input.db);
 
@@ -47,8 +43,6 @@ export function createApiOperationsModule(input: {
     activityLogReads: new DrizzleActivityLogReads(input.db),
     activityLogStore: new DrizzleActivityLogStore(input.db),
     agentProfileReads: new DrizzleIamAgentProfileReads(input.db),
-    applicationReads: new DrizzleApplicationReads(input.db),
-    dealReads: new DrizzleDealReads(input.db),
     clientReads: new DrizzleClientReads(input.db),
     organizationReads: new DrizzleOrganizationReads(input.db),
     todoReads: new DrizzleTodoReads(input.db),
@@ -59,9 +53,7 @@ export function createApiOperationsModule(input: {
     todosUow: new DrizzleTodosUnitOfWork({ persistence }),
 
     // Optional ports
-    objectStorage: input.objectStorage,
     companyLookup: input.companyLookup,
     counterparties: input.counterparties,
-    notification: input.notification,
   });
 }
