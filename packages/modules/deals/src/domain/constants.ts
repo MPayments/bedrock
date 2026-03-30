@@ -61,3 +61,14 @@ export function canTransitionDealStatus(
 ): boolean {
   return from === to || DEAL_STATUS_TRANSITIONS[from].includes(to);
 }
+
+export function canDealWriteTreasuryOrFormalDocuments(input: {
+  status: (typeof DEAL_STATUS_VALUES)[number];
+  type: (typeof DEAL_TYPE_VALUES)[number];
+}): boolean {
+  if (input.type !== "payment") {
+    return false;
+  }
+
+  return !["draft", "rejected", "done", "cancelled"].includes(input.status);
+}

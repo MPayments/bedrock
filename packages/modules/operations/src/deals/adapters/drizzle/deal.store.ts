@@ -4,7 +4,6 @@ import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
   opsAgentBonus,
-  opsDealDocuments,
   opsDeals,
 } from "../../../infra/drizzle/schema";
 import type {

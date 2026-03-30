@@ -55,6 +55,7 @@ export {
 } from "@bedrock/accounting/schema";
 export { currencies } from "@bedrock/currencies/schema";
 export {
+  documentBusinessLinks,
   documentEvents,
   documentLinks,
   documentOperations,

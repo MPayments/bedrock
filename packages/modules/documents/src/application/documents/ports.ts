@@ -11,6 +11,7 @@ import type {
 
 export interface DocumentWithPostingOperationRow {
   document: Document;
+  dealId: string | null;
   postingOperationId: string | null;
 }
 
@@ -68,6 +69,15 @@ export interface DocumentLinksRepository {
     links: DocumentInitialLink[];
   }): Promise<void>;
   listDocumentLinks(documentId: string): Promise<DocumentLink[]>;
+}
+
+export interface DocumentBusinessLinksRepository {
+  insertDealLink(input: {
+    documentId: string;
+    dealId: string;
+    linkKind: string;
+  }): Promise<void>;
+  findDealIdByDocumentId(documentId: string): Promise<string | null>;
 }
 
 export interface DocumentEventsRepository {

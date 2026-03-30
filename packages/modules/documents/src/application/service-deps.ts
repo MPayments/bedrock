@@ -6,6 +6,7 @@ import type {
   DocumentRegistry,
 } from "../plugins";
 import type {
+  DocumentBusinessLinksRepository,
   DocumentEventsRepository,
   DocumentLinksRepository,
   DocumentOperationsRepository,
@@ -23,6 +24,7 @@ import type { DocumentTransitionEffectsService } from "./shared/transition-effec
 export interface DocumentsServiceDeps {
   accounting: DocumentsAccountingPort;
   accountingPeriods: DocumentsAccountingPeriodsPort;
+  documentBusinessLinks: DocumentBusinessLinksRepository;
   documentEvents: DocumentEventsRepository;
   documentLinks: DocumentLinksRepository;
   documentOperations: DocumentOperationsRepository;

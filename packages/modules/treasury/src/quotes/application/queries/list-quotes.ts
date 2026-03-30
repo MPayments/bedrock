@@ -20,6 +20,7 @@ export class ListQuotesQuery {
   ): Promise<PaginatedList<QuoteRecord>> {
     const validated = ListQuotesQuerySchema.parse(input ?? {});
     const { rows, total } = await this.quotesRepository.listQuotes({
+      dealId: validated.dealId,
       limit: validated.limit,
       offset: validated.offset,
       sortBy: validated.sortBy,

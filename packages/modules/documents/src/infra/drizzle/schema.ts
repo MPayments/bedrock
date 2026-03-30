@@ -258,6 +258,39 @@ export const documentLinks = pgTable(
   ],
 );
 
+export const documentBusinessLinks = pgTable(
+  "document_business_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    dealId: uuid("deal_id"),
+    linkKind: text("link_kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    check(
+      "document_business_links_exactly_one_owner_chk",
+      sql`${t.dealId} is not null`,
+    ),
+    uniqueIndex("document_business_links_document_uq").on(t.documentId),
+    uniqueIndex("document_business_links_document_deal_kind_uq").on(
+      t.documentId,
+      t.dealId,
+      t.linkKind,
+    ),
+    index("document_business_links_deal_idx").on(t.dealId),
+    index("document_business_links_document_idx").on(t.documentId),
+  ],
+);
+
 export const documentSnapshots = pgTable(
   "document_snapshots",
   {
@@ -297,6 +330,8 @@ export type DocumentOperation = typeof documentOperations.$inferSelect;
 export type DocumentOperationInsert = typeof documentOperations.$inferInsert;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type DocumentLinkInsert = typeof documentLinks.$inferInsert;
+export type DocumentBusinessLink = typeof documentBusinessLinks.$inferSelect;
+export type DocumentBusinessLinkInsert = typeof documentBusinessLinks.$inferInsert;
 export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
 export type DocumentSnapshotInsert = typeof documentSnapshots.$inferInsert;
 
@@ -305,6 +340,7 @@ export const schema: {
   documentEvents: typeof documentEvents;
   documentOperations: typeof documentOperations;
   documentLinks: typeof documentLinks;
+  documentBusinessLinks: typeof documentBusinessLinks;
   documentSnapshots: typeof documentSnapshots;
   ledgerOperations: typeof ledgerOperations;
   outbox: typeof outbox;
@@ -315,6 +351,7 @@ export const schema: {
   documentEvents,
   documentOperations,
   documentLinks,
+  documentBusinessLinks,
   documentSnapshots,
   ledgerOperations,
   outbox,

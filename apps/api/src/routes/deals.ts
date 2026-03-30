@@ -1,22 +1,40 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   AttachDealCalculationInputSchema,
   CreateDealInputSchema,
   DealDetailsSchema,
+  DealTraceSchema,
   ListDealsQuerySchema,
   PaginatedDealsSchema,
   TransitionDealStatusInputSchema,
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
+import {
+  PreviewQuoteInputSchema,
+  QuoteListItemSchema,
+  QuoteSchema,
+} from "@bedrock/treasury/contracts";
 
 import { ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
-import { withRequiredIdempotency } from "../middleware/idempotency";
+import {
+  getRequestContext,
+  withRequiredIdempotency,
+} from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+import {
+  buildDealTrace,
+  createDealScopedFormalDocument,
+  createDealScopedQuote,
+  DealScopedCreateDocumentInputSchema,
+  requireDeal,
+} from "./internal/deal-linked-resources";
+import { toDocumentDto } from "./internal/document-dto";
+import { serializeQuote, serializeQuoteListItem } from "./internal/treasury-quote-dto";
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -198,6 +216,132 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const listQuotesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/quotes",
+    tags: ["Deals"],
+    summary: "List treasury quotes linked to a deal",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(QuoteListItemSchema),
+          },
+        },
+        description: "Deal quotes",
+      },
+    },
+  });
+
+  const createQuoteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/quotes",
+    tags: ["Deals"],
+    summary: "Create a treasury quote for a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: PreviewQuoteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: QuoteSchema,
+          },
+        },
+        description: "Quote created",
+      },
+    },
+  });
+
+  const listFormalDocumentsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/formal-documents",
+    tags: ["Deals"],
+    summary: "List formal documents linked to a deal",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(z.any()),
+          },
+        },
+        description: "Deal formal documents",
+      },
+    },
+  });
+
+  const createFormalDocumentRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["update"] }),
+      requirePermission({ documents: ["create"] }),
+    ],
+    method: "post",
+    path: "/{id}/formal-documents/{docType}",
+    tags: ["Deals"],
+    summary: "Create a formal document for a deal",
+    request: {
+      params: IdParamSchema.extend({
+        docType: z.string().min(1),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: DealScopedCreateDocumentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: z.any(),
+          },
+        },
+        description: "Formal document created",
+      },
+    },
+  });
+
+  const traceRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/trace",
+    tags: ["Deals"],
+    summary: "Get end-to-end deal trace",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealTraceSchema,
+          },
+        },
+        description: "Deal trace",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       try {
@@ -278,6 +422,98 @@ export function dealsRoutes(ctx: AppContext) {
         });
 
         return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listQuotesRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const result = await ctx.treasuryModule.quotes.queries.listQuotes({
+          dealId: id,
+          limit: 500,
+          offset: 0,
+        });
+
+        return jsonOk(
+          c,
+          result.data.map((quote) => serializeQuoteListItem(quote)),
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createQuoteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createDealScopedQuote({
+            body,
+            ctx,
+            dealId: id,
+            idempotencyKey,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, serializeQuote(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listFormalDocumentsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const result = await ctx.documentsService.list(
+          {
+            dealId: id,
+            limit: 500,
+            offset: 0,
+          },
+          c.get("user")!.id,
+        );
+
+        return jsonOk(c, result.data.map((document) => toDocumentDto(document)));
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createFormalDocumentRoute, async (c) => {
+      try {
+        const { docType, id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createDealScopedFormalDocument({
+            actorUserId: c.get("user")!.id,
+            body,
+            ctx,
+            dealId: id,
+            docType,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, toDocumentDto(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(traceRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const trace = await buildDealTrace(ctx, id);
+        return jsonOk(c, trace);
       } catch (error) {
         return handleRouteError(c, error);
       }

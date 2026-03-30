@@ -46,6 +46,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
           ...buildDocumentWithOperationId({
             registry,
             document: row.document,
+            dealId: row.dealId,
             postingOperationId: row.postingOperationId,
           }),
           allowedActions: allowedActionsByDocumentId?.get(row.document.id) ?? [],
@@ -54,6 +55,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
           buildDocumentWithOperationId({
             registry,
             document: row.document,
+            dealId: row.dealId,
             postingOperationId: row.postingOperationId,
           }),
         );

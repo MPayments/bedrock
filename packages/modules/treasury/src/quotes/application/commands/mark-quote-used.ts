@@ -31,7 +31,12 @@ export class MarkQuoteUsedCommand {
     }
 
     if (quoteRow.status === "used") {
-      if (quoteRow.usedByRef === validated.usedByRef) {
+      if (
+        quoteRow.usedByRef === validated.usedByRef &&
+        (validated.usedDocumentId == null ||
+          quoteRow.usedDocumentId === validated.usedDocumentId) &&
+        (validated.dealId == null || quoteRow.dealId === validated.dealId)
+      ) {
         return enrichPairCurrencyRecord(this.currencies, quoteRow);
       }
 
@@ -44,7 +49,9 @@ export class MarkQuoteUsedCommand {
 
     try {
       const transition = Quote.fromSnapshot(quoteRow).markUsed({
+        dealId: validated.dealId ?? null,
         usedByRef: validated.usedByRef,
+        usedDocumentId: validated.usedDocumentId ?? null,
         at: validated.at,
       });
 
@@ -63,8 +70,10 @@ export class MarkQuoteUsedCommand {
     }
 
     const updated = await this.quotesRepository.markQuoteUsedIfActive({
+      dealId: validated.dealId ?? null,
       quoteId: validated.quoteId,
       usedByRef: validated.usedByRef,
+      usedDocumentId: validated.usedDocumentId ?? null,
       at: validated.at,
     });
 
@@ -78,7 +87,13 @@ export class MarkQuoteUsedCommand {
       throw new NotFoundError("Quote", validated.quoteId);
     }
 
-    if (reloaded.status === "used" && reloaded.usedByRef === validated.usedByRef) {
+    if (
+      reloaded.status === "used" &&
+      reloaded.usedByRef === validated.usedByRef &&
+      (validated.usedDocumentId == null ||
+        reloaded.usedDocumentId === validated.usedDocumentId) &&
+      (validated.dealId == null || reloaded.dealId === validated.dealId)
+    ) {
       return enrichPairCurrencyRecord(this.currencies, reloaded);
     }
 

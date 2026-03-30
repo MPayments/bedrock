@@ -367,6 +367,7 @@ export function documentsRoutes(ctx: AppContext) {
         const result = await ctx.documentDraftWorkflow.createDraft({
           docType,
           createIdempotencyKey: body.createIdempotencyKey,
+          dealId: body.dealId,
           payload: body.input,
           actorUserId: c.get("user")!.id,
           requestContext: getRequestContext(c),

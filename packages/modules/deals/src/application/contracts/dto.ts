@@ -91,6 +91,53 @@ export const DealDetailsSchema = DealSchema.extend({
 
 export type DealDetails = z.infer<typeof DealDetailsSchema>;
 
+export const DealTraceQuoteSchema = z.object({
+  id: z.uuid(),
+  status: z.string(),
+  dealId: z.uuid().nullable(),
+  usedDocumentId: z.uuid().nullable(),
+  createdAt: z.date(),
+  expiresAt: z.date(),
+});
+
+export type DealTraceQuote = z.infer<typeof DealTraceQuoteSchema>;
+
+export const DealTraceFormalDocumentSchema = z.object({
+  id: z.uuid(),
+  docType: z.string(),
+  dealId: z.uuid().nullable(),
+  occurredAt: z.date(),
+  submissionStatus: z.string(),
+  approvalStatus: z.string(),
+  postingStatus: z.string(),
+  lifecycleStatus: z.string(),
+  ledgerOperationIds: z.array(z.uuid()),
+});
+
+export type DealTraceFormalDocument = z.infer<
+  typeof DealTraceFormalDocumentSchema
+>;
+
+export const DealTraceGeneratedFileSchema = z.object({
+  fileAssetId: z.uuid(),
+  linkKind: z.string(),
+});
+
+export type DealTraceGeneratedFile = z.infer<typeof DealTraceGeneratedFileSchema>;
+
+export const DealTraceSchema = z.object({
+  dealId: z.uuid(),
+  calculationId: z.uuid().nullable(),
+  generatedFiles: z.array(DealTraceGeneratedFileSchema),
+  formalDocuments: z.array(DealTraceFormalDocumentSchema),
+  ledgerOperationIds: z.array(z.uuid()),
+  quotes: z.array(DealTraceQuoteSchema),
+  status: DealStatusSchema,
+  type: DealTypeSchema,
+});
+
+export type DealTrace = z.infer<typeof DealTraceSchema>;
+
 export const PaginatedDealsSchema = createPaginatedListSchema(DealSchema);
 
 export type PaginatedDeals = PaginatedList<Deal>;

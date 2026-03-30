@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+
 import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
@@ -15,6 +17,10 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import {
+  documentBusinessLinks,
+  documents,
+} from "@bedrock/documents/schema";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { OperationsModule } from "@bedrock/operations";
 import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
@@ -30,6 +36,7 @@ import {
   createPersistenceContext,
   type Transaction,
 } from "@bedrock/platform/persistence";
+import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
@@ -306,10 +313,69 @@ export function createApplicationServices(
       findById: partiesModule.counterparties.queries.findById,
     },
   };
+  async function resolveDocumentBusinessLinkById(documentId: string) {
+    const [row] = await db
+      .select({
+        dealId: documentBusinessLinks.dealId,
+        documentId: documents.id,
+      })
+      .from(documents)
+      .leftJoin(
+        documentBusinessLinks,
+        eq(documentBusinessLinks.documentId, documents.id),
+      )
+      .where(eq(documents.id, documentId))
+      .limit(1);
+
+    return row ?? null;
+  }
+
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
-    markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
+    markQuoteUsed: async (
+      input: Parameters<typeof treasuryModule.quotes.commands.markQuoteUsed>[0],
+    ) => {
+      let usedDocumentId = input.usedDocumentId ?? null;
+      let dealId = input.dealId ?? null;
+
+      if (!usedDocumentId) {
+        const matched = input.usedByRef.match(
+          /^(invoice|fx_execute):([0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[1-8][0-9a-fA-F-]{3}-[89abAB][0-9a-fA-F-]{3}-[0-9a-fA-F-]{12})$/,
+        );
+        if (matched) {
+          usedDocumentId = matched[2]!;
+        }
+      }
+
+      if (usedDocumentId) {
+        const linkedDocument = await resolveDocumentBusinessLinkById(
+          usedDocumentId,
+        );
+
+        if (!linkedDocument) {
+          throw new NotFoundError("Document", usedDocumentId);
+        }
+
+        if (
+          dealId &&
+          linkedDocument.dealId &&
+          dealId !== linkedDocument.dealId
+        ) {
+          throw new ValidationError(
+            `Quote document ${usedDocumentId} belongs to deal ${linkedDocument.dealId}, not ${dealId}`,
+          );
+        }
+
+        dealId = dealId ?? linkedDocument.dealId ?? null;
+      }
+
+      return treasuryModule.quotes.commands.markQuoteUsed({
+        ...input,
+        dealId,
+        usedDocumentId,
+      });
+    },
   };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(

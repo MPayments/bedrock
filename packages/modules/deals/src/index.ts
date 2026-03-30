@@ -1,4 +1,5 @@
 export * from "./errors";
+export { canDealWriteTreasuryOrFormalDocuments } from "./domain/constants";
 export {
   createDealsModule,
   type DealsModule,

@@ -3,14 +3,23 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import {
   CreateDealInputSchema,
   DealDetailsSchema,
+  DealTraceSchema,
   TransitionDealStatusInputSchema,
 } from "@bedrock/deals/contracts";
+import {
+  PreviewQuoteInputSchema,
+  QuoteListItemSchema,
+  QuoteSchema,
+} from "@bedrock/treasury/contracts";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../../common";
 import { handleRouteError } from "../../common/errors";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
-import { withRequiredIdempotency } from "../../middleware/idempotency";
+import {
+  getRequestContext,
+  withRequiredIdempotency,
+} from "../../middleware/idempotency";
 import { requirePermission } from "../../middleware/permission";
 import { exportDealsXlsx, xlsxFilename } from "./excel-export";
 import {
@@ -47,6 +56,18 @@ import {
   resolveGeneratedDealLinkKind,
   serializeCompatibilityFileAttachment,
 } from "./files-compat";
+import {
+  buildDealTrace,
+  createDealScopedFormalDocument,
+  createDealScopedQuote,
+  DealScopedCreateDocumentInputSchema,
+  requireDeal,
+} from "../internal/deal-linked-resources";
+import { toDocumentDto } from "../internal/document-dto";
+import {
+  serializeQuote,
+  serializeQuoteListItem,
+} from "../internal/treasury-quote-dto";
 
 const DealDocumentTypeSchema = z.enum(["application", "invoice", "acceptance"]);
 
@@ -486,6 +507,106 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
   });
 
+  const listQuotesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/quotes",
+    tags: ["Operations - Deals"],
+    summary: "List deal treasury quotes",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.array(QuoteListItemSchema) } },
+        description: "Deal quotes",
+      },
+    },
+  });
+
+  const createQuoteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/quotes",
+    tags: ["Operations - Deals"],
+    summary: "Create a treasury quote for a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: PreviewQuoteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: { "application/json": { schema: QuoteSchema } },
+        description: "Quote created",
+      },
+    },
+  });
+
+  const listFormalDocumentsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/formal-documents",
+    tags: ["Operations - Deals"],
+    summary: "List formal documents linked to a deal",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.array(z.any()) } },
+        description: "Formal documents",
+      },
+    },
+  });
+
+  const createFormalDocumentRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["update"] }),
+      requirePermission({ documents: ["create"] }),
+    ],
+    method: "post",
+    path: "/{id}/formal-documents/{docType}",
+    tags: ["Operations - Deals"],
+    summary: "Create a formal document for a deal",
+    request: {
+      params: IdParamSchema.extend({
+        docType: z.string().min(1),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: DealScopedCreateDocumentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Formal document created",
+      },
+    },
+  });
+
+  const traceRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/trace",
+    tags: ["Operations - Deals"],
+    summary: "Get deal trace",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealTraceSchema } },
+        description: "Deal trace",
+      },
+    },
+  });
+
   const invoiceSchema = z.object({
     invoiceNumber: z.string(),
     invoiceDate: z.string(),
@@ -881,6 +1002,97 @@ export function operationsDealsRoutes(ctx: AppContext) {
             "Content-Type": result.mimeType,
           },
         });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listQuotesRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const result = await ctx.treasuryModule.quotes.queries.listQuotes({
+          dealId: id,
+          limit: 500,
+          offset: 0,
+        });
+        return c.json(
+          result.data.map((quote) => serializeQuoteListItem(quote)),
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createQuoteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createDealScopedQuote({
+            body,
+            ctx,
+            dealId: id,
+            idempotencyKey,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return c.json(serializeQuote(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listFormalDocumentsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const result = await ctx.documentsService.list(
+          {
+            dealId: id,
+            limit: 500,
+            offset: 0,
+          },
+          c.get("user")!.id,
+        );
+
+        return c.json(result.data.map((document) => toDocumentDto(document)), 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createFormalDocumentRoute, async (c) => {
+      try {
+        const { docType, id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createDealScopedFormalDocument({
+            actorUserId: c.get("user")!.id,
+            body,
+            ctx,
+            dealId: id,
+            docType,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return c.json(toDocumentDto(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(traceRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const trace = await buildDealTrace(ctx, id);
+        return c.json(trace, 200);
       } catch (error) {
         return handleRouteError(c, error);
       }

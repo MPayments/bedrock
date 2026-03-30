@@ -97,12 +97,14 @@ export function aggregateFinancialLines(
 
 export interface DocumentWithOperationId {
   document: Document;
+  dealId: string | null;
   postingOperationId: string | null;
   allowedActions: DocumentAction[];
 }
 
 export interface DocumentDetails {
   document: Document;
+  dealId: string | null;
   postingOperationId: string | null;
   allowedActions: DocumentAction[];
   links: DocumentLink[];

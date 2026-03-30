@@ -14,6 +14,7 @@ export type DocumentTransitionAction =
 
 export const CreateDocumentInputSchema = z.object({
   createIdempotencyKey: z.string().trim().min(1).max(255),
+  dealId: z.uuid().optional(),
   input: z.unknown(),
 });
 

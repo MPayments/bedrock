@@ -20,6 +20,7 @@ const QUOTES_SORTABLE_COLUMNS = [
 ] as const;
 
 interface QuotesListFilters {
+  dealId: { kind: "string"; cardinality: "single" };
   idempotencyKey: { kind: "string"; cardinality: "single" };
   status: {
     kind: "string";
@@ -40,6 +41,7 @@ export const QUOTES_LIST_CONTRACT: ListQueryContract<
   sortableColumns: QUOTES_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    dealId: { kind: "string", cardinality: "single" },
     idempotencyKey: { kind: "string", cardinality: "single" },
     status: {
       kind: "string",

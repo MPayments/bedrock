@@ -1,6 +1,7 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService, DocumentsServiceDeps } from "./service";
 export type {
+  DocumentBusinessLinksRepository,
   DocumentEventsRepository,
   DocumentLinksRepository,
   DocumentOperationsRepository,

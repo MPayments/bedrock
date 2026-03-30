@@ -1,6 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { minorToAmountString } from "@bedrock/shared/money";
 import {
   NotFoundError,
   QuoteIdempotencyConflictError,
@@ -27,126 +26,16 @@ import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
+import {
+  serializeQuote,
+  serializeQuoteDetails,
+  serializeQuoteListItem,
+  serializeQuotePreview,
+} from "./internal/treasury-quote-dto";
 
 const QuoteRefParamsSchema = z.object({
   quoteRef: z.string().min(1).max(255),
 });
-
-function serializeQuote(quote: QuoteRecord): Quote {
-  return {
-    id: quote.id,
-    fromCurrencyId: quote.fromCurrencyId,
-    toCurrencyId: quote.toCurrencyId,
-    fromCurrency: quote.fromCurrency ?? "",
-    toCurrency: quote.toCurrency ?? "",
-    fromAmountMinor: quote.fromAmountMinor.toString(),
-    toAmountMinor: quote.toAmountMinor.toString(),
-    pricingMode: quote.pricingMode,
-    pricingTrace: quote.pricingTrace ?? {},
-    dealDirection: quote.dealDirection ?? null,
-    dealForm: quote.dealForm ?? null,
-    rateNum: quote.rateNum.toString(),
-    rateDen: quote.rateDen.toString(),
-    status: quote.status,
-    usedByRef: quote.usedByRef ?? null,
-    usedAt: quote.usedAt?.toISOString() ?? null,
-    expiresAt: quote.expiresAt.toISOString(),
-    idempotencyKey: quote.idempotencyKey,
-    createdAt: quote.createdAt.toISOString(),
-  };
-}
-
-function serializeQuoteListItem(quote: QuoteRecord): QuoteListItem {
-  return {
-    ...serializeQuote(quote),
-    fromAmount: minorToAmountString(quote.fromAmountMinor, {
-      currency: quote.fromCurrency ?? "",
-    }),
-    toAmount: minorToAmountString(quote.toAmountMinor, {
-      currency: quote.toCurrency ?? "",
-    }),
-  };
-}
-
-function serializeQuoteDetails(
-  details: QuoteDetailsRecord,
-): QuoteDetailsResponse {
-  return {
-    quote: serializeQuote(details.quote),
-    legs: details.legs.map((leg) => ({
-      id: leg.id,
-      quoteId: leg.quoteId,
-      idx: leg.idx,
-      fromCurrencyId: leg.fromCurrencyId,
-      toCurrencyId: leg.toCurrencyId,
-      fromCurrency: leg.fromCurrency ?? "",
-      toCurrency: leg.toCurrency ?? "",
-      fromAmountMinor: leg.fromAmountMinor.toString(),
-      toAmountMinor: leg.toAmountMinor.toString(),
-      rateNum: leg.rateNum.toString(),
-      rateDen: leg.rateDen.toString(),
-      sourceKind: leg.sourceKind,
-      sourceRef: leg.sourceRef ?? null,
-      asOf: leg.asOf.toISOString(),
-      executionCounterpartyId: leg.executionCounterpartyId ?? null,
-      createdAt: leg.createdAt.toISOString(),
-    })),
-    feeComponents: details.feeComponents.map((component) => ({
-      ...component,
-      amountMinor: component.amountMinor.toString(),
-    })),
-    financialLines: details.financialLines.map((line) => ({
-      ...line,
-      amountMinor: line.amountMinor.toString(),
-    })),
-    pricingTrace: details.pricingTrace,
-  };
-}
-
-function serializeQuotePreview(
-  preview: QuotePreviewRecord,
-): QuotePreviewResponse {
-  return {
-    fromCurrency: preview.fromCurrency,
-    toCurrency: preview.toCurrency,
-    fromAmountMinor: preview.fromAmountMinor.toString(),
-    toAmountMinor: preview.toAmountMinor.toString(),
-    fromAmount: minorToAmountString(preview.fromAmountMinor, {
-      currency: preview.fromCurrency,
-    }),
-    toAmount: minorToAmountString(preview.toAmountMinor, {
-      currency: preview.toCurrency,
-    }),
-    pricingMode: preview.pricingMode,
-    pricingTrace: preview.pricingTrace,
-    dealDirection: preview.dealDirection,
-    dealForm: preview.dealForm,
-    rateNum: preview.rateNum.toString(),
-    rateDen: preview.rateDen.toString(),
-    expiresAt: preview.expiresAt.toISOString(),
-    legs: preview.legs.map((leg) => ({
-      idx: leg.idx,
-      fromCurrency: leg.fromCurrency,
-      toCurrency: leg.toCurrency,
-      fromAmountMinor: leg.fromAmountMinor.toString(),
-      toAmountMinor: leg.toAmountMinor.toString(),
-      rateNum: leg.rateNum.toString(),
-      rateDen: leg.rateDen.toString(),
-      sourceKind: leg.sourceKind,
-      sourceRef: leg.sourceRef ?? null,
-      asOf: leg.asOf.toISOString(),
-      executionCounterpartyId: leg.executionCounterpartyId ?? null,
-    })),
-    feeComponents: preview.feeComponents.map((component) => ({
-      ...component,
-      amountMinor: component.amountMinor.toString(),
-    })),
-    financialLines: preview.financialLines.map((line) => ({
-      ...line,
-      amountMinor: line.amountMinor.toString(),
-    })),
-  };
-}
 
 export function treasuryQuotesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();

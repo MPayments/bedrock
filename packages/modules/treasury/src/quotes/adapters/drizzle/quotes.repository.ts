@@ -67,6 +67,10 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       );
     }
 
+    if (input.dealId) {
+      conditions.push(eq(schema.fxQuotes.dealId, input.dealId));
+    }
+
     if (input.status && input.status.length > 0) {
       conditions.push(inArray(schema.fxQuotes.status, input.status as any));
     }
@@ -159,8 +163,12 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
     const updated = await this.db
       .update(schema.fxQuotes)
       .set({
+        ...(input.dealId ? { dealId: input.dealId } : {}),
         status: "used",
         usedByRef: input.usedByRef,
+        ...(input.usedDocumentId
+          ? { usedDocumentId: input.usedDocumentId }
+          : {}),
         usedAt: input.at,
       })
       .where(
