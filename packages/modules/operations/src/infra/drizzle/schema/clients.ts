@@ -11,6 +11,7 @@ import {
 
 import { user } from "@bedrock/iam/schema";
 import { counterparties, customers } from "@bedrock/parties/schema";
+import { fileAssets } from "@bedrock/files/schema";
 
 import type { LocalizedText } from "./agents";
 import { opsContracts } from "./contracts";
@@ -79,6 +80,9 @@ export const opsClientDocuments = pgTable("ops_client_documents", {
   s3Key: text("s3_key").notNull(),
   uploadedBy: text("uploaded_by")
     .references(() => user.id),
+  fileAssetId: uuid("file_asset_id").references(() => fileAssets.id, {
+    onDelete: "set null",
+  }).unique(),
   description: text("description"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)

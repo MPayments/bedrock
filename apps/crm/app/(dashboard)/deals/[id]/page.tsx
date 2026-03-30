@@ -221,7 +221,7 @@ interface SubAgent {
 }
 
 interface DealDocument {
-  id: number;
+  id: string;
   dealId: string;
   fileName: string;
   fileSize: number;
@@ -421,7 +421,7 @@ export default function DealDetailPage() {
   );
   const [uploadDocumentDescription, setUploadDocumentDescription] =
     useState("");
-  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
     null,
   );
 
@@ -880,7 +880,7 @@ export default function DealDetailPage() {
   };
 
   const handleDocumentDownload = async (
-    documentId: number,
+    documentId: string,
     fileName: string,
   ) => {
     try {
@@ -926,7 +926,7 @@ export default function DealDetailPage() {
     }
   };
 
-  const handleDocumentDelete = async (documentId: number) => {
+  const handleDocumentDelete = async (documentId: string) => {
     try {
       setDeletingDocumentId(documentId);
       const res = await fetch(

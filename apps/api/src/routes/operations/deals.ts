@@ -21,7 +21,6 @@ import {
   findCompatibilityCalculationById,
 } from "./calculations-compat";
 import {
-  CompatibilityDealDocumentSchema,
   CompatibilityDealsByDayQuerySchema,
   CompatibilityDealsByDaySchema,
   CompatibilityDealsByStatusSchema,
@@ -32,19 +31,22 @@ import {
   closeCompatibilityDeal,
   createCompatibilityDeal,
   findCompatibilityDealById,
-  getCompatibilityDealDocumentDownloadUrl,
   getCompatibilityDealsByDay,
   getCompatibilityDealsStatistics,
   listCompatibilityDealCalculations,
-  listCompatibilityDealDocuments,
   listCompatibilityDeals,
   listCompatibilityDealsGroupedByStatus,
   PaginatedCompatibilityDealListRowsSchema,
   transitionCompatibilityDealStatus,
   updateCompatibilityDealDetails,
-  uploadCompatibilityDealDocument,
-  deleteCompatibilityDealDocument,
 } from "./deals-compat";
+import {
+  CompatibilityFileAttachmentSchema,
+  GeneratedDocumentFormatSchema,
+  GeneratedDocumentLangSchema,
+  resolveGeneratedDealLinkKind,
+  serializeCompatibilityFileAttachment,
+} from "./files-compat";
 
 const DealDocumentTypeSchema = z.enum(["application", "invoice", "acceptance"]);
 
@@ -283,7 +285,11 @@ export function operationsDealsRoutes(ctx: AppContext) {
     request: { params: IdParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: z.array(CompatibilityDealDocumentSchema) } },
+        content: {
+          "application/json": {
+            schema: z.array(CompatibilityFileAttachmentSchema),
+          },
+        },
         description: "Documents",
       },
     },
@@ -298,7 +304,9 @@ export function operationsDealsRoutes(ctx: AppContext) {
     request: { params: IdParamSchema },
     responses: {
       201: {
-        content: { "application/json": { schema: CompatibilityDealDocumentSchema } },
+        content: {
+          "application/json": { schema: CompatibilityFileAttachmentSchema },
+        },
         description: "Document uploaded",
       },
     },
@@ -312,7 +320,7 @@ export function operationsDealsRoutes(ctx: AppContext) {
     summary: "Delete deal document",
     request: {
       params: IdParamSchema.extend({
-        docId: z.coerce.number().int(),
+        docId: z.string().uuid(),
       }),
     },
     responses: {
@@ -331,7 +339,7 @@ export function operationsDealsRoutes(ctx: AppContext) {
     summary: "Get deal document download url",
     request: {
       params: IdParamSchema.extend({
-        docId: z.coerce.number().int(),
+        docId: z.string().uuid(),
       }),
     },
     responses: {
@@ -465,8 +473,8 @@ export function operationsDealsRoutes(ctx: AppContext) {
     request: {
       params: IdParamSchema.extend({ type: DealDocumentTypeSchema }),
       query: z.object({
-        format: z.enum(["docx", "pdf"]).default("docx"),
-        lang: z.enum(["ru", "en"]).default("ru"),
+        format: GeneratedDocumentFormatSchema,
+        lang: GeneratedDocumentLangSchema,
       }),
     },
     responses: {
@@ -659,8 +667,11 @@ export function operationsDealsRoutes(ctx: AppContext) {
     .openapi(listDocumentsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const result = await listCompatibilityDealDocuments(id);
-        return c.json(result, 200);
+        const result = await ctx.filesModule.files.queries.listDealAttachments(id);
+        return c.json(
+          result.map(serializeCompatibilityFileAttachment),
+          200,
+        );
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -677,25 +688,28 @@ export function operationsDealsRoutes(ctx: AppContext) {
         const description =
           typeof body.description === "string" ? body.description : null;
         const buffer = Buffer.from(await file.arrayBuffer());
-        const result = await uploadCompatibilityDealDocument(ctx, {
+        const result = await ctx.filesModule.files.commands.uploadDealAttachment({
           buffer,
-          dealId: id,
           description,
           fileName: file.name,
           fileSize: file.size,
           mimeType: file.type,
+          ownerId: id,
           uploadedBy: c.get("user")!.id,
         });
 
-        return c.json(result, 201);
+        return c.json(serializeCompatibilityFileAttachment(result), 201);
       } catch (error) {
         return handleRouteError(c, error);
       }
     })
     .openapi(deleteDocumentRoute, async (c) => {
       try {
-        const { docId } = c.req.valid("param");
-        await deleteCompatibilityDealDocument(docId);
+        const { docId, id } = c.req.valid("param");
+        await ctx.filesModule.files.commands.deleteDealAttachment({
+          fileAssetId: docId,
+          ownerId: id,
+        });
         return c.json({ deleted: true }, 200);
       } catch (error) {
         return handleRouteError(c, error);
@@ -704,7 +718,10 @@ export function operationsDealsRoutes(ctx: AppContext) {
     .openapi(downloadDocumentRoute, async (c) => {
       try {
         const { docId, id } = c.req.valid("param");
-        const url = await getCompatibilityDealDocumentDownloadUrl(ctx, id, docId);
+        const url = await ctx.filesModule.files.queries.getDealAttachmentDownloadUrl({
+          fileAssetId: docId,
+          ownerId: id,
+        });
         return c.json({ url }, 200);
       } catch (error) {
         return handleRouteError(c, error);
@@ -844,6 +861,17 @@ export function operationsDealsRoutes(ctx: AppContext) {
           organization: deal.organization as unknown as Record<string, unknown>,
           organizationRequisite: deal.organizationRequisite as Record<string, unknown>,
           templateType: type,
+        });
+        await ctx.filesModule.files.commands.persistGeneratedDealFile({
+          buffer: result.buffer,
+          createdBy: c.get("user")?.id ?? null,
+          fileName: result.fileName,
+          fileSize: result.buffer.byteLength,
+          generatedFormat: format,
+          generatedLang: lang,
+          linkKind: resolveGeneratedDealLinkKind(type),
+          mimeType: result.mimeType,
+          ownerId: id,
         });
 
         return new Response(new Uint8Array(result.buffer), {

@@ -6,6 +6,7 @@ import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
 import type { DocumentsService } from "@bedrock/documents";
+import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { OperationsModule } from "@bedrock/operations";
@@ -68,6 +69,7 @@ export interface AppContext {
   agreementsModule: AgreementsModule;
   calculationsModule: CalculationsModule;
   dealsModule: DealsModule;
+  filesModule: FilesModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
@@ -96,6 +98,7 @@ export function createAppContext(env: Env): AppContext {
     agreementsModule: applicationServices.agreementsModule,
     calculationsModule: applicationServices.calculationsModule,
     dealsModule: applicationServices.dealsModule,
+    filesModule: applicationServices.filesModule,
     ledgerModule: core.ledgerModule,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,

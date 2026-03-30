@@ -24,7 +24,6 @@ import {
 import { user } from "@bedrock/iam/schema";
 import {
   opsClients,
-  opsDealDocuments,
   opsDeals,
 } from "@bedrock/operations/schema";
 import {
@@ -99,19 +98,6 @@ export const CompatibilityDealSchema = z.object({
   intakeComment: z.string().nullable(),
   requestedAmount: z.string().nullable(),
   requestedCurrencyId: z.string().uuid().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const CompatibilityDealDocumentSchema = z.object({
-  id: z.number().int(),
-  dealId: z.string().uuid(),
-  fileName: z.string(),
-  fileSize: z.number().int(),
-  mimeType: z.string(),
-  s3Key: z.string(),
-  uploadedBy: z.string().nullable(),
-  description: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -937,102 +923,6 @@ async function getOpsDealExtensionIdByCanonicalDealId(
   }
 
   return row.id;
-}
-
-export async function listCompatibilityDealDocuments(dealId: string) {
-  const opsDealId = await getOpsDealExtensionIdByCanonicalDealId(dealId);
-  if (!opsDealId) {
-    return [];
-  }
-
-  const rows = await db
-    .select()
-    .from(opsDealDocuments)
-    .where(eq(opsDealDocuments.dealId, opsDealId))
-    .orderBy(desc(opsDealDocuments.createdAt), desc(opsDealDocuments.id));
-
-  return rows.map((row) => ({
-    ...row,
-    dealId,
-  }));
-}
-
-export async function uploadCompatibilityDealDocument(
-  ctx: AppContext,
-  input: {
-    buffer: Buffer;
-    dealId: string;
-    description?: string | null;
-    fileName: string;
-    fileSize: number;
-    mimeType: string;
-    uploadedBy: string | null;
-  },
-) {
-  if (!ctx.objectStorage) {
-    throw new Error("Document storage not configured");
-  }
-
-  const opsDealId = await getOpsDealExtensionIdByCanonicalDealId(input.dealId, {
-    createIfMissing: true,
-  });
-  const s3Key = `deals/${opsDealId}/${Date.now()}-${input.fileName}`;
-
-  await ctx.objectStorage.upload(s3Key, input.buffer, input.mimeType);
-
-  const [created] = await db
-    .insert(opsDealDocuments)
-    .values({
-      dealId: opsDealId,
-      description: input.description ?? null,
-      fileName: input.fileName,
-      fileSize: input.fileSize,
-      mimeType: input.mimeType,
-      s3Key,
-      uploadedBy: input.uploadedBy,
-    })
-    .returning();
-
-  return {
-    ...created!,
-    dealId: input.dealId,
-  };
-}
-
-export async function deleteCompatibilityDealDocument(documentId: number) {
-  await db.delete(opsDealDocuments).where(eq(opsDealDocuments.id, documentId));
-}
-
-export async function getCompatibilityDealDocumentDownloadUrl(
-  ctx: AppContext,
-  dealId: string,
-  documentId: number,
-) {
-  if (!ctx.objectStorage) {
-    return "";
-  }
-
-  const opsDealId = await getOpsDealExtensionIdByCanonicalDealId(dealId);
-  if (!opsDealId) {
-    return "";
-  }
-
-  const [row] = await db
-    .select({ s3Key: opsDealDocuments.s3Key })
-    .from(opsDealDocuments)
-    .where(
-      and(
-        eq(opsDealDocuments.id, documentId),
-        eq(opsDealDocuments.dealId, opsDealId),
-      ),
-    )
-    .limit(1);
-
-  if (!row) {
-    return "";
-  }
-
-  return ctx.objectStorage.getSignedUrl(row.s3Key);
 }
 
 export async function listCompatibilityDealCalculations(dealId: string) {

@@ -1,7 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
-  ClientDocumentSchema,
   ClientSchema,
   CreateClientInputSchema,
   ListClientsQuerySchema,
@@ -24,6 +23,11 @@ import {
   updateCompatibilityContract,
 } from "./contracts-compat";
 import { exportClientsXlsx, xlsxFilename } from "./excel-export";
+import {
+  CompatibilityFileAttachmentSchema,
+  resolveClientCounterpartyIdOrThrow,
+  serializeCompatibilityFileAttachment,
+} from "./files-compat";
 
 const PublicCreateClientInputSchema = CreateClientInputSchema;
 
@@ -183,7 +187,9 @@ export function operationsClientsRoutes(ctx: AppContext) {
     request: { params: OpsIdParamSchema },
     responses: {
       201: {
-        content: { "application/json": { schema: ClientDocumentSchema } },
+        content: {
+          "application/json": { schema: CompatibilityFileAttachmentSchema },
+        },
         description: "Document uploaded",
       },
     },
@@ -199,7 +205,9 @@ export function operationsClientsRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: {
-          "application/json": { schema: z.array(ClientDocumentSchema) },
+          "application/json": {
+            schema: z.array(CompatibilityFileAttachmentSchema),
+          },
         },
         description: "Client documents",
       },
@@ -214,7 +222,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
     summary: "Download client document",
     request: {
       params: OpsIdParamSchema.extend({
-        docId: z.coerce.number().int(),
+        docId: z.string().uuid(),
       }),
     },
     responses: {
@@ -234,7 +242,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
     summary: "Delete client document",
     request: {
       params: OpsIdParamSchema.extend({
-        docId: z.coerce.number().int(),
+        docId: z.string().uuid(),
       }),
     },
     responses: {
@@ -450,46 +458,72 @@ export function operationsClientsRoutes(ctx: AppContext) {
       }
     })
     .openapi(uploadDocumentRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) return c.json({ error: "Document storage not configured" } as any, 503 as any);
-
-      const body = await c.req.parseBody();
-      const file = body.file;
-      if (!file || typeof file === "string") {
-        return c.json({ error: "File is required" } as any, 400 as any);
+      try {
+        const { id } = c.req.valid("param");
+        const counterpartyId = await resolveClientCounterpartyIdOrThrow(ctx, id);
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" } as any, 400 as any);
+        }
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const sessionUser = c.get("user")!;
+        const result =
+          await ctx.filesModule.files.commands.uploadCounterpartyAttachment({
+            buffer,
+            description:
+              typeof body.description === "string" ? body.description : null,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            ownerId: counterpartyId,
+            uploadedBy: sessionUser.id,
+          });
+        return c.json(serializeCompatibilityFileAttachment(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const sessionUser = c.get("user")!;
-      const result = await docs.commands.upload({
-        clientId: id,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        buffer,
-        uploadedBy: sessionUser.id,
-      });
-      return c.json(result, 201);
     })
     .openapi(listDocumentsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) return c.json([], 200);
-      const result = await docs.queries.listByClientId(id);
-      return c.json(result, 200);
+      try {
+        const { id } = c.req.valid("param");
+        const counterpartyId = await resolveClientCounterpartyIdOrThrow(ctx, id);
+        const result =
+          await ctx.filesModule.files.queries.listCounterpartyAttachments(
+            counterpartyId,
+          );
+        return c.json(result.map(serializeCompatibilityFileAttachment), 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(downloadDocumentRoute, async (c) => {
-      const { docId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) return c.json({ error: "Documents not configured" }, 404);
-      const url = await docs.getSignedUrl(docId);
-      if (!url) return c.json({ error: "Document not found" }, 404);
-      return c.redirect(url, 302);
+      try {
+        const { docId, id } = c.req.valid("param");
+        const counterpartyId = await resolveClientCounterpartyIdOrThrow(ctx, id);
+        const url =
+          await ctx.filesModule.files.queries.getCounterpartyAttachmentDownloadUrl(
+            {
+              fileAssetId: docId,
+              ownerId: counterpartyId,
+            },
+          );
+        return c.redirect(url, 302);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(deleteDocumentRoute, async (c) => {
-      const { docId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (docs) await docs.commands.delete(docId);
-      return c.json({ deleted: true }, 200);
+      try {
+        const { docId, id } = c.req.valid("param");
+        const counterpartyId = await resolveClientCounterpartyIdOrThrow(ctx, id);
+        await ctx.filesModule.files.commands.deleteCounterpartyAttachment({
+          fileAssetId: docId,
+          ownerId: counterpartyId,
+        });
+        return c.json({ deleted: true }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     });
 }

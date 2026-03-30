@@ -3,7 +3,6 @@ import type { PaginatedList } from "@bedrock/shared/core/pagination";
 import type {
   AgentBonus,
   Deal,
-  DealDocument,
   DealListRow,
   DealWithDetails,
 } from "../contracts/dto";
@@ -27,7 +26,6 @@ export interface DealReads {
   findByIdWithDetails(id: number): Promise<DealWithDetails | null>;
   list(input: ListDealsQuery): Promise<PaginatedList<DealListRow>>;
   listGroupedByStatus(): Promise<GroupedDealsByStatus>;
-  listDocuments(dealId: number): Promise<DealDocument[]>;
   getLatestBonusForDeal(dealId: number): Promise<AgentBonus | null>;
   getStatistics(input: DealsStatisticsQuery): Promise<DealsStatistics>;
   getByDay(input: DealsByDayQuery): Promise<DealsByDayEntry[]>;

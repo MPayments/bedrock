@@ -119,13 +119,19 @@ BEGIN
       malformed_fixed_fee;
   END IF;
 
-  SELECT id INTO usd_currency_id
-  FROM "currencies"
-  WHERE code = 'USD'
-  LIMIT 1;
+  IF EXISTS (
+    SELECT 1
+    FROM phase13_contract_backfill
+    WHERE fixed_fee_text IS NOT NULL
+  ) THEN
+    SELECT id INTO usd_currency_id
+    FROM "currencies"
+    WHERE code = 'USD'
+    LIMIT 1;
 
-  IF usd_currency_id IS NULL THEN
-    RAISE EXCEPTION 'Phase 13 backfill failed: USD currency is missing';
+    IF usd_currency_id IS NULL THEN
+      RAISE EXCEPTION 'Phase 13 backfill failed: USD currency is missing';
+    END IF;
   END IF;
 END $$;--> statement-breakpoint
 

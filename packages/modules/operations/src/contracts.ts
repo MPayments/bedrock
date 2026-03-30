@@ -108,14 +108,12 @@ export {
 } from "./deals/application/contracts/commands";
 export {
   AgentBonusSchema,
-  DealDocumentSchema,
   DealListRowSchema,
   DealSchema,
   PaginatedDealListRowsSchema,
   PaginatedDealsSchema,
   type AgentBonus,
   type Deal,
-  type DealDocument,
   type DealListRow,
   type DealWithDetails,
   type PaginatedDealListRows,
@@ -167,12 +165,6 @@ export {
   ListClientsQuerySchema,
   type ListClientsQuery,
 } from "./clients/application/contracts/queries";
-export {
-  ClientDocumentSchema,
-  UploadClientDocumentInputSchema,
-  type ClientDocument,
-  type UploadClientDocumentInput,
-} from "./clients/application/contracts/document-dto";
 
 // --- Organizations ---
 export {

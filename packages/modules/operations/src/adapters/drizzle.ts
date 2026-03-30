@@ -9,14 +9,11 @@ export { DrizzleApplicationStore } from "../applications/adapters/drizzle/applic
 // Deals
 export { DrizzleDealReads } from "../deals/adapters/drizzle/deal.reads";
 export { DrizzleDealStore } from "../deals/adapters/drizzle/deal.store";
-export { DrizzleDealDocumentStore } from "../deals/adapters/drizzle/deal-document.store";
 
 // Clients
 export { DrizzleCustomerBridge } from "../clients/adapters/drizzle/customer-bridge";
 export { DrizzleClientReads } from "../clients/adapters/drizzle/client.reads";
 export { DrizzleClientStore } from "../clients/adapters/drizzle/client.store";
-export { DrizzleClientDocumentReads } from "../clients/adapters/drizzle/client-document.reads";
-export { DrizzleClientDocumentStore } from "../clients/adapters/drizzle/client-document.store";
 export { PartiesCounterpartiesAdapter } from "../clients/adapters/parties-counterparties.adapter";
 
 // Organizations

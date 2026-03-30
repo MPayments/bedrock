@@ -3,6 +3,7 @@ import { integer, jsonb, pgTable, serial, text, uuid } from "drizzle-orm/pg-core
 
 import { calculations } from "@bedrock/calculations/schema";
 import { deals } from "@bedrock/deals/schema";
+import { fileAssets } from "@bedrock/files/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties, requisites } from "@bedrock/parties/schema";
 
@@ -64,6 +65,9 @@ export const opsDealDocuments = pgTable("ops_deal_documents", {
   s3Key: text("s3_key").notNull(),
   uploadedBy: text("uploaded_by")
     .references(() => user.id),
+  fileAssetId: uuid("file_asset_id").references(() => fileAssets.id, {
+    onDelete: "set null",
+  }).unique(),
   description: text("description"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)

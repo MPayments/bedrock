@@ -16,6 +16,164 @@ ALTER TABLE "ops_applications" ADD CONSTRAINT "ops_applications_deal_id_unique" 
 --> statement-breakpoint
 ALTER TABLE "ops_deals" ADD CONSTRAINT "ops_deals_deal_id_unique" UNIQUE("deal_id");
 --> statement-breakpoint
+ALTER TABLE "deals" ALTER COLUMN "status" DROP DEFAULT;
+--> statement-breakpoint
+ALTER TABLE "deal_legs" ALTER COLUMN "status" DROP DEFAULT;
+--> statement-breakpoint
+ALTER TYPE "public"."deal_status" RENAME TO "deal_status_phase16";
+--> statement-breakpoint
+CREATE TYPE "public"."deal_status" AS ENUM('draft', 'submitted', 'rejected', 'preparing_documents', 'awaiting_funds', 'awaiting_payment', 'closing_documents', 'done', 'cancelled');
+--> statement-breakpoint
+ALTER TABLE "deals" ALTER COLUMN "status" TYPE "public"."deal_status" USING (
+  CASE "status"::text
+    WHEN 'draft' THEN 'draft'::"public"."deal_status"
+    WHEN 'submitted' THEN 'submitted'::"public"."deal_status"
+    WHEN 'approved' THEN 'preparing_documents'::"public"."deal_status"
+    WHEN 'rejected' THEN 'rejected'::"public"."deal_status"
+    WHEN 'executing' THEN 'awaiting_payment'::"public"."deal_status"
+    WHEN 'completed' THEN 'done'::"public"."deal_status"
+    WHEN 'cancelled' THEN 'cancelled'::"public"."deal_status"
+  END
+);
+--> statement-breakpoint
+ALTER TABLE "deal_legs" ALTER COLUMN "status" TYPE "public"."deal_status" USING (
+  CASE "status"::text
+    WHEN 'draft' THEN 'draft'::"public"."deal_status"
+    WHEN 'submitted' THEN 'submitted'::"public"."deal_status"
+    WHEN 'approved' THEN 'preparing_documents'::"public"."deal_status"
+    WHEN 'rejected' THEN 'rejected'::"public"."deal_status"
+    WHEN 'executing' THEN 'awaiting_payment'::"public"."deal_status"
+    WHEN 'completed' THEN 'done'::"public"."deal_status"
+    WHEN 'cancelled' THEN 'cancelled'::"public"."deal_status"
+  END
+);
+--> statement-breakpoint
+ALTER TABLE "deal_status_history" ALTER COLUMN "status" TYPE "public"."deal_status" USING (
+  CASE "status"::text
+    WHEN 'draft' THEN 'draft'::"public"."deal_status"
+    WHEN 'submitted' THEN 'submitted'::"public"."deal_status"
+    WHEN 'approved' THEN 'preparing_documents'::"public"."deal_status"
+    WHEN 'rejected' THEN 'rejected'::"public"."deal_status"
+    WHEN 'executing' THEN 'awaiting_payment'::"public"."deal_status"
+    WHEN 'completed' THEN 'done'::"public"."deal_status"
+    WHEN 'cancelled' THEN 'cancelled'::"public"."deal_status"
+  END
+);
+--> statement-breakpoint
+ALTER TABLE "deals" ALTER COLUMN "status" SET DEFAULT 'draft';
+--> statement-breakpoint
+ALTER TABLE "deal_legs" ALTER COLUMN "status" SET DEFAULT 'draft';
+--> statement-breakpoint
+DROP TYPE "public"."deal_status_phase16";
+--> statement-breakpoint
+ALTER TABLE "deals" ALTER COLUMN "calculation_id" DROP NOT NULL;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD COLUMN "agent_id" text;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD COLUMN "reason" text;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD COLUMN "intake_comment" text;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD COLUMN "requested_amount_minor" bigint;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD COLUMN "requested_currency_id" uuid;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD CONSTRAINT "deals_agent_id_user_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "deals" ADD CONSTRAINT "deals_requested_currency_id_currencies_id_fk" FOREIGN KEY ("requested_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "deals_agent_idx" ON "deals" USING btree ("agent_id");
+--> statement-breakpoint
+CREATE TABLE "deal_calculation_links" (
+  "id" uuid PRIMARY KEY NOT NULL,
+  "deal_id" uuid NOT NULL,
+  "calculation_id" uuid NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_calculation_id_calculations_id_fk" FOREIGN KEY ("calculation_id") REFERENCES "public"."calculations"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+CREATE UNIQUE INDEX "deal_calculation_links_deal_calc_uq" ON "deal_calculation_links" USING btree ("deal_id","calculation_id");
+--> statement-breakpoint
+CREATE INDEX "deal_calculation_links_deal_idx" ON "deal_calculation_links" USING btree ("deal_id");
+--> statement-breakpoint
+CREATE INDEX "deal_calculation_links_calculation_idx" ON "deal_calculation_links" USING btree ("calculation_id");
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION "public"."__phase15_parse_timestamptz_strict"(raw text, field_name text)
+RETURNS timestamp with time zone
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	cleaned text;
+BEGIN
+	cleaned := btrim(coalesce(raw, ''));
+	IF cleaned = '' THEN
+		RAISE EXCEPTION 'Phase 17 migration: % is empty', field_name;
+	END IF;
+
+	RETURN cleaned::timestamp with time zone;
+EXCEPTION
+	WHEN OTHERS THEN
+		RAISE EXCEPTION 'Phase 17 migration: % has invalid timestamp value "%"', field_name, raw;
+END
+$$;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION "public"."__phase15_parse_decimal_strict"(raw text, field_name text, allow_zero boolean)
+RETURNS numeric
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	cleaned text;
+	parsed numeric;
+BEGIN
+	cleaned := replace(btrim(coalesce(raw, '')), ',', '.');
+	IF cleaned = '' THEN
+		RAISE EXCEPTION 'Phase 17 migration: % is empty', field_name;
+	END IF;
+
+	IF cleaned !~ '^[0-9]+(\.[0-9]+)?$' THEN
+		RAISE EXCEPTION 'Phase 17 migration: % has invalid decimal value "%"', field_name, raw;
+	END IF;
+
+	parsed := cleaned::numeric;
+	IF parsed < 0 THEN
+		RAISE EXCEPTION 'Phase 17 migration: % must be non-negative, got "%"', field_name, raw;
+	END IF;
+
+	IF parsed = 0 AND NOT allow_zero THEN
+		RAISE EXCEPTION 'Phase 17 migration: % must be positive, got "%"', field_name, raw;
+	END IF;
+
+	RETURN parsed;
+END
+$$;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION "public"."__phase15_decimal_to_minor_strict"(raw text, precision_value integer, field_name text)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	parsed numeric;
+	scaled numeric;
+BEGIN
+	parsed := public.__phase15_parse_decimal_strict(raw, field_name, true);
+	scaled := parsed * power(10::numeric, precision_value);
+
+	IF trunc(scaled) <> scaled THEN
+		RAISE EXCEPTION 'Phase 17 migration: % exceeds currency precision % with value "%"', field_name, precision_value, raw;
+	END IF;
+
+	IF scaled > 9223372036854775807::numeric THEN
+		RAISE EXCEPTION 'Phase 17 migration: % overflows bigint with value "%"', field_name, raw;
+	END IF;
+
+	RETURN scaled::bigint;
+END
+$$;
+--> statement-breakpoint
 DO $$
 DECLARE
   duplicate_row record;
@@ -250,8 +408,8 @@ SELECT
   backfill.deal_id,
   'customer'::"public"."deal_participant_role",
   backfill.customer_id,
-  NULL,
-  NULL,
+  NULL::uuid,
+  NULL::uuid,
   backfill.created_at,
   backfill.updated_at
 FROM "__phase17_application_backfill" backfill
@@ -260,9 +418,9 @@ SELECT
   backfill.organization_participant_id,
   backfill.deal_id,
   'organization'::"public"."deal_participant_role",
-  NULL,
+  NULL::uuid,
   backfill.organization_id,
-  NULL,
+  NULL::uuid,
   backfill.created_at,
   backfill.updated_at
 FROM "__phase17_application_backfill" backfill
@@ -271,8 +429,8 @@ SELECT
   backfill.counterparty_participant_id,
   backfill.deal_id,
   'counterparty'::"public"."deal_participant_role",
-  NULL,
-  NULL,
+  NULL::uuid,
+  NULL::uuid,
   backfill.counterparty_id,
   backfill.created_at,
   backfill.updated_at

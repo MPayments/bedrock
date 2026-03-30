@@ -30,6 +30,15 @@ export {
   dealTypeEnum,
 } from "@bedrock/deals/schema";
 export {
+  fileAssetOriginEnum,
+  fileAssets,
+  fileGeneratedFormatEnum,
+  fileGeneratedLangEnum,
+  fileLinkKindEnum,
+  fileLinks,
+  fileVersions,
+} from "@bedrock/files/schema";
+export {
   accountingClosePackages,
   accountingPackAssignments,
   accountingPackVersions,

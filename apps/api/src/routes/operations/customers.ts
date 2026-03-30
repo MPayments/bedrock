@@ -8,7 +8,6 @@ import {
   SubAgentProfileSchema,
 } from "@bedrock/parties/contracts";
 import {
-  ClientDocumentSchema as OperationsClientDocumentSchema,
   ClientSchema,
   CreateClientInputSchema,
 } from "@bedrock/operations/contracts";
@@ -34,6 +33,12 @@ import {
   resolveEffectiveCompatibilityContractByCustomerId,
   updateCompatibilityContract,
 } from "./contracts-compat";
+import {
+  CompatibilityFileAttachmentSchema,
+  GeneratedDocumentFormatSchema,
+  GeneratedDocumentLangSchema,
+  serializeCompatibilityFileAttachment,
+} from "./files-compat";
 
 const HEADER_STYLE: Partial<ExcelJS.Style> = {
   font: { bold: true, name: "Calibri", size: 11 },
@@ -97,9 +102,7 @@ const CustomerLegalEntitySchema = z.object({
   updatedAt: z.string(),
 });
 
-const CustomerLegalEntityDocumentSchema = OperationsClientDocumentSchema.omit({
-  clientId: true,
-});
+const CustomerLegalEntityDocumentSchema = CompatibilityFileAttachmentSchema;
 
 const CustomerLegalEntityContractSchema = CompatibilityContractSchema;
 
@@ -146,7 +149,7 @@ const CustomerLegalEntityParamsSchema = z.object({
 });
 
 const CustomerLegalEntityDocumentParamsSchema = CustomerLegalEntityParamsSchema.extend({
-  documentId: z.coerce.number().int().openapi({
+  documentId: z.string().uuid().openapi({
     param: {
       in: "path",
       name: "documentId",
@@ -539,13 +542,6 @@ async function mapCustomerWorkspaceDetail(
     primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
     updatedAt: serializeDate(customer.updatedAt),
   };
-}
-
-function stripClientIdFromDocument(
-  document: z.infer<typeof OperationsClientDocumentSchema>,
-) {
-  const { clientId: _clientId, ...rest } = document;
-  return rest;
 }
 
 async function getCustomerOrThrow(ctx: AppContext, customerId: string) {
@@ -1141,8 +1137,8 @@ export function operationsCustomersRoutes(ctx: AppContext) {
     request: {
       params: CustomerLegalEntityParamsSchema,
       query: z.object({
-        format: z.enum(["docx", "pdf"]).default("docx"),
-        lang: z.enum(["ru", "en"]).default("ru"),
+        format: GeneratedDocumentFormatSchema,
+        lang: GeneratedDocumentLangSchema,
       }),
     },
     responses: {
@@ -1430,69 +1426,90 @@ export function operationsCustomersRoutes(ctx: AppContext) {
       }
     })
     .openapi(listLegalEntityDocumentsRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) {
-        return c.json([], 200);
+      try {
+        const { counterpartyId, customerId } = c.req.valid("param");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const result =
+          await ctx.filesModule.files.queries.listCounterpartyAttachments(
+            counterpartyId,
+          );
+        return c.json(
+          result.map(serializeCompatibilityFileAttachment),
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-
-      const shell = await resolveLegacyShellForLegalEntity(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const result = await docs.queries.listByClientId(shell.id);
-      return c.json(result.map(stripClientIdFromDocument), 200);
     })
     .openapi(uploadLegalEntityDocumentRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) {
-        return c.json({ error: "Document storage not configured" } as any, 503 as any);
-      }
+      try {
+        const { counterpartyId, customerId } = c.req.valid("param");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" } as any, 400 as any);
+        }
 
-      const shell = await resolveLegacyShellForLegalEntity(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const body = await c.req.parseBody();
-      const file = body.file;
-      if (!file || typeof file === "string") {
-        return c.json({ error: "File is required" } as any, 400 as any);
+        const sessionUser = c.get("user")!;
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const result =
+          await ctx.filesModule.files.commands.uploadCounterpartyAttachment({
+            buffer,
+            description:
+              typeof body.description === "string" ? body.description : null,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            ownerId: counterpartyId,
+            uploadedBy: sessionUser.id,
+          });
+        return c.json(serializeCompatibilityFileAttachment(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-
-      const sessionUser = c.get("user")!;
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await docs.commands.upload({
-        buffer,
-        clientId: shell.id,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        uploadedBy: sessionUser.id,
-      });
-      return c.json(stripClientIdFromDocument(result), 201);
     })
     .openapi(downloadLegalEntityDocumentRoute, async (c) => {
-      const { documentId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (!docs) {
-        return c.json({ error: "Documents not configured" }, 404);
-      }
+      try {
+        const { counterpartyId, customerId, documentId } = c.req.valid("param");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const url =
+          await ctx.filesModule.files.queries.getCounterpartyAttachmentDownloadUrl(
+            {
+              fileAssetId: documentId,
+              ownerId: counterpartyId,
+            },
+          );
 
-      const url = await docs.getSignedUrl(documentId);
-      if (!url) {
-        return c.json({ error: "Document not found" }, 404);
+        return c.redirect(url, 302);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-
-      return c.redirect(url, 302);
     })
     .openapi(deleteLegalEntityDocumentRoute, async (c) => {
-      const { documentId } = c.req.valid("param");
-      const docs = ctx.operationsModule.clients.documents;
-      if (docs) {
-        await docs.commands.delete(documentId);
+      try {
+        const { counterpartyId, customerId, documentId } = c.req.valid("param");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        await ctx.filesModule.files.commands.deleteCounterpartyAttachment({
+          fileAssetId: documentId,
+          ownerId: counterpartyId,
+        });
+        return c.json({ deleted: true }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      return c.json({ deleted: true }, 200);
     })
     .openapi(generateLegalEntityContractRoute, async (c) => {
       try {
@@ -1539,6 +1556,17 @@ export function operationsCustomersRoutes(ctx: AppContext) {
             format,
             lang,
           });
+        await ctx.filesModule.files.commands.persistGeneratedCounterpartyFile({
+          buffer: result.buffer,
+          createdBy: c.get("user")?.id ?? null,
+          fileName: result.fileName,
+          fileSize: result.buffer.byteLength,
+          generatedFormat: format,
+          generatedLang: lang,
+          linkKind: "legal_entity_contract",
+          mimeType: result.mimeType,
+          ownerId: counterpartyId,
+        });
 
         c.header("Content-Type", result.mimeType);
         c.header(

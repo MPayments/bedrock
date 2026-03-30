@@ -14,7 +14,6 @@ import {
   opsApplications,
   opsCalculations,
   opsClients,
-  opsDealDocuments,
   opsDeals,
 } from "../../../infra/drizzle/schema";
 import {
@@ -24,7 +23,6 @@ import {
 import type {
   AgentBonus,
   Deal,
-  DealDocument,
   DealListRow,
   DealWithDetails,
 } from "../../application/contracts/dto";
@@ -336,15 +334,6 @@ export class DrizzleDealReads implements DealReads {
     ]);
 
     return { pending, inProgress, done };
-  }
-
-  async listDocuments(dealId: number): Promise<DealDocument[]> {
-    const rows = await this.db
-      .select()
-      .from(opsDealDocuments)
-      .where(eq(opsDealDocuments.dealId, dealId))
-      .orderBy(desc(opsDealDocuments.createdAt));
-    return rows as unknown as DealDocument[];
   }
 
   async getLatestBonusForDeal(dealId: number): Promise<AgentBonus | null> {

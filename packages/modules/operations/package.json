@@ -23,6 +23,7 @@
     "@bedrock/calculations": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/deals": "workspace:*",
+    "@bedrock/files": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",

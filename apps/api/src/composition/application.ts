@@ -6,6 +6,7 @@ import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
+import type { FilesModule } from "@bedrock/files";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -64,6 +65,7 @@ import { createApiAccountingModule } from "./accounting-module";
 import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
 import { createApiDealsModule } from "./deals-module";
+import { createApiFilesModule } from "./files-module";
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
@@ -80,6 +82,7 @@ export interface ApiApplicationServices {
   agreementsModule: AgreementsModule;
   calculationsModule: CalculationsModule;
   dealsModule: DealsModule;
+  filesModule: FilesModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
@@ -409,6 +412,12 @@ export function createApplicationServices(
       updateCounterparty: partiesModule.counterparties.commands.update,
     }),
   });
+  const filesModule = createApiFilesModule({
+    db,
+    logger,
+    objectStorage,
+    persistence: createPersistenceContext(db),
+  });
 
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
@@ -455,6 +464,7 @@ export function createApplicationServices(
     agreementsModule,
     calculationsModule,
     dealsModule,
+    filesModule,
     partiesModule,
     currenciesService,
     treasuryModule,

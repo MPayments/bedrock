@@ -48,21 +48,6 @@ export const AgentBonusSchema = z.object({
 
 export type AgentBonus = z.infer<typeof AgentBonusSchema>;
 
-export const DealDocumentSchema = z.object({
-  id: z.number().int(),
-  dealId: z.number().int(),
-  fileName: z.string(),
-  fileSize: z.number().int(),
-  mimeType: z.string(),
-  s3Key: z.string(),
-  uploadedBy: z.string().nullable(),
-  description: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export type DealDocument = z.infer<typeof DealDocumentSchema>;
-
 export const PaginatedDealsSchema = createPaginatedListSchema(DealSchema);
 
 export type PaginatedDeals = z.infer<typeof PaginatedDealsSchema>;

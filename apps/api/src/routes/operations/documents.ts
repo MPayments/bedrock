@@ -8,6 +8,11 @@ import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { findCompatibilityCalculationById } from "./calculations-compat";
 import { resolveEffectiveCompatibilityContractByClientId } from "./contracts-compat";
 import {
+  GeneratedDocumentFormatSchema,
+  GeneratedDocumentLangSchema,
+  resolveClientCounterpartyIdOrThrow,
+} from "./files-compat";
+import {
   getOrganizationBankRequisiteOrThrow,
   serializeOrganizationRequisiteForDocuments,
 } from "../organization-requisites";
@@ -98,8 +103,8 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
     request: {
       params: OpsIdParamSchema,
       query: z.object({
-        format: z.enum(["docx", "pdf"]).default("docx"),
-        lang: z.enum(["ru", "en"]).default("ru"),
+        format: GeneratedDocumentFormatSchema,
+        lang: GeneratedDocumentLangSchema,
       }),
     },
     responses: {
@@ -228,6 +233,7 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
 
       const client = await ctx.operationsModule.clients.queries.findById(id);
       if (!client) return c.json({ error: "Client not found" }, 404);
+      const counterpartyId = await resolveClientCounterpartyIdOrThrow(ctx, id);
 
       const contract = await resolveEffectiveCompatibilityContractByClientId(
         ctx,
@@ -257,6 +263,17 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
           format,
           lang,
         });
+      await ctx.filesModule.files.commands.persistGeneratedCounterpartyFile({
+        buffer: result.buffer,
+        createdBy: c.get("user")?.id ?? null,
+        fileName: result.fileName,
+        fileSize: result.buffer.byteLength,
+        generatedFormat: format,
+        generatedLang: lang,
+        linkKind: "legal_entity_contract",
+        mimeType: result.mimeType,
+        ownerId: counterpartyId,
+      });
 
       c.header("Content-Type", result.mimeType);
       c.header(

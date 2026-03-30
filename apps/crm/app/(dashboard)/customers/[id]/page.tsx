@@ -116,7 +116,7 @@ type ClientDocument = {
   description: string | null;
   fileName: string;
   fileSize: number;
-  id: number;
+  id: string;
   mimeType: string;
   updatedAt: string;
   uploadedBy: string | null;
@@ -250,7 +250,7 @@ export default function CustomerDetailPage() {
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
     null,
   );
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
@@ -645,7 +645,7 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleDeleteDocument(documentId: number) {
+  async function handleDeleteDocument(documentId: string) {
     if (!selectedLegalEntity) {
       return;
     }
