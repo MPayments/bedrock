@@ -1,5 +1,6 @@
 import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
+import type { CalculationsModule } from "@bedrock/calculations";
 import {
   createCurrenciesService,
   type CurrenciesService,
@@ -60,6 +61,7 @@ import {
 
 import { createApiAccountingModule } from "./accounting-module";
 import { createApiAgreementsModule } from "./agreements-module";
+import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
@@ -74,6 +76,7 @@ import { db } from "../db/client";
 
 export interface ApiApplicationServices {
   agreementsModule: AgreementsModule;
+  calculationsModule: CalculationsModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
@@ -172,6 +175,13 @@ export function createApplicationServices(
     logger,
   });
   const agreementsModule = createApiAgreementsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+  });
+  const calculationsModule = createApiCalculationsModule({
     db,
     logger,
     idempotency,
@@ -431,6 +441,7 @@ export function createApplicationServices(
 
   return {
     agreementsModule,
+    calculationsModule,
     partiesModule,
     currenciesService,
     treasuryModule,

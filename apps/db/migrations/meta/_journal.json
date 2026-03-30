@@ -64,6 +64,13 @@
       "when": 1774876608251,
       "tag": "0008_aspiring_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774881896645,
+      "tag": "0009_lumpy_kylun",
+      "breakpoints": true
     }
   ]
 }

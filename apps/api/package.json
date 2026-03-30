@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@bedrock/agreements": "workspace:*",
+    "@bedrock/calculations": "workspace:*",
     "@bedrock/operations": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",

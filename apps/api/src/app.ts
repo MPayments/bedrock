@@ -17,6 +17,7 @@ import {
   accountingRoutes,
   agreementsRoutes,
   balancesRoutes,
+  calculationsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
@@ -146,6 +147,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/accounting", accountingRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
+    .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
     .route("/customers", customersRoutes(ctx))

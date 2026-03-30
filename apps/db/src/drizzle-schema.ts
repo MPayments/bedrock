@@ -8,6 +8,13 @@ export {
   agreementVersions,
 } from "@bedrock/agreements/schema";
 export {
+  calculationLineKindEnum,
+  calculationLines,
+  calculations,
+  calculationRateSourceEnum,
+  calculationSnapshots,
+} from "@bedrock/calculations/schema";
+export {
   accountingClosePackages,
   accountingPackAssignments,
   accountingPackVersions,

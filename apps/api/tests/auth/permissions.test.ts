@@ -32,4 +32,26 @@ describe("auth permissions", () => {
   it("does not grant agreements permissions to customer users", () => {
     expect((customer as any).statements.agreements).toBeUndefined();
   });
+
+  it("grants calculations permissions to internal roles only", () => {
+    expect((admin as any).statements.calculations).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((user as any).statements.calculations).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((agent as any).statements.calculations).toEqual([
+      "create",
+      "list",
+      "update",
+      "delete",
+    ]);
+    expect((customer as any).statements.calculations).toBeUndefined();
+  });
 });
