@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   integer,
@@ -49,6 +50,7 @@ export const agreements = pgTable(
     organizationRequisiteId: uuid("organization_requisite_id")
       .notNull()
       .references(() => requisites.id),
+    isActive: boolean("is_active").notNull().default(true),
     currentVersionId: uuid("current_version_id").references(
       (): AnyPgColumn => agreementVersions.id,
       {
@@ -67,6 +69,9 @@ export const agreements = pgTable(
     index("agreements_customer_idx").on(table.customerId),
     index("agreements_organization_idx").on(table.organizationId),
     index("agreements_current_version_idx").on(table.currentVersionId),
+    uniqueIndex("agreements_active_customer_uq")
+      .on(table.customerId)
+      .where(sql`${table.isActive} = true`),
   ],
 );
 

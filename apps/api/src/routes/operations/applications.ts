@@ -21,8 +21,8 @@ import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { exportApplicationsXlsx, xlsxFilename } from "./excel-export";
-import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
 import { getOrganizationBankRequisiteOrThrow } from "../organization-requisites";
+import { resolveEffectiveCompatibilityContractByClientId } from "./contracts-compat";
 
 export function operationsApplicationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -235,7 +235,10 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       query: z.object({ period: z.string().default("month") }),
     },
     responses: {
-      200: { content: { "application/json": { schema: z.any() } }, description: "Recent applications" },
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Recent applications",
+      },
     },
   });
 
@@ -257,7 +260,12 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       params: OpsIdParamSchema.extend({ calcId: z.coerce.number().int() }),
     },
     responses: {
-      200: { content: { "application/json": { schema: z.object({ deleted: z.boolean() }) } }, description: "Deleted" },
+      200: {
+        content: {
+          "application/json": { schema: z.object({ deleted: z.boolean() }) },
+        },
+        description: "Deleted",
+      },
     },
   });
 
@@ -278,7 +286,8 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       return new Response(new Uint8Array(buffer), {
         status: 200,
         headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition": `attachment; filename="${xlsxFilename("applications-report")}"`,
         },
       });
@@ -309,8 +318,7 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
-      const app_ =
-        await ctx.operationsModule.applications.queries.findById(id);
+      const app_ = await ctx.operationsModule.applications.queries.findById(id);
       if (!app_) return c.json({ error: "Application not found" }, 404);
       return c.json(app_, 200);
     })
@@ -320,10 +328,15 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         await ctx.operationsModule.applications.commands.create(input);
       const sessionUser = c.get("user");
       if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "create", entityType: "application",
-          entityId: result.id, source: "web",
-        }).catch(() => {});
+        ctx.operationsModule.activityLog.commands
+          .log({
+            userId: sessionUser.id,
+            action: "create",
+            entityType: "application",
+            entityId: result.id,
+            source: "web",
+          })
+          .catch(() => {});
       }
       return c.json(result, 201);
     })
@@ -335,10 +348,16 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         agentId: body.agentId ?? sessionUser.id,
         applicationId: id,
       });
-      ctx.operationsModule.activityLog.commands.log({
-        userId: sessionUser.id, action: "update", entityType: "application",
-        entityId: id, source: "web", metadata: { subAction: "take" },
-      }).catch(() => {});
+      ctx.operationsModule.activityLog.commands
+        .log({
+          userId: sessionUser.id,
+          action: "update",
+          entityType: "application",
+          entityId: id,
+          source: "web",
+          metadata: { subAction: "take" },
+        })
+        .catch(() => {});
       return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(rejectRoute, async (c) => {
@@ -350,10 +369,16 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         });
       const sessionUser = c.get("user");
       if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "status_change", entityType: "application",
-          entityId: id, source: "web", metadata: { status: "rejected" },
-        }).catch(() => {});
+        ctx.operationsModule.activityLog.commands
+          .log({
+            userId: sessionUser.id,
+            action: "status_change",
+            entityType: "application",
+            entityId: id,
+            source: "web",
+            metadata: { status: "rejected" },
+          })
+          .catch(() => {});
       }
       return c.json(result!, 200);
     })
@@ -367,10 +392,15 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         });
       const sessionUser = c.get("user");
       if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "comment", entityType: "application",
-          entityId: id, source: "web",
-        }).catch(() => {});
+        ctx.operationsModule.activityLog.commands
+          .log({
+            userId: sessionUser.id,
+            action: "comment",
+            entityType: "application",
+            entityId: id,
+            source: "web",
+          })
+          .catch(() => {});
       }
       return c.json(result!, 200);
     })
@@ -386,7 +416,8 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
         return c.json({ error: "Application not found" }, 404);
       }
 
-      const contract = await ctx.operationsModule.contracts.queries.findByClient(
+      const contract = await resolveEffectiveCompatibilityContractByClientId(
+        ctx,
         app.clientId,
       );
       if (!contract) {
@@ -394,10 +425,15 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       }
 
       const organization =
-        await findCanonicalOrganizationByLegacyId(ctx, contract.agentOrganizationId);
+        await ctx.partiesModule.organizations.queries.findById(
+          contract.organizationId,
+        );
       if (!organization || requisite.ownerId !== organization.id) {
         return c.json(
-          { error: "Organization requisite does not belong to contract organization" },
+          {
+            error:
+              "Organization requisite does not belong to contract organization",
+          },
           400,
         );
       }

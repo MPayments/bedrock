@@ -25,6 +25,7 @@ function createAgreementDetail() {
     customerId: "00000000-0000-4000-8000-000000000001",
     organizationId: "00000000-0000-4000-8000-000000000002",
     organizationRequisiteId: "00000000-0000-4000-8000-000000000003",
+    isActive: true,
     createdAt: now,
     updatedAt: now,
     currentVersion: {
@@ -78,7 +79,9 @@ function createAgreementsModuleStub() {
         findById: vi.fn(),
       },
       commands: {
+        archive: vi.fn(),
         create: vi.fn(),
+        update: vi.fn(),
       },
     },
   };
@@ -121,6 +124,7 @@ describe("agreements routes", () => {
           customerId: detail.customerId,
           organizationId: detail.organizationId,
           organizationRequisiteId: detail.organizationRequisiteId,
+          isActive: detail.isActive,
           createdAt: detail.createdAt,
           updatedAt: detail.updatedAt,
           currentVersion: {
@@ -174,6 +178,7 @@ describe("agreements routes", () => {
           customerId: detail.customerId,
           organizationId: detail.organizationId,
           organizationRequisiteId: detail.organizationRequisiteId,
+          isActive: true,
           createdAt: detail.createdAt.toISOString(),
           updatedAt: detail.updatedAt.toISOString(),
           currentVersion: {
@@ -198,6 +203,7 @@ describe("agreements routes", () => {
       customerId: detail.customerId,
       organizationId: detail.organizationId,
       organizationRequisiteId: detail.organizationRequisiteId,
+      isActive: true,
     });
 
     expect(agreementsModule.agreements.queries.list).toHaveBeenCalledWith({
@@ -246,6 +252,63 @@ describe("agreements routes", () => {
       error: "Missing Idempotency-Key header",
     });
     expect(agreementsModule.agreements.commands.create).not.toHaveBeenCalled();
+  });
+
+  it("updates and archives agreements", async () => {
+    const { app, agreementsModule } = createTestApp();
+    const detail = createAgreementDetail();
+    const updated = {
+      ...detail,
+      currentVersion: {
+        ...detail.currentVersion,
+        versionNumber: 2,
+        contractNumber: "AG-2026-002",
+      },
+    };
+    agreementsModule.agreements.commands.update.mockResolvedValue(updated);
+    agreementsModule.agreements.commands.archive.mockResolvedValue(true);
+
+    const patchResponse = await app.request(
+      `http://localhost/agreements/${detail.id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "agreement-update-1",
+        },
+        body: JSON.stringify({
+          contractNumber: "AG-2026-002",
+        }),
+      },
+    );
+    const deleteResponse = await app.request(
+      `http://localhost/agreements/${detail.id}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      id: detail.id,
+      isActive: true,
+      currentVersion: {
+        versionNumber: 2,
+        contractNumber: "AG-2026-002",
+      },
+    });
+    expect(deleteResponse.status).toBe(200);
+    await expect(deleteResponse.json()).resolves.toEqual({ deleted: true });
+
+    expect(agreementsModule.agreements.commands.update).toHaveBeenCalledWith({
+      contractNumber: "AG-2026-002",
+      actorUserId: "user-1",
+      id: detail.id,
+      idempotencyKey: "agreement-update-1",
+    });
+    expect(agreementsModule.agreements.commands.archive).toHaveBeenCalledWith(
+      detail.id,
+    );
   });
 
   it("maps not-found errors on detail fetch", async () => {

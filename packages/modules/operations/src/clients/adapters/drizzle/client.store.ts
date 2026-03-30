@@ -3,9 +3,23 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import { opsClients } from "../../../infra/drizzle/schema";
-import type { CreateClientInput, UpdateClientInput } from "../../application/contracts/commands";
+import type {
+  CreateClientInput,
+  UpdateClientInput,
+} from "../../application/contracts/commands";
 import type { Client } from "../../application/contracts/dto";
 import type { ClientStore } from "../../application/ports/client.store";
+
+function mapClientRow(
+  row: typeof opsClients.$inferSelect | undefined | null,
+): Client | null {
+  if (!row) {
+    return null;
+  }
+
+  const { contractId: _contractId, ...client } = row;
+  return client as unknown as Client;
+}
 
 export class DrizzleClientStore implements ClientStore {
   constructor(private readonly db: Queryable) {}
@@ -16,10 +30,12 @@ export class DrizzleClientStore implements ClientStore {
       .from(opsClients)
       .where(eq(opsClients.id, id))
       .limit(1);
-    return (row as unknown as Client) ?? null;
+    return mapClientRow(row);
   }
 
-  async findActiveByCounterpartyId(counterpartyId: string): Promise<Client | null> {
+  async findActiveByCounterpartyId(
+    counterpartyId: string,
+  ): Promise<Client | null> {
     const [row] = await this.db
       .select()
       .from(opsClients)
@@ -31,7 +47,7 @@ export class DrizzleClientStore implements ClientStore {
       )
       .orderBy(desc(opsClients.updatedAt), desc(opsClients.createdAt))
       .limit(1);
-    return (row as unknown as Client) ?? null;
+    return mapClientRow(row);
   }
 
   async create(input: CreateClientInput): Promise<Client> {
@@ -66,12 +82,11 @@ export class DrizzleClientStore implements ClientStore {
         corrAccount: input.corrAccount ?? null,
         bankCountry: input.bankCountry ?? null,
         subAgentCounterpartyId: input.subAgentCounterpartyId ?? null,
-        contractId: input.contractId ?? null,
         customerId: input.customerId ?? null,
         counterpartyId: input.counterpartyId ?? null,
       })
       .returning();
-    return created! as unknown as Client;
+    return mapClientRow(created)!;
   }
 
   async update(input: UpdateClientInput): Promise<Client | null> {
@@ -81,7 +96,7 @@ export class DrizzleClientStore implements ClientStore {
       .set({ ...data, updatedAt: sql`CURRENT_TIMESTAMP` })
       .where(eq(opsClients.id, id))
       .returning();
-    return (updated as unknown as Client) ?? null;
+    return mapClientRow(updated);
   }
 
   async softDelete(id: number): Promise<boolean> {

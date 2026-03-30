@@ -5,11 +5,16 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
-const AGREEMENTS_SORTABLE_COLUMNS = ["createdAt", "updatedAt"] as const;
+const AGREEMENTS_SORTABLE_COLUMNS = [
+  "createdAt",
+  "updatedAt",
+  "contractNumber",
+] as const;
 
 interface AgreementsListFilters {
   customerId: { kind: "string"; cardinality: "single" };
   organizationId: { kind: "string"; cardinality: "single" };
+  isActive: { kind: "boolean"; cardinality: "single" };
 }
 
 export const AGREEMENTS_LIST_CONTRACT: ListQueryContract<
@@ -21,6 +26,7 @@ export const AGREEMENTS_LIST_CONTRACT: ListQueryContract<
   filters: {
     customerId: { kind: "string", cardinality: "single" },
     organizationId: { kind: "string", cardinality: "single" },
+    isActive: { kind: "boolean", cardinality: "single" },
   },
 };
 

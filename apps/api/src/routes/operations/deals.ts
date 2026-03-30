@@ -19,8 +19,10 @@ import {
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
+import {
+  resolveEffectiveCompatibilityContractByClientId,
+} from "./contracts-compat";
 import { exportDealsXlsx, xlsxFilename } from "./excel-export";
-import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
 import {
   getOrganizationBankRequisiteOrThrow,
   serializeOrganizationRequisiteForDocuments,
@@ -458,7 +460,8 @@ export function operationsDealsRoutes(ctx: AppContext) {
       if (deal.application?.clientId) {
         [client, contract] = await Promise.all([
           ctx.operationsModule.clients.queries.findById(deal.application.clientId),
-          ctx.operationsModule.contracts.queries.findByClient(
+          resolveEffectiveCompatibilityContractByClientId(
+            ctx,
             deal.application.clientId,
           ),
         ]);
@@ -475,10 +478,9 @@ export function operationsDealsRoutes(ctx: AppContext) {
           ctx,
           deal.deal.organizationRequisiteId,
         );
-        if (organizationRequisite && contract?.agentOrganizationId) {
-          organization = await findCanonicalOrganizationByLegacyId(
-            ctx,
-            contract.agentOrganizationId,
+        if (organizationRequisite && contract?.organizationId) {
+          organization = await ctx.partiesModule.organizations.queries.findById(
+            contract.organizationId,
           );
         }
       }
@@ -510,16 +512,16 @@ export function operationsDealsRoutes(ctx: AppContext) {
         return c.json({ error: "Application not found" }, 404);
       }
 
-      const contract = await ctx.operationsModule.contracts.queries.findByClient(
+      const contract = await resolveEffectiveCompatibilityContractByClientId(
+        ctx,
         application.clientId,
       );
       if (!contract) {
         return c.json({ error: "Contract not found" }, 404);
       }
 
-      const organization = await findCanonicalOrganizationByLegacyId(
-        ctx,
-        contract.agentOrganizationId,
+      const organization = await ctx.partiesModule.organizations.queries.findById(
+        contract.organizationId,
       );
       if (!organization || requisite.ownerId !== organization.id) {
         return c.json(
@@ -664,7 +666,10 @@ export function operationsDealsRoutes(ctx: AppContext) {
       let organizationRequisite = null;
 
       if (deal.application?.clientId) {
-        contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
+        contract = await resolveEffectiveCompatibilityContractByClientId(
+          ctx,
+          deal.application.clientId,
+        );
       }
 
       if (deal.deal.organizationRequisiteId) {
@@ -672,10 +677,9 @@ export function operationsDealsRoutes(ctx: AppContext) {
           ctx,
           deal.deal.organizationRequisiteId,
         );
-        if (organizationRequisite && contract?.agentOrganizationId) {
-          organization = await findCanonicalOrganizationByLegacyId(
-            ctx,
-            contract.agentOrganizationId,
+        if (organizationRequisite && contract?.organizationId) {
+          organization = await ctx.partiesModule.organizations.queries.findById(
+            contract.organizationId,
           );
         }
       }

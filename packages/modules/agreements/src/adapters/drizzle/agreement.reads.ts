@@ -33,6 +33,7 @@ import type { ListAgreementsQuery } from "../../application/contracts/queries";
 import type { AgreementReads } from "../../application/ports/agreement.reads";
 
 const AGREEMENTS_SORT_COLUMN_MAP = {
+  contractNumber: agreementVersions.contractNumber,
   createdAt: agreements.createdAt,
   updatedAt: agreements.updatedAt,
 } as const;
@@ -42,6 +43,7 @@ const agreementSummarySelect = {
   customerId: agreements.customerId,
   organizationId: agreements.organizationId,
   organizationRequisiteId: agreements.organizationRequisiteId,
+  isActive: agreements.isActive,
   createdAt: agreements.createdAt,
   updatedAt: agreements.updatedAt,
   currentVersionId: agreementVersions.id,
@@ -57,6 +59,7 @@ type AgreementSummaryRow = {
   customerId: string;
   organizationId: string;
   organizationRequisiteId: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   currentVersionId: string;
@@ -86,6 +89,7 @@ function mapAgreementSummary(row: AgreementSummaryRow): Agreement {
     customerId: row.customerId,
     organizationId: row.organizationId,
     organizationRequisiteId: row.organizationRequisiteId,
+    isActive: row.isActive,
     currentVersion: mapAgreementVersionSummary(row),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -189,6 +193,7 @@ export class DrizzleAgreementReads implements AgreementReads {
       customerId: summary.customerId,
       organizationId: summary.organizationId,
       organizationRequisiteId: summary.organizationRequisiteId,
+      isActive: summary.isActive,
       currentVersion,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
@@ -204,6 +209,10 @@ export class DrizzleAgreementReads implements AgreementReads {
 
     if (input.organizationId) {
       conditions.push(eq(agreements.organizationId, input.organizationId));
+    }
+
+    if (input.isActive !== undefined) {
+      conditions.push(eq(agreements.isActive, input.isActive));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -238,5 +247,29 @@ export class DrizzleAgreementReads implements AgreementReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async findActiveByCustomerId(customerId: string): Promise<AgreementDetails | null> {
+    const [summary] = (await this.db
+      .select(agreementSummarySelect)
+      .from(agreements)
+      .innerJoin(
+        agreementVersions,
+        eq(agreements.currentVersionId, agreementVersions.id),
+      )
+      .where(
+        and(
+          eq(agreements.customerId, customerId),
+          eq(agreements.isActive, true),
+        ),
+      )
+      .orderBy(desc(agreements.updatedAt), desc(agreements.createdAt))
+      .limit(1)) as AgreementSummaryRow[];
+
+    if (!summary) {
+      return null;
+    }
+
+    return this.findById(summary.id);
   }
 }

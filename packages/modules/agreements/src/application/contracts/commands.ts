@@ -75,3 +75,42 @@ export const CreateAgreementInputSchema = z
   });
 
 export type CreateAgreementInput = z.infer<typeof CreateAgreementInputSchema>;
+
+export const UpdateAgreementInputSchema = z
+  .object({
+    contractNumber: nullableText.optional(),
+    contractDate: z.coerce.date().nullable().optional(),
+    feeRules: z.array(CreateAgreementFeeRuleInputSchema).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const providedKeys = Object.keys(value);
+
+    if (providedKeys.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At least one version-owned agreement field must be provided",
+      });
+    }
+
+    if (!value.feeRules) {
+      return;
+    }
+
+    const kinds = new Set<string>();
+
+    value.feeRules.forEach((rule, index) => {
+      if (kinds.has(rule.kind)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["feeRules", index, "kind"],
+          message: `Duplicate fee rule kind: ${rule.kind}`,
+        });
+        return;
+      }
+
+      kinds.add(rule.kind);
+    });
+  });
+
+export type UpdateAgreementInput = z.infer<typeof UpdateAgreementInputSchema>;

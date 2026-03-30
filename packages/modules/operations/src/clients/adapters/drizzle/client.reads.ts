@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
@@ -17,6 +27,17 @@ const CLIENT_SORT_COLUMN_MAP = {
   createdAt: opsClients.createdAt,
 } as const;
 
+function mapClientRow(
+  row: typeof opsClients.$inferSelect | undefined | null,
+): Client | null {
+  if (!row) {
+    return null;
+  }
+
+  const { contractId: _contractId, ...client } = row;
+  return client as unknown as Client;
+}
+
 export class DrizzleClientReads implements ClientReads {
   constructor(private readonly db: Queryable) {}
 
@@ -26,10 +47,12 @@ export class DrizzleClientReads implements ClientReads {
       .from(opsClients)
       .where(eq(opsClients.id, id))
       .limit(1);
-    return (row as unknown as Client) ?? null;
+    return mapClientRow(row);
   }
 
-  async findActiveByCounterpartyId(counterpartyId: string): Promise<Client | null> {
+  async findActiveByCounterpartyId(
+    counterpartyId: string,
+  ): Promise<Client | null> {
     const [row] = await this.db
       .select()
       .from(opsClients)
@@ -42,7 +65,7 @@ export class DrizzleClientReads implements ClientReads {
       .orderBy(desc(opsClients.updatedAt), desc(opsClients.createdAt))
       .limit(1);
 
-    return (row as unknown as Client) ?? null;
+    return mapClientRow(row);
   }
 
   async list(input: ListClientsQuery): Promise<PaginatedList<Client>> {
@@ -83,8 +106,7 @@ export class DrizzleClientReads implements ClientReads {
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const orderByFn =
-      resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
+    const orderByFn = resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
     const orderByColumn = resolveSortValue(
       input.sortBy,
       CLIENT_SORT_COLUMN_MAP,
@@ -106,14 +128,18 @@ export class DrizzleClientReads implements ClientReads {
     ]);
 
     return {
-      data: rows as unknown as Client[],
+      data: rows
+        .map((row) => mapClientRow(row))
+        .filter((row): row is Client => row !== null),
       total: countRows[0]?.total ?? 0,
       limit: input.limit,
       offset: input.offset,
     };
   }
 
-  async listActiveByCounterpartyIds(counterpartyIds: string[]): Promise<Client[]> {
+  async listActiveByCounterpartyIds(
+    counterpartyIds: string[],
+  ): Promise<Client[]> {
     if (counterpartyIds.length === 0) {
       return [];
     }
@@ -131,7 +157,11 @@ export class DrizzleClientReads implements ClientReads {
 
     const deduped = new Map<string, Client>();
     for (const row of rows) {
-      const client = row as unknown as Client;
+      const client = mapClientRow(row);
+      if (!client) {
+        continue;
+      }
+
       if (!client.counterpartyId || deduped.has(client.counterpartyId)) {
         continue;
       }

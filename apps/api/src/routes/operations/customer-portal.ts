@@ -61,6 +61,8 @@ const CustomerPortalCustomerContextsSchema = z.object({
   total: z.number().int(),
 });
 
+const CustomerPortalCreateClientInputSchema = CreateClientInputSchema;
+
 function requireCustomerPortalAccess(
   ctx: AppContext,
 ): MiddlewareHandler<{
@@ -152,7 +154,9 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     summary: "Create client as customer",
     request: {
       body: {
-        content: { "application/json": { schema: CreateClientInputSchema } },
+        content: {
+          "application/json": { schema: CustomerPortalCreateClientInputSchema },
+        },
         required: true,
       },
     },

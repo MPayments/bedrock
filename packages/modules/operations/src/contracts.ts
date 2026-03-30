@@ -53,23 +53,6 @@ export {
   type ListSubAgentsQuery,
 } from "./agents/application/contracts/sub-agent-queries";
 
-// --- Contracts ---
-export {
-  CreateContractInputSchema,
-  UpdateContractInputSchema,
-  type CreateContractInput,
-  type UpdateContractInput,
-} from "./contracts/application/contracts/commands";
-export {
-  ContractSchema,
-  type Contract,
-} from "./contracts/application/contracts/dto";
-export {
-  CONTRACTS_LIST_CONTRACT,
-  ListContractsQuerySchema,
-  type ListContractsQuery,
-} from "./contracts/application/contracts/queries";
-
 // --- Applications ---
 export {
   CreateApplicationInputSchema,

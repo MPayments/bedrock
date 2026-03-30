@@ -3,9 +3,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import {
   ClientDocumentSchema,
   ClientSchema,
-  ContractSchema,
   CreateClientInputSchema,
-  CreateContractInputSchema,
   ListClientsQuerySchema,
   PaginatedClientsSchema,
   UpdateClientInputSchema,
@@ -13,9 +11,25 @@ import {
 } from "@bedrock/operations/contracts";
 
 import type { AppContext } from "../../context";
+import { handleRouteError } from "../../common/errors";
 import type { AuthVariables } from "../../middleware/auth";
+import { withRequiredIdempotency } from "../../middleware/idempotency";
+import { requirePermission } from "../../middleware/permission";
 import { OpsDeletedSchema, OpsErrorSchema, OpsIdParamSchema } from "./common";
+import {
+  CompatibilityContractSchema,
+  CompatibilityCreateContractInputSchema,
+  createCompatibilityContract,
+  resolveEffectiveCompatibilityContractByClientId,
+  updateCompatibilityContract,
+} from "./contracts-compat";
 import { exportClientsXlsx, xlsxFilename } from "./excel-export";
+
+const PublicCreateClientInputSchema = CreateClientInputSchema;
+
+const PublicUpdateClientInputSchema = UpdateClientInputSchema.omit({
+  id: true,
+});
 
 export function operationsClientsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -62,7 +76,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
     summary: "Create a new client",
     request: {
       body: {
-        content: { "application/json": { schema: CreateClientInputSchema } },
+        content: { "application/json": { schema: PublicCreateClientInputSchema } },
         required: true,
       },
     },
@@ -83,7 +97,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
     request: {
       params: OpsIdParamSchema,
       body: {
-        content: { "application/json": { schema: UpdateClientInputSchema.omit({ id: true }) } },
+        content: { "application/json": { schema: PublicUpdateClientInputSchema } },
         required: true,
       },
     },
@@ -116,6 +130,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
 
   // Get client contract
   const getContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
     path: "/{id}/contract",
     tags: ["Operations - Clients"],
@@ -123,7 +138,9 @@ export function operationsClientsRoutes(ctx: AppContext) {
     request: { params: OpsIdParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: ContractSchema.nullable() } },
+        content: {
+          "application/json": { schema: CompatibilityContractSchema.nullable() },
+        },
         description: "Client contract",
       },
     },
@@ -131,6 +148,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
 
   // Create/update client contract
   const createContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
     path: "/{id}/contract",
     tags: ["Operations - Clients"],
@@ -140,7 +158,7 @@ export function operationsClientsRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: CreateContractInputSchema.omit({ clientId: true }),
+            schema: CompatibilityCreateContractInputSchema.omit({ clientId: true }),
           },
         },
         required: true,
@@ -148,7 +166,9 @@ export function operationsClientsRoutes(ctx: AppContext) {
     },
     responses: {
       201: {
-        content: { "application/json": { schema: ContractSchema } },
+        content: {
+          "application/json": { schema: CompatibilityContractSchema },
+        },
         description: "Contract created/updated",
       },
     },
@@ -373,28 +393,61 @@ export function operationsClientsRoutes(ctx: AppContext) {
       return c.json({ deleted: true }, 200);
     })
     .openapi(getContractRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const contract =
-        await ctx.operationsModule.contracts.queries.findByClient(id);
-      return c.json(contract, 200);
+      try {
+        const { id } = c.req.valid("param");
+        const contract = await resolveEffectiveCompatibilityContractByClientId(
+          ctx,
+          id,
+        );
+        return c.json(contract, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(createContractRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const existing =
-        await ctx.operationsModule.contracts.queries.findByClient(id);
-      if (existing) {
-        const updated = await ctx.operationsModule.contracts.commands.update({
-          ...input,
-          id: existing.id,
-        });
-        return c.json(updated!, 201);
+      try {
+        const { id } = c.req.valid("param");
+        const input = c.req.valid("json");
+        const existing = await resolveEffectiveCompatibilityContractByClientId(
+          ctx,
+          id,
+        );
+
+        if (existing) {
+          const updated = await withRequiredIdempotency(c, (idempotencyKey) =>
+            updateCompatibilityContract(
+              ctx,
+              input,
+              existing.id,
+              c.get("user")!.id,
+              idempotencyKey,
+            ),
+          );
+
+          if (updated instanceof Response) {
+            return updated;
+          }
+
+          return c.json(updated, 201);
+        }
+
+        const created = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createCompatibilityContract(
+            ctx,
+            { ...input, clientId: id },
+            c.get("user")!.id,
+            idempotencyKey,
+          ),
+        );
+
+        if (created instanceof Response) {
+          return created;
+        }
+
+        return c.json(created, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      const created = await ctx.operationsModule.contracts.commands.create({
-        ...input,
-        clientId: id,
-      });
-      return c.json(created, 201);
     })
     .openapi(uploadDocumentRoute, async (c) => {
       const { id } = c.req.valid("param");

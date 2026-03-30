@@ -3,6 +3,7 @@ export interface CreateAgreementRootInput {
   customerId: string;
   organizationId: string;
   organizationRequisiteId: string;
+  isActive?: boolean;
 }
 
 export interface StoredAgreementRoot {
@@ -10,6 +11,7 @@ export interface StoredAgreementRoot {
   customerId: string;
   organizationId: string;
   organizationRequisiteId: string;
+  isActive: boolean;
   currentVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -88,4 +90,5 @@ export interface AgreementStore {
     agreementId: string;
     currentVersionId: string;
   }): Promise<void>;
+  setActive(input: { agreementId: string; isActive: boolean }): Promise<void>;
 }

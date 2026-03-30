@@ -1,8 +1,10 @@
 export {
   CreateAgreementFeeRuleInputSchema,
   CreateAgreementInputSchema,
+  UpdateAgreementInputSchema,
   type CreateAgreementFeeRuleInput,
   type CreateAgreementInput,
+  type UpdateAgreementInput,
 } from "./application/contracts/commands";
 export {
   AgreementDetailsSchema,

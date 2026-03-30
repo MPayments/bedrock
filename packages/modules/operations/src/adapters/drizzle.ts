@@ -2,10 +2,6 @@
 export { DrizzleActivityLogReads } from "../activity-log/adapters/drizzle/activity-log.reads";
 export { DrizzleActivityLogStore } from "../activity-log/adapters/drizzle/activity-log.store";
 
-// Contracts
-export { DrizzleContractReads } from "../contracts/adapters/drizzle/contract.reads";
-export { DrizzleContractStore } from "../contracts/adapters/drizzle/contract.store";
-
 // Applications
 export { DrizzleApplicationReads } from "../applications/adapters/drizzle/application.reads";
 export { DrizzleApplicationStore } from "../applications/adapters/drizzle/application.store";

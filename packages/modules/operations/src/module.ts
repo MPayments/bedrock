@@ -26,9 +26,6 @@ import type { CounterpartiesPort } from "./clients/application/ports/counterpart
 import type { DealDocumentStore } from "./deals/application/ports/deal-document.store";
 import type { ObjectStoragePort } from "./shared/application/ports/object-storage.port";
 import type { NotificationPort } from "./shared/application/ports/notification.port";
-import { createContractsService } from "./contracts/application";
-import type { ContractReads } from "./contracts/application/ports/contract.reads";
-import type { ContractsCommandUnitOfWork } from "./contracts/application/ports/contracts.uow";
 import { createDealsService } from "./deals/application";
 import type { DealReads } from "./deals/application/ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./deals/application/ports/deals.uow";
@@ -39,8 +36,7 @@ import { createTodosService } from "./todos/application";
 import type { TodoReads } from "./todos/application/ports/todo.reads";
 import type { TodosCommandUnitOfWork } from "./todos/application/ports/todos.uow";
 
-export type OperationsModuleUnitOfWork = ContractsCommandUnitOfWork &
-  ApplicationsCommandUnitOfWork &
+export type OperationsModuleUnitOfWork = ApplicationsCommandUnitOfWork &
   CalculationsCommandUnitOfWork &
   DealsCommandUnitOfWork &
   ClientsCommandUnitOfWork;
@@ -56,7 +52,6 @@ export interface OperationsModuleDeps {
   agentProfileReads: AgentProfileReads;
   applicationReads: ApplicationReads;
   calculationReads: CalculationReads;
-  contractReads: ContractReads;
   dealReads: DealReads;
   clientReads: ClientReads;
   organizationReads: OrganizationReads;
@@ -99,11 +94,6 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
     agents: createAgentsService({
       reads: deps.agentProfileReads,
       runtime: createRuntime("operations.agents"),
-    }),
-    contracts: createContractsService({
-      runtime: createRuntime("operations.contracts"),
-      commandUow: deps.unitOfWork,
-      reads: deps.contractReads,
     }),
     applications: createApplicationsService({
       runtime: createRuntime("operations.applications"),

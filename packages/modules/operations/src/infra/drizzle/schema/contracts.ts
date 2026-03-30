@@ -26,6 +26,7 @@ export const opsContracts = pgTable("ops_contracts", {
   agentOrganizationId: integer("agent_organization_id")
     .notNull()
     .references(() => opsAgentOrganizations.id),
+  agreementId: uuid("agreement_id"),
   organizationRequisiteId: uuid("organization_requisite_id").references(
     () => requisites.id,
   ),

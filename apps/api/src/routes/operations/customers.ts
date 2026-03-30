@@ -3,7 +3,6 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CustomerNotFoundError,
-  OrganizationNotFoundError,
 } from "@bedrock/parties";
 import {
   SubAgentProfileSchema,
@@ -11,22 +10,30 @@ import {
 import {
   ClientDocumentSchema as OperationsClientDocumentSchema,
   ClientSchema,
-  ContractSchema,
   CreateClientInputSchema,
 } from "@bedrock/operations/contracts";
+import {
+  NotFoundError,
+} from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import type { AppContext } from "../../context";
+import { handleRouteError } from "../../common/errors";
 import type { AuthVariables } from "../../middleware/auth";
+import { withRequiredIdempotency } from "../../middleware/idempotency";
+import { requirePermission } from "../../middleware/permission";
 import { OpsDeletedSchema, OpsErrorSchema } from "./common";
-import {
-  findCanonicalOrganizationByLegacyId,
-  resolveLegacyHoldingOrganizationByCanonicalId,
-} from "../organization-bridge";
 import {
   getOrganizationBankRequisiteOrThrow,
   serializeOrganizationRequisiteForDocuments,
 } from "../organization-requisites";
+import {
+  assertCustomerOwnsCounterparty,
+  CompatibilityContractSchema,
+  createCompatibilityContractForCustomer,
+  resolveEffectiveCompatibilityContractByCustomerId,
+  updateCompatibilityContract,
+} from "./contracts-compat";
 
 const HEADER_STYLE: Partial<ExcelJS.Style> = {
   font: { bold: true, name: "Calibri", size: 11 },
@@ -94,12 +101,7 @@ const CustomerLegalEntityDocumentSchema = OperationsClientDocumentSchema.omit({
   clientId: true,
 });
 
-const CustomerLegalEntityContractSchema = ContractSchema.omit({
-  agentOrganizationId: true,
-  clientId: true,
-}).extend({
-  organizationId: z.string().uuid().nullable(),
-});
+const CustomerLegalEntityContractSchema = CompatibilityContractSchema;
 
 const CustomerWorkspaceDetailSchema = z.object({
   createdAt: z.string(),
@@ -152,7 +154,10 @@ const CustomerLegalEntityDocumentParamsSchema = CustomerLegalEntityParamsSchema.
   }),
 });
 
-const CustomerLegalEntityInputSchema = CreateClientInputSchema.extend({
+const CustomerLegalEntityInputSchema = CreateClientInputSchema.omit({
+  counterpartyId: true,
+  customerId: true,
+}).extend({
   country: z
     .string()
     .trim()
@@ -423,18 +428,14 @@ async function mapCustomerLegalEntity(
   ctx: AppContext,
   counterparty: CanonicalCounterpartyListItem,
   shell?: LegacyClient | null,
+  contract?: z.infer<typeof CompatibilityContractSchema> | null,
 ) {
   const legacyShell = shell ?? null;
-  const [contract, subAgent] = await Promise.all([
-    legacyShell
-      ? ctx.operationsModule.contracts.queries.findByClient(legacyShell.id)
-      : Promise.resolve(null),
-    legacyShell?.subAgentCounterpartyId
-      ? ctx.partiesModule.subAgentProfiles.queries.findById(
-          legacyShell.subAgentCounterpartyId,
-        )
-      : Promise.resolve(null),
-  ]);
+  const subAgent = legacyShell?.subAgentCounterpartyId
+    ? await ctx.partiesModule.subAgentProfiles.queries.findById(
+        legacyShell.subAgentCounterpartyId,
+      )
+    : null;
 
   return {
     account: legacyShell?.account ?? null,
@@ -512,9 +513,18 @@ async function mapCustomerWorkspaceDetail(
   counterparties: CanonicalCounterpartyListItem[],
   shellMap: Map<string, LegacyClient>,
 ) {
+  const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+    ctx,
+    customer.id,
+  );
   const legalEntities = await Promise.all(
     counterparties.map((counterparty) =>
-      mapCustomerLegalEntity(ctx, counterparty, shellMap.get(counterparty.id) ?? null),
+      mapCustomerLegalEntity(
+        ctx,
+        counterparty,
+        shellMap.get(counterparty.id) ?? null,
+        contract,
+      ),
     ),
   );
 
@@ -536,25 +546,6 @@ function stripClientIdFromDocument(
 ) {
   const { clientId: _clientId, ...rest } = document;
   return rest;
-}
-
-async function serializeContractForPublic(
-  ctx: AppContext,
-  contract: z.infer<typeof ContractSchema>,
-) {
-  const { agentOrganizationId: _agentOrganizationId, clientId: _clientId, ...rest } =
-    contract;
-  const organization = contract.agentOrganizationId
-    ? await findCanonicalOrganizationByLegacyId(
-        ctx,
-        contract.agentOrganizationId,
-      )
-    : null;
-
-  return {
-    ...rest,
-    organizationId: organization?.id ?? null,
-  };
 }
 
 async function getCustomerOrThrow(ctx: AppContext, customerId: string) {
@@ -589,9 +580,7 @@ async function ensureCustomerOwnedCounterparty(
     counterparty.customerId !== input.customerId ||
     counterparty.relationshipKind !== "customer_owned"
   ) {
-    throw new Error(
-      `Counterparty ${input.counterpartyId} is not linked to customer ${input.customerId}`,
-    );
+    throw new NotFoundError("Customer counterparty", input.counterpartyId);
   }
 
   return counterparty;
@@ -615,34 +604,25 @@ async function ensureActiveShellForCounterparty(
     buildLegacyShellCreateInput({
       counterpartyId: counterparty.id,
       customerId: input.customerId,
-        values: {
+      values: {
         account: null,
         address: null,
         addressI18n: null,
-        agentFee: null,
-        agentOrganizationId: null,
         bankAddress: null,
         bankAddressI18n: null,
         bankCountry: counterparty.country ?? null,
         bankName: null,
         bankNameI18n: null,
         bic: null,
-        contractDate: null,
-        contractId: null,
-        contractNumber: null,
         corrAccount: null,
-        counterpartyId: counterparty.id,
         country: counterparty.country ?? null,
-        customerId: input.customerId,
         directorBasis: null,
         directorBasisI18n: null,
         directorName: null,
         directorNameI18n: null,
         email: null,
-        fixedFee: null,
         inn: counterparty.externalId ?? null,
         kpp: null,
-        organizationRequisiteId: null,
         ogrn: null,
         okpo: null,
         oktmo: null,
@@ -723,8 +703,12 @@ async function upsertLegalEntity(
     await ctx.operationsModule.clients.queries.findActiveByCounterpartyId(
       counterpartyId,
     );
+  const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+    ctx,
+    input.customerId,
+  );
 
-  return mapCustomerLegalEntity(ctx, counterparty, shell);
+  return mapCustomerLegalEntity(ctx, counterparty, shell, contract);
 }
 
 async function listCustomerWorkspaces(
@@ -1151,6 +1135,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
   });
 
   const generateLegalEntityContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
     path: "/{customerId}/legal-entities/{counterpartyId}/contract",
     request: {
@@ -1172,6 +1157,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
   });
 
   const upsertLegalEntityContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
     path: "/{customerId}/legal-entities/{counterpartyId}/contract",
     request: {
@@ -1238,7 +1224,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 404);
         }
 
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(createRoute_, async (c) => {
@@ -1273,7 +1259,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 404);
         }
 
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(deleteRoute, async (c) => {
@@ -1297,7 +1283,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 404);
         }
 
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(listLegalEntitiesRoute, async (c) => {
@@ -1310,12 +1296,17 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           ctx,
           counterparties.map((counterparty) => counterparty.id),
         );
+        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+          ctx,
+          customerId,
+        );
         const result = await Promise.all(
           counterparties.map((counterparty) =>
             mapCustomerLegalEntity(
               ctx,
               counterparty,
               shellMap.get(counterparty.id) ?? null,
+              contract,
             ),
           ),
         );
@@ -1326,7 +1317,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 404);
         }
 
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(createLegalEntityRoute, async (c) => {
@@ -1346,85 +1337,97 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 404);
         }
 
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(getLegalEntityRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const shell = await ctx.operationsModule.clients.queries.findActiveByCounterpartyId(
-        counterpartyId,
-      );
+      try {
+        const { counterpartyId, customerId } = c.req.valid("param");
+        const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const shell =
+          await ctx.operationsModule.clients.queries.findActiveByCounterpartyId(
+            counterpartyId,
+          );
+        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+          ctx,
+          customerId,
+        );
 
-      return c.json(await mapCustomerLegalEntity(ctx, counterparty, shell), 200);
+        return c.json(
+          await mapCustomerLegalEntity(ctx, counterparty, shell, contract),
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(updateLegalEntityRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const patch = c.req.valid("json");
-      const current = await ensureCustomerOwnedCounterparty(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const shell = await ctx.operationsModule.clients.queries.findActiveByCounterpartyId(
-        counterpartyId,
-      );
-      const values: CustomerLegalEntityInput = {
-        account: patch.account ?? shell?.account ?? null,
-        address: patch.address ?? shell?.address ?? null,
-        addressI18n: patch.addressI18n ?? shell?.addressI18n ?? null,
-        agentFee: patch.agentFee ?? null,
-        agentOrganizationId: patch.agentOrganizationId ?? null,
-        bankAddress: patch.bankAddress ?? shell?.bankAddress ?? null,
-        bankAddressI18n:
-          patch.bankAddressI18n ?? shell?.bankAddressI18n ?? null,
-        bankCountry:
-          patch.bankCountry ?? patch.country ?? shell?.bankCountry ?? current.country ?? null,
-        bankName: patch.bankName ?? shell?.bankName ?? null,
-        bankNameI18n: patch.bankNameI18n ?? shell?.bankNameI18n ?? null,
-        bic: patch.bic ?? shell?.bic ?? null,
-        contractDate: patch.contractDate ?? null,
-        contractId: patch.contractId ?? null,
-        contractNumber: patch.contractNumber ?? null,
-        corrAccount: patch.corrAccount ?? shell?.corrAccount ?? null,
-        counterpartyId,
-        country: patch.country ?? current.country ?? null,
-        customerId,
-        directorBasis: patch.directorBasis ?? shell?.directorBasis ?? null,
-        directorBasisI18n:
-          patch.directorBasisI18n ?? shell?.directorBasisI18n ?? null,
-        directorName: patch.directorName ?? shell?.directorName ?? null,
-        directorNameI18n:
-          patch.directorNameI18n ?? shell?.directorNameI18n ?? null,
-        email: patch.email ?? shell?.email ?? null,
-        fixedFee: patch.fixedFee ?? null,
-        inn: patch.inn ?? shell?.inn ?? current.externalId ?? null,
-        kpp: patch.kpp ?? shell?.kpp ?? null,
-        organizationRequisiteId: patch.organizationRequisiteId ?? null,
-        ogrn: patch.ogrn ?? shell?.ogrn ?? null,
-        okpo: patch.okpo ?? shell?.okpo ?? null,
-        oktmo: patch.oktmo ?? shell?.oktmo ?? null,
-        orgName: patch.orgName ?? shell?.orgName ?? current.shortName,
-        orgNameI18n: patch.orgNameI18n ?? shell?.orgNameI18n ?? null,
-        orgType: patch.orgType ?? shell?.orgType ?? null,
-        orgTypeI18n: patch.orgTypeI18n ?? shell?.orgTypeI18n ?? null,
-        phone: patch.phone ?? shell?.phone ?? null,
-        position: patch.position ?? shell?.position ?? null,
-        positionI18n: patch.positionI18n ?? shell?.positionI18n ?? null,
-        subAgentCounterpartyId:
-          patch.subAgentCounterpartyId ??
-          shell?.subAgentCounterpartyId ??
-          null,
-      };
+      try {
+        const { counterpartyId, customerId } = c.req.valid("param");
+        const patch = c.req.valid("json");
+        const current = await ensureCustomerOwnedCounterparty(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const shell =
+          await ctx.operationsModule.clients.queries.findActiveByCounterpartyId(
+            counterpartyId,
+          );
+        const values: CustomerLegalEntityInput = {
+          account: patch.account ?? shell?.account ?? null,
+          address: patch.address ?? shell?.address ?? null,
+          addressI18n: patch.addressI18n ?? shell?.addressI18n ?? null,
+          bankAddress: patch.bankAddress ?? shell?.bankAddress ?? null,
+          bankAddressI18n:
+            patch.bankAddressI18n ?? shell?.bankAddressI18n ?? null,
+          bankCountry:
+            patch.bankCountry ??
+            patch.country ??
+            shell?.bankCountry ??
+            current.country ??
+            null,
+          bankName: patch.bankName ?? shell?.bankName ?? null,
+          bankNameI18n: patch.bankNameI18n ?? shell?.bankNameI18n ?? null,
+          bic: patch.bic ?? shell?.bic ?? null,
+          corrAccount: patch.corrAccount ?? shell?.corrAccount ?? null,
+          country: patch.country ?? current.country ?? null,
+          directorBasis: patch.directorBasis ?? shell?.directorBasis ?? null,
+          directorBasisI18n:
+            patch.directorBasisI18n ?? shell?.directorBasisI18n ?? null,
+          directorName: patch.directorName ?? shell?.directorName ?? null,
+          directorNameI18n:
+            patch.directorNameI18n ?? shell?.directorNameI18n ?? null,
+          email: patch.email ?? shell?.email ?? null,
+          inn: patch.inn ?? shell?.inn ?? current.externalId ?? null,
+          kpp: patch.kpp ?? shell?.kpp ?? null,
+          ogrn: patch.ogrn ?? shell?.ogrn ?? null,
+          okpo: patch.okpo ?? shell?.okpo ?? null,
+          oktmo: patch.oktmo ?? shell?.oktmo ?? null,
+          orgName: patch.orgName ?? shell?.orgName ?? current.shortName,
+          orgNameI18n: patch.orgNameI18n ?? shell?.orgNameI18n ?? null,
+          orgType: patch.orgType ?? shell?.orgType ?? null,
+          orgTypeI18n: patch.orgTypeI18n ?? shell?.orgTypeI18n ?? null,
+          phone: patch.phone ?? shell?.phone ?? null,
+          position: patch.position ?? shell?.position ?? null,
+          positionI18n: patch.positionI18n ?? shell?.positionI18n ?? null,
+          subAgentCounterpartyId:
+            patch.subAgentCounterpartyId ??
+            shell?.subAgentCounterpartyId ??
+            null,
+        };
 
-      const result = await upsertLegalEntity(ctx, {
-        counterpartyId,
-        customerId,
-        values,
-      });
-      return c.json(result, 200);
+        const result = await upsertLegalEntity(ctx, {
+          counterpartyId,
+          customerId,
+          values,
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(listLegalEntityDocumentsRoute, async (c) => {
       const { counterpartyId, customerId } = c.req.valid("param");
@@ -1492,109 +1495,124 @@ export function operationsCustomersRoutes(ctx: AppContext) {
       return c.json({ deleted: true }, 200);
     })
     .openapi(generateLegalEntityContractRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const { format, lang } = c.req.valid("query");
-      const shell = await resolveLegacyShellForLegalEntity(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const contract =
-        await ctx.operationsModule.contracts.queries.findByClient(shell.id);
-      if (!contract) {
-        return c.json({ error: "Contract not found" }, 404);
-      }
-
-      const organization = contract.agentOrganizationId
-        ? await findCanonicalOrganizationByLegacyId(
-            ctx,
-            contract.agentOrganizationId,
-          )
-        : null;
-      const organizationRequisite =
-        contract.organizationRequisiteId != null
-          ? await getOrganizationBankRequisiteOrThrow(
-              ctx,
-              contract.organizationRequisiteId,
-            )
-          : null;
-      if (!organization || !organizationRequisite) {
-        return c.json({ error: "Organization not found" }, 404);
-      }
-
-      const result =
-        await ctx.documentGenerationWorkflow.generateClientContract({
-          client: shell as unknown as Record<string, unknown>,
-          contract: contract as unknown as Record<string, unknown>,
-          organization: (organization ?? {}) as Record<string, unknown>,
-          organizationRequisite: await serializeOrganizationRequisiteForDocuments(
-            ctx,
-            organizationRequisite,
-          ),
-          format,
-          lang,
+      try {
+        const { counterpartyId, customerId } = c.req.valid("param");
+        const { format, lang } = c.req.valid("query");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
         });
 
-      c.header("Content-Type", result.mimeType);
-      c.header(
-        "Content-Disposition",
-        `attachment; filename="${result.fileName}"`,
-      );
-      return c.body(result.buffer as unknown as ArrayBuffer);
+        const shell = await resolveLegacyShellForLegalEntity(ctx, {
+          counterpartyId,
+          customerId,
+        });
+        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+          ctx,
+          customerId,
+        );
+        if (!contract) {
+          return c.json({ error: "Contract not found" }, 404);
+        }
+
+        const organization =
+          await ctx.partiesModule.organizations.queries.findById(
+            contract.organizationId,
+          );
+        const organizationRequisite = await getOrganizationBankRequisiteOrThrow(
+          ctx,
+          contract.organizationRequisiteId,
+        );
+        if (!organization || organizationRequisite.ownerId !== organization.id) {
+          return c.json({ error: "Organization not found" }, 404);
+        }
+
+        const result =
+          await ctx.documentGenerationWorkflow.generateClientContract({
+            client: shell as unknown as Record<string, unknown>,
+            contract: contract as unknown as Record<string, unknown>,
+            organization: organization as unknown as Record<string, unknown>,
+            organizationRequisite: await serializeOrganizationRequisiteForDocuments(
+              ctx,
+              organizationRequisite,
+            ),
+            format,
+            lang,
+          });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(upsertLegalEntityContractRoute, async (c) => {
-      const { counterpartyId, customerId } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const shell = await resolveLegacyShellForLegalEntity(ctx, {
-        counterpartyId,
-        customerId,
-      });
-      const existing =
-        await ctx.operationsModule.contracts.queries.findByClient(shell.id);
-
       try {
-        const legacyOrganization =
-          await resolveLegacyHoldingOrganizationByCanonicalId(
-            input.organizationId,
-          );
-        const requisite = await getOrganizationBankRequisiteOrThrow(
-          ctx,
-          input.organizationRequisiteId,
-        );
-        if (requisite.ownerId !== input.organizationId) {
-          return c.json(
-            { error: "Organization requisite does not belong to organization" },
-            400,
-          );
-        }
-        if (existing) {
-          const updated = await ctx.operationsModule.contracts.commands.update({
-            agentOrganizationId: legacyOrganization.id,
-            agentFee: input.agentFee,
-            contractDate: input.contractDate,
-            contractNumber: input.contractNumber,
-            fixedFee: input.fixedFee,
-            id: existing.id,
-            organizationRequisiteId: input.organizationRequisiteId,
-          });
-          return c.json(await serializeContractForPublic(ctx, updated!), 201);
-        }
-
-        const created = await ctx.operationsModule.contracts.commands.create({
-          agentOrganizationId: legacyOrganization.id,
-          agentFee: input.agentFee,
-          clientId: shell.id,
-          contractDate: input.contractDate,
-          contractNumber: input.contractNumber,
-          fixedFee: input.fixedFee,
-          organizationRequisiteId: input.organizationRequisiteId,
+        const { counterpartyId, customerId } = c.req.valid("param");
+        const input = c.req.valid("json");
+        await assertCustomerOwnsCounterparty(ctx, {
+          counterpartyId,
+          customerId,
         });
-        return c.json(await serializeContractForPublic(ctx, created), 201);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
+
+        const existing = await resolveEffectiveCompatibilityContractByCustomerId(
+          ctx,
+          customerId,
+        );
+
+        if (existing) {
+          const updated = await withRequiredIdempotency(c, (idempotencyKey) =>
+            updateCompatibilityContract(
+              ctx,
+              {
+                agentFee: input.agentFee,
+                contractDate: input.contractDate,
+                contractNumber: input.contractNumber,
+                fixedFee: input.fixedFee,
+                organizationId: input.organizationId,
+                organizationRequisiteId: input.organizationRequisiteId,
+              },
+              existing.id,
+              c.get("user")!.id,
+              idempotencyKey,
+            ),
+          );
+
+          if (updated instanceof Response) {
+            return updated;
+          }
+
+          return c.json(updated, 201);
         }
 
-        throw error;
+        const created = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createCompatibilityContractForCustomer(
+            ctx,
+            {
+              agentFee: input.agentFee,
+              contractDate: input.contractDate,
+              contractNumber: input.contractNumber,
+              customerId,
+              fixedFee: input.fixedFee,
+              organizationId: input.organizationId,
+              organizationRequisiteId: input.organizationRequisiteId,
+            },
+            c.get("user")!.id,
+            idempotencyKey,
+          ),
+        );
+
+        if (created instanceof Response) {
+          return created;
+        }
+
+        return c.json(created, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
     });
 }

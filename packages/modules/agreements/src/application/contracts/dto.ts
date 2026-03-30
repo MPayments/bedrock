@@ -61,6 +61,7 @@ export const AgreementSchema = z.object({
   customerId: z.uuid(),
   organizationId: z.uuid(),
   organizationRequisiteId: z.uuid(),
+  isActive: z.boolean(),
   currentVersion: AgreementVersionSummarySchema,
   createdAt: z.date(),
   updatedAt: z.date(),

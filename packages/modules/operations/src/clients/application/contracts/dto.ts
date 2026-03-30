@@ -39,7 +39,6 @@ export const ClientSchema = z.object({
   corrAccount: z.string().nullable(),
   bankCountry: z.string().nullable(),
   isDeleted: z.boolean(),
-  contractId: z.number().int().nullable(),
   subAgentCounterpartyId: z.string().uuid().nullable(),
   userId: z.string().nullable(),
   counterpartyId: z.string().nullable(),

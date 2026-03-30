@@ -3,7 +3,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
-import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
+import { resolveEffectiveCompatibilityContractByClientId } from "./contracts-compat";
 import {
   getOrganizationBankRequisiteOrThrow,
   serializeOrganizationRequisiteForDocuments,
@@ -226,22 +226,18 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
       const client = await ctx.operationsModule.clients.queries.findById(id);
       if (!client) return c.json({ error: "Client not found" }, 404);
 
-      const contract =
-        await ctx.operationsModule.contracts.queries.findByClient(id);
+      const contract = await resolveEffectiveCompatibilityContractByClientId(
+        ctx,
+        id,
+      );
       if (!contract) return c.json({ error: "Contract not found" }, 404);
-      const organization = contract.agentOrganizationId
-        ? await findCanonicalOrganizationByLegacyId(
-            ctx,
-            contract.agentOrganizationId,
-          )
-        : null;
-      const organizationRequisite =
-        contract.organizationRequisiteId != null
-          ? await getOrganizationBankRequisiteOrThrow(
-              ctx,
-              contract.organizationRequisiteId,
-            )
-          : null;
+      const organization = await ctx.partiesModule.organizations.queries.findById(
+        contract.organizationId,
+      );
+      const organizationRequisite = await getOrganizationBankRequisiteOrThrow(
+        ctx,
+        contract.organizationRequisiteId,
+      );
       if (!organization || !organizationRequisite) {
         return c.json({ error: "Organization not found" }, 404);
       }

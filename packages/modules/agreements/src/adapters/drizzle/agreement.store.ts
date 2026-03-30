@@ -33,6 +33,7 @@ export class DrizzleAgreementStore implements AgreementStore {
         customerId: input.customerId,
         organizationId: input.organizationId,
         organizationRequisiteId: input.organizationRequisiteId,
+        isActive: input.isActive ?? true,
         currentVersionId: null,
       })
       .returning();
@@ -108,6 +109,19 @@ export class DrizzleAgreementStore implements AgreementStore {
       .update(agreements)
       .set({
         currentVersionId: input.currentVersionId,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(agreements.id, input.agreementId));
+  }
+
+  async setActive(input: {
+    agreementId: string;
+    isActive: boolean;
+  }): Promise<void> {
+    await this.db
+      .update(agreements)
+      .set({
+        isActive: input.isActive,
         updatedAt: sql`now()`,
       })
       .where(eq(agreements.id, input.agreementId));

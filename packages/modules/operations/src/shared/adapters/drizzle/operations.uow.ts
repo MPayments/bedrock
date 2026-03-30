@@ -22,11 +22,6 @@ import type {
   ClientsCommandTx,
   ClientsCommandUnitOfWork,
 } from "../../../clients/application/ports/clients.uow";
-import { DrizzleContractStore } from "../../../contracts/adapters/drizzle/contract.store";
-import type {
-  ContractsCommandTx,
-  ContractsCommandUnitOfWork,
-} from "../../../contracts/application/ports/contracts.uow";
 import { DrizzleDealStore } from "../../../deals/adapters/drizzle/deal.store";
 import type {
   DealsCommandTx,
@@ -34,8 +29,7 @@ import type {
 } from "../../../deals/application/ports/deals.uow";
 import { DrizzleTodoStore } from "../../../todos/adapters/drizzle/todo.store";
 
-type OperationsTx = ContractsCommandTx &
-  ApplicationsCommandTx &
+type OperationsTx = ApplicationsCommandTx &
   CalculationsCommandTx &
   DealsCommandTx &
   ClientsCommandTx;
@@ -43,11 +37,9 @@ type OperationsTx = ContractsCommandTx &
 function bindOperationsTx(tx: Transaction): OperationsTx {
   const applicationStore = new DrizzleApplicationStore(tx);
   const applicationReads = new DrizzleApplicationReads(tx);
-  const contractStore = new DrizzleContractStore(tx);
   const todoStore = new DrizzleTodoStore(tx);
 
   return {
-    contractStore,
     applicationStore,
     calculationStore: new DrizzleCalculationStore(tx),
     dealStore: new DrizzleDealStore(tx),
@@ -60,7 +52,6 @@ function bindOperationsTx(tx: Transaction): OperationsTx {
 
 export class DrizzleOperationsUnitOfWork
   implements
-    ContractsCommandUnitOfWork,
     ApplicationsCommandUnitOfWork,
     CalculationsCommandUnitOfWork,
     DealsCommandUnitOfWork,

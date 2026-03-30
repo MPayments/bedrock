@@ -94,6 +94,7 @@ describe("create agreement handler", () => {
       customerId: "00000000-0000-4000-8000-000000000001",
       organizationId: "00000000-0000-4000-8000-000000000002",
       organizationRequisiteId: "00000000-0000-4000-8000-000000000003",
+      isActive: true,
       currentVersion: {
         id: "00000000-0000-4000-8000-000000000011",
         versionNumber: 1,

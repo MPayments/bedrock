@@ -16,3 +16,4 @@ export const AGREEMENT_PARTY_ROLE_VALUES = [
 export type AgreementPartyRole = (typeof AGREEMENT_PARTY_ROLE_VALUES)[number];
 
 export const AGREEMENTS_CREATE_IDEMPOTENCY_SCOPE = "agreements.create";
+export const AGREEMENTS_UPDATE_IDEMPOTENCY_SCOPE = "agreements.update";

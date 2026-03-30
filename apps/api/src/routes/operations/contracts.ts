@@ -1,240 +1,241 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-
-import {
-  ContractSchema,
-  CreateContractInputSchema,
-  ListContractsQuerySchema,
-  UpdateContractInputSchema,
-} from "@bedrock/operations/contracts";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import type { AppContext } from "../../context";
+import { ErrorSchema, IdParamSchema } from "../../common";
+import { handleRouteError } from "../../common/errors";
+import { jsonOk } from "../../common/response";
 import type { AuthVariables } from "../../middleware/auth";
-import { OpsDeletedSchema, OpsErrorSchema, OpsIdParamSchema } from "./common";
+import { withRequiredIdempotency } from "../../middleware/idempotency";
+import { requirePermission } from "../../middleware/permission";
+import { OpsDeletedSchema } from "./common";
 import {
-  findCanonicalOrganizationByLegacyId,
-  resolveLegacyHoldingOrganizationByCanonicalId,
-} from "../organization-bridge";
-import { getOrganizationBankRequisiteOrThrow } from "../organization-requisites";
-
-const PublicContractSchema = ContractSchema.omit({
-  agentOrganizationId: true,
-}).extend({
-  organizationId: z.string().uuid().nullable(),
-});
-
-const PublicCreateContractInputSchema = CreateContractInputSchema.omit({
-  agentOrganizationId: true,
-}).extend({
-  organizationId: z.string().uuid(),
-});
-
-const PublicUpdateContractInputSchema = UpdateContractInputSchema.omit({
-  agentOrganizationId: true,
-  id: true,
-}).extend({
-  organizationId: z.string().uuid().optional(),
-});
-
-const PaginatedContractsSchema = createPaginatedListSchema(PublicContractSchema);
-
-async function serializeContractForPublic(
-  ctx: AppContext,
-  contract: z.infer<typeof ContractSchema>,
-) {
-  const { agentOrganizationId: _agentOrganizationId, ...rest } = contract;
-  const organization = await findCanonicalOrganizationByLegacyId(
-    ctx,
-    contract.agentOrganizationId,
-  );
-
-  return {
-    ...rest,
-    organizationId: organization?.id ?? null,
-  };
-}
+  archiveCompatibilityContract,
+  CompatibilityContractsListQuerySchema,
+  CompatibilityContractSchema,
+  CompatibilityCreateContractInputSchema,
+  CompatibilityUpdateContractInputSchema,
+  createCompatibilityContract,
+  findCompatibilityContractById,
+  listCompatibilityContracts,
+  PaginatedCompatibilityContractsSchema,
+  updateCompatibilityContract,
+} from "./contracts-compat";
 
 export function operationsContractsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   const listRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
     path: "/",
     tags: ["Operations - Contracts"],
-    summary: "List contracts",
-    request: { query: ListContractsQuerySchema },
+    summary: "List compatibility contracts",
+    request: { query: CompatibilityContractsListQuerySchema },
     responses: {
       200: {
-        content: { "application/json": { schema: PaginatedContractsSchema } },
-        description: "Paginated contracts",
+        content: {
+          "application/json": { schema: PaginatedCompatibilityContractsSchema },
+        },
+        description: "Paginated compatibility contracts",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      409: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Agreement invariant violation",
       },
     },
   });
 
   const getRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
     path: "/{id}",
     tags: ["Operations - Contracts"],
-    summary: "Get contract by ID",
-    request: { params: OpsIdParamSchema },
+    summary: "Get compatibility contract by canonical agreement id",
+    request: { params: IdParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: PublicContractSchema } },
-        description: "Contract found",
+        content: {
+          "application/json": { schema: CompatibilityContractSchema },
+        },
+        description: "Compatibility contract found",
       },
       404: {
-        content: { "application/json": { schema: OpsErrorSchema } },
-        description: "Not found",
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Contract not found",
       },
     },
   });
 
   const createRoute_ = createRoute({
+    middleware: [requirePermission({ agreements: ["create"] })],
     method: "post",
     path: "/",
     tags: ["Operations - Contracts"],
-    summary: "Create contract",
+    summary: "Create compatibility contract",
     request: {
       body: {
         content: {
-          "application/json": { schema: PublicCreateContractInputSchema },
+          "application/json": { schema: CompatibilityCreateContractInputSchema },
         },
         required: true,
       },
     },
     responses: {
       201: {
-        content: { "application/json": { schema: PublicContractSchema } },
-        description: "Contract created",
+        content: {
+          "application/json": { schema: CompatibilityContractSchema },
+        },
+        description: "Compatibility contract created",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation or idempotency error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Client or referenced entity not found",
+      },
+      409: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Active agreement already exists",
       },
     },
   });
 
   const updateRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["update"] })],
     method: "patch",
     path: "/{id}",
     tags: ["Operations - Contracts"],
-    summary: "Update contract",
+    summary: "Update compatibility contract terms",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       body: {
         content: {
-          "application/json": { schema: PublicUpdateContractInputSchema },
+          "application/json": { schema: CompatibilityUpdateContractInputSchema },
         },
         required: true,
       },
     },
     responses: {
       200: {
-        content: { "application/json": { schema: PublicContractSchema } },
-        description: "Contract updated",
+        content: {
+          "application/json": { schema: CompatibilityContractSchema },
+        },
+        description: "Compatibility contract updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation or idempotency error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Contract not found",
+      },
+      409: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Agreement invariant violation",
       },
     },
   });
 
   const deleteRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["delete"] })],
     method: "delete",
     path: "/{id}",
     tags: ["Operations - Contracts"],
-    summary: "Delete contract",
-    request: { params: OpsIdParamSchema },
+    summary: "Archive compatibility contract",
+    request: { params: IdParamSchema },
     responses: {
       200: {
         content: { "application/json": { schema: OpsDeletedSchema } },
-        description: "Contract deleted",
+        description: "Contract archived",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Contract not found",
       },
     },
   });
 
   return app
     .openapi(listRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result = await ctx.operationsModule.contracts.queries.list(query);
-      return c.json(
-        {
-          ...result,
-          data: await Promise.all(
-            result.data.map((contract) => serializeContractForPublic(ctx, contract)),
-          ),
-        },
-        200,
-      );
+      try {
+        const query = c.req.valid("query");
+        const result = await listCompatibilityContracts(ctx, query);
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(getRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const contract =
-        await ctx.operationsModule.contracts.queries.findById(id);
-      if (!contract) return c.json({ error: "Contract not found" }, 404);
-      return c.json(await serializeContractForPublic(ctx, contract), 200);
+      try {
+        const { id } = c.req.valid("param");
+        const result = await findCompatibilityContractById(ctx, id);
+        if (!result) {
+          return c.json({ error: "Contract not found" }, 404);
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(createRoute_, async (c) => {
-      const input = c.req.valid("json");
-      const legacyOrganization =
-        await resolveLegacyHoldingOrganizationByCanonicalId(input.organizationId);
-      const requisite = await getOrganizationBankRequisiteOrThrow(
-        ctx,
-        input.organizationRequisiteId,
-      );
-      if (requisite.ownerId !== input.organizationId) {
-        return c.json({ error: "Organization requisite does not belong to organization" }, 400);
+      try {
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createCompatibilityContract(
+            ctx,
+            body,
+            c.get("user")!.id,
+            idempotencyKey,
+          ),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      const { organizationId: _organizationId, ...rest } = input;
-      const result = await ctx.operationsModule.contracts.commands.create({
-        ...rest,
-        agentOrganizationId: legacyOrganization.id,
-      });
-      return c.json(await serializeContractForPublic(ctx, result), 201);
     })
     .openapi(updateRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const { organizationId, ...rest } = input;
-      const current = await ctx.operationsModule.contracts.queries.findById(id);
-      if (!current) {
-        return c.json({ error: "Contract not found" }, 404);
-      }
-      const legacyOrganization =
-        organizationId === undefined
-          ? null
-          : await resolveLegacyHoldingOrganizationByCanonicalId(organizationId);
-      if (rest.organizationRequisiteId) {
-        const requisite = await getOrganizationBankRequisiteOrThrow(
-          ctx,
-          rest.organizationRequisiteId,
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          updateCompatibilityContract(
+            ctx,
+            body,
+            id,
+            c.get("user")!.id,
+            idempotencyKey,
+          ),
         );
-        const targetOrganizationId =
-          organizationId ??
-          (
-            await findCanonicalOrganizationByLegacyId(
-              ctx,
-              current.agentOrganizationId,
-            )
-          )?.id;
-        if (!targetOrganizationId || requisite.ownerId !== targetOrganizationId) {
-          return c.json(
-            { error: "Organization requisite does not belong to organization" },
-            400,
-          );
+
+        if (result instanceof Response) {
+          return result;
         }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      const result = await ctx.operationsModule.contracts.commands.update({
-        ...rest,
-        ...(legacyOrganization
-          ? { agentOrganizationId: legacyOrganization.id }
-          : {}),
-        id,
-      });
-      return c.json(
-        await serializeContractForPublic(
-          ctx,
-          result as NonNullable<typeof result>,
-        ),
-        200,
-      );
     })
     .openapi(deleteRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      await ctx.operationsModule.contracts.commands.softDelete(id);
-      return c.json({ deleted: true }, 200);
+      try {
+        const { id } = c.req.valid("param");
+        await archiveCompatibilityContract(ctx, id);
+        return jsonOk(c, { deleted: true });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     });
 }
