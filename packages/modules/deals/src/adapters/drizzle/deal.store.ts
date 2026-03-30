@@ -1,4 +1,13 @@
-import { dealApprovals, dealLegs, dealParticipants, deals, dealStatusHistory } from "./schema";
+import { and, eq } from "drizzle-orm";
+
+import {
+  dealApprovals,
+  dealCalculationLinks,
+  dealLegs,
+  dealParticipants,
+  deals,
+  dealStatusHistory,
+} from "./schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import type {
   CreateDealApprovalStoredInput,
@@ -20,7 +29,30 @@ export class DrizzleDealStore implements DealStore {
       calculationId: input.calculationId,
       type: input.type,
       status: input.status ?? "draft",
+      agentId: input.agentId,
+      reason: input.reason,
+      intakeComment: input.intakeComment,
       comment: input.comment,
+      requestedAmountMinor: input.requestedAmountMinor,
+      requestedCurrencyId: input.requestedCurrencyId,
+    });
+  }
+
+  async createDealCalculationLinks(
+    input: { id: string; calculationId: string; dealId: string }[],
+  ): Promise<void> {
+    if (input.length === 0) {
+      return;
+    }
+
+    await this.db.insert(dealCalculationLinks).values(
+      input.map((link) => ({
+        id: link.id,
+        calculationId: link.calculationId,
+        dealId: link.dealId,
+      })),
+    ).onConflictDoNothing({
+      target: [dealCalculationLinks.dealId, dealCalculationLinks.calculationId],
     });
   }
 
@@ -97,5 +129,78 @@ export class DrizzleDealStore implements DealStore {
         decidedAt: approval.decidedAt,
       })),
     );
+  }
+
+  async setCounterpartyParticipant(input: {
+    counterpartyId: string | null;
+    dealId: string;
+    id?: string;
+  }): Promise<void> {
+    await this.db
+      .delete(dealParticipants)
+      .where(
+        and(
+          eq(dealParticipants.dealId, input.dealId),
+          eq(dealParticipants.role, "counterparty"),
+        ),
+      );
+
+    if (!input.counterpartyId || !input.id) {
+      return;
+    }
+
+    await this.db.insert(dealParticipants).values({
+      id: input.id,
+      dealId: input.dealId,
+      role: "counterparty",
+      customerId: null,
+      organizationId: null,
+      counterpartyId: input.counterpartyId,
+    });
+  }
+
+  async updateDealRoot(input: {
+    dealId: string;
+    agentId?: string | null;
+    calculationId?: string | null;
+    comment?: string | null;
+    intakeComment?: string | null;
+    reason?: string | null;
+    requestedAmountMinor?: bigint | null;
+    requestedCurrencyId?: string | null;
+    status?: CreateDealRootInput["status"];
+  }): Promise<void> {
+    const values: Record<string, unknown> = {};
+
+    if ("agentId" in input) {
+      values.agentId = input.agentId ?? null;
+    }
+    if ("calculationId" in input) {
+      values.calculationId = input.calculationId ?? null;
+    }
+    if ("comment" in input) {
+      values.comment = input.comment ?? null;
+    }
+    if ("intakeComment" in input) {
+      values.intakeComment = input.intakeComment ?? null;
+    }
+    if ("reason" in input) {
+      values.reason = input.reason ?? null;
+    }
+    if ("requestedAmountMinor" in input) {
+      values.requestedAmountMinor = input.requestedAmountMinor ?? null;
+    }
+    if ("requestedCurrencyId" in input) {
+      values.requestedCurrencyId = input.requestedCurrencyId ?? null;
+    }
+    if ("status" in input) {
+      values.status = input.status;
+    }
+
+    if (Object.keys(values).length === 0) {
+      return;
+    }
+
+    await this.db.update(deals).set(values).where(eq(deals.id, input.dealId));
   }
 }

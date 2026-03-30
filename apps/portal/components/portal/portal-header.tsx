@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Building2, FileText, LogOut, PanelsTopLeft } from "lucide-react";
+import { Briefcase, Building2, LogOut, PanelsTopLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -25,11 +25,6 @@ const navItems = [
     href: "/clients",
     label: "Организации",
     icon: Building2,
-  },
-  {
-    href: "/applications",
-    label: "Заявки",
-    icon: FileText,
   },
   {
     href: "/deals",

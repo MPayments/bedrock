@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
 import { calculations } from "@bedrock/calculations/schema";
+import { deals } from "@bedrock/deals/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties, requisites } from "@bedrock/parties/schema";
 
@@ -14,8 +15,10 @@ import { opsDealStatusEnum } from "./enums";
 
 export const opsDeals = pgTable("ops_deals", {
   id: serial("id").primaryKey(),
+  dealId: uuid("deal_id").references(() => deals.id, {
+    onDelete: "set null",
+  }).unique(),
   applicationId: integer("application_id")
-    .notNull()
     .references(() => opsApplications.id),
   calculationId: integer("calculation_id")
     .references(() => opsCalculations.id),
@@ -76,6 +79,10 @@ export const opsDealsRelations = relations(opsDeals, ({ one, many }) => ({
   application: one(opsApplications, {
     fields: [opsDeals.applicationId],
     references: [opsApplications.id],
+  }),
+  canonicalDeal: one(deals, {
+    fields: [opsDeals.dealId],
+    references: [deals.id],
   }),
   calculation: one(opsCalculations, {
     fields: [opsDeals.calculationId],

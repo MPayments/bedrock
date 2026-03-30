@@ -349,6 +349,8 @@
       "dependencies": {
         "@bedrock/agreements": "workspace:*",
         "@bedrock/calculations": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
+        "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
@@ -438,6 +440,7 @@
       "dependencies": {
         "@bedrock/calculations": "workspace:*",
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/deals": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
@@ -721,6 +724,7 @@
       "dependencies": {
         "@bedrock/calculations": "workspace:*",
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/deals": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",

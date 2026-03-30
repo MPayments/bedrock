@@ -14,11 +14,11 @@ import {
 } from "@bedrock/calculations";
 import type { Calculation } from "@bedrock/calculations/contracts";
 import {
-  calculationApplicationLinks,
   calculations,
   calculationSnapshots,
 } from "@bedrock/calculations/schema";
 import { currencies } from "@bedrock/currencies/schema";
+import { dealCalculationLinks } from "@bedrock/deals/schema";
 import { opsCalculations } from "@bedrock/operations/schema";
 import {
   createPaginatedListSchema,
@@ -49,7 +49,7 @@ const LEGACY_STATUS_VALUES = ["draft", "active", "archived"] as const;
 
 export const CompatibilityCalculationSchema = z.object({
   id: z.string().uuid(),
-  applicationId: z.number().int(),
+  dealId: z.string().uuid().nullable(),
   currencyCode: z.string(),
   originalAmount: z.string(),
   feePercentage: z.string(),
@@ -75,7 +75,7 @@ export const PaginatedCompatibilityCalculationsSchema =
   createPaginatedListSchema(CompatibilityCalculationSchema);
 
 export const CompatibilityCalculationsListQuerySchema = z.object({
-  applicationId: z.coerce.number().int().optional(),
+  dealId: z.string().uuid().optional(),
   status: z.enum(LEGACY_STATUS_VALUES).optional(),
   sortBy: z.enum(["createdAt"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -84,7 +84,7 @@ export const CompatibilityCalculationsListQuerySchema = z.object({
 });
 
 export const CompatibilityCalculationCreateInputSchema = z.object({
-  applicationId: z.number().int(),
+  dealId: z.string().uuid().optional(),
   currencyCode: z.string().trim().min(1),
   originalAmount: z.coerce.string(),
   feePercentage: z.coerce.string(),
@@ -104,7 +104,6 @@ export const CompatibilityCalculationCreateInputSchema = z.object({
 });
 
 export const CompatibilityCalculationPreviewInputSchema = z.object({
-  applicationId: z.number().int().optional(),
   currencyCode: z.string().trim().min(1),
   originalAmount: z.coerce.string(),
   feePercentage: z.coerce.string(),
@@ -157,7 +156,7 @@ type CompatibilityCalculationPreviewInput = z.infer<
 
 type CompatibilityCalculationRow = {
   id: string;
-  applicationId: number;
+  dealId: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -272,7 +271,7 @@ function buildCompatibilityQuery() {
     additionalExpensesCurrency,
     select: {
       id: calculations.id,
-      applicationId: calculationApplicationLinks.applicationId,
+      dealId: dealCalculationLinks.dealId,
       isActive: calculations.isActive,
       createdAt: calculations.createdAt,
       updatedAt: calculations.updatedAt,
@@ -392,7 +391,7 @@ function mapCompatibilityCalculationRow(
   }
 
   return serializeCompatibilityCalculation({
-    applicationId: row.applicationId,
+    dealId: row.dealId,
     calculation,
     currencies: metadata,
     sentToClient: row.sentToClient ?? 0,
@@ -404,10 +403,8 @@ function buildCompatibilityConditions(
 ): SQL[] {
   const conditions: SQL[] = [];
 
-  if (input.applicationId !== undefined) {
-    conditions.push(
-      eq(calculationApplicationLinks.applicationId, input.applicationId),
-    );
+  if (input.dealId !== undefined) {
+    conditions.push(eq(dealCalculationLinks.dealId, input.dealId));
   }
 
   if (input.status === "active") {
@@ -718,7 +715,6 @@ async function buildCanonicalPayloadFromPreviewInput(
   raw: CompatibilityCalculationPreviewInput,
 ): Promise<{
   additionalExpensesCurrency: ResolvedCurrency | null;
-  applicationId: number | null;
   baseCurrency: ResolvedCurrency;
   calculationCurrency: ResolvedCurrency;
   payload: CanonicalCreatePayload;
@@ -781,7 +777,6 @@ async function buildCanonicalPayloadFromPreviewInput(
     totalInBaseMinor + additionalExpensesResolved.additionalExpensesInBaseMinor;
 
   return {
-    applicationId: input.applicationId ?? null,
     calculationCurrency,
     baseCurrency,
     additionalExpensesCurrency,
@@ -820,7 +815,7 @@ async function buildCanonicalPayloadFromCompatibilityInput(
   ctx: AppContext,
   raw: CompatibilityCalculationCreateInput,
 ): Promise<{
-  applicationId: number;
+  dealId: string | null;
   payload: CanonicalCreatePayload;
 }> {
   const input = CompatibilityCalculationCreateInputSchema.parse(raw);
@@ -913,7 +908,7 @@ async function buildCanonicalPayloadFromCompatibilityInput(
   }
 
   return {
-    applicationId: input.applicationId,
+    dealId: input.dealId ?? null,
     payload: {
       calculationCurrencyId: calculationCurrency.id,
       originalAmountMinor: originalAmountMinor.toString(),
@@ -998,7 +993,7 @@ function buildPreviewResponse(input: {
   };
 
   const serialized = serializeCompatibilityCalculation({
-    applicationId: null,
+    dealId: null,
     calculation,
     currencies: new Map<string, CalculationCompatibilityCurrency>([
       [
@@ -1071,65 +1066,78 @@ export async function createCompatibilityCalculation(
   idempotencyKey: string,
 ) {
   const input = CompatibilityCalculationCreateInputSchema.parse(raw);
-  const application =
-    await ctx.operationsModule.applications.queries.findById(input.applicationId);
-  if (!application) {
-    throw new NotFoundError("Application", String(input.applicationId));
+  if (input.dealId) {
+    const deal = await ctx.dealsModule.deals.queries.findById(input.dealId);
+    if (!deal) {
+      throw new NotFoundError("Deal", input.dealId);
+    }
   }
 
-  const { applicationId, payload } =
+  const { dealId, payload } =
     await buildCanonicalPayloadFromCompatibilityInput(ctx, input);
 
-  await ctx.calculationsModule.calculations.commands.createForApplication({
+  const created = await ctx.calculationsModule.calculations.commands.create({
     ...payload,
     actorUserId,
-    applicationId,
     idempotencyKey,
   });
 
-  return findCompatibilityCalculationByApplicationAndNewest(applicationId);
+  if (dealId) {
+    await ctx.dealsModule.deals.commands.attachCalculation({
+      actorUserId,
+      calculationId: created.id,
+      dealId,
+    });
+  }
+
+  const result = await findCompatibilityCalculationById(created.id);
+
+  if (!result) {
+    throw new NotFoundError("Calculation", created.id);
+  }
+
+  return result;
 }
 
-async function findCompatibilityCalculationByApplicationAndNewest(
-  applicationId: number,
+async function findCompatibilityCalculationByDealAndNewest(
+  dealId: string,
 ) {
-  const calculations = await listCompatibilityCalculationsByApplicationId(
-    applicationId,
-  );
+  const calculations = await listCompatibilityCalculationsByDealId(dealId);
   const [latest] = calculations;
   if (!latest) {
-    throw new NotFoundError("Calculation", `application:${applicationId}`);
+    throw new NotFoundError("Calculation", `deal:${dealId}`);
   }
 
   return latest;
 }
 
-export async function createCompatibilityCalculationForApplication(
+export async function createCompatibilityCalculationForDeal(
   ctx: AppContext,
-  applicationId: number,
-  raw: Omit<CompatibilityCalculationPreviewInput, "applicationId">,
+  dealId: string,
+  raw: CompatibilityCalculationPreviewInput,
   actorUserId: string,
   idempotencyKey: string,
 ) {
-  const application =
-    await ctx.operationsModule.applications.queries.findById(applicationId);
-  if (!application) {
-    throw new NotFoundError("Application", String(applicationId));
+  const deal = await ctx.dealsModule.deals.queries.findById(dealId);
+  if (!deal) {
+    throw new NotFoundError("Deal", dealId);
   }
 
-  const preview = await buildCanonicalPayloadFromPreviewInput(ctx, {
-    ...raw,
-    applicationId,
-  });
+  const preview = await buildCanonicalPayloadFromPreviewInput(ctx, raw);
 
-  await ctx.calculationsModule.calculations.commands.createForApplication({
+  const created = await ctx.calculationsModule.calculations.commands.create({
     ...preview.payload,
     actorUserId,
-    applicationId,
     idempotencyKey,
   });
 
-  return findCompatibilityCalculationByApplicationAndNewest(applicationId);
+  await ctx.dealsModule.deals.commands.attachCalculation({
+    actorUserId,
+    calculationId: created.id,
+    dealId,
+  });
+
+  return findCompatibilityCalculationByDealAndNewest(dealId);
 }
 
 export async function archiveCompatibilityCalculation(
@@ -1153,10 +1161,7 @@ export async function findCompatibilityCalculationById(
   const [row] = await db
     .select(select)
     .from(calculations)
-    .innerJoin(
-      calculationApplicationLinks,
-      eq(calculationApplicationLinks.calculationId, calculations.id),
-    )
+    .leftJoin(dealCalculationLinks, eq(dealCalculationLinks.calculationId, calculations.id))
     .innerJoin(
       calculationSnapshots,
       eq(calculations.currentSnapshotId, calculationSnapshots.id),
@@ -1202,10 +1207,7 @@ export async function listCompatibilityCalculations(
     db
       .select(select)
       .from(calculations)
-      .innerJoin(
-        calculationApplicationLinks,
-        eq(calculationApplicationLinks.calculationId, calculations.id),
-      )
+      .leftJoin(dealCalculationLinks, eq(dealCalculationLinks.calculationId, calculations.id))
       .innerJoin(
         calculationSnapshots,
         eq(calculations.currentSnapshotId, calculationSnapshots.id),
@@ -1236,10 +1238,7 @@ export async function listCompatibilityCalculations(
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(calculations)
-      .innerJoin(
-        calculationApplicationLinks,
-        eq(calculationApplicationLinks.calculationId, calculations.id),
-      )
+      .leftJoin(dealCalculationLinks, eq(dealCalculationLinks.calculationId, calculations.id))
       .where(where),
   ]);
 
@@ -1253,11 +1252,11 @@ export async function listCompatibilityCalculations(
   };
 }
 
-export async function listCompatibilityCalculationsByApplicationId(
-  applicationId: number,
+export async function listCompatibilityCalculationsByDealId(
+  dealId: string,
 ): Promise<CompatibilityCalculation[]> {
   const result = await listCompatibilityCalculations({
-    applicationId,
+    dealId,
     limit: 200,
     offset: 0,
     sortBy: "createdAt",
@@ -1267,14 +1266,14 @@ export async function listCompatibilityCalculationsByApplicationId(
   return result.data;
 }
 
-export function assertCompatibilityCalculationBelongsToApplication(
+export function assertCompatibilityCalculationBelongsToDeal(
   calculation: CompatibilityCalculation | null,
-  applicationId: number,
+  dealId: string,
 ) {
-  if (!calculation || calculation.applicationId !== applicationId) {
+  if (!calculation || calculation.dealId !== dealId) {
     throw new NotFoundError(
       "Calculation",
-      `application:${applicationId}`,
+      `deal:${dealId}`,
     );
   }
 }

@@ -31,6 +31,30 @@ export class DealCalculationInactiveError extends ValidationError {
 
 export class DealTypeNotSupportedError extends ValidationError {
   constructor(type: string) {
-    super(`Deal type ${type} is not supported in Phase 16`);
+    super(`Deal type ${type} is not supported in Phase 17`);
+  }
+}
+
+export class DealActiveAgreementNotFoundError extends ValidationError {
+  constructor(customerId: string) {
+    super(`Customer ${customerId} does not have an active agreement`);
+  }
+}
+
+export class DealActiveAgreementAmbiguousError extends ValidationError {
+  constructor(customerId: string) {
+    super(`Customer ${customerId} has multiple active agreements`);
+  }
+}
+
+export class DealRequestedAmountCurrencyMismatchError extends ValidationError {
+  constructor() {
+    super("requestedAmount and requestedCurrencyId must be provided together");
+  }
+}
+
+export class DealStatusTransitionError extends ValidationError {
+  constructor(from: string, to: string) {
+    super(`Cannot transition deal status from ${from} to ${to}`);
   }
 }

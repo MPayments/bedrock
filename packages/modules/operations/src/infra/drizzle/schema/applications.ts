@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { integer, pgTable, serial, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+import { deals } from "@bedrock/deals/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties } from "@bedrock/parties/schema";
 
@@ -11,6 +12,9 @@ import { opsApplicationStatusEnum } from "./enums";
 
 export const opsApplications = pgTable("ops_applications", {
   id: serial("id").primaryKey(),
+  dealId: uuid("deal_id").references(() => deals.id, {
+    onDelete: "set null",
+  }).unique(),
   agentId: text("agent_id").references(() => user.id),
   clientId: integer("client_id")
     .notNull()
@@ -39,6 +43,10 @@ export const opsApplicationsRelations = relations(
     counterparty: one(counterparties, {
       fields: [opsApplications.counterpartyId],
       references: [counterparties.id],
+    }),
+    deal: one(deals, {
+      fields: [opsApplications.dealId],
+      references: [deals.id],
     }),
     agent: one(user, {
       fields: [opsApplications.agentId],

@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { listCompatibilityDeals } from "./deals-compat";
 function formatDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -59,57 +60,10 @@ export async function exportClientsXlsx(ctx: AppContext): Promise<Buffer> {
   return await wb.xlsx.writeBuffer() as unknown as Buffer;
 }
 
-// ---- Applications export ----
-
-export async function exportApplicationsXlsx(ctx: AppContext, query: Record<string, unknown>): Promise<Buffer> {
-  const result = await ctx.operationsModule.applications.queries.list({
-    limit: 50000,
-    offset: 0,
-    sortBy: "createdAt",
-    sortOrder: "desc",
-    ...(query as any),
-  });
-
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Заявки");
-
-  ws.columns = [
-    { header: "№", key: "id" },
-    { header: "Дата", key: "createdAt" },
-    { header: "Клиент", key: "clientName" },
-    { header: "Сумма", key: "amount" },
-    { header: "Валюта", key: "currencyCode" },
-    { header: "Статус", key: "status" },
-    { header: "Агент", key: "agentName" },
-    { header: "Комментарий", key: "comment" },
-  ];
-
-  for (const app of result.data) {
-    ws.addRow({
-      id: (app as any).id,
-      createdAt: (app as any).createdAt,
-      clientName: (app as any).clientName ?? (app as any).client?.orgName ?? "",
-      amount: (app as any).amount ?? (app as any).amountOriginal,
-      currencyCode: (app as any).currencyCode,
-      status: (app as any).status,
-      agentName: (app as any).agentName ?? "",
-      comment: (app as any).comment ?? "",
-    });
-  }
-
-  applyDefaults(ws);
-
-  // Total row
-  const totalRow = ws.addRow({ id: "", createdAt: "ИТОГО", clientName: "", amount: "", currencyCode: "" });
-  totalRow.font = { bold: true };
-
-  return await wb.xlsx.writeBuffer() as unknown as Buffer;
-}
-
 // ---- Deals export ----
 
-export async function exportDealsXlsx(ctx: AppContext, query: Record<string, unknown>): Promise<Buffer> {
-  const result = await ctx.operationsModule.deals.queries.list({
+export async function exportDealsXlsx(_ctx: AppContext, query: Record<string, unknown>): Promise<Buffer> {
+  const result = await listCompatibilityDeals({
     limit: 50000,
     offset: 0,
     sortBy: "createdAt",

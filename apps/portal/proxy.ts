@@ -10,7 +10,6 @@ export async function proxy(request: NextRequest) {
   });
   const requiresPortalMembership =
     pathname.startsWith("/clients") ||
-    pathname.startsWith("/applications") ||
     pathname.startsWith("/deals");
 
   if (
@@ -43,7 +42,6 @@ export const config = {
     "/",
     "/onboard/:path*",
     "/clients/:path*",
-    "/applications/:path*",
     "/deals/:path*",
   ],
 };

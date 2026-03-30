@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   index,
   integer,
@@ -13,6 +14,8 @@ import {
 
 import { agreements } from "@bedrock/agreements/schema";
 import { calculations } from "@bedrock/calculations/schema";
+import { currencies } from "@bedrock/currencies/schema";
+import { user } from "@bedrock/iam/schema";
 import { customers, counterparties, organizations } from "@bedrock/parties/schema";
 
 import {
@@ -50,12 +53,19 @@ export const deals = pgTable(
     agreementId: uuid("agreement_id")
       .notNull()
       .references(() => agreements.id),
-    calculationId: uuid("calculation_id")
-      .notNull()
-      .references(() => calculations.id),
+    calculationId: uuid("calculation_id").references(() => calculations.id),
     type: dealTypeEnum("type").notNull(),
     status: dealStatusEnum("status").notNull().default("draft"),
+    agentId: text("agent_id").references(() => user.id),
+    reason: text("reason"),
+    intakeComment: text("intake_comment"),
     comment: text("comment"),
+    requestedAmountMinor: bigint("requested_amount_minor", {
+      mode: "bigint",
+    }),
+    requestedCurrencyId: uuid("requested_currency_id").references(
+      () => currencies.id,
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -68,8 +78,37 @@ export const deals = pgTable(
     index("deals_customer_idx").on(table.customerId),
     index("deals_agreement_idx").on(table.agreementId),
     index("deals_calculation_idx").on(table.calculationId),
+    index("deals_agent_idx").on(table.agentId),
     index("deals_status_idx").on(table.status),
     index("deals_type_idx").on(table.type),
+  ],
+);
+
+export const dealCalculationLinks = pgTable(
+  "deal_calculation_links",
+  {
+    id: uuid("id").primaryKey(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    calculationId: uuid("calculation_id")
+      .notNull()
+      .references(() => calculations.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_calculation_links_deal_calc_uq").on(
+      table.dealId,
+      table.calculationId,
+    ),
+    index("deal_calculation_links_deal_idx").on(table.dealId),
+    index("deal_calculation_links_calculation_idx").on(table.calculationId),
   ],
 );
 
@@ -220,11 +259,30 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
     fields: [deals.customerId],
     references: [customers.id],
   }),
+  requestedCurrency: one(currencies, {
+    fields: [deals.requestedCurrencyId],
+    references: [currencies.id],
+  }),
   approvals: many(dealApprovals),
+  calculationLinks: many(dealCalculationLinks),
   legs: many(dealLegs),
   participants: many(dealParticipants),
   statusHistory: many(dealStatusHistory),
 }));
+
+export const dealCalculationLinksRelations = relations(
+  dealCalculationLinks,
+  ({ one }) => ({
+    calculation: one(calculations, {
+      fields: [dealCalculationLinks.calculationId],
+      references: [calculations.id],
+    }),
+    deal: one(deals, {
+      fields: [dealCalculationLinks.dealId],
+      references: [deals.id],
+    }),
+  }),
+);
 
 export const dealLegsRelations = relations(dealLegs, ({ one }) => ({
   deal: one(deals, {

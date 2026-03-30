@@ -10,7 +10,6 @@ export async function proxy(request: NextRequest) {
   });
 
   if (
-    pathname.startsWith("/applications") ||
     pathname.startsWith("/deals") ||
     pathname.startsWith("/customers") ||
     pathname.startsWith("/calendar") ||
@@ -34,7 +33,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/applications/:path*",
     "/deals/:path*",
     "/customers/:path*",
     "/calendar/:path*",

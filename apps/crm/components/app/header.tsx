@@ -125,14 +125,6 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                   asChild
                   className={navigationMenuTriggerStyle()}
                 >
-                  <Link href="/applications">Заявки</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={navigationMenuTriggerStyle()}
-                >
                   <Link href="/deals">Сделки</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -174,11 +166,6 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                     <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-[200px]">
-                    <DropdownMenuItem
-                      render={<Link href="/reports/application" />}
-                    >
-                      По заявкам
-                    </DropdownMenuItem>
                     <DropdownMenuItem render={<Link href="/reports/deals" />}>
                       По сделкам
                     </DropdownMenuItem>

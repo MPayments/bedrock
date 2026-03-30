@@ -1,14 +1,18 @@
 "use client";
 
-import { Briefcase, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Briefcase, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { NewDealDialog } from "@/components/portal/new-application-dialog";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
 
 type DealStatus =
+  | "draft"
+  | "submitted"
+  | "rejected"
   | "preparing_documents"
   | "awaiting_funds"
   | "awaiting_payment"
@@ -17,14 +21,18 @@ type DealStatus =
   | "cancelled";
 
 interface DealItem {
-  id: number;
-  applicationId: number;
+  id: string;
+  counterpartyId: string | null;
   createdAt: string;
-  client: string;
-  amount: number;
-  currency: string;
-  amountInBase: number;
-  baseCurrencyCode: string;
+  organizationName: string | null;
+  requestedAmount: string | null;
+  requestedCurrencyCode: string | null;
+  calculation: {
+    originalAmount: string;
+    currencyCode: string;
+    totalWithExpensesInBase: string;
+    baseCurrencyCode: string;
+  } | null;
   status: DealStatus;
 }
 
@@ -34,6 +42,18 @@ interface DealsResponse {
 }
 
 const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> = {
+  draft: {
+    label: "Черновик",
+    className: "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300",
+  },
+  submitted: {
+    label: "Отправлена",
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+  },
+  rejected: {
+    label: "Отклонена",
+    className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  },
   preparing_documents: {
     label: "Подготовка документов",
     className: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
@@ -71,12 +91,12 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   AED: "د.إ",
 };
 
-function formatCurrency(value: number, currency: string) {
+function formatCurrency(value: number | string, currency: string) {
   const symbol = CURRENCY_SYMBOLS[currency.toUpperCase()] || currency;
   return `${new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)} ${symbol}`;
+  }).format(Number(value))} ${symbol}`;
 }
 
 function formatDate(dateString: string) {
@@ -95,17 +115,17 @@ export default function PortalDealsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const limit = 10;
 
-  useEffect(() => {
-    async function fetchDeals() {
+  async function fetchDeals(currentPage = page) {
       try {
         setLoading(true);
         setError(null);
 
         const params = new URLSearchParams({
-          offset: ((page - 1) * limit).toString(),
+          offset: ((currentPage - 1) * limit).toString(),
           limit: limit.toString(),
         });
 
@@ -134,8 +154,39 @@ export default function PortalDealsPage() {
       }
     }
 
-    void fetchDeals();
+  useEffect(() => {
+    void fetchDeals(page);
   }, [page]);
+
+  function renderDealAmount(deal: DealItem) {
+    if (deal.calculation) {
+      return {
+        amount: formatCurrency(
+          deal.calculation.originalAmount,
+          deal.calculation.currencyCode,
+        ),
+        summary:
+          deal.calculation.currencyCode !== deal.calculation.baseCurrencyCode
+            ? formatCurrency(
+                deal.calculation.totalWithExpensesInBase,
+                deal.calculation.baseCurrencyCode,
+              )
+            : null,
+      };
+    }
+
+    if (deal.requestedAmount && deal.requestedCurrencyCode) {
+      return {
+        amount: formatCurrency(deal.requestedAmount, deal.requestedCurrencyCode),
+        summary: null,
+      };
+    }
+
+    return {
+      amount: "Сумма уточняется",
+      summary: null,
+    };
+  }
 
   return (
     <div className="space-y-4">
@@ -150,7 +201,21 @@ export default function PortalDealsPage() {
             </p>
           </div>
         </div>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="mr-1 h-4 w-4" />
+          <span className="hidden sm:inline">Создать сделку</span>
+          <span className="sm:hidden">Создать</span>
+        </Button>
       </div>
+
+      <NewDealDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={() => {
+          setPage(1);
+          void fetchDeals(1);
+        }}
+      />
 
       {error ? (
         <Card className="border-destructive">
@@ -179,6 +244,7 @@ export default function PortalDealsPage() {
         <div className="space-y-3">
           {deals.map((deal) => {
             const status = STATUS_CONFIG[deal.status];
+            const amounts = renderDealAmount(deal);
 
             return (
               <Card
@@ -200,15 +266,15 @@ export default function PortalDealsPage() {
                     </span>
                   </div>
 
-                  <p className="mb-2 text-sm font-medium">{deal.client}</p>
+                  <p className="mb-2 text-sm font-medium">
+                    {deal.organizationName ?? "Организация не указана"}
+                  </p>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>{formatCurrency(deal.amount, deal.currency)}</span>
-                    {deal.currency !== deal.baseCurrencyCode ? (
+                    <span>{amounts.amount}</span>
+                    {amounts.summary ? (
                       <>
                         <span>≈</span>
-                        <span>
-                          {formatCurrency(deal.amountInBase, deal.baseCurrencyCode)}
-                        </span>
+                        <span>{amounts.summary}</span>
                       </>
                     ) : null}
                   </div>

@@ -72,7 +72,7 @@ interface LegalEntityOption extends CustomerLegalEntity {
   customerId: string;
 }
 
-interface NewApplicationDialogProps {
+interface NewDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -86,11 +86,11 @@ const CURRENCIES = [
   { value: "AED", label: "AED (د.إ)" },
 ];
 
-export function NewApplicationDialog({
+export function NewDealDialog({
   open,
   onOpenChange,
   onSuccess,
-}: NewApplicationDialogProps) {
+}: NewDealDialogProps) {
   const router = useRouter();
   const [customers, setCustomers] = useState<CustomerContext[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
@@ -180,11 +180,12 @@ export function NewApplicationDialog({
       setCreating(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/customer/applications`, {
+      const response = await fetch(`${API_BASE_URL}/customer/deals`, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({
           counterpartyId: selectedCounterpartyId,
@@ -194,20 +195,20 @@ export function NewApplicationDialog({
       });
 
       if (!response.ok) {
-        throw new Error("Не удалось создать заявку");
+        throw new Error("Не удалось создать сделку");
       }
 
       const created = await response.json();
       onOpenChange(false);
       onSuccess?.();
-      router.push(`/applications/${created.id}`);
+      router.push(`/deals/${created.id}`);
       router.refresh();
     } catch (createError) {
-      console.error("Error creating application:", createError);
+      console.error("Error creating deal:", createError);
       setError(
         createError instanceof Error
           ? createError.message
-          : "Не удалось создать заявку",
+          : "Не удалось создать сделку",
       );
     } finally {
       setCreating(false);
@@ -238,9 +239,9 @@ export function NewApplicationDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Новая заявка</DialogTitle>
+            <DialogTitle>Новая сделка</DialogTitle>
             <DialogDescription>
-              Создайте заявку по одному из ваших юридических лиц.
+              Создайте сделку по одному из ваших юридических лиц.
             </DialogDescription>
           </DialogHeader>
 
@@ -364,7 +365,7 @@ export function NewApplicationDialog({
             </Button>
             <Button onClick={handleCreate} disabled={creating || loadingClients}>
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Создать заявку
+              Создать сделку
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -52,6 +52,21 @@ export const STATUS_OPTIONS: Record<
   DealStatus,
   { value: DealStatus; label: string; colorClass: string }
 > = {
+  draft: {
+    value: "draft",
+    label: "Черновик",
+    colorClass: "bg-slate-100 text-slate-800",
+  },
+  submitted: {
+    value: "submitted",
+    label: "Отправлена",
+    colorClass: "bg-sky-100 text-sky-800",
+  },
+  rejected: {
+    value: "rejected",
+    label: "Отклонена",
+    colorClass: "bg-rose-100 text-rose-800",
+  },
   preparing_documents: {
     value: "preparing_documents",
     label: "Подготовка документов",
@@ -118,7 +133,7 @@ export function createDealsColumns(
         <DataTableColumnHeader column={column} title="№ сделки" />
       ),
       enableSorting: true,
-      cell: ({ getValue }) => `#${getValue<number>()}`,
+      cell: ({ getValue }) => `#${getValue<string>()}`,
     },
     {
       accessorKey: "createdAt",

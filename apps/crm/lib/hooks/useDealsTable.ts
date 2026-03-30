@@ -9,6 +9,9 @@ import { areFiltersEqual } from "@/lib/utils/table-filters";
 
 export type CurrencyCode = "USD" | "EUR" | "RUB" | "CNY" | "TRY" | "AED";
 export type DealStatus =
+  | "draft"
+  | "submitted"
+  | "rejected"
   | "preparing_documents"
   | "awaiting_funds"
   | "awaiting_payment"
@@ -17,7 +20,7 @@ export type DealStatus =
   | "cancelled";
 
 export interface DealsRow {
-  id: number;
+  id: string;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;

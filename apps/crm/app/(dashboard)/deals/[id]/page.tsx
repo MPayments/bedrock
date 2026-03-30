@@ -87,6 +87,9 @@ import {
 } from "@bedrock/sdk-ui/components/popover";
 
 type DealStatus =
+  | "draft"
+  | "submitted"
+  | "rejected"
   | "preparing_documents"
   | "awaiting_funds"
   | "awaiting_payment"
@@ -95,9 +98,8 @@ type DealStatus =
   | "cancelled";
 
 interface Deal {
-  id: number;
-  applicationId: number;
-  calculationId: string;
+  id: string;
+  calculationId: string | null;
   organizationRequisiteId: string | null;
   status: DealStatus;
   invoiceNumber: string | null;
@@ -119,7 +121,7 @@ interface Deal {
 
 interface Calculation {
   id: string;
-  applicationId: number;
+  dealId: string | null;
   currencyCode: string;
   originalAmount: string;
   feePercentage: string;
@@ -138,16 +140,6 @@ interface Calculation {
   sentToClient: number;
   status: string;
   createdAt: string;
-}
-
-interface Application {
-  id: number;
-  agentId: string | null;
-  clientId: number;
-  status: string;
-  reason: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface Client {
@@ -213,7 +205,7 @@ interface Organization {
 }
 
 interface Agent {
-  id: number;
+  id: string;
   name: string;
   email: string;
 }
@@ -230,29 +222,31 @@ interface SubAgent {
 
 interface DealDocument {
   id: number;
-  dealId: number;
+  dealId: string;
   fileName: string;
   fileSize: number;
   mimeType: string;
   description: string | null;
-  uploadedBy: number;
+  uploadedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 interface DealDetailResponse {
   deal: Deal;
-  calculation: Calculation;
-  application: Application;
+  calculation: Calculation | null;
   client: Client;
   contract: Contract;
   organizationRequisite: OrganizationRequisite | null;
   organization: Organization;
-  agent: Agent;
+  agent: Agent | null;
   subAgent: SubAgent | null;
 }
 
 const STATUS_LABELS: Record<DealStatus, string> = {
+  draft: "Черновик",
+  submitted: "Отправлена",
+  rejected: "Отклонена",
   preparing_documents: "Подготовка документов",
   awaiting_funds: "Ожидание средств",
   awaiting_payment: "Ожидание оплаты",
@@ -262,6 +256,9 @@ const STATUS_LABELS: Record<DealStatus, string> = {
 };
 
 const STATUS_COLORS: Record<DealStatus, string> = {
+  draft: "bg-slate-100 text-slate-800",
+  submitted: "bg-sky-100 text-sky-800",
+  rejected: "bg-rose-100 text-rose-800",
   preparing_documents: "bg-amber-100 text-amber-800",
   awaiting_funds: "bg-orange-100 text-orange-800",
   awaiting_payment: "bg-yellow-100 text-yellow-800",
@@ -319,6 +316,29 @@ function getFileIcon(mimeType: string) {
   }
   return <Paperclip className="h-5 w-5" />;
 }
+
+const EMPTY_CALCULATION: Calculation = {
+  id: "",
+  dealId: null,
+  currencyCode: "RUB",
+  originalAmount: "0",
+  feePercentage: "0",
+  feeAmount: "0",
+  totalAmount: "0",
+  rateSource: "manual",
+  rate: "0",
+  additionalExpensesCurrencyCode: null,
+  additionalExpenses: "0",
+  baseCurrencyCode: "RUB",
+  feeAmountInBase: "0",
+  totalInBase: "0",
+  additionalExpensesInBase: "0",
+  totalWithExpensesInBase: "0",
+  calculationTimestamp: new Date(0).toISOString(),
+  sentToClient: 0,
+  status: "archived",
+  createdAt: new Date(0).toISOString(),
+};
 
 export default function DealDetailPage() {
   const router = useRouter();
@@ -421,10 +441,13 @@ export default function DealDetailPage() {
   const dealId = params?.id as string;
 
   const VALID_TRANSITIONS: Record<DealStatus, DealStatus[]> = {
+    draft: ["submitted", "rejected", "cancelled"],
+    submitted: ["preparing_documents", "rejected", "cancelled"],
+    rejected: [],
     preparing_documents: ["awaiting_funds", "cancelled"],
     awaiting_funds: ["awaiting_payment", "cancelled"],
     awaiting_payment: ["closing_documents", "cancelled"],
-    closing_documents: ["cancelled"],
+    closing_documents: ["done", "cancelled"],
     done: [],
     cancelled: [],
   };
@@ -1060,8 +1083,7 @@ export default function DealDetailPage() {
 
   const {
     deal,
-    calculation,
-    application,
+    calculation: rawCalculation,
     client,
     contract,
     organizationRequisite,
@@ -1069,6 +1091,7 @@ export default function DealDetailPage() {
     agent,
     subAgent,
   } = data;
+  const calculation = rawCalculation ?? EMPTY_CALCULATION;
 
   return (
     <div className="space-y-4">
@@ -1234,22 +1257,6 @@ export default function DealDetailPage() {
                     </div>
                   </div>
                 )}
-                <div className="col-span-2">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Заявка
-                  </div>
-                  <div className="text-base">
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto cursor-pointer text-blue-800"
-                      onClick={() =>
-                        router.push(`/applications/${application.id}`)
-                      }
-                    >
-                      Заявка #{application.id}
-                    </Button>
-                  </div>
-                </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
                     Дата создания

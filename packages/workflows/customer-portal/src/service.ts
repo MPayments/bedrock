@@ -6,6 +6,8 @@ import {
   type CalculationCompatibilityCurrency,
 } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { DealsModule } from "@bedrock/deals";
+import type { Deal, DealDetails } from "@bedrock/deals/contracts";
 import {
   type CustomerMembershipsService,
   type IamService,
@@ -23,7 +25,6 @@ import type { OperationsModule } from "@bedrock/operations";
 import {
   CreateClientInputSchema,
   type CreateClientInput,
-  type DealWithDetails,
 } from "@bedrock/operations/contracts";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -40,8 +41,9 @@ type LocalizedText = {
 
 export interface CustomerPortalWorkflowDeps {
   calculations: Pick<CalculationsModule, "calculations">;
-  currencies: Pick<CurrenciesService, "findById">;
-  operations: Pick<OperationsModule, "applications" | "deals" | "clients">;
+  currencies: Pick<CurrenciesService, "findByCode" | "findById">;
+  deals: Pick<DealsModule, "deals">;
+  operations: Pick<OperationsModule, "clients">;
   iam: {
     customerMemberships: CustomerMembershipsService;
     users: Pick<IamService, "queries">;
@@ -75,6 +77,9 @@ export interface CustomerPortalProfile {
 
 type CanonicalCustomer = Awaited<
   ReturnType<PartiesModule["customers"]["queries"]["findById"]>
+>;
+type CanonicalCalculation = Awaited<
+  ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
 >;
 type LegacyClient = Awaited<
   ReturnType<OperationsModule["clients"]["queries"]["findById"]>
@@ -240,31 +245,60 @@ function createClientShellFromCounterparty(input: {
   };
 }
 
-async function serializeCompatibilityCalculationsForApplication(
+async function serializeCompatibilityCalculationForDeal(
   deps: CustomerPortalWorkflowDeps,
-  applicationId: number,
-  calculations: Awaited<
-    ReturnType<CalculationsModule["calculations"]["queries"]["listByApplicationId"]>
-  >,
+  calculation: CanonicalCalculation | null,
 ) {
+  if (!calculation) {
+    return null;
+  }
+
   const currencyMetadata = await buildCalculationCurrencyMetadata(
     deps,
-    calculations.flatMap((calculation) => [
+    [
       calculation.currentSnapshot.calculationCurrencyId,
       calculation.currentSnapshot.baseCurrencyId,
       calculation.currentSnapshot.additionalExpensesCurrencyId ?? "",
-    ]),
+    ],
   );
 
-  return calculations.map((calculation) =>
-    serializeCompatibilityCalculation({
-      applicationId,
-      calculation,
-      currencies: currencyMetadata,
-      sentToClient: 0,
-    }),
-  );
+  return serializeCompatibilityCalculation({
+    dealId: null,
+    calculation,
+    currencies: currencyMetadata,
+    sentToClient: 0,
+  });
 }
+
+function mapPortalDealStatus(
+  status: Deal["status"],
+): Deal["status"] {
+  return status;
+}
+
+type CustomerPortalDealListItem = {
+  calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
+  counterpartyId: string | null;
+  createdAt: string;
+  id: string;
+  organizationName: string | null;
+  requestedAmount: string | null;
+  requestedCurrencyCode: string | null;
+  status: Deal["status"];
+};
+
+type CustomerPortalDealListResponse = {
+  data: CustomerPortalDealListItem[];
+  limit: number;
+  offset: number;
+  total: number;
+};
+
+type CustomerPortalDealDetailResponse = {
+  calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
+  deal: DealDetails;
+  organizationName: string | null;
+};
 
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
@@ -595,6 +629,101 @@ export function createCustomerPortalWorkflow(
     return counterparty;
   }
 
+  async function assertDealOwnership(
+    userId: string,
+    deal: Deal,
+  ): Promise<void> {
+    const hasMembership =
+      await deps.iam.customerMemberships.queries.hasMembership({
+        customerId: deal.customerId,
+        userId,
+      });
+
+    if (!hasMembership) {
+      throw new CustomerNotAuthorizedError(
+        `Deal ${deal.id} not found or not owned by user ${userId}`,
+      );
+    }
+  }
+
+  async function listPortalDealsForCustomerIds(
+    customerIds: string[],
+  ): Promise<Deal[]> {
+    const uniqueCustomerIds = Array.from(new Set(customerIds));
+    const results = await Promise.all(
+      uniqueCustomerIds.map((customerId) =>
+        deps.deals.deals.queries.list({
+          customerId,
+          limit: 200,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }),
+      ),
+    );
+
+    return results.flatMap((result) => result.data);
+  }
+
+  async function findPortalCounterpartyName(
+    deal: DealDetails,
+  ): Promise<{ counterpartyId: string | null; organizationName: string | null }> {
+    const counterpartyParticipant =
+      deal.participants.find((participant) => participant.role === "counterparty") ??
+      null;
+
+    if (!counterpartyParticipant?.counterpartyId) {
+      return {
+        counterpartyId: null,
+        organizationName: null,
+      };
+    }
+
+    const counterparty = await deps.parties.counterparties.queries.findById(
+      counterpartyParticipant.counterpartyId,
+    );
+
+    return {
+      counterpartyId: counterpartyParticipant.counterpartyId,
+      organizationName: counterparty?.shortName ?? counterparty?.fullName ?? null,
+    };
+  }
+
+  async function serializePortalDealListItem(
+    deal: Deal,
+  ): Promise<CustomerPortalDealListItem> {
+    const [dealDetails, requestedCurrency, calculation] = await Promise.all([
+      deps.deals.deals.queries.findById(deal.id),
+      deal.requestedCurrencyId
+        ? deps.currencies.findById(deal.requestedCurrencyId)
+        : Promise.resolve(null),
+      deal.calculationId
+        ? deps.calculations.calculations.queries.findById(deal.calculationId)
+        : Promise.resolve(null),
+    ]);
+
+    const {
+      counterpartyId,
+      organizationName,
+    } = dealDetails
+      ? await findPortalCounterpartyName(dealDetails)
+      : { counterpartyId: null, organizationName: null };
+
+    return {
+      calculation: await serializeCompatibilityCalculationForDeal(
+        deps,
+        calculation,
+      ),
+      counterpartyId,
+      createdAt: deal.createdAt.toISOString(),
+      id: deal.id,
+      organizationName,
+      requestedAmount: deal.requestedAmount,
+      requestedCurrencyCode: requestedCurrency?.code ?? null,
+      status: mapPortalDealStatus(deal.status),
+    };
+  }
+
   async function getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile> {
     const memberships = await listMembershipsByUserId(ctx.userId);
     const activeMemberships = memberships.filter(
@@ -695,214 +824,112 @@ export function createCustomerPortalWorkflow(
       return deps.operations.clients.queries.findById(clientId);
     },
 
-    async getApplicationById(ctx: CustomerContext, applicationId: number) {
-      const application =
-        await deps.operations.applications.queries.findById(applicationId);
-      if (!application) {
-        throw new CustomerNotAuthorizedError(
-          `Application ${applicationId} not found`,
-        );
-      }
-
-      if (application.counterpartyId) {
-        await assertCounterpartyOwnership(ctx.userId, application.counterpartyId);
-      } else {
-        await assertClientOwnership(ctx.userId, application.clientId);
-      }
-      const calculations =
-        await deps.calculations.calculations.queries.listByApplicationId(
-          applicationId,
-        );
-
-      return {
-        application,
-        calculations: await serializeCompatibilityCalculationsForApplication(
-          deps,
-          applicationId,
-          calculations,
-        ),
-      };
-    },
-
-    async createApplication(
+    async createDeal(
       ctx: CustomerContext,
       input: {
         counterpartyId: string;
         requestedAmount?: string;
         requestedCurrency?: string;
       },
+      options: {
+        idempotencyKey: string;
+      },
     ) {
-      await assertCounterpartyOwnership(ctx.userId, input.counterpartyId);
+      const counterparty = await assertCounterpartyOwnership(
+        ctx.userId,
+        input.counterpartyId,
+      );
       await ensureActiveShellForCounterparty(input.counterpartyId);
 
-      const result = await deps.operations.applications.commands.create({
+      const requestedCurrency = input.requestedCurrency
+        ? await deps.currencies.findByCode(input.requestedCurrency)
+        : null;
+
+      const result = await deps.deals.deals.commands.create({
+        actorUserId: ctx.userId,
+        agentId: null,
+        comment: null,
         counterpartyId: input.counterpartyId,
-        source: "web",
-        requestedAmount: input.requestedAmount,
-        requestedCurrency: input.requestedCurrency,
-        // No agentId — customer creates with status 'forming'
+        customerId: counterparty.customerId!,
+        idempotencyKey: options.idempotencyKey,
+        intakeComment: null,
+        reason: null,
+        requestedAmount: input.requestedAmount ?? null,
+        requestedCurrencyId: requestedCurrency?.id ?? null,
+        type: "payment",
       });
 
-      deps.logger.info("Customer created application", {
+      deps.logger.info("Customer created deal", {
         userId: ctx.userId,
         counterpartyId: input.counterpartyId,
-        applicationId: result.id,
+        dealId: result.id,
       });
 
       return result;
     },
 
-    async listMyApplications(
-      ctx: CustomerContext,
-      input?: { limit?: number; offset?: number },
-    ) {
-      const customerIds = await listAuthorizedCustomerIds(ctx.userId);
-      const counterpartiesByCustomerId =
-        await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
-      const counterpartyIds = [...counterpartiesByCustomerId.values()]
-        .flat()
-        .map((counterparty) => counterparty.id);
-
-      if (counterpartyIds.length === 0) {
-        return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
-      }
-
-      const allApps: Awaited<
-        ReturnType<OperationsModule["applications"]["queries"]["list"]>
-      >["data"] = [];
-      let totalCount = 0;
-      for (const counterpartyId of counterpartyIds) {
-        const result = await deps.operations.applications.queries.list({
-          counterpartyId,
-          limit: 200,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        });
-        allApps.push(...result.data);
-        totalCount += result.total;
-      }
-
-      // Sort by createdAt desc and paginate in memory
-      allApps.sort(
-        (
-          a: (typeof allApps)[number],
-          b: (typeof allApps)[number],
-        ) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-
-      const limit = input?.limit ?? 20;
-      const offset = input?.offset ?? 0;
-
-      return {
-        data: allApps.slice(offset, offset + limit),
-        total: totalCount,
-        limit,
-        offset,
-      };
-    },
-
-    async listMyCalculations(
-      ctx: CustomerContext,
-      applicationId: number,
-    ) {
-      // Verify ownership through application's client
-      const app =
-        await deps.operations.applications.queries.findById(applicationId);
-      if (!app) {
-        throw new CustomerNotAuthorizedError(
-          `Application ${applicationId} not found`,
-        );
-      }
-      if (app.counterpartyId) {
-        await assertCounterpartyOwnership(ctx.userId, app.counterpartyId);
-      } else {
-        await assertClientOwnership(ctx.userId, app.clientId);
-      }
-
-      const calculations =
-        await deps.calculations.calculations.queries.listByApplicationId(
-          applicationId,
-        );
-
-      return {
-        data: await serializeCompatibilityCalculationsForApplication(
-          deps,
-          applicationId,
-          calculations,
-        ),
-        total: calculations.length,
-        limit: 50,
-        offset: 0,
-      };
-    },
-
     async listMyDeals(
       ctx: CustomerContext,
       input?: { limit?: number; offset?: number },
-    ) {
+    ): Promise<CustomerPortalDealListResponse> {
       const customerIds = await listAuthorizedCustomerIds(ctx.userId);
-      const counterpartiesByCustomerId =
-        await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
-      const counterpartyIds = [...counterpartiesByCustomerId.values()]
-        .flat()
-        .map((counterparty) => counterparty.id);
 
-      if (counterpartyIds.length === 0) {
-        return { data: [], total: 0, limit: input?.limit ?? 20, offset: input?.offset ?? 0 };
+      if (customerIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          limit: input?.limit ?? 20,
+          offset: input?.offset ?? 0,
+        };
       }
 
-      const allDeals: Awaited<
-        ReturnType<OperationsModule["deals"]["queries"]["list"]>
-      >["data"] = [];
-      let totalCount = 0;
-      for (const counterpartyId of counterpartyIds) {
-        const result = await deps.operations.deals.queries.list({
-          counterpartyId,
-          limit: 200,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        });
-        allDeals.push(...result.data);
-        totalCount += result.total;
-      }
+      const allDeals = await listPortalDealsForCustomerIds(customerIds);
 
       allDeals.sort(
-        (
-          a: (typeof allDeals)[number],
-          b: (typeof allDeals)[number],
-        ) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
       );
 
       const limit = input?.limit ?? 20;
       const offset = input?.offset ?? 0;
+      const pagedDeals = allDeals.slice(offset, offset + limit);
 
       return {
-        data: allDeals.slice(offset, offset + limit),
-        total: totalCount,
+        data: await Promise.all(
+          pagedDeals.map((deal) => serializePortalDealListItem(deal)),
+        ),
+        total: allDeals.length,
         limit,
         offset,
       };
     },
 
-    async getDealById(ctx: CustomerContext, dealId: number): Promise<DealWithDetails> {
-      const detail =
-        await deps.operations.deals.queries.findByIdWithDetails(dealId);
+    async getDealById(
+      ctx: CustomerContext,
+      dealId: string,
+    ): Promise<CustomerPortalDealDetailResponse> {
+      const detail = await deps.deals.deals.queries.findById(dealId);
+
       if (!detail) {
         throw new CustomerNotAuthorizedError(`Deal ${dealId} not found`);
       }
-      if (detail.application.counterpartyId) {
-        await assertCounterpartyOwnership(
-          ctx.userId,
-          detail.application.counterpartyId,
-        );
-      } else if (detail.client) {
-        await assertClientOwnership(ctx.userId, detail.client.id);
-      }
-      return detail;
+
+      await assertDealOwnership(ctx.userId, detail);
+
+      const [calculation, { organizationName }] = await Promise.all([
+        detail.calculationId
+          ? deps.calculations.calculations.queries.findById(detail.calculationId)
+          : Promise.resolve(null),
+        findPortalCounterpartyName(detail),
+      ]);
+
+      return {
+        calculation: await serializeCompatibilityCalculationForDeal(
+          deps,
+          calculation,
+        ),
+        deal: detail,
+        organizationName,
+      };
     },
   };
 }

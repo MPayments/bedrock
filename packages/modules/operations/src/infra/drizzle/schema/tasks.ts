@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, integer, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
+import { deals } from "@bedrock/deals/schema";
 import { user } from "@bedrock/iam/schema";
 
 import { opsApplications } from "./applications";
@@ -12,6 +13,9 @@ export const opsTodos = pgTable("ops_todos", {
   agentId: text("agent_id")
     .notNull()
     .references(() => user.id),
+  dealId: uuid("deal_id").references(() => deals.id, {
+    onDelete: "set null",
+  }),
   applicationId: integer("application_id").references(
     () => opsApplications.id,
   ),
@@ -43,5 +47,9 @@ export const opsTodosRelations = relations(opsTodos, ({ one }) => ({
   application: one(opsApplications, {
     fields: [opsTodos.applicationId],
     references: [opsApplications.id],
+  }),
+  deal: one(deals, {
+    fields: [opsTodos.dealId],
+    references: [deals.id],
   }),
 }));

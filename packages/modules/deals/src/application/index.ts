@@ -2,6 +2,9 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { CreateDealCommand } from "./commands/create-deal";
+import { AttachDealCalculationCommand } from "./commands/attach-deal-calculation";
+import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
+import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
@@ -23,12 +26,29 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.idempotency,
     deps.references,
   );
+  const updateDealIntake = new UpdateDealIntakeCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const attachDealCalculation = new AttachDealCalculationCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const transitionDealStatus = new TransitionDealStatusCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
   const findDealById = new FindDealByIdQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
 
   return {
     commands: {
+      attachCalculation: attachDealCalculation.execute.bind(attachDealCalculation),
       create: createDeal.execute.bind(createDeal),
+      transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
+      updateIntake: updateDealIntake.execute.bind(updateDealIntake),
     },
     queries: {
       findById: findDealById.execute.bind(findDealById),

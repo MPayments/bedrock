@@ -76,20 +76,6 @@ function createWorkflow(overrides?: {
     ],
   };
   const operations = {
-    applications: {
-      commands: {
-        create: vi.fn(),
-      },
-      queries: {
-        findById: vi.fn(),
-        list: vi.fn(async () => ({
-          data: [],
-          total: 0,
-          limit: 200,
-          offset: 0,
-        })),
-      },
-    },
     clients: {
       commands: {
         create: vi.fn(async () => ({
@@ -117,9 +103,33 @@ function createWorkflow(overrides?: {
         ),
       },
     },
-    deals: {
+  };
+  const calculations = {
+    calculations: {
       queries: {
-        findByIdWithDetails: vi.fn(),
+        findById: vi.fn(async () => null),
+      },
+    },
+  };
+  const currencies = {
+    findByCode: vi.fn(async (code: string) => ({
+      code,
+      id: `${code.toLowerCase()}-id`,
+      precision: 2,
+    })),
+    findById: vi.fn(async (currencyId: string) => ({
+      code: currencyId === "usd-id" ? "USD" : "RUB",
+      id: currencyId,
+      precision: 2,
+    })),
+  };
+  const deals = {
+    deals: {
+      commands: {
+        create: vi.fn(),
+      },
+      queries: {
+        findById: vi.fn(async () => null),
         list: vi.fn(async () => ({
           data: [],
           total: 0,
@@ -128,20 +138,6 @@ function createWorkflow(overrides?: {
         })),
       },
     },
-  };
-  const calculations = {
-    calculations: {
-      queries: {
-        listByApplicationId: vi.fn(async () => []),
-      },
-    },
-  };
-  const currencies = {
-    findById: vi.fn(async (currencyId: string) => ({
-      code: currencyId === "usd-id" ? "USD" : "RUB",
-      id: currencyId,
-      precision: 2,
-    })),
   };
   const iam = {
     customerMemberships: {
@@ -254,6 +250,7 @@ function createWorkflow(overrides?: {
     workflow: createCustomerPortalWorkflow({
       calculations: calculations as never,
       currencies: currencies as never,
+      deals: deals as never,
       operations: operations as never,
       iam: iam as never,
       parties: parties as never,

@@ -50,7 +50,7 @@ export class TakeApplicationCommand {
       // Auto-create TODO for the agent
       await tx.todoStore.create({
         agentId: validated.agentId,
-        applicationId: validated.applicationId,
+        dealId: null,
         title: `Создать расчёт для заявки #${validated.applicationId}`,
         description: application.requestedAmount
           ? `Сумма: ${application.requestedAmount} ${application.requestedCurrency ?? ""}`

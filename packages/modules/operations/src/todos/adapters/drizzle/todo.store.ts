@@ -28,7 +28,7 @@ export class DrizzleTodoStore implements TodoStore {
       .insert(opsTodos)
       .values({
         agentId: input.agentId,
-        applicationId: input.applicationId ?? null,
+        dealId: input.dealId ?? null,
         title: input.title,
         description: input.description ?? null,
         dueDate: input.dueDate ?? null,

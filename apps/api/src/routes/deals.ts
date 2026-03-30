@@ -1,10 +1,13 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
+  AttachDealCalculationInputSchema,
   CreateDealInputSchema,
   DealDetailsSchema,
   ListDealsQuerySchema,
   PaginatedDealsSchema,
+  TransitionDealStatusInputSchema,
+  UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
 
 import { ErrorSchema, IdParamSchema } from "../common";
@@ -120,6 +123,81 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const updateIntakeRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/intake",
+    tags: ["Deals"],
+    summary: "Update deal intake fields",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateDealIntakeInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealDetailsSchema } },
+        description: "Deal updated",
+      },
+    },
+  });
+
+  const attachCalculationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/calculation",
+    tags: ["Deals"],
+    summary: "Attach or replace the current deal calculation",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AttachDealCalculationInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealDetailsSchema } },
+        description: "Deal calculation attached",
+      },
+    },
+  });
+
+  const transitionStatusRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/status",
+    tags: ["Deals"],
+    summary: "Transition deal status",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: TransitionDealStatusInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealDetailsSchema } },
+        description: "Deal status updated",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       try {
@@ -155,6 +233,51 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(updateIntakeRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.updateIntake({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(attachCalculationRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.attachCalculation({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(transitionStatusRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.transitionStatus({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }

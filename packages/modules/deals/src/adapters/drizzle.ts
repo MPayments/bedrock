@@ -5,6 +5,7 @@ export {
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
   dealApprovals,
+  dealCalculationLinks,
   dealLegKindEnum,
   dealLegs,
   dealParticipantRoleEnum,

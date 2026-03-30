@@ -1,6 +1,12 @@
 export {
+  AttachDealCalculationInputSchema,
   CreateDealInputSchema,
+  TransitionDealStatusInputSchema,
+  UpdateDealIntakeInputSchema,
+  type AttachDealCalculationInput,
   type CreateDealInput,
+  type TransitionDealStatusInput,
+  type UpdateDealIntakeInput,
 } from "./application/contracts/commands";
 export {
   DealApprovalSchema,

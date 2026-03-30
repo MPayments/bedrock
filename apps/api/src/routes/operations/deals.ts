@@ -2,72 +2,95 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CreateDealInputSchema,
-  DealDocumentSchema,
-  DealSchema,
-  ListDealsQuerySchema,
-  PaginatedDealListRowsSchema,
-  SetAgentBonusInputSchema,
-  UpdateDealDetailsInputSchema,
-  UpdateDealStatusInputSchema,
-  DealsStatisticsQuerySchema,
-  DealsStatisticsSchema,
-  DealsByDayQuerySchema,
-  DealsByDaySchema,
-  DealsByStatusSchema,
-} from "@bedrock/operations/contracts";
+  DealDetailsSchema,
+  TransitionDealStatusInputSchema,
+} from "@bedrock/deals/contracts";
 
+import { DeletedSchema, ErrorSchema, IdParamSchema } from "../../common";
+import { handleRouteError } from "../../common/errors";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
-import { OpsErrorSchema, OpsIdParamSchema } from "./common";
-import {
-  resolveEffectiveCompatibilityContractByClientId,
-} from "./contracts-compat";
+import { withRequiredIdempotency } from "../../middleware/idempotency";
+import { requirePermission } from "../../middleware/permission";
 import { exportDealsXlsx, xlsxFilename } from "./excel-export";
 import {
-  getOrganizationBankRequisiteOrThrow,
-  serializeOrganizationRequisiteForDocuments,
-} from "../organization-requisites";
+  archiveCompatibilityCalculation,
+  CompatibilityCalculationPreviewInputSchema,
+  CompatibilityCalculationSchema,
+  createCompatibilityCalculationForDeal,
+  findCompatibilityCalculationById,
+} from "./calculations-compat";
+import {
+  CompatibilityDealDocumentSchema,
+  CompatibilityDealsByDayQuerySchema,
+  CompatibilityDealsByDaySchema,
+  CompatibilityDealsByStatusSchema,
+  CompatibilityDealsListQuerySchema,
+  CompatibilityDealsStatisticsQuerySchema,
+  CompatibilityDealsStatisticsSchema,
+  CompatibilityUpdateDealDetailsInputSchema,
+  closeCompatibilityDeal,
+  createCompatibilityDeal,
+  findCompatibilityDealById,
+  getCompatibilityDealDocumentDownloadUrl,
+  getCompatibilityDealsByDay,
+  getCompatibilityDealsStatistics,
+  listCompatibilityDealCalculations,
+  listCompatibilityDealDocuments,
+  listCompatibilityDeals,
+  listCompatibilityDealsGroupedByStatus,
+  PaginatedCompatibilityDealListRowsSchema,
+  transitionCompatibilityDealStatus,
+  updateCompatibilityDealDetails,
+  uploadCompatibilityDealDocument,
+  deleteCompatibilityDealDocument,
+} from "./deals-compat";
+
+const DealDocumentTypeSchema = z.enum(["application", "invoice", "acceptance"]);
 
 export function operationsDealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   const listRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/",
     tags: ["Operations - Deals"],
-    summary: "List deals",
-    request: { query: ListDealsQuerySchema },
+    summary: "List canonical deal facade rows",
+    request: { query: CompatibilityDealsListQuerySchema },
     responses: {
       200: {
-        content: { "application/json": { schema: PaginatedDealListRowsSchema } },
-        description: "Paginated list of deals",
+        content: { "application/json": { schema: PaginatedCompatibilityDealListRowsSchema } },
+        description: "Paginated compatibility deals",
       },
     },
   });
 
   const getRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/{id}",
     tags: ["Operations - Deals"],
-    summary: "Get deal with details",
-    request: { params: OpsIdParamSchema },
+    summary: "Get canonical deal facade detail",
+    request: { params: IdParamSchema },
     responses: {
       200: {
         content: { "application/json": { schema: z.any() } },
-        description: "Deal with details",
+        description: "Deal detail",
       },
       404: {
-        content: { "application/json": { schema: OpsErrorSchema } },
-        description: "Not found",
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Deal not found",
       },
     },
   });
 
   const createRoute_ = createRoute({
+    middleware: [requirePermission({ deals: ["create"] })],
     method: "post",
     path: "/",
     tags: ["Operations - Deals"],
-    summary: "Create deal",
+    summary: "Create canonical deal through operations facade",
     request: {
       body: {
         content: { "application/json": { schema: CreateDealInputSchema } },
@@ -76,23 +99,24 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
     responses: {
       201: {
-        content: { "application/json": { schema: DealSchema } },
+        content: { "application/json": { schema: DealDetailsSchema } },
         description: "Deal created",
       },
     },
   });
 
   const updateStatusRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
     path: "/{id}/status",
     tags: ["Operations - Deals"],
-    summary: "Update deal status",
+    summary: "Transition canonical deal status",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: UpdateDealStatusInputSchema.omit({ id: true }),
+            schema: TransitionDealStatusInputSchema,
           },
         },
         required: true,
@@ -100,47 +124,24 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealSchema } },
+        content: { "application/json": { schema: DealDetailsSchema } },
         description: "Status updated",
       },
     },
   });
 
   const updateDetailsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
     path: "/{id}/details",
     tags: ["Operations - Deals"],
-    summary: "Update deal details",
+    summary: "Update deal compatibility extension details",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: UpdateDealDetailsInputSchema.omit({ id: true }),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: DealSchema } },
-        description: "Details updated",
-      },
-    },
-  });
-
-  const setBonusRoute = createRoute({
-    method: "post",
-    path: "/{id}/bonus",
-    tags: ["Operations - Deals"],
-    summary: "Set agent bonus for deal",
-    request: {
-      params: OpsIdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: SetAgentBonusInputSchema.omit({ dealId: true }),
+            schema: CompatibilityUpdateDealDetailsInputSchema,
           },
         },
         required: true,
@@ -149,113 +150,227 @@ export function operationsDealsRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: { "application/json": { schema: z.any() } },
-        description: "Bonus set",
+        description: "Details updated",
+      },
+    },
+  });
+
+  const listCalculationsRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/calculations",
+    tags: ["Operations - Deals"],
+    summary: "List deal calculations",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.array(CompatibilityCalculationSchema) } },
+        description: "Deal calculations",
+      },
+    },
+  });
+
+  const createCalculationRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["create"] })],
+    method: "post",
+    path: "/{id}/calculations",
+    tags: ["Operations - Deals"],
+    summary: "Create and attach a calculation to a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CompatibilityCalculationPreviewInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: { "application/json": { schema: CompatibilityCalculationSchema } },
+        description: "Calculation created",
+      },
+    },
+  });
+
+  const deleteCalculationRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["delete"] })],
+    method: "delete",
+    path: "/{id}/calculations/{calcId}",
+    tags: ["Operations - Deals"],
+    summary: "Archive a deal calculation",
+    request: {
+      params: z.object({
+        calcId: z.string().uuid(),
+        id: z.string().uuid(),
+      }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DeletedSchema } },
+        description: "Calculation archived",
       },
     },
   });
 
   const statisticsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/statistics",
     tags: ["Operations - Deals"],
-    summary: "Get deals statistics",
-    request: { query: DealsStatisticsQuerySchema },
+    summary: "Get deal statistics",
+    request: { query: CompatibilityDealsStatisticsQuerySchema },
     responses: {
       200: {
-        content: { "application/json": { schema: DealsStatisticsSchema } },
+        content: { "application/json": { schema: CompatibilityDealsStatisticsSchema } },
+        description: "Statistics",
+      },
+    },
+  });
+
+  const statsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/stats",
+    tags: ["Operations - Deals"],
+    summary: "Get deal dashboard stats",
+    request: { query: CompatibilityDealsStatisticsQuerySchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: CompatibilityDealsStatisticsSchema } },
         description: "Statistics",
       },
     },
   });
 
   const byDayRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/by-day",
     tags: ["Operations - Deals"],
     summary: "Get deals grouped by day",
-    request: { query: DealsByDayQuerySchema },
+    request: { query: CompatibilityDealsByDayQuerySchema },
     responses: {
       200: {
-        content: { "application/json": { schema: DealsByDaySchema } },
-        description: "By-day breakdown",
-      },
-    },
-  });
-
-  // Deal documents
-  const listDocumentsRoute = createRoute({
-    method: "get",
-    path: "/{id}/documents",
-    tags: ["Operations - Deals"],
-    summary: "List deal documents",
-    request: { params: OpsIdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: z.array(DealDocumentSchema) },
-        },
-        description: "Deal documents",
-      },
-    },
-  });
-
-  const deleteDocumentRoute = createRoute({
-    method: "delete",
-    path: "/{id}/documents/{docId}",
-    tags: ["Operations - Deals"],
-    summary: "Delete deal document",
-    request: {
-      params: OpsIdParamSchema.extend({
-        docId: z.coerce.number().int(),
-      }),
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: z.object({ deleted: z.boolean() }) } },
-        description: "Document deleted",
+        content: { "application/json": { schema: CompatibilityDealsByDaySchema } },
+        description: "By-day data",
       },
     },
   });
 
   const byStatusRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/by-status",
     tags: ["Operations - Deals"],
-    summary: "Get deals grouped by status",
+    summary: "Get deals grouped by status buckets",
     responses: {
       200: {
-        content: { "application/json": { schema: z.any() } },
-        description: "Deals grouped by status category",
+        content: { "application/json": { schema: CompatibilityDealsByStatusSchema } },
+        description: "Grouped deals",
       },
     },
   });
 
-  // --- Comment and dates as thin wrappers over updateDetails ---
+  const listDocumentsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/documents",
+    tags: ["Operations - Deals"],
+    summary: "List deal documents",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.array(CompatibilityDealDocumentSchema) } },
+        description: "Documents",
+      },
+    },
+  });
+
+  const uploadDocumentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/documents",
+    tags: ["Operations - Deals"],
+    summary: "Upload deal document",
+    request: { params: IdParamSchema },
+    responses: {
+      201: {
+        content: { "application/json": { schema: CompatibilityDealDocumentSchema } },
+        description: "Document uploaded",
+      },
+    },
+  });
+
+  const deleteDocumentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "delete",
+    path: "/{id}/documents/{docId}",
+    tags: ["Operations - Deals"],
+    summary: "Delete deal document",
+    request: {
+      params: IdParamSchema.extend({
+        docId: z.coerce.number().int(),
+      }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DeletedSchema } },
+        description: "Document deleted",
+      },
+    },
+  });
+
+  const downloadDocumentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/documents/{docId}/download",
+    tags: ["Operations - Deals"],
+    summary: "Get deal document download url",
+    request: {
+      params: IdParamSchema.extend({
+        docId: z.coerce.number().int(),
+      }),
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.object({ url: z.string() }) } },
+        description: "Signed URL",
+      },
+    },
+  });
 
   const updateCommentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
     path: "/{id}/comment",
     tags: ["Operations - Deals"],
     summary: "Update deal comment",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       body: {
         content: { "application/json": { schema: z.object({ comment: z.string().nullable() }) } },
         required: true,
       },
     },
     responses: {
-      200: { content: { "application/json": { schema: DealSchema } }, description: "Comment updated" },
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Comment updated",
+      },
     },
   });
 
   const updateDatesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
     path: "/{id}/dates",
     tags: ["Operations - Deals"],
-    summary: "Update deal dates",
+    summary: "Update compatibility document dates",
     request: {
-      params: OpsIdParamSchema,
+      params: IdParamSchema,
       body: {
         content: {
           "application/json": {
@@ -269,63 +384,86 @@ export function operationsDealsRoutes(ctx: AppContext) {
       },
     },
     responses: {
-      200: { content: { "application/json": { schema: DealSchema } }, description: "Dates updated" },
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Dates updated",
+      },
     },
   });
 
   const closeDealRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
     path: "/{id}/close",
     tags: ["Operations - Deals"],
     summary: "Close deal",
-    request: { params: OpsIdParamSchema },
+    request: { params: IdParamSchema },
     responses: {
-      200: { content: { "application/json": { schema: DealSchema } }, description: "Deal closed" },
+      200: {
+        content: { "application/json": { schema: DealDetailsSchema } },
+        description: "Deal closed",
+      },
     },
   });
 
   const exportExcelRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/export-excel",
     tags: ["Operations - Deals"],
     summary: "Export deals to Excel",
-    request: { query: ListDealsQuerySchema },
+    request: { query: CompatibilityDealsListQuerySchema },
     responses: {
       200: { description: "Excel file" },
     },
   });
 
-  const statsRoute = createRoute({
-    method: "get",
-    path: "/stats",
-    tags: ["Operations - Deals"],
-    summary: "Get deals dashboard stats",
-    request: { query: DealsStatisticsQuerySchema },
-    responses: {
-      200: { content: { "application/json": { schema: DealsStatisticsSchema } }, description: "Stats" },
-    },
-  });
-
-  const uploadDealDocumentRoute = createRoute({
+  const uploadInvoiceRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
-    path: "/{id}/documents",
+    path: "/{id}/invoice/upload",
     tags: ["Operations - Deals"],
-    summary: "Upload deal document",
-    request: { params: OpsIdParamSchema },
+    summary: "Upload invoice file and extract fields",
+    request: { params: IdParamSchema },
     responses: {
-      201: { content: { "application/json": { schema: z.any() } }, description: "Document uploaded" },
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({ success: z.boolean(), data: z.any() }),
+          },
+        },
+        description: "Extracted invoice data",
+      },
     },
   });
 
-  const generateDealDocumentRoute = createRoute({
+  const uploadContractRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/contract/upload",
+    tags: ["Operations - Deals"],
+    summary: "Upload contract file and extract fields",
+    request: { params: IdParamSchema },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({ success: z.boolean(), data: z.any() }),
+          },
+        },
+        description: "Extracted contract data",
+      },
+    },
+  });
+
+  const generateDocumentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
     path: "/{id}/documents/{type}",
     tags: ["Operations - Deals"],
-    summary: "Generate deal document (application, invoice, acceptance)",
+    summary: "Generate a deal document",
     request: {
-      params: OpsIdParamSchema.extend({
-        type: z.enum(["application", "invoice", "acceptance"]),
-      }),
+      params: IdParamSchema.extend({ type: DealDocumentTypeSchema }),
       query: z.object({
         format: z.enum(["docx", "pdf"]).default("docx"),
         lang: z.enum(["ru", "en"]).default("ru"),
@@ -333,407 +471,390 @@ export function operationsDealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: { description: "Document file" },
-      404: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Not found" },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Deal not found",
+      },
     },
   });
-
-  const downloadDealDocumentRoute = createRoute({
-    method: "get",
-    path: "/{id}/documents/{docId}/download",
-    tags: ["Operations - Deals"],
-    summary: "Download deal document",
-    request: {
-      params: OpsIdParamSchema.extend({ docId: z.coerce.number().int() }),
-    },
-    responses: {
-      200: { content: { "application/json": { schema: z.object({ url: z.string() }) } }, description: "Signed URL" },
-    },
-  });
-
-  const invoiceUploadRoute = createRoute({
-    method: "post",
-    path: "/{id}/invoice/upload",
-    tags: ["Operations - Deals"],
-    summary: "Upload invoice file and extract data via AI",
-    request: { params: OpsIdParamSchema },
-    responses: {
-      200: { content: { "application/json": { schema: z.object({ success: z.boolean(), data: z.any() }) } }, description: "Extracted invoice data" },
-      400: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Bad request" },
-      404: { content: { "application/json": { schema: OpsErrorSchema } }, description: "Not found" },
-    },
-  });
-
-  const LocalizedTextSchema = z.object({
-    ru: z.string().nullable().optional(),
-    en: z.string().nullable().optional(),
-  }).optional();
 
   const invoiceSchema = z.object({
     invoiceNumber: z.string(),
-    invoiceDate: z.string().describe("Date of the invoice in format dd.mm.yyyy. For example: 01.05.2025"),
+    invoiceDate: z.string(),
     companyName: z.string(),
-    companyNameI18n: LocalizedTextSchema,
+    companyNameI18n: z
+      .object({
+        ru: z.string().nullable().optional(),
+        en: z.string().nullable().optional(),
+      })
+      .optional(),
     bankName: z.string(),
-    bankNameI18n: LocalizedTextSchema,
+    bankNameI18n: z
+      .object({
+        ru: z.string().nullable().optional(),
+        en: z.string().nullable().optional(),
+      })
+      .optional(),
     account: z.string(),
     swiftCode: z.string(),
   });
 
+  const contractSchema = z.object({
+    contractNumber: z.string(),
+    contractDate: z.string(),
+  });
+
   return app
-    .openapi(statisticsRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result =
-        await ctx.operationsModule.deals.queries.getStatistics(query);
-      const activeStatuses = ["preparing_documents", "awaiting_funds", "awaiting_payment", "closing_documents"];
-      const activeCount = activeStatuses.reduce((sum, s) => sum + (result.byStatus[s] ?? 0), 0);
-      return c.json({
-        ...result,
-        totalAmountInBase: Number(result.totalAmount) || 0,
-        activeCount,
-        doneCount: result.byStatus["done"] ?? 0,
-      }, 200);
-    })
-    .openapi(byDayRoute, async (c) => {
-      const query = c.req.valid("query");
-      const data = await ctx.operationsModule.deals.queries.getByDay(query);
-      return c.json({ data }, 200);
-    })
-    .openapi(byStatusRoute, async (c) => {
-      const grouped = await ctx.operationsModule.deals.queries.listGroupedByStatus();
-      return c.json(grouped, 200);
-    })
-    .openapi(statsRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result = await ctx.operationsModule.deals.queries.getStatistics(query);
-      const activeStatuses = ["preparing_documents", "awaiting_funds", "awaiting_payment", "closing_documents"];
-      const activeCount = activeStatuses.reduce((sum, s) => sum + (result.byStatus[s] ?? 0), 0);
-      return c.json({
-        ...result,
-        totalAmountInBase: Number(result.totalAmount) || 0,
-        activeCount,
-        doneCount: result.byStatus["done"] ?? 0,
-      }, 200);
-    })
     .openapi(listRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result = await ctx.operationsModule.deals.queries.list(query);
-      return c.json(result, 200);
-    })
-    .openapi(invoiceUploadRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      if (!ctx.documentExtraction) {
-        return c.json({ error: "AI extraction not configured" }, 400);
+      try {
+        const query = c.req.valid("query");
+        const result = await listCompatibilityDeals(query);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-
-      const deal = await ctx.operationsModule.deals.queries.findById(id);
-      if (!deal) return c.json({ error: "Deal not found" }, 404);
-
-      const body = await c.req.parseBody();
-      const file = body.file;
-      if (!file || typeof file === "string") {
-        return c.json({ error: "File is required" }, 400);
-      }
-
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const extractedData = await ctx.documentExtraction.extractFromBuffer(
-        buffer,
-        file.type,
-        invoiceSchema,
-      );
-
-      return c.json({ success: true, data: extractedData }, 200);
     })
     .openapi(getRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const deal =
-        await ctx.operationsModule.deals.queries.findByIdWithDetails(id);
-      if (!deal) return c.json({ error: "Deal not found" }, 404);
-
-      // Enrich with contract, organization, organizationRequisite, subAgent
-      let contract = null;
-      let organization = null;
-      let organizationRequisite = null;
-      let subAgent = null;
-      let client = null;
-
-      if (deal.application?.clientId) {
-        [client, contract] = await Promise.all([
-          ctx.operationsModule.clients.queries.findById(deal.application.clientId),
-          resolveEffectiveCompatibilityContractByClientId(
-            ctx,
-            deal.application.clientId,
-          ),
-        ]);
-      }
-
-      if (client?.subAgentCounterpartyId) {
-        subAgent = await ctx.partiesModule.subAgentProfiles.queries.findById(
-          client.subAgentCounterpartyId,
-        );
-      }
-
-      if (deal.deal.organizationRequisiteId) {
-        organizationRequisite = await getOrganizationBankRequisiteOrThrow(
-          ctx,
-          deal.deal.organizationRequisiteId,
-        );
-        if (organizationRequisite && contract?.organizationId) {
-          organization = await ctx.partiesModule.organizations.queries.findById(
-            contract.organizationId,
-          );
+      try {
+        const { id } = c.req.valid("param");
+        const result = await findCompatibilityDealById(ctx, id);
+        if (!result) {
+          return c.json({ error: "Deal not found" }, 404);
         }
-      }
 
-      return c.json({
-        ...deal,
-        contract,
-        organization,
-        organizationRequisite: organizationRequisite
-          ? await serializeOrganizationRequisiteForDocuments(
-              ctx,
-              organizationRequisite,
-            )
-          : null,
-        subAgent,
-      }, 200);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(createRoute_, async (c) => {
-      const input = c.req.valid("json");
-      const requisite = await getOrganizationBankRequisiteOrThrow(
-        ctx,
-        input.organizationRequisiteId,
-      );
-      const application =
-        await ctx.operationsModule.applications.queries.findById(
-          input.applicationId,
+      try {
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createCompatibilityDeal(ctx, body, c.get("user")!.id, idempotencyKey),
         );
-      if (!application) {
-        return c.json({ error: "Application not found" }, 404);
-      }
 
-      const contract = await resolveEffectiveCompatibilityContractByClientId(
-        ctx,
-        application.clientId,
-      );
-      if (!contract) {
-        return c.json({ error: "Contract not found" }, 404);
-      }
+        if (result instanceof Response) {
+          return result;
+        }
 
-      const organization = await ctx.partiesModule.organizations.queries.findById(
-        contract.organizationId,
-      );
-      if (!organization || requisite.ownerId !== organization.id) {
-        return c.json(
-          { error: "Organization requisite does not belong to contract organization" },
-          400,
-        );
+        return c.json(result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      const result = await ctx.operationsModule.deals.commands.create(input);
-      const sessionUser = c.get("user");
-      if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "create", entityType: "deal",
-          entityId: result.id, source: "web",
-        }).catch(() => {});
-      }
-      return c.json(result, 201);
     })
     .openapi(updateStatusRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const result =
-        await ctx.operationsModule.deals.commands.updateStatus({
-          ...input,
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await transitionCompatibilityDealStatus(
+          ctx,
           id,
-        });
-      const sessionUser = c.get("user");
-      if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "status_change", entityType: "deal",
-          entityId: id, source: "web", metadata: { status: input.status },
-        }).catch(() => {});
+          body,
+          c.get("user")!.id,
+        );
+
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(updateDetailsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const result =
-        await ctx.operationsModule.deals.commands.updateDetails({
-          ...input,
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateCompatibilityDealDetails(
+          ctx,
           id,
-        });
-      const sessionUser = c.get("user");
-      if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "update", entityType: "deal",
-          entityId: id, source: "web",
-        }).catch(() => {});
+          body,
+          c.get("user")!.id,
+        );
+
+        return c.json(result.deal, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      return c.json(result as NonNullable<typeof result>, 200);
     })
-    .openapi(setBonusRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const result =
-        await ctx.operationsModule.deals.commands.setAgentBonus({
-          dealId: id,
-          ...input,
-        });
-      return c.json(result, 200);
+    .openapi(listCalculationsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result = await listCompatibilityDealCalculations(id);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createCalculationRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          createCompatibilityCalculationForDeal(
+            ctx,
+            id,
+            body,
+            c.get("user")!.id,
+            idempotencyKey,
+          ),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return c.json(result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(deleteCalculationRoute, async (c) => {
+      try {
+        const { calcId, id } = c.req.valid("param");
+        const calculation = await findCompatibilityCalculationById(calcId);
+        if (!calculation || calculation.dealId !== id) {
+          return c.json({ error: "Calculation not found" }, 404);
+        }
+
+        await archiveCompatibilityCalculation(ctx, calcId);
+        return c.json({ deleted: true }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(statisticsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result = await getCompatibilityDealsStatistics(query);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(statsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result = await getCompatibilityDealsStatistics(query);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(byDayRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result = await getCompatibilityDealsByDay(query);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(byStatusRoute, async (c) => {
+      try {
+        const result = await listCompatibilityDealsGroupedByStatus({});
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(listDocumentsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const result =
-        await ctx.operationsModule.deals.queries.listDocuments(id);
-      return c.json(result, 200);
+      try {
+        const { id } = c.req.valid("param");
+        const result = await listCompatibilityDealDocuments(id);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadDocumentRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400);
+        }
+
+        const description =
+          typeof body.description === "string" ? body.description : null;
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const result = await uploadCompatibilityDealDocument(ctx, {
+          buffer,
+          dealId: id,
+          description,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          uploadedBy: c.get("user")!.id,
+        });
+
+        return c.json(result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(deleteDocumentRoute, async (c) => {
-      const { docId } = c.req.valid("param");
-      const docs = ctx.operationsModule.deals.documents;
-      if (docs) await docs.commands.delete(docId);
-      return c.json({ deleted: true }, 200);
+      try {
+        const { docId } = c.req.valid("param");
+        await deleteCompatibilityDealDocument(docId);
+        return c.json({ deleted: true }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadDocumentRoute, async (c) => {
+      try {
+        const { docId, id } = c.req.valid("param");
+        const url = await getCompatibilityDealDocumentDownloadUrl(ctx, id, docId);
+        return c.json({ url }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(updateCommentRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const { comment } = c.req.valid("json");
-      const result = await ctx.operationsModule.deals.commands.updateDetails({ id, comment });
-      return c.json(result as NonNullable<typeof result>, 200);
+      try {
+        const { id } = c.req.valid("param");
+        const { comment } = c.req.valid("json");
+        const result = await updateCompatibilityDealDetails(
+          ctx,
+          id,
+          { comment },
+          c.get("user")!.id,
+        );
+        return c.json(result.deal, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(updateDatesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      const result = await ctx.operationsModule.deals.commands.updateDetails({ id, ...input });
-      return c.json(result as NonNullable<typeof result>, 200);
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await updateCompatibilityDealDetails(
+          ctx,
+          id,
+          body,
+          c.get("user")!.id,
+        );
+        return c.json(result.deal, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(closeDealRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const result = await ctx.operationsModule.deals.commands.updateStatus({ id, status: "done" });
-      const sessionUser = c.get("user");
-      if (sessionUser) {
-        ctx.operationsModule.activityLog.commands.log({
-          userId: sessionUser.id, action: "status_change", entityType: "deal",
-          entityId: id, source: "web", metadata: { status: "done" },
-        }).catch(() => {});
+      try {
+        const { id } = c.req.valid("param");
+        const result = await closeCompatibilityDeal(ctx, id, c.get("user")!.id);
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-      return c.json(result as NonNullable<typeof result>, 200);
     })
     .openapi(exportExcelRoute, async (c) => {
-      const query = c.req.valid("query");
-      const buffer = await exportDealsXlsx(ctx, query);
-      return new Response(new Uint8Array(buffer), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename="${xlsxFilename("deals-report")}"`,
-        },
-      });
-    })
-    .openapi(uploadDealDocumentRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const docs = ctx.operationsModule.deals.documents;
-      if (!docs) return c.json({ error: "Document storage not configured" }, 503 as any);
-
-      const body = await c.req.parseBody();
-      const file = body.file;
-      if (!file || typeof file === "string") {
-        return c.json({ error: "File is required" }, 400 as any);
-      }
-      const description = typeof body.description === "string" ? body.description : null;
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const sessionUser = c.get("user")!;
-      const result = await docs.commands.upload({
-        dealId: id,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        buffer,
-        uploadedBy: sessionUser.id,
-        description,
-      });
-      return c.json(result, 201);
-    })
-    .openapi(generateDealDocumentRoute, async (c) => {
-      const { id, type } = c.req.valid("param");
-      const { format, lang } = c.req.valid("query");
-
-      const deal = await ctx.operationsModule.deals.queries.findByIdWithDetails(id);
-      if (!deal) return c.json({ error: "Deal not found" }, 404);
-
-      let contract = null;
-      let organization = null;
-      let organizationRequisite = null;
-
-      if (deal.application?.clientId) {
-        contract = await resolveEffectiveCompatibilityContractByClientId(
-          ctx,
-          deal.application.clientId,
-        );
-      }
-
-      if (deal.deal.organizationRequisiteId) {
-        organizationRequisite = await getOrganizationBankRequisiteOrThrow(
-          ctx,
-          deal.deal.organizationRequisiteId,
-        );
-        if (organizationRequisite && contract?.organizationId) {
-          organization = await ctx.partiesModule.organizations.queries.findById(
-            contract.organizationId,
-          );
-        }
-      }
-
-      // Fetch client details
-      let client = null;
-      if (deal.application?.clientId) {
-        client = await ctx.operationsModule.clients.queries.findById(deal.application.clientId);
-      }
-      if (!client) return c.json({ error: "Client not found" }, 404);
-      if (!organization || !organizationRequisite) {
-        return c.json({ error: "Organization not found" }, 404);
-      }
-
       try {
+        const query = c.req.valid("query");
+        const buffer = await exportDealsXlsx(ctx, query);
+        return new Response(new Uint8Array(buffer), {
+          status: 200,
+          headers: {
+            "Content-Disposition": `attachment; filename="${xlsxFilename("deals-report")}"`,
+            "Content-Type":
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadInvoiceRoute, async (c) => {
+      try {
+        if (!ctx.documentExtraction) {
+          return c.json({ error: "AI extraction not configured" }, 400);
+        }
+
+        const { id } = c.req.valid("param");
+        const deal = await findCompatibilityDealById(ctx, id);
+        if (!deal) {
+          return c.json({ error: "Deal not found" }, 404);
+        }
+
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400);
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const extractedData = await ctx.documentExtraction.extractFromBuffer(
+          buffer,
+          file.type,
+          invoiceSchema,
+        );
+
+        return c.json({ success: true, data: extractedData }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadContractRoute, async (c) => {
+      try {
+        if (!ctx.documentExtraction) {
+          return c.json({ error: "AI extraction not configured" }, 400);
+        }
+
+        const { id } = c.req.valid("param");
+        const deal = await findCompatibilityDealById(ctx, id);
+        if (!deal) {
+          return c.json({ error: "Deal not found" }, 404);
+        }
+
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400);
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const extractedData = await ctx.documentExtraction.extractFromBuffer(
+          buffer,
+          file.type,
+          contractSchema,
+        );
+
+        return c.json({ success: true, data: extractedData }, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(generateDocumentRoute, async (c) => {
+      try {
+        const { id, type } = c.req.valid("param");
+        const { format, lang } = c.req.valid("query");
+        const deal = await findCompatibilityDealById(ctx, id);
+        if (!deal || !deal.client || !deal.contract || !deal.organization || !deal.organizationRequisite) {
+          return c.json({ error: "Deal not found" }, 404);
+        }
+
         const result = await ctx.documentGenerationWorkflow.generateDealDocument({
-          templateType: type,
-          deal: deal.deal as unknown as Record<string, unknown>,
           calculation: (deal.calculation ?? {}) as Record<string, unknown>,
-          client: client as unknown as Record<string, unknown>,
-          contract: (contract ?? {}) as Record<string, unknown>,
-          organization: (organization ?? {}) as Record<string, unknown>,
-          organizationRequisite: await serializeOrganizationRequisiteForDocuments(
-            ctx,
-            organizationRequisite,
-          ),
+          client: deal.client as unknown as Record<string, unknown>,
+          contract: deal.contract as unknown as Record<string, unknown>,
+          deal: deal.deal as unknown as Record<string, unknown>,
           format,
           lang,
+          organization: deal.organization as unknown as Record<string, unknown>,
+          organizationRequisite: deal.organizationRequisite as Record<string, unknown>,
+          templateType: type,
         });
 
         return new Response(new Uint8Array(result.buffer), {
           status: 200,
           headers: {
-            "Content-Type": result.mimeType,
             "Content-Disposition": `attachment; filename="${encodeURIComponent(result.fileName)}"`,
+            "Content-Type": result.mimeType,
           },
         });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        ctx.logger.error("Document generation failed", { error: message, stack: (err as Error).stack });
-        return c.json({ error: message }, 500 as any);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
-    })
-    .openapi(downloadDealDocumentRoute, async (c) => {
-      const { docId } = c.req.valid("param");
-      const docs = ctx.operationsModule.deals.documents;
-      if (!docs) return c.json({ url: "" }, 200);
-      // Look up the document to get its s3Key
-      const allDocs = await ctx.operationsModule.deals.queries.listDocuments(
-        c.req.valid("param").id,
-      );
-      const doc = allDocs.find((d: any) => d.id === docId);
-      if (!doc) return c.json({ url: "" }, 200);
-      const url = await docs.getSignedUrl((doc as any).s3Key);
-      return c.json({ url: url ?? "" }, 200);
     });
 }

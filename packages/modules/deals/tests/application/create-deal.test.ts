@@ -29,6 +29,7 @@ function createHarness() {
   };
   const dealStore = {
     createDealRoot: vi.fn(),
+    createDealCalculationLinks: vi.fn(),
     createDealLegs: vi.fn(),
     createDealParticipants: vi.fn(),
     createDealStatusHistory: vi.fn(),
@@ -131,14 +132,26 @@ describe("create deal command", () => {
     expect(harness.dealStore.createDealRoot).toHaveBeenCalledWith({
       id: "00000000-0000-4000-8000-000000000010",
       customerId: "00000000-0000-4000-8000-000000000001",
-      agreementId: "00000000-0000-4000-8000-000000000002",
+      agreementId: "agreement-1",
       calculationId: "00000000-0000-4000-8000-000000000003",
       type: "payment",
+      agentId: null,
+      reason: null,
+      intakeComment: null,
       comment: "Deal comment",
+      requestedAmountMinor: null,
+      requestedCurrencyId: null,
     });
-    expect(harness.dealStore.createDealLegs).toHaveBeenCalledWith([
+    expect(harness.dealStore.createDealCalculationLinks).toHaveBeenCalledWith([
       {
         id: "00000000-0000-4000-8000-000000000011",
+        calculationId: "calculation-1",
+        dealId: "00000000-0000-4000-8000-000000000010",
+      },
+    ]);
+    expect(harness.dealStore.createDealLegs).toHaveBeenCalledWith([
+      {
+        id: "00000000-0000-4000-8000-000000000012",
         dealId: "00000000-0000-4000-8000-000000000010",
         idx: 1,
         kind: "payment",
@@ -147,7 +160,7 @@ describe("create deal command", () => {
     ]);
     expect(harness.dealStore.createDealParticipants).toHaveBeenCalledWith([
       {
-        id: "00000000-0000-4000-8000-000000000012",
+        id: "00000000-0000-4000-8000-000000000013",
         dealId: "00000000-0000-4000-8000-000000000010",
         role: "customer",
         customerId: "00000000-0000-4000-8000-000000000001",
@@ -155,7 +168,7 @@ describe("create deal command", () => {
         counterpartyId: null,
       },
       {
-        id: "00000000-0000-4000-8000-000000000013",
+        id: "00000000-0000-4000-8000-000000000014",
         dealId: "00000000-0000-4000-8000-000000000010",
         role: "organization",
         customerId: null,
@@ -163,7 +176,7 @@ describe("create deal command", () => {
         counterpartyId: null,
       },
       {
-        id: "00000000-0000-4000-8000-000000000014",
+        id: "00000000-0000-4000-8000-000000000099",
         dealId: "00000000-0000-4000-8000-000000000010",
         role: "counterparty",
         customerId: null,

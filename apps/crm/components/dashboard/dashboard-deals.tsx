@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Handshake } from "lucide-react";
 
 interface Deal {
-  id: number;
+  id: string;
   client: string;
   amount: number;
   currency: string;

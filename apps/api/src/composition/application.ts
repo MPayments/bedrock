@@ -192,6 +192,7 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
   });
   const dealsModule = createApiDealsModule({
+    currencies: currenciesService,
     db,
     logger,
     idempotency,

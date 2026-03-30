@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { ErrorSchema } from "../../common";
 import { handleRouteError } from "../../common/errors";
@@ -17,10 +17,8 @@ import {
   CompatibilityCalculationSchema,
   CompatibilityCalculationsListQuerySchema,
   createCompatibilityCalculation,
-  createCompatibilityCalculationForApplication,
   findCompatibilityCalculationById,
   listCompatibilityCalculations,
-  listCompatibilityCalculationsByApplicationId,
   PaginatedCompatibilityCalculationsSchema,
   previewCompatibilityCalculation,
 } from "./calculations-compat";
@@ -97,7 +95,7 @@ export function operationsCalculationsRoutes(ctx: AppContext) {
       },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
-        description: "Application not found",
+        description: "Referenced deal not found",
       },
       409: {
         content: { "application/json": { schema: ErrorSchema } },
@@ -161,107 +159,11 @@ export function operationsCalculationsRoutes(ctx: AppContext) {
     },
   });
 
-  const byApplicationRoute = createRoute({
-    middleware: [requirePermission({ calculations: ["list"] })],
-    method: "get",
-    path: "/application/{appId}",
-    tags: ["Operations - Calculations"],
-    summary: "List compatibility calculations for an application",
-    request: {
-      params: z.object({
-        appId: z.coerce.number().int(),
-      }),
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: z.array(CompatibilityCalculationSchema) },
-        },
-        description: "Calculations for application",
-      },
-    },
-  });
-
-  const createForApplicationRoute = createRoute({
-    middleware: [requirePermission({ calculations: ["create"] })],
-    method: "post",
-    path: "/application/{appId}",
-    tags: ["Operations - Calculations"],
-    summary: "Create compatibility calculation for an application",
-    request: {
-      params: z.object({
-        appId: z.coerce.number().int(),
-      }),
-      body: {
-        content: {
-          "application/json": {
-            schema: CompatibilityCalculationPreviewInputSchema.omit({
-              applicationId: true,
-            }),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      201: {
-        content: {
-          "application/json": { schema: CompatibilityCalculationSchema },
-        },
-        description: "Calculation created",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation or idempotency error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Application not found",
-      },
-      409: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Idempotency conflict",
-      },
-    },
-  });
-
   return app
     .openapi(previewRoute, async (c) => {
       try {
         const input = c.req.valid("json");
         const result = await previewCompatibilityCalculation(ctx, input);
-        return jsonOk(c, result);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(createForApplicationRoute, async (c) => {
-      try {
-        const { appId } = c.req.valid("param");
-        const input = c.req.valid("json");
-        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createCompatibilityCalculationForApplication(
-            ctx,
-            appId,
-            input,
-            c.get("user")!.id,
-            idempotencyKey,
-          ),
-        );
-
-        if (result instanceof Response) {
-          return result;
-        }
-
-        return jsonOk(c, result, 201);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(byApplicationRoute, async (c) => {
-      try {
-        const { appId } = c.req.valid("param");
-        const result = await listCompatibilityCalculationsByApplicationId(appId);
         return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);

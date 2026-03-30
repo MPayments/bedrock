@@ -11,7 +11,7 @@ export const TODOS_LIST_CONTRACT = {
   filters: {
     agentId: { kind: "string" as const, cardinality: "single" as const },
     completed: { kind: "boolean" as const, cardinality: "single" as const },
-    applicationId: { kind: "number" as const, cardinality: "single" as const },
+    dealId: { kind: "string" as const, cardinality: "single" as const },
   },
 } satisfies ListQueryContract<
   readonly ["title", "createdAt", "order"],

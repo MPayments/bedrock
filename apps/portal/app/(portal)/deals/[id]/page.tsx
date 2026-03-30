@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 import { API_BASE_URL } from "@/lib/constants";
 
 type DealStatus =
+  | "draft"
+  | "submitted"
+  | "rejected"
   | "preparing_documents"
   | "awaiting_funds"
   | "awaiting_payment"
@@ -16,21 +19,16 @@ type DealStatus =
   | "done"
   | "cancelled";
 
-interface Client {
-  id: number;
-  orgName: string;
-  inn: string | null;
-}
-
 interface Deal {
-  id: number;
-  applicationId: number;
+  id: string;
   status: DealStatus;
   comment: string | null;
+  intakeComment: string | null;
+  reason: string | null;
+  requestedAmount: string | null;
   createdAt: string;
   updatedAt: string;
-  closedAt: string | null;
-  client: Client | null;
+  requestedCurrencyId: string | null;
 }
 
 interface Calculation {
@@ -45,9 +43,13 @@ interface Calculation {
 interface DealDetailResponse {
   deal: Deal;
   calculation: Calculation | null;
+  organizationName: string | null;
 }
 
 const STATUS_LABELS: Record<DealStatus, string> = {
+  draft: "Черновик",
+  submitted: "Отправлена",
+  rejected: "Отклонена",
   preparing_documents: "Подготовка документов",
   awaiting_funds: "Ожидание средств",
   awaiting_payment: "Ожидание оплаты",
@@ -66,7 +68,7 @@ function formatMoney(value: string, currency: string) {
 export default function PortalDealDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const dealId = Number(params.id);
+  const dealId = String(params.id ?? "");
 
   const [data, setData] = useState<DealDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function PortalDealDetailPage() {
       }
     }
 
-    if (Number.isFinite(dealId)) {
+    if (dealId) {
       void fetchData();
     }
   }, [dealId]);
@@ -174,7 +176,7 @@ export default function PortalDealDetailPage() {
           <div>
             <p className="text-xs uppercase text-muted-foreground">Организация</p>
             <p className="text-sm font-medium">
-              {data.deal.client?.orgName ?? "Не указана"}
+              {data.organizationName ?? "Не указана"}
             </p>
           </div>
           <div>
@@ -183,18 +185,32 @@ export default function PortalDealDetailPage() {
               {new Date(data.deal.createdAt).toLocaleString("ru-RU")}
             </p>
           </div>
-          {data.deal.closedAt ? (
+          {data.deal.requestedAmount ? (
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Закрыта</p>
-              <p className="text-sm font-medium">
-                {new Date(data.deal.closedAt).toLocaleString("ru-RU")}
+              <p className="text-xs uppercase text-muted-foreground">
+                Запрошенная сумма
               </p>
+              <p className="text-sm font-medium">{data.deal.requestedAmount}</p>
             </div>
           ) : null}
           {data.deal.comment ? (
             <div className="md:col-span-2">
               <p className="text-xs uppercase text-muted-foreground">Комментарий</p>
               <p className="text-sm">{data.deal.comment}</p>
+            </div>
+          ) : null}
+          {data.deal.intakeComment ? (
+            <div className="md:col-span-2">
+              <p className="text-xs uppercase text-muted-foreground">
+                Комментарий клиента
+              </p>
+              <p className="text-sm">{data.deal.intakeComment}</p>
+            </div>
+          ) : null}
+          {data.deal.reason ? (
+            <div className="md:col-span-2">
+              <p className="text-xs uppercase text-muted-foreground">Причина</p>
+              <p className="text-sm">{data.deal.reason}</p>
             </div>
           ) : null}
         </CardContent>
@@ -207,16 +223,6 @@ export default function PortalDealDetailPage() {
               <Briefcase className="h-5 w-5" />
               Расчет сделки
             </span>
-            {data.deal.applicationId ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/applications/${data.deal.applicationId}`)}
-              >
-                <ArrowLeftRight className="mr-2 h-4 w-4" />
-                К заявке
-              </Button>
-            ) : null}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

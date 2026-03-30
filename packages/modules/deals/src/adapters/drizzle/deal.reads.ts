@@ -6,7 +6,10 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
+import { minorToDecimalString } from "@bedrock/calculations";
+import { currencies } from "@bedrock/currencies/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
@@ -41,17 +44,25 @@ function mapDeal(row: {
   id: string;
   customerId: string;
   agreementId: string;
-  calculationId: string;
+  calculationId: string | null;
   type: "payment" | "currency_exchange" | "currency_transit" | "exporter_settlement";
   status:
     | "draft"
     | "submitted"
-    | "approved"
     | "rejected"
-    | "executing"
-    | "completed"
+    | "preparing_documents"
+    | "awaiting_funds"
+    | "awaiting_payment"
+    | "closing_documents"
+    | "done"
     | "cancelled";
+  agentId: string | null;
+  reason: string | null;
+  intakeComment: string | null;
   comment: string | null;
+  requestedAmountMinor: bigint | null;
+  requestedCurrencyId: string | null;
+  requestedCurrencyPrecision: number | null;
   createdAt: Date;
   updatedAt: Date;
 }): Deal {
@@ -62,7 +73,18 @@ function mapDeal(row: {
     calculationId: row.calculationId,
     type: row.type,
     status: row.status,
+    agentId: row.agentId,
+    reason: row.reason,
+    intakeComment: row.intakeComment,
     comment: row.comment,
+    requestedAmount:
+      row.requestedAmountMinor != null && row.requestedCurrencyPrecision != null
+        ? minorToDecimalString(
+            row.requestedAmountMinor,
+            row.requestedCurrencyPrecision,
+          )
+        : null,
+    requestedCurrencyId: row.requestedCurrencyId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -79,10 +101,12 @@ function mapLeg(row: {
   status:
     | "draft"
     | "submitted"
-    | "approved"
     | "rejected"
-    | "executing"
-    | "completed"
+    | "preparing_documents"
+    | "awaiting_funds"
+    | "awaiting_payment"
+    | "closing_documents"
+    | "done"
     | "cancelled";
   createdAt: Date;
   updatedAt: Date;
@@ -123,10 +147,12 @@ function mapStatusHistory(row: {
   status:
     | "draft"
     | "submitted"
-    | "approved"
     | "rejected"
-    | "executing"
-    | "completed"
+    | "preparing_documents"
+    | "awaiting_funds"
+    | "awaiting_payment"
+    | "closing_documents"
+    | "done"
     | "cancelled";
   changedBy: string | null;
   comment: string | null;
@@ -167,6 +193,7 @@ export class DrizzleDealReads implements DealReads {
   constructor(private readonly db: Queryable) {}
 
   async findById(id: string): Promise<DealDetails | null> {
+    const requestedCurrency = alias(currencies, "deal_requested_currency");
     const [dealRow] = await this.db
       .select({
         id: deals.id,
@@ -175,11 +202,21 @@ export class DrizzleDealReads implements DealReads {
         calculationId: deals.calculationId,
         type: deals.type,
         status: deals.status,
+        agentId: deals.agentId,
+        reason: deals.reason,
+        intakeComment: deals.intakeComment,
         comment: deals.comment,
+        requestedAmountMinor: deals.requestedAmountMinor,
+        requestedCurrencyId: deals.requestedCurrencyId,
+        requestedCurrencyPrecision: requestedCurrency.precision,
         createdAt: deals.createdAt,
         updatedAt: deals.updatedAt,
       })
       .from(deals)
+      .leftJoin(
+        requestedCurrency,
+        eq(deals.requestedCurrencyId, requestedCurrency.id),
+      )
       .where(eq(deals.id, id))
       .limit(1);
 
@@ -251,6 +288,7 @@ export class DrizzleDealReads implements DealReads {
   }
 
   async list(input: ListDealsQuery): Promise<PaginatedList<Deal>> {
+    const requestedCurrency = alias(currencies, "deal_requested_currency");
     const conditions: SQL[] = [];
 
     if (input.customerId) {
@@ -290,11 +328,21 @@ export class DrizzleDealReads implements DealReads {
           calculationId: deals.calculationId,
           type: deals.type,
           status: deals.status,
+          agentId: deals.agentId,
+          reason: deals.reason,
+          intakeComment: deals.intakeComment,
           comment: deals.comment,
+          requestedAmountMinor: deals.requestedAmountMinor,
+          requestedCurrencyId: deals.requestedCurrencyId,
+          requestedCurrencyPrecision: requestedCurrency.precision,
           createdAt: deals.createdAt,
           updatedAt: deals.updatedAt,
         })
         .from(deals)
+        .leftJoin(
+          requestedCurrency,
+          eq(deals.requestedCurrencyId, requestedCurrency.id),
+        )
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)

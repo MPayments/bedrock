@@ -13,11 +13,11 @@ export interface CompatibilityCalculation {
   additionalExpenses: string;
   additionalExpensesCurrencyCode: string | null;
   additionalExpensesInBase: string;
-  applicationId: number | null;
   baseCurrencyCode: string;
   calculationTimestamp: string;
   createdAt: string;
   currencyCode: string;
+  dealId: string | null;
   feeAmount: string;
   feeAmountInBase: string;
   feePercentage: string;
@@ -99,9 +99,9 @@ function serializeCompatibilityRateSource(rateSource: string): string {
 type CompatibleCalculationShape = Calculation | CalculationDetails;
 
 export function serializeCompatibilityCalculation(input: {
-  applicationId: number | null;
   calculation: CompatibleCalculationShape;
   currencies: Map<string, CalculationCompatibilityCurrency>;
+  dealId: string | null;
   sentToClient?: number | null;
 }): CompatibilityCalculation {
   const snapshot = input.calculation.currentSnapshot;
@@ -117,7 +117,7 @@ export function serializeCompatibilityCalculation(input: {
 
   return {
     id: input.calculation.id,
-    applicationId: input.applicationId,
+    dealId: input.dealId,
     currencyCode: calculationCurrency.code,
     originalAmount: minorToDecimalString(
       snapshot.originalAmountMinor,

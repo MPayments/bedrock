@@ -16,6 +16,7 @@ import {
 import {
   DrizzleCalculationReads,
 } from "@bedrock/calculations/adapters/drizzle";
+import type { CurrenciesService } from "@bedrock/currencies";
 import {
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
@@ -29,6 +30,7 @@ import {
 } from "@bedrock/platform/persistence";
 
 export function createApiDealsModule(input: {
+  currencies: Pick<CurrenciesService, "findById">;
   db: Database;
   generateUuid?: DealsModuleDeps["generateUuid"];
   idempotency: IdempotencyPort;
@@ -76,8 +78,28 @@ export function createApiDealsModule(input: {
       async findCounterpartyById(id: string) {
         return counterpartyReads.findById(id);
       },
+      async findCurrencyById(id: string) {
+        return input.currencies.findById(id);
+      },
       async findCustomerById(id: string) {
         return customerReads.findById(id);
+      },
+      async listActiveAgreementsByCustomerId(customerId: string) {
+        const result = await agreementReads.list({
+          customerId,
+          isActive: true,
+          limit: 10,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+
+        return result.data.map((agreement) => ({
+          id: agreement.id,
+          customerId: agreement.customerId,
+          organizationId: agreement.organizationId,
+          isActive: agreement.isActive,
+        }));
       },
       validateSupportedCreateType(type) {
         if (type !== "payment") {

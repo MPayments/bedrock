@@ -11,10 +11,15 @@ export interface CreateDealRootInput {
   id: string;
   customerId: string;
   agreementId: string;
-  calculationId: string;
+  calculationId: string | null;
   type: DealType;
   status?: DealStatus;
+  agentId: string | null;
+  reason: string | null;
+  intakeComment: string | null;
   comment: string | null;
+  requestedAmountMinor: bigint | null;
+  requestedCurrencyId: string | null;
 }
 
 export interface CreateDealLegStoredInput {
@@ -55,6 +60,9 @@ export interface CreateDealApprovalStoredInput {
 }
 
 export interface DealStore {
+  createDealCalculationLinks(
+    input: { id: string; calculationId: string; dealId: string }[],
+  ): Promise<void>;
   createDealRoot(input: CreateDealRootInput): Promise<void>;
   createDealLegs(input: CreateDealLegStoredInput[]): Promise<void>;
   createDealParticipants(input: CreateDealParticipantStoredInput[]): Promise<void>;
@@ -62,4 +70,20 @@ export interface DealStore {
     input: CreateDealStatusHistoryStoredInput[],
   ): Promise<void>;
   createDealApprovals(input: CreateDealApprovalStoredInput[]): Promise<void>;
+  setCounterpartyParticipant(input: {
+    counterpartyId: string | null;
+    dealId: string;
+    id?: string;
+  }): Promise<void>;
+  updateDealRoot(input: {
+    dealId: string;
+    agentId?: string | null;
+    calculationId?: string | null;
+    comment?: string | null;
+    intakeComment?: string | null;
+    reason?: string | null;
+    requestedAmountMinor?: bigint | null;
+    requestedCurrencyId?: string | null;
+    status?: DealStatus;
+  }): Promise<void>;
 }

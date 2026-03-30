@@ -163,7 +163,11 @@ describe("deals routes", () => {
       agreementId: detail.agreementId,
       calculationId: detail.calculationId,
       type: "payment",
+      agentId: null,
       comment: detail.comment,
+      intakeComment: null,
+      reason: null,
+      requestedAmount: null,
       actorUserId: "user-1",
       idempotencyKey: "deal-create-1",
     });

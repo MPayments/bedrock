@@ -1,14 +1,18 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import { toMinorAmountString } from "@bedrock/shared/money";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import { z } from "zod";
 
 import { DEALS_CREATE_IDEMPOTENCY_SCOPE } from "../../domain/constants";
 import {
+  DealActiveAgreementAmbiguousError,
+  DealActiveAgreementNotFoundError,
   DealAgreementCustomerMismatchError,
   DealAgreementInactiveError,
   DealCalculationInactiveError,
   DealNotFoundError,
+  DealRequestedAmountCurrencyMismatchError,
 } from "../../errors";
 import {
   CreateDealInputSchema,
@@ -16,7 +20,10 @@ import {
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
-import type { DealReferencesPort } from "../ports/references.port";
+import type {
+  DealAgreementReference,
+  DealReferencesPort,
+} from "../ports/references.port";
 
 const CreateDealCommandInputSchema = CreateDealInputSchema.extend({
   actorUserId: z.string().trim().min(1),
@@ -28,53 +35,99 @@ type CreateDealCommandInput = CreateDealInput & {
   idempotencyKey: string;
 };
 
+async function resolveAgreement(
+  input: CreateDealCommandInput,
+  references: DealReferencesPort,
+): Promise<DealAgreementReference> {
+  if (input.agreementId) {
+    const agreement = await references.findAgreementById(input.agreementId);
+
+    if (!agreement) {
+      throw new NotFoundError("Agreement", input.agreementId);
+    }
+
+    return agreement;
+  }
+
+  const activeAgreements = await references.listActiveAgreementsByCustomerId(
+    input.customerId,
+  );
+
+  if (activeAgreements.length === 0) {
+    throw new DealActiveAgreementNotFoundError(input.customerId);
+  }
+
+  if (activeAgreements.length > 1) {
+    throw new DealActiveAgreementAmbiguousError(input.customerId);
+  }
+
+  return activeAgreements[0]!;
+}
+
 async function validateDealReferences(
   input: CreateDealCommandInput,
   references: DealReferencesPort,
 ) {
   references.validateSupportedCreateType(input.type);
 
-  const [customer, agreement, calculation, counterparty] = await Promise.all([
-    references.findCustomerById(input.customerId),
-    references.findAgreementById(input.agreementId),
-    references.findCalculationById(input.calculationId),
-    input.counterpartyId
-      ? references.findCounterpartyById(input.counterpartyId)
-      : Promise.resolve(null),
-  ]);
+  const [customer, agreement, calculation, counterparty, requestedCurrency] =
+    await Promise.all([
+      references.findCustomerById(input.customerId),
+      resolveAgreement(input, references),
+      input.calculationId
+        ? references.findCalculationById(input.calculationId)
+        : Promise.resolve(null),
+      input.counterpartyId
+        ? references.findCounterpartyById(input.counterpartyId)
+        : Promise.resolve(null),
+      input.requestedCurrencyId
+        ? references.findCurrencyById(input.requestedCurrencyId)
+        : Promise.resolve(null),
+    ]);
 
   if (!customer) {
     throw new NotFoundError("Customer", input.customerId);
   }
 
-  if (!agreement) {
-    throw new NotFoundError("Agreement", input.agreementId);
-  }
-
   if (!agreement.isActive) {
-    throw new DealAgreementInactiveError(input.agreementId);
+    throw new DealAgreementInactiveError(agreement.id);
   }
 
   if (agreement.customerId !== input.customerId) {
-    throw new DealAgreementCustomerMismatchError(
-      input.agreementId,
-      input.customerId,
-    );
+    throw new DealAgreementCustomerMismatchError(agreement.id, input.customerId);
   }
 
-  if (!calculation) {
+  if (input.calculationId && !calculation) {
     throw new NotFoundError("Calculation", input.calculationId);
   }
 
-  if (!calculation.isActive) {
-    throw new DealCalculationInactiveError(input.calculationId);
+  if (calculation && !calculation.isActive) {
+    throw new DealCalculationInactiveError(input.calculationId!);
   }
 
   if (input.counterpartyId && !counterparty) {
     throw new NotFoundError("Counterparty", input.counterpartyId);
   }
 
-  return { agreement };
+  if ((input.requestedAmount == null) !== (input.requestedCurrencyId == null)) {
+    throw new DealRequestedAmountCurrencyMismatchError();
+  }
+
+  if (input.requestedCurrencyId && !requestedCurrency) {
+    throw new NotFoundError("Currency", input.requestedCurrencyId);
+  }
+
+  return {
+    agreement,
+    calculation,
+    requestedAmountMinor:
+      input.requestedAmount && requestedCurrency
+        ? BigInt(
+            toMinorAmountString(input.requestedAmount, requestedCurrency.code),
+          )
+        : null,
+    requestedCurrencyId: requestedCurrency?.id ?? null,
+  };
 }
 
 export class CreateDealCommand {
@@ -87,10 +140,8 @@ export class CreateDealCommand {
 
   async execute(raw: CreateDealCommandInput): Promise<DealDetails> {
     const validated = CreateDealCommandInputSchema.parse(raw);
-    const { agreement } = await validateDealReferences(
-      validated,
-      this.references,
-    );
+    const { agreement, calculation, requestedAmountMinor, requestedCurrencyId } =
+      await validateDealReferences(validated, this.references);
 
     return this.commandUow.run((tx) =>
       this.idempotency.withIdempotencyTx({
@@ -99,11 +150,16 @@ export class CreateDealCommand {
         idempotencyKey: validated.idempotencyKey,
         request: {
           customerId: validated.customerId,
-          agreementId: validated.agreementId,
-          calculationId: validated.calculationId,
+          agreementId: agreement.id,
+          calculationId: validated.calculationId ?? null,
           type: validated.type,
           counterpartyId: validated.counterpartyId ?? null,
+          agentId: validated.agentId ?? null,
+          reason: validated.reason ?? null,
+          intakeComment: validated.intakeComment ?? null,
           comment: validated.comment,
+          requestedAmount: validated.requestedAmount ?? null,
+          requestedCurrencyId: validated.requestedCurrencyId ?? null,
         },
         actorId: validated.actorUserId,
         serializeResult: (result) => ({ dealId: result.id }),
@@ -123,11 +179,26 @@ export class CreateDealCommand {
           await tx.dealStore.createDealRoot({
             id: dealId,
             customerId: validated.customerId,
-            agreementId: validated.agreementId,
-            calculationId: validated.calculationId,
+            agreementId: agreement.id,
+            calculationId: validated.calculationId ?? null,
             type: validated.type,
+            agentId: validated.agentId ?? null,
+            reason: validated.reason ?? null,
+            intakeComment: validated.intakeComment ?? null,
             comment: validated.comment,
+            requestedAmountMinor,
+            requestedCurrencyId,
           });
+
+          if (calculation) {
+            await tx.dealStore.createDealCalculationLinks([
+              {
+                id: this.runtime.generateUuid(),
+                calculationId: calculation.id,
+                dealId,
+              },
+            ]);
+          }
 
           await tx.dealStore.createDealLegs([
             {
@@ -176,7 +247,7 @@ export class CreateDealCommand {
               dealId,
               status: "draft",
               changedBy: validated.actorUserId,
-              comment: validated.comment,
+              comment: validated.intakeComment ?? validated.comment,
             },
           ]);
 
@@ -189,8 +260,8 @@ export class CreateDealCommand {
           this.runtime.log.info("Deal created", {
             dealId,
             customerId: validated.customerId,
-            agreementId: validated.agreementId,
-            calculationId: validated.calculationId,
+            agreementId: agreement.id,
+            calculationId: validated.calculationId ?? null,
             type: validated.type,
           });
 

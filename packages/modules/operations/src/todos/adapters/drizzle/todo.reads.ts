@@ -39,10 +39,8 @@ export class DrizzleTodoReads implements TodoReads {
     if (input.completed !== undefined) {
       conditions.push(eq(opsTodos.completed, input.completed));
     }
-    if (input.applicationId) {
-      conditions.push(
-        eq(opsTodos.applicationId, input.applicationId),
-      );
+    if (input.dealId) {
+      conditions.push(eq(opsTodos.dealId, input.dealId));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;

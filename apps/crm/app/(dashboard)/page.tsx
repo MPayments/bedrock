@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
 import { ScrollText } from "lucide-react";
 import { DashboardTodo } from "@/components/dashboard/dashboard-todo";
-import { DashboardApplications } from "@/components/dashboard/dashboard-applications";
 import { DashboardDeals } from "@/components/dashboard/dashboard-deals";
 import { DashboardChart } from "@/components/dashboard/dashboard-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { DashboardInbox } from "@/components/dashboard/dashboard-inbox";
 import { WidthProvider, Responsive, type Layouts } from "react-grid-layout";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -20,12 +18,10 @@ export default function Home() {
   const defaultLayouts = useMemo<Layouts>(
     () => ({
       lg: [
-        { i: "todo", x: 0, y: 0, w: 16, h: 20, minW: 4, minH: 6 },
-        { i: "chart", x: 16, y: 0, w: 8, h: 20, minW: 3, minH: 6 },
-        { i: "inbox", x: 0, y: 20, w: 4, h: 20, minW: 3, minH: 6 },
-        { i: "applications", x: 4, y: 20, w: 4, h: 20, minW: 2, minH: 6 },
-        { i: "deals", x: 8, y: 20, w: 8, h: 20, minW: 4, minH: 6 },
-        { i: "log", x: 16, y: 10, w: 8, h: 20, minW: 3, minH: 6 },
+        { i: "todo", x: 0, y: 0, w: 12, h: 20, minW: 4, minH: 6 },
+        { i: "chart", x: 12, y: 0, w: 12, h: 20, minW: 3, minH: 6 },
+        { i: "deals", x: 0, y: 20, w: 12, h: 20, minW: 4, minH: 6 },
+        { i: "log", x: 12, y: 20, w: 12, h: 20, minW: 3, minH: 6 },
       ],
     }),
     []
@@ -76,14 +72,8 @@ export default function Home() {
       <div key="todo">
         <DashboardTodo className="h-full" />
       </div>
-      <div key="inbox">
-        <DashboardInbox className="h-full" />
-      </div>
       <div key="chart">
         <DashboardChart className="h-full" />
-      </div>
-      <div key="applications">
-        <DashboardApplications className="h-full" />
       </div>
       <div key="deals">
         <DashboardDeals className="h-full" />

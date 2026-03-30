@@ -5,8 +5,6 @@ import {
   CustomerMembershipSchema,
 } from "@bedrock/iam/contracts";
 import {
-  ApplicationSchema,
-  CreateApplicationInputSchema,
   ClientSchema,
   CreateClientInputSchema,
   DealSchema,
@@ -18,7 +16,7 @@ import {
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
-import { getRequestContext } from "../../middleware/idempotency";
+import { getRequestContext, withRequiredIdempotency } from "../../middleware/idempotency";
 
 const CustomerPortalProfileSchema = z.object({
   customers: z.array(CustomerSchema),
@@ -62,6 +60,49 @@ const CustomerPortalCustomerContextsSchema = z.object({
 });
 
 const CustomerPortalCreateClientInputSchema = CreateClientInputSchema;
+const CustomerPortalDealIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+const CustomerPortalCreateDealInputSchema = z.object({
+  counterpartyId: z.string().uuid(),
+  requestedAmount: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d+)?$/)
+    .optional(),
+  requestedCurrency: z.string().trim().min(3).max(16).optional(),
+});
+const CustomerPortalDealListItemSchema = z.object({
+  calculation: z.any().nullable(),
+  counterpartyId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  id: z.string().uuid(),
+  organizationName: z.string().nullable(),
+  requestedAmount: z.string().nullable(),
+  requestedCurrencyCode: z.string().nullable(),
+  status: z.enum([
+    "draft",
+    "submitted",
+    "rejected",
+    "preparing_documents",
+    "awaiting_funds",
+    "awaiting_payment",
+    "closing_documents",
+    "done",
+    "cancelled",
+  ]),
+});
+const CustomerPortalDealListSchema = z.object({
+  data: z.array(CustomerPortalDealListItemSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+const CustomerPortalDealDetailSchema = z.object({
+  calculation: z.any().nullable(),
+  deal: z.any(),
+  organizationName: z.string().nullable(),
+});
 
 function requireCustomerPortalAccess(
   ctx: AppContext,
@@ -176,69 +217,30 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     },
   });
 
-  const listApplicationsRoute = createRoute({
-    method: "get",
-    path: "/applications",
-    tags: ["Operations - Customer Portal"],
-    middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "List customer's applications",
-    request: {
-      query: z.object({
-        limit: z.coerce.number().int().default(20),
-        offset: z.coerce.number().int().default(0),
-      }),
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: z.any() } },
-        description: "Customer's applications",
-      },
-    },
-  });
-
-  const createApplicationRoute = createRoute({
+  const createDealRoute = createRoute({
     method: "post",
-    path: "/applications",
+    path: "/deals",
     tags: ["Operations - Customer Portal"],
     middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "Create customer application",
+    summary: "Create customer deal",
     request: {
       body: {
         content: {
           "application/json": {
-            schema: CreateApplicationInputSchema.pick({
-              counterpartyId: true,
-              requestedAmount: true,
-              requestedCurrency: true,
-            }),
+            schema: CustomerPortalCreateDealInputSchema,
           },
         },
         required: true,
       },
     },
     responses: {
-      201: {
-        content: { "application/json": { schema: ApplicationSchema } },
-        description: "Application created",
-      },
-      403: {
+      400: {
         content: { "application/json": { schema: OpsErrorSchema } },
-        description: "Not authorized",
+        description: "Missing Idempotency-Key",
       },
-    },
-  });
-
-  const getApplicationRoute = createRoute({
-    method: "get",
-    path: "/applications/{id}",
-    tags: ["Operations - Customer Portal"],
-    middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "Get customer's application details",
-    request: { params: OpsIdParamSchema },
-    responses: {
-      200: {
+      201: {
         content: { "application/json": { schema: z.any() } },
-        description: "Application details",
+        description: "Deal created",
       },
       403: {
         content: { "application/json": { schema: OpsErrorSchema } },
@@ -261,7 +263,7 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: z.any() } },
+        content: { "application/json": { schema: CustomerPortalDealListSchema } },
         description: "Customer's deals",
       },
     },
@@ -273,10 +275,12 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
     tags: ["Operations - Customer Portal"],
     middleware: [requireCustomerPortalAccess(ctx)],
     summary: "Get customer's deal details",
-    request: { params: OpsIdParamSchema },
+    request: { params: CustomerPortalDealIdParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: z.any() } },
+        content: {
+          "application/json": { schema: CustomerPortalDealDetailSchema },
+        },
         description: "Deal details",
       },
       403: {
@@ -336,43 +340,23 @@ export function operationsCustomerPortalRoutes(ctx: AppContext) {
         throw error;
       }
     })
-    .openapi(listApplicationsRoute, async (c) => {
-      const user = c.get("user")!;
-      const query = c.req.valid("query");
-      const result = await ctx.customerPortalWorkflow.listMyApplications(
-        { userId: user.id },
-        query,
-      );
-      return c.json(result, 200);
-    })
-    .openapi(createApplicationRoute, async (c) => {
+    .openapi(createDealRoute, async (c) => {
       const user = c.get("user")!;
       const input = c.req.valid("json");
       try {
-        const result = await ctx.customerPortalWorkflow.createApplication(
-          { userId: user.id },
-          input,
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.customerPortalWorkflow.createDeal(
+            { userId: user.id },
+            input,
+            { idempotencyKey },
+          ),
         );
-        return c.json(result, 201);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.name === "CustomerNotAuthorizedError"
-        ) {
-          return c.json({ error: error.message }, 403);
+
+        if (result instanceof Response) {
+          return result;
         }
-        throw error;
-      }
-    })
-    .openapi(getApplicationRoute, async (c) => {
-      const user = c.get("user")!;
-      const { id } = c.req.valid("param");
-      try {
-        const result = await ctx.customerPortalWorkflow.getApplicationById(
-          { userId: user.id },
-          id,
-        );
-        return c.json(result, 200);
+
+        return c.json(result, 201);
       } catch (error) {
         if (
           error instanceof Error &&

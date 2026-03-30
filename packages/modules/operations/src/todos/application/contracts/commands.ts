@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const CreateTodoInputSchema = z.object({
   agentId: z.string(),
-  applicationId: z.number().int().nullable().optional(),
+  dealId: z.string().uuid().nullable().optional(),
   title: z.string().min(1),
   description: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),

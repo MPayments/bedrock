@@ -19,6 +19,8 @@
   "dependencies": {
     "@bedrock/agreements": "workspace:*",
     "@bedrock/calculations": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/shared": "workspace:*",
