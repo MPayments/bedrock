@@ -44,7 +44,7 @@ export class DrizzleContractStore implements ContractStore {
       .values({
         clientId: input.clientId,
         agentOrganizationId: input.agentOrganizationId,
-        agentOrganizationBankDetailsId: input.agentOrganizationBankDetailsId,
+        organizationRequisiteId: input.organizationRequisiteId,
         contractNumber: input.contractNumber,
         contractDate: input.contractDate,
         agentFee: input.agentFee,

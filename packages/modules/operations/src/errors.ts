@@ -80,12 +80,6 @@ export class OrganizationNotFoundError extends NotFoundError {
   }
 }
 
-export class BankDetailsNotFoundError extends NotFoundError {
-  constructor(id: number) {
-    super("BankDetails", String(id));
-  }
-}
-
 export class TodoNotFoundError extends NotFoundError {
   constructor(id: number) {
     super("Todo", String(id));

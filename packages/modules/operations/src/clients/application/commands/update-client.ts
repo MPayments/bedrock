@@ -29,7 +29,7 @@ export class UpdateClientCommand {
       // Auto-manage contract if contract fields are provided
       if (
         validated.agentOrganizationId &&
-        validated.agentOrganizationBankDetailsId
+        validated.organizationRequisiteId
       ) {
         const existingContract = existing.contractId
           ? await tx.contractStore.findById(existing.contractId)
@@ -44,8 +44,7 @@ export class UpdateClientCommand {
             agentFee: validated.agentFee ?? undefined,
             fixedFee: validated.fixedFee ?? undefined,
             agentOrganizationId: validated.agentOrganizationId,
-            agentOrganizationBankDetailsId:
-              validated.agentOrganizationBankDetailsId,
+            organizationRequisiteId: validated.organizationRequisiteId,
           });
           finalClient = await tx.clientStore.update({
             id: validated.id,
@@ -68,8 +67,7 @@ export class UpdateClientCommand {
             agentFee: validated.agentFee ?? undefined,
             fixedFee: validated.fixedFee ?? undefined,
             agentOrganizationId: validated.agentOrganizationId,
-            agentOrganizationBankDetailsId:
-              validated.agentOrganizationBankDetailsId,
+            organizationRequisiteId: validated.organizationRequisiteId,
           });
           await tx.contractStore.softDelete(existingContract.id);
           finalClient = await tx.clientStore.update({
@@ -90,8 +88,7 @@ export class UpdateClientCommand {
             agentFee: validated.agentFee ?? undefined,
             fixedFee: validated.fixedFee ?? undefined,
             agentOrganizationId: validated.agentOrganizationId,
-            agentOrganizationBankDetailsId:
-              validated.agentOrganizationBankDetailsId,
+            organizationRequisiteId: validated.organizationRequisiteId,
           });
 
           this.runtime.log.info("Contract updated for client", {

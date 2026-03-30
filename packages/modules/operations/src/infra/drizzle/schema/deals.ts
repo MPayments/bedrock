@@ -2,10 +2,9 @@ import { relations, sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, serial, text, uuid } from "drizzle-orm/pg-core";
 
 import { user } from "@bedrock/iam/schema";
-import { counterparties } from "@bedrock/parties/schema";
+import { counterparties, requisites } from "@bedrock/parties/schema";
 
 import type { LocalizedText } from "./agents";
-import { opsAgentOrganizationBankDetails } from "./agents";
 import { opsApplications } from "./applications";
 import { opsCalculations } from "./calculations";
 import { opsDealStatusEnum } from "./enums";
@@ -21,11 +20,9 @@ export const opsDeals = pgTable("ops_deals", {
     .notNull()
     .references(() => opsCalculations.id),
   counterpartyId: uuid("counterparty_id").references(() => counterparties.id),
-  agentOrganizationBankDetailsId: integer(
-    "agent_organization_bank_details_id",
-  )
-    .notNull()
-    .references(() => opsAgentOrganizationBankDetails.id),
+  organizationRequisiteId: uuid("organization_requisite_id").references(
+    () => requisites.id,
+  ),
   status: opsDealStatusEnum("status")
     .notNull()
     .default("preparing_documents"),
@@ -87,9 +84,9 @@ export const opsDealsRelations = relations(opsDeals, ({ one, many }) => ({
     fields: [opsDeals.counterpartyId],
     references: [counterparties.id],
   }),
-  organizationBank: one(opsAgentOrganizationBankDetails, {
-    fields: [opsDeals.agentOrganizationBankDetailsId],
-    references: [opsAgentOrganizationBankDetails.id],
+  organizationRequisite: one(requisites, {
+    fields: [opsDeals.organizationRequisiteId],
+    references: [requisites.id],
   }),
   documents: many(opsDealDocuments),
 }));

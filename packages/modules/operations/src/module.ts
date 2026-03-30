@@ -35,7 +35,6 @@ import { createDealsService } from "./deals/application";
 import type { DealReads } from "./deals/application/ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./deals/application/ports/deals.uow";
 import { createOrganizationsService } from "./organizations/application";
-import type { BankDetailsReads } from "./organizations/application/ports/bank-details.reads";
 import type { OrganizationReads } from "./organizations/application/ports/organization.reads";
 import type { OrganizationsCommandUnitOfWork } from "./organizations/application/ports/organizations.uow";
 import { createTodosService } from "./todos/application";
@@ -64,7 +63,6 @@ export interface OperationsModuleDeps {
   clientReads: ClientReads;
   subAgentReads: SubAgentReads;
   organizationReads: OrganizationReads;
-  bankDetailsReads: BankDetailsReads;
   todoReads: TodoReads;
 
   // UoW
@@ -144,7 +142,6 @@ export function createOperationsModule(deps: OperationsModuleDeps) {
       runtime: createRuntime("operations.organizations"),
       commandUow: deps.organizationsUow,
       reads: deps.organizationReads,
-      bankDetailsReads: deps.bankDetailsReads,
     }),
     todos: createTodosService({
       runtime: createRuntime("operations.todos"),

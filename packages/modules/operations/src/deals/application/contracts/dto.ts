@@ -16,7 +16,7 @@ export const DealSchema = z.object({
   applicationId: z.number().int(),
   calculationId: z.number().int(),
   counterpartyId: z.string().uuid().nullable(),
-  agentOrganizationBankDetailsId: z.number().int(),
+  organizationRequisiteId: z.string().uuid().nullable(),
   status: z.enum(DEAL_STATUS_VALUES),
   invoiceNumber: z.string().nullable(),
   invoiceDate: z.string().nullable(),

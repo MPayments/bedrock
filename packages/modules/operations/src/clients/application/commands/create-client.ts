@@ -106,7 +106,7 @@ export class CreateClientCommand {
       // Auto-create contract if contract fields are provided
       if (
         validated.agentOrganizationId &&
-        validated.agentOrganizationBankDetailsId
+        validated.organizationRequisiteId
       ) {
         const contract = await tx.contractStore.create({
           clientId: created.id,
@@ -115,8 +115,7 @@ export class CreateClientCommand {
           agentFee: validated.agentFee ?? undefined,
           fixedFee: validated.fixedFee ?? undefined,
           agentOrganizationId: validated.agentOrganizationId,
-          agentOrganizationBankDetailsId:
-            validated.agentOrganizationBankDetailsId,
+          organizationRequisiteId: validated.organizationRequisiteId,
         });
 
         const withContract = await tx.clientStore.update({

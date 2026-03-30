@@ -2,16 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChevronLeft,
   Save,
   Loader2,
-  Plus,
-  Trash2,
   Building2,
-  CreditCard,
   FileSignature,
   Stamp,
   Signature,
@@ -38,8 +35,8 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import {
-  createOrganizationWithBanksSchema,
-  type CreateOrganizationWithBanksInput,
+  createOrganizationSchema,
+  type CreateOrganizationInput,
 } from "@/lib/validation";
 
 export default function NewOrganizationPage() {
@@ -61,8 +58,8 @@ export default function NewOrganizationPage() {
   const [cropperImageSrc, setCropperImageSrc] = useState<string>("");
   const [cropperImageType, setCropperImageType] = useState<ImageType>("signature");
 
-  const form = useForm<CreateOrganizationWithBanksInput>({
-    resolver: zodResolver(createOrganizationWithBanksSchema),
+  const form = useForm<CreateOrganizationInput>({
+    resolver: zodResolver(createOrganizationSchema),
     defaultValues: {
       name: "",
       nameI18n: { ru: "", en: "" },
@@ -86,28 +83,8 @@ export default function NewOrganizationPage() {
       directorPositionI18n: { ru: "", en: "" },
       directorBasis: "Устав",
       directorBasisI18n: { ru: "", en: "" },
-      banks: [
-        {
-          name: "",
-          nameI18n: { ru: "", en: "" },
-          bankName: "",
-          bankNameI18n: { ru: "", en: "" },
-          bankAddress: "",
-          bankAddressI18n: { ru: "", en: "" },
-          account: "",
-          bic: "",
-          corrAccount: "",
-          swiftCode: "",
-          currencyCode: "RUB",
-        },
-      ],
     },
     mode: "onBlur",
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "banks",
   });
 
   // Обработка загрузки подписи - открывает cropper
@@ -205,12 +182,6 @@ export default function NewOrganizationPage() {
         directorBasis: values.directorBasis,
       };
 
-      values.banks.forEach((bank, i) => {
-        if (bank.name) ruFields[`bank_${i}_name`] = bank.name;
-        if (bank.bankName) ruFields[`bank_${i}_bankName`] = bank.bankName;
-        if (bank.bankAddress) ruFields[`bank_${i}_bankAddress`] = bank.bankAddress;
-      });
-
       const translated = await translateFieldsToEnglish(ruFields);
 
       const orgMapping: Record<string, string> = {
@@ -232,22 +203,6 @@ export default function NewOrganizationPage() {
           });
         }
       }
-
-      values.banks.forEach((_, i) => {
-        const bankFields: Record<string, string> = {
-          [`bank_${i}_name`]: `banks.${i}.nameI18n.en`,
-          [`bank_${i}_bankName`]: `banks.${i}.bankNameI18n.en`,
-          [`bank_${i}_bankAddress`]: `banks.${i}.bankAddressI18n.en`,
-        };
-        for (const [key, enField] of Object.entries(bankFields)) {
-          if (translated[key]) {
-            form.setValue(enField as any, translated[key], {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-          }
-        }
-      });
     } catch (err) {
       console.error("Translation error:", err);
       setError(
@@ -258,7 +213,7 @@ export default function NewOrganizationPage() {
     }
   };
 
-  const onSubmit = async (data: CreateOrganizationWithBanksInput) => {
+  const onSubmit = async (data: CreateOrganizationInput) => {
     // Проверяем наличие файлов
     if (!signatureBlob || !sealBlob) {
       setError("Необходимо загрузить печать и подпись");
@@ -269,7 +224,7 @@ export default function NewOrganizationPage() {
     setError(null);
 
     try {
-      const normalizedData: CreateOrganizationWithBanksInput = {
+      const normalizedData: CreateOrganizationInput = {
         ...data,
         nameI18n: {
           ru: data.name || undefined,
@@ -303,24 +258,9 @@ export default function NewOrganizationPage() {
           ru: data.directorBasis || undefined,
           en: data.directorBasisI18n?.en || undefined,
         },
-        banks: data.banks.map((bank) => ({
-          ...bank,
-          nameI18n: {
-            ru: bank.name || undefined,
-            en: bank.nameI18n?.en || undefined,
-          },
-          bankNameI18n: {
-            ru: bank.bankName || undefined,
-            en: bank.bankNameI18n?.en || undefined,
-          },
-          bankAddressI18n: {
-            ru: bank.bankAddress || undefined,
-            en: bank.bankAddressI18n?.en || undefined,
-          },
-        })),
       };
 
-      const { banks, name, ...organizationData } = normalizedData;
+      const { name, ...organizationData } = normalizedData;
       const canonicalOrganizationData = {
         ...organizationData,
         fullName: name,
@@ -343,17 +283,7 @@ export default function NewOrganizationPage() {
       const organization = await res.json();
       const orgId = organization.id;
 
-      // 2. Создаём банковские реквизиты
-      for (const bank of banks) {
-        await fetch(`${API_BASE_URL}/organizations/${orgId}/banks`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(bank),
-        });
-      }
-
-      // 3. Загружаем файлы (multipart)
+      // 2. Загружаем файлы (multipart)
       const fileData = new FormData();
       fileData.append("signature", signatureBlob, "signature.png");
       fileData.append("seal", sealBlob, "seal.png");
@@ -364,7 +294,7 @@ export default function NewOrganizationPage() {
         body: fileData,
       });
 
-      router.push(`/admin/organizations`);
+      router.push(`/admin/organizations/${orgId}`);
     } catch (err) {
       console.error("Create organization error:", err);
       setError(
@@ -859,247 +789,17 @@ export default function NewOrganizationPage() {
 
             {/* Банковские реквизиты */}
             <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                  Банковские реквизиты{" "}
-                  <span className="text-destructive">*</span>
+                  Банковские реквизиты
                 </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    append({
-                      name: "",
-                      nameI18n: { ru: "", en: "" },
-                      bankName: "",
-                      bankNameI18n: { ru: "", en: "" },
-                      bankAddress: "",
-                      bankAddressI18n: { ru: "", en: "" },
-                      account: "",
-                      bic: "",
-                      corrAccount: "",
-                      swiftCode: "",
-                      currencyCode: "RUB",
-                    })
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Добавить банк
-                </Button>
               </CardHeader>
               <CardContent className="space-y-6">
-                {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="rounded-lg border p-4 space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">Банк #{index + 1}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Укажите БИК или SWIFT код
-                        </p>
-                      </div>
-                      {fields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Название счёта{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Основной счёт RUB"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bankName`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Название банка{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input placeholder="ВТБ" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.currencyCode`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Валюта</FormLabel>
-                            <FormControl>
-                              <Input placeholder="RUB" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.nameI18n.en`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Название счёта (EN)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Account title in English" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bankNameI18n.en`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Название банка (EN)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Bank name in English" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.bankAddress`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Адрес банка</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="г. Москва, ул. Банковская, д. 1"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.bankAddressI18n.en`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Адрес банка (EN)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Bank address in English" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.account`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Номер счёта / IBAN{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="40807810916120000001"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bic`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>БИК / BIC</FormLabel>
-                            <FormControl>
-                              <Input placeholder="044525411" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.corrAccount`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Корр. счёт</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="30101810145250000411"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.swiftCode`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SWIFT код</FormLabel>
-                          <FormControl>
-                            <Input placeholder="VTBRRUMM" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                ))}
-
-                {form.formState.errors.banks?.root && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.banks.root.message}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Банковские реквизиты больше не создаются прямо на странице
+                  организации. Сначала сохраните организацию, затем добавьте
+                  реквизиты на отдельном экране управления реквизитами.
+                </p>
               </CardContent>
             </Card>
           </div>

@@ -78,15 +78,17 @@ interface Organization {
 }
 
 interface Bank {
-  id: number;
-  name: string;
-  bankName?: string;
-  currencyCode?: string;
+  id: string;
+  label: string;
+  institutionName?: string | null;
+  accountNo?: string | null;
+  bic?: string | null;
+  swift?: string | null;
 }
 
 interface ContractFormData {
   organizationId?: string;
-  agentOrganizationBankDetailsId?: number;
+  organizationRequisiteId?: string;
   agentFee: string;
   fixedFee: string;
 }
@@ -169,7 +171,7 @@ export function NewContractDialog({
       setError(null);
 
       const res = await fetch(
-        `${API_BASE_URL}/organizations/${orgId}/banks`,
+        `${API_BASE_URL}/requisites?ownerType=organization&ownerId=${orgId}&kind=bank&limit=100&offset=0`,
         {
           credentials: "include",
         }
@@ -196,7 +198,7 @@ export function NewContractDialog({
   const isFormDirty = () => {
     return (
       formData.organizationId !== undefined ||
-      formData.agentOrganizationBankDetailsId !== undefined ||
+      formData.organizationRequisiteId !== undefined ||
       formData.agentFee !== "" ||
       formData.fixedFee !== ""
     );
@@ -226,7 +228,7 @@ export function NewContractDialog({
     if (step === "organization" && formData.organizationId) {
       await fetchBanks(formData.organizationId);
       setStep("bank");
-    } else if (step === "bank" && formData.agentOrganizationBankDetailsId) {
+    } else if (step === "bank" && formData.organizationRequisiteId) {
       setStep("fees");
     }
   };
@@ -235,7 +237,7 @@ export function NewContractDialog({
   const handleBack = () => {
     if (step === "bank") {
       setStep("organization");
-      setFormData((prev) => ({ ...prev, agentOrganizationBankDetailsId: undefined }));
+      setFormData((prev) => ({ ...prev, organizationRequisiteId: undefined }));
       setBanks([]);
     } else if (step === "fees") {
       setStep("bank");
@@ -244,8 +246,8 @@ export function NewContractDialog({
 
   // Создание контракта
   const handleCreate = async () => {
-    if (!formData.organizationId || !formData.agentOrganizationBankDetailsId) {
-      setError("Пожалуйста, выберите организацию и банк");
+    if (!formData.organizationId || !formData.organizationRequisiteId) {
+      setError("Пожалуйста, выберите организацию и реквизит");
       return;
     }
 
@@ -261,7 +263,7 @@ export function NewContractDialog({
         credentials: "include",
         body: JSON.stringify({
           organizationId: formData.organizationId,
-          agentOrganizationBankDetailsId: formData.agentOrganizationBankDetailsId,
+          organizationRequisiteId: formData.organizationRequisiteId,
           agentFee: formData.agentFee || undefined,
           fixedFee: formData.fixedFee || undefined,
         }),
@@ -296,7 +298,7 @@ export function NewContractDialog({
     (org) => org.id === formData.organizationId
   );
   const selectedBank = banks.find(
-    (bank) => bank.id === formData.agentOrganizationBankDetailsId
+    (bank) => bank.id === formData.organizationRequisiteId
   );
 
   const getStepTitle = () => {
@@ -304,7 +306,7 @@ export function NewContractDialog({
       case "organization":
         return "Выберите организацию";
       case "bank":
-        return "Выберите банк";
+        return "Выберите реквизит";
       case "fees":
         return "Условия договора";
     }
@@ -326,7 +328,7 @@ export function NewContractDialog({
       case "organization":
         return formData.organizationId !== undefined;
       case "bank":
-        return formData.agentOrganizationBankDetailsId !== undefined;
+        return formData.organizationRequisiteId !== undefined;
       case "fees":
         return true;
     }
@@ -359,7 +361,7 @@ export function NewContractDialog({
                       setFormData((prev) => ({
                         ...prev,
                         organizationId: value,
-                        agentOrganizationBankDetailsId: undefined,
+                        organizationRequisiteId: undefined,
                       }))
                     }
                   >
@@ -407,7 +409,7 @@ export function NewContractDialog({
               </>
             )}
 
-            {/* Шаг 2: Выбор банка */}
+            {/* Шаг 2: Выбор реквизита */}
             {step === "bank" && (
               <>
                 {loadingBanks ? (
@@ -416,21 +418,25 @@ export function NewContractDialog({
                   </div>
                 ) : (
                   <RadioGroup
-                    value={formData.agentOrganizationBankDetailsId?.toString() || ""}
+                    value={formData.organizationRequisiteId || ""}
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        agentOrganizationBankDetailsId: parseInt(value),
+                        organizationRequisiteId: value,
                       }))
                     }
                   >
                     <div className="space-y-3 max-h-[250px] overflow-y-auto">
                       {banks.map((bank) => {
-                        const bankName =
-                          bank.name || bank.bankName || `Банк #${bank.id}`;
-                        const subText = bank.currencyCode
-                          ? `Валюта: ${bank.currencyCode}`
-                          : undefined;
+                        const bankName = bank.label || bank.institutionName || "Реквизит";
+                        const subText = [
+                          bank.institutionName,
+                          bank.accountNo ? `Счёт: ${bank.accountNo}` : null,
+                          bank.bic ? `BIC: ${bank.bic}` : null,
+                          bank.swift ? `SWIFT: ${bank.swift}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ");
 
                         return (
                           <div
@@ -461,7 +467,7 @@ export function NewContractDialog({
 
                 {banks.length === 0 && !loadingBanks && (
                   <div className="text-center py-8 text-muted-foreground">
-                    У организации нет доступных банков
+                    У организации нет доступных банковских реквизитов
                   </div>
                 )}
               </>
@@ -484,18 +490,13 @@ export function NewContractDialog({
                   </div>
                   <div className="min-w-0 overflow-hidden">
                     <div className="text-sm text-muted-foreground mb-1">
-                      Банк
+                      Реквизит
                     </div>
                     <div
                       className="font-medium truncate max-w-full"
-                      title={selectedBank?.name || selectedBank?.bankName}
+                      title={selectedBank?.label || selectedBank?.institutionName || undefined}
                     >
-                      {selectedBank?.name || selectedBank?.bankName}
-                      {selectedBank?.currencyCode && (
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({selectedBank.currencyCode})
-                        </span>
-                      )}
+                      {selectedBank?.label || selectedBank?.institutionName}
                     </div>
                   </div>
                 </div>

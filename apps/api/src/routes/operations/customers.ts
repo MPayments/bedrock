@@ -21,6 +21,10 @@ import {
   findCanonicalOrganizationByLegacyId,
   resolveLegacyHoldingOrganizationByCanonicalId,
 } from "../organization-bridge";
+import {
+  getOrganizationBankRequisiteOrThrow,
+  serializeOrganizationRequisiteForDocuments,
+} from "../organization-requisites";
 
 const HEADER_STYLE: Partial<ExcelJS.Style> = {
   font: { bold: true, name: "Calibri", size: 11 },
@@ -606,12 +610,11 @@ async function ensureActiveShellForCounterparty(
     buildLegacyShellCreateInput({
       counterpartyId: counterparty.id,
       customerId: input.customerId,
-      values: {
+        values: {
         account: null,
         address: null,
         addressI18n: null,
         agentFee: null,
-        agentOrganizationBankDetailsId: null,
         agentOrganizationId: null,
         bankAddress: null,
         bankAddressI18n: null,
@@ -634,6 +637,7 @@ async function ensureActiveShellForCounterparty(
         fixedFee: null,
         inn: counterparty.externalId ?? null,
         kpp: null,
+        organizationRequisiteId: null,
         ogrn: null,
         okpo: null,
         oktmo: null,
@@ -1171,8 +1175,8 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           "application/json": {
             schema: z.object({
               agentFee: z.string().optional(),
-              agentOrganizationBankDetailsId: z.number().int(),
               organizationId: z.string().uuid(),
+              organizationRequisiteId: z.string().uuid(),
               contractDate: z.string().optional(),
               contractNumber: z.string().optional(),
               fixedFee: z.string().optional(),
@@ -1367,8 +1371,6 @@ export function operationsCustomersRoutes(ctx: AppContext) {
         address: patch.address ?? shell?.address ?? null,
         addressI18n: patch.addressI18n ?? shell?.addressI18n ?? null,
         agentFee: patch.agentFee ?? null,
-        agentOrganizationBankDetailsId:
-          patch.agentOrganizationBankDetailsId ?? null,
         agentOrganizationId: patch.agentOrganizationId ?? null,
         bankAddress: patch.bankAddress ?? shell?.bankAddress ?? null,
         bankAddressI18n:
@@ -1395,6 +1397,7 @@ export function operationsCustomersRoutes(ctx: AppContext) {
         fixedFee: patch.fixedFee ?? null,
         inn: patch.inn ?? shell?.inn ?? current.externalId ?? null,
         kpp: patch.kpp ?? shell?.kpp ?? null,
+        organizationRequisiteId: patch.organizationRequisiteId ?? null,
         ogrn: patch.ogrn ?? shell?.ogrn ?? null,
         okpo: patch.okpo ?? shell?.okpo ?? null,
         oktmo: patch.oktmo ?? shell?.oktmo ?? null,
@@ -1499,13 +1502,14 @@ export function operationsCustomersRoutes(ctx: AppContext) {
             contract.agentOrganizationId,
           )
         : null;
-      const organizationBank =
-        contract.agentOrganizationBankDetailsId != null
-          ? await ctx.operationsModule.organizations.bankDetails.queries.findById(
-              contract.agentOrganizationBankDetailsId,
+      const organizationRequisite =
+        contract.organizationRequisiteId != null
+          ? await getOrganizationBankRequisiteOrThrow(
+              ctx,
+              contract.organizationRequisiteId,
             )
           : null;
-      if (!organization || !organizationBank) {
+      if (!organization || !organizationRequisite) {
         return c.json({ error: "Organization not found" }, 404);
       }
 
@@ -1514,7 +1518,10 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           client: shell as unknown as Record<string, unknown>,
           contract: contract as unknown as Record<string, unknown>,
           organization: (organization ?? {}) as Record<string, unknown>,
-          organizationBank: (organizationBank ?? {}) as Record<string, unknown>,
+          organizationRequisite: await serializeOrganizationRequisiteForDocuments(
+            ctx,
+            organizationRequisite,
+          ),
           format,
           lang,
         });
@@ -1541,27 +1548,37 @@ export function operationsCustomersRoutes(ctx: AppContext) {
           await resolveLegacyHoldingOrganizationByCanonicalId(
             input.organizationId,
           );
+        const requisite = await getOrganizationBankRequisiteOrThrow(
+          ctx,
+          input.organizationRequisiteId,
+        );
+        if (requisite.ownerId !== input.organizationId) {
+          return c.json(
+            { error: "Organization requisite does not belong to organization" },
+            400,
+          );
+        }
         if (existing) {
           const updated = await ctx.operationsModule.contracts.commands.update({
-            agentOrganizationBankDetailsId: input.agentOrganizationBankDetailsId,
             agentOrganizationId: legacyOrganization.id,
             agentFee: input.agentFee,
             contractDate: input.contractDate,
             contractNumber: input.contractNumber,
             fixedFee: input.fixedFee,
             id: existing.id,
+            organizationRequisiteId: input.organizationRequisiteId,
           });
           return c.json(await serializeContractForPublic(ctx, updated!), 201);
         }
 
         const created = await ctx.operationsModule.contracts.commands.create({
-          agentOrganizationBankDetailsId: input.agentOrganizationBankDetailsId,
           agentOrganizationId: legacyOrganization.id,
           agentFee: input.agentFee,
           clientId: shell.id,
           contractDate: input.contractDate,
           contractNumber: input.contractNumber,
           fixedFee: input.fixedFee,
+          organizationRequisiteId: input.organizationRequisiteId,
         });
         return c.json(await serializeContractForPublic(ctx, created), 201);
       } catch (error) {

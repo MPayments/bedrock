@@ -25,10 +25,12 @@ interface Calculation {
 }
 
 interface Bank {
-  id: number;
-  name: string;
-  organizationId: string | null;
-  currencyCode?: string;
+  id: string;
+  label: string;
+  institutionName: string | null;
+  accountNo: string | null;
+  bic: string | null;
+  swift: string | null;
 }
 
 interface CreateDealDialogProps {
@@ -52,7 +54,7 @@ export function CreateDealDialog({
   const [selectedCalculationId, setSelectedCalculationId] = useState<
     number | null
   >(null);
-  const [selectedBankId, setSelectedBankId] = useState<number | null>(null);
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loadingBanks, setLoadingBanks] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -77,27 +79,67 @@ export function CreateDealDialog({
 
   const handleNextStep = async () => {
     if (step === "calculation" && selectedCalculationId) {
-      // Загружаем банки
+      // Загружаем реквизиты организации по активному контракту клиента
       setLoadingBanks(true);
       setError(null);
       try {
-        const url = `${API_BASE_URL}/applications/${applicationId}/banks`;
-        const res = await fetch(url, {
+        const applicationRes = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
           credentials: "include",
         });
 
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || "Ошибка загрузки списка банков");
+        if (!applicationRes.ok) {
+          const errorData = await applicationRes.json().catch(() => ({}));
+          throw new Error(errorData.message || "Ошибка загрузки заявки");
         }
 
-        const banksData: Bank[] = await res.json();
+        const application = await applicationRes.json();
+        const clientId = application.clientId as number | undefined;
+        if (!clientId) {
+          throw new Error("У заявки не найден клиент");
+        }
+
+        const contractRes = await fetch(
+          `${API_BASE_URL}/contracts?clientId=${clientId}&isActive=true&limit=1&offset=0`,
+          { credentials: "include" },
+        );
+
+        if (!contractRes.ok) {
+          const errorData = await contractRes.json().catch(() => ({}));
+          throw new Error(errorData.message || "Ошибка загрузки договора");
+        }
+
+        const contractPayload = await contractRes.json();
+        const contracts = Array.isArray(contractPayload)
+          ? contractPayload
+          : contractPayload.data ?? [];
+        const contract = contracts[0];
+
+        if (!contract?.organizationId) {
+          throw new Error("У клиента нет активного договора с организацией");
+        }
+
+        const requisitesRes = await fetch(
+          `${API_BASE_URL}/requisites?ownerType=organization&ownerId=${contract.organizationId}&kind=bank&limit=100&offset=0`,
+          { credentials: "include" },
+        );
+
+        if (!requisitesRes.ok) {
+          const errorData = await requisitesRes.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || "Ошибка загрузки реквизитов организации",
+          );
+        }
+
+        const requisitesPayload = await requisitesRes.json();
+        const banksData: Bank[] = Array.isArray(requisitesPayload)
+          ? requisitesPayload
+          : requisitesPayload.data ?? [];
         setBanks(banksData);
         setStep("bank");
       } catch (err) {
         console.error("Banks fetch error:", err);
         setError(
-          err instanceof Error ? err.message : "Не удалось загрузить банки"
+        err instanceof Error ? err.message : "Не удалось загрузить реквизиты"
         );
       } finally {
         setLoadingBanks(false);
@@ -113,7 +155,7 @@ export function CreateDealDialog({
 
   const handleCreate = async () => {
     if (!selectedCalculationId || !selectedBankId) {
-      setError("Не выбран расчёт или банк");
+      setError("Не выбран расчёт или реквизит");
       return;
     }
 
@@ -130,7 +172,7 @@ export function CreateDealDialog({
         credentials: "include",
         body: JSON.stringify({
           calculationId: selectedCalculationId,
-          bankId: selectedBankId,
+          organizationRequisiteId: selectedBankId,
         }),
       });
 
@@ -169,12 +211,6 @@ export function CreateDealDialog({
     return new Date(value).toLocaleString("ru-RU");
   };
 
-  // Get selected calculation's base currency
-  const selectedCalc = selectedCalculationId
-    ? calculations.find((c) => c.id === selectedCalculationId)
-    : null;
-  const selectedBaseCurrency = selectedCalc?.baseCurrencyCode || "RUB";
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -186,7 +222,7 @@ export function CreateDealDialog({
           <DialogDescription>
             {step === "calculation"
               ? "Шаг 1 из 2: Выберите расчёт для создания сделки"
-              : "Шаг 2 из 2: Выберите банк для сделки"}
+              : "Шаг 2 из 2: Выберите банковский реквизит организации"}
           </DialogDescription>
         </DialogHeader>
 
@@ -257,43 +293,37 @@ export function CreateDealDialog({
               ) : (
                 <RadioGroup
                   value={selectedBankId?.toString() || ""}
-                  onValueChange={(value) => setSelectedBankId(parseInt(value))}
+                  onValueChange={(value) => setSelectedBankId(value)}
                 >
                   <div className="space-y-3">
                     {banks.map((bank) => {
-                      const bankCurrency = bank.currencyCode || "RUB";
-                      const isMatch = bankCurrency === selectedBaseCurrency;
+                      const label = bank.label || bank.institutionName || "Реквизит";
+                      const details = [
+                        bank.institutionName,
+                        bank.accountNo ? `Счёт: ${bank.accountNo}` : null,
+                        bank.bic ? `BIC: ${bank.bic}` : null,
+                        bank.swift ? `SWIFT: ${bank.swift}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ");
+
                       return (
                         <div
                           key={bank.id}
-                          className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
-                            isMatch
-                              ? "hover:bg-accent"
-                              : "opacity-50 cursor-not-allowed"
-                          }`}
+                          className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-accent"
                         >
                           <RadioGroupItem
                             value={bank.id.toString()}
                             id={`bank-${bank.id}`}
-                            disabled={!isMatch}
                           />
                           <Label
                             htmlFor={`bank-${bank.id}`}
-                            className={`flex-1 font-normal ${isMatch ? "cursor-pointer" : "cursor-not-allowed"}`}
+                            className="flex-1 cursor-pointer font-normal"
                           >
-                            <div className="flex items-center gap-2">
-                              <span>{bank.name}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                isMatch
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-500"
-                              }`}>
-                                {bankCurrency}
-                              </span>
-                            </div>
-                            {!isMatch && (
+                            <div className="font-medium">{label}</div>
+                            {details && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Не совпадает с базовой валютой расчёта ({selectedBaseCurrency})
+                                {details}
                               </p>
                             )}
                           </Label>
@@ -306,7 +336,7 @@ export function CreateDealDialog({
 
               {banks.length === 0 && !loadingBanks && (
                 <div className="text-center py-8 text-muted-foreground">
-                  У клиента нет доступных банков
+                  Для организации по договору нет доступных банковских реквизитов
                 </div>
               )}
             </>

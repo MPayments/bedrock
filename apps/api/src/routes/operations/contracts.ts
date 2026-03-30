@@ -15,6 +15,7 @@ import {
   findCanonicalOrganizationByLegacyId,
   resolveLegacyHoldingOrganizationByCanonicalId,
 } from "../organization-bridge";
+import { getOrganizationBankRequisiteOrThrow } from "../organization-requisites";
 
 const PublicContractSchema = ContractSchema.omit({
   agentOrganizationId: true,
@@ -170,6 +171,13 @@ export function operationsContractsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
       const legacyOrganization =
         await resolveLegacyHoldingOrganizationByCanonicalId(input.organizationId);
+      const requisite = await getOrganizationBankRequisiteOrThrow(
+        ctx,
+        input.organizationRequisiteId,
+      );
+      if (requisite.ownerId !== input.organizationId) {
+        return c.json({ error: "Organization requisite does not belong to organization" }, 400);
+      }
       const { organizationId: _organizationId, ...rest } = input;
       const result = await ctx.operationsModule.contracts.commands.create({
         ...rest,
@@ -181,10 +189,34 @@ export function operationsContractsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       const { organizationId, ...rest } = input;
+      const current = await ctx.operationsModule.contracts.queries.findById(id);
+      if (!current) {
+        return c.json({ error: "Contract not found" }, 404);
+      }
       const legacyOrganization =
         organizationId === undefined
           ? null
           : await resolveLegacyHoldingOrganizationByCanonicalId(organizationId);
+      if (rest.organizationRequisiteId) {
+        const requisite = await getOrganizationBankRequisiteOrThrow(
+          ctx,
+          rest.organizationRequisiteId,
+        );
+        const targetOrganizationId =
+          organizationId ??
+          (
+            await findCanonicalOrganizationByLegacyId(
+              ctx,
+              current.agentOrganizationId,
+            )
+          )?.id;
+        if (!targetOrganizationId || requisite.ownerId !== targetOrganizationId) {
+          return c.json(
+            { error: "Organization requisite does not belong to organization" },
+            400,
+          );
+        }
+      }
       const result = await ctx.operationsModule.contracts.commands.update({
         ...rest,
         ...(legacyOrganization

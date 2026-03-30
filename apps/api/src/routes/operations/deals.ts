@@ -21,6 +21,10 @@ import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { exportDealsXlsx, xlsxFilename } from "./excel-export";
 import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
+import {
+  getOrganizationBankRequisiteOrThrow,
+  serializeOrganizationRequisiteForDocuments,
+} from "../organization-requisites";
 
 export function operationsDealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -444,24 +448,25 @@ export function operationsDealsRoutes(ctx: AppContext) {
         await ctx.operationsModule.deals.queries.findByIdWithDetails(id);
       if (!deal) return c.json({ error: "Deal not found" }, 404);
 
-      // Enrich with contract, organization, organizationBank, subAgent
+      // Enrich with contract, organization, organizationRequisite, subAgent
       let contract = null;
       let organization = null;
-      let organizationBank = null;
+      let organizationRequisite = null;
       let subAgent = null;
 
       if (deal.application?.clientId) {
         contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
       }
 
-      if (deal.deal.agentOrganizationBankDetailsId) {
-        organizationBank = await ctx.operationsModule.organizations.bankDetails.queries.findById(
-          deal.deal.agentOrganizationBankDetailsId,
+      if (deal.deal.organizationRequisiteId) {
+        organizationRequisite = await getOrganizationBankRequisiteOrThrow(
+          ctx,
+          deal.deal.organizationRequisiteId,
         );
-        if (organizationBank) {
+        if (organizationRequisite && contract?.agentOrganizationId) {
           organization = await findCanonicalOrganizationByLegacyId(
             ctx,
-            (organizationBank as any).organizationId,
+            contract.agentOrganizationId,
           );
         }
       }
@@ -470,12 +475,46 @@ export function operationsDealsRoutes(ctx: AppContext) {
         ...deal,
         contract,
         organization,
-        organizationBank,
+        organizationRequisite: organizationRequisite
+          ? await serializeOrganizationRequisiteForDocuments(
+              ctx,
+              organizationRequisite,
+            )
+          : null,
         subAgent,
       }, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
+      const requisite = await getOrganizationBankRequisiteOrThrow(
+        ctx,
+        input.organizationRequisiteId,
+      );
+      const application =
+        await ctx.operationsModule.applications.queries.findById(
+          input.applicationId,
+        );
+      if (!application) {
+        return c.json({ error: "Application not found" }, 404);
+      }
+
+      const contract = await ctx.operationsModule.contracts.queries.findByClient(
+        application.clientId,
+      );
+      if (!contract) {
+        return c.json({ error: "Contract not found" }, 404);
+      }
+
+      const organization = await findCanonicalOrganizationByLegacyId(
+        ctx,
+        contract.agentOrganizationId,
+      );
+      if (!organization || requisite.ownerId !== organization.id) {
+        return c.json(
+          { error: "Organization requisite does not belong to contract organization" },
+          400,
+        );
+      }
       const result = await ctx.operationsModule.deals.commands.create(input);
       const sessionUser = c.get("user");
       if (sessionUser) {
@@ -610,20 +649,21 @@ export function operationsDealsRoutes(ctx: AppContext) {
 
       let contract = null;
       let organization = null;
-      let organizationBank = null;
+      let organizationRequisite = null;
 
       if (deal.application?.clientId) {
         contract = await ctx.operationsModule.contracts.queries.findByClient(deal.application.clientId);
       }
 
-      if (deal.deal.agentOrganizationBankDetailsId) {
-        organizationBank = await ctx.operationsModule.organizations.bankDetails.queries.findById(
-          deal.deal.agentOrganizationBankDetailsId,
+      if (deal.deal.organizationRequisiteId) {
+        organizationRequisite = await getOrganizationBankRequisiteOrThrow(
+          ctx,
+          deal.deal.organizationRequisiteId,
         );
-        if (organizationBank) {
+        if (organizationRequisite && contract?.agentOrganizationId) {
           organization = await findCanonicalOrganizationByLegacyId(
             ctx,
-            (organizationBank as any).organizationId,
+            contract.agentOrganizationId,
           );
         }
       }
@@ -634,7 +674,7 @@ export function operationsDealsRoutes(ctx: AppContext) {
         client = await ctx.operationsModule.clients.queries.findById(deal.application.clientId);
       }
       if (!client) return c.json({ error: "Client not found" }, 404);
-      if (!organization || !organizationBank) {
+      if (!organization || !organizationRequisite) {
         return c.json({ error: "Organization not found" }, 404);
       }
 
@@ -646,7 +686,10 @@ export function operationsDealsRoutes(ctx: AppContext) {
           client: client as unknown as Record<string, unknown>,
           contract: (contract ?? {}) as Record<string, unknown>,
           organization: (organization ?? {}) as Record<string, unknown>,
-          organizationBank: (organizationBank ?? {}) as Record<string, unknown>,
+          organizationRequisite: await serializeOrganizationRequisiteForDocuments(
+            ctx,
+            organizationRequisite,
+          ),
           format,
           lang,
         });

@@ -22,6 +22,7 @@ import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { exportApplicationsXlsx, xlsxFilename } from "./excel-export";
 import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
+import { getOrganizationBankRequisiteOrThrow } from "../organization-requisites";
 
 export function operationsApplicationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -186,8 +187,7 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
           "application/json": {
             schema: CreateDealInputSchema.omit({
               applicationId: true,
-              agentOrganizationBankDetailsId: true,
-            }).extend({ bankId: z.number().int() }),
+            }),
           },
         },
         required: true,
@@ -258,17 +258,6 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     },
     responses: {
       200: { content: { "application/json": { schema: z.object({ deleted: z.boolean() }) } }, description: "Deleted" },
-    },
-  });
-
-  const appBanksRoute = createRoute({
-    method: "get",
-    path: "/{id}/banks",
-    tags: ["Operations - Applications"],
-    summary: "Get available banks for deal creation",
-    request: { params: OpsIdParamSchema },
-    responses: {
-      200: { content: { "application/json": { schema: z.any() } }, description: "Banks" },
     },
   });
 
@@ -387,11 +376,35 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
     })
     .openapi(createDealRoute, async (c) => {
       const { id } = c.req.valid("param");
-      const { bankId, ...rest } = c.req.valid("json");
+      const input = c.req.valid("json");
+      const requisite = await getOrganizationBankRequisiteOrThrow(
+        ctx,
+        input.organizationRequisiteId,
+      );
+      const app = await ctx.operationsModule.applications.queries.findById(id);
+      if (!app) {
+        return c.json({ error: "Application not found" }, 404);
+      }
+
+      const contract = await ctx.operationsModule.contracts.queries.findByClient(
+        app.clientId,
+      );
+      if (!contract) {
+        return c.json({ error: "Contract not found" }, 404);
+      }
+
+      const organization =
+        await findCanonicalOrganizationByLegacyId(ctx, contract.agentOrganizationId);
+      if (!organization || requisite.ownerId !== organization.id) {
+        return c.json(
+          { error: "Organization requisite does not belong to contract organization" },
+          400,
+        );
+      }
+
       const result = await ctx.operationsModule.deals.commands.create({
-        ...rest,
+        ...input,
         applicationId: id,
-        agentOrganizationBankDetailsId: bankId,
       });
       return c.json(result, 201);
     })
@@ -399,38 +412,5 @@ export function operationsApplicationsRoutes(ctx: AppContext) {
       const { calcId } = c.req.valid("param");
       await ctx.operationsModule.calculations.commands.delete(calcId);
       return c.json({ deleted: true }, 200);
-    })
-    .openapi(appBanksRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      // Chain: application → client → contract → organization → bank details
-      const app = await ctx.operationsModule.applications.queries.findById(id);
-      if (!app) return c.json([], 200);
-
-      const contract = await ctx.operationsModule.contracts.queries.findByClient(app.clientId);
-      if (!contract) {
-        return c.json([], 200);
-      }
-
-      const banksResult = await ctx.operationsModule.organizations.bankDetails.queries.list({
-        organizationId: contract.agentOrganizationId,
-        limit: 200,
-        offset: 0,
-      });
-
-      const organizationId = contract.agentOrganizationId
-        ? (
-            await findCanonicalOrganizationByLegacyId(
-              ctx,
-              contract.agentOrganizationId,
-            )
-          )?.id ?? null
-        : null;
-      const mapped = banksResult.data.map((bank: any) => ({
-        currencyCode: bank.currencyCode,
-        id: bank.id,
-        name: bank.name,
-        organizationId,
-      }));
-      return c.json(mapped, 200);
     });
 }

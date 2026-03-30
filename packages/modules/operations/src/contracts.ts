@@ -227,25 +227,6 @@ export {
   type ListOrganizationsQuery,
 } from "./organizations/application/contracts/queries";
 
-// --- Bank Details ---
-export {
-  CreateBankDetailsInputSchema,
-  UpdateBankDetailsInputSchema,
-  type CreateBankDetailsInput,
-  type UpdateBankDetailsInput,
-} from "./organizations/application/contracts/bank-details-commands";
-export {
-  BankDetailsSchema,
-  PaginatedBankDetailsSchema,
-  type BankDetails,
-  type PaginatedBankDetails,
-} from "./organizations/application/contracts/bank-details-dto";
-export {
-  BANK_DETAILS_LIST_CONTRACT,
-  ListBankDetailsQuerySchema,
-  type ListBankDetailsQuery,
-} from "./organizations/application/contracts/bank-details-queries";
-
 // --- TODOs ---
 export {
   CreateTodoInputSchema,

@@ -14,7 +14,7 @@ export const CreateDealInputSchema = z.object({
   applicationId: z.number().int(),
   calculationId: z.number().int(),
   counterpartyId: z.string().uuid().optional(),
-  agentOrganizationBankDetailsId: z.number().int(),
+  organizationRequisiteId: z.string().uuid(),
   invoiceNumber: z.string().nullable().optional(),
   invoiceDate: z.string().nullable().optional(),
   companyName: z.string().nullable().optional(),
@@ -43,6 +43,7 @@ export type UpdateDealStatusInput = z.infer<
 export const UpdateDealDetailsInputSchema = z.object({
   id: z.number().int(),
   counterpartyId: z.string().uuid().nullable().optional(),
+  organizationRequisiteId: z.string().uuid().nullable().optional(),
   invoiceNumber: z.string().nullable().optional(),
   invoiceDate: z.string().nullable().optional(),
   companyName: z.string().nullable().optional(),

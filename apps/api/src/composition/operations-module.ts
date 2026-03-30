@@ -10,7 +10,6 @@ import {
   DrizzleActivityLogReads,
   DrizzleActivityLogStore,
   DrizzleApplicationReads,
-  DrizzleBankDetailsReads,
   DrizzleCalculationReads,
   DrizzleClientDocumentReads,
   DrizzleClientDocumentStore,
@@ -65,7 +64,6 @@ export function createApiOperationsModule(input: {
     dealDocumentStore: new DrizzleDealDocumentStore(input.db),
     subAgentReads: new DrizzleSubAgentReads(input.db),
     organizationReads: new DrizzleOrganizationReads(input.db),
-    bankDetailsReads: new DrizzleBankDetailsReads(input.db),
     todoReads: new DrizzleTodoReads(input.db),
 
     // UoW

@@ -142,7 +142,7 @@ export const createClientSchema = clientSchema.extend({
   agentFee: z.string().optional(),
   fixedFee: z.string().optional(),
   organizationId: z.string().uuid().optional(),
-  agentOrganizationBankDetailsId: z.number().optional(),
+  organizationRequisiteId: z.string().uuid().optional(),
 });
 
 export const updateClientSchema = createClientSchema.partial();
@@ -152,20 +152,6 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 
 // --- Organization ---
-
-export const organizationBankSchema = z.object({
-  name: z.string().min(1, "Название счёта обязательно"),
-  nameI18n: localizedTextSchema.optional(),
-  bankName: z.string().min(1, "Название банка обязательно"),
-  bankNameI18n: localizedTextSchema.optional(),
-  bankAddress: z.string().optional(),
-  bankAddressI18n: localizedTextSchema.optional(),
-  account: z.string().min(1, "Номер счёта обязателен").max(34),
-  bic: z.string().optional(),
-  corrAccount: z.string().optional(),
-  swiftCode: z.string().optional(),
-  currencyCode: z.string().optional(),
-});
 
 export const organizationSchema = z.object({
   name: z.string().min(1, "Название организации обязательно"),
@@ -192,64 +178,16 @@ export const organizationSchema = z.object({
   directorBasisI18n: localizedTextSchema.optional(),
 });
 
-const validateBankCodes = (
-  banks: Array<{ bic?: string; swiftCode?: string }>,
-  ctx: z.RefinementCtx,
-) => {
-  banks.forEach((bank, index) => {
-    const hasBic = !!bank.bic?.trim();
-    const hasSwift = !!bank.swiftCode?.trim();
-    if (!hasBic && !hasSwift) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Необходимо указать БИК или SWIFT код",
-        path: [index, "bic"],
-      });
-    }
-  });
-};
-
-export const createOrganizationWithBanksSchema = organizationSchema.extend({
-  banks: z
-    .array(organizationBankSchema)
-    .min(1, "Необходимо добавить минимум один банковский счёт")
-    .superRefine(validateBankCodes),
-});
+export const createOrganizationSchema = organizationSchema;
 
 export const updateOrganizationSchema = organizationSchema.partial();
 
-export const updateOrganizationBankSchema = organizationBankSchema.partial().extend({
-  id: z.number().optional(),
-});
+export const editOrganizationSchema = organizationSchema;
 
-export const updateOrganizationWithBanksSchema = updateOrganizationSchema.extend({
-  banks: z
-    .array(
-      organizationBankSchema.extend({
-        id: z.number().optional(),
-      })
-    )
-    .superRefine(validateBankCodes)
-    .optional(),
-});
-
-export const editOrganizationWithBanksSchema = organizationSchema.extend({
-  banks: z
-    .array(
-      organizationBankSchema.extend({
-        id: z.number().optional(),
-      })
-    )
-    .min(1, "Необходимо добавить минимум один банковский счёт")
-    .superRefine(validateBankCodes),
-});
-
-export type OrganizationBankFormData = z.infer<typeof organizationBankSchema>;
 export type OrganizationFormData = z.infer<typeof organizationSchema>;
-export type CreateOrganizationWithBanksInput = z.infer<typeof createOrganizationWithBanksSchema>;
+export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
-export type UpdateOrganizationWithBanksInput = z.infer<typeof updateOrganizationWithBanksSchema>;
-export type EditOrganizationWithBanksInput = z.infer<typeof editOrganizationWithBanksSchema>;
+export type EditOrganizationInput = z.infer<typeof editOrganizationSchema>;
 
 // --- Customer ---
 
@@ -334,10 +272,7 @@ const fixedFeeSchema = z
 
 export const contractSchema = z.object({
   organizationId: z.string().uuid("Организация обязательна"),
-  agentOrganizationBankDetailsId: z
-    .number({ error: "Банк обязателен" })
-    .int()
-    .positive(),
+  organizationRequisiteId: z.string().uuid("Реквизит обязателен"),
   agentFee: percentFeeSchema,
   fixedFee: fixedFeeSchema,
 });

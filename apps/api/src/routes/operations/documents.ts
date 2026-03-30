@@ -4,6 +4,10 @@ import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 import { OpsErrorSchema, OpsIdParamSchema } from "./common";
 import { findCanonicalOrganizationByLegacyId } from "../organization-bridge";
+import {
+  getOrganizationBankRequisiteOrThrow,
+  serializeOrganizationRequisiteForDocuments,
+} from "../organization-requisites";
 
 const FIELD_METADATA: Record<string, { label: string; category: string }> = {
   date: { label: "Дата", category: "Документ" },
@@ -231,13 +235,14 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
             contract.agentOrganizationId,
           )
         : null;
-      const organizationBank =
-        contract.agentOrganizationBankDetailsId != null
-          ? await ctx.operationsModule.organizations.bankDetails.queries.findById(
-              contract.agentOrganizationBankDetailsId,
+      const organizationRequisite =
+        contract.organizationRequisiteId != null
+          ? await getOrganizationBankRequisiteOrThrow(
+              ctx,
+              contract.organizationRequisiteId,
             )
           : null;
-      if (!organization || !organizationBank) {
+      if (!organization || !organizationRequisite) {
         return c.json({ error: "Organization not found" }, 404);
       }
 
@@ -246,7 +251,10 @@ export function operationsDocumentsRoutes(ctx: AppContext) {
           client: client as unknown as Record<string, unknown>,
           contract: contract as unknown as Record<string, unknown>,
           organization: (organization ?? {}) as Record<string, unknown>,
-          organizationBank: (organizationBank ?? {}) as Record<string, unknown>,
+          organizationRequisite: await serializeOrganizationRequisiteForDocuments(
+            ctx,
+            organizationRequisite,
+          ),
           format,
           lang,
         });

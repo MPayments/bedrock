@@ -6,12 +6,13 @@ import {
   serial,
   text,
   timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 import {
-  opsAgentOrganizationBankDetails,
   opsAgentOrganizations,
 } from "./agents";
+import { requisites } from "@bedrock/parties/schema";
 
 // Forward-declared via AnyPgColumn to break circular dependency with clients
 // (clients references contracts, contracts references clients)
@@ -25,11 +26,9 @@ export const opsContracts = pgTable("ops_contracts", {
   agentOrganizationId: integer("agent_organization_id")
     .notNull()
     .references(() => opsAgentOrganizations.id),
-  agentOrganizationBankDetailsId: integer(
-    "agent_organization_bank_details_id",
-  )
-    .notNull()
-    .references(() => opsAgentOrganizationBankDetails.id),
+  organizationRequisiteId: uuid("organization_requisite_id").references(
+    () => requisites.id,
+  ),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { mode: "string" })
     .default(sql`CURRENT_TIMESTAMP`)
@@ -44,8 +43,8 @@ export const opsContractsRelations = relations(opsContracts, ({ one }) => ({
     fields: [opsContracts.agentOrganizationId],
     references: [opsAgentOrganizations.id],
   }),
-  agentOrganizationBank: one(opsAgentOrganizationBankDetails, {
-    fields: [opsContracts.agentOrganizationBankDetailsId],
-    references: [opsAgentOrganizationBankDetails.id],
+  organizationRequisite: one(requisites, {
+    fields: [opsContracts.organizationRequisiteId],
+    references: [requisites.id],
   }),
 }));

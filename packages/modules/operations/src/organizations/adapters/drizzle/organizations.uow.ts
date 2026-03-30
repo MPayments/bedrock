@@ -9,13 +9,11 @@ import type {
   OrganizationsCommandTx,
   OrganizationsCommandUnitOfWork,
 } from "../../application/ports/organizations.uow";
-import { DrizzleBankDetailsStore } from "./bank-details.store";
 import { DrizzleOrganizationStore } from "./organization.store";
 
 function bindOrganizationsTx(tx: Transaction): OrganizationsCommandTx {
   return {
     organizationStore: new DrizzleOrganizationStore(tx),
-    bankDetailsStore: new DrizzleBankDetailsStore(tx),
   };
 }
 

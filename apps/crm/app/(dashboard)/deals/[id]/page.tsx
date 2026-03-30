@@ -98,7 +98,7 @@ interface Deal {
   id: number;
   applicationId: number;
   calculationId: number;
-  agentOrganizationBankDetailsId: number;
+  organizationRequisiteId: string | null;
   status: DealStatus;
   invoiceNumber: string | null;
   invoiceDate: string | null;
@@ -182,17 +182,17 @@ interface Contract {
   updatedAt: string;
 }
 
-interface OrganizationBank {
-  id: number;
-  organizationId: string | null;
-  name: string;
-  account: string;
-  bic: string;
+interface OrganizationRequisite {
+  id: string;
+  ownerId: string;
+  label: string;
+  institutionName: string | null;
+  accountNo: string | null;
+  bic: string | null;
   corrAccount: string | null;
-  swiftCode: string | null;
+  swift: string | null;
   bankAddress: string | null;
-  createdAt: string;
-  updatedAt: string;
+  currencyCode: string | null;
 }
 
 interface Organization {
@@ -242,7 +242,7 @@ interface DealDetailResponse {
   application: Application;
   client: Client;
   contract: Contract;
-  organizationBank: OrganizationBank;
+  organizationRequisite: OrganizationRequisite | null;
   organization: Organization;
   agent: Agent;
   subAgent: SubAgent | null;
@@ -1060,7 +1060,7 @@ export default function DealDetailPage() {
     application,
     client,
     contract,
-    organizationBank,
+    organizationRequisite,
     organization,
     agent,
     subAgent,
@@ -2236,44 +2236,54 @@ export default function DealDetailPage() {
                 <div className="text-sm font-medium text-muted-foreground">
                   Банк
                 </div>
-                <div className="text-base">{organizationBank.name}</div>
+                <div className="text-base">
+                  {organizationRequisite?.label || organizationRequisite?.institutionName || "—"}
+                </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   Номер счёта / IBAN
                 </div>
                 <div className="text-base font-mono text-sm">
-                  {organizationBank.account}
+                  {organizationRequisite?.accountNo || "—"}
                 </div>
               </div>
-              {organizationBank.bic && (
+              {organizationRequisite?.bic && (
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
                     БИК / BIC
                   </div>
                   <div className="text-base font-mono text-sm">
-                    {organizationBank.bic}
+                    {organizationRequisite.bic}
                   </div>
                 </div>
               )}
-              {organizationBank.corrAccount && (
+              {organizationRequisite?.corrAccount && (
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
                     Корр. счёт
                   </div>
                   <div className="text-base font-mono text-sm">
-                    {organizationBank.corrAccount}
+                    {organizationRequisite.corrAccount}
                   </div>
                 </div>
               )}
-              {organizationBank.swiftCode && (
+              {organizationRequisite?.swift && (
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
                     SWIFT
                   </div>
                   <div className="text-base font-mono text-sm">
-                    {organizationBank.swiftCode}
+                    {organizationRequisite.swift}
                   </div>
+                </div>
+              )}
+              {organizationRequisite?.currencyCode && (
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Валюта
+                  </div>
+                  <div className="text-base">{organizationRequisite.currencyCode}</div>
                 </div>
               )}
             </CardContent>

@@ -2,21 +2,18 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChevronLeft,
   Loader2,
   Building2,
-  CreditCard,
   FileSignature,
   User,
   AlertCircle,
   Pencil,
   Upload,
   Save,
-  Plus,
-  Trash2,
   Languages,
 } from "lucide-react";
 
@@ -41,26 +38,11 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import {
-  editOrganizationWithBanksSchema,
-  type EditOrganizationWithBanksInput,
+  editOrganizationSchema,
+  type EditOrganizationInput,
 } from "@/lib/validation";
 
 type LocalizedText = { ru?: string | null; en?: string | null } | null;
-
-interface Bank {
-  id: number;
-  name: string;
-  nameI18n?: LocalizedText;
-  bankName: string;
-  bankNameI18n?: LocalizedText;
-  bankAddress: string | null;
-  bankAddressI18n?: LocalizedText;
-  account: string;
-  bic: string;
-  corrAccount: string | null;
-  swiftCode: string | null;
-  currencyCode: string;
-}
 
 interface Organization {
   id: string;
@@ -90,7 +72,7 @@ interface Organization {
   isActive: boolean;
   signatureUrl: string | null;
   sealUrl: string | null;
-  banks: Bank[];
+  banksCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,7 +82,7 @@ const toLocalizedFormValue = (localized?: LocalizedText) => ({
   en: localized?.en || "",
 });
 
-function organizationToFormData(org: Organization): EditOrganizationWithBanksInput {
+function organizationToFormData(org: Organization): EditOrganizationInput {
   return {
     name: org.shortName || "",
     nameI18n: toLocalizedFormValue(org.nameI18n),
@@ -124,20 +106,6 @@ function organizationToFormData(org: Organization): EditOrganizationWithBanksInp
     directorPositionI18n: toLocalizedFormValue(org.directorPositionI18n),
     directorBasis: org.directorBasis || "",
     directorBasisI18n: toLocalizedFormValue(org.directorBasisI18n),
-    banks: org.banks.map((bank) => ({
-      id: bank.id,
-      name: bank.name || "",
-      nameI18n: toLocalizedFormValue(bank.nameI18n),
-      bankName: bank.bankName || "",
-      bankNameI18n: toLocalizedFormValue(bank.bankNameI18n),
-      bankAddress: bank.bankAddress || "",
-      bankAddressI18n: toLocalizedFormValue(bank.bankAddressI18n),
-      account: bank.account || "",
-      bic: bank.bic || "",
-      corrAccount: bank.corrAccount || "",
-      swiftCode: bank.swiftCode || "",
-      currencyCode: bank.currencyCode || "RUB",
-    })),
   };
 }
 
@@ -155,9 +123,6 @@ export default function OrganizationViewPage() {
   // Перевод на английский
   const [translating, setTranslating] = useState(false);
 
-  // Track original bank IDs to detect deletions
-  const [originalBankIds, setOriginalBankIds] = useState<number[]>([]);
-
   // Image editing state
   const signatureInputRef = useRef<HTMLInputElement>(null);
   const sealInputRef = useRef<HTMLInputElement>(null);
@@ -171,8 +136,8 @@ export default function OrganizationViewPage() {
     useState<ImageType>("signature");
   const [savingImages, setSavingImages] = useState(false);
 
-  const form = useForm<EditOrganizationWithBanksInput>({
-    resolver: zodResolver(editOrganizationWithBanksSchema),
+  const form = useForm<EditOrganizationInput>({
+    resolver: zodResolver(editOrganizationSchema),
     defaultValues: {
       name: "",
       nameI18n: { ru: "", en: "" },
@@ -196,14 +161,8 @@ export default function OrganizationViewPage() {
       directorPositionI18n: { ru: "", en: "" },
       directorBasis: "",
       directorBasisI18n: { ru: "", en: "" },
-      banks: [],
     },
     mode: "onBlur",
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "banks",
   });
 
   const fetchOrganization = useCallback(async () => {
@@ -223,7 +182,6 @@ export default function OrganizationViewPage() {
       const data: Organization = await res.json();
       setOrganization(data);
       form.reset(organizationToFormData(data));
-      setOriginalBankIds(data.banks.map((b) => b.id));
     } catch (err) {
       console.error("Organization fetch error:", err);
       setError(err instanceof Error ? err.message : "Ошибка загрузки данных");
@@ -355,13 +313,13 @@ export default function OrganizationViewPage() {
 
   const isEditingImages = signatureBlob !== null || sealBlob !== null;
 
-  // Save organization data + banks
-  const onSubmit = async (data: EditOrganizationWithBanksInput) => {
+  // Save organization data
+  const onSubmit = async (data: EditOrganizationInput) => {
     setSaving(true);
     setError(null);
 
     try {
-      const normalizedData: EditOrganizationWithBanksInput = {
+      const normalizedData: EditOrganizationInput = {
         ...data,
         nameI18n: {
           ru: data.name || undefined,
@@ -395,25 +353,9 @@ export default function OrganizationViewPage() {
           ru: data.directorBasis || undefined,
           en: data.directorBasisI18n?.en || undefined,
         },
-        banks: data.banks.map((bank) => ({
-          ...bank,
-          nameI18n: {
-            ru: bank.name || undefined,
-            en: bank.nameI18n?.en || undefined,
-          },
-          bankNameI18n: {
-            ru: bank.bankName || undefined,
-            en: bank.bankNameI18n?.en || undefined,
-          },
-          bankAddressI18n: {
-            ru: bank.bankAddress || undefined,
-            en: bank.bankAddressI18n?.en || undefined,
-          },
-        })),
       };
 
-      // 1. Update organization fields
-      const { banks, name, ...orgData } = normalizedData;
+      const { name, ...orgData } = normalizedData;
       const orgRes = await fetch(
         `${API_BASE_URL}/organizations/${organizationId}`,
         {
@@ -435,74 +377,6 @@ export default function OrganizationViewPage() {
             `Ошибка сохранения организации: ${orgRes.status}`,
         );
       }
-
-      // 2. Handle bank updates
-      const currentBankIds: number[] = banks
-        .filter((b: (typeof banks)[number]) => b.id !== undefined)
-        .map((b: (typeof banks)[number]) => b.id as number);
-      const deletedBankIds = originalBankIds.filter(
-        (id) => !currentBankIds.includes(id),
-      );
-
-      // Delete removed banks
-      await Promise.all(
-        deletedBankIds.map(async (bankId) => {
-          const res = await fetch(
-            `${API_BASE_URL}/organizations/${organizationId}/banks/${bankId}`,
-            { method: "DELETE", credentials: "include" },
-          );
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(
-              errorData.message ||
-                `Ошибка удаления банка #${bankId}: ${res.status}`,
-            );
-          }
-        }),
-      );
-
-      // Update existing banks and create new ones
-      await Promise.all(
-        banks.map(async (bank: (typeof banks)[number]) => {
-          const { id, ...bankData } = bank;
-          if (id) {
-            // Update existing bank
-            const res = await fetch(
-              `${API_BASE_URL}/organizations/${organizationId}/banks/${id}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(bankData),
-              },
-            );
-            if (!res.ok) {
-              const errorData = await res.json().catch(() => ({}));
-              throw new Error(
-                errorData.message ||
-                  `Ошибка обновления банка #${id}: ${res.status}`,
-              );
-            }
-          } else {
-            // Create new bank
-            const res = await fetch(
-              `${API_BASE_URL}/organizations/${organizationId}/banks`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(bankData),
-              },
-            );
-            if (!res.ok) {
-              const errorData = await res.json().catch(() => ({}));
-              throw new Error(
-                errorData.message || `Ошибка создания банка: ${res.status}`,
-              );
-            }
-          }
-        }),
-      );
 
       // Refresh data
       await fetchOrganization();
@@ -534,12 +408,6 @@ export default function OrganizationViewPage() {
         directorBasis: values.directorBasis,
       };
 
-      values.banks.forEach((bank, i) => {
-        if (bank.name) ruFields[`bank_${i}_name`] = bank.name;
-        if (bank.bankName) ruFields[`bank_${i}_bankName`] = bank.bankName;
-        if (bank.bankAddress) ruFields[`bank_${i}_bankAddress`] = bank.bankAddress;
-      });
-
       const translated = await translateFieldsToEnglish(ruFields);
 
       const orgMapping: Record<string, string> = {
@@ -561,22 +429,6 @@ export default function OrganizationViewPage() {
           });
         }
       }
-
-      values.banks.forEach((_, i) => {
-        const bankFields: Record<string, string> = {
-          [`bank_${i}_name`]: `banks.${i}.nameI18n.en`,
-          [`bank_${i}_bankName`]: `banks.${i}.bankNameI18n.en`,
-          [`bank_${i}_bankAddress`]: `banks.${i}.bankAddressI18n.en`,
-        };
-        for (const [key, enField] of Object.entries(bankFields)) {
-          if (translated[key]) {
-            form.setValue(enField as any, translated[key], {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-          }
-        }
-      });
     } catch (err) {
       console.error("Translation error:", err);
       setError(
@@ -590,7 +442,6 @@ export default function OrganizationViewPage() {
   const handleCancel = () => {
     if (organization) {
       form.reset(organizationToFormData(organization));
-      setOriginalBankIds(organization.banks.map((b) => b.id));
     }
     setIsEditing(false);
     setError(null);
@@ -642,6 +493,12 @@ export default function OrganizationViewPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/admin/organizations/${organizationId}/requisites`)}
+          >
+            Реквизиты
+          </Button>
           {!isEditing ? (
             <>
               <Badge variant={organization.isActive ? "default" : "secondary"}>
@@ -1466,377 +1323,28 @@ export default function OrganizationViewPage() {
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
                 Банковские реквизиты
                 <Badge variant="secondary" className="ml-2">
-                  {fields.length}
+                  {organization.banksCount}
                 </Badge>
               </CardTitle>
-              {isEditing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    append({
-                      name: "",
-                      nameI18n: { ru: "", en: "" },
-                      bankName: "",
-                      bankNameI18n: { ru: "", en: "" },
-                      bankAddress: "",
-                      bankAddressI18n: { ru: "", en: "" },
-                      account: "",
-                      bic: "",
-                      corrAccount: "",
-                      swiftCode: "",
-                      currencyCode: "RUB",
-                    })
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Добавить банк
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/admin/organizations/${organizationId}/requisites`)}
+              >
+                Управлять реквизитами
+              </Button>
             </CardHeader>
             <CardContent className="space-y-6">
-              {fields.length > 0 ? (
-                fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="rounded-lg border p-4 space-y-4 bg-muted/30"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">Банк #{index + 1}</h4>
-                        {isEditing && (
-                          <p className="text-xs text-muted-foreground">
-                            Укажите БИК или SWIFT код
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isEditing && (
-                          <Badge variant="outline">
-                            {form.getValues(`banks.${index}.currencyCode`) ||
-                              "RUB"}
-                          </Badge>
-                        )}
-                        {isEditing && fields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => remove(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.name`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Название счёта{" "}
-                              {isEditing && (
-                                <span className="text-destructive">*</span>
-                              )}
-                            </FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="Основной счёт RUB" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bankName`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Название банка{" "}
-                              {isEditing && (
-                                <span className="text-destructive">*</span>
-                              )}
-                            </FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="ВТБ" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.currencyCode`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Валюта</FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="RUB" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.nameI18n.en`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Название счёта (EN)</FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="Account title in English" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bankNameI18n.en`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Название банка (EN)</FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="Bank name in English" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.bankAddress`}
-                      render={({ field: f }) => (
-                        <FormItem>
-                          <FormLabel>Адрес банка</FormLabel>
-                          <FormControl>
-                            {isEditing ? (
-                              <Input
-                                placeholder="г. Москва, ул. Банковская, д. 1"
-                                {...f}
-                              />
-                            ) : (
-                              <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                {f.value || (
-                                  <span className="text-muted-foreground">
-                                    Не указано
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.bankAddressI18n.en`}
-                      render={({ field: f }) => (
-                        <FormItem>
-                          <FormLabel>Адрес банка (EN)</FormLabel>
-                          <FormControl>
-                            {isEditing ? (
-                              <Input placeholder="Bank address in English" {...f} />
-                            ) : (
-                              <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                {f.value || (
-                                  <span className="text-muted-foreground">
-                                    Не указано
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.account`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Номер счёта / IBAN{" "}
-                              {isEditing && (
-                                <span className="text-destructive">*</span>
-                              )}
-                            </FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input
-                                  placeholder="40807810916120000001"
-                                  {...f}
-                                />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.bic`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>БИК / BIC</FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input placeholder="044525411" {...f} />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`banks.${index}.corrAccount`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Корр. счёт</FormLabel>
-                            <FormControl>
-                              {isEditing ? (
-                                <Input
-                                  placeholder="30101810145250000411"
-                                  {...f}
-                                />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                  {f.value || (
-                                    <span className="text-muted-foreground">
-                                      Не указано
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name={`banks.${index}.swiftCode`}
-                      render={({ field: f }) => (
-                        <FormItem>
-                          <FormLabel>SWIFT код</FormLabel>
-                          <FormControl>
-                            {isEditing ? (
-                              <Input placeholder="VTBRRUMM" {...f} />
-                            ) : (
-                              <div className="min-h-10 flex items-center px-3 py-2 rounded-md bg-muted/50">
-                                {f.value || (
-                                  <span className="text-muted-foreground">
-                                    Не указано
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Банковские реквизиты не добавлены
-                </div>
-              )}
-
-              {form.formState.errors.banks?.root && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.banks.root.message}
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <p className="text-sm text-muted-foreground">
+                  Управление банковскими реквизитами перенесено в отдельный
+                  раздел канонических реквизитов организации. На этой странице
+                  редактируются только данные самой организации и её файлы.
                 </p>
-              )}
+              </div>
             </CardContent>
           </Card>
 

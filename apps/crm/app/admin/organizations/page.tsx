@@ -210,9 +210,9 @@ export default function OrganizationsPage() {
       },
       {
         accessorKey: "banksCount",
-        meta: { label: "Банки" },
+        meta: { label: "Реквизиты" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Банки" />
+          <DataTableColumnHeader column={column} title="Реквизиты" />
         ),
         cell: ({ getValue }) => (
           <Badge variant="secondary">{getValue<number>()}</Badge>

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const CreateContractInputSchema = z.object({
   clientId: z.number().int(),
   agentOrganizationId: z.number().int(),
-  agentOrganizationBankDetailsId: z.number().int(),
+  organizationRequisiteId: z.string().uuid(),
   contractNumber: z.string().optional(),
   contractDate: z.string().optional(),
   agentFee: z.string().optional(),
@@ -19,7 +19,7 @@ export const UpdateContractInputSchema = z.object({
   agentFee: z.string().optional(),
   fixedFee: z.string().optional(),
   agentOrganizationId: z.number().int().optional(),
-  agentOrganizationBankDetailsId: z.number().int().optional(),
+  organizationRequisiteId: z.string().uuid().optional(),
 });
 
 export type UpdateContractInput = z.infer<typeof UpdateContractInputSchema>;

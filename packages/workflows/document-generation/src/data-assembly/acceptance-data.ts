@@ -18,7 +18,7 @@ export function assembleAcceptanceData(
   client: Record<string, unknown>,
   contract: Record<string, unknown>,
   organization: Record<string, unknown>,
-  organizationBank: Record<string, unknown>,
+  organizationRequisite: Record<string, unknown>,
   orgFiles: OrgFiles,
   date: Date,
   lang: DocumentLang,
@@ -72,11 +72,12 @@ export function assembleAcceptanceData(
     agentInn: organization.inn,
     agentInitials: agentDirectorInitials,
     agentDirectorName: agentDirectorGenitive,
-    agentBankAccount: organizationBank.account,
-    agentBankBic: organizationBank.bic,
-    agentBankCorrAccount: organizationBank.corrAccount,
-    agentBankSwiftCode: organizationBank.swiftCode,
-    agentBankCurrencyCode: organizationBank.currencyCode,
+    agentBankAccount: organizationRequisite.accountNo,
+    agentBankBic: organizationRequisite.bic,
+    agentBankCorrAccount: organizationRequisite.corrAccount,
+    agentBankCurrencyCode: organizationRequisite.currencyCode,
+    agentBankName: organizationRequisite.institutionName,
+    agentBankSwiftCode: organizationRequisite.swift,
     signature: orgFiles.signature,
     stamp: orgFiles.stamp,
   };
@@ -89,8 +90,6 @@ export function assembleAcceptanceData(
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
-  applyLocalizedTemplateField(raw, "agentBankName", organizationBank, "bankName", lang);
-
   withLocalizedTemplateFields(raw, "directorName", {
     ru: formatDirector(getLocalizedValue(client, "directorName", "ru") || "", "ru").genitive,
     en: getLocalizedValue(client, "directorName", "en") || getLocalizedValue(client, "directorName", "ru"),

@@ -8,7 +8,7 @@ export const ContractSchema = z.object({
   fixedFee: z.string().nullable(),
   clientId: z.number().int(),
   agentOrganizationId: z.number().int(),
-  agentOrganizationBankDetailsId: z.number().int(),
+  organizationRequisiteId: z.string().uuid().nullable(),
   isActive: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),

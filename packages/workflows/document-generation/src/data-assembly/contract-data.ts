@@ -14,7 +14,7 @@ export function assembleClientContractData(
   client: Record<string, unknown>,
   contract: Record<string, unknown>,
   organization: Record<string, unknown>,
-  organizationBank: Record<string, unknown>,
+  organizationRequisite: Record<string, unknown>,
   orgFiles: OrgFiles,
   lang: DocumentLang,
 ): Record<string, unknown> {
@@ -54,11 +54,12 @@ export function assembleClientContractData(
     agentKpp: organization.kpp,
     agentInn: organization.inn,
     agentInitials,
-    agentBankAccount: organizationBank.account,
-    agentBankBic: organizationBank.bic,
-    agentBankCorrAccount: organizationBank.corrAccount,
-    agentBankSwiftCode: organizationBank.swiftCode,
-    agentBankCurrencyCode: organizationBank.currencyCode,
+    agentBankAccount: organizationRequisite.accountNo,
+    agentBankBic: organizationRequisite.bic,
+    agentBankCorrAccount: organizationRequisite.corrAccount,
+    agentBankCurrencyCode: organizationRequisite.currencyCode,
+    agentBankName: organizationRequisite.institutionName,
+    agentBankSwiftCode: organizationRequisite.swift,
     signature: orgFiles.signature,
     stamp: orgFiles.stamp,
   };
@@ -103,8 +104,6 @@ export function assembleClientContractData(
       getLocalizedValue(organization, "directorName", "en") ||
       getLocalizedValue(organization, "directorName", "ru"),
   }, lang);
-
-  applyLocalizedTemplateField(raw, "agentBankName", organizationBank, "bankName", lang);
 
   return prune(raw);
 }

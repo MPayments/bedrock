@@ -138,7 +138,7 @@ export function createDocumentGenerationWorkflow(
       client: Record<string, unknown>;
       contract: Record<string, unknown>;
       organization: Record<string, unknown>;
-      organizationBank: Record<string, unknown>;
+      organizationRequisite: Record<string, unknown>;
       format?: DocumentFormat;
       lang?: DocumentLang;
     }): Promise<GeneratedDocument> {
@@ -150,7 +150,7 @@ export function createDocumentGenerationWorkflow(
         input.client,
         input.contract,
         input.organization,
-        input.organizationBank,
+        input.organizationRequisite,
         orgFiles,
         lang,
       );
@@ -178,7 +178,7 @@ export function createDocumentGenerationWorkflow(
       client: Record<string, unknown>;
       contract: Record<string, unknown>;
       organization: Record<string, unknown>;
-      organizationBank: Record<string, unknown>;
+      organizationRequisite: Record<string, unknown>;
       date?: Date;
       format?: DocumentFormat;
       lang?: DocumentLang;
@@ -200,7 +200,7 @@ export function createDocumentGenerationWorkflow(
         input.client,
         input.contract,
         input.organization,
-        input.organizationBank,
+        input.organizationRequisite,
         orgFiles,
         date,
         lang,

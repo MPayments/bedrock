@@ -13,7 +13,7 @@ export function assembleInvoiceData(
   client: Record<string, unknown>,
   contract: Record<string, unknown>,
   organization: Record<string, unknown>,
-  organizationBank: Record<string, unknown>,
+  organizationRequisite: Record<string, unknown>,
   orgFiles: OrgFiles,
   date: Date,
   lang: DocumentLang,
@@ -39,11 +39,12 @@ export function assembleInvoiceData(
     agentTaxId: organization.taxId,
     agentKpp: organization.kpp,
     agentInn: organization.inn,
-    agentBankAccount: organizationBank.account,
-    agentBankBic: organizationBank.bic,
-    agentBankCorrAccount: organizationBank.corrAccount,
-    agentBankSwiftCode: organizationBank.swiftCode,
-    agentBankCurrencyCode: organizationBank.currencyCode,
+    agentBankAccount: organizationRequisite.accountNo,
+    agentBankBic: organizationRequisite.bic,
+    agentBankCorrAccount: organizationRequisite.corrAccount,
+    agentBankCurrencyCode: organizationRequisite.currencyCode,
+    agentBankName: organizationRequisite.institutionName,
+    agentBankSwiftCode: organizationRequisite.swift,
     signature: orgFiles.signature,
     stamp: orgFiles.stamp,
   };
@@ -55,7 +56,5 @@ export function assembleInvoiceData(
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
-  applyLocalizedTemplateField(raw, "agentBankName", organizationBank, "bankName", lang);
-
   return prune(raw);
 }
