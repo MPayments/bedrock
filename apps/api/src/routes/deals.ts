@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
 
 import {
   AttachDealCalculationInputSchema,
@@ -10,6 +11,9 @@ import {
   TransitionDealStatusInputSchema,
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
+import { deals as dealsTable } from "@bedrock/deals/schema";
+import { currencies as currenciesTable } from "@bedrock/currencies/schema";
+import { customers as customersTable } from "@bedrock/parties/schema";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -20,6 +24,7 @@ import { ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
+import { db } from "../db/client";
 import type { AuthVariables } from "../middleware/auth";
 import {
   getRequestContext,
@@ -56,6 +61,105 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Paginated deals",
+      },
+    },
+  });
+
+  const statsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/stats",
+    tags: ["Deals"],
+    summary: "Get deal statistics for a date range",
+    request: {
+      query: z.object({
+        dateFrom: z.string().date(),
+        dateTo: z.string().date(),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              totalCount: z.number().int(),
+              byStatus: z.record(z.string(), z.number().int()),
+              totalAmount: z.string(),
+            }),
+          },
+        },
+        description: "Deal statistics",
+      },
+    },
+  });
+
+  const DealByStatusItemSchema = z.object({
+    id: z.string().uuid(),
+    client: z.string(),
+    amount: z.number(),
+    currency: z.string(),
+    amountInBase: z.number(),
+    baseCurrencyCode: z.string(),
+    status: z.string(),
+    createdAt: z.string(),
+    comment: z.string().optional(),
+  });
+
+  const byStatusRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/by-status",
+    tags: ["Deals"],
+    summary: "Get active deals grouped by status buckets",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              pending: z.array(DealByStatusItemSchema),
+              inProgress: z.array(DealByStatusItemSchema),
+              done: z.array(DealByStatusItemSchema),
+            }),
+          },
+        },
+        description: "Deals grouped by status",
+      },
+    },
+  });
+
+  const byDayRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/by-day",
+    tags: ["Deals"],
+    summary: "Get daily deal aggregation for charts",
+    request: {
+      query: z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        statuses: z.string().optional(),
+        currencies: z.string().optional(),
+        customerId: z.string().uuid().optional(),
+        agentId: z.string().optional(),
+        reportCurrencyCode: z.string().optional(),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(
+              z.object({
+                date: z.string(),
+                amount: z.number(),
+                count: z.number(),
+                closedCount: z.number(),
+                closedAmount: z.number(),
+              }).passthrough(),
+            ),
+          },
+        },
+        description: "Daily deal aggregation",
       },
     },
   });
@@ -348,6 +452,179 @@ export function dealsRoutes(ctx: AppContext) {
         const query = c.req.valid("query");
         const result = await ctx.dealsModule.deals.queries.list(query);
         return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(statsRoute, async (c) => {
+      try {
+        const { dateFrom, dateTo } = c.req.valid("query");
+        const from = new Date(`${dateFrom}T00:00:00Z`);
+        const to = new Date(`${dateTo}T23:59:59.999Z`);
+
+        const rows = await db
+          .select({
+            status: dealsTable.status,
+            count: count(),
+            total: sum(dealsTable.requestedAmountMinor),
+          })
+          .from(dealsTable)
+          .where(
+            and(
+              between(dealsTable.createdAt, from, to),
+            ),
+          )
+          .groupBy(dealsTable.status);
+
+        let totalCount = 0;
+        let totalAmount = BigInt(0);
+        const byStatus: Record<string, number> = {};
+
+        for (const row of rows) {
+          totalCount += row.count;
+          byStatus[row.status] = row.count;
+          if (row.total) {
+            totalAmount += BigInt(row.total);
+          }
+        }
+
+        return jsonOk(c, {
+          totalCount,
+          byStatus,
+          totalAmount: totalAmount.toString(),
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(byStatusRoute, async (c) => {
+      try {
+        const PENDING_STATUSES = ["awaiting_funds"] as const;
+        const IN_PROGRESS_STATUSES = ["draft", "submitted", "preparing_documents", "awaiting_payment"] as const;
+        const DONE_STATUSES = ["closing_documents", "done"] as const;
+
+        const allStatuses = [...PENDING_STATUSES, ...IN_PROGRESS_STATUSES, ...DONE_STATUSES];
+
+        const rows = await db
+          .select({
+            id: dealsTable.id,
+            status: dealsTable.status,
+            requestedAmountMinor: dealsTable.requestedAmountMinor,
+            requestedCurrencyId: dealsTable.requestedCurrencyId,
+            customerId: dealsTable.customerId,
+            createdAt: dealsTable.createdAt,
+            comment: dealsTable.comment,
+            customerName: customersTable.displayName,
+            currencyCode: currenciesTable.code,
+          })
+          .from(dealsTable)
+          .leftJoin(customersTable, eq(dealsTable.customerId, customersTable.id))
+          .leftJoin(currenciesTable, eq(dealsTable.requestedCurrencyId, currenciesTable.id))
+          .where(inArray(dealsTable.status, allStatuses))
+          .orderBy(dealsTable.createdAt);
+
+        function toDealItem(row: typeof rows[number]) {
+          const amountMinor = row.requestedAmountMinor ? Number(row.requestedAmountMinor) : 0;
+          const amount = amountMinor / 100;
+          return {
+            id: row.id,
+            client: row.customerName ?? "—",
+            amount,
+            currency: row.currencyCode ?? "RUB",
+            amountInBase: amount,
+            baseCurrencyCode: "RUB",
+            status: row.status,
+            createdAt: row.createdAt.toISOString(),
+            ...(row.comment ? { comment: row.comment } : {}),
+          };
+        }
+
+        const pending = rows
+          .filter((r) => (PENDING_STATUSES as readonly string[]).includes(r.status))
+          .map(toDealItem);
+        const inProgress = rows
+          .filter((r) => (IN_PROGRESS_STATUSES as readonly string[]).includes(r.status))
+          .map(toDealItem);
+        const done = rows
+          .filter((r) => (DONE_STATUSES as readonly string[]).includes(r.status))
+          .map(toDealItem);
+
+        return jsonOk(c, { pending, inProgress, done });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(byDayRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const conditions = [];
+
+        if (query.dateFrom) {
+          conditions.push(gte(dealsTable.createdAt, new Date(query.dateFrom)));
+        }
+        if (query.dateTo) {
+          conditions.push(lte(dealsTable.createdAt, new Date(query.dateTo)));
+        }
+        if (query.customerId) {
+          conditions.push(eq(dealsTable.customerId, query.customerId));
+        }
+        if (query.agentId) {
+          conditions.push(eq(dealsTable.agentId, query.agentId));
+        }
+        if (query.statuses) {
+          const statusList = query.statuses.split(",") as (typeof dealsTable.status.enumValues)[number][];
+          conditions.push(inArray(dealsTable.status, statusList));
+        }
+
+        const rows = await db
+          .select({
+            date: sql<string>`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`,
+            status: dealsTable.status,
+            currencyCode: currenciesTable.code,
+            count: count(),
+            total: sum(dealsTable.requestedAmountMinor),
+          })
+          .from(dealsTable)
+          .leftJoin(currenciesTable, eq(dealsTable.requestedCurrencyId, currenciesTable.id))
+          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .groupBy(
+            sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`,
+            dealsTable.status,
+            currenciesTable.code,
+          )
+          .orderBy(sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`);
+
+        const dayMap = new Map<string, {
+          date: string;
+          amount: number;
+          count: number;
+          closedCount: number;
+          closedAmount: number;
+          [currency: string]: string | number;
+        }>();
+
+        for (const row of rows) {
+          const date = row.date;
+          if (!dayMap.has(date)) {
+            dayMap.set(date, { date, amount: 0, count: 0, closedCount: 0, closedAmount: 0 });
+          }
+          const day = dayMap.get(date)!;
+          const totalMinor = row.total ? Number(row.total) / 100 : 0;
+
+          day.count += row.count;
+          day.amount += totalMinor;
+
+          if (row.status === "done") {
+            day.closedCount += row.count;
+            day.closedAmount += totalMinor;
+          }
+
+          if (row.currencyCode) {
+            day[row.currencyCode] = ((day[row.currencyCode] as number) || 0) + totalMinor;
+          }
+        }
+
+        return jsonOk(c, Array.from(dayMap.values()));
       } catch (error) {
         return handleRouteError(c, error);
       }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { toSafeErrorResponse } from "@/lib/server/api-error";
 import { requireCrmApiSession } from "@/lib/server/auth";
 import { getCrmTaskCalendar } from "@/lib/server/tasks/service";
 import {
@@ -29,10 +30,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const calendar = await getCrmTaskCalendar(auth.value, parsedQuery.data);
-
-  return NextResponse.json(
-    CalendarCrmTasksResponseSchema.parse(calendar),
-    { status: 200 },
-  );
+  try {
+    const calendar = await getCrmTaskCalendar(auth.value, parsedQuery.data);
+    return NextResponse.json(
+      CalendarCrmTasksResponseSchema.parse(calendar),
+      { status: 200 },
+    );
+  } catch (error) {
+    return toSafeErrorResponse(error);
+  }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { CrmActivityResponseSchema } from "@/lib/activity/contracts";
+import { toSafeErrorResponse } from "@/lib/server/api-error";
 import { requireCrmApiSession } from "@/lib/server/auth";
 import { loadCrmActivity } from "@/lib/server/activity/service";
 
@@ -17,9 +18,13 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(parsedLimit)
     ? Math.max(1, Math.min(parsedLimit, 50))
     : 10;
-  const response = await loadCrmActivity(limit);
 
-  return NextResponse.json(CrmActivityResponseSchema.parse(response), {
-    status: 200,
-  });
+  try {
+    const response = await loadCrmActivity(limit);
+    return NextResponse.json(CrmActivityResponseSchema.parse(response), {
+      status: 200,
+    });
+  } catch (error) {
+    return toSafeErrorResponse(error);
+  }
 }

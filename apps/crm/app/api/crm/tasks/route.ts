@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { toSafeErrorResponse } from "@/lib/server/api-error";
 import { requireCrmApiSession } from "@/lib/server/auth";
 import {
   createCrmTask,
@@ -17,20 +18,6 @@ function parseBooleanParam(value: string | null): boolean | undefined {
   if (value === "true") return true;
   if (value === "false") return false;
   return undefined;
-}
-
-function toErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected error";
-
-  if (message === "Forbidden") {
-    return NextResponse.json({ error: message }, { status: 403 });
-  }
-
-  if (message.startsWith("Unknown ")) {
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-
-  return NextResponse.json({ error: message }, { status: 500 });
 }
 
 export async function GET(request: NextRequest) {
@@ -63,7 +50,7 @@ export async function GET(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    return toErrorResponse(error);
+    return toSafeErrorResponse(error);
   }
 }
 
@@ -88,6 +75,6 @@ export async function POST(request: NextRequest) {
     const task = await createCrmTask(auth.value, parsedInput.data);
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
-    return toErrorResponse(error);
+    return toSafeErrorResponse(error);
   }
 }
