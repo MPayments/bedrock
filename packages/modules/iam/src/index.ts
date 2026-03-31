@@ -1,5 +1,7 @@
 export { createCustomerMembershipsService } from "./customer-memberships/application";
 export type { CustomerMembershipsService } from "./customer-memberships/application";
+export { createPortalAccessGrantsService } from "./portal-access-grants/application";
+export type { PortalAccessGrantsService } from "./portal-access-grants/application";
 export { createIamService } from "./service";
 export type { IamService, IamServiceDeps } from "./service";
 export {

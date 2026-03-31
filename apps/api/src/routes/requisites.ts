@@ -8,6 +8,7 @@ import {
   RequisiteAccountingBindingNotFoundError,
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
+  RequisiteProviderNotFoundError,
   RequisiteProviderNotActiveError,
 } from "@bedrock/parties";
 import {
@@ -17,6 +18,7 @@ import {
   RequisiteAccountingBindingSchema,
   RequisiteOptionsResponseSchema,
   RequisiteOptionSchema,
+  RequisiteProviderSchema,
   RequisiteSchema,
   UpdateRequisiteInputSchema,
   UpsertRequisiteAccountingBindingInputSchema,
@@ -138,6 +140,35 @@ export function requisitesRoutes(ctx: AppContext) {
           },
         },
         description: "Requisite found",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Requisite not found",
+      },
+    },
+  });
+
+  const getProviderRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["list"] })],
+    method: "get",
+    path: "/{id}/provider",
+    tags: ["Requisites"],
+    summary: "Get resolved provider for a requisite",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderSchema.nullable(),
+          },
+        },
+        description: "Resolved requisite provider or null when the relation is dangling",
       },
       404: {
         content: {
@@ -367,6 +398,30 @@ export function requisitesRoutes(ctx: AppContext) {
           id,
         );
         return c.json(requisite, 200);
+      } catch (error) {
+        if (error instanceof RequisiteNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(getProviderRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        const requisite = await ctx.partiesModule.requisites.queries.findById(id);
+        try {
+          const provider =
+            await ctx.partiesModule.requisites.queries.findProviderById(
+              requisite.providerId,
+            );
+          return c.json(provider, 200);
+        } catch (error) {
+          if (error instanceof RequisiteProviderNotFoundError) {
+            return c.json(null, 200);
+          }
+          throw error;
+        }
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
           return c.json({ error: error.message }, 404);

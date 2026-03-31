@@ -9,6 +9,7 @@ import type { Deal, DealDetails } from "@bedrock/deals/contracts";
 import {
   type CustomerMembershipsService,
   type IamService,
+  type PortalAccessGrantsService,
   UserNotFoundError,
 } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
@@ -30,6 +31,7 @@ export interface CustomerPortalWorkflowDeps {
   deals: Pick<DealsModule, "deals">;
   iam: {
     customerMemberships: CustomerMembershipsService;
+    portalAccessGrants: PortalAccessGrantsService;
     users: Pick<IamService, "queries">;
   };
   parties: Pick<PartiesModule, "counterparties" | "customers" | "requisites">;
@@ -93,6 +95,7 @@ export interface CustomerPortalProfile {
   customers: Awaited<
     ReturnType<PartiesModule["customers"]["queries"]["findById"]>
   >[];
+  hasOnboardingAccess: boolean;
   hasCrmAccess: boolean;
   hasCustomerPortalAccess: boolean;
   memberships: Awaited<
@@ -234,7 +237,7 @@ function canAccessCrm(role: string | null, banned: boolean | null): boolean {
     return false;
   }
 
-  return role === "admin" || role === "agent" || role === "user";
+  return role === "admin" || role === "agent";
 }
 
 function serializeDate(value: Date | string): string {
@@ -596,9 +599,15 @@ export function createCustomerPortalWorkflow(
     );
     const customers = await deps.parties.customers.queries.listByIds(customerIds);
     const hasCrmAccess = await getCrmAccess(ctx.userId);
+    const hasOnboardingAccess =
+      customerIds.length > 0 ||
+      (await deps.iam.portalAccessGrants.queries.hasPendingGrant({
+        userId: ctx.userId,
+      }));
 
     return {
       customers,
+      hasOnboardingAccess,
       hasCrmAccess,
       hasCustomerPortalAccess: customerIds.length > 0,
       memberships,
@@ -618,10 +627,9 @@ export function createCustomerPortalWorkflow(
     ctx: CustomerContext,
   ): Promise<CustomerPortalProfile> {
     const profile = await getProfile(ctx);
-
-    if (profile.hasCrmAccess && !profile.hasCustomerPortalAccess) {
+    if (!profile.hasOnboardingAccess) {
       throw new CustomerNotAuthorizedError(
-        `User ${ctx.userId} must use CRM to create legal entities`,
+        `User ${ctx.userId} does not have portal onboarding access`,
       );
     }
 
@@ -677,6 +685,9 @@ export function createCustomerPortalWorkflow(
 
       await ensureActiveOwnerMembership({
         customerId: customer.id,
+        userId: ctx.userId,
+      });
+      await deps.iam.portalAccessGrants.commands.consume({
         userId: ctx.userId,
       });
 

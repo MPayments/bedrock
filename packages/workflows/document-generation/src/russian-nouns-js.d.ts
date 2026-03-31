@@ -4,6 +4,7 @@ declare module "russian-nouns-js" {
     FEMININE: string;
     NEUTER: string;
   }
+
   interface RussianNounsCase {
     NOMINATIVE: string;
     GENITIVE: string;
@@ -12,15 +13,17 @@ declare module "russian-nouns-js" {
     INSTRUMENTAL: string;
     PREPOSITIONAL: string;
   }
+
   interface RussianNounsEngine {
-    decline(lemma: any, caseName: string): string[];
+    decline(lemma: unknown, caseName: string): string[];
   }
 
   const RussianNouns: {
     Gender: RussianNounsGender;
     Case: RussianNounsCase;
     Engine: new () => RussianNounsEngine;
-    createLemma: (opts: { text: string; gender: string }) => any;
+    createLemma: (opts: { text: string; gender: string }) => unknown;
   };
+
   export default RussianNouns;
 }

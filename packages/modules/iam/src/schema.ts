@@ -17,6 +17,7 @@ import {
 } from "./adapters/drizzle/schema/business-schema";
 import { customerBootstrapClaims } from "./customer-bootstrap-claims/adapters/drizzle/schema";
 import { customerMemberships } from "./customer-memberships/adapters/drizzle/schema";
+import { portalAccessGrants } from "./portal-access-grants/adapters/drizzle/schema";
 
 export {
   account,
@@ -25,6 +26,7 @@ export {
   agentProfilesRelations,
   customerBootstrapClaims,
   customerMemberships,
+  portalAccessGrants,
   session,
   sessionRelations,
   twoFactor,
@@ -52,4 +54,5 @@ export const schema = {
   userAccessStatesRelations,
   customerBootstrapClaims,
   customerMemberships,
+  portalAccessGrants,
 };

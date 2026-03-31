@@ -63,9 +63,12 @@ export function customerAuthRoutes(ctx: AppContext) {
     const input = c.req.valid("json");
 
     try {
-      await ctx.iamService.commands.create({
+      const user = await ctx.iamService.commands.create({
         ...input,
-        role: "customer",
+        role: null,
+      });
+      await ctx.portalAccessGrantsService.commands.create({
+        userId: user.id,
       });
       return c.json({ success: true as const }, 201);
     } catch (error) {

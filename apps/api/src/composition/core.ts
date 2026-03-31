@@ -2,8 +2,10 @@ import type { AccountingModule } from "@bedrock/accounting";
 import {
   createCustomerMembershipsService,
   createIamService,
+  createPortalAccessGrantsService,
   type CustomerMembershipsService,
   type IamService,
+  type PortalAccessGrantsService,
 } from "@bedrock/iam";
 import {
   createBetterAuthPasswordHasher,
@@ -13,6 +15,8 @@ import {
   DrizzleCustomerMembershipsUnitOfWork,
   DrizzleIamUsersReads,
   DrizzleIamUsersUnitOfWork,
+  DrizzlePortalAccessGrantReads,
+  DrizzlePortalAccessGrantsUnitOfWork,
 } from "@bedrock/iam/adapters/drizzle";
 import type { LedgerModule } from "@bedrock/ledger";
 import {
@@ -36,6 +40,7 @@ export interface ApiCoreServices {
   ledgerModule: LedgerModule;
   iamService: IamService;
   customerMembershipsService: CustomerMembershipsService;
+  portalAccessGrantsService: PortalAccessGrantsService;
 }
 
 export function createCoreServices(): ApiCoreServices {
@@ -68,6 +73,12 @@ export function createCoreServices(): ApiCoreServices {
     }),
     reads: new DrizzleCustomerMembershipReads(db),
   });
+  const portalAccessGrantsService = createPortalAccessGrantsService({
+    commandUow: new DrizzlePortalAccessGrantsUnitOfWork({
+      persistence: createPersistenceContext(db),
+    }),
+    reads: new DrizzlePortalAccessGrantReads(db),
+  });
 
   return {
     logger,
@@ -76,5 +87,6 @@ export function createCoreServices(): ApiCoreServices {
     ledgerModule,
     iamService,
     customerMembershipsService,
+    portalAccessGrantsService,
   };
 }

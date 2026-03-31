@@ -40,6 +40,7 @@ export const session = pgTable(
   "session",
   {
     id: text("id").primaryKey(),
+    audience: text("audience").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     token: text("token").notNull().unique(),
     createdAt: timestamp("created_at", { withTimezone: true })

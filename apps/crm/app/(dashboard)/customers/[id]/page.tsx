@@ -41,6 +41,7 @@ import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
+import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  createCustomerBankingPayload,
+  mapFlatBankingToFormValues,
+} from "@/lib/customer-banking";
+import {
+  customerBankingFieldsSchema,
+  type CustomerBankingFormData,
+} from "@/lib/validation";
 
 type SubAgent = {
   commissionRate: number;
@@ -69,7 +78,9 @@ type CustomerLegalEntity = {
   bankAddress: string | null;
   bankCountry: string | null;
   bankName: string | null;
+  bankProviderId: string | null;
   bic: string | null;
+  beneficiaryName: string | null;
   contractNumber: string | null;
   corrAccount: string | null;
   counterpartyId: string;
@@ -82,6 +93,7 @@ type CustomerLegalEntity = {
   fullName: string;
   hasLegacyShell: boolean;
   inn: string | null;
+  iban: string | null;
   kpp: string | null;
   ogrn: string | null;
   okpo: string | null;
@@ -94,6 +106,7 @@ type CustomerLegalEntity = {
   shortName: string;
   subAgent: SubAgent | null;
   subAgentCounterpartyId: string | null;
+  swift: string | null;
   updatedAt: string;
 };
 
@@ -121,13 +134,7 @@ type ClientDocument = {
 };
 
 const legalEntityFormSchema = z.object({
-  account: z.string().optional(),
   address: z.string().optional(),
-  bankAddress: z.string().optional(),
-  bankCountry: z.string().max(2).optional(),
-  bankName: z.string().optional(),
-  bic: z.string().optional(),
-  corrAccount: z.string().optional(),
   directorBasis: z.string().optional(),
   directorName: z.string().optional(),
   email: z.string().optional(),
@@ -140,7 +147,7 @@ const legalEntityFormSchema = z.object({
   orgType: z.string().optional(),
   phone: z.string().optional(),
   position: z.string().optional(),
-});
+}).merge(customerBankingFieldsSchema);
 
 type LegalEntityFormData = z.infer<typeof legalEntityFormSchema>;
 
@@ -161,17 +168,32 @@ function normalizeOptionalText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function formatRelationshipKind(
+  value: "customer_owned" | "external",
+): string {
+  return value === "customer_owned" ? "Клиент" : "Внешнее юр. лицо";
+}
+
 function legalEntityToFormValues(
   legalEntity: CustomerLegalEntity | null,
 ): LegalEntityFormData {
+  const bankingValues = mapFlatBankingToFormValues({
+    account: legalEntity?.account,
+    bankAddress: legalEntity?.bankAddress,
+    bankCountry: legalEntity?.bankCountry,
+    bankMode: legalEntity?.bankProviderId ? "existing" : "manual",
+    bankName: legalEntity?.bankName,
+    bankProviderId: legalEntity?.bankProviderId,
+    beneficiaryName: legalEntity?.beneficiaryName ?? legalEntity?.orgName,
+    bic: legalEntity?.bic,
+    corrAccount: legalEntity?.corrAccount,
+    iban: legalEntity?.iban,
+    swift: legalEntity?.swift,
+  });
+
   return {
-    account: legalEntity?.account ?? "",
     address: legalEntity?.address ?? "",
-    bankAddress: legalEntity?.bankAddress ?? "",
-    bankCountry: legalEntity?.bankCountry ?? "",
-    bankName: legalEntity?.bankName ?? "",
-    bic: legalEntity?.bic ?? "",
-    corrAccount: legalEntity?.corrAccount ?? "",
+    ...bankingValues,
     directorBasis: legalEntity?.directorBasis ?? "",
     directorName: legalEntity?.directorName ?? "",
     email: legalEntity?.email ?? "",
@@ -264,7 +286,7 @@ export default function CustomerDetailPage() {
 
   const legalEntityForm = useForm<LegalEntityFormData>({
     defaultValues: legalEntityToFormValues(null),
-    resolver: zodResolver(legalEntityFormSchema),
+    resolver: zodResolver(legalEntityFormSchema) as never,
   });
   const createLegalEntityForm = useForm<CreateLegalEntityFormData>({
     defaultValues: {
@@ -404,14 +426,10 @@ export default function CustomerDetailPage() {
       setSaving(true);
       setError(null);
 
+      const bankingPayload = createCustomerBankingPayload(data);
       const legalEntityPayload = {
-        account: normalizeOptionalText(data.account),
         address: normalizeOptionalText(data.address),
-        bankAddress: normalizeOptionalText(data.bankAddress),
-        bankCountry: normalizeOptionalText(data.bankCountry)?.toUpperCase() ?? null,
-        bankName: normalizeOptionalText(data.bankName),
-        bic: normalizeOptionalText(data.bic),
-        corrAccount: normalizeOptionalText(data.corrAccount),
+        ...bankingPayload,
         directorBasis: normalizeOptionalText(data.directorBasis),
         directorName: normalizeOptionalText(data.directorName),
         email: normalizeOptionalText(data.email),
@@ -764,11 +782,6 @@ export default function CustomerDetailPage() {
                 У клиента пока нет юридических лиц. Добавьте первое юридическое
                 лицо, чтобы продолжить.
               </p>
-            ) : !selectedLegalEntity.hasLegacyShell ? (
-              <p className="text-sm text-amber-600">
-                Execution-shell будет создан автоматически при первом
-                договоре, документе или заявке.
-              </p>
             ) : null}
           </div>
         </div>
@@ -809,17 +822,13 @@ export default function CustomerDetailPage() {
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-2">
-            <Label>Каноническое имя клиента</Label>
+            <Label>Название клиента</Label>
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
               {workspace.displayName}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Для primary юридического лица это имя зеркалится из поля
-              организации.
-            </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="customer-external-ref">External Ref</Label>
+            <Label htmlFor="customer-external-ref">Внешний ID</Label>
             {isEditing ? (
               <Input
                 id="customer-external-ref"
@@ -928,12 +937,7 @@ export default function CustomerDetailPage() {
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             {isPrimary ? (
                               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                                Primary
-                              </span>
-                            ) : null}
-                            {!legalEntity.hasLegacyShell ? (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-700">
-                                shell позже
+                                Основное
                               </span>
                             ) : null}
                           </div>
@@ -1030,43 +1034,14 @@ export default function CustomerDetailPage() {
                       label="Адрес"
                       name="address"
                     />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Название банка"
-                      name="bankName"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Адрес банка"
-                      name="bankAddress"
-                    />
-                    <CountryField
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Страна банка"
-                      name="bankCountry"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Расчетный счёт"
-                      name="account"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="БИК"
-                      name="bic"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Корр. счёт"
-                      name="corrAccount"
-                    />
                   </div>
+
+                  <CustomerBankingSection
+                    disabled={!isEditing}
+                    form={
+                      legalEntityForm as unknown as UseFormReturn<CustomerBankingFormData>
+                    }
+                  />
 
                   <Separator />
 
@@ -1079,25 +1054,19 @@ export default function CustomerDetailPage() {
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm">
                         <InfoRow
-                          label="Counterparty ID"
+                          label="ID контрагента"
                           value={selectedLegalEntity.counterpartyId}
                         />
                         <InfoRow
-                          label="Relationship"
-                          value={selectedLegalEntity.relationshipKind}
+                          label="Тип связи"
+                          value={formatRelationshipKind(
+                            selectedLegalEntity.relationshipKind,
+                          )}
                         />
                         <InfoRow
-                          label="Legacy shell"
+                          label="Агентский договор"
                           value={
-                            selectedLegalEntity.hasLegacyShell
-                              ? "Привязан"
-                              : "Будет создан по требованию"
-                          }
-                        />
-                        <InfoRow
-                          label="Договор"
-                          value={
-                            selectedLegalEntity.contractNumber ?? "Не создан"
+                            selectedLegalEntity.contractNumber ?? "Не заключен"
                           }
                         />
                       </CardContent>
@@ -1540,8 +1509,8 @@ function ArchiveCustomerButton({
           <AlertDialogHeader>
             <AlertDialogTitle>Архивировать клиента?</AlertDialogTitle>
             <AlertDialogDescription>
-              Это действие архивирует связанные execution-shell записи. Канонический
-              customer и memberships останутся.
+              Клиент и связанные записи будут переведены в архив. Основные
+              данные сохранятся.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -6,19 +6,38 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-bedrock-app-audience", "finance");
 
-  if (PUBLIC_PATHS.has(pathname)) {
-    return NextResponse.next();
+  if (pathname.startsWith("/api/auth/") || pathname.startsWith("/v1/")) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
-  const sessionCookie = getSessionCookie(request);
+  if (PUBLIC_PATHS.has(pathname)) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
+  const sessionCookie = getSessionCookie(request, {
+    cookiePrefix: "bedrock-finance",
+  });
   if (!sessionCookie) {
     return redirectToLogin(request, pathname);
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/auth/get-session`, {
-      headers: { cookie: request.headers.get("cookie") ?? "" },
+    const res = await fetch(`${API_URL}/api/auth/finance/get-session`, {
+      headers: {
+        cookie: request.headers.get("cookie") ?? "",
+        "x-bedrock-app-audience": "finance",
+      },
     });
     if (!res.ok) {
       return redirectToLogin(request, pathname);
@@ -27,7 +46,11 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(request, pathname);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 function redirectToLogin(request: NextRequest, pathname: string) {
@@ -38,6 +61,6 @@ function redirectToLogin(request: NextRequest, pathname: string) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/|v1/).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

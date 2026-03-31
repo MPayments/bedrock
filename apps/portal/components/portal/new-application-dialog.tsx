@@ -46,11 +46,14 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  formatCustomerLegalEntityLabel,
+  isDuplicateCustomerLegalEntityName,
+} from "@/lib/legal-entities";
 import { cn } from "@/lib/utils";
 
 interface CustomerLegalEntity {
   counterpartyId: string;
-  hasLegacyShell: boolean;
   inn: string | null;
   shortName: string;
 }
@@ -237,16 +240,16 @@ export function NewDealDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="overflow-hidden sm:max-w-md">
+          <DialogHeader className="min-w-0 pr-8">
             <DialogTitle>Новая сделка</DialogTitle>
             <DialogDescription>
               Создайте сделку по одному из ваших юридических лиц.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="min-w-0 space-y-4">
+            <div className="min-w-0 space-y-2">
               <Label>Юридическое лицо</Label>
               <Popover open={clientsOpen} onOpenChange={setClientsOpen}>
                 <PopoverTrigger
@@ -254,16 +257,22 @@ export function NewDealDialog({
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="w-full justify-between"
+                      className="w-full min-w-0 max-w-full justify-start overflow-hidden font-normal"
                     />
                   }
                 >
-                  {selectedLegalEntity
-                    ? `${selectedLegalEntity.customerDisplayName} / ${selectedLegalEntity.shortName}`
-                    : "Выберите юридическое лицо"}
-                  <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  <span className="block min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                    {selectedLegalEntity
+                      ? formatCustomerLegalEntityLabel({
+                          customerDisplayName:
+                            selectedLegalEntity.customerDisplayName,
+                          legalEntityName: selectedLegalEntity.shortName,
+                        })
+                      : "Выберите юридическое лицо"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </PopoverTrigger>
-                <PopoverContent className="w-[360px] p-0">
+                <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
                   <Command>
                     <CommandInput placeholder="Поиск юридического лица..." />
                     <CommandList>
@@ -272,7 +281,11 @@ export function NewDealDialog({
                         {legalEntities.map((legalEntity) => (
                           <CommandItem
                             key={legalEntity.counterpartyId}
-                            value={`${legalEntity.customerDisplayName} ${legalEntity.shortName}`}
+                            value={formatCustomerLegalEntityLabel({
+                              customerDisplayName:
+                                legalEntity.customerDisplayName,
+                              legalEntityName: legalEntity.shortName,
+                            })}
                             onSelect={() => {
                               setSelectedCounterpartyId(
                                 legalEntity.counterpartyId,
@@ -282,26 +295,29 @@ export function NewDealDialog({
                           >
                             <Check
                               className={cn(
-                                "mr-2 h-4 w-4",
+                                "mr-2 h-4 w-4 shrink-0",
                                 selectedCounterpartyId ===
                                   legalEntity.counterpartyId
                                   ? "opacity-100"
                                   : "opacity-0",
                               )}
                             />
-                            <div className="flex flex-col gap-0.5">
-                              <span>{legalEntity.shortName}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {legalEntity.customerDisplayName}
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="block truncate">
+                                {legalEntity.shortName}
                               </span>
-                              {legalEntity.inn ? (
-                                <span className="text-xs text-muted-foreground">
-                                  ИНН: {legalEntity.inn}
+                              {!isDuplicateCustomerLegalEntityName({
+                                customerDisplayName:
+                                  legalEntity.customerDisplayName,
+                                legalEntityName: legalEntity.shortName,
+                              }) ? (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {legalEntity.customerDisplayName}
                                 </span>
                               ) : null}
-                              {!legalEntity.hasLegacyShell ? (
-                                <span className="text-xs text-amber-600">
-                                  shell будет создан автоматически
+                              {legalEntity.inn ? (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  ИНН: {legalEntity.inn}
                                 </span>
                               ) : null}
                             </div>
@@ -318,42 +334,38 @@ export function NewDealDialog({
                   Загрузка юридических лиц...
                 </div>
               ) : null}
-              {!loadingClients && selectedLegalEntity && !selectedLegalEntity.hasLegacyShell ? (
-                <p className="text-sm text-amber-600">
-                  Для выбранного юридического лица execution-shell будет
-                  создан автоматически при создании заявки.
-                </p>
-              ) : null}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="amount">Сумма</Label>
-              <Input
-                id="amount"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder="100000"
-                inputMode="decimal"
-              />
-            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Сумма</Label>
+                <Input
+                  id="amount"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="100000"
+                  inputMode="decimal"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Валюта</Label>
-              <Select
-                value={currency}
-                onValueChange={(value) => setCurrency(value ?? "USD")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label>Валюта</Label>
+                <Select
+                  value={currency}
+                  onValueChange={(value) => setCurrency(value ?? "USD")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

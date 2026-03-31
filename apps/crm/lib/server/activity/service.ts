@@ -85,6 +85,7 @@ export async function loadCrmActivity(limit: number): Promise<CrmActivityRespons
       cache: "no-store",
       headers: {
         cookie: requestHeaders.get("cookie") ?? "",
+        "x-bedrock-app-audience": "crm",
       },
       signal: AbortSignal.timeout(3000),
     });

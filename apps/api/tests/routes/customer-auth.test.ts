@@ -13,18 +13,30 @@ function createIamServiceStub() {
   };
 }
 
+function createPortalAccessGrantsServiceStub() {
+  return {
+    commands: {
+      create: vi.fn(),
+    },
+  };
+}
+
 function createTestApp() {
   const iamService = createIamServiceStub();
+  const portalAccessGrantsService = createPortalAccessGrantsServiceStub();
   const app = new OpenAPIHono();
 
-  app.route("/api/customer-auth", customerAuthRoutes({ iamService } as any));
+  app.route(
+    "/api/customer-auth",
+    customerAuthRoutes({ iamService, portalAccessGrantsService } as any),
+  );
 
-  return { app, iamService };
+  return { app, iamService, portalAccessGrantsService };
 }
 
 describe("customer auth routes", () => {
-  it("creates customer users with the customer role", async () => {
-    const { app, iamService } = createTestApp();
+  it("creates portal users with a pending onboarding grant", async () => {
+    const { app, iamService, portalAccessGrantsService } = createTestApp();
 
     iamService.commands.create.mockResolvedValue({
       id: "user-1",
@@ -49,7 +61,10 @@ describe("customer auth routes", () => {
       name: "Portal User",
       email: "portal@example.com",
       password: "secret-123",
-      role: "customer",
+      role: null,
+    });
+    expect(portalAccessGrantsService.commands.create).toHaveBeenCalledWith({
+      userId: "user-1",
     });
   });
 

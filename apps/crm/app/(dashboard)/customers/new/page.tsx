@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, type Path } from "react-hook-form";
+import { useForm, type Path, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChevronLeft,
@@ -21,7 +21,6 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
@@ -41,9 +40,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  createCustomerBankingPayload,
+  getDefaultCustomerBankingValues,
+  mapFlatBankingToFormValues,
+} from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
-import { clientSchema, type ClientFormData } from "@/lib/validation";
+import {
+  clientSchema,
+  type ClientFormData,
+  type CustomerBankingFormData,
+} from "@/lib/validation";
 
 interface SubAgent {
   id: string;
@@ -89,8 +98,9 @@ export default function NewClientPage() {
   }>({});
 
   const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(clientSchema) as never,
     defaultValues: {
+      ...getDefaultCustomerBankingValues(),
       orgName: "",
       orgNameI18n: { ru: "", en: "" },
       orgType: "",
@@ -110,13 +120,6 @@ export default function NewClientPage() {
       addressI18n: { ru: "", en: "" },
       email: "",
       phone: "",
-      bankName: "",
-      bankNameI18n: { ru: "", en: "" },
-      bankAddress: "",
-      bankAddressI18n: { ru: "", en: "" },
-      account: "",
-      bic: "",
-      corrAccount: "",
     },
     mode: "onBlur",
   });
@@ -225,8 +228,6 @@ export default function NewClientPage() {
         position: values.position,
         directorBasis: values.directorBasis,
         address: values.address || "",
-        bankName: values.bankName || "",
-        bankAddress: values.bankAddress || "",
       };
 
       const translated = await translateFieldsToEnglish(ruFields);
@@ -238,8 +239,6 @@ export default function NewClientPage() {
         position: "positionI18n.en",
         directorBasis: "directorBasisI18n.en",
         address: "addressI18n.en",
-        bankName: "bankNameI18n.en",
-        bankAddress: "bankAddressI18n.en",
       };
 
       for (const [key, enField] of Object.entries(mapping)) {
@@ -317,6 +316,15 @@ export default function NewClientPage() {
       }
 
       const extractedData = await res.json();
+      const bankDefaults = mapFlatBankingToFormValues({
+        account: extractedData.account,
+        bankAddress: extractedData.bankAddress,
+        bankCountry: extractedData.bankCountry,
+        bankName: extractedData.bankName,
+        bic: extractedData.bic,
+        corrAccount: extractedData.corrAccount,
+        swift: extractedData.swift,
+      });
 
       // Заполняем форму извлечёнными данными
       const fieldsToSet: (keyof ClientFormData)[] = [
@@ -333,11 +341,6 @@ export default function NewClientPage() {
         "ogrn",
         "oktmo",
         "okpo",
-        "bankName",
-        "bankAddress",
-        "account",
-        "bic",
-        "corrAccount",
       ];
 
       fieldsToSet.forEach((field) => {
@@ -348,6 +351,42 @@ export default function NewClientPage() {
           });
         }
       });
+
+      if (
+        extractedData.bankName ||
+        extractedData.bankAddress ||
+        extractedData.account ||
+        extractedData.bic ||
+        extractedData.swift ||
+        extractedData.corrAccount
+      ) {
+        form.setValue("bankMode", bankDefaults.bankMode, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        form.setValue("bankProviderId", bankDefaults.bankProviderId, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        form.setValue("bankProvider", bankDefaults.bankProvider, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        form.setValue(
+          "bankRequisite",
+          {
+            ...bankDefaults.bankRequisite,
+            beneficiaryName:
+              bankDefaults.bankRequisite.beneficiaryName ||
+              extractedData.orgName ||
+              form.getValues("orgName"),
+          },
+          {
+            shouldDirty: true,
+            shouldValidate: true,
+          },
+        );
+      }
     } catch (err) {
       console.error("Parse error:", err);
       setError(
@@ -411,8 +450,10 @@ export default function NewClientPage() {
     setError(null);
 
     try {
+      const bankingPayload = createCustomerBankingPayload(data);
       const payload: Record<string, unknown> = {
         ...data,
+        ...bankingPayload,
         orgNameI18n: {
           ru: data.orgName || undefined,
           en: data.orgNameI18n?.en || undefined,
@@ -436,14 +477,6 @@ export default function NewClientPage() {
         addressI18n: {
           ru: data.address || undefined,
           en: data.addressI18n?.en || undefined,
-        },
-        bankNameI18n: {
-          ru: data.bankName || undefined,
-          en: data.bankNameI18n?.en || undefined,
-        },
-        bankAddressI18n: {
-          ru: data.bankAddress || undefined,
-          en: data.bankAddressI18n?.en || undefined,
         },
       };
 
@@ -963,142 +996,13 @@ export default function NewClientPage() {
               </CardContent>
             </Card>
 
-            {/* Банковские реквизиты */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg">Банковские реквизиты</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Название банка</FormLabel>
-                        <FormControl>
-                          <Input placeholder="ПАО Сбербанк" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bankNameI18n.en"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Название банка (EN)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bank name in English" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bankAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Адрес банка</FormLabel>
-                        <FormControl>
-                          <Input placeholder="г. Москва" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bankAddressI18n.en"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Адрес банка (EN)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bank address in English" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bankCountry"
-                    render={({ field, fieldState }) => (
-                      <FormItem>
-                        <FormLabel>Страна банка</FormLabel>
-                        <FormControl>
-                          <CountrySelect
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                            invalid={fieldState.invalid}
-                            placeholder="Выберите страну"
-                            searchPlaceholder="Поиск страны..."
-                            emptyLabel="Страна не найдена"
-                            clearable
-                            clearLabel="Очистить"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="account"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Расчётный счёт</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="40702810123456789012"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bic"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>БИК</FormLabel>
-                        <FormControl>
-                          <Input placeholder="044525225" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="corrAccount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Корр. счёт</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="30101810400000000225"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-2">
+              <CustomerBankingSection
+                form={
+                  form as unknown as UseFormReturn<CustomerBankingFormData>
+                }
+              />
+            </div>
 
             {/* Субагент */}
             <Card className="lg:col-span-2">

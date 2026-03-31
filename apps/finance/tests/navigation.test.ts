@@ -6,10 +6,11 @@ import {
 } from "@/lib/navigation/config";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
 
-function createSession(role: "user" | "admin"): UserSessionSnapshot {
+function createSession(role: "finance" | "admin"): UserSessionSnapshot {
   return {
     isAuthenticated: true,
     role,
+    requiresTwoFactorSetup: false,
     featureFlags: {},
     user: {
       id: "user-1",
@@ -25,8 +26,8 @@ function createSession(role: "user" | "admin"): UserSessionSnapshot {
 }
 
 describe("navigation config", () => {
-  it("hides admin-only sections for regular users", () => {
-    const items = getPrimaryNavigation(createSession("user"));
+  it("hides admin-only sections for finance users", () => {
+    const items = getPrimaryNavigation(createSession("finance"));
 
     expect(items.map((item) => item.href)).toEqual(["/", "/documents", "/settings"]);
   });
@@ -67,7 +68,7 @@ describe("navigation config", () => {
   });
 
   it("keeps secondary navigation available", () => {
-    const items = getSecondaryNavigation(createSession("user"));
+    const items = getSecondaryNavigation(createSession("finance"));
 
     expect(items).toHaveLength(1);
     expect(items[0]?.kind).toBe("notifications");

@@ -25,7 +25,7 @@ const CustomerPortalProfileSchema = z.object({
       description: z.string().nullable().optional(),
     }),
   ),
-  hasCrmAccess: z.boolean(),
+  hasOnboardingAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
 });
 
@@ -36,7 +36,6 @@ export function resolveRole(user: {
   if (user.role === "agent") return "agent";
   if (user.role === "customer") return "customer";
   if (user.role === "finance") return "finance";
-  if (user.role === "user") return "user";
   return null;
 }
 
@@ -44,7 +43,7 @@ export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return {
     canAccessDashboard: false,
     customerPortalCustomers: [],
-    hasCrmAccess: false,
+    hasOnboardingAccess: false,
     hasCustomerPortalAccess: false,
     isAuthenticated: false,
     role: null,
@@ -62,10 +61,11 @@ export async function fetchSessionSnapshot(input: {
   let sessionResponse: Response;
 
   try {
-    sessionResponse = await fetch(`${apiUrl}/api/auth/get-session`, {
+    sessionResponse = await fetch(`${apiUrl}/api/auth/portal/get-session`, {
       cache: "no-store",
       headers: {
         cookie: input.cookie,
+        "x-bedrock-app-audience": "portal",
       },
     });
   } catch {
@@ -84,7 +84,7 @@ export async function fetchSessionSnapshot(input: {
   }
 
   const role = resolveRole(parsedSession.data.user);
-  let hasCrmAccess = false;
+  let hasOnboardingAccess = false;
   let hasCustomerPortalAccess = false;
   let customerPortalCustomers: UserSessionSnapshot["customerPortalCustomers"] =
     [];
@@ -96,6 +96,7 @@ export async function fetchSessionSnapshot(input: {
         cache: "no-store",
         headers: {
           cookie: input.cookie,
+          "x-bedrock-app-audience": "portal",
         },
       },
     );
@@ -104,7 +105,7 @@ export async function fetchSessionSnapshot(input: {
       const profilePayload = await customerProfileResponse.json();
       const parsedProfile = CustomerPortalProfileSchema.safeParse(profilePayload);
       if (parsedProfile.success) {
-        hasCrmAccess = parsedProfile.data.hasCrmAccess;
+        hasOnboardingAccess = parsedProfile.data.hasOnboardingAccess;
         hasCustomerPortalAccess = parsedProfile.data.hasCustomerPortalAccess;
         customerPortalCustomers = parsedProfile.data.customers.map(
           (customer) => ({
@@ -121,9 +122,9 @@ export async function fetchSessionSnapshot(input: {
   }
 
   return {
-    canAccessDashboard: hasCrmAccess,
+    canAccessDashboard: role === "admin" || role === "agent",
     customerPortalCustomers,
-    hasCrmAccess,
+    hasOnboardingAccess,
     hasCustomerPortalAccess,
     isAuthenticated: true,
     role,

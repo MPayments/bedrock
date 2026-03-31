@@ -24,7 +24,7 @@ export type SerializedUser = {
 
 function roleLabel(role: string | null) {
   if (role === "admin") return "Админ";
-  return "Пользователь";
+  return "Казначей";
 }
 
 export function getColumns(): ColumnDef<SerializedUser>[] {
@@ -75,7 +75,7 @@ export function getColumns(): ColumnDef<SerializedUser>[] {
         variant: "multiSelect",
         options: [
           { value: "admin", label: "Админ" },
-          { value: "user", label: "Пользователь" },
+          { value: "finance", label: "Казначей" },
         ],
       },
       enableColumnFilter: true,

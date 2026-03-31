@@ -32,7 +32,7 @@ describe("document form registry", () => {
     expect(
       getDocumentFormDefinitionForRole({
         docType: "fx_execute",
-        role: "user",
+        role: "finance",
       }),
     ).not.toBeNull();
 
@@ -53,7 +53,7 @@ describe("document form registry", () => {
     expect(
       getDocumentFormDefinitionForRole({
         docType: "period_reopen",
-        role: "user",
+        role: "finance",
       }),
     ).toBeNull();
 

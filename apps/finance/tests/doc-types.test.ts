@@ -30,20 +30,20 @@ describe("document doc types", () => {
   });
 
   it("enforces typed-form and create permissions for admin-only IFRS docs", () => {
-    expect(hasTypedDocumentForm("fx_execute", "user")).toBe(true);
-    expect(canCreateDocumentType("fx_execute", "user")).toBe(true);
+    expect(hasTypedDocumentForm("fx_execute", "finance")).toBe(true);
+    expect(canCreateDocumentType("fx_execute", "finance")).toBe(true);
     expect(hasTypedDocumentForm("fx_resolution", "admin")).toBe(false);
     expect(canCreateDocumentType("fx_resolution", "admin")).toBe(false);
 
     expect(hasTypedDocumentForm("period_reopen", "admin")).toBe(true);
-    expect(hasTypedDocumentForm("period_reopen", "user")).toBe(false);
+    expect(hasTypedDocumentForm("period_reopen", "finance")).toBe(false);
 
     expect(canCreateDocumentType("period_reopen", "admin")).toBe(true);
-    expect(canCreateDocumentType("period_reopen", "user")).toBe(false);
+    expect(canCreateDocumentType("period_reopen", "finance")).toBe(false);
 
     expect(hasTypedDocumentForm("period_close", "admin")).toBe(false);
     expect(canCreateDocumentType("period_close", "admin")).toBe(false);
-    expect(canCreateDocumentType("period_close", "user")).toBe(false);
+    expect(canCreateDocumentType("period_close", "finance")).toBe(false);
   });
 
   it("exposes the documents workspace families and role-scoped type lists", () => {
@@ -60,7 +60,7 @@ describe("document doc types", () => {
     expect(getDocumentsWorkspaceFamilyLabel("ifrs")).toBe("Учетные документы");
 
     expect(
-      getDocumentsWorkspaceTypesForFamily("transfers", "user").map(
+      getDocumentsWorkspaceTypesForFamily("transfers", "finance").map(
         (option) => option.value,
       ),
     ).toEqual([
@@ -69,7 +69,7 @@ describe("document doc types", () => {
       "transfer_resolution",
     ]);
     expect(
-      getDocumentsWorkspaceTypesForFamily("ifrs", "user").map(
+      getDocumentsWorkspaceTypesForFamily("ifrs", "finance").map(
         (option) => option.value,
       ),
     ).toEqual(["fx_execute", "fx_resolution", "capital_funding"]);

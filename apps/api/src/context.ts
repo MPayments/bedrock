@@ -9,6 +9,7 @@ import type { DocumentsService } from "@bedrock/documents";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
+import type { PortalAccessGrantsService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -77,6 +78,7 @@ export interface AppContext {
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   iamService: IamService;
+  portalAccessGrantsService: PortalAccessGrantsService;
   ledgerModule: LedgerModule;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
@@ -110,6 +112,7 @@ export function createAppContext(env: Env): AppContext {
     requisiteAccountingWorkflow:
       applicationServices.requisiteAccountingWorkflow,
     iamService: core.iamService,
+    portalAccessGrantsService: core.portalAccessGrantsService,
     documentsService: applicationServices.documentsService,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,

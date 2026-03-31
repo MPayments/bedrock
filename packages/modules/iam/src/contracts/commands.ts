@@ -6,7 +6,7 @@ export const CreateUserInputSchema = z.object({
   name: z.string().trim().min(1, "name is required"),
   email: z.email("invalid email"),
   password: z.string().min(6, "password must be at least 6 characters"),
-  role: UserRoleSchema.default("user"),
+  role: UserRoleSchema.nullable().default(null),
 });
 
 export type CreateUserInput = z.input<typeof CreateUserInputSchema>;

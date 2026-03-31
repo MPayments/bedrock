@@ -7,12 +7,12 @@ export type HashPasswordFn = (password: string) => Promise<string>;
 
 export const USER_IDS = {
     ADMIN: "00000000-0000-4000-8000-000000000901",
-    USER: "00000000-0000-4000-8000-000000000902",
+    FINANCE: "00000000-0000-4000-8000-000000000902",
 } as const;
 
 const ACCOUNT_IDS = {
     ADMIN: "00000000-0000-4000-8000-000000000911",
-    USER: "00000000-0000-4000-8000-000000000912",
+    FINANCE: "00000000-0000-4000-8000-000000000912",
 } as const;
 
 interface UserSeed {
@@ -34,12 +34,12 @@ const USER_SEEDS: UserSeed[] = [
         password: "admin123",
     },
     {
-        id: USER_IDS.USER,
-        accountId: ACCOUNT_IDS.USER,
-        name: "User",
-        email: "user@bedrock.com",
-        role: "user",
-        password: "user123",
+        id: USER_IDS.FINANCE,
+        accountId: ACCOUNT_IDS.FINANCE,
+        name: "Finance",
+        email: "finance@bedrock.com",
+        role: "finance",
+        password: "finance123",
     },
 ];
 

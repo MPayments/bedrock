@@ -40,14 +40,14 @@ import { PasswordFieldWithGenerator } from "./password-field-with-generator";
 
 const ROLE_OPTIONS = [
   { value: "admin", label: "Админ" },
-  { value: "user", label: "Пользователь" },
+  { value: "finance", label: "Казначей" },
 ] as const;
 
 const CreateUserFormSchema = z.object({
   name: z.string().trim().min(1, "Имя обязательно"),
   email: z.email("Некорректный email"),
   password: z.string().min(6, "Минимум 6 символов"),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "finance"]),
 });
 
 type CreateUserFormValues = z.infer<typeof CreateUserFormSchema>;
@@ -66,7 +66,7 @@ export function CreateUserFormClient() {
       name: "",
       email: "",
       password: "",
-      role: "user",
+      role: "finance",
     }),
     [],
   );

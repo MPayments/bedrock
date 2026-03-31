@@ -43,7 +43,7 @@ function TruncatedText({
 }) {
   return (
     <Popover>
-      <PopoverTrigger render={<div className={className} />}>
+      <PopoverTrigger nativeButton={false} render={<div className={className} />}>
         <div className="cursor-pointer truncate font-medium" title={text}>
           {text}
         </div>
@@ -123,20 +123,6 @@ export function NewContractDialog({
   const [error, setError] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  // Сброс состояния при открытии
-  useEffect(() => {
-    if (open) {
-      setStep("organization");
-      setFormData({
-        agentFee: "",
-        fixedFee: "",
-      });
-      setBanks([]);
-      setError(null);
-      void fetchOrganizations();
-    }
-  }, [fetchOrganizations, open]);
-
   // Загрузка организаций
   const fetchOrganizations = useCallback(async () => {
     try {
@@ -163,6 +149,20 @@ export function NewContractDialog({
       setLoadingOrganizations(false);
     }
   }, []);
+
+  // Сброс состояния при открытии
+  useEffect(() => {
+    if (open) {
+      setStep("organization");
+      setFormData({
+        agentFee: "",
+        fixedFee: "",
+      });
+      setBanks([]);
+      setError(null);
+      void fetchOrganizations();
+    }
+  }, [fetchOrganizations, open]);
 
   // Загрузка банков для выбранной организации
   const fetchBanks = useCallback(async (orgId: string) => {
@@ -258,21 +258,26 @@ export function NewContractDialog({
       const res = await fetch(
         `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/contract`,
         {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          organizationId: formData.organizationId,
-          organizationRequisiteId: formData.organizationRequisiteId,
-          agentFee: formData.agentFee || undefined,
-          fixedFee: formData.fixedFee || undefined,
-        }),
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": crypto.randomUUID(),
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            organizationId: formData.organizationId,
+            organizationRequisiteId: formData.organizationRequisiteId,
+            agentFee: formData.agentFee || undefined,
+            fixedFee: formData.fixedFee || undefined,
+          }),
         },
       );
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || "Ошибка создания контракта");
+        throw new Error(
+          errorData.error || errorData.message || "Ошибка создания контракта",
+        );
       }
 
       // Успешное создание

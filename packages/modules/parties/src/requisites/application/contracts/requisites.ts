@@ -7,7 +7,6 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
-  RequisiteCountryCodeSchema,
   RequisiteKindSchema,
   RequisiteOwnerTypeSchema,
 } from "./zod";

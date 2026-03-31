@@ -57,7 +57,7 @@ describe("document pages", () => {
     vi.resetModules();
     vi.clearAllMocks();
 
-    getServerSessionSnapshot.mockResolvedValue({ role: "user" });
+    getServerSessionSnapshot.mockResolvedValue({ role: "finance" });
     parseSearchParams.mockImplementation(async (input) => ({
       page: 1,
       perPage: 20,
@@ -114,7 +114,7 @@ describe("document pages", () => {
     ).rejects.toBe(NOT_FOUND);
   });
 
-  it("returns notFound for admin-only create pages when role is user", async () => {
+  it("returns notFound for admin-only create pages when role is finance", async () => {
     const { default: CreatePage } = await import(
       "@/app/(shell)/documents/create/[docType]/page"
     );

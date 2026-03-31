@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import auth from "./auth";
+import { authByAudience } from "./auth";
 import { createAppContext, parseEnv, type AppContext } from "./context";
 import {
   authMiddleware,
@@ -106,8 +106,14 @@ app.use(
   }),
 );
 
-app.on(["POST", "GET"], "/api/auth/*", (c) => {
-  return auth.handler(c.req.raw);
+app.on(["POST", "GET"], "/api/auth/finance/*", (c) => {
+  return authByAudience.finance.handler(c.req.raw);
+});
+app.on(["POST", "GET"], "/api/auth/crm/*", (c) => {
+  return authByAudience.crm.handler(c.req.raw);
+});
+app.on(["POST", "GET"], "/api/auth/portal/*", (c) => {
+  return authByAudience.portal.handler(c.req.raw);
 });
 
 app.route("/api/customer-auth", customerAuthRoutes(ctx));
@@ -202,7 +208,9 @@ app.get(
     pageTitle: openApiInfo.info.title,
     sources: [
       { url: "/api/open-api", title: "Api" },
-      { url: "/api/auth/open-api/generate-schema", title: "Auth" },
+      { url: "/api/auth/finance/open-api/generate-schema", title: "Auth Finance" },
+      { url: "/api/auth/crm/open-api/generate-schema", title: "Auth CRM" },
+      { url: "/api/auth/portal/open-api/generate-schema", title: "Auth Portal" },
     ],
   }),
 );

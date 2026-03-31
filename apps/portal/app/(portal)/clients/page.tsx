@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
@@ -14,10 +15,10 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
+import { isDuplicateCustomerLegalEntityName } from "@/lib/legal-entities";
 
 interface LegalEntity {
   counterpartyId: string;
-  hasLegacyShell: boolean;
   inn: string | null;
   phone: string | null;
   relationshipKind: "customer_owned" | "external";
@@ -25,6 +26,10 @@ interface LegalEntity {
 }
 
 interface CustomerContext {
+  agentAgreement: {
+    contractNumber: string | null;
+    status: "active" | "missing";
+  };
   customerId: string;
   displayName: string;
   externalRef: string | null;
@@ -130,6 +135,24 @@ export default function PortalClientsPage() {
                   {customer.description}
                 </CardDescription>
               ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={
+                    customer.agentAgreement.status === "active"
+                      ? "success"
+                      : "warning"
+                  }
+                >
+                  {customer.agentAgreement.status === "active"
+                    ? "Агентский договор действует"
+                    : "Агентский договор не заключен"}
+                </Badge>
+                {customer.agentAgreement.contractNumber ? (
+                  <span className="text-xs text-muted-foreground">
+                    № {customer.agentAgreement.contractNumber}
+                  </span>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
@@ -138,21 +161,19 @@ export default function PortalClientsPage() {
                     key={legalEntity.counterpartyId}
                     className="rounded-lg border border-border/60 p-3"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="min-w-0">
+                      {!isDuplicateCustomerLegalEntityName({
+                        customerDisplayName: customer.displayName,
+                        legalEntityName: legalEntity.shortName,
+                      }) ? (
                         <p className="truncate font-medium">
                           {legalEntity.shortName}
                         </p>
-                        {legalEntity.inn ? (
-                          <p className="text-xs text-muted-foreground">
-                            ИНН: {legalEntity.inn}
-                          </p>
-                        ) : null}
-                      </div>
-                      {!legalEntity.hasLegacyShell ? (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700">
-                          shell будет создан автоматически
-                        </span>
+                      ) : null}
+                      {legalEntity.inn ? (
+                        <p className="text-xs text-muted-foreground">
+                          ИНН: {legalEntity.inn}
+                        </p>
                       ) : null}
                     </div>
                     {legalEntity.phone ? (

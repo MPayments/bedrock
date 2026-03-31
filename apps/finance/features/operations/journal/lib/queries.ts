@@ -89,6 +89,7 @@ async function fetchApi(path: string) {
   return fetch(`${API_URL}${path}`, {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
+      "x-bedrock-app-audience": "finance",
     },
     cache: "no-store",
   });

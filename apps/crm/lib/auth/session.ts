@@ -4,7 +4,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { fetchSessionSnapshot, getPreferredHomePath } from "./access";
+import { fetchSessionSnapshot } from "./access";
 import type { UserSessionSnapshot } from "./types";
 
 async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
@@ -21,9 +21,6 @@ export async function requireDashboardSession() {
   if (!session.isAuthenticated) {
     redirect("/login");
   }
-  if (!session.canAccessDashboard) {
-    redirect(getPreferredHomePath(session));
-  }
   return session;
 }
 
@@ -33,7 +30,7 @@ export async function requireAdminSession() {
     redirect("/login");
   }
   if (session.role !== "admin") {
-    redirect(getPreferredHomePath(session));
+    redirect("/");
   }
   return session;
 }

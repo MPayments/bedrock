@@ -37,6 +37,7 @@ export function CreateCustomerFormClient() {
     setSubmitting(true);
     const payload = {
       displayName: values.displayName,
+      orgName: values.displayName,
       externalRef: values.externalRef || undefined,
       description: values.description || undefined,
     };

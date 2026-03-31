@@ -63,6 +63,11 @@ import {
 } from "@bedrock/sdk-ui/components/chart";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
+import type {
+  CurrencyCode,
+  DealsRow,
+  DealStatus,
+} from "@/lib/hooks/useDealsTable";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
@@ -559,12 +564,20 @@ export default function ClientsReportsPage() {
                 />
               )}
               <DataTableFacetedFilter
-                column={table.getColumn("currency") as Column<unknown, string> | undefined}
+                column={
+                  table.getColumn("currency") as
+                    | Column<DealsRow, CurrencyCode>
+                    | undefined
+                }
                 title="Валюта"
                 options={CURRENCY_OPTIONS}
               />
               <DataTableFacetedFilter
-                column={table.getColumn("status") as Column<unknown, string> | undefined}
+                column={
+                  table.getColumn("status") as
+                    | Column<DealsRow, DealStatus>
+                    | undefined
+                }
                 title="Статус"
                 options={STATUS_OPTIONS}
               />

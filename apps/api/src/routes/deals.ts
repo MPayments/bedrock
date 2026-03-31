@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
 
+import { currencies as currenciesTable } from "@bedrock/currencies/schema";
 import {
   AttachDealCalculationInputSchema,
   CreateDealInputSchema,
@@ -12,7 +13,7 @@ import {
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
 import { deals as dealsTable } from "@bedrock/deals/schema";
-import { currencies as currenciesTable } from "@bedrock/currencies/schema";
+import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
 import {
   PreviewQuoteInputSchema,
@@ -20,7 +21,7 @@ import {
   QuoteSchema,
 } from "@bedrock/treasury/contracts";
 
-import { ErrorSchema, IdParamSchema } from "../common";
+import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
@@ -43,6 +44,14 @@ import { serializeQuote, serializeQuoteListItem } from "./internal/treasury-quot
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const DealAttachmentParamsSchema = IdParamSchema.extend({
+    attachmentId: z.string().uuid().openapi({
+      param: {
+        in: "path",
+        name: "attachmentId",
+      },
+    }),
+  });
 
   const listRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
@@ -425,6 +434,93 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const listAttachmentsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/attachments",
+    tags: ["Deals"],
+    summary: "List uploaded attachments for a deal",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(FileAttachmentSchema),
+          },
+        },
+        description: "Deal attachments",
+      },
+    },
+  });
+
+  const uploadAttachmentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/attachments",
+    tags: ["Deals"],
+    summary: "Upload an attachment for a deal",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: FileAttachmentSchema,
+          },
+        },
+        description: "Deal attachment uploaded",
+      },
+    },
+  });
+
+  const downloadAttachmentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/attachments/{attachmentId}/download",
+    tags: ["Deals"],
+    summary: "Download an uploaded deal attachment",
+    request: {
+      params: DealAttachmentParamsSchema,
+    },
+    responses: {
+      302: {
+        description: "Redirect to signed download URL",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Attachment not found",
+      },
+    },
+  });
+
+  const deleteAttachmentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "delete",
+    path: "/{id}/attachments/{attachmentId}",
+    tags: ["Deals"],
+    summary: "Delete an uploaded deal attachment",
+    request: {
+      params: DealAttachmentParamsSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DeletedSchema,
+          },
+        },
+        description: "Deal attachment deleted",
+      },
+    },
+  });
+
   const traceRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -752,7 +848,7 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await ctx.documentsService.list(
           {
             dealId: id,
-            limit: 500,
+            limit: 200,
             offset: 0,
             sortBy: "occurredAt",
             sortOrder: "desc",
@@ -786,6 +882,72 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, toDocumentDto(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listAttachmentsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const attachments =
+          await ctx.filesModule.files.queries.listDealAttachments(id);
+        return jsonOk(c, attachments);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadAttachmentRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400 as const);
+        }
+
+        const attachment =
+          await ctx.filesModule.files.commands.uploadDealAttachment({
+            buffer: Buffer.from(await file.arrayBuffer()),
+            description:
+              typeof body.description === "string" ? body.description : null,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            ownerId: id,
+            uploadedBy: c.get("user")!.id,
+          });
+
+        return jsonOk(c, attachment, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadAttachmentRoute, async (c) => {
+      try {
+        const { attachmentId, id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const url =
+          await ctx.filesModule.files.queries.getDealAttachmentDownloadUrl({
+            fileAssetId: attachmentId,
+            ownerId: id,
+          });
+        return c.redirect(url, 302);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(deleteAttachmentRoute, async (c) => {
+      try {
+        const { attachmentId, id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        await ctx.filesModule.files.commands.deleteDealAttachment({
+          fileAssetId: attachmentId,
+          ownerId: id,
+        });
+        return jsonOk(c, { deleted: true });
       } catch (error) {
         return handleRouteError(c, error);
       }

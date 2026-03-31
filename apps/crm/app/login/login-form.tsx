@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { signIn } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 
@@ -92,13 +91,6 @@ export function LoginForm() {
           >
             {loading ? "Вход..." : "Войти"}
           </button>
-
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">Нет аккаунта? </span>
-            <Link href="/signup" className="font-medium text-primary hover:underline">
-              Зарегистрироваться
-            </Link>
-          </div>
 
           <div className="mt-6 border-t pt-6 text-center">
             <p className="mb-3 text-sm text-muted-foreground">

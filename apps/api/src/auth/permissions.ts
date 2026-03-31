@@ -101,6 +101,22 @@ export const user = ac.newRole({
   requisites: ["list", "providers_list"],
 });
 
+export const finance = ac.newRole({
+  ...userAc.statements,
+  customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
+  counterparties: ["create", "list", "update"],
+  currencies: ["list"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list"],
+  organizations: ["list"],
+  documents: ["create", "list", "get", "update", "submit"],
+  accounting: ["list"],
+  balances: ["get"],
+  requisites: ["list", "providers_list"],
+});
+
 // Agent role: same as user on the final canonical API surface
 export const agent = ac.newRole({
   ...userAc.statements,

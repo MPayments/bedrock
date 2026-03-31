@@ -118,6 +118,10 @@ export function createDrizzleDocumentsQueryRepository(
       const [totalRow] = await db
         .select({ value: count() })
         .from(schema.documents)
+        .leftJoin(
+          schema.documentBusinessLinks,
+          eq(schema.documentBusinessLinks.documentId, schema.documents.id),
+        )
         .where(where);
 
       return {

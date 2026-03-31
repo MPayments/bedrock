@@ -18,12 +18,12 @@ export async function assertSeedSchemaReady(
   const result = await db.execute(sql`
     SELECT
       to_regclass('drizzle.__drizzle_migrations') AS migrations,
-      to_regclass('public.__drizzle_migrations') AS migrations_public,
+      to_regclass('public.__drizzle_migrations') AS "migrationsPublic",
       to_regclass('public.currencies') AS currencies,
       to_regclass('public."user"') AS users
   `);
 
-  const [row] = (result.rows ?? []) as SeedSchemaProbeRow[];
+  const [row] = (result.rows ?? []) as unknown as SeedSchemaProbeRow[];
   const missingTables = [
     row?.migrations || row?.migrationsPublic ? null : "__drizzle_migrations",
     row?.currencies ? null : "currencies",

@@ -44,7 +44,20 @@ export default async function ShellLayout({
             </div>
           </header>
           <Separator orientation="horizontal" className="h-px w-full" />
-          <div className="flex flex-1 flex-col p-6">{children}</div>
+          <div className="flex flex-1 flex-col gap-4 p-6">
+            {session.requiresTwoFactorSetup ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
+                <p className="text-sm font-medium">
+                  Настройте двухфакторную аутентификацию
+                </p>
+                <p className="mt-1 text-sm text-amber-900/90">
+                  Для Treasury она будет обязательной. Завершите настройку в профиле,
+                  чтобы не потерять доступ после включения жесткой политики.
+                </p>
+              </div>
+            ) : null}
+            {children}
+          </div>
         </EntityDraftNameProviders>
       </SidebarInset>
     </SidebarProvider>

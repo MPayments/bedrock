@@ -12,7 +12,6 @@ import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import { authClient } from "@/lib/auth-client";
 
 type Mode = "login" | "register";
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function CustomerLoginForm() {
   const router = useRouter();
@@ -31,7 +30,7 @@ export function CustomerLoginForm() {
     try {
       if (mode === "register") {
         const registrationResponse = await fetch(
-          `${API_URL}/api/customer-auth/register`,
+          `/api/customer-auth/register`,
           {
             method: "POST",
             headers: {

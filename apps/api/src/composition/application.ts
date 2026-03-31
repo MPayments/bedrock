@@ -131,6 +131,7 @@ export function createApplicationServices(
     iamService,
     ledgerModule,
     logger,
+    portalAccessGrantsService,
   } =
     platform;
   const ledgerReadPort = {
@@ -454,6 +455,7 @@ export function createApplicationServices(
     deals: dealsModule,
     iam: {
       customerMemberships: customerMembershipsService,
+      portalAccessGrants: portalAccessGrantsService,
       users: iamService,
     },
     parties: {

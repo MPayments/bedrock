@@ -9,6 +9,161 @@ export const localizedTextSchema = z.object({
 
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
+const bankProviderSnapshotSchema = z.object({
+  address: z.string().optional(),
+  country: z.string().max(2).optional(),
+  name: z.string().optional(),
+  routingCode: z.string().optional(),
+});
+
+const bankRequisiteSnapshotSchema = z.object({
+  accountNo: z.string().optional(),
+  beneficiaryName: z.string().optional(),
+  corrAccount: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        return /^\d+$/.test(val) && val.length === 20;
+      },
+      { message: "Корреспондентский счёт должен содержать 20 цифр" }
+    ),
+  iban: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        return /^[A-Z0-9]{15,34}$/i.test(val);
+      },
+      { message: "IBAN должен содержать от 15 до 34 символов" }
+    ),
+});
+
+function hasText(value: string | null | undefined) {
+  return Boolean(value?.trim());
+}
+
+function hasBankSignal(input: {
+  bankProvider?: z.infer<typeof bankProviderSnapshotSchema>;
+  bankProviderId?: string | null;
+  bankRequisite?: z.infer<typeof bankRequisiteSnapshotSchema>;
+}) {
+  return Boolean(
+    input.bankProviderId ||
+      hasText(input.bankProvider?.name) ||
+      hasText(input.bankProvider?.address) ||
+      hasText(input.bankProvider?.routingCode) ||
+      hasText(input.bankRequisite?.accountNo) ||
+      hasText(input.bankRequisite?.corrAccount) ||
+      hasText(input.bankRequisite?.iban)
+  );
+}
+
+function isValidRoutingCode(
+  routingCode: string | undefined,
+  country: string | undefined,
+) {
+  if (!routingCode) {
+    return false;
+  }
+
+  const normalizedCountry = country?.trim().toUpperCase();
+  const normalizedCode = routingCode.trim().toUpperCase();
+
+  return normalizedCountry === "RU"
+    ? /^\d{9}$/.test(normalizedCode)
+    : /^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(normalizedCode);
+}
+
+function refineCustomerBanking(
+  data: z.infer<typeof customerBankingFieldsSchema>,
+  ctx: z.RefinementCtx,
+) {
+  if (!hasBankSignal(data)) {
+    return;
+  }
+
+  if (data.bankMode === "existing") {
+    if (!data.bankProviderId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bankProviderId"],
+        message: "Выберите банк из справочника или переключитесь на ручной ввод",
+      });
+    }
+  } else {
+    if (!hasText(data.bankProvider.name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bankProvider", "name"],
+        message: "Название банка обязательно",
+      });
+    }
+
+    if (!hasText(data.bankProvider.country)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bankProvider", "country"],
+        message: "Страна банка обязательна",
+      });
+    }
+
+    if (!hasText(data.bankProvider.routingCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bankProvider", "routingCode"],
+        message: "SWIFT / BIC обязателен",
+      });
+    } else if (
+      !isValidRoutingCode(
+        data.bankProvider.routingCode,
+        data.bankProvider.country,
+      )
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bankProvider", "routingCode"],
+        message:
+          data.bankProvider.country?.toUpperCase() === "RU"
+            ? "БИК должен содержать 9 цифр"
+            : "SWIFT / BIC должен содержать 8 или 11 символов",
+      });
+    }
+  }
+
+  if (!hasText(data.bankRequisite.beneficiaryName)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bankRequisite", "beneficiaryName"],
+      message: "Получатель обязателен",
+    });
+  }
+
+  if (!hasText(data.bankRequisite.accountNo)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bankRequisite", "accountNo"],
+      message: "Номер счета обязателен",
+    });
+  }
+}
+
+export const customerBankingFieldsSchema = z.object({
+  bankMode: z.enum(["existing", "manual"]),
+  bankProviderId: z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.string().uuid().nullable()
+  ),
+  bankProvider: bankProviderSnapshotSchema,
+  bankRequisite: bankRequisiteSnapshotSchema,
+});
+
+export type CustomerBankingFormData = z.infer<
+  typeof customerBankingFieldsSchema
+>;
+
 // --- Client ---
 
 const phoneSchema = z
@@ -23,7 +178,7 @@ const phoneSchema = z
     { message: "Некорректный формат телефона (например: +7 999 123-45-67)" }
   );
 
-export const clientSchema = z.object({
+const clientFieldsSchema = z.object({
   orgName: z.string().min(1, "Название организации обязательно"),
   orgNameI18n: localizedTextSchema.optional(),
   orgType: z.string().min(1, "Тип организации обязателен"),
@@ -98,44 +253,12 @@ export const clientSchema = z.object({
       },
       { message: "ОКПО должен содержать только цифры (8 или 10 символов)" }
     ),
-  bankName: z.string().optional(),
-  bankNameI18n: localizedTextSchema.optional(),
-  bankAddress: z.string().optional(),
-  bankAddressI18n: localizedTextSchema.optional(),
-  account: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val === "") return true;
-        return /^\d+$/.test(val) && val.length === 20;
-      },
-      { message: "Расчётный счёт должен содержать 20 цифр" }
-    ),
-  bic: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val === "") return true;
-        return /^\d+$/.test(val) && val.length === 9;
-      },
-      { message: "БИК должен содержать 9 цифр" }
-    ),
-  corrAccount: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val === "") return true;
-        return /^\d+$/.test(val) && val.length === 20;
-      },
-      { message: "Корреспондентский счёт должен содержать 20 цифр" }
-    ),
-  bankCountry: z.string().max(2).optional(),
+  ...customerBankingFieldsSchema.shape,
 });
 
-export const createClientSchema = clientSchema.extend({
+export const clientSchema = clientFieldsSchema.superRefine(refineCustomerBanking);
+
+const createClientFieldsSchema = clientFieldsSchema.extend({
   subAgentCounterpartyId: z.string().uuid().optional(),
   contractNumber: z.string().optional(),
   contractDate: z.string().optional(),
@@ -145,11 +268,41 @@ export const createClientSchema = clientSchema.extend({
   organizationRequisiteId: z.string().uuid().optional(),
 });
 
-export const updateClientSchema = createClientSchema.partial();
+export const createClientSchema =
+  createClientFieldsSchema.superRefine(refineCustomerBanking);
 
-export type ClientFormData = z.infer<typeof clientSchema>;
-export type CreateClientInput = z.infer<typeof createClientSchema>;
-export type UpdateClientInput = z.infer<typeof updateClientSchema>;
+export const updateClientSchema =
+  createClientFieldsSchema.partial().superRefine((data, ctx) => {
+    if (
+      data.bankMode ||
+      data.bankProviderId !== undefined ||
+      data.bankProvider !== undefined ||
+      data.bankRequisite !== undefined
+    ) {
+      refineCustomerBanking(
+        {
+          bankMode: data.bankMode ?? "existing",
+          bankProvider: {
+            address: data.bankProvider?.address,
+            country: data.bankProvider?.country,
+            name: data.bankProvider?.name,
+            routingCode: data.bankProvider?.routingCode,
+          },
+          bankProviderId: data.bankProviderId ?? null,
+          bankRequisite: {
+            accountNo: data.bankRequisite?.accountNo,
+            beneficiaryName: data.bankRequisite?.beneficiaryName,
+            corrAccount: data.bankRequisite?.corrAccount,
+            iban: data.bankRequisite?.iban,
+          },
+        },
+        ctx
+      );
+    }
+  });
+
+export type CreateClientInput = z.input<typeof createClientSchema>;
+export type UpdateClientInput = z.input<typeof updateClientSchema>;
 
 // --- Organization ---
 
@@ -191,7 +344,7 @@ export type EditOrganizationInput = z.infer<typeof editOrganizationSchema>;
 
 // --- Customer ---
 
-export const customerOnboardSchema = z.object({
+const customerOnboardFieldsSchema = z.object({
   name: z.string().min(2, "Имя должно содержать минимум 2 символа").max(255),
   orgName: z.string().min(1, "Название организации обязательно"),
   orgNameI18n: localizedTextSchema.optional(),
@@ -232,16 +385,13 @@ export const customerOnboardSchema = z.object({
   ogrn: z.string().optional(),
   oktmo: z.string().optional(),
   okpo: z.string().optional(),
-  bankName: z.string().optional(),
-  bankNameI18n: localizedTextSchema.optional(),
-  bankAddress: z.string().optional(),
-  bankAddressI18n: localizedTextSchema.optional(),
-  account: z.string().optional(),
-  bic: z.string().optional(),
-  corrAccount: z.string().optional(),
-  bankCountry: z.string().optional(),
+  ...customerBankingFieldsSchema.shape,
 });
 
+export const customerOnboardSchema =
+  customerOnboardFieldsSchema.superRefine(refineCustomerBanking);
+
+export type ClientFormData = z.infer<typeof clientSchema>;
 export type CustomerOnboardInput = z.infer<typeof customerOnboardSchema>;
 
 // --- Contract ---

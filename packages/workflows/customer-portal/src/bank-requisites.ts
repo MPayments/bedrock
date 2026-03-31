@@ -70,9 +70,7 @@ function hasBankSignal(input: LegalEntityBankingInput) {
   return Boolean(
     normalizeNullableText(input.bankProvider?.name) ||
       normalizeNullableText(input.bankProvider?.address) ||
-      normalizeCountryCode(input.bankProvider?.country) ||
       normalizeNullableText(input.bankProvider?.routingCode) ||
-      normalizeNullableText(input.bankRequisite?.beneficiaryName) ||
       normalizeNullableText(input.bankRequisite?.accountNo) ||
       normalizeNullableText(input.bankRequisite?.corrAccount) ||
       normalizeNullableText(input.bankRequisite?.iban) ||

@@ -12,9 +12,12 @@ export default async function PortalLoginPage() {
 
   if (session.isAuthenticated) {
     if (session.hasCustomerPortalAccess) {
-      redirect("/");
+      redirect("/clients");
     }
-    redirect("/");
+
+    if (session.hasOnboardingAccess) {
+      redirect("/onboard");
+    }
   }
 
   return (

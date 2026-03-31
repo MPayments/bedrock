@@ -30,14 +30,19 @@ const SessionResponseSchema = z
         name: z.string(),
         email: z.string(),
         image: z.string().nullable().optional(),
-        role: z.string().optional(),
       })
       ,
   })
   ;
 
+const ProfileResponseSchema = z.object({
+  id: z.string(),
+  role: z.string().nullable(),
+  twoFactorEnabled: z.boolean().nullable(),
+});
+
 function resolveRole(role: string | undefined): UserRole {
-  return role === "admin" ? "admin" : "user";
+  return role === "admin" ? "admin" : "finance";
 }
 
 function resolveFeatureFlags(): FeatureFlagMap {
@@ -55,9 +60,13 @@ function resolveFeatureFlags(): FeatureFlagMap {
 
 async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   const requestHeaders = await headers();
-  const response = await fetch(`${API_URL}/api/auth/get-session`, {
+  const authHeaders = {
+    cookie: requestHeaders.get("cookie") ?? "",
+    "x-bedrock-app-audience": "finance",
+  };
+  const response = await fetch(`${API_URL}/api/auth/finance/get-session`, {
     headers: {
-      cookie: requestHeaders.get("cookie") ?? "",
+      ...authHeaders,
     },
     cache: "no-store",
   });
@@ -65,7 +74,8 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   if (!response.ok) {
     return {
       isAuthenticated: false,
-      role: "user",
+      role: "finance",
+      requiresTwoFactorSetup: false,
       featureFlags: resolveFeatureFlags(),
       user: null,
       session: null,
@@ -78,18 +88,33 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   if (!parsed.success) {
     return {
       isAuthenticated: false,
-      role: "user",
+      role: "finance",
+      requiresTwoFactorSetup: false,
       featureFlags: resolveFeatureFlags(),
       user: null,
       session: null,
     };
   }
 
-  const role = resolveRole(parsed.data.user.role);
+  const profileResponse = await fetch(`${API_URL}/v1/me`, {
+    cache: "no-store",
+    headers: authHeaders,
+  });
+
+  const profilePayload = profileResponse.ok ? await profileResponse.json() : null;
+  const parsedProfile = ProfileResponseSchema.safeParse(profilePayload);
+  const role = resolveRole(
+    parsedProfile.success ? parsedProfile.data.role ?? undefined : undefined,
+  );
+  const requiresTwoFactorSetup =
+    parsedProfile.success &&
+    parsedProfile.data.role !== null &&
+    !parsedProfile.data.twoFactorEnabled;
 
   return {
     isAuthenticated: true,
     role,
+    requiresTwoFactorSetup,
     featureFlags: resolveFeatureFlags(),
     user: {
       id: parsed.data.user.id,

@@ -16,7 +16,7 @@ type OrganizationWorkspaceLayoutProps = {
   title: string;
   subtitle: string;
   disabledTabs?: OrganizationWorkspaceTab[];
-  children: React.ReactNode;
+  children?: React.ReactNode;
 };
 
 export function OrganizationWorkspaceLayout({

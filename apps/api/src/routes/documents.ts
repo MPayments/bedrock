@@ -12,7 +12,7 @@ import {
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/model";
 
-import auth from "../auth";
+import { authByAudience } from "../auth";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
@@ -218,7 +218,9 @@ export function documentsRoutes(ctx: AppContext) {
 
   async function resolveDocumentActionPermissions(
     userId: string,
+    audience: AuthVariables["audience"],
   ): Promise<Map<DocumentPermissionAction, boolean>> {
+    const auth = authByAudience[audience ?? "crm"];
     const uniquePermissions = Array.from(
       new Set<DocumentPermissionAction>(
         Object.values(DOCUMENT_ACTION_TO_PERMISSION),
@@ -386,7 +388,10 @@ export function documentsRoutes(ctx: AppContext) {
       const query = ListDocumentsQuerySchema.parse(
         queryObjectFromUrl(c.req.url),
       );
-      const actionPermissions = await resolveDocumentActionPermissions(user.id);
+      const actionPermissions = await resolveDocumentActionPermissions(
+        user.id,
+        c.get("audience"),
+      );
       const result = await ctx.documentsService.list(query, user.id);
 
       return c.json({
@@ -477,6 +482,7 @@ export function documentsRoutes(ctx: AppContext) {
         const { docType, id } = c.req.param();
         const actionPermissions = await resolveDocumentActionPermissions(
           user.id,
+          c.get("audience"),
         );
         const result = await ctx.documentsService.get(docType, id, user.id);
 
@@ -513,7 +519,7 @@ export function documentsRoutes(ctx: AppContext) {
         );
         const [actionPermissions, ledgerOperationDetailsById] =
           await Promise.all([
-            resolveDocumentActionPermissions(user.id),
+            resolveDocumentActionPermissions(user.id, c.get("audience")),
             ctx.accountingModule.reports.queries.listOperationDetailsWithLabels(
               details.documentOperations.map(
                 (operation) => operation.operationId,

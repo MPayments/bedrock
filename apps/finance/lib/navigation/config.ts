@@ -241,7 +241,7 @@ function isItemVisible(
     return false;
   }
 
-  if (item.audience === "shared" || item.audience === "user") {
+  if (item.audience === "shared" || item.audience === "finance") {
     return true;
   }
 

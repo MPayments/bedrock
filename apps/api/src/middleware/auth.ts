@@ -1,40 +1,43 @@
 import type { MiddlewareHandler } from "hono";
 
-import auth from "../auth";
+import { getValidatedSession, type AuthAudience, type AuthSession } from "../auth";
 import type { RequestContext } from "./request-context";
 
 export interface AuthVariables {
-    user: typeof auth.$Infer.Session.user | null;
-    session: typeof auth.$Infer.Session.session | null;
-    requestContext: RequestContext;
+  audience: AuthAudience | null;
+  user: NonNullable<AuthSession>["user"] | null;
+  session: NonNullable<AuthSession>["session"] | null;
+  requestContext: RequestContext;
 }
 
 export const authMiddleware = (): MiddlewareHandler<{
-    Variables: AuthVariables;
+  Variables: AuthVariables;
 }> => {
-    return async (c, next) => {
-        const authSession = await auth.api.getSession({
-            headers: c.req.raw.headers,
-        });
+  return async (c, next) => {
+    const resolved = await getValidatedSession({
+      headers: c.req.raw.headers,
+    });
 
-        if (!authSession) {
-            c.set("user", null);
-            c.set("session", null);
-            await next();
-            return;
-        }
+    if (!resolved) {
+      c.set("audience", null);
+      c.set("user", null);
+      c.set("session", null);
+      await next();
+      return;
+    }
 
-        c.set("user", authSession.user);
-        c.set("session", authSession.session);
-        await next();
-    };
+    c.set("audience", resolved.audience);
+    c.set("user", resolved.session.user);
+    c.set("session", resolved.session.session);
+    await next();
+  };
 };
 
 export function requireAuth(): MiddlewareHandler<{ Variables: AuthVariables }> {
-    return async (c, next) => {
-        if (!c.get("user")) {
-            return c.json({ error: "Unauthorized" }, 401);
-        }
-        await next();
-    };
+  return async (c, next) => {
+    if (!c.get("user")) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    await next();
+  };
 }

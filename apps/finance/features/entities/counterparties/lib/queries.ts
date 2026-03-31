@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   CounterpartyGroupOptionsResponseSchema,
+  CounterpartySchema,
   type CounterpartyGroupOption,
 } from "@bedrock/parties/contracts";
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/parties/contracts";
@@ -19,16 +20,10 @@ import { createResourceListQuery } from "@/lib/resources/search-params";
 import type { CounterpartiesListResult } from "./types";
 import { type CounterpartiesSearchParams } from "./validations";
 
-const CounterpartyResponseSchema = z.object({
-  id: z.uuid(),
-  externalId: z.string().nullable(),
-  customerId: z.uuid().nullable(),
-  shortName: z.string(),
-  fullName: z.string(),
-  description: z.string().nullable(),
-  country: z.string().nullable(),
-  kind: z.enum(["legal_entity", "individual"]),
-  groupIds: z.array(z.uuid()),
+const CounterpartyResponseSchema = CounterpartySchema.omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

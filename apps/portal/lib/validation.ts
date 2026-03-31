@@ -15,12 +15,46 @@ const bankProviderSnapshotSchema = z.object({
 const bankRequisiteSnapshotSchema = z.object({
   accountNo: z.string().optional(),
   beneficiaryName: z.string().optional(),
-  corrAccount: z.string().optional(),
-  iban: z.string().optional(),
+  corrAccount: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        return /^\d+$/.test(val) && val.length === 20;
+      },
+      { message: "Корреспондентский счёт должен содержать 20 цифр" },
+    ),
+  iban: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        return /^[A-Z0-9]{15,34}$/i.test(val);
+      },
+      { message: "IBAN должен содержать от 15 до 34 символов" },
+    ),
 });
 
 function hasText(value: string | undefined) {
   return Boolean(value?.trim());
+}
+
+function isValidRoutingCode(
+  routingCode: string | undefined,
+  country: string | undefined,
+) {
+  if (!routingCode) {
+    return false;
+  }
+
+  const normalizedCountry = country?.trim().toUpperCase();
+  const normalizedCode = routingCode.trim().toUpperCase();
+
+  return normalizedCountry === "RU"
+    ? /^\d{9}$/.test(normalizedCode)
+    : /^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(normalizedCode);
 }
 
 function hasBankSignal(input: {
@@ -32,9 +66,7 @@ function hasBankSignal(input: {
     input.bankProviderId ||
       hasText(input.bankProvider?.name) ||
       hasText(input.bankProvider?.address) ||
-      hasText(input.bankProvider?.country) ||
       hasText(input.bankProvider?.routingCode) ||
-      hasText(input.bankRequisite?.beneficiaryName) ||
       hasText(input.bankRequisite?.accountNo) ||
       hasText(input.bankRequisite?.corrAccount) ||
       hasText(input.bankRequisite?.iban),
@@ -98,15 +130,71 @@ export const customerOnboardSchema = z
     bankRequisite: bankRequisiteSnapshotSchema,
   })
   .superRefine((data, ctx) => {
-    if (
-      data.bankMode === "existing" &&
-      hasBankSignal(data) &&
-      !data.bankProviderId
-    ) {
+    if (!hasBankSignal(data)) {
+      return;
+    }
+
+    if (data.bankMode === "existing" && !data.bankProviderId) {
       ctx.addIssue({
         code: "custom",
         path: ["bankProviderId"],
         message: "Выберите банк из справочника или переключитесь на ручной ввод",
+      });
+    }
+
+    if (data.bankMode === "manual") {
+      if (!hasText(data.bankProvider.name)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "name"],
+          message: "Название банка обязательно",
+        });
+      }
+
+      if (!hasText(data.bankProvider.country)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "country"],
+          message: "Страна банка обязательна",
+        });
+      }
+
+      if (!hasText(data.bankProvider.routingCode)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "routingCode"],
+          message: "SWIFT / BIC обязателен",
+        });
+      } else if (
+        !isValidRoutingCode(
+          data.bankProvider.routingCode,
+          data.bankProvider.country,
+        )
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "routingCode"],
+          message:
+            data.bankProvider.country?.toUpperCase() === "RU"
+              ? "БИК должен содержать 9 цифр"
+              : "SWIFT / BIC должен содержать 8 или 11 символов",
+        });
+      }
+    }
+
+    if (!hasText(data.bankRequisite.beneficiaryName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankRequisite", "beneficiaryName"],
+        message: "Получатель обязателен",
+      });
+    }
+
+    if (!hasText(data.bankRequisite.accountNo)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankRequisite", "accountNo"],
+        message: "Номер счета обязателен",
       });
     }
   });

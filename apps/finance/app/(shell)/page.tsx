@@ -19,7 +19,7 @@ function formatCount(value: number) {
 }
 
 export default async function DashboardPage() {
-  const session = await requirePageAudience("user");
+  const session = await requirePageAudience("finance");
   const [recentDocuments, transferDocuments, sourceStatuses] = await Promise.all([
     getDocuments({ page: 1, perPage: 5 }),
     getDocuments({ page: 1, perPage: 1, docType: TRANSFER_DOC_TYPES }),
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
           value:
             session.role === "admin"
               ? formatCount(sourceStatuses.length)
-              : "User",
+              : "Finance",
           description:
             session.role === "admin"
               ? staleSources > 0

@@ -105,7 +105,7 @@ export function NavUser({ session }: { session: UserSessionSnapshot }) {
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <Shield />
-                {session.role === "admin" ? "Администратор" : "Пользователь"}
+                {session.role === "admin" ? "Администратор" : "Казначей"}
               </DropdownMenuItem>
               <DropdownMenuItem render={<Link href="/settings/profile" />}>
                 <BadgeCheck />

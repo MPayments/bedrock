@@ -38,3 +38,21 @@ export {
   type HasCustomerMembershipInput,
   type ListCustomerMembershipsByUserIdInput,
 } from "../customer-memberships/application/contracts/queries";
+export {
+  ConsumePortalAccessGrantInputSchema,
+  CreatePortalAccessGrantInputSchema,
+  RevokePortalAccessGrantInputSchema,
+  type ConsumePortalAccessGrantInput,
+  type CreatePortalAccessGrantInput,
+  type RevokePortalAccessGrantInput,
+} from "../portal-access-grants/application/contracts/commands";
+export {
+  PortalAccessGrantSchema,
+  type PortalAccessGrant,
+} from "../portal-access-grants/application/contracts/dto";
+export {
+  GetPortalAccessGrantByUserIdInputSchema,
+  HasPendingPortalAccessGrantInputSchema,
+  type GetPortalAccessGrantByUserIdInput,
+  type HasPendingPortalAccessGrantInput,
+} from "../portal-access-grants/application/contracts/queries";

@@ -11,8 +11,8 @@ import type {
   QuoteRatesPort,
   QuotesRepository,
 } from "./ports";
-import { GetQuoteDetailsQuery } from "./queries/get-quote-details";
 import { GetQuoteByIdQuery } from "./queries/get-quote-by-id";
+import { GetQuoteDetailsQuery } from "./queries/get-quote-details";
 import { ListQuotesQuery } from "./queries/list-quotes";
 import { PreviewQuoteQuery } from "./queries/preview-quote";
 import type {

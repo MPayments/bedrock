@@ -29,6 +29,7 @@ function createWorkflow(overrides?: {
     status?: string;
     userId: string;
   }[];
+  hasPendingPortalGrant?: boolean;
   user?: {
     banned?: boolean | null;
     role?: string | null;
@@ -116,12 +117,35 @@ function createWorkflow(overrides?: {
         ),
       },
     },
+    portalAccessGrants: {
+      commands: {
+        consume: vi.fn(async () => null),
+        create: vi.fn(async () => null),
+        revoke: vi.fn(async () => null),
+      },
+      queries: {
+        findByUserId: vi.fn(async ({ userId }: { userId: string }) =>
+          overrides?.hasPendingPortalGrant
+            ? {
+                id: "grant-1",
+                createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                status: "pending_onboarding",
+                updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+                userId,
+              }
+            : null,
+        ),
+        hasPendingGrant: vi.fn(
+          async () => overrides?.hasPendingPortalGrant ?? false,
+        ),
+      },
+    },
     users: {
       queries: {
         findById: vi.fn(async () => ({
           id: "user-1",
           banned: overrides?.user?.banned ?? false,
-          role: overrides?.user?.role ?? "customer",
+          role: overrides?.user?.role ?? "agent",
         })),
       },
     },
@@ -393,12 +417,13 @@ describe("customer portal workflow", () => {
         },
       ],
       user: {
-        role: "user",
+        role: "agent",
       },
     });
 
     await expect(workflow.getProfile({ userId: "user-1" })).resolves.toEqual(
       expect.objectContaining({
+        hasOnboardingAccess: true,
         hasCrmAccess: true,
         hasCustomerPortalAccess: true,
         memberships: [
@@ -493,8 +518,9 @@ describe("customer portal workflow", () => {
   it("creates a canonical customer and legal entity for portal onboarding", async () => {
     const { iam, parties, workflow } = createWorkflow({
       memberships: [],
+      hasPendingPortalGrant: true,
       user: {
-        role: "customer",
+        role: null,
       },
     });
 
@@ -556,11 +582,12 @@ describe("customer portal workflow", () => {
     );
   });
 
-  it("rejects CRM-only users from portal legal-entity creation", async () => {
+  it("allows onboarding legal-entity creation for mixed-access internal users", async () => {
     const { workflow } = createWorkflow({
       memberships: [],
+      hasPendingPortalGrant: true,
       user: {
-        role: "user",
+        role: "agent",
       },
     });
 
@@ -572,16 +599,20 @@ describe("customer portal workflow", () => {
           orgName: "CRM only",
         },
       ),
-    ).rejects.toMatchObject({
-      name: "CustomerNotAuthorizedError",
-    });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        customerId: "customer-created",
+        orgName: "CRM only",
+      }),
+    );
   });
 
   it("allows bank-provider search during initial onboarding", async () => {
     const { parties, workflow } = createWorkflow({
       memberships: [],
+      hasPendingPortalGrant: true,
       user: {
-        role: "customer",
+        role: null,
       },
     });
     const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
@@ -625,12 +656,22 @@ describe("customer portal workflow", () => {
     ]);
   });
 
-  it("rejects bank-provider search for CRM-only users", async () => {
-    const { workflow } = createWorkflow({
+  it("allows bank-provider search for mixed-access internal users during onboarding", async () => {
+    const { parties, workflow } = createWorkflow({
       memberships: [],
+      hasPendingPortalGrant: true,
       user: {
-        role: "user",
+        role: "agent",
       },
+    });
+    const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
+      typeof vi.fn
+    >;
+    listProvidersMock.mockResolvedValueOnce({
+      data: [],
+      limit: 8,
+      offset: 0,
+      total: 0,
     });
 
     await expect(
@@ -638,8 +679,6 @@ describe("customer portal workflow", () => {
         { userId: "user-1" },
         { query: "Банк", limit: 8 },
       ),
-    ).rejects.toMatchObject({
-      name: "CustomerNotAuthorizedError",
-    });
+    ).resolves.toEqual([]);
   });
 });

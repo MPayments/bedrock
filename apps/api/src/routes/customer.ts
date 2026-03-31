@@ -4,13 +4,14 @@ import type { MiddlewareHandler } from "hono";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
 
+import { resolveEffectiveCompatibilityContractByCustomerId } from "./contracts-compat";
+import { lookupCompanyByInn } from "./legal-entities";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import {
   getRequestContext,
   withRequiredIdempotency,
 } from "../middleware/idempotency";
-import { lookupCompanyByInn } from "./legal-entities";
 
 const LocalizedTextSchema = z
   .object({
@@ -22,6 +23,7 @@ const LocalizedTextSchema = z
 
 const CustomerPortalProfileSchema = z.object({
   customers: z.array(CustomerSchema),
+  hasOnboardingAccess: z.boolean(),
   hasCrmAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
   memberships: z.array(CustomerMembershipSchema),
@@ -45,6 +47,10 @@ const CustomerPortalLegalEntitySchema = z.object({
 });
 
 const CustomerPortalCustomerContextSchema = z.object({
+  agentAgreement: z.object({
+    contractNumber: z.string().nullable(),
+    status: z.enum(["active", "missing"]),
+  }),
   createdAt: z.string(),
   customerId: z.string().uuid(),
   description: z.string().nullable(),
@@ -61,62 +67,197 @@ const CustomerPortalCustomerContextsSchema = z.object({
   total: z.number().int(),
 });
 
-const CustomerPortalCreateLegalEntityInputSchema = z.object({
-  address: z.string().nullable().optional(),
-  addressI18n: LocalizedTextSchema,
-  bankMode: z.enum(["existing", "manual"]),
-  bankProviderId: z.string().uuid().nullable().optional(),
-  bankProvider: z
-    .object({
-      address: z.string().nullable().optional(),
-      country: z.string().nullable().optional(),
-      name: z.string().nullable().optional(),
-      routingCode: z.string().nullable().optional(),
-    })
-    .nullable()
-    .optional(),
-  bankProviderI18n: z
-    .object({
-      address: LocalizedTextSchema,
-      name: LocalizedTextSchema,
-    })
-    .nullable()
-    .optional(),
-  bankRequisite: z
-    .object({
-      accountNo: z.string().nullable().optional(),
-      beneficiaryName: z.string().nullable().optional(),
-      corrAccount: z.string().nullable().optional(),
-      iban: z.string().nullable().optional(),
-    })
-    .nullable()
-    .optional(),
-  country: z.string().nullable().optional(),
-  directorBasis: z.string().nullable().optional(),
-  directorBasisI18n: LocalizedTextSchema,
-  directorName: z.string().nullable().optional(),
-  directorNameI18n: LocalizedTextSchema,
-  email: z
-    .preprocess(
-      (value) => (value === "" ? null : value),
-      z.string().email().nullable().optional(),
-    )
-    .nullable()
-    .optional(),
-  inn: z.string().nullable().optional(),
-  kpp: z.string().nullable().optional(),
-  ogrn: z.string().nullable().optional(),
-  okpo: z.string().nullable().optional(),
-  oktmo: z.string().nullable().optional(),
-  orgName: z.string().min(1),
-  orgNameI18n: LocalizedTextSchema,
-  orgType: z.string().nullable().optional(),
-  orgTypeI18n: LocalizedTextSchema,
-  phone: z.string().nullable().optional(),
-  position: z.string().nullable().optional(),
-  positionI18n: LocalizedTextSchema,
-  subAgentCounterpartyId: z.string().uuid().nullable().optional(),
-});
+const CustomerPortalBankProviderInputSchema = z
+  .object({
+    address: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    routingCode: z.string().nullable().optional(),
+  })
+  .nullable()
+  .optional();
+
+const CustomerPortalBankRequisiteInputSchema = z
+  .object({
+    accountNo: z.string().nullable().optional(),
+    beneficiaryName: z.string().nullable().optional(),
+    corrAccount: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (value) => {
+          if (!value || value === "") return true;
+          return /^\d{20}$/u.test(value);
+        },
+        { message: "Корреспондентский счёт должен содержать 20 цифр" },
+      ),
+    iban: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (value) => {
+          if (!value || value === "") return true;
+          return /^[A-Z0-9]{15,34}$/iu.test(value);
+        },
+        { message: "IBAN должен содержать от 15 до 34 символов" },
+      ),
+  })
+  .nullable()
+  .optional();
+
+function hasText(value: string | null | undefined) {
+  return Boolean(value?.trim());
+}
+
+function hasBankSignal(input: {
+  bankProvider?: z.infer<typeof CustomerPortalBankProviderInputSchema>;
+  bankProviderId?: string | null;
+  bankRequisite?: z.infer<typeof CustomerPortalBankRequisiteInputSchema>;
+}) {
+  return Boolean(
+    input.bankProviderId ||
+      hasText(input.bankProvider?.name ?? undefined) ||
+      hasText(input.bankProvider?.address ?? undefined) ||
+      hasText(input.bankProvider?.routingCode ?? undefined) ||
+      hasText(input.bankRequisite?.accountNo ?? undefined) ||
+      hasText(input.bankRequisite?.corrAccount ?? undefined) ||
+      hasText(input.bankRequisite?.iban ?? undefined),
+  );
+}
+
+function isValidRoutingCode(
+  routingCode: string | null | undefined,
+  country: string | null | undefined,
+) {
+  if (!routingCode) {
+    return false;
+  }
+
+  const normalizedCountry = country?.trim().toUpperCase();
+  const normalizedCode = routingCode.trim().toUpperCase();
+
+  if (normalizedCountry === "RU") {
+    return /^\d{9}$/u.test(normalizedCode);
+  }
+
+  return (
+    (normalizedCode.length === 8 || normalizedCode.length === 11) &&
+    /^[A-Z0-9]+$/u.test(normalizedCode)
+  );
+}
+
+const CustomerPortalCreateLegalEntityInputSchema = z
+  .object({
+    address: z.string().nullable().optional(),
+    addressI18n: LocalizedTextSchema,
+    bankMode: z.enum(["existing", "manual"]),
+    bankProviderId: z.string().uuid().nullable().optional(),
+    bankProvider: CustomerPortalBankProviderInputSchema,
+    bankProviderI18n: z
+      .object({
+        address: LocalizedTextSchema,
+        name: LocalizedTextSchema,
+      })
+      .nullable()
+      .optional(),
+    bankRequisite: CustomerPortalBankRequisiteInputSchema,
+    country: z.string().nullable().optional(),
+    directorBasis: z.string().nullable().optional(),
+    directorBasisI18n: LocalizedTextSchema,
+    directorName: z.string().nullable().optional(),
+    directorNameI18n: LocalizedTextSchema,
+    email: z
+      .preprocess(
+        (value) => (value === "" ? null : value),
+        z.string().email().nullable().optional(),
+      )
+      .nullable()
+      .optional(),
+    inn: z.string().nullable().optional(),
+    kpp: z.string().nullable().optional(),
+    ogrn: z.string().nullable().optional(),
+    okpo: z.string().nullable().optional(),
+    oktmo: z.string().nullable().optional(),
+    orgName: z.string().min(1),
+    orgNameI18n: LocalizedTextSchema,
+    orgType: z.string().nullable().optional(),
+    orgTypeI18n: LocalizedTextSchema,
+    phone: z.string().nullable().optional(),
+    position: z.string().nullable().optional(),
+    positionI18n: LocalizedTextSchema,
+    subAgentCounterpartyId: z.string().uuid().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!hasBankSignal(data)) {
+      return;
+    }
+
+    if (data.bankMode === "existing" && !data.bankProviderId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankProviderId"],
+        message: "Выберите банк из справочника или переключитесь на ручной ввод",
+      });
+    }
+
+    if (data.bankMode === "manual") {
+      if (!hasText(data.bankProvider?.name)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "name"],
+          message: "Название банка обязательно",
+        });
+      }
+
+      if (!hasText(data.bankProvider?.country)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "country"],
+          message: "Страна банка обязательна",
+        });
+      }
+
+      if (!hasText(data.bankProvider?.routingCode)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "routingCode"],
+          message: "SWIFT / BIC обязателен",
+        });
+      } else if (
+        !isValidRoutingCode(
+          data.bankProvider?.routingCode,
+          data.bankProvider?.country,
+        )
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bankProvider", "routingCode"],
+          message:
+            data.bankProvider?.country?.toUpperCase() === "RU"
+              ? "БИК должен содержать 9 цифр"
+              : "SWIFT / BIC должен содержать 8 или 11 символов",
+        });
+      }
+    }
+
+    if (!hasText(data.bankRequisite?.beneficiaryName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankRequisite", "beneficiaryName"],
+        message: "Получатель обязателен",
+      });
+    }
+
+    if (!hasText(data.bankRequisite?.accountNo)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankRequisite", "accountNo"],
+        message: "Номер счета обязателен",
+      });
+    }
+  });
 
 const CustomerPortalBankProviderSearchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(20).default(8),
@@ -459,7 +600,40 @@ export function customerRoutes(ctx: AppContext) {
       const result = await ctx.customerPortalWorkflow.getCustomerContexts({
         userId: user.id,
       });
-      return c.json(result, 200);
+      const contractsByCustomerId = new Map(
+        await Promise.all(
+          result.data.map(async (customerContext) => {
+            const contract =
+              await resolveEffectiveCompatibilityContractByCustomerId(
+                ctx,
+                customerContext.customerId,
+              );
+
+            return [customerContext.customerId, contract] as const;
+          }),
+        ),
+      );
+
+      const data = result.data.map((customerContext) => {
+        const contract =
+          contractsByCustomerId.get(customerContext.customerId) ?? null;
+
+        return {
+          ...customerContext,
+          agentAgreement: {
+            contractNumber: contract?.contractNumber ?? null,
+            status: contract?.isActive ? "active" : "missing",
+          },
+        } satisfies z.infer<typeof CustomerPortalCustomerContextSchema>;
+      });
+
+      return c.json(
+        {
+          data,
+          total: data.length,
+        },
+        200,
+      );
     })
     .openapi(createLegalEntityRoute, async (c) => {
       const user = c.get("user")!;

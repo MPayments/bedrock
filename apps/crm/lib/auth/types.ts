@@ -1,4 +1,4 @@
-export type CrmRole = "admin" | "agent" | "customer" | "finance" | "user" | null;
+export type CrmRole = "admin" | "agent" | null;
 
 export type CustomerPortalCustomerSummary = {
   id: string;
@@ -10,7 +10,6 @@ export type CustomerPortalCustomerSummary = {
 export type UserSessionSnapshot = {
   canAccessDashboard: boolean;
   customerPortalCustomers: CustomerPortalCustomerSummary[];
-  hasCrmAccess: boolean;
   hasCustomerPortalAccess: boolean;
   isAuthenticated: boolean;
   role: CrmRole;

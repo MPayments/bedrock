@@ -1,12 +1,13 @@
-export type AppAudience = "user" | "admin" | "shared";
+export type AppAudience = "finance" | "admin" | "shared";
 
-export type UserRole = "user" | "admin";
+export type UserRole = "finance" | "admin";
 
 export type FeatureFlagMap = Record<string, boolean>;
 
 export type UserSessionSnapshot = {
   isAuthenticated: boolean;
   role: UserRole;
+  requiresTwoFactorSetup: boolean;
   featureFlags: FeatureFlagMap;
   user: {
     id: string;

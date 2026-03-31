@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { PORTAL_BASE_URL } from "@/lib/constants";
-
 import type { CrmRole, UserSessionSnapshot } from "./types";
 
 const SessionResponseSchema = z.looseObject({
@@ -27,7 +25,6 @@ const CustomerPortalProfileSchema = z.object({
       description: z.string().nullable().optional(),
     }),
   ),
-  hasCrmAccess: z.boolean(),
   hasCustomerPortalAccess: z.boolean(),
 });
 
@@ -36,9 +33,6 @@ export function resolveRole(user: {
 }): CrmRole {
   if (user.role === "admin") return "admin";
   if (user.role === "agent") return "agent";
-  if (user.role === "customer") return "customer";
-  if (user.role === "finance") return "finance";
-  if (user.role === "user") return "user";
   return null;
 }
 
@@ -46,20 +40,12 @@ export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return {
     canAccessDashboard: false,
     customerPortalCustomers: [],
-    hasCrmAccess: false,
     hasCustomerPortalAccess: false,
     isAuthenticated: false,
     role: null,
     session: null,
     user: null,
   };
-}
-
-export function getPreferredHomePath(session: UserSessionSnapshot): string {
-  if (session.canAccessDashboard) return "/";
-  if (session.hasCustomerPortalAccess) return PORTAL_BASE_URL;
-  if (session.isAuthenticated) return `${PORTAL_BASE_URL}/onboard`;
-  return `${PORTAL_BASE_URL}/login`;
 }
 
 export async function fetchSessionSnapshot(input: {
@@ -70,10 +56,11 @@ export async function fetchSessionSnapshot(input: {
   let sessionResponse: Response;
 
   try {
-    sessionResponse = await fetch(`${apiUrl}/api/auth/get-session`, {
+    sessionResponse = await fetch(`${apiUrl}/api/auth/crm/get-session`, {
       cache: "no-store",
       headers: {
         cookie: input.cookie,
+        "x-bedrock-app-audience": "crm",
       },
     });
   } catch {
@@ -92,7 +79,6 @@ export async function fetchSessionSnapshot(input: {
   }
 
   const role = resolveRole(parsedSession.data.user);
-  let hasCrmAccess = false;
   let hasCustomerPortalAccess = false;
   let customerPortalCustomers: UserSessionSnapshot["customerPortalCustomers"] =
     [];
@@ -104,6 +90,7 @@ export async function fetchSessionSnapshot(input: {
         cache: "no-store",
         headers: {
           cookie: input.cookie,
+          "x-bedrock-app-audience": "crm",
         },
       },
     );
@@ -112,7 +99,6 @@ export async function fetchSessionSnapshot(input: {
       const profilePayload = await customerProfileResponse.json();
       const parsedProfile = CustomerPortalProfileSchema.safeParse(profilePayload);
       if (parsedProfile.success) {
-        hasCrmAccess = parsedProfile.data.hasCrmAccess;
         hasCustomerPortalAccess = parsedProfile.data.hasCustomerPortalAccess;
         customerPortalCustomers = parsedProfile.data.customers.map((customer) => ({
           description: customer.description ?? null,
@@ -127,9 +113,8 @@ export async function fetchSessionSnapshot(input: {
   }
 
   return {
-    canAccessDashboard: hasCrmAccess,
+    canAccessDashboard: true,
     customerPortalCustomers,
-    hasCrmAccess,
     hasCustomerPortalAccess,
     isAuthenticated: true,
     role,

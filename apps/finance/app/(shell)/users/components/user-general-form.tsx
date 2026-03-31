@@ -42,19 +42,19 @@ import type { UserDetails } from "../lib/queries";
 
 const ROLE_OPTIONS = [
   { value: "admin", label: "Админ" },
-  { value: "user", label: "Пользователь" },
+  { value: "finance", label: "Казначей" },
 ] as const;
 
 type UserGeneralFormValues = {
   name: string;
   email: string;
-  role: "admin" | "user";
+  role: "admin" | "finance";
 };
 
 const UserGeneralFormSchema = z.object({
   name: z.string().trim().min(1, "Имя обязательно"),
   email: z.email("Некорректный email"),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "finance"]),
 });
 
 type UserGeneralFormProps = {
@@ -65,7 +65,7 @@ function toFormValues(user: UserDetails): UserGeneralFormValues {
   return {
     name: user.name,
     email: user.email,
-    role: user.role === "admin" ? "admin" : "user",
+    role: user.role === "admin" ? "admin" : "finance",
   };
 }
 

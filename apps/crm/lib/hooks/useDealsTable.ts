@@ -54,6 +54,13 @@ export interface DealsStatistics {
   totalAmountInReportCurrency?: number;
 }
 
+interface DealsByDayPoint {
+  amount: number;
+  closedCount: number;
+  count: number;
+  date: string;
+}
+
 export interface UseDealsTableOptions {
   /** Начальные фильтры по статусу */
   initialStatusFilter?: DealStatus[];
@@ -178,7 +185,7 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
           params.set("reportCurrencyCode", reportCurrencyCode);
         }
 
-        const url = `${API_BASE_URL}/deals/statistics?${params.toString()}`;
+        const url = `${API_BASE_URL}/deals/by-day?${params.toString()}`;
         const res = await fetch(url, {
           cache: "no-store",
           credentials: "include",
@@ -188,8 +195,29 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
           throw new Error(`Ошибка загрузки статистики: ${res.status}`);
         }
 
-        const stats: DealsStatistics = await res.json();
-        setStatistics(stats);
+        const response = await res.json();
+        const points: DealsByDayPoint[] = Array.isArray(response)
+          ? response
+          : response.data ?? [];
+
+        let totalCount = 0;
+        let doneCount = 0;
+        let totalAmountInBase = 0;
+
+        for (const point of points) {
+          totalCount += point.count ?? 0;
+          doneCount += point.closedCount ?? 0;
+          totalAmountInBase += point.amount ?? 0;
+        }
+
+        setStatistics({
+          activeCount: Math.max(totalCount - doneCount, 0),
+          baseCurrencyCode: "RUB",
+          doneCount,
+          reportCurrencyCode,
+          totalAmountInBase,
+          totalCount,
+        });
       } catch (err) {
         console.error("Statistics fetch error:", err);
       }

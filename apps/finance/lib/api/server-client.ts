@@ -13,6 +13,7 @@ const createServerApiClient = async (): Promise<Client> => {
   return createClient(API_URL, {
     headers: {
       cookie: requestHeaders.get("cookie") ?? "",
+      "x-bedrock-app-audience": "finance",
     },
     init: {
       cache: "no-store",

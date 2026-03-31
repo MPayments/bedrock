@@ -13,6 +13,8 @@ import {
   agentProfiles,
   agentProfilesRelations,
   customerBootstrapClaims,
+  customerMemberships,
+  portalAccessGrants,
   session,
   sessionRelations,
   twoFactor,
@@ -56,6 +58,8 @@ const authSchema = {
   agentProfiles,
   agentProfilesRelations,
   customerBootstrapClaims,
+  customerMemberships,
+  portalAccessGrants,
   userAccessStates,
   userAccessStatesRelations,
 };

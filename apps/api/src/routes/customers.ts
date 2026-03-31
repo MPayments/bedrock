@@ -72,6 +72,7 @@ const CustomerLegalEntitySchema = z.object({
   bankNameI18n: LocalizedTextSchema,
   bankProviderId: z.string().uuid().nullable().optional(),
   bic: z.string().nullable(),
+  beneficiaryName: z.string().nullable(),
   contractNumber: z.string().nullable(),
   corrAccount: z.string().nullable(),
   counterpartyId: z.string().uuid(),
@@ -86,6 +87,7 @@ const CustomerLegalEntitySchema = z.object({
   fullName: z.string(),
   hasLegacyShell: z.boolean(),
   inn: z.string().nullable(),
+  iban: z.string().nullable(),
   kpp: z.string().nullable(),
   ogrn: z.string().nullable(),
   okpo: z.string().nullable(),
@@ -103,6 +105,20 @@ const CustomerLegalEntitySchema = z.object({
   subAgentCounterpartyId: z.string().uuid().nullable(),
   swift: z.string().nullable(),
   updatedAt: z.string(),
+});
+
+const CustomerBankProviderInputSchema = z.object({
+  address: z.string().trim().nullable().optional(),
+  country: z.string().trim().nullable().optional(),
+  name: z.string().trim().nullable().optional(),
+  routingCode: z.string().trim().nullable().optional(),
+});
+
+const CustomerBankRequisiteInputSchema = z.object({
+  accountNo: z.string().trim().nullable().optional(),
+  beneficiaryName: z.string().trim().nullable().optional(),
+  corrAccount: z.string().trim().nullable().optional(),
+  iban: z.string().trim().nullable().optional(),
 });
 
 const CustomerWorkspaceDetailSchema = z.object({
@@ -164,10 +180,14 @@ const CustomerLegalEntityInputSchema = z.object({
   bankAddress: z.string().trim().nullable().optional(),
   bankAddressI18n: LocalizedTextSchema,
   bankCountry: z.string().trim().nullable().optional(),
+  bankMode: z.enum(["existing", "manual"]).optional(),
   bankName: z.string().trim().nullable().optional(),
   bankNameI18n: LocalizedTextSchema,
+  bankProvider: CustomerBankProviderInputSchema.optional(),
   bankProviderId: z.string().uuid().nullable().optional(),
+  bankRequisite: CustomerBankRequisiteInputSchema.optional(),
   bic: z.string().trim().nullable().optional(),
+  beneficiaryName: z.string().trim().nullable().optional(),
   corrAccount: z.string().trim().nullable().optional(),
   country: z.string().trim().nullable().optional(),
   directorBasis: z.string().trim().nullable().optional(),
@@ -182,6 +202,7 @@ const CustomerLegalEntityInputSchema = z.object({
     .nullable()
     .optional(),
   inn: z.string().trim().nullable().optional(),
+  iban: z.string().trim().nullable().optional(),
   kpp: z.string().trim().nullable().optional(),
   ogrn: z.string().trim().nullable().optional(),
   okpo: z.string().trim().nullable().optional(),
@@ -210,6 +231,21 @@ const CustomerWorkspacePatchInputSchema = z.object({
   description: z.string().trim().nullable().optional(),
   displayName: z.string().trim().min(1).optional(),
   externalRef: z.string().trim().nullable().optional(),
+});
+
+const CustomerBankProviderSearchQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(8),
+  query: z.string().trim().min(1),
+});
+
+const CustomerBankProviderSearchResultSchema = z.object({
+  address: z.string().nullable(),
+  bic: z.string().nullable(),
+  country: z.string().nullable(),
+  displayLabel: z.string(),
+  id: z.string().uuid(),
+  name: z.string(),
+  swift: z.string().nullable(),
 });
 
 const PaginatedCustomerWorkspacesSchema = createPaginatedListSchema(
@@ -279,6 +315,68 @@ function normalizeNullableText(value: string | null | undefined): string | null 
 function normalizeCountryCode(value: string | null | undefined): string | null {
   const normalized = normalizeNullableText(value)?.toUpperCase() ?? null;
   return normalized && normalized.length === 2 ? normalized : null;
+}
+
+function deriveRoutingCode(input: {
+  bankProvider?: z.infer<typeof CustomerBankProviderInputSchema>;
+  bankCountry?: string | null | undefined;
+  bic?: string | null | undefined;
+  country?: string | null | undefined;
+  swift?: string | null | undefined;
+}) {
+  const routingCode =
+    normalizeNullableText(input.bankProvider?.routingCode)?.toUpperCase() ?? null;
+  const bic = normalizeNullableText(input.bic);
+  const swift = normalizeNullableText(input.swift)?.toUpperCase() ?? null;
+  const country = normalizeCountryCode(
+    input.bankProvider?.country ?? input.bankCountry ?? input.country,
+  );
+
+  if (routingCode) {
+    return routingCode;
+  }
+
+  if (bic || swift) {
+    return bic ?? swift;
+  }
+
+  return country === "RU" ? bic : swift;
+}
+
+function buildCustomerBankingInput(input: CustomerLegalEntityInput) {
+  const providerCountry = normalizeCountryCode(
+    input.bankProvider?.country ?? input.bankCountry ?? input.country,
+  );
+
+  return {
+    bankProvider: {
+      address:
+        normalizeNullableText(input.bankProvider?.address) ??
+        normalizeNullableText(input.bankAddress),
+      country: providerCountry,
+      name:
+        normalizeNullableText(input.bankProvider?.name) ??
+        normalizeNullableText(input.bankName),
+      routingCode: deriveRoutingCode(input),
+    },
+    bankProviderId: normalizeNullableText(input.bankProviderId),
+    bankRequisite: {
+      accountNo:
+        normalizeNullableText(input.bankRequisite?.accountNo) ??
+        normalizeNullableText(input.account),
+      beneficiaryName:
+        normalizeNullableText(input.bankRequisite?.beneficiaryName) ??
+        normalizeNullableText(input.beneficiaryName),
+      corrAccount:
+        normalizeNullableText(input.bankRequisite?.corrAccount) ??
+        normalizeNullableText(input.corrAccount),
+      iban:
+        normalizeNullableText(input.bankRequisite?.iban) ??
+        normalizeNullableText(input.iban),
+    },
+    country: normalizeCountryCode(input.country ?? input.bankCountry),
+    orgName: input.orgName,
+  };
 }
 
 function serializeDate(value: Date | string): string {
@@ -479,6 +577,7 @@ async function mapCustomerLegalEntity(input: {
     bankNameI18n: null,
     bankProviderId: provider?.id ?? null,
     bic: provider?.bic ?? null,
+    beneficiaryName: input.bankRequisite?.beneficiaryName ?? null,
     contractNumber: input.contract?.contractNumber ?? null,
     corrAccount: input.bankRequisite?.corrAccount ?? null,
     counterpartyId: input.counterparty.id,
@@ -493,6 +592,7 @@ async function mapCustomerLegalEntity(input: {
     fullName: input.counterparty.fullName,
     hasLegacyShell: false,
     inn: input.counterparty.inn ?? input.counterparty.externalId ?? null,
+    iban: input.bankRequisite?.iban ?? null,
     kpp: input.counterparty.kpp ?? null,
     ogrn: input.counterparty.ogrn ?? null,
     okpo: input.counterparty.okpo ?? null,
@@ -662,7 +762,7 @@ async function upsertLegalEntity(
   });
   await customerBankingService.upsertCounterpartyBankRequisite({
     counterpartyId,
-    values: input.values,
+    values: buildCustomerBankingInput(input.values),
   });
 
   const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
@@ -950,6 +1050,29 @@ export function customersRoutes(ctx: AppContext) {
     tags: ["Customers"],
   });
 
+  const searchBankProvidersRoute = createRoute({
+    middleware: [requirePermission({ customers: ["create", "update"] })],
+    method: "get",
+    path: "/bank-providers",
+    request: {
+      query: CustomerBankProviderSearchQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              data: z.array(CustomerBankProviderSearchResultSchema),
+            }),
+          },
+        },
+        description: "Bank provider matches",
+      },
+    },
+    summary: "Search bank providers for CRM customer forms",
+    tags: ["Customers"],
+  });
+
   const createLegalEntityRoute = createRoute({
     middleware: [requirePermission({ customers: ["update"] })],
     method: "post",
@@ -1175,6 +1298,16 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(searchBankProvidersRoute, async (c) => {
+      const query = c.req.valid("query");
+      const customerBankingService = createCustomerBankingService({
+        currencies: ctx.currenciesService,
+        logger: ctx.logger,
+        requisites: ctx.partiesModule.requisites,
+      });
+      const data = await customerBankingService.searchBankProviders(query);
+      return c.json({ data }, 200);
+    })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
 
@@ -1355,14 +1488,45 @@ export function customersRoutes(ctx: AppContext) {
               currentBankRequisite.providerId,
             )
           : null;
+        const currentRoutingCode =
+          currentBankProvider?.country === "RU"
+            ? currentBankProvider?.bic ?? null
+            : currentBankProvider?.swift ?? currentBankProvider?.bic ?? null;
         const values: CustomerLegalEntityInput = {
           account: patch.account ?? currentBankRequisite?.accountNo ?? null,
           address: patch.address ?? current.address ?? null,
           addressI18n: patch.addressI18n ?? current.addressI18n ?? null,
           bankAddress: patch.bankAddress ?? currentBankProvider?.address ?? null,
           bankAddressI18n: patch.bankAddressI18n ?? null,
+          bankMode:
+            patch.bankMode ??
+            ((patch.bankProviderId ?? currentBankProvider?.id)
+              ? "existing"
+              : "manual"),
           bankProviderId:
             patch.bankProviderId ?? currentBankProvider?.id ?? null,
+          bankProvider: {
+            address:
+              patch.bankProvider?.address ??
+              patch.bankAddress ??
+              currentBankProvider?.address ??
+              null,
+            country:
+              patch.bankProvider?.country ??
+              patch.bankCountry ??
+              patch.country ??
+              currentBankProvider?.country ??
+              current.country ??
+              null,
+            name:
+              patch.bankProvider?.name ??
+              patch.bankName ??
+              currentBankProvider?.name ??
+              null,
+            routingCode:
+              patch.bankProvider?.routingCode ??
+              currentRoutingCode,
+          },
           bankCountry:
             patch.bankCountry ??
             patch.country ??
@@ -1374,9 +1538,35 @@ export function customersRoutes(ctx: AppContext) {
             currentBankProvider?.name ??
             null,
           bankNameI18n: patch.bankNameI18n ?? null,
+          bankRequisite: {
+            accountNo:
+              patch.bankRequisite?.accountNo ??
+              patch.account ??
+              currentBankRequisite?.accountNo ??
+              null,
+            beneficiaryName:
+              patch.bankRequisite?.beneficiaryName ??
+              patch.beneficiaryName ??
+              currentBankRequisite?.beneficiaryName ??
+              null,
+            corrAccount:
+              patch.bankRequisite?.corrAccount ??
+              patch.corrAccount ??
+              currentBankRequisite?.corrAccount ??
+              null,
+            iban:
+              patch.bankRequisite?.iban ??
+              patch.iban ??
+              currentBankRequisite?.iban ??
+              null,
+          },
           bic:
             patch.bic ??
             currentBankProvider?.bic ??
+            null,
+          beneficiaryName:
+            patch.beneficiaryName ??
+            currentBankRequisite?.beneficiaryName ??
             null,
           corrAccount:
             patch.corrAccount ?? currentBankRequisite?.corrAccount ?? null,
@@ -1389,6 +1579,7 @@ export function customersRoutes(ctx: AppContext) {
             patch.directorNameI18n ?? current.directorNameI18n ?? null,
           email: patch.email ?? current.email ?? null,
           inn: patch.inn ?? current.inn ?? current.externalId ?? null,
+          iban: patch.iban ?? currentBankRequisite?.iban ?? null,
           kpp: patch.kpp ?? current.kpp ?? null,
           ogrn: patch.ogrn ?? current.ogrn ?? null,
           okpo: patch.okpo ?? current.okpo ?? null,

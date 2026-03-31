@@ -35,7 +35,7 @@ import type { ProfileDetails } from "../lib/queries";
 
 const ROLE_LABELS: Record<string, string> = {
     admin: "Админ",
-    user: "Пользователь",
+    finance: "Казначей",
 };
 
 type ProfileGeneralFormValues = {
