@@ -2,11 +2,12 @@
   "extends": "@bedrock/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "..",
     "module": "ESNext",
     "moduleResolution": "Bundler"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "../crm/lib/server/tasks/schema.ts"
   ]
 }

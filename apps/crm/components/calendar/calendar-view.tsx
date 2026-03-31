@@ -1,22 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { API_BASE_URL } from "@/lib/constants";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Plus,
-} from "lucide-react";
-import { format, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { addMonths, addWeeks, format, subMonths, subWeeks } from "date-fns";
 import { ru } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader } from "@bedrock/sdk-ui/components/card";
 import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
+
 import { MonthView } from "./month-view";
+import { TaskDialog, type TaskDialogValue } from "./task-dialog";
 import { WeekView } from "./week-view";
-import { TaskDialog, type TodoItem } from "./task-dialog";
+import {
+  createCrmTask,
+  deleteCrmTask,
+  getCrmTaskCalendar,
+  updateCrmTask,
+} from "@/lib/tasks/client";
+import type { CrmTask } from "@/lib/tasks/contracts";
 
 type ViewMode = "month" | "week";
 
@@ -27,158 +29,119 @@ interface CalendarViewProps {
 export function CalendarView({ initialDate = new Date() }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = React.useState(initialDate);
   const [viewMode, setViewMode] = React.useState<ViewMode>("month");
-  const [todos, setTodos] = React.useState<Record<string, TodoItem[]>>({});
+  const [tasksByDate, setTasksByDate] = React.useState<Record<string, CrmTask[]>>(
+    {},
+  );
   const [loading, setLoading] = React.useState(false);
-  const [selectedTodo, setSelectedTodo] = React.useState<
-    TodoItem | undefined
-  >();
+  const [selectedTask, setSelectedTask] = React.useState<CrmTask | undefined>();
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>();
 
-  // Загрузка задач с сервера
-  const fetchTodos = React.useCallback(async () => {
+  const fetchTasks = React.useCallback(async () => {
     try {
       setLoading(true);
       const month = format(currentDate, "yyyy-MM");
-      const res = await fetch(`${API_BASE_URL}/todos/calendar?month=${month}`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Ошибка загрузки: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setTodos(data.todos || {});
-    } catch (err) {
-      console.error("Calendar fetch error:", err);
+      const response = await getCrmTaskCalendar({ month });
+      setTasksByDate(response.tasks || {});
+    } catch (error) {
+      console.error("Calendar fetch error:", error);
     } finally {
       setLoading(false);
     }
   }, [currentDate]);
 
   React.useEffect(() => {
-    fetchTodos();
-  }, [fetchTodos]);
+    void fetchTasks();
+  }, [fetchTasks]);
 
-  // Навигация
   const handlePrevious = () => {
     if (viewMode === "month") {
       setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(subWeeks(currentDate, 1));
+      return;
     }
+
+    setCurrentDate(subWeeks(currentDate, 1));
   };
 
   const handleNext = () => {
     if (viewMode === "month") {
       setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addWeeks(currentDate, 1));
+      return;
     }
+
+    setCurrentDate(addWeeks(currentDate, 1));
   };
 
   const handleToday = () => {
     setCurrentDate(new Date());
   };
 
-  // Обработчики задач
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    setSelectedTodo(undefined);
+    setSelectedTask(undefined);
     setDialogOpen(true);
   };
 
-  const handleTodoClick = (todo: TodoItem) => {
-    setSelectedTodo(todo);
-    setSelectedDate(todo.dueDate ? new Date(todo.dueDate) : undefined);
+  const handleTaskClick = (task: CrmTask) => {
+    setSelectedTask(task);
+    setSelectedDate(task.dueDate ? new Date(task.dueDate) : undefined);
     setDialogOpen(true);
   };
 
-  const handleCreateTodo = () => {
-    setSelectedTodo(undefined);
+  const handleCreateTask = () => {
+    setSelectedTask(undefined);
     setSelectedDate(undefined);
     setDialogOpen(true);
   };
 
-  const handleSaveTodo = async (task: TodoItem) => {
+  const handleSaveTask = async (task: TaskDialogValue) => {
     try {
       if (task.id) {
-        // Обновление
-        const res = await fetch(`${API_BASE_URL}/todos/${task.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: task.title,
-            description: task.description,
-            dueDate: task.dueDate,
-          }),
+        await updateCrmTask(task.id, {
+          assigneeUserId: task.assigneeUserId,
+          description: task.description ?? null,
+          dueDate: task.dueDate ?? null,
+          title: task.title,
         });
-
-        if (!res.ok) throw new Error("Failed to update todo");
       } else {
-        // Создание
-        const res = await fetch(`${API_BASE_URL}/todos`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            agentId: task.agentId,
-            title: task.title,
-            description: task.description,
-            dueDate: task.dueDate,
-            assignedBy: task.assignedBy,
-            order: 0,
-          }),
+        await createCrmTask({
+          assigneeUserId: task.assigneeUserId,
+          description: task.description ?? null,
+          dueDate: task.dueDate ?? null,
+          title: task.title,
         });
-
-        if (!res.ok) throw new Error("Failed to create todo");
       }
 
-      // Перезагружаем задачи
-      await fetchTodos();
+      await fetchTasks();
     } catch (error) {
-      console.error("Error saving todo:", error);
+      console.error("Error saving CRM task:", error);
     }
   };
 
-  const handleDeleteTodo = async (id: number) => {
+  const handleDeleteTask = async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/todos/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Failed to delete todo");
-
-      // Перезагружаем задачи
-      await fetchTodos();
+      await deleteCrmTask(id);
+      await fetchTasks();
     } catch (error) {
-      console.error("Error deleting todo:", error);
+      console.error("Error deleting CRM task:", error);
     }
   };
 
-  const handleTodoToggle = async (todoId: number, completed: boolean) => {
+  const handleTaskToggle = async (taskId: string, completed: boolean) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/todos/${todoId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed }),
-      });
-
-      if (!res.ok) throw new Error("Failed to toggle todo");
-
-      // Перезагружаем задачи
-      await fetchTodos();
+      await updateCrmTask(taskId, { completed });
+      await fetchTasks();
     } catch (error) {
-      console.error("Error toggling todo:", error);
+      console.error("Error toggling CRM task:", error);
     }
   };
 
   const getTitle = () => {
     if (viewMode === "month") {
       return format(currentDate, "LLLL yyyy", { locale: ru });
-    } else {
-      return `Неделя ${format(currentDate, "w, yyyy", { locale: ru })}`;
     }
+
+    return `Неделя ${format(currentDate, "w, yyyy", { locale: ru })}`;
   };
 
   return (
@@ -223,7 +186,7 @@ export function CalendarView({ initialDate = new Date() }: CalendarViewProps) {
                   <TabsTrigger value="week">Неделя</TabsTrigger>
                 </TabsList>
               </Tabs>
-              <Button size="sm" onClick={handleCreateTodo}>
+              <Button size="sm" onClick={handleCreateTask}>
                 <Plus className="mr-2 h-4 w-4" />
                 Задача
               </Button>
@@ -239,17 +202,17 @@ export function CalendarView({ initialDate = new Date() }: CalendarViewProps) {
           ) : viewMode === "month" ? (
             <MonthView
               currentDate={currentDate}
-              todos={todos}
+              tasksByDate={tasksByDate}
               onDateClick={handleDateClick}
-              onTodoClick={handleTodoClick}
+              onTodoClick={handleTaskClick}
             />
           ) : (
             <WeekView
               currentDate={currentDate}
-              todos={todos}
+              tasksByDate={tasksByDate}
               onDateClick={handleDateClick}
-              onTodoClick={handleTodoClick}
-              onTodoToggle={handleTodoToggle}
+              onTodoClick={handleTaskClick}
+              onTodoToggle={handleTaskToggle}
             />
           )}
         </CardContent>
@@ -258,10 +221,10 @@ export function CalendarView({ initialDate = new Date() }: CalendarViewProps) {
       <TaskDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        task={selectedTodo}
+        task={selectedTask}
         defaultDate={selectedDate}
-        onSave={handleSaveTodo}
-        onDelete={handleDeleteTodo}
+        onSave={handleSaveTask}
+        onDelete={handleDeleteTask}
       />
     </>
   );

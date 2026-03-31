@@ -1,65 +1,52 @@
 "use client";
 
 import * as React from "react";
-import {
-  startOfWeek,
-  endOfWeek,
-  addDays,
-  format,
-  isToday,
-  isSameDay,
-} from "date-fns";
+import { addDays, format, isToday, startOfWeek } from "date-fns";
 import { ru } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 
-interface TodoItem {
-  id?: number;
-  title: string;
-  completed?: boolean;
-  dueDate?: string;
-  agentId?: string;
-  assignedBy?: string;
-  description?: string;
-}
+import type { CrmTask } from "@/lib/tasks/contracts";
+import { cn } from "@/lib/utils";
 
 interface WeekViewProps {
   currentDate: Date;
-  todos: Record<string, TodoItem[]>;
+  tasksByDate: Record<string, CrmTask[]>;
   onDateClick: (date: Date) => void;
-  onTodoClick: (todo: TodoItem) => void;
-  onTodoToggle?: (todoId: number, completed: boolean) => void;
+  onTodoClick: (task: CrmTask) => void;
+  onTodoToggle?: (taskId: string, completed: boolean) => void;
 }
 
 export function WeekView({
   currentDate,
-  todos,
+  tasksByDate,
   onDateClick,
   onTodoClick,
   onTodoToggle,
 }: WeekViewProps) {
   const weekStart = startOfWeek(currentDate, { locale: ru });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = Array.from({ length: 7 }, (_, index) =>
+    addDays(weekStart, index),
+  );
 
-  const getTodosForDate = (date: Date): TodoItem[] => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    return todos[dateStr] || [];
+  const getTodosForDate = (date: Date): CrmTask[] => {
+    const dateString = format(date, "yyyy-MM-dd");
+    return tasksByDate[dateString] || [];
   };
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Шапка с днями недели */}
       <div className="grid grid-cols-7 border-b">
-        {weekDays.map((date, idx) => {
+        {weekDays.map((date, index) => {
           const isCurrentDay = isToday(date);
-          const dayTodos = getTodosForDate(date);
+          const dayTasks = getTodosForDate(date);
 
           return (
             <div
-              key={idx}
+              key={index}
               className={cn(
                 "p-3 border-r last:border-r-0 cursor-pointer hover:bg-muted/50 transition-colors",
-                isCurrentDay && "bg-primary/5"
+                isCurrentDay && "bg-primary/5",
               )}
               onClick={() => onDateClick(date)}
             >
@@ -70,14 +57,14 @@ export function WeekView({
                 <div
                   className={cn(
                     "text-lg font-semibold mt-1 h-8 w-8 mx-auto flex items-center justify-center rounded-full",
-                    isCurrentDay && "bg-primary text-primary-foreground"
+                    isCurrentDay && "bg-primary text-primary-foreground",
                   )}
                 >
                   {format(date, "d")}
                 </div>
-                {dayTodos.length > 0 && (
+                {dayTasks.length > 0 && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {dayTodos.filter((t) => !t.completed).length} задач
+                    {dayTasks.filter((task) => !task.completed).length} задач
                   </div>
                 )}
               </div>
@@ -86,45 +73,44 @@ export function WeekView({
         })}
       </div>
 
-      {/* Задачи по дням */}
       <div className="flex-1 grid grid-cols-7">
-        {weekDays.map((date, idx) => {
-          const dayTodos = getTodosForDate(date);
+        {weekDays.map((date, index) => {
+          const dayTasks = getTodosForDate(date);
           const isCurrentDay = isToday(date);
 
           return (
             <div
-              key={idx}
+              key={index}
               className={cn(
                 "border-r last:border-r-0 p-2 overflow-y-auto",
-                isCurrentDay && "bg-primary/5"
+                isCurrentDay && "bg-primary/5",
               )}
             >
               <div className="space-y-2">
-                {dayTodos.length === 0 ? (
+                {dayTasks.length === 0 ? (
                   <div className="text-xs text-muted-foreground text-center py-4">
                     Нет задач
                   </div>
                 ) : (
-                  dayTodos.map((todo) => (
+                  dayTasks.map((task) => (
                     <div
-                      key={todo.id}
+                      key={task.id}
                       className={cn(
                         "p-2 rounded-md border cursor-pointer transition-colors",
-                        todo.completed
+                        task.completed
                           ? "bg-muted border-muted"
-                          : "bg-card hover:bg-muted/50 border-border"
+                          : "bg-card hover:bg-muted/50 border-border",
                       )}
-                      onClick={() => onTodoClick(todo)}
+                      onClick={() => onTodoClick(task)}
                     >
                       <div className="flex items-start gap-2">
-                        {onTodoToggle && todo.id && (
+                        {onTodoToggle && (
                           <Checkbox
-                            checked={todo.completed}
+                            checked={task.completed}
                             onCheckedChange={(checked) => {
-                              onTodoToggle(todo.id!, !!checked);
+                              onTodoToggle(task.id, !!checked);
                             }}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(event) => event.stopPropagation()}
                             className="mt-0.5"
                           />
                         )}
@@ -132,15 +118,15 @@ export function WeekView({
                           <div
                             className={cn(
                               "text-sm font-medium break-words",
-                              todo.completed &&
-                                "line-through text-muted-foreground"
+                              task.completed &&
+                                "line-through text-muted-foreground",
                             )}
                           >
-                            {todo.title}
+                            {task.title}
                           </div>
-                          {todo.description && (
+                          {task.description && (
                             <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {todo.description}
+                              {task.description}
                             </div>
                           )}
                         </div>

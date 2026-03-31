@@ -41,6 +41,7 @@ import {
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 import { schema as treasurySchema } from "@bedrock/treasury/schema";
+import { schema as crmTasksSchema } from "../../crm/lib/server/tasks/schema";
 
 const authSchema = {
   user,
@@ -100,6 +101,7 @@ export type Schema =
   & typeof treasurySchema
   & typeof currenciesSchema
   & typeof reconciliationSchema
+  & typeof crmTasksSchema
   & typeof operationsSchema;
 
 const schemaInternal: Schema = {
@@ -116,6 +118,7 @@ const schemaInternal: Schema = {
   ...treasurySchema,
   ...currenciesSchema,
   ...reconciliationSchema,
+  ...crmTasksSchema,
   ...operationsSchema,
 };
 

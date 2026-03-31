@@ -118,6 +118,7 @@ export {
   reconciliationMatches,
   reconciliationRuns,
 } from "@bedrock/reconciliation/schema";
+export { crmTasks } from "../../crm/lib/server/tasks/schema";
 export {
   // Enums
   opsApplicationStatusEnum,

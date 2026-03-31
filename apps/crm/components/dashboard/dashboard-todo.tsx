@@ -1,66 +1,69 @@
 "use client";
 
-import { type HTMLAttributes, useMemo, useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
-import {
-  Calendar as CalendarIcon,
-  Plus,
-  Trash2,
-  GripVertical,
-  User,
-} from "lucide-react";
+import { type HTMLAttributes, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
-  closestCenter,
-  useSensor,
-  useSensors,
+  KeyboardSensor,
   MouseSensor,
   TouchSensor,
-  KeyboardSensor,
+  closestCenter,
   type DragEndEvent,
+  useSensor,
+  useSensors,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
+  arrayMove,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useSession } from "@/lib/auth-client";
+import {
+  Calendar as CalendarIcon,
+  GripVertical,
+  ListTodo,
+  Plus,
+  Trash2,
+  User,
+} from "lucide-react";
 
-import { Card, CardContent, CardTitle, CardHeader } from "@bedrock/sdk-ui/components/card";
-import { Table, TableBody, TableCell, TableRow } from "@bedrock/sdk-ui/components/table";
-import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { DatePicker } from "@/components/ui/date-picker";
-import { UserCombobox } from "@/components/calendar/user-combobox";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { ListTodo } from "lucide-react";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@bedrock/sdk-ui/components/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@bedrock/sdk-ui/components/table";
 
-type TodoItem = {
-  id: number;
-  title: string;
-  completed: boolean;
-  order: number;
-  agentId: string;
-  dueDate?: string;
-  assignedBy?: string;
-  description?: string;
-  assignedByUser?: {
-    id: string;
-    name: string;
-  };
-};
+import { UserCombobox } from "@/components/calendar/user-combobox";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  createCrmTask,
+  deleteCrmTask,
+  listCrmTasks,
+  reorderCrmTasks,
+  updateCrmTask,
+} from "@/lib/tasks/client";
+import type { CrmTask } from "@/lib/tasks/contracts";
+import { useCrmTaskCapabilities } from "@/lib/tasks/use-task-capabilities";
+import { cn } from "@/lib/utils";
 
 function DraggableTodoRow({
   item,
@@ -69,11 +72,11 @@ function DraggableTodoRow({
   onDelete,
   onDateChange,
 }: {
-  item: TodoItem;
-  onToggle: (id: number, checked: boolean) => void;
-  onRename: (id: number, title: string) => void;
-  onDelete: (id: number) => void;
-  onDateChange: (id: number, date: Date | undefined) => void;
+  item: CrmTask;
+  onToggle: (id: string, checked: boolean) => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
+  onDateChange: (id: string, date: Date | undefined) => void;
 }) {
   const {
     attributes,
@@ -89,7 +92,9 @@ function DraggableTodoRow({
 
   function commitRename() {
     const next = tempTitle.trim();
-    if (next && next !== item.title) onRename(item.id, next);
+    if (next && next !== item.title) {
+      onRename(item.id, next);
+    }
     setIsEditing(false);
   }
 
@@ -111,7 +116,7 @@ function DraggableTodoRow({
       <TableCell>
         <Checkbox
           checked={item.completed}
-          onCheckedChange={(v) => onToggle(item.id, !!v)}
+          onCheckedChange={(value) => onToggle(item.id, !!value)}
           aria-label="Mark completed"
         />
       </TableCell>
@@ -126,11 +131,11 @@ function DraggableTodoRow({
             <Input
               autoFocus
               value={tempTitle}
-              onChange={(e) => setTempTitle(e.target.value)}
+              onChange={(event) => setTempTitle(event.target.value)}
               onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") setIsEditing(false);
+              onKeyDown={(event) => {
+                if (event.key === "Enter") commitRename();
+                if (event.key === "Escape") setIsEditing(false);
               }}
               className="h-8"
             />
@@ -185,42 +190,36 @@ function DraggableTodoRow({
 }
 
 export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
-  const { data: session } = useSession();
-  const agentId = (session?.user as any)?.id;
-  const isAdmin = session?.user?.role === "admin";
-
-  const [items, setItems] = useState<TodoItem[]>([]);
+  const { capabilities, isLoading: isCapabilitiesLoading } =
+    useCrmTaskCapabilities();
+  const [items, setItems] = useState<CrmTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDate, setNewTaskDate] = useState<Date | undefined>(undefined);
-  const [newTaskAssignee, setNewTaskAssignee] = useState<string | undefined>(
-    undefined
-  );
+  const [newTaskAssignee, setNewTaskAssignee] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Загрузка задач при монтировании
   useEffect(() => {
-    if (agentId) {
-      loadTodos();
+    if (capabilities?.currentUserId) {
+      void loadTasks();
     }
-  }, [agentId]);
+  }, [capabilities?.currentUserId]);
 
-  async function loadTodos() {
-    if (!agentId) return;
+  async function loadTasks() {
+    if (!capabilities?.currentUserId) {
+      return;
+    }
 
     try {
       setIsLoading(true);
-      // Получаем все незакрытые задачи с датой до сегодня (включительно) или без даты
       const today = format(new Date(), "yyyy-MM-dd");
-      const response = await fetch(
-        `${API_BASE_URL}/todos?agentId=${agentId}&includeNoDueDate=true&dateTo=${today}&completed=false`,
-        { credentials: "include" }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setItems(Array.isArray(data) ? data : data.data ?? []);
-      }
+      const tasks = await listCrmTasks({
+        completed: false,
+        dateTo: today,
+        includeNoDueDate: true,
+      });
+      setItems(tasks);
     } catch (error) {
-      console.error("Failed to load todos:", error);
+      console.error("Failed to load CRM tasks:", error);
     } finally {
       setIsLoading(false);
     }
@@ -229,177 +228,128 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
+    useSensor(KeyboardSensor, {}),
   );
 
-  const itemIds = useMemo(() => items.map((i) => i.id), [items]);
+  const itemIds = useMemo(() => items.map((item) => item.id), [items]);
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
 
-    setItems((prev) => {
-      const oldIndex = prev.findIndex((i) => i.id === active.id);
-      const newIndex = prev.findIndex((i) => i.id === over.id);
-      const reordered = arrayMove(prev, oldIndex, newIndex);
+    if (!over || active.id === over.id) {
+      return;
+    }
 
-      // Обновляем порядок на сервере
-      const itemsWithOrder = reordered.map((item, index) => ({
-        id: item.id,
-        order: index,
+    setItems((previousItems) => {
+      const oldIndex = previousItems.findIndex((item) => item.id === active.id);
+      const newIndex = previousItems.findIndex((item) => item.id === over.id);
+      const reordered = arrayMove(previousItems, oldIndex, newIndex);
+
+      void reorderCrmTasks({
+        orderedTaskIds: reordered.map((item) => item.id),
+      }).catch((error) => {
+        console.error("Failed to reorder CRM tasks:", error);
+        void loadTasks();
+      });
+
+      return reordered.map((item, index) => ({
+        ...item,
+        sortOrder: index,
       }));
-
-      fetch(`${API_BASE_URL}/todos/reorder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsWithOrder }),
-      }).catch((error) => console.error("Failed to reorder todos:", error));
-
-      return reordered.map((item, index) => ({ ...item, order: index }));
     });
   }
 
-  async function handleToggle(id: number, checked: boolean) {
-    // Сохраняем задачу для возможного отката
-    const itemToToggle = items.find((it) => it.id === id);
+  async function handleToggle(id: string, checked: boolean) {
+    const itemToToggle = items.find((item) => item.id === id);
 
-    // Оптимистичное обновление UI - если задача закрывается, удаляем её из списка
     if (checked) {
-      setItems((prev) => prev.filter((it) => it.id !== id));
+      setItems((previousItems) => previousItems.filter((item) => item.id !== id));
     } else {
-      setItems((prev) =>
-        prev.map((it) => (it.id === id ? { ...it, completed: checked } : it))
+      setItems((previousItems) =>
+        previousItems.map((item) =>
+          item.id === id ? { ...item, completed: checked } : item,
+        ),
       );
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed: checked }),
-      });
-
-      if (!response.ok) {
-        // Откатываем изменения при ошибке
-        if (checked && itemToToggle) {
-          setItems((prev) => [...prev, itemToToggle]);
-        } else {
-          setItems((prev) =>
-            prev.map((it) =>
-              it.id === id ? { ...it, completed: !checked } : it
-            )
-          );
-        }
-      }
+      await updateCrmTask(id, { completed: checked });
     } catch (error) {
-      console.error("Failed to toggle todo:", error);
-      // Откатываем изменения при ошибке
+      console.error("Failed to toggle CRM task:", error);
       if (checked && itemToToggle) {
-        setItems((prev) => [...prev, itemToToggle]);
+        setItems((previousItems) => [...previousItems, itemToToggle]);
       } else {
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, completed: !checked } : it))
+        setItems((previousItems) =>
+          previousItems.map((item) =>
+            item.id === id ? { ...item, completed: !checked } : item,
+          ),
         );
       }
     }
   }
 
-  async function handleRename(id: number, title: string) {
-    // Оптимистичное обновление UI
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, title } : it))
+  async function handleRename(id: string, title: string) {
+    setItems((previousItems) =>
+      previousItems.map((item) => (item.id === id ? { ...item, title } : item)),
     );
 
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-
-      if (!response.ok) {
-        // Перезагружаем при ошибке
-        loadTodos();
-      }
+      await updateCrmTask(id, { title });
     } catch (error) {
-      console.error("Failed to rename todo:", error);
-      loadTodos();
+      console.error("Failed to rename CRM task:", error);
+      void loadTasks();
     }
   }
 
-  async function handleDelete(id: number) {
-    // Оптимистичное удаление из UI
-    setItems((prev) => prev.filter((it) => it.id !== id));
+  async function handleDelete(id: string) {
+    setItems((previousItems) => previousItems.filter((item) => item.id !== id));
 
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        // Перезагружаем при ошибке
-        loadTodos();
-      }
+      await deleteCrmTask(id);
     } catch (error) {
-      console.error("Failed to delete todo:", error);
-      loadTodos();
+      console.error("Failed to delete CRM task:", error);
+      void loadTasks();
     }
   }
 
-  async function handleDateChange(id: number, date: Date | undefined) {
-    // Оптимистичное обновление UI
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === id
-          ? { ...it, dueDate: date ? format(date, "yyyy-MM-dd") : undefined }
-          : it
-      )
+  async function handleDateChange(id: string, date: Date | undefined) {
+    setItems((previousItems) =>
+      previousItems.map((item) =>
+        item.id === id
+          ? { ...item, dueDate: date ? format(date, "yyyy-MM-dd") : null }
+          : item,
+      ),
     );
 
     try {
-      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dueDate: date ? format(date, "yyyy-MM-dd") : null,
-        }),
+      await updateCrmTask(id, {
+        dueDate: date ? format(date, "yyyy-MM-dd") : null,
       });
-
-      if (!response.ok) {
-        loadTodos();
-      }
     } catch (error) {
-      console.error("Failed to update date:", error);
-      loadTodos();
+      console.error("Failed to update CRM task date:", error);
+      void loadTasks();
     }
   }
 
   async function handleCreate() {
     const title = newTaskTitle.trim();
-    if (!title || !agentId) return;
+
+    if (!title || !capabilities?.currentUserId) {
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/todos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: newTaskAssignee || agentId,
-          title,
-          order: items.length,
-          dueDate: newTaskDate ? format(newTaskDate, "yyyy-MM-dd") : null,
-          assignedBy: isAdmin && newTaskAssignee ? agentId : null,
-        }),
+      const newTask = await createCrmTask({
+        assigneeUserId: newTaskAssignee,
+        dueDate: newTaskDate ? format(newTaskDate, "yyyy-MM-dd") : null,
+        title,
       });
-
-      if (response.ok) {
-        const newTodo = await response.json();
-        setItems((prev) => [...prev, newTodo]);
-        setNewTaskTitle("");
-        setNewTaskDate(undefined);
-        setNewTaskAssignee(undefined);
-      }
+      setItems((previousItems) => [...previousItems, newTask]);
+      setNewTaskTitle("");
+      setNewTaskDate(undefined);
+      setNewTaskAssignee(undefined);
     } catch (error) {
-      console.error("Failed to create todo:", error);
+      console.error("Failed to create CRM task:", error);
     }
   }
 
@@ -423,10 +373,10 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
               className="border-none shadow-none focus:outline-none"
               placeholder="Новая задача..."
               value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleCreate();
+              onChange={(event) => setNewTaskTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void handleCreate();
                 }
               }}
             />
@@ -438,7 +388,7 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
                 className="w-[180px]"
                 allowClear
               />
-              {isAdmin && (
+              {capabilities?.canAssignOthers && (
                 <UserCombobox
                   value={newTaskAssignee}
                   onValueChange={setNewTaskAssignee}
@@ -449,8 +399,10 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
               <Button
                 variant="default"
                 size="sm"
-                onClick={handleCreate}
-                disabled={isLoading || !newTaskTitle.trim()}
+                onClick={() => void handleCreate()}
+                disabled={
+                  isLoading || isCapabilitiesLoading || !newTaskTitle.trim()
+                }
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Создать

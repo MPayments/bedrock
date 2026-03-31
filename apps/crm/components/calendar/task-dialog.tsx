@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { useSession } from "@/lib/auth-client";
+import { Trash2 } from "lucide-react";
 
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -13,30 +13,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@bedrock/sdk-ui/components/dialog";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+
 import { DatePicker } from "@/components/ui/date-picker";
+import type { CrmTask } from "@/lib/tasks/contracts";
+import { useCrmTaskCapabilities } from "@/lib/tasks/use-task-capabilities";
+
 import { UserCombobox } from "./user-combobox";
 
-export interface TodoItem {
-  id?: number;
+export type TaskDialogValue = {
+  id?: string;
   title: string;
   description?: string;
   dueDate?: string;
-  agentId?: string;
-  assignedBy?: string;
-  completed?: boolean;
-  order?: number;
-}
+  assigneeUserId?: string;
+  dealId?: string | null;
+};
 
 interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task?: TodoItem;
-  onSave: (task: TodoItem) => void;
-  onDelete?: (id: number) => void;
+  task?: CrmTask;
+  onSave: (task: TaskDialogValue) => void;
+  onDelete?: (id: string) => void;
   defaultDate?: Date;
 }
 
@@ -48,34 +49,32 @@ export function TaskDialog({
   onDelete,
   defaultDate,
 }: TaskDialogProps) {
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin";
-  const currentUserId = (session?.user as any)?.id;
+  const { capabilities } = useCrmTaskCapabilities();
 
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [dueDate, setDueDate] = React.useState<Date | undefined>(undefined);
-  const [assigneeId, setAssigneeId] = React.useState<string | undefined>(
-    undefined
-  );
+  const [assigneeId, setAssigneeId] = React.useState<string | undefined>();
   const [isSaving, setIsSaving] = React.useState(false);
 
-  // Инициализация формы
   React.useEffect(() => {
-    if (open) {
-      if (task) {
-        setTitle(task.title || "");
-        setDescription(task.description || "");
-        setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
-        setAssigneeId(task.agentId);
-      } else {
-        setTitle("");
-        setDescription("");
-        setDueDate(defaultDate);
-        setAssigneeId(currentUserId);
-      }
+    if (!open) {
+      return;
     }
-  }, [open, task, defaultDate, currentUserId]);
+
+    if (task) {
+      setTitle(task.title || "");
+      setDescription(task.description || "");
+      setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+      setAssigneeId(task.assigneeUserId);
+      return;
+    }
+
+    setTitle("");
+    setDescription("");
+    setDueDate(defaultDate);
+    setAssigneeId(capabilities?.currentUserId);
+  }, [open, task, defaultDate, capabilities?.currentUserId]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -85,16 +84,14 @@ export function TaskDialog({
     setIsSaving(true);
 
     try {
-      const taskData: TodoItem = {
+      await onSave({
         ...(task?.id && { id: task.id }),
         title: title.trim(),
         description: description.trim() || undefined,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
-        agentId: assigneeId || currentUserId,
-        assignedBy: currentUserId,
-      };
-
-      await onSave(taskData);
+        assigneeUserId: assigneeId || capabilities?.currentUserId,
+        dealId: task?.dealId,
+      });
       onOpenChange(false);
     } finally {
       setIsSaving(false);
@@ -135,11 +132,11 @@ export function TaskDialog({
               id="title"
               placeholder="Название задачи"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSave();
+              onChange={(event) => setTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSave();
                 }
               }}
             />
@@ -151,7 +148,7 @@ export function TaskDialog({
               id="description"
               placeholder="Дополнительная информация о задаче"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(event) => setDescription(event.target.value)}
               rows={3}
             />
           </div>
@@ -166,7 +163,7 @@ export function TaskDialog({
             />
           </div>
 
-          {isAdmin && (
+          {capabilities?.canAssignOthers && (
             <div className="grid gap-2">
               <Label htmlFor="assignee">Исполнитель</Label>
               <UserCombobox
@@ -184,7 +181,7 @@ export function TaskDialog({
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               disabled={isSaving}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -199,7 +196,10 @@ export function TaskDialog({
             >
               Отмена
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !title.trim()}>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={isSaving || !title.trim()}
+            >
               {isSaving ? "Сохранение..." : "Сохранить"}
             </Button>
           </div>
