@@ -165,7 +165,7 @@ export default function NewClientPage() {
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/clients/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         }
@@ -304,7 +304,7 @@ export default function NewClientPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE_URL}/clients/parse-card`, {
+      const res = await fetch(`${API_BASE_URL}/legal-entities/parse-card`, {
         method: "POST",
         credentials: "include",
         body: formData,

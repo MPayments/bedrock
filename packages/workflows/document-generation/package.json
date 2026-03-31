@@ -15,7 +15,6 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/operations": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "easy-template-x": "^7.1.1",
     "libreoffice-convert": "^1.6.1",

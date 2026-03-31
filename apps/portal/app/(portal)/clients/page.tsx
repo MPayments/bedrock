@@ -47,7 +47,7 @@ export default function PortalClientsPage() {
   useEffect(() => {
     async function fetchClients() {
       try {
-        const response = await fetch(`${API_BASE_URL}/customer/clients`, {
+        const response = await fetch(`${API_BASE_URL}/customer/contexts`, {
           credentials: "include",
         });
 

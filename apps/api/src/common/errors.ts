@@ -31,7 +31,7 @@ function resolveErrorMessage(error: unknown): string {
  * **Rethrows** unknown errors so the global handler in app.ts
  * returns 500 without leaking internal details.
  */
-export function handleRouteError(c: Context, error: unknown): Response {
+export function handleRouteError(c: Context, error: unknown): any {
   if (error instanceof z.ZodError) {
     return c.json(
       { error: "Validation error", details: z.treeifyError(error) },

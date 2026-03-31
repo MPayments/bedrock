@@ -1,11 +1,4 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
@@ -14,12 +7,7 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import {
-  calculationApplicationLinks,
-  calculationLines,
-  calculations,
-  calculationSnapshots,
-} from "./schema";
+import { calculationLines, calculations, calculationSnapshots } from "./schema";
 import type {
   Calculation,
   CalculationDetails,
@@ -50,7 +38,8 @@ const calculationSelect = {
   baseCurrencyId: calculationSnapshots.baseCurrencyId,
   feeAmountInBaseMinor: calculationSnapshots.feeAmountInBaseMinor,
   totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
-  additionalExpensesCurrencyId: calculationSnapshots.additionalExpensesCurrencyId,
+  additionalExpensesCurrencyId:
+    calculationSnapshots.additionalExpensesCurrencyId,
   additionalExpensesAmountMinor:
     calculationSnapshots.additionalExpensesAmountMinor,
   additionalExpensesInBaseMinor:
@@ -122,14 +111,15 @@ function mapSnapshot(row: CalculationRow): CalculationSnapshot {
     additionalExpensesCurrencyId: row.additionalExpensesCurrencyId,
     additionalExpensesAmountMinor: row.additionalExpensesAmountMinor.toString(),
     additionalExpensesInBaseMinor: row.additionalExpensesInBaseMinor.toString(),
-    totalWithExpensesInBaseMinor:
-      row.totalWithExpensesInBaseMinor.toString(),
+    totalWithExpensesInBaseMinor: row.totalWithExpensesInBaseMinor.toString(),
     rateSource: row.rateSource,
     rateNum: row.rateNum.toString(),
     rateDen: row.rateDen.toString(),
     additionalExpensesRateSource: row.additionalExpensesRateSource,
-    additionalExpensesRateNum: row.additionalExpensesRateNum?.toString() ?? null,
-    additionalExpensesRateDen: row.additionalExpensesRateDen?.toString() ?? null,
+    additionalExpensesRateNum:
+      row.additionalExpensesRateNum?.toString() ?? null,
+    additionalExpensesRateDen:
+      row.additionalExpensesRateDen?.toString() ?? null,
     calculationTimestamp: row.calculationTimestamp,
     fxQuoteId: row.fxQuoteId,
     createdAt: row.snapshotCreatedAt,
@@ -198,38 +188,15 @@ export class DrizzleCalculationReads implements CalculationReads {
         updatedAt: calculationLines.updatedAt,
       })
       .from(calculationLines)
-      .where(eq(calculationLines.calculationSnapshotId, summary.currentSnapshotId))
+      .where(
+        eq(calculationLines.calculationSnapshotId, summary.currentSnapshotId),
+      )
       .orderBy(asc(calculationLines.idx));
 
     return {
       ...mapCalculation(summary),
       lines: lineRows.map(mapLineRow),
     };
-  }
-
-  async findApplicationIdByCalculationId(id: string): Promise<number | null> {
-    const [row] = await this.db
-      .select({ applicationId: calculationApplicationLinks.applicationId })
-      .from(calculationApplicationLinks)
-      .where(eq(calculationApplicationLinks.calculationId, id))
-      .limit(1);
-
-    return row?.applicationId ?? null;
-  }
-
-  async findLatestByApplicationId(
-    applicationId: number,
-  ): Promise<Calculation | null> {
-    const [row] = (await this.baseSelect()
-      .innerJoin(
-        calculationApplicationLinks,
-        eq(calculationApplicationLinks.calculationId, calculations.id),
-      )
-      .where(eq(calculationApplicationLinks.applicationId, applicationId))
-      .orderBy(desc(calculations.createdAt), desc(calculations.id))
-      .limit(1)) as CalculationRow[];
-
-    return row ? mapCalculation(row) : null;
   }
 
   async list(
@@ -273,19 +240,6 @@ export class DrizzleCalculationReads implements CalculationReads {
       limit: input.limit,
       offset: input.offset,
     };
-  }
-
-  async listByApplicationId(applicationId: number): Promise<Calculation[]> {
-    const rows = (await this.baseSelect()
-      .innerJoin(
-        calculationApplicationLinks,
-        eq(calculationApplicationLinks.calculationId, calculations.id),
-      )
-      .where(eq(calculationApplicationLinks.applicationId, applicationId))
-      .orderBy(desc(calculations.createdAt), desc(calculations.id))) as
-      CalculationRow[];
-
-    return rows.map(mapCalculation);
   }
 
   private baseSelect() {

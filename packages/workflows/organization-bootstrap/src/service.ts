@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import type { LedgerModule } from "@bedrock/ledger";
-import { DrizzleHoldingOrganizationBridge } from "@bedrock/operations/adapters/drizzle";
 import {
   createPartiesModule,
   type PartiesModuleDeps,
@@ -89,9 +88,6 @@ export function createOrganizationBootstrapWorkflow(
         const ledgerModule = deps.createLedgerModule(tx);
         const organization =
           await partiesModule.organizations.commands.create(input);
-        const holdingOrganizationBridge = new DrizzleHoldingOrganizationBridge(tx);
-
-        await holdingOrganizationBridge.upsertFromCanonical(organization);
 
         await ledgerModule.books.commands.ensureDefaultOrganizationBook({
           organizationId: organization.id,

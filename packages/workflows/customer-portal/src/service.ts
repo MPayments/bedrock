@@ -1,9 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import {
   serializeCompatibilityCalculation,
-  type CalculationsModule,
   type CalculationCompatibilityCurrency,
+  type CalculationsModule,
 } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
@@ -13,26 +11,8 @@ import {
   type IamService,
   UserNotFoundError,
 } from "@bedrock/iam";
-import {
-  DrizzleClientStore,
-  DrizzleCustomerBridge,
-} from "@bedrock/operations/adapters/drizzle";
-import {
-  DrizzleCustomerBootstrapClaimStore,
-  DrizzleCustomerMembershipStore,
-} from "@bedrock/iam/adapters/drizzle";
-import type { OperationsModule } from "@bedrock/operations";
-import {
-  CreateClientInputSchema,
-  type CreateClientInput,
-} from "@bedrock/operations/contracts";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import {
-  createTransactionalPort,
-  type PersistenceContext,
-  type Transaction,
-} from "@bedrock/platform/persistence";
 
 type LocalizedText = {
   en?: string | null;
@@ -43,18 +23,48 @@ export interface CustomerPortalWorkflowDeps {
   calculations: Pick<CalculationsModule, "calculations">;
   currencies: Pick<CurrenciesService, "findByCode" | "findById">;
   deals: Pick<DealsModule, "deals">;
-  operations: Pick<OperationsModule, "clients">;
   iam: {
     customerMemberships: CustomerMembershipsService;
     users: Pick<IamService, "queries">;
   };
   parties: Pick<PartiesModule, "counterparties" | "customers">;
   logger: Logger;
-  persistence: PersistenceContext;
 }
 
 export interface CustomerContext {
   userId: string;
+}
+
+export interface CustomerPortalCreateLegalEntityInput {
+  account?: string | null;
+  address?: string | null;
+  addressI18n?: LocalizedText | null;
+  bankAddress?: string | null;
+  bankAddressI18n?: LocalizedText | null;
+  bankCountry?: string | null;
+  bankName?: string | null;
+  bankNameI18n?: LocalizedText | null;
+  bic?: string | null;
+  corrAccount?: string | null;
+  country?: string | null;
+  directorBasis?: string | null;
+  directorBasisI18n?: LocalizedText | null;
+  directorName?: string | null;
+  directorNameI18n?: LocalizedText | null;
+  email?: string | null;
+  inn?: string | null;
+  kpp?: string | null;
+  ogrn?: string | null;
+  okpo?: string | null;
+  oktmo?: string | null;
+  orgName: string;
+  orgNameI18n?: LocalizedText | null;
+  orgType?: string | null;
+  orgTypeI18n?: LocalizedText | null;
+  phone?: string | null;
+  position?: string | null;
+  positionI18n?: LocalizedText | null;
+  subAgentCounterpartyId?: string | null;
 }
 
 export class CustomerNotAuthorizedError extends Error {
@@ -80,9 +90,6 @@ type CanonicalCustomer = Awaited<
 >;
 type CanonicalCalculation = Awaited<
   ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
->;
-type LegacyClient = Awaited<
-  ReturnType<OperationsModule["clients"]["queries"]["findById"]>
 >;
 type CanonicalCounterparty = Awaited<
   ReturnType<PartiesModule["counterparties"]["queries"]["findById"]>
@@ -123,54 +130,87 @@ export interface CustomerPortalCustomerContext {
   updatedAt: string;
 }
 
-type CustomerPortalBootstrapTx = {
-  bootstrapClaimStore: DrizzleCustomerBootstrapClaimStore;
-  clientStore: DrizzleClientStore;
-  customerBridge: DrizzleCustomerBridge;
-  customerMembershipStore: DrizzleCustomerMembershipStore;
-};
-
-function normalizeLocalizedField(
-  value: string | null | undefined,
-  i18n: LocalizedText | null | undefined,
-): LocalizedText | null {
-  if (!value && !i18n) {
-    return null;
-  }
-
-  const result: LocalizedText = { ...i18n };
-  if (value && !result.ru) {
-    result.ru = value;
-  }
-
-  return result;
+export interface CustomerPortalWorkflow {
+  assertPortalAccess(ctx: CustomerContext): Promise<void>;
+  createClient(
+    ctx: CustomerContext,
+    input: CustomerPortalCreateLegalEntityInput,
+  ): Promise<{
+    account: string | null;
+    address: string | null;
+    addressI18n: LocalizedText | null;
+    bankAddress: string | null;
+    bankAddressI18n: LocalizedText | null;
+    bankCountry: string | null;
+    bankName: string | null;
+    bankNameI18n: LocalizedText | null;
+    bic: string | null;
+    corrAccount: string | null;
+    counterpartyId: string;
+    createdAt: string;
+    customerId: string;
+    directorBasis: string | null;
+    directorBasisI18n: LocalizedText | null;
+    directorName: string | null;
+    directorNameI18n: LocalizedText | null;
+    email: string | null;
+    id: number;
+    inn: string | null;
+    isDeleted: boolean;
+    kpp: string | null;
+    ogrn: string | null;
+    okpo: string | null;
+    oktmo: string | null;
+    orgName: string;
+    orgNameI18n: LocalizedText | null;
+    orgType: string | null;
+    orgTypeI18n: LocalizedText | null;
+    phone: string | null;
+    position: string | null;
+    positionI18n: LocalizedText | null;
+    subAgentCounterpartyId: string | null;
+    updatedAt: string;
+    userId: string | null;
+  }>;
+  getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile>;
+  getClients(ctx: CustomerContext): Promise<{
+    data: CustomerPortalCustomerContext[];
+    total: number;
+  }>;
+  getCustomerContexts(ctx: CustomerContext): Promise<{
+    data: CustomerPortalCustomerContext[];
+    total: number;
+  }>;
+  getClientById(ctx: CustomerContext, clientId: number): Promise<never>;
+  createDeal(
+    ctx: CustomerContext,
+    input: {
+      counterpartyId: string;
+      requestedAmount?: string;
+      requestedCurrency?: string;
+    },
+    options: {
+      idempotencyKey: string;
+    },
+  ): Promise<DealDetails>;
+  listMyDeals(
+    ctx: CustomerContext,
+    input?: { limit?: number; offset?: number },
+  ): Promise<CustomerPortalDealListResponse>;
+  getDealById(
+    ctx: CustomerContext,
+    dealId: string,
+  ): Promise<CustomerPortalDealDetailResponse>;
 }
 
-function normalizeBootstrapKeyPart(value: string | null | undefined): string {
-  return (value ?? "").trim();
+function normalizeNullableText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeBootstrapCreateInput(input: CreateClientInput): CreateClientInput {
-  return {
-    ...input,
-    orgNameI18n: normalizeLocalizedField(input.orgName, input.orgNameI18n),
-    orgTypeI18n: normalizeLocalizedField(input.orgType ?? null, input.orgTypeI18n),
-    directorNameI18n: normalizeLocalizedField(
-      input.directorName ?? null,
-      input.directorNameI18n,
-    ),
-    positionI18n: normalizeLocalizedField(input.position ?? null, input.positionI18n),
-    directorBasisI18n: normalizeLocalizedField(
-      input.directorBasis ?? null,
-      input.directorBasisI18n,
-    ),
-    addressI18n: normalizeLocalizedField(input.address ?? null, input.addressI18n),
-    bankNameI18n: normalizeLocalizedField(input.bankName ?? null, input.bankNameI18n),
-    bankAddressI18n: normalizeLocalizedField(
-      input.bankAddress ?? null,
-      input.bankAddressI18n,
-    ),
-  };
+function normalizeCountryCode(value: string | null | undefined): string | null {
+  const normalized = normalizeNullableText(value)?.toUpperCase() ?? null;
+  return normalized && normalized.length === 2 ? normalized : null;
 }
 
 function canAccessCrm(role: string | null, banned: boolean | null): boolean {
@@ -207,44 +247,6 @@ async function buildCalculationCurrencyMetadata(
   return new Map(entries);
 }
 
-function createClientShellFromCounterparty(input: {
-  counterparty: CanonicalCounterparty;
-  customerId: string;
-}): CreateClientInput {
-  return {
-    account: null,
-    address: null,
-    addressI18n: null,
-    bankAddress: null,
-    bankAddressI18n: null,
-    bankCountry: input.counterparty.country ?? null,
-    bankName: null,
-    bankNameI18n: null,
-    bic: null,
-    corrAccount: null,
-    counterpartyId: input.counterparty.id,
-    customerId: input.customerId,
-    directorBasis: null,
-    directorBasisI18n: null,
-    directorName: null,
-    directorNameI18n: null,
-    email: null,
-    inn: input.counterparty.externalId ?? null,
-    kpp: null,
-    ogrn: null,
-    okpo: null,
-    oktmo: null,
-    orgName: input.counterparty.shortName,
-    orgNameI18n: null,
-    orgType: null,
-    orgTypeI18n: null,
-    phone: null,
-    position: null,
-    positionI18n: null,
-    subAgentCounterpartyId: null,
-  };
-}
-
 async function serializeCompatibilityCalculationForDeal(
   deps: CustomerPortalWorkflowDeps,
   calculation: CanonicalCalculation | null,
@@ -270,9 +272,7 @@ async function serializeCompatibilityCalculationForDeal(
   });
 }
 
-function mapPortalDealStatus(
-  status: Deal["status"],
-): Deal["status"] {
+function mapPortalDealStatus(status: Deal["status"]): Deal["status"] {
   return status;
 }
 
@@ -300,19 +300,30 @@ type CustomerPortalDealDetailResponse = {
   organizationName: string | null;
 };
 
+function mapLegalEntity(
+  counterparty: CanonicalCounterpartyListItem,
+): CustomerPortalLegalEntity {
+  return {
+    address: counterparty.address ?? null,
+    counterpartyId: counterparty.id,
+    country: counterparty.country ?? null,
+    createdAt: serializeDate(counterparty.createdAt),
+    directorName: counterparty.directorName ?? null,
+    email: counterparty.email ?? null,
+    externalId: counterparty.externalId,
+    fullName: counterparty.fullName,
+    hasLegacyShell: false,
+    inn: counterparty.inn ?? counterparty.externalId ?? null,
+    phone: counterparty.phone ?? null,
+    relationshipKind: counterparty.relationshipKind,
+    shortName: counterparty.shortName,
+    updatedAt: serializeDate(counterparty.updatedAt),
+  };
+}
+
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
-) {
-  const bootstrapTransactional = createTransactionalPort(
-    deps.persistence,
-    (tx: Transaction): CustomerPortalBootstrapTx => ({
-      bootstrapClaimStore: new DrizzleCustomerBootstrapClaimStore(tx),
-      clientStore: new DrizzleClientStore(tx),
-      customerBridge: new DrizzleCustomerBridge(tx),
-      customerMembershipStore: new DrizzleCustomerMembershipStore(tx),
-    }),
-  );
-
+): CustomerPortalWorkflow {
   async function listMembershipsByUserId(userId: string) {
     return deps.iam.customerMemberships.queries.listByUserId({ userId });
   }
@@ -348,18 +359,8 @@ export function createCustomerPortalWorkflow(
 
   async function ensureActiveOwnerMembership(input: {
     customerId: string;
-    tx?: CustomerPortalBootstrapTx;
     userId: string;
   }) {
-    if (input.tx) {
-      return input.tx.customerMembershipStore.upsert({
-        customerId: input.customerId,
-        role: "owner",
-        status: "active",
-        userId: input.userId,
-      });
-    }
-
     return deps.iam.customerMemberships.commands.upsert({
       customerId: input.customerId,
       role: "owner",
@@ -389,43 +390,6 @@ export function createCustomerPortalWorkflow(
     return new Map<string, CanonicalCounterpartyListItem[]>(rows);
   }
 
-  async function listActiveShellsByCounterpartyId(counterpartyIds: string[]) {
-    const rows =
-      await deps.operations.clients.queries.listActiveByCounterpartyIds(
-        counterpartyIds,
-      );
-
-    return new Map(
-      rows
-        .filter((row) => Boolean(row.counterpartyId))
-        .map((row) => [row.counterpartyId!, row] as const),
-    );
-  }
-
-  function mapLegalEntity(input: {
-    counterparty: CanonicalCounterpartyListItem;
-    shell?: LegacyClient | null;
-  }): CustomerPortalLegalEntity {
-    const { counterparty, shell } = input;
-
-    return {
-      address: shell?.address ?? null,
-      counterpartyId: counterparty.id,
-      country: counterparty.country ?? null,
-      createdAt: serializeDate(counterparty.createdAt),
-      directorName: shell?.directorName ?? null,
-      email: shell?.email ?? null,
-      externalId: counterparty.externalId,
-      fullName: counterparty.fullName,
-      hasLegacyShell: Boolean(shell),
-      inn: shell?.inn ?? counterparty.externalId ?? null,
-      phone: shell?.phone ?? null,
-      relationshipKind: counterparty.relationshipKind,
-      shortName: counterparty.shortName,
-      updatedAt: serializeDate(counterparty.updatedAt),
-    };
-  }
-
   async function ensureCustomerOwnedCounterpartyRecord(
     counterpartyId: string,
   ): Promise<CanonicalCounterparty> {
@@ -444,101 +408,6 @@ export function createCustomerPortalWorkflow(
     return counterparty;
   }
 
-  async function ensureActiveShellForCounterparty(counterpartyId: string) {
-    const existingShell =
-      await deps.operations.clients.queries.findActiveByCounterpartyId(
-        counterpartyId,
-      );
-    if (existingShell) {
-      return existingShell;
-    }
-
-    const counterparty =
-      await ensureCustomerOwnedCounterpartyRecord(counterpartyId);
-    const customer = await deps.parties.customers.queries.findById(
-      counterparty.customerId!,
-    );
-
-    return deps.operations.clients.commands.create(
-      createClientShellFromCounterparty({
-        counterparty,
-        customerId: customer.id,
-      }),
-    );
-  }
-
-  async function createBootstrapClient(input: {
-    createInput: CreateClientInput;
-    userId: string;
-  }) {
-    const normalizedInn = normalizeBootstrapKeyPart(input.createInput.inn);
-    if (!normalizedInn) {
-      throw new CustomerNotAuthorizedError(
-        `User ${input.userId} cannot bootstrap a client without an INN`,
-      );
-    }
-
-    const normalizedKpp = normalizeBootstrapKeyPart(input.createInput.kpp);
-    const normalizedInput = normalizeBootstrapCreateInput(input.createInput);
-
-    return bootstrapTransactional.withTransaction(
-      async (tx: CustomerPortalBootstrapTx) => {
-      const claim = await tx.bootstrapClaimStore.lockByKey({
-        normalizedInn,
-        normalizedKpp,
-        userId: input.userId,
-      });
-
-      if (claim.status === "completed" && claim.clientId) {
-        const existingClient = await tx.clientStore.findById(claim.clientId);
-        if (!existingClient) {
-          throw new Error(
-            `Bootstrap claim ${claim.id} points to missing client ${claim.clientId}`,
-          );
-        }
-
-        const linkedCustomerId = claim.customerId ?? existingClient.customerId;
-        if (linkedCustomerId) {
-          await ensureActiveOwnerMembership({
-            customerId: linkedCustomerId,
-            tx,
-            userId: input.userId,
-          });
-        }
-
-        return existingClient;
-      }
-
-      const createdClient = await tx.clientStore.create(normalizedInput);
-      const customerId = await tx.customerBridge.ensureLinkedCustomer({
-        customerId: createdClient.customerId,
-        displayName: createdClient.orgName,
-        legacyClientId: createdClient.id,
-        nextCustomerId: randomUUID(),
-      });
-      const clientWithCustomer =
-        createdClient.customerId === customerId
-          ? createdClient
-          : await tx.clientStore.update({
-              id: createdClient.id,
-              customerId,
-            });
-
-      await ensureActiveOwnerMembership({
-        customerId,
-        tx,
-        userId: input.userId,
-      });
-      await tx.bootstrapClaimStore.complete({
-        clientId: createdClient.id,
-        customerId,
-        id: claim.id,
-      });
-
-      return clientWithCustomer ?? createdClient;
-    });
-  }
-
   async function getCustomerContextsByUserId(
     userId: string,
   ): Promise<CustomerPortalCustomerContext[]> {
@@ -550,22 +419,12 @@ export function createCustomerPortalWorkflow(
     const customers = await deps.parties.customers.queries.listByIds(customerIds);
     const counterpartiesByCustomerId =
       await listCustomerOwnedCounterpartiesByCustomerId(customerIds);
-    const shellMap = await listActiveShellsByCounterpartyId(
-      [...counterpartiesByCustomerId.values()].flat().map(
-        (counterparty) => counterparty.id,
-      ),
-    );
 
     return customers
       .map((customer) => {
         const legalEntities = (
           counterpartiesByCustomerId.get(customer.id) ?? []
-        ).map((counterparty) =>
-          mapLegalEntity({
-            counterparty,
-            shell: shellMap.get(counterparty.id) ?? null,
-          }),
-        );
+        ).map((counterparty) => mapLegalEntity(counterparty));
 
         return {
           createdAt: serializeDate(customer.createdAt),
@@ -583,29 +442,6 @@ export function createCustomerPortalWorkflow(
         (left, right) =>
           new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
       );
-  }
-
-  async function assertClientOwnership(
-    userId: string,
-    clientId: number,
-  ): Promise<void> {
-    const client = await deps.operations.clients.queries.findById(clientId);
-    if (!client || !client.customerId || client.isDeleted) {
-      throw new CustomerNotAuthorizedError(
-        `Client ${clientId} not found or not owned by user ${userId}`,
-      );
-    }
-
-    const hasMembership =
-      await deps.iam.customerMemberships.queries.hasMembership({
-        customerId: client.customerId,
-        userId,
-      });
-    if (!hasMembership) {
-      throw new CustomerNotAuthorizedError(
-        `Client ${clientId} not found or not owned by user ${userId}`,
-      );
-    }
   }
 
   async function assertCounterpartyOwnership(
@@ -761,44 +597,101 @@ export function createCustomerPortalWorkflow(
 
     async createClient(
       ctx: CustomerContext,
-      input: Parameters<typeof deps.operations.clients.commands.create>[0],
-      options?: { idempotencyKey?: string | null },
+      input: CustomerPortalCreateLegalEntityInput,
     ) {
       const profile = await getProfile(ctx);
-      const validated = CreateClientInputSchema.parse(input);
-      let result;
 
-      if (profile.hasCustomerPortalAccess) {
-        result = await deps.operations.clients.commands.create(validated);
-      } else if (profile.hasCrmAccess) {
+      if (profile.hasCrmAccess && !profile.hasCustomerPortalAccess) {
         throw new CustomerNotAuthorizedError(
-          `User ${ctx.userId} must use CRM to create clients`,
+          `User ${ctx.userId} must use CRM to create legal entities`,
         );
-      } else {
-        if (!options?.idempotencyKey) {
-          throw new CustomerNotAuthorizedError(
-            `User ${ctx.userId} cannot bootstrap a client without an Idempotency-Key`,
-          );
-        }
-
-        result = await createBootstrapClient({
-          createInput: validated,
-          userId: ctx.userId,
-        });
       }
 
-      deps.logger.info("Customer created client", {
-        userId: ctx.userId,
-        clientId: result.id,
+      const customer = await deps.parties.customers.commands.create({
+        description: null,
+        displayName: input.orgName,
+        externalRef: null,
       });
-      if (result.customerId) {
-        await ensureActiveOwnerMembership({
-          customerId: result.customerId,
-          userId: ctx.userId,
+      const counterparty =
+        await deps.parties.counterparties.commands.create({
+          address: normalizeNullableText(input.address),
+          addressI18n: input.addressI18n ?? null,
+          country: normalizeCountryCode(input.country ?? input.bankCountry),
+          customerId: customer.id,
+          description: null,
+          directorBasis: normalizeNullableText(input.directorBasis),
+          directorBasisI18n: input.directorBasisI18n ?? null,
+          directorName: normalizeNullableText(input.directorName),
+          directorNameI18n: input.directorNameI18n ?? null,
+          email: normalizeNullableText(input.email),
+          externalId: normalizeNullableText(input.inn),
+          fullName: input.orgName,
+          inn: normalizeNullableText(input.inn),
+          kind: "legal_entity",
+          kpp: normalizeNullableText(input.kpp),
+          ogrn: normalizeNullableText(input.ogrn),
+          okpo: normalizeNullableText(input.okpo),
+          oktmo: normalizeNullableText(input.oktmo),
+          orgNameI18n: input.orgNameI18n ?? null,
+          orgType: normalizeNullableText(input.orgType),
+          orgTypeI18n: input.orgTypeI18n ?? null,
+          phone: normalizeNullableText(input.phone),
+          position: normalizeNullableText(input.position),
+          positionI18n: input.positionI18n ?? null,
+          relationshipKind: "customer_owned",
+          shortName: input.orgName,
         });
-      }
 
-      return result;
+      await ensureActiveOwnerMembership({
+        customerId: customer.id,
+        userId: ctx.userId,
+      });
+
+      deps.logger.info("Customer created legal entity", {
+        counterpartyId: counterparty.id,
+        customerId: customer.id,
+        userId: ctx.userId,
+      });
+
+      return {
+        account: normalizeNullableText(input.account),
+        address: counterparty.address,
+        addressI18n: counterparty.addressI18n,
+        bankAddress: normalizeNullableText(input.bankAddress),
+        bankAddressI18n: input.bankAddressI18n ?? null,
+        bankCountry: normalizeCountryCode(input.bankCountry ?? input.country),
+        bankName: normalizeNullableText(input.bankName),
+        bankNameI18n: input.bankNameI18n ?? null,
+        bic: normalizeNullableText(input.bic),
+        corrAccount: normalizeNullableText(input.corrAccount),
+        counterpartyId: counterparty.id,
+        createdAt: counterparty.createdAt.toISOString(),
+        customerId: customer.id,
+        directorBasis: counterparty.directorBasis,
+        directorBasisI18n: counterparty.directorBasisI18n,
+        directorName: counterparty.directorName,
+        directorNameI18n: counterparty.directorNameI18n,
+        email: counterparty.email,
+        id: 0,
+        inn: counterparty.inn,
+        isDeleted: false,
+        kpp: counterparty.kpp,
+        ogrn: counterparty.ogrn,
+        okpo: counterparty.okpo,
+        oktmo: counterparty.oktmo,
+        orgName: counterparty.shortName,
+        orgNameI18n: counterparty.orgNameI18n,
+        orgType: counterparty.orgType,
+        orgTypeI18n: counterparty.orgTypeI18n,
+        phone: counterparty.phone,
+        position: counterparty.position,
+        positionI18n: counterparty.positionI18n,
+        subAgentCounterpartyId: normalizeNullableText(
+          input.subAgentCounterpartyId,
+        ),
+        updatedAt: counterparty.updatedAt.toISOString(),
+        userId: null,
+      };
     },
 
     getProfile,
@@ -819,9 +712,10 @@ export function createCustomerPortalWorkflow(
       };
     },
 
-    async getClientById(ctx: CustomerContext, clientId: number) {
-      await assertClientOwnership(ctx.userId, clientId);
-      return deps.operations.clients.queries.findById(clientId);
+    async getClientById(_ctx: CustomerContext, clientId: number) {
+      throw new CustomerNotAuthorizedError(
+        `Legacy client ${clientId} is no longer supported`,
+      );
     },
 
     async createDeal(
@@ -839,7 +733,6 @@ export function createCustomerPortalWorkflow(
         ctx.userId,
         input.counterpartyId,
       );
-      await ensureActiveShellForCounterparty(input.counterpartyId);
 
       const requestedCurrency = input.requestedCurrency
         ? await deps.currencies.findByCode(input.requestedCurrency)
@@ -933,7 +826,3 @@ export function createCustomerPortalWorkflow(
     },
   };
 }
-
-export type CustomerPortalWorkflow = ReturnType<
-  typeof createCustomerPortalWorkflow
->;

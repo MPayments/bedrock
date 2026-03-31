@@ -1,7 +1,7 @@
 import {
   RequisiteNotFoundError,
-  type Requisite,
 } from "@bedrock/parties";
+import type { Requisite } from "@bedrock/parties/contracts";
 
 import type { AppContext } from "../context";
 

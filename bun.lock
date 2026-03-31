@@ -36,7 +36,6 @@
         "@bedrock/files": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/plugin-documents-commercial": "workspace:*",
@@ -136,7 +135,6 @@
         "@bedrock/files": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/reconciliation": "workspace:*",
@@ -464,32 +462,6 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/modules/operations": {
-      "name": "@bedrock/operations",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/calculations": "workspace:*",
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/deals": "workspace:*",
-        "@bedrock/files": "workspace:*",
-        "@bedrock/iam": "workspace:*",
-        "@bedrock/parties": "workspace:*",
-        "@bedrock/platform": "workspace:*",
-        "@bedrock/shared": "workspace:*",
-        "@bedrock/treasury": "workspace:*",
-        "drizzle-orm": "^0.45.1",
-        "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "@types/pg": "^8.16.0",
-        "eslint": "^9.31.0",
-        "pg": "^8.18.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
     "packages/modules/parties": {
       "name": "@bedrock/parties",
       "version": "0.0.0",
@@ -757,7 +729,6 @@
         "@bedrock/currencies": "workspace:*",
         "@bedrock/deals": "workspace:*",
         "@bedrock/iam": "workspace:*",
-        "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
       },
@@ -773,7 +744,6 @@
       "name": "@bedrock/workflow-deal-commission",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/operations": "workspace:*",
         "@bedrock/platform": "workspace:*",
       },
       "devDependencies": {
@@ -803,7 +773,6 @@
       "name": "@bedrock/workflow-document-generation",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/operations": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "easy-template-x": "^7.1.1",
         "libreoffice-convert": "^1.6.1",
@@ -841,7 +810,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/operations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
       },
@@ -1040,8 +1008,6 @@
     "@bedrock/iam": ["@bedrock/iam@workspace:packages/modules/iam"],
 
     "@bedrock/ledger": ["@bedrock/ledger@workspace:packages/modules/ledger"],
-
-    "@bedrock/operations": ["@bedrock/operations@workspace:packages/modules/operations"],
 
     "@bedrock/parties": ["@bedrock/parties@workspace:packages/modules/parties"],
 
@@ -2983,8 +2949,6 @@
 
     "@bedrock/ledger/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/operations/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
     "@bedrock/parties/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/platform/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
@@ -3210,8 +3174,6 @@
     "@bedrock/iam/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/ledger/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/operations/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/parties/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

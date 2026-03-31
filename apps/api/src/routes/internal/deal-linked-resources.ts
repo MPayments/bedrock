@@ -49,7 +49,7 @@ export function assertDealAllowsCommercialWrite(deal: DealDetails) {
 }
 
 export async function createDealScopedQuote(input: {
-  body: Omit<Parameters<AppContext["treasuryModule"]["quotes"]["commands"]["createQuote"]>[0], "dealId" | "idempotencyKey">;
+  body: any;
   ctx: AppContext;
   dealId: string;
   idempotencyKey: string;
@@ -102,6 +102,8 @@ export async function buildDealTrace(
       dealId,
       limit: 500,
       offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
     }),
     db
       .select({

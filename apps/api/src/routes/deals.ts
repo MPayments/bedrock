@@ -434,6 +434,8 @@ export function dealsRoutes(ctx: AppContext) {
           dealId: id,
           limit: 500,
           offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
         });
 
         return jsonOk(
@@ -475,6 +477,8 @@ export function dealsRoutes(ctx: AppContext) {
             dealId: id,
             limit: 500,
             offset: 0,
+            sortBy: "occurredAt",
+            sortOrder: "desc",
           },
           c.get("user")!.id,
         );

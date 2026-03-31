@@ -1,8 +1,10 @@
 import {
+  dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
   dealApprovals,
   dealCalculationLinks,
+  dealExtensions,
   dealLegKindEnum,
   dealLegs,
   dealParticipantRoleEnum,
@@ -14,10 +16,12 @@ import {
 } from "./adapters/drizzle/schema";
 
 export {
+  dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
   dealApprovals,
   dealCalculationLinks,
+  dealExtensions,
   dealLegKindEnum,
   dealLegs,
   dealParticipantRoleEnum,
@@ -33,8 +37,10 @@ export const schema = {
   dealLegs,
   dealParticipants,
   dealStatusHistory,
+  dealAgentBonuses,
   dealApprovals,
   dealCalculationLinks,
+  dealExtensions,
   dealTypeEnum,
   dealStatusEnum,
   dealLegKindEnum,

@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -16,7 +17,12 @@ import { agreements } from "@bedrock/agreements/schema";
 import { calculations } from "@bedrock/calculations/schema";
 import { currencies } from "@bedrock/currencies/schema";
 import { user } from "@bedrock/iam/schema";
-import { customers, counterparties, organizations } from "@bedrock/parties/schema";
+import {
+  customers,
+  counterparties,
+  organizations,
+  type LocalizedText,
+} from "@bedrock/parties/schema";
 
 import {
   DEAL_APPROVAL_STATUS_VALUES,
@@ -41,6 +47,68 @@ export const dealApprovalTypeEnum = pgEnum(
 export const dealApprovalStatusEnum = pgEnum(
   "deal_approval_status",
   DEAL_APPROVAL_STATUS_VALUES,
+);
+
+export const dealAgentBonuses = pgTable(
+  "deal_agent_bonuses",
+  {
+    id: uuid("id").primaryKey(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => user.id),
+    commission: text("commission").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_agent_bonuses_deal_agent_uq").on(
+      table.dealId,
+      table.agentId,
+    ),
+    index("deal_agent_bonuses_deal_idx").on(table.dealId),
+    index("deal_agent_bonuses_agent_idx").on(table.agentId),
+  ],
+);
+
+export const dealExtensions = pgTable(
+  "deal_extensions",
+  {
+    dealId: uuid("deal_id")
+      .primaryKey()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    organizationRequisiteId: uuid("organization_requisite_id"),
+    invoiceNumber: text("invoice_number"),
+    invoiceDate: text("invoice_date"),
+    companyName: text("company_name"),
+    companyNameI18n: jsonb("company_name_i18n").$type<LocalizedText>(),
+    bankName: text("bank_name"),
+    bankNameI18n: jsonb("bank_name_i18n").$type<LocalizedText>(),
+    account: text("account"),
+    swiftCode: text("swift_code"),
+    contractDate: text("contract_date"),
+    contractNumber: text("contract_number"),
+    costPrice: text("cost_price"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("deal_extensions_org_req_idx").on(table.organizationRequisiteId),
+    index("deal_extensions_closed_at_idx").on(table.closedAt),
+  ],
 );
 
 export const deals = pgTable(
@@ -264,10 +332,22 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
     references: [currencies.id],
   }),
   approvals: many(dealApprovals),
+  agentBonuses: many(dealAgentBonuses),
   calculationLinks: many(dealCalculationLinks),
+  extension: one(dealExtensions, {
+    fields: [deals.id],
+    references: [dealExtensions.dealId],
+  }),
   legs: many(dealLegs),
   participants: many(dealParticipants),
   statusHistory: many(dealStatusHistory),
+}));
+
+export const dealExtensionsRelations = relations(dealExtensions, ({ one }) => ({
+  deal: one(deals, {
+    fields: [dealExtensions.dealId],
+    references: [deals.id],
+  }),
 }));
 
 export const dealCalculationLinksRelations = relations(
@@ -329,3 +409,17 @@ export const dealApprovalsRelations = relations(dealApprovals, ({ one }) => ({
     references: [deals.id],
   }),
 }));
+
+export const dealAgentBonusesRelations = relations(
+  dealAgentBonuses,
+  ({ one }) => ({
+    agent: one(user, {
+      fields: [dealAgentBonuses.agentId],
+      references: [user.id],
+    }),
+    deal: one(deals, {
+      fields: [dealAgentBonuses.dealId],
+      references: [deals.id],
+    }),
+  }),
+);

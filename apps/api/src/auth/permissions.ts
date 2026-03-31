@@ -40,17 +40,6 @@ const statements = {
     "providers_update",
     "providers_delete",
   ],
-  operations: [
-    "manage_applications",
-    "manage_deals",
-    "manage_clients",
-    "manage_calculations",
-    "manage_contracts",
-    "manage_organizations",
-    "manage_todos",
-    "view_activity_log",
-    "customer_portal",
-  ],
 } as const;
 
 export type ResourcePermissions = {
@@ -94,17 +83,6 @@ export const admin = ac.newRole({
     "providers_update",
     "providers_delete",
   ],
-  operations: [
-    "manage_applications",
-    "manage_deals",
-    "manage_clients",
-    "manage_calculations",
-    "manage_contracts",
-    "manage_organizations",
-    "manage_todos",
-    "view_activity_log",
-    "customer_portal",
-  ],
 });
 
 export const user = ac.newRole({
@@ -121,19 +99,9 @@ export const user = ac.newRole({
   accounting: ["list"],
   balances: ["get"],
   requisites: ["list", "providers_list"],
-  operations: [
-    "manage_applications",
-    "manage_deals",
-    "manage_clients",
-    "manage_calculations",
-    "manage_contracts",
-    "manage_organizations",
-    "manage_todos",
-    "view_activity_log",
-  ],
 });
 
-// Agent role: same as user + full operations access
+// Agent role: same as user on the final canonical API surface
 export const agent = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
@@ -148,19 +116,9 @@ export const agent = ac.newRole({
   accounting: ["list"],
   balances: ["get"],
   requisites: ["list", "providers_list"],
-  operations: [
-    "manage_applications",
-    "manage_deals",
-    "manage_clients",
-    "manage_calculations",
-    "manage_contracts",
-    "manage_todos",
-    "view_activity_log",
-  ],
 });
 
-// Customer role: limited operations access (own data only)
+// Customer role: portal-oriented access; endpoint-level ownership checks apply
 export const customer = ac.newRole({
   ...userAc.statements,
-  operations: ["customer_portal"],
 });

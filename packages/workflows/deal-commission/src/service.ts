@@ -1,8 +1,11 @@
-import type { OperationsModule } from "@bedrock/operations";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 export interface DealCommissionWorkflowDeps {
-  operations: Pick<OperationsModule, "deals">;
+  setAgentBonus(input: {
+    agentId: string;
+    commission: string;
+    dealId: string;
+  }): Promise<{ id: string | number }>;
   logger: Logger;
 }
 
@@ -68,13 +71,13 @@ export function createDealCommissionWorkflow(
     calculateCommission,
 
     async processDealCompletion(input: {
-      dealId: number;
+      dealId: string;
       agentId: string;
       commission: string;
     }) {
       const { dealId, agentId, commission } = input;
 
-      const bonus = await deps.operations.deals.commands.setAgentBonus({
+      const bonus = await deps.setAgentBonus({
         dealId,
         agentId,
         commission,
@@ -91,7 +94,7 @@ export function createDealCommissionWorkflow(
     },
 
     async processDealCompletionWithCalculation(input: {
-      dealId: number;
+      dealId: string;
       agentId: string;
       totalWithExpensesInBase: string;
       costPrice?: string | null;
@@ -110,7 +113,7 @@ export function createDealCommissionWorkflow(
         commission = result.agentBonus.toFixed(2);
       }
 
-      const bonus = await deps.operations.deals.commands.setAgentBonus({
+      const bonus = await deps.setAgentBonus({
         dealId,
         agentId,
         commission,

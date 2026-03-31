@@ -22,20 +22,17 @@ import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface Client {
-  id: number;
-  counterpartyId: string | null;
+  id: string;
   orgName: string;
   inn: string | null;
-  directorName: string | null;
 }
 
 interface ClientComboboxProps {
-  value?: number | string;
-  onValueChange?: (value: number | string | undefined) => void;
+  value?: string;
+  onValueChange?: (value: string | undefined) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  valueField?: "clientId" | "counterpartyId";
 }
 
 // Custom hook для debounce
@@ -61,7 +58,6 @@ export function ClientCombobox({
   placeholder = "Выберите клиента...",
   className,
   disabled = false,
-  valueField = "clientId",
 }: ClientComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [clients, setClients] = React.useState<Client[]>([]);
@@ -76,11 +72,7 @@ export function ClientCombobox({
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500);
 
   // Найти выбранного клиента
-  const selectedClient = clients.find((client) =>
-    valueField === "counterpartyId"
-      ? client.counterpartyId === value
-      : client.id === value,
-  );
+  const selectedClient = clients.find((client) => client.id === value);
 
   // Загрузка клиентов с сервера
   const fetchClients = React.useCallback(
@@ -92,7 +84,7 @@ export function ClientCombobox({
           setLoading(true);
         }
 
-        const url = `${API_BASE_URL}/clients/search?q=${encodeURIComponent(
+        const url = `${API_BASE_URL}/customers?q=${encodeURIComponent(
           query
         )}&offset=${currentOffset}&limit=20`;
         const res = await fetch(url, {
@@ -104,7 +96,18 @@ export function ClientCombobox({
         }
 
         const data = await res.json();
-        const items: Client[] = data.data ?? data.items ?? [];
+        const items: Client[] = (data.data ?? data.items ?? []).map(
+          (item: {
+            displayName?: string;
+            id: string;
+            inn?: string | null;
+            orgName?: string;
+          }) => ({
+            id: item.id,
+            inn: item.inn ?? null,
+            orgName: item.displayName ?? item.orgName ?? "",
+          }),
+        );
 
         if (append) {
           setClients((prev) => [...prev, ...items]);
@@ -151,7 +154,7 @@ export function ClientCombobox({
   );
 
   // Обработчик выбора клиента
-  const handleSelect = (nextValue: number | string) => {
+  const handleSelect = (nextValue: string) => {
     if (value === nextValue) {
       // Если выбран тот же клиент - снимаем выбор
       onValueChange?.(undefined);
@@ -205,25 +208,13 @@ export function ClientCombobox({
                   {clients.map((client) => (
                     <CommandItem
                       key={client.id}
-                      value={client.id.toString()}
-                      onSelect={() =>
-                        valueField === "counterpartyId"
-                          ? client.counterpartyId
-                            ? handleSelect(client.counterpartyId)
-                            : undefined
-                          : handleSelect(client.id)
-                      }
-                      disabled={
-                        valueField === "counterpartyId" && !client.counterpartyId
-                      }
+                      value={client.id}
+                      onSelect={() => handleSelect(client.id)}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          value ===
-                            (valueField === "counterpartyId"
-                              ? client.counterpartyId
-                              : client.id)
+                          value === client.id
                             ? "opacity-100"
                             : "opacity-0"
                         )}
@@ -237,11 +228,6 @@ export function ClientCombobox({
                             ИНН: {client.inn}
                           </span>
                         )}
-                        {!client.counterpartyId ? (
-                          <span className="text-xs text-amber-600">
-                            counterparty ещё не привязан
-                          </span>
-                        ) : null}
                       </div>
                     </CommandItem>
                   ))}

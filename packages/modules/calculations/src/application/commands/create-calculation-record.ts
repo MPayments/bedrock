@@ -7,7 +7,6 @@ import type { NormalizedCreateCalculationInput } from "../contracts/commands";
 import type { CalculationsCommandTx } from "../ports/calculations.uow";
 
 export async function persistCalculation(input: {
-  applicationId?: number;
   normalized: NormalizedCreateCalculationInput;
   runtime: ModuleRuntime;
   tx: CalculationsCommandTx;
@@ -61,13 +60,6 @@ export async function persistCalculation(input: {
     })),
   );
 
-  if (input.applicationId !== undefined) {
-    await input.tx.calculationStore.createCalculationApplicationLink({
-      calculationId,
-      applicationId: input.applicationId,
-    });
-  }
-
   await input.tx.calculationStore.setCurrentSnapshot({
     calculationId,
     currentSnapshotId: snapshotId,
@@ -80,7 +72,6 @@ export async function persistCalculation(input: {
   }
 
   input.runtime.log.info("Calculation created", {
-    applicationId: input.applicationId,
     calculationId,
     fxQuoteId: input.normalized.fxQuoteId,
   });

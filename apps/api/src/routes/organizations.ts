@@ -21,9 +21,6 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 import { countOrganizationBankRequisites } from "./organization-requisites";
-import {
-  createHoldingOrganizationBridge,
-} from "./organization-bridge";
 
 const PaginatedOrganizationsSchema =
   createPaginatedListSchema(OrganizationSchema);
@@ -34,13 +31,6 @@ const OrganizationFilesSchema = z.object({
   signatureUrl: z.string().nullable(),
 });
 const OPTIONS_LIMIT = 200;
-
-async function syncHoldingOrganizationBridge(
-  organization: z.infer<typeof OrganizationSchema>,
-) {
-  const bridge = createHoldingOrganizationBridge();
-  return bridge.upsertFromCanonical(organization);
-}
 
 async function buildOrganizationListRow(
   ctx: AppContext,
@@ -330,7 +320,6 @@ export function organizationsRoutes(ctx: AppContext) {
       try {
         const organization =
           await ctx.partiesModule.organizations.commands.update(id, input);
-        await syncHoldingOrganizationBridge(organization);
         return c.json(organization, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -347,7 +336,6 @@ export function organizationsRoutes(ctx: AppContext) {
 
       try {
         await ctx.partiesModule.organizations.commands.remove(id);
-        await createHoldingOrganizationBridge().archiveByCanonicalOrganizationId(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -385,13 +373,10 @@ export function organizationsRoutes(ctx: AppContext) {
       }
 
       const organization = await ctx.partiesModule.organizations.queries.findById(id);
-      const bridge = createHoldingOrganizationBridge();
-      const legacyOrganization =
-        await bridge.findByCanonicalOrganizationId(id);
       const key =
         type === "signature"
-          ? organization.signatureKey ?? legacyOrganization?.signatureKey ?? null
-          : organization.sealKey ?? legacyOrganization?.sealKey ?? null;
+          ? organization.signatureKey ?? null
+          : organization.sealKey ?? null;
 
       if (!key) {
         return c.json({ error: "File not found" }, 404);
@@ -435,9 +420,7 @@ export function organizationsRoutes(ctx: AppContext) {
       }
 
       if (Object.keys(patch).length > 0) {
-        const organization =
-          await ctx.partiesModule.organizations.commands.update(id, patch);
-        await syncHoldingOrganizationBridge(organization);
+        await ctx.partiesModule.organizations.commands.update(id, patch);
       }
 
       return c.json({ success: true }, 200);

@@ -91,7 +91,7 @@ export async function fetchSessionSnapshot(input: {
 
   try {
     const customerProfileResponse = await fetch(
-      `${apiUrl}/v1/operations/customer/profile`,
+      `${apiUrl}/v1/customer/profile`,
       {
         cache: "no-store",
         headers: {

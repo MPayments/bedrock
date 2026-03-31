@@ -1,7 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-import type { ObjectStoragePort } from "@bedrock/operations/shared-ports";
-
 import {
   assembleAcceptanceData,
   assembleApplicationData,
@@ -33,6 +31,12 @@ export interface PdfConverterPort {
 export interface TemplateManagerPort {
   parseTags(templateType: string, organizationId?: string): Promise<string[]>;
   listTemplates(organizationId?: string): Promise<string[]>;
+}
+
+export interface ObjectStoragePort {
+  upload(key: string, data: Buffer, contentType: string): Promise<string>;
+  download(key: string): Promise<Buffer>;
+  delete(key: string): Promise<void>;
 }
 
 export interface DocumentGenerationWorkflowDeps {

@@ -15,16 +15,19 @@ import {
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
+  activityRoutes,
+  agentsRoutes,
   agreementsRoutes,
   balancesRoutes,
   calculationsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
+  customerRoutes,
   customersRoutes,
   currenciesRoutes,
   dealsRoutes,
   documentsRoutes,
-  operationsRoutes,
+  legalEntitiesRoutes,
   organizationsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
@@ -146,15 +149,19 @@ app.get("/health", async (c) => {
 function createV1Routes(ctx: AppContext) {
   return new OpenAPIHono<{ Variables: AuthVariables }>()
     .route("/accounting", accountingRoutes(ctx))
+    .route("/activity", activityRoutes(ctx))
+    .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
+    .route("/customer", customerRoutes(ctx))
     .route("/customers", customersRoutes(ctx))
     .route("/currencies", currenciesRoutes(ctx))
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
+    .route("/legal-entities", legalEntitiesRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
@@ -162,8 +169,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))
-    .route("/me", profileRoutes(ctx))
-    .route("/operations", operationsRoutes(ctx));
+    .route("/me", profileRoutes(ctx));
 }
 
 const v1 = createV1Routes(ctx);

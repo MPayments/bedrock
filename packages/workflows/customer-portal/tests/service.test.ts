@@ -3,23 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import { createCustomerPortalWorkflow } from "../src";
 
 function createWorkflow(overrides?: {
-  clients?: {
-    data: Array<{
-      counterpartyId: string | null;
-      customerId: string | null;
-      id: number;
-      isDeleted: boolean;
-    }>;
-  };
   counterpartiesByCustomerId?: Record<
     string,
     Array<{
+      address?: string | null;
       country?: string | null;
       createdAt?: Date;
       customerId: string;
+      directorName?: string | null;
+      email?: string | null;
       externalId?: string | null;
       fullName?: string;
       id: string;
+      inn?: string | null;
+      phone?: string | null;
       relationshipKind?: "customer_owned" | "external";
       shortName?: string;
       updatedAt?: Date;
@@ -32,7 +29,6 @@ function createWorkflow(overrides?: {
     status?: string;
     userId: string;
   }>;
-  customerId?: string;
   user?: {
     banned?: boolean | null;
     role?: string | null;
@@ -47,63 +43,26 @@ function createWorkflow(overrides?: {
       userId: "user-1",
     },
   ];
-  const clientListResult = {
-    data: overrides?.clients?.data ?? [
-      {
-        counterpartyId: "counterparty-1",
-        customerId: "customer-1",
-        id: 101,
-        isDeleted: false,
-      },
-    ],
-    total: overrides?.clients?.data?.length ?? 1,
-    limit: 100,
-    offset: 0,
-  };
   const counterpartiesByCustomerId = overrides?.counterpartiesByCustomerId ?? {
     "customer-1": [
       {
         country: "RU",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         customerId: "customer-1",
+        directorName: "Иван Иванов",
+        email: "finance@example.com",
         externalId: "7700000000",
         fullName: "Customer counterparty",
         id: "counterparty-1",
+        inn: "7700000000",
+        phone: "+79990001122",
         relationshipKind: "customer_owned",
         shortName: "Customer counterparty",
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     ],
   };
-  const operations = {
-    clients: {
-      commands: {
-        create: vi.fn(async () => ({
-          counterpartyId: "counterparty-202",
-          id: 202,
-          customerId: overrides?.customerId ?? "customer-1",
-        })),
-      },
-      queries: {
-        findActiveByCounterpartyId: vi.fn(async (counterpartyId: string) =>
-          clientListResult.data.find(
-            (client) => client.counterpartyId === counterpartyId,
-          ) ?? null,
-        ),
-        findById: vi.fn(async (id: number) =>
-          clientListResult.data.find((client) => client.id === id) ?? null,
-        ),
-        list: vi.fn(async () => clientListResult),
-        listActiveByCounterpartyIds: vi.fn(async (counterpartyIds: string[]) =>
-          clientListResult.data.filter(
-            (client) =>
-              client.counterpartyId !== null &&
-              counterpartyIds.includes(client.counterpartyId),
-          ),
-        ),
-      },
-    },
-  };
+
   const calculations = {
     calculations: {
       queries: {
@@ -169,21 +128,72 @@ function createWorkflow(overrides?: {
   };
   const parties = {
     counterparties: {
+      commands: {
+        create: vi.fn(async (input) => ({
+          address: input.address ?? null,
+          addressI18n: input.addressI18n ?? null,
+          country: input.country ?? null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          customerId: input.customerId,
+          description: null,
+          directorBasis: input.directorBasis ?? null,
+          directorBasisI18n: input.directorBasisI18n ?? null,
+          directorName: input.directorName ?? null,
+          directorNameI18n: input.directorNameI18n ?? null,
+          email: input.email ?? null,
+          externalId: input.externalId ?? null,
+          fullName: input.fullName,
+          id: "counterparty-created",
+          inn: input.inn ?? null,
+          kind: "legal_entity",
+          kpp: input.kpp ?? null,
+          ogrn: input.ogrn ?? null,
+          okpo: input.okpo ?? null,
+          oktmo: input.oktmo ?? null,
+          orgNameI18n: input.orgNameI18n ?? null,
+          orgType: input.orgType ?? null,
+          orgTypeI18n: input.orgTypeI18n ?? null,
+          phone: input.phone ?? null,
+          position: input.position ?? null,
+          positionI18n: input.positionI18n ?? null,
+          relationshipKind: "customer_owned",
+          shortName: input.shortName,
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        })),
+      },
       queries: {
         findById: vi.fn(async (counterpartyId: string) => {
           for (const items of Object.values(counterpartiesByCustomerId)) {
             const match = items.find((item) => item.id === counterpartyId);
             if (match) {
               return {
+                address: match.address ?? null,
+                addressI18n: null,
                 country: match.country ?? null,
                 createdAt:
                   match.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
                 customerId: match.customerId,
                 description: null,
+                directorBasis: null,
+                directorBasisI18n: null,
+                directorName: match.directorName ?? null,
+                directorNameI18n: null,
+                email: match.email ?? null,
                 externalId: match.externalId ?? null,
                 fullName: match.fullName ?? match.shortName ?? counterpartyId,
                 id: match.id,
+                inn: match.inn ?? null,
                 kind: "legal_entity",
+                kpp: null,
+                ogrn: null,
+                okpo: null,
+                oktmo: null,
+                orgNameI18n: null,
+                orgType: null,
+                orgTypeI18n: null,
+                phone: match.phone ?? null,
+                position: null,
+                positionI18n: null,
                 relationshipKind: match.relationshipKind ?? "customer_owned",
                 shortName: match.shortName ?? match.fullName ?? counterpartyId,
                 updatedAt:
@@ -198,15 +208,33 @@ function createWorkflow(overrides?: {
           data:
             customerId && counterpartiesByCustomerId[customerId]
               ? counterpartiesByCustomerId[customerId].map((item) => ({
+                  address: item.address ?? null,
+                  addressI18n: null,
                   country: item.country ?? null,
                   createdAt:
                     item.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
                   customerId: item.customerId,
                   description: null,
+                  directorBasis: null,
+                  directorBasisI18n: null,
+                  directorName: item.directorName ?? null,
+                  directorNameI18n: null,
+                  email: item.email ?? null,
                   externalId: item.externalId ?? null,
                   fullName: item.fullName ?? item.shortName ?? item.id,
                   id: item.id,
+                  inn: item.inn ?? null,
                   kind: "legal_entity",
+                  kpp: null,
+                  ogrn: null,
+                  okpo: null,
+                  oktmo: null,
+                  orgNameI18n: null,
+                  orgType: null,
+                  orgTypeI18n: null,
+                  phone: item.phone ?? null,
+                  position: null,
+                  positionI18n: null,
                   relationshipKind: item.relationshipKind ?? "customer_owned",
                   shortName: item.shortName ?? item.fullName ?? item.id,
                   updatedAt:
@@ -220,6 +248,16 @@ function createWorkflow(overrides?: {
       },
     },
     customers: {
+      commands: {
+        create: vi.fn(async (input) => ({
+          id: "customer-created",
+          displayName: input.displayName,
+          externalRef: input.externalRef ?? null,
+          description: input.description ?? null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        })),
+      },
       queries: {
         findById: vi.fn(async (customerId: string) => ({
           id: customerId,
@@ -244,87 +282,20 @@ function createWorkflow(overrides?: {
   };
 
   return {
-    operations,
     iam,
     parties,
     workflow: createCustomerPortalWorkflow({
       calculations: calculations as never,
       currencies: currencies as never,
       deals: deals as never,
-      operations: operations as never,
       iam: iam as never,
       parties: parties as never,
       logger: { info: vi.fn() } as never,
-      persistence: {
-        db: {} as never,
-        runInTransaction: vi.fn(async () => {
-          throw new Error("Unexpected transaction in test");
-        }),
-      },
     }),
   };
 }
 
 describe("customer portal workflow", () => {
-  it("derives accessible customer contexts from memberships", async () => {
-    const { operations, workflow } = createWorkflow({
-      clients: {
-        data: [
-          {
-            counterpartyId: "counterparty-1",
-            customerId: "customer-1",
-            id: 101,
-            isDeleted: false,
-          },
-          {
-            counterpartyId: "counterparty-2",
-            customerId: "customer-2",
-            id: 102,
-            isDeleted: false,
-          },
-        ],
-      },
-      counterpartiesByCustomerId: {
-        "customer-1": [
-          {
-            customerId: "customer-1",
-            id: "counterparty-1",
-            shortName: "Entity 1",
-          },
-        ],
-        "customer-2": [
-          {
-            customerId: "customer-2",
-            id: "counterparty-2",
-            shortName: "Entity 2",
-          },
-        ],
-      },
-      memberships: [
-        {
-          customerId: "customer-1",
-          id: "membership-1",
-          role: "owner",
-          status: "active",
-          userId: "user-1",
-        },
-        {
-          customerId: "customer-2",
-          id: "membership-2",
-          role: "owner",
-          status: "active",
-          userId: "user-1",
-        },
-      ],
-    });
-
-    await workflow.getClients({ userId: "user-1" });
-
-    expect(
-      operations.clients.queries.listActiveByCounterpartyIds,
-    ).toHaveBeenCalledWith(["counterparty-1", "counterparty-2"]);
-  });
-
   it("reports membership-backed portal access in the profile", async () => {
     const { workflow } = createWorkflow({
       memberships: [
@@ -356,22 +327,6 @@ describe("customer portal workflow", () => {
     );
   });
 
-  it("upserts a membership after customer client creation", async () => {
-    const { iam, workflow } = createWorkflow();
-
-    await workflow.createClient(
-      { userId: "user-1" },
-      { orgName: "Acme Corp" } as never,
-    );
-
-    expect(iam.customerMemberships.commands.upsert).toHaveBeenCalledWith({
-      customerId: "customer-1",
-      role: "owner",
-      status: "active",
-      userId: "user-1",
-    });
-  });
-
   it("returns canonical customer contexts with legal entities", async () => {
     const { workflow } = createWorkflow({
       memberships: [
@@ -390,22 +345,16 @@ describe("customer portal workflow", () => {
           userId: "user-1",
         },
       ],
-      clients: {
-        data: [
-          {
-            counterpartyId: "counterparty-1",
-            customerId: "customer-1",
-            id: 101,
-            isDeleted: false,
-          },
-        ],
-      },
       counterpartiesByCustomerId: {
         "customer-1": [
           {
             customerId: "customer-1",
+            directorName: "Иван Иванов",
+            email: "one@example.com",
             externalId: "7700000000",
             id: "counterparty-1",
+            inn: "7700000000",
+            phone: "+79990001122",
             shortName: "Acme RU",
           },
         ],
@@ -414,6 +363,7 @@ describe("customer portal workflow", () => {
             customerId: "customer-2",
             externalId: "8800000000",
             id: "counterparty-2",
+            inn: "8800000000",
             shortName: "Acme EU",
           },
         ],
@@ -430,7 +380,7 @@ describe("customer portal workflow", () => {
           legalEntities: [
             expect.objectContaining({
               counterpartyId: "counterparty-1",
-              hasLegacyShell: true,
+              hasLegacyShell: false,
               shortName: "Acme RU",
             }),
           ],
@@ -455,31 +405,71 @@ describe("customer portal workflow", () => {
     });
   });
 
-  it("rejects access when the client customer is not in the user's memberships", async () => {
-    const { workflow } = createWorkflow({
-      clients: {
-        data: [
-          {
-            counterpartyId: "counterparty-2",
-            customerId: "customer-2",
-            id: 101,
-            isDeleted: false,
-          },
-        ],
+  it("creates a canonical customer and legal entity for portal onboarding", async () => {
+    const { iam, parties, workflow } = createWorkflow({
+      memberships: [],
+      user: {
+        role: "customer",
       },
-      memberships: [
-        {
-          customerId: "customer-1",
-          id: "membership-1",
-          role: "owner",
-          status: "active",
-          userId: "user-1",
-        },
-      ],
+    });
+
+    const result = await workflow.createClient(
+      { userId: "user-1" },
+      {
+        directorName: "Иван Иванов",
+        email: "finance@example.com",
+        inn: "7700000000",
+        orgName: "Acme Corp",
+        phone: "+79990001122",
+      },
+    );
+
+    expect(parties.customers.commands.create).toHaveBeenCalledWith({
+      description: null,
+      displayName: "Acme Corp",
+      externalRef: null,
+    });
+    expect(parties.counterparties.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "customer-created",
+        directorName: "Иван Иванов",
+        email: "finance@example.com",
+        inn: "7700000000",
+        relationshipKind: "customer_owned",
+        shortName: "Acme Corp",
+      }),
+    );
+    expect(iam.customerMemberships.commands.upsert).toHaveBeenCalledWith({
+      customerId: "customer-created",
+      role: "owner",
+      status: "active",
+      userId: "user-1",
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        counterpartyId: "counterparty-created",
+        customerId: "customer-created",
+        id: 0,
+        orgName: "Acme Corp",
+      }),
+    );
+  });
+
+  it("rejects CRM-only users from portal legal-entity creation", async () => {
+    const { workflow } = createWorkflow({
+      memberships: [],
+      user: {
+        role: "user",
+      },
     });
 
     await expect(
-      workflow.getClientById({ userId: "user-1" }, 101),
+      workflow.createClient(
+        { userId: "user-1" },
+        {
+          orgName: "CRM only",
+        },
+      ),
     ).rejects.toMatchObject({
       name: "CustomerNotAuthorizedError",
     });

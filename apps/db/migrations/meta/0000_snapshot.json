@@ -1,5 +1,5 @@
 {
-  "id": "6d7f2c37-6ac4-442b-bcee-d0f9fbd28a8d",
+  "id": "7d44f210-b0eb-4732-a5d5-626a4f18e5c0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1106,6 +1106,571 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.agreement_fee_rules": {
+      "name": "agreement_fee_rules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agreement_version_id": {
+          "name": "agreement_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "agreement_fee_rule_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit": {
+          "name": "unit",
+          "type": "agreement_fee_rule_unit",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_numeric": {
+          "name": "value_numeric",
+          "type": "numeric(20, 8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_id": {
+          "name": "currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agreement_fee_rules_version_kind_uq": {
+          "name": "agreement_fee_rules_version_kind_uq",
+          "columns": [
+            {
+              "expression": "agreement_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreement_fee_rules_version_idx": {
+          "name": "agreement_fee_rules_version_idx",
+          "columns": [
+            {
+              "expression": "agreement_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agreement_fee_rules_agreement_version_id_agreement_versions_id_fk": {
+          "name": "agreement_fee_rules_agreement_version_id_agreement_versions_id_fk",
+          "tableFrom": "agreement_fee_rules",
+          "tableTo": "agreement_versions",
+          "columnsFrom": [
+            "agreement_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agreement_fee_rules_currency_id_currencies_id_fk": {
+          "name": "agreement_fee_rules_currency_id_currencies_id_fk",
+          "tableFrom": "agreement_fee_rules",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agreement_fee_rules_unit_currency_chk": {
+          "name": "agreement_fee_rules_unit_currency_chk",
+          "value": "(\n        \"agreement_fee_rules\".\"unit\" = 'bps'\n        and \"agreement_fee_rules\".\"currency_id\" is null\n      ) or (\n        \"agreement_fee_rules\".\"unit\" = 'money'\n        and \"agreement_fee_rules\".\"currency_id\" is not null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.agreement_parties": {
+      "name": "agreement_parties",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agreement_version_id": {
+          "name": "agreement_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_role": {
+          "name": "party_role",
+          "type": "agreement_party_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agreement_parties_version_role_uq": {
+          "name": "agreement_parties_version_role_uq",
+          "columns": [
+            {
+              "expression": "agreement_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "party_role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreement_parties_version_idx": {
+          "name": "agreement_parties_version_idx",
+          "columns": [
+            {
+              "expression": "agreement_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agreement_parties_agreement_version_id_agreement_versions_id_fk": {
+          "name": "agreement_parties_agreement_version_id_agreement_versions_id_fk",
+          "tableFrom": "agreement_parties",
+          "tableTo": "agreement_versions",
+          "columnsFrom": [
+            "agreement_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agreement_parties_customer_id_customers_id_fk": {
+          "name": "agreement_parties_customer_id_customers_id_fk",
+          "tableFrom": "agreement_parties",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agreement_parties_organization_id_organizations_id_fk": {
+          "name": "agreement_parties_organization_id_organizations_id_fk",
+          "tableFrom": "agreement_parties",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agreement_parties_exactly_one_fk_chk": {
+          "name": "agreement_parties_exactly_one_fk_chk",
+          "value": "(\n        \"agreement_parties\".\"customer_id\" is not null\n        and \"agreement_parties\".\"organization_id\" is null\n      ) or (\n        \"agreement_parties\".\"customer_id\" is null\n        and \"agreement_parties\".\"organization_id\" is not null\n      )"
+        },
+        "agreement_parties_role_fk_match_chk": {
+          "name": "agreement_parties_role_fk_match_chk",
+          "value": "(\n        \"agreement_parties\".\"party_role\" = 'customer'\n        and \"agreement_parties\".\"customer_id\" is not null\n        and \"agreement_parties\".\"organization_id\" is null\n      ) or (\n        \"agreement_parties\".\"party_role\" = 'organization'\n        and \"agreement_parties\".\"organization_id\" is not null\n        and \"agreement_parties\".\"customer_id\" is null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.agreement_versions": {
+      "name": "agreement_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agreement_id": {
+          "name": "agreement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_number": {
+          "name": "version_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_number": {
+          "name": "contract_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contract_date": {
+          "name": "contract_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agreement_versions_agreement_version_uq": {
+          "name": "agreement_versions_agreement_version_uq",
+          "columns": [
+            {
+              "expression": "agreement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreement_versions_agreement_idx": {
+          "name": "agreement_versions_agreement_idx",
+          "columns": [
+            {
+              "expression": "agreement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agreement_versions_agreement_id_agreements_id_fk": {
+          "name": "agreement_versions_agreement_id_agreements_id_fk",
+          "tableFrom": "agreement_versions",
+          "tableTo": "agreements",
+          "columnsFrom": [
+            "agreement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agreements": {
+      "name": "agreements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_requisite_id": {
+          "name": "organization_requisite_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "current_version_id": {
+          "name": "current_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agreements_customer_idx": {
+          "name": "agreements_customer_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreements_organization_idx": {
+          "name": "agreements_organization_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreements_current_version_idx": {
+          "name": "agreements_current_version_idx",
+          "columns": [
+            {
+              "expression": "current_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agreements_active_customer_uq": {
+          "name": "agreements_active_customer_uq",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"agreements\".\"is_active\" = true",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agreements_customer_id_customers_id_fk": {
+          "name": "agreements_customer_id_customers_id_fk",
+          "tableFrom": "agreements",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "agreements_organization_id_organizations_id_fk": {
+          "name": "agreements_organization_id_organizations_id_fk",
+          "tableFrom": "agreements",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "agreements_organization_requisite_id_requisites_id_fk": {
+          "name": "agreements_organization_requisite_id_requisites_id_fk",
+          "tableFrom": "agreements",
+          "tableTo": "requisites",
+          "columnsFrom": [
+            "organization_requisite_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "agreements_current_version_id_agreement_versions_id_fk": {
+          "name": "agreements_current_version_id_agreement_versions_id_fk",
+          "tableFrom": "agreements",
+          "tableTo": "agreement_versions",
+          "columnsFrom": [
+            "current_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.balance_events": {
       "name": "balance_events",
       "schema": "",
@@ -2030,6 +2595,549 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.calculation_lines": {
+      "name": "calculation_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "calculation_snapshot_id": {
+          "name": "calculation_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "calculation_line_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_id": {
+          "name": "currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "calculation_lines_snapshot_idx_uq": {
+          "name": "calculation_lines_snapshot_idx_uq",
+          "columns": [
+            {
+              "expression": "calculation_snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idx",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calculation_lines_snapshot_kind_uq": {
+          "name": "calculation_lines_snapshot_kind_uq",
+          "columns": [
+            {
+              "expression": "calculation_snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calculation_lines_snapshot_idx": {
+          "name": "calculation_lines_snapshot_idx",
+          "columns": [
+            {
+              "expression": "calculation_snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "calculation_lines_calculation_snapshot_id_calculation_snapshots_id_fk": {
+          "name": "calculation_lines_calculation_snapshot_id_calculation_snapshots_id_fk",
+          "tableFrom": "calculation_lines",
+          "tableTo": "calculation_snapshots",
+          "columnsFrom": [
+            "calculation_snapshot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "calculation_lines_currency_id_currencies_id_fk": {
+          "name": "calculation_lines_currency_id_currencies_id_fk",
+          "tableFrom": "calculation_lines",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.calculation_snapshots": {
+      "name": "calculation_snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "calculation_id": {
+          "name": "calculation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_number": {
+          "name": "snapshot_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculation_currency_id": {
+          "name": "calculation_currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_amount_minor": {
+          "name": "original_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_bps": {
+          "name": "fee_bps",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_amount_minor": {
+          "name": "fee_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_amount_minor": {
+          "name": "total_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "base_currency_id": {
+          "name": "base_currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_amount_in_base_minor": {
+          "name": "fee_amount_in_base_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_in_base_minor": {
+          "name": "total_in_base_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "additional_expenses_currency_id": {
+          "name": "additional_expenses_currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additional_expenses_amount_minor": {
+          "name": "additional_expenses_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "additional_expenses_in_base_minor": {
+          "name": "additional_expenses_in_base_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_with_expenses_in_base_minor": {
+          "name": "total_with_expenses_in_base_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_source": {
+          "name": "rate_source",
+          "type": "calculation_rate_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_num": {
+          "name": "rate_num",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_den": {
+          "name": "rate_den",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "additional_expenses_rate_source": {
+          "name": "additional_expenses_rate_source",
+          "type": "calculation_rate_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additional_expenses_rate_num": {
+          "name": "additional_expenses_rate_num",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additional_expenses_rate_den": {
+          "name": "additional_expenses_rate_den",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calculation_timestamp": {
+          "name": "calculation_timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fx_quote_id": {
+          "name": "fx_quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "calculation_snapshots_calc_snapshot_uq": {
+          "name": "calculation_snapshots_calc_snapshot_uq",
+          "columns": [
+            {
+              "expression": "calculation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "snapshot_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calculation_snapshots_calc_idx": {
+          "name": "calculation_snapshots_calc_idx",
+          "columns": [
+            {
+              "expression": "calculation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calculation_snapshots_fx_quote_idx": {
+          "name": "calculation_snapshots_fx_quote_idx",
+          "columns": [
+            {
+              "expression": "fx_quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "calculation_snapshots_calculation_id_calculations_id_fk": {
+          "name": "calculation_snapshots_calculation_id_calculations_id_fk",
+          "tableFrom": "calculation_snapshots",
+          "tableTo": "calculations",
+          "columnsFrom": [
+            "calculation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "calculation_snapshots_calculation_currency_id_currencies_id_fk": {
+          "name": "calculation_snapshots_calculation_currency_id_currencies_id_fk",
+          "tableFrom": "calculation_snapshots",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "calculation_currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "calculation_snapshots_base_currency_id_currencies_id_fk": {
+          "name": "calculation_snapshots_base_currency_id_currencies_id_fk",
+          "tableFrom": "calculation_snapshots",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "base_currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "calculation_snapshots_additional_expenses_currency_id_currencies_id_fk": {
+          "name": "calculation_snapshots_additional_expenses_currency_id_currencies_id_fk",
+          "tableFrom": "calculation_snapshots",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "additional_expenses_currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "calculation_snapshots_fx_quote_id_fx_quotes_id_fk": {
+          "name": "calculation_snapshots_fx_quote_id_fx_quotes_id_fk",
+          "tableFrom": "calculation_snapshots",
+          "tableTo": "fx_quotes",
+          "columnsFrom": [
+            "fx_quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "calculation_snapshots_rate_positive_chk": {
+          "name": "calculation_snapshots_rate_positive_chk",
+          "value": "\"calculation_snapshots\".\"rate_num\" > 0 and \"calculation_snapshots\".\"rate_den\" > 0"
+        },
+        "calculation_snapshots_additional_rate_shape_chk": {
+          "name": "calculation_snapshots_additional_rate_shape_chk",
+          "value": "(\n        \"calculation_snapshots\".\"additional_expenses_rate_source\" is null\n        and \"calculation_snapshots\".\"additional_expenses_rate_num\" is null\n        and \"calculation_snapshots\".\"additional_expenses_rate_den\" is null\n      ) or (\n        \"calculation_snapshots\".\"additional_expenses_rate_source\" is not null\n        and \"calculation_snapshots\".\"additional_expenses_rate_num\" is not null\n        and \"calculation_snapshots\".\"additional_expenses_rate_den\" is not null\n        and \"calculation_snapshots\".\"additional_expenses_rate_num\" > 0\n        and \"calculation_snapshots\".\"additional_expenses_rate_den\" > 0\n      )"
+        },
+        "calculation_snapshots_additional_rate_currency_chk": {
+          "name": "calculation_snapshots_additional_rate_currency_chk",
+          "value": "(\n        (\n          \"calculation_snapshots\".\"additional_expenses_currency_id\" is null\n          or \"calculation_snapshots\".\"additional_expenses_currency_id\" = \"calculation_snapshots\".\"base_currency_id\"\n        )\n        and \"calculation_snapshots\".\"additional_expenses_rate_source\" is null\n        and \"calculation_snapshots\".\"additional_expenses_rate_num\" is null\n        and \"calculation_snapshots\".\"additional_expenses_rate_den\" is null\n      ) or (\n        \"calculation_snapshots\".\"additional_expenses_currency_id\" is not null\n        and \"calculation_snapshots\".\"additional_expenses_currency_id\" <> \"calculation_snapshots\".\"base_currency_id\"\n      )"
+        },
+        "calculation_snapshots_fx_quote_consistency_chk": {
+          "name": "calculation_snapshots_fx_quote_consistency_chk",
+          "value": "(\n        \"calculation_snapshots\".\"rate_source\" = 'fx_quote'\n        and \"calculation_snapshots\".\"fx_quote_id\" is not null\n      ) or (\n        \"calculation_snapshots\".\"rate_source\" <> 'fx_quote'\n        and \"calculation_snapshots\".\"fx_quote_id\" is null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.calculations": {
+      "name": "calculations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "current_snapshot_id": {
+          "name": "current_snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "calculations_current_snapshot_idx": {
+          "name": "calculations_current_snapshot_idx",
+          "columns": [
+            {
+              "expression": "current_snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calculations_current_snapshot_uq": {
+          "name": "calculations_current_snapshot_uq",
+          "columns": [
+            {
+              "expression": "current_snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"calculations\".\"current_snapshot_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "calculations_current_snapshot_id_calculation_snapshots_id_fk": {
+          "name": "calculations_current_snapshot_id_calculation_snapshots_id_fk",
+          "tableFrom": "calculations",
+          "tableTo": "calculation_snapshots",
+          "columnsFrom": [
+            "current_snapshot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.chart_account_dimension_policy": {
       "name": "chart_account_dimension_policy",
       "schema": "",
@@ -2349,6 +3457,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "relationship_kind": {
+          "name": "relationship_kind",
+          "type": "counterparty_relationship_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'external'"
+        },
         "short_name": {
           "name": "short_name",
           "type": "text",
@@ -2360,6 +3476,114 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "org_name_i18n": {
+          "name": "org_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_type": {
+          "name": "org_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_type_i18n": {
+          "name": "org_type_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_name": {
+          "name": "director_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_name_i18n": {
+          "name": "director_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position": {
+          "name": "position",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_i18n": {
+          "name": "position_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_basis": {
+          "name": "director_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_basis_i18n": {
+          "name": "director_basis_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_i18n": {
+          "name": "address_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inn": {
+          "name": "inn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kpp": {
+          "name": "kpp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ogrn": {
+          "name": "ogrn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oktmo": {
+          "name": "oktmo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "okpo": {
+          "name": "okpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "description": {
           "name": "description",
@@ -2631,6 +3855,196 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.crm_tasks": {
+      "name": "crm_tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "assignee_user_id": {
+          "name": "assignee_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_by_user_id": {
+          "name": "assigned_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "crm_tasks_assignee_sort_idx": {
+          "name": "crm_tasks_assignee_sort_idx",
+          "columns": [
+            {
+              "expression": "assignee_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "crm_tasks_due_date_idx": {
+          "name": "crm_tasks_due_date_idx",
+          "columns": [
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "crm_tasks_completed_idx": {
+          "name": "crm_tasks_completed_idx",
+          "columns": [
+            {
+              "expression": "completed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "crm_tasks_deal_idx": {
+          "name": "crm_tasks_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "crm_tasks_assignee_user_id_user_id_fk": {
+          "name": "crm_tasks_assignee_user_id_user_id_fk",
+          "tableFrom": "crm_tasks",
+          "tableTo": "user",
+          "columnsFrom": [
+            "assignee_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "crm_tasks_assigned_by_user_id_user_id_fk": {
+          "name": "crm_tasks_assigned_by_user_id_user_id_fk",
+          "tableFrom": "crm_tasks",
+          "tableTo": "user",
+          "columnsFrom": [
+            "assigned_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "crm_tasks_deal_id_deals_id_fk": {
+          "name": "crm_tasks_deal_id_deals_id_fk",
+          "tableFrom": "crm_tasks",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.currencies": {
       "name": "currencies",
       "schema": "",
@@ -2852,6 +4266,88 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.customer_counterparty_assignments": {
+      "name": "customer_counterparty_assignments",
+      "schema": "",
+      "columns": {
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sub_agent_counterparty_id": {
+          "name": "sub_agent_counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "customer_counterparty_assignments_sub_agent_idx": {
+          "name": "customer_counterparty_assignments_sub_agent_idx",
+          "columns": [
+            {
+              "expression": "sub_agent_counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "customer_counterparty_assignments_counterparty_id_counterparties_id_fk": {
+          "name": "customer_counterparty_assignments_counterparty_id_counterparties_id_fk",
+          "tableFrom": "customer_counterparty_assignments",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "customer_counterparty_assignments_sub_agent_counterparty_id_counterparties_id_fk": {
+          "name": "customer_counterparty_assignments_sub_agent_counterparty_id_counterparties_id_fk",
+          "tableFrom": "customer_counterparty_assignments",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "sub_agent_counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.customer_memberships": {
       "name": "customer_memberships",
       "schema": "",
@@ -3026,6 +4522,1286 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_agent_bonuses": {
+      "name": "deal_agent_bonuses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commission": {
+          "name": "commission",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_agent_bonuses_deal_agent_uq": {
+          "name": "deal_agent_bonuses_deal_agent_uq",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_agent_bonuses_deal_idx": {
+          "name": "deal_agent_bonuses_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_agent_bonuses_agent_idx": {
+          "name": "deal_agent_bonuses_agent_idx",
+          "columns": [
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_agent_bonuses_deal_id_deals_id_fk": {
+          "name": "deal_agent_bonuses_deal_id_deals_id_fk",
+          "tableFrom": "deal_agent_bonuses",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deal_agent_bonuses_agent_id_user_id_fk": {
+          "name": "deal_agent_bonuses_agent_id_user_id_fk",
+          "tableFrom": "deal_agent_bonuses",
+          "tableTo": "user",
+          "columnsFrom": [
+            "agent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_approvals": {
+      "name": "deal_approvals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approval_type": {
+          "name": "approval_type",
+          "type": "deal_approval_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "deal_approval_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "deal_approvals_deal_requested_idx": {
+          "name": "deal_approvals_deal_requested_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "requested_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_approvals_deal_id_deals_id_fk": {
+          "name": "deal_approvals_deal_id_deals_id_fk",
+          "tableFrom": "deal_approvals",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_calculation_links": {
+      "name": "deal_calculation_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculation_id": {
+          "name": "calculation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_calculation_links_deal_calc_uq": {
+          "name": "deal_calculation_links_deal_calc_uq",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "calculation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_calculation_links_deal_idx": {
+          "name": "deal_calculation_links_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_calculation_links_calculation_idx": {
+          "name": "deal_calculation_links_calculation_idx",
+          "columns": [
+            {
+              "expression": "calculation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_calculation_links_deal_id_deals_id_fk": {
+          "name": "deal_calculation_links_deal_id_deals_id_fk",
+          "tableFrom": "deal_calculation_links",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deal_calculation_links_calculation_id_calculations_id_fk": {
+          "name": "deal_calculation_links_calculation_id_calculations_id_fk",
+          "tableFrom": "deal_calculation_links",
+          "tableTo": "calculations",
+          "columnsFrom": [
+            "calculation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_extensions": {
+      "name": "deal_extensions",
+      "schema": "",
+      "columns": {
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_requisite_id": {
+          "name": "organization_requisite_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_number": {
+          "name": "invoice_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_date": {
+          "name": "invoice_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "company_name_i18n": {
+          "name": "company_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_name": {
+          "name": "bank_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_name_i18n": {
+          "name": "bank_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account": {
+          "name": "account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "swift_code": {
+          "name": "swift_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contract_date": {
+          "name": "contract_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contract_number": {
+          "name": "contract_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cost_price": {
+          "name": "cost_price",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_extensions_org_req_idx": {
+          "name": "deal_extensions_org_req_idx",
+          "columns": [
+            {
+              "expression": "organization_requisite_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_extensions_closed_at_idx": {
+          "name": "deal_extensions_closed_at_idx",
+          "columns": [
+            {
+              "expression": "closed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_extensions_deal_id_deals_id_fk": {
+          "name": "deal_extensions_deal_id_deals_id_fk",
+          "tableFrom": "deal_extensions",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_legs": {
+      "name": "deal_legs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "deal_leg_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "deal_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_legs_deal_idx_uq": {
+          "name": "deal_legs_deal_idx_uq",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idx",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_legs_deal_idx": {
+          "name": "deal_legs_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_legs_deal_id_deals_id_fk": {
+          "name": "deal_legs_deal_id_deals_id_fk",
+          "tableFrom": "deal_legs",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deal_participants": {
+      "name": "deal_participants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "deal_participant_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_participants_deal_role_uq": {
+          "name": "deal_participants_deal_role_uq",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deal_participants_deal_idx": {
+          "name": "deal_participants_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_participants_deal_id_deals_id_fk": {
+          "name": "deal_participants_deal_id_deals_id_fk",
+          "tableFrom": "deal_participants",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deal_participants_customer_id_customers_id_fk": {
+          "name": "deal_participants_customer_id_customers_id_fk",
+          "tableFrom": "deal_participants",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deal_participants_organization_id_organizations_id_fk": {
+          "name": "deal_participants_organization_id_organizations_id_fk",
+          "tableFrom": "deal_participants",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deal_participants_counterparty_id_counterparties_id_fk": {
+          "name": "deal_participants_counterparty_id_counterparties_id_fk",
+          "tableFrom": "deal_participants",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "deal_participants_exactly_one_fk_chk": {
+          "name": "deal_participants_exactly_one_fk_chk",
+          "value": "(\n        \"deal_participants\".\"customer_id\" is not null\n        and \"deal_participants\".\"organization_id\" is null\n        and \"deal_participants\".\"counterparty_id\" is null\n      ) or (\n        \"deal_participants\".\"customer_id\" is null\n        and \"deal_participants\".\"organization_id\" is not null\n        and \"deal_participants\".\"counterparty_id\" is null\n      ) or (\n        \"deal_participants\".\"customer_id\" is null\n        and \"deal_participants\".\"organization_id\" is null\n        and \"deal_participants\".\"counterparty_id\" is not null\n      )"
+        },
+        "deal_participants_role_fk_match_chk": {
+          "name": "deal_participants_role_fk_match_chk",
+          "value": "(\n        \"deal_participants\".\"role\" = 'customer'\n        and \"deal_participants\".\"customer_id\" is not null\n        and \"deal_participants\".\"organization_id\" is null\n        and \"deal_participants\".\"counterparty_id\" is null\n      ) or (\n        \"deal_participants\".\"role\" = 'organization'\n        and \"deal_participants\".\"customer_id\" is null\n        and \"deal_participants\".\"organization_id\" is not null\n        and \"deal_participants\".\"counterparty_id\" is null\n      ) or (\n        \"deal_participants\".\"role\" = 'counterparty'\n        and \"deal_participants\".\"customer_id\" is null\n        and \"deal_participants\".\"organization_id\" is null\n        and \"deal_participants\".\"counterparty_id\" is not null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.deal_status_history": {
+      "name": "deal_status_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "deal_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changed_by": {
+          "name": "changed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deal_status_history_deal_created_idx": {
+          "name": "deal_status_history_deal_created_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deal_status_history_deal_id_deals_id_fk": {
+          "name": "deal_status_history_deal_id_deals_id_fk",
+          "tableFrom": "deal_status_history",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deals": {
+      "name": "deals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agreement_id": {
+          "name": "agreement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculation_id": {
+          "name": "calculation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "deal_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "deal_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intake_comment": {
+          "name": "intake_comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_amount_minor": {
+          "name": "requested_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_currency_id": {
+          "name": "requested_currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "deals_customer_idx": {
+          "name": "deals_customer_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deals_agreement_idx": {
+          "name": "deals_agreement_idx",
+          "columns": [
+            {
+              "expression": "agreement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deals_calculation_idx": {
+          "name": "deals_calculation_idx",
+          "columns": [
+            {
+              "expression": "calculation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deals_agent_idx": {
+          "name": "deals_agent_idx",
+          "columns": [
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deals_status_idx": {
+          "name": "deals_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deals_type_idx": {
+          "name": "deals_type_idx",
+          "columns": [
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deals_customer_id_customers_id_fk": {
+          "name": "deals_customer_id_customers_id_fk",
+          "tableFrom": "deals",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deals_agreement_id_agreements_id_fk": {
+          "name": "deals_agreement_id_agreements_id_fk",
+          "tableFrom": "deals",
+          "tableTo": "agreements",
+          "columnsFrom": [
+            "agreement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deals_calculation_id_calculations_id_fk": {
+          "name": "deals_calculation_id_calculations_id_fk",
+          "tableFrom": "deals",
+          "tableTo": "calculations",
+          "columnsFrom": [
+            "calculation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deals_agent_id_user_id_fk": {
+          "name": "deals_agent_id_user_id_fk",
+          "tableFrom": "deals",
+          "tableTo": "user",
+          "columnsFrom": [
+            "agent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deals_requested_currency_id_currencies_id_fk": {
+          "name": "deals_requested_currency_id_currencies_id_fk",
+          "tableFrom": "deals",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "requested_currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.document_business_links": {
+      "name": "document_business_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "link_kind": {
+          "name": "link_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "document_business_links_document_uq": {
+          "name": "document_business_links_document_uq",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_business_links_document_deal_kind_uq": {
+          "name": "document_business_links_document_deal_kind_uq",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "link_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_business_links_deal_idx": {
+          "name": "document_business_links_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_business_links_document_idx": {
+          "name": "document_business_links_document_idx",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "document_business_links_document_id_documents_id_fk": {
+          "name": "document_business_links_document_id_documents_id_fk",
+          "tableFrom": "document_business_links",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "document_business_links_exactly_one_owner_chk": {
+          "name": "document_business_links_exactly_one_owner_chk",
+          "value": "\"document_business_links\".\"deal_id\" is not null"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.document_events": {
@@ -4385,6 +7161,514 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.file_assets": {
+      "name": "file_assets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "current_version_id": {
+          "name": "current_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "file_asset_origin",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "file_assets_current_version_uq": {
+          "name": "file_assets_current_version_uq",
+          "columns": [
+            {
+              "expression": "current_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"file_assets\".\"current_version_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_assets_current_version_idx": {
+          "name": "file_assets_current_version_idx",
+          "columns": [
+            {
+              "expression": "current_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "file_assets_created_by_user_id_fk": {
+          "name": "file_assets_created_by_user_id_fk",
+          "tableFrom": "file_assets",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "file_assets_current_version_belongs_to_asset_fk": {
+          "name": "file_assets_current_version_belongs_to_asset_fk",
+          "tableFrom": "file_assets",
+          "tableTo": "file_versions",
+          "columnsFrom": [
+            "current_version_id",
+            "id"
+          ],
+          "columnsTo": [
+            "id",
+            "file_asset_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.file_links": {
+      "name": "file_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "file_asset_id": {
+          "name": "file_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "link_kind": {
+          "name": "link_kind",
+          "type": "file_link_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generated_format": {
+          "name": "generated_format",
+          "type": "file_generated_format",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generated_lang": {
+          "name": "generated_lang",
+          "type": "file_generated_lang",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "file_links_asset_uq": {
+          "name": "file_links_asset_uq",
+          "columns": [
+            {
+              "expression": "file_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_links_deal_idx": {
+          "name": "file_links_deal_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_links_counterparty_idx": {
+          "name": "file_links_counterparty_idx",
+          "columns": [
+            {
+              "expression": "counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_links_generated_deal_variant_uq": {
+          "name": "file_links_generated_deal_variant_uq",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "link_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_format",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_lang",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"file_links\".\"deal_id\" is not null and \"file_links\".\"link_kind\" in ('deal_application', 'deal_invoice', 'deal_acceptance')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_links_generated_counterparty_variant_uq": {
+          "name": "file_links_generated_counterparty_variant_uq",
+          "columns": [
+            {
+              "expression": "counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "link_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_format",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generated_lang",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"file_links\".\"counterparty_id\" is not null and \"file_links\".\"link_kind\" = 'legal_entity_contract'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "file_links_file_asset_id_file_assets_id_fk": {
+          "name": "file_links_file_asset_id_file_assets_id_fk",
+          "tableFrom": "file_links",
+          "tableTo": "file_assets",
+          "columnsFrom": [
+            "file_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "file_links_deal_id_deals_id_fk": {
+          "name": "file_links_deal_id_deals_id_fk",
+          "tableFrom": "file_links",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "deal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "file_links_counterparty_id_counterparties_id_fk": {
+          "name": "file_links_counterparty_id_counterparties_id_fk",
+          "tableFrom": "file_links",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "file_links_exactly_one_owner_chk": {
+          "name": "file_links_exactly_one_owner_chk",
+          "value": "(\n        (\"file_links\".\"deal_id\" is not null and \"file_links\".\"counterparty_id\" is null)\n        or (\"file_links\".\"deal_id\" is null and \"file_links\".\"counterparty_id\" is not null)\n      )"
+        },
+        "file_links_generated_variant_shape_chk": {
+          "name": "file_links_generated_variant_shape_chk",
+          "value": "(\n        \"file_links\".\"link_kind\" in ('deal_attachment', 'legal_entity_attachment')\n        and \"file_links\".\"generated_format\" is null\n        and \"file_links\".\"generated_lang\" is null\n      ) or (\n        \"file_links\".\"link_kind\" in ('deal_application', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract')\n        and \"file_links\".\"generated_format\" is not null\n        and \"file_links\".\"generated_lang\" is not null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.file_versions": {
+      "name": "file_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "file_asset_id": {
+          "name": "file_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_number": {
+          "name": "version_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checksum": {
+          "name": "checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "file_versions_asset_version_uq": {
+          "name": "file_versions_asset_version_uq",
+          "columns": [
+            {
+              "expression": "file_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "file_versions_asset_idx": {
+          "name": "file_versions_asset_idx",
+          "columns": [
+            {
+              "expression": "file_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "file_versions_file_asset_id_file_assets_id_fk": {
+          "name": "file_versions_file_asset_id_file_assets_id_fk",
+          "tableFrom": "file_versions",
+          "tableTo": "file_assets",
+          "columnsFrom": [
+            "file_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "file_versions_created_by_user_id_fk": {
+          "name": "file_versions_created_by_user_id_fk",
+          "tableFrom": "file_versions",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "file_versions_id_asset_uq": {
+          "name": "file_versions_id_asset_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "file_asset_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.fx_quote_fee_components": {
       "name": "fx_quote_fee_components",
       "schema": "",
@@ -4906,9 +8190,21 @@
           "notNull": true,
           "default": "'active'"
         },
+        "deal_id": {
+          "name": "deal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "used_by_ref": {
           "name": "used_by_ref",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_document_id": {
+          "name": "used_document_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -4954,6 +8250,27 @@
           "method": "btree",
           "with": {}
         },
+        "fx_quotes_deal_created_idx": {
+          "name": "fx_quotes_deal_created_idx",
+          "columns": [
+            {
+              "expression": "deal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "fx_quotes_status_idx": {
           "name": "fx_quotes_status_idx",
           "columns": [
@@ -4974,6 +8291,21 @@
           "columns": [
             {
               "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fx_quotes_used_document_idx": {
+          "name": "fx_quotes_used_document_idx",
+          "columns": [
+            {
+              "expression": "used_document_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5364,1801 +8696,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ops_activity_log": {
-      "name": "ops_activity_log",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action": {
-          "name": "action",
-          "type": "ops_activity_action",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_type": {
-          "name": "entity_type",
-          "type": "ops_activity_entity",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_title": {
-          "name": "entity_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source": {
-          "name": "source",
-          "type": "ops_activity_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'web'"
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_activity_log_user_id_user_id_fk": {
-          "name": "ops_activity_log_user_id_user_id_fk",
-          "tableFrom": "ops_activity_log",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_agent_bonus": {
-      "name": "ops_agent_bonus",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "agent_id": {
-          "name": "agent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "deal_id": {
-          "name": "deal_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "commission": {
-          "name": "commission",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_agent_bonus_agent_id_user_id_fk": {
-          "name": "ops_agent_bonus_agent_id_user_id_fk",
-          "tableFrom": "ops_agent_bonus",
-          "tableTo": "user",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_agent_bonus_deal_id_ops_deals_id_fk": {
-          "name": "ops_agent_bonus_deal_id_ops_deals_id_fk",
-          "tableFrom": "ops_agent_bonus",
-          "tableTo": "ops_deals",
-          "columnsFrom": [
-            "deal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_agent_organization_bank_details": {
-      "name": "ops_agent_organization_bank_details",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name_i18n": {
-          "name": "name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name": {
-          "name": "bank_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name_i18n": {
-          "name": "bank_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_address": {
-          "name": "bank_address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_address_i18n": {
-          "name": "bank_address_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account": {
-          "name": "account",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bic": {
-          "name": "bic",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corr_account": {
-          "name": "corr_account",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "swift_code": {
-          "name": "swift_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "currency_code": {
-          "name": "currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RUB'"
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "requisite_id": {
-          "name": "requisite_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_agent_organization_bank_details_organization_id_ops_agent_organizations_id_fk": {
-          "name": "ops_agent_organization_bank_details_organization_id_ops_agent_organizations_id_fk",
-          "tableFrom": "ops_agent_organization_bank_details",
-          "tableTo": "ops_agent_organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_agent_organization_bank_details_requisite_id_requisites_id_fk": {
-          "name": "ops_agent_organization_bank_details_requisite_id_requisites_id_fk",
-          "tableFrom": "ops_agent_organization_bank_details",
-          "tableTo": "requisites",
-          "columnsFrom": [
-            "requisite_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_agent_organizations": {
-      "name": "ops_agent_organizations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name_i18n": {
-          "name": "name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "org_type": {
-          "name": "org_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "org_type_i18n": {
-          "name": "org_type_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "country_i18n": {
-          "name": "country_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "city": {
-          "name": "city",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "city_i18n": {
-          "name": "city_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address_i18n": {
-          "name": "address_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "inn": {
-          "name": "inn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_id": {
-          "name": "tax_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kpp": {
-          "name": "kpp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ogrn": {
-          "name": "ogrn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "oktmo": {
-          "name": "oktmo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "okpo": {
-          "name": "okpo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_name": {
-          "name": "director_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_name_i18n": {
-          "name": "director_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_position": {
-          "name": "director_position",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_position_i18n": {
-          "name": "director_position_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_basis": {
-          "name": "director_basis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_basis_i18n": {
-          "name": "director_basis_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signature_key": {
-          "name": "signature_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seal_key": {
-          "name": "seal_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_agent_organizations_organization_id_organizations_id_fk": {
-          "name": "ops_agent_organizations_organization_id_organizations_id_fk",
-          "tableFrom": "ops_agent_organizations",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_applications": {
-      "name": "ops_applications",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "agent_id": {
-          "name": "agent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "ops_application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'created'"
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "comment": {
-          "name": "comment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "requested_amount": {
-          "name": "requested_amount",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "requested_currency": {
-          "name": "requested_currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_applications_agent_id_user_id_fk": {
-          "name": "ops_applications_agent_id_user_id_fk",
-          "tableFrom": "ops_applications",
-          "tableTo": "user",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_applications_client_id_ops_clients_id_fk": {
-          "name": "ops_applications_client_id_ops_clients_id_fk",
-          "tableFrom": "ops_applications",
-          "tableTo": "ops_clients",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_calculations": {
-      "name": "ops_calculations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "application_id": {
-          "name": "application_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency_code": {
-          "name": "currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "original_amount": {
-          "name": "original_amount",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fee_percentage": {
-          "name": "fee_percentage",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fee_amount": {
-          "name": "fee_amount",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_amount": {
-          "name": "total_amount",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rate_source": {
-          "name": "rate_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rate": {
-          "name": "rate",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "additional_expenses_currency_code": {
-          "name": "additional_expenses_currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "additional_expenses": {
-          "name": "additional_expenses",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "base_currency_code": {
-          "name": "base_currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RUB'"
-        },
-        "fee_amount_in_base": {
-          "name": "fee_amount_in_base",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_in_base": {
-          "name": "total_in_base",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "additional_expenses_in_base": {
-          "name": "additional_expenses_in_base",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_with_expenses_in_base": {
-          "name": "total_with_expenses_in_base",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "calculation_timestamp": {
-          "name": "calculation_timestamp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_to_client": {
-          "name": "sent_to_client",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "fx_quote_id": {
-          "name": "fx_quote_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_calculations_application_id_ops_applications_id_fk": {
-          "name": "ops_calculations_application_id_ops_applications_id_fk",
-          "tableFrom": "ops_calculations",
-          "tableTo": "ops_applications",
-          "columnsFrom": [
-            "application_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_calculations_fx_quote_id_fx_quotes_id_fk": {
-          "name": "ops_calculations_fx_quote_id_fx_quotes_id_fk",
-          "tableFrom": "ops_calculations",
-          "tableTo": "fx_quotes",
-          "columnsFrom": [
-            "fx_quote_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_client_documents": {
-      "name": "ops_client_documents",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_size": {
-          "name": "file_size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "s3_key": {
-          "name": "s3_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_client_documents_client_id_ops_clients_id_fk": {
-          "name": "ops_client_documents_client_id_ops_clients_id_fk",
-          "tableFrom": "ops_client_documents",
-          "tableTo": "ops_clients",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ops_client_documents_uploaded_by_user_id_fk": {
-          "name": "ops_client_documents_uploaded_by_user_id_fk",
-          "tableFrom": "ops_client_documents",
-          "tableTo": "user",
-          "columnsFrom": [
-            "uploaded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_clients": {
-      "name": "ops_clients",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "org_name": {
-          "name": "org_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "org_name_i18n": {
-          "name": "org_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "org_type": {
-          "name": "org_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "org_type_i18n": {
-          "name": "org_type_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_name": {
-          "name": "director_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_name_i18n": {
-          "name": "director_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position_i18n": {
-          "name": "position_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_basis": {
-          "name": "director_basis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "director_basis_i18n": {
-          "name": "director_basis_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address_i18n": {
-          "name": "address_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone": {
-          "name": "phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "inn": {
-          "name": "inn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kpp": {
-          "name": "kpp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ogrn": {
-          "name": "ogrn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "oktmo": {
-          "name": "oktmo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "okpo": {
-          "name": "okpo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name": {
-          "name": "bank_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name_i18n": {
-          "name": "bank_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_address": {
-          "name": "bank_address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_address_i18n": {
-          "name": "bank_address_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account": {
-          "name": "account",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bic": {
-          "name": "bic",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corr_account": {
-          "name": "corr_account",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_country": {
-          "name": "bank_country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_deleted": {
-          "name": "is_deleted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "contract_id": {
-          "name": "contract_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sub_agent_id": {
-          "name": "sub_agent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "counterparty_id": {
-          "name": "counterparty_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "customer_id": {
-          "name": "customer_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_clients_contract_id_ops_contracts_id_fk": {
-          "name": "ops_clients_contract_id_ops_contracts_id_fk",
-          "tableFrom": "ops_clients",
-          "tableTo": "ops_contracts",
-          "columnsFrom": [
-            "contract_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_clients_sub_agent_id_ops_sub_agents_id_fk": {
-          "name": "ops_clients_sub_agent_id_ops_sub_agents_id_fk",
-          "tableFrom": "ops_clients",
-          "tableTo": "ops_sub_agents",
-          "columnsFrom": [
-            "sub_agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_clients_user_id_user_id_fk": {
-          "name": "ops_clients_user_id_user_id_fk",
-          "tableFrom": "ops_clients",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_clients_counterparty_id_counterparties_id_fk": {
-          "name": "ops_clients_counterparty_id_counterparties_id_fk",
-          "tableFrom": "ops_clients",
-          "tableTo": "counterparties",
-          "columnsFrom": [
-            "counterparty_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_clients_customer_id_customers_id_fk": {
-          "name": "ops_clients_customer_id_customers_id_fk",
-          "tableFrom": "ops_clients",
-          "tableTo": "customers",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_contracts": {
-      "name": "ops_contracts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "contract_number": {
-          "name": "contract_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_date": {
-          "name": "contract_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "agent_fee": {
-          "name": "agent_fee",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fixed_fee": {
-          "name": "fixed_fee",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "agent_organization_id": {
-          "name": "agent_organization_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "agent_organization_bank_details_id": {
-          "name": "agent_organization_bank_details_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_contracts_agent_organization_id_ops_agent_organizations_id_fk": {
-          "name": "ops_contracts_agent_organization_id_ops_agent_organizations_id_fk",
-          "tableFrom": "ops_contracts",
-          "tableTo": "ops_agent_organizations",
-          "columnsFrom": [
-            "agent_organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_contracts_agent_organization_bank_details_id_ops_agent_organization_bank_details_id_fk": {
-          "name": "ops_contracts_agent_organization_bank_details_id_ops_agent_organization_bank_details_id_fk",
-          "tableFrom": "ops_contracts",
-          "tableTo": "ops_agent_organization_bank_details",
-          "columnsFrom": [
-            "agent_organization_bank_details_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "ops_contracts_contract_number_unique": {
-          "name": "ops_contracts_contract_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "contract_number"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_deal_documents": {
-      "name": "ops_deal_documents",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "deal_id": {
-          "name": "deal_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_size": {
-          "name": "file_size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "s3_key": {
-          "name": "s3_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_deal_documents_deal_id_ops_deals_id_fk": {
-          "name": "ops_deal_documents_deal_id_ops_deals_id_fk",
-          "tableFrom": "ops_deal_documents",
-          "tableTo": "ops_deals",
-          "columnsFrom": [
-            "deal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ops_deal_documents_uploaded_by_user_id_fk": {
-          "name": "ops_deal_documents_uploaded_by_user_id_fk",
-          "tableFrom": "ops_deal_documents",
-          "tableTo": "user",
-          "columnsFrom": [
-            "uploaded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_deals": {
-      "name": "ops_deals",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "application_id": {
-          "name": "application_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "calculation_id": {
-          "name": "calculation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "agent_organization_bank_details_id": {
-          "name": "agent_organization_bank_details_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "ops_deal_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'preparing_documents'"
-        },
-        "invoice_number": {
-          "name": "invoice_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "invoice_date": {
-          "name": "invoice_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "company_name": {
-          "name": "company_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "company_name_i18n": {
-          "name": "company_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name": {
-          "name": "bank_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name_i18n": {
-          "name": "bank_name_i18n",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account": {
-          "name": "account",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "swift_code": {
-          "name": "swift_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_date": {
-          "name": "contract_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_number": {
-          "name": "contract_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cost_price": {
-          "name": "cost_price",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "comment": {
-          "name": "comment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_deals_application_id_ops_applications_id_fk": {
-          "name": "ops_deals_application_id_ops_applications_id_fk",
-          "tableFrom": "ops_deals",
-          "tableTo": "ops_applications",
-          "columnsFrom": [
-            "application_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_deals_calculation_id_ops_calculations_id_fk": {
-          "name": "ops_deals_calculation_id_ops_calculations_id_fk",
-          "tableFrom": "ops_deals",
-          "tableTo": "ops_calculations",
-          "columnsFrom": [
-            "calculation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_deals_agent_organization_bank_details_id_ops_agent_organization_bank_details_id_fk": {
-          "name": "ops_deals_agent_organization_bank_details_id_ops_agent_organization_bank_details_id_fk",
-          "tableFrom": "ops_deals",
-          "tableTo": "ops_agent_organization_bank_details",
-          "columnsFrom": [
-            "agent_organization_bank_details_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_s3_cleanup_queue": {
-      "name": "ops_s3_cleanup_queue",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "s3_key": {
-          "name": "s3_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_sub_agents": {
-      "name": "ops_sub_agents",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "commission": {
-          "name": "commission",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_telegraf_sessions": {
-      "name": "ops_telegraf_sessions",
-      "schema": "",
-      "columns": {
-        "key": {
-          "name": "key",
-          "type": "varchar(32)",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "session": {
-          "name": "session",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ops_todos": {
-      "name": "ops_todos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "agent_id": {
-          "name": "agent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "application_id": {
-          "name": "application_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "completed": {
-          "name": "completed",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "due_date": {
-          "name": "due_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assigned_by": {
-          "name": "assigned_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ops_todos_agent_id_user_id_fk": {
-          "name": "ops_todos_agent_id_user_id_fk",
-          "tableFrom": "ops_todos",
-          "tableTo": "user",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_todos_application_id_ops_applications_id_fk": {
-          "name": "ops_todos_application_id_ops_applications_id_fk",
-          "tableFrom": "ops_todos",
-          "tableTo": "ops_applications",
-          "columnsFrom": [
-            "application_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ops_todos_assigned_by_user_id_fk": {
-          "name": "ops_todos_assigned_by_user_id_fk",
-          "tableFrom": "ops_todos",
-          "tableTo": "user",
-          "columnsFrom": [
-            "assigned_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.organization_requisite_bindings": {
       "name": "organization_requisite_bindings",
       "schema": "",
@@ -7305,8 +8842,7 @@
         },
         "country": {
           "name": "country",
-          "type": "party_country_code",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -7317,6 +8853,145 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'legal_entity'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "name_i18n": {
+          "name": "name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_type": {
+          "name": "org_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_type_i18n": {
+          "name": "org_type_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country_i18n": {
+          "name": "country_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city_i18n": {
+          "name": "city_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_i18n": {
+          "name": "address_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inn": {
+          "name": "inn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kpp": {
+          "name": "kpp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ogrn": {
+          "name": "ogrn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oktmo": {
+          "name": "oktmo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "okpo": {
+          "name": "okpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_name": {
+          "name": "director_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_name_i18n": {
+          "name": "director_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_position": {
+          "name": "director_position",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_position_i18n": {
+          "name": "director_position_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_basis": {
+          "name": "director_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "director_basis_i18n": {
+          "name": "director_basis_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signature_key": {
+          "name": "signature_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seal_key": {
+          "name": "seal_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -8915,6 +10590,66 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.sub_agent_profiles": {
+      "name": "sub_agent_profiles",
+      "schema": "",
+      "columns": {
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "commission_rate": {
+          "name": "commission_rate",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sub_agent_profiles_counterparty_id_counterparties_id_fk": {
+          "name": "sub_agent_profiles_counterparty_id_counterparties_id_fk",
+          "tableFrom": "sub_agent_profiles",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.tb_transfer_plans": {
       "name": "tb_transfer_plans",
       "schema": "",
@@ -9444,6 +11179,55 @@
     }
   },
   "enums": {
+    "public.agreement_fee_rule_kind": {
+      "name": "agreement_fee_rule_kind",
+      "schema": "public",
+      "values": [
+        "agent_fee",
+        "fixed_fee"
+      ]
+    },
+    "public.agreement_fee_rule_unit": {
+      "name": "agreement_fee_rule_unit",
+      "schema": "public",
+      "values": [
+        "bps",
+        "money"
+      ]
+    },
+    "public.agreement_party_role": {
+      "name": "agreement_party_role",
+      "schema": "public",
+      "values": [
+        "customer",
+        "organization"
+      ]
+    },
+    "public.calculation_line_kind": {
+      "name": "calculation_line_kind",
+      "schema": "public",
+      "values": [
+        "original_amount",
+        "fee_amount",
+        "total_amount",
+        "additional_expenses",
+        "fee_amount_in_base",
+        "total_in_base",
+        "additional_expenses_in_base",
+        "total_with_expenses_in_base"
+      ]
+    },
+    "public.calculation_rate_source": {
+      "name": "calculation_rate_source",
+      "schema": "public",
+      "values": [
+        "cbr",
+        "investing",
+        "xe",
+        "manual",
+        "fx_quote"
+      ]
+    },
     "public.chart_account_kind": {
       "name": "chart_account_kind",
       "schema": "public",
@@ -9728,6 +11512,77 @@
         "individual"
       ]
     },
+    "public.counterparty_relationship_kind": {
+      "name": "counterparty_relationship_kind",
+      "schema": "public",
+      "values": [
+        "customer_owned",
+        "external"
+      ]
+    },
+    "public.deal_approval_status": {
+      "name": "deal_approval_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ]
+    },
+    "public.deal_approval_type": {
+      "name": "deal_approval_type",
+      "schema": "public",
+      "values": [
+        "commercial",
+        "compliance",
+        "operations"
+      ]
+    },
+    "public.deal_leg_kind": {
+      "name": "deal_leg_kind",
+      "schema": "public",
+      "values": [
+        "payment",
+        "currency_exchange",
+        "currency_transit",
+        "exporter_settlement"
+      ]
+    },
+    "public.deal_participant_role": {
+      "name": "deal_participant_role",
+      "schema": "public",
+      "values": [
+        "customer",
+        "organization",
+        "counterparty"
+      ]
+    },
+    "public.deal_status": {
+      "name": "deal_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "submitted",
+        "rejected",
+        "preparing_documents",
+        "awaiting_funds",
+        "awaiting_payment",
+        "closing_documents",
+        "done",
+        "cancelled"
+      ]
+    },
+    "public.deal_type": {
+      "name": "deal_type",
+      "schema": "public",
+      "values": [
+        "payment",
+        "currency_exchange",
+        "currency_transit",
+        "exporter_settlement"
+      ]
+    },
     "public.dimension_mode": {
       "name": "dimension_mode",
       "schema": "public",
@@ -9746,59 +11601,40 @@
         "credit"
       ]
     },
-    "public.ops_activity_action": {
-      "name": "ops_activity_action",
+    "public.file_asset_origin": {
+      "name": "file_asset_origin",
       "schema": "public",
       "values": [
-        "create",
-        "update",
-        "delete",
-        "status_change",
-        "comment",
-        "upload_document"
+        "uploaded",
+        "generated"
       ]
     },
-    "public.ops_activity_entity": {
-      "name": "ops_activity_entity",
+    "public.file_generated_format": {
+      "name": "file_generated_format",
       "schema": "public",
       "values": [
-        "application",
-        "deal",
-        "client",
-        "calculation",
-        "contract",
-        "todo",
-        "document"
+        "docx",
+        "pdf"
       ]
     },
-    "public.ops_activity_source": {
-      "name": "ops_activity_source",
+    "public.file_generated_lang": {
+      "name": "file_generated_lang",
       "schema": "public",
       "values": [
-        "web",
-        "bot"
+        "ru",
+        "en"
       ]
     },
-    "public.ops_application_status": {
-      "name": "ops_application_status",
+    "public.file_link_kind": {
+      "name": "file_link_kind",
       "schema": "public",
       "values": [
-        "forming",
-        "created",
-        "rejected",
-        "finished"
-      ]
-    },
-    "public.ops_deal_status": {
-      "name": "ops_deal_status",
-      "schema": "public",
-      "values": [
-        "preparing_documents",
-        "awaiting_funds",
-        "awaiting_payment",
-        "closing_documents",
-        "done",
-        "cancelled"
+        "deal_attachment",
+        "legal_entity_attachment",
+        "deal_application",
+        "deal_invoice",
+        "deal_acceptance",
+        "legal_entity_contract"
       ]
     },
     "public.party_country_code": {

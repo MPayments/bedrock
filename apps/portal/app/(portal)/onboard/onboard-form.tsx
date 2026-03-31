@@ -149,7 +149,7 @@ export function OnboardForm() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/clients/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -193,7 +193,7 @@ export function OnboardForm() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE_URL}/clients/parse-card`, {
+      const response = await fetch(`${API_BASE_URL}/legal-entities/parse-card`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -266,7 +266,7 @@ export function OnboardForm() {
         },
       };
 
-      const response = await fetch(`${API_BASE_URL}/customer/clients`, {
+      const response = await fetch(`${API_BASE_URL}/customer/legal-entities`, {
         method: "POST",
         credentials: "include",
         headers: {

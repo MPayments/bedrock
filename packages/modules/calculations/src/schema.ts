@@ -1,5 +1,4 @@
 import {
-  calculationApplicationLinks,
   calculationLineKindEnum,
   calculationLines,
   calculations,
@@ -8,7 +7,6 @@ import {
 } from "./adapters/drizzle/schema";
 
 export {
-  calculationApplicationLinks,
   calculationLineKindEnum,
   calculationLines,
   calculations,
@@ -17,7 +15,6 @@ export {
 };
 
 export const schema = {
-  calculationApplicationLinks,
   calculations,
   calculationSnapshots,
   calculationLines,

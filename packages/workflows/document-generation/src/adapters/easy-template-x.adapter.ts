@@ -3,8 +3,7 @@ import * as path from "node:path";
 
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-import type { ObjectStoragePort } from "@bedrock/operations/shared-ports";
-import type { TemplateRendererPort } from "../service";
+import type { ObjectStoragePort, TemplateRendererPort } from "../service";
 
 export interface EasyTemplateXAdapterConfig {
   templatesDir: string;

@@ -19,7 +19,6 @@
     "@bedrock/currencies": "workspace:*",
     "@bedrock/deals": "workspace:*",
     "@bedrock/iam": "workspace:*",
-    "@bedrock/operations": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*"
   },

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CalculationDetailsSchema,
@@ -6,6 +6,7 @@ import {
   ListCalculationsQuerySchema,
   PaginatedCalculationsSchema,
 } from "@bedrock/calculations/contracts";
+import { serializeCompatibilityCalculation } from "@bedrock/calculations";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -149,6 +150,32 @@ export function calculationsRoutes(ctx: AppContext) {
     },
   });
 
+  const exportRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/export",
+    tags: ["Calculations"],
+    summary: "Export calculation as DOCX/PDF",
+    request: {
+      params: IdParamSchema,
+      query: z.object({
+        format: z.enum(["docx", "pdf"]).default("pdf"),
+        lang: z.enum(["ru", "en"]).default("ru"),
+      }),
+    },
+    responses: {
+      200: { description: "Generated file" },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Calculation not found",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       try {
@@ -197,6 +224,58 @@ export function calculationsRoutes(ctx: AppContext) {
         const { id } = c.req.valid("param");
         await ctx.calculationsModule.calculations.commands.archive(id);
         return jsonOk(c, { deleted: true });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(exportRoute, async (c): Promise<any> => {
+      try {
+        const { id } = c.req.valid("param");
+        const { format, lang } = c.req.valid("query");
+        const calculation =
+          await ctx.calculationsModule.calculations.queries.findById(id);
+        const snapshot = calculation.currentSnapshot;
+        const currencyIds = Array.from(
+          new Set(
+            [
+              snapshot.calculationCurrencyId,
+              snapshot.baseCurrencyId,
+              snapshot.additionalExpensesCurrencyId,
+            ].filter((value): value is string => Boolean(value)),
+          ),
+        );
+        const currencies = new Map(
+          await Promise.all(
+            currencyIds.map(async (currencyId) => {
+              const currency = await ctx.currenciesService.findById(currencyId);
+              return [
+                currencyId,
+                {
+                  code: currency.code,
+                  id: currency.id,
+                  precision: currency.precision,
+                },
+              ] as const;
+            }),
+          ),
+        );
+        const serialized = serializeCompatibilityCalculation({
+          calculation,
+          currencies,
+          dealId: null,
+        });
+        const result = await ctx.documentGenerationWorkflow.generateCalculation({
+          calculationData: serialized as unknown as Record<string, unknown>,
+          format,
+          lang,
+        });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
       } catch (error) {
         return handleRouteError(c, error);
       }

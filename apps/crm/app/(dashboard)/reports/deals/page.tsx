@@ -624,11 +624,7 @@ export default function DealsReportsPage() {
               />
               <ClientCombobox
                 value={selectedClientId}
-                onValueChange={(value) =>
-                  setSelectedClientId(
-                    typeof value === "number" ? value : undefined,
-                  )
-                }
+                onValueChange={setSelectedClientId}
                 placeholder="Выбрать клиента..."
                 className="w-[250px]"
               />

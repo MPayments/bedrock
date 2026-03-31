@@ -9,7 +9,6 @@ import type { DocumentsService } from "@bedrock/documents";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
-import type { OperationsModule } from "@bedrock/operations";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { TreasuryModule } from "@bedrock/treasury";
@@ -80,7 +79,6 @@ export interface AppContext {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  operationsModule: OperationsModule;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
   documentExtraction?: DocumentExtractionPort;
@@ -111,7 +109,6 @@ export function createAppContext(env: Env): AppContext {
     documentsService: applicationServices.documentsService,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
-    operationsModule: applicationServices.operationsModule,
     customerPortalWorkflow: applicationServices.customerPortalWorkflow,
     documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
     documentExtraction: applicationServices.documentExtraction,

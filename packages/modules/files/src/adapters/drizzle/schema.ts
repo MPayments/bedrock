@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   type AnyPgColumn,
@@ -67,7 +68,7 @@ export const fileVersions = pgTable(
       table.fileAssetId,
       table.versionNumber,
     ),
-    uniqueIndex("file_versions_id_asset_uq").on(table.id, table.fileAssetId),
+    unique("file_versions_id_asset_uq").on(table.id, table.fileAssetId),
     index("file_versions_asset_idx").on(table.fileAssetId),
   ],
 );

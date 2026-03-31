@@ -53,7 +53,16 @@ export function createApiAgreementsModule(input: {
         return organizationReads.findById(id);
       },
       async findRequisiteSubjectById(requisiteId: string) {
-        return requisiteReads.findSubjectById(requisiteId);
+        const subject = await requisiteReads.findSubjectById(requisiteId);
+        if (!subject) {
+          return null;
+        }
+
+        return {
+          id: subject.ownerId,
+          organizationId: subject.organizationId,
+          ownerType: subject.ownerType,
+        };
       },
       async findOrganizationRequisiteBindingByRequisiteId(requisiteId: string) {
         return requisiteBindingReads.findByRequisiteId(requisiteId);

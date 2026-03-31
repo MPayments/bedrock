@@ -8,7 +8,6 @@ export {
   agreementVersions,
 } from "@bedrock/agreements/schema";
 export {
-  calculationApplicationLinks,
   calculationLineKindEnum,
   calculationLines,
   calculations,
@@ -16,10 +15,12 @@ export {
   calculationSnapshots,
 } from "@bedrock/calculations/schema";
 export {
+  dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
   dealApprovals,
   dealCalculationLinks,
+  dealExtensions,
   dealLegKindEnum,
   dealLegs,
   dealParticipantRoleEnum,
@@ -89,7 +90,9 @@ export {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyKindEnum,
+  counterpartyRelationshipKindEnum,
   customers,
+  customerCounterpartyAssignments,
   organizations,
   organizationRequisiteBindings,
   partyCountryCodeEnum,
@@ -119,26 +122,3 @@ export {
   reconciliationRuns,
 } from "@bedrock/reconciliation/schema";
 export { crmTasks } from "../../crm/lib/server/tasks/schema";
-export {
-  // Enums
-  opsApplicationStatusEnum,
-  opsDealStatusEnum,
-  opsActivityActionEnum,
-  opsActivityEntityEnum,
-  opsActivitySourceEnum,
-  // Tables
-  opsAgentOrganizations,
-  opsAgentOrganizationBankDetails,
-  opsClients,
-  opsClientDocuments,
-  opsContracts,
-  opsApplications,
-  opsCalculations,
-  opsDeals,
-  opsDealDocuments,
-  opsAgentBonus,
-  opsTodos,
-  opsActivityLog,
-  opsTelegrafSessions,
-  opsS3CleanupQueue,
-} from "@bedrock/operations/schema";

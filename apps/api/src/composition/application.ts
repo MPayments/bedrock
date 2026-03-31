@@ -22,11 +22,6 @@ import {
   documents,
 } from "@bedrock/documents/schema";
 import { UserNotFoundError } from "@bedrock/iam";
-import type { OperationsModule } from "@bedrock/operations";
-import { DadataAdapter } from "@bedrock/operations/adapters/dadata";
-import {
-  PartiesCounterpartiesAdapter,
-} from "@bedrock/operations/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
@@ -78,7 +73,6 @@ import {
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
 import { createApiLedgerModule } from "./ledger-module";
-import { createApiOperationsModule } from "./operations-module";
 import { createApiPartiesModule } from "./parties-module";
 import { createApiTreasuryModule } from "./treasury-module";
 import type { Env } from "../context";
@@ -97,7 +91,6 @@ export interface ApiApplicationServices {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  operationsModule: OperationsModule;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
   documentExtraction?: OpenAIDocumentExtractionAdapter;
@@ -449,7 +442,6 @@ export function createApplicationServices(
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
-  // Operations module - wire optional adapters from env
   const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
     ? new S3ObjectStorageAdapter({
         endpoint: env.S3_ENDPOINT,
@@ -460,21 +452,6 @@ export function createApplicationServices(
         forcePathStyle: true,
       }, logger)
     : undefined;
-
-  const companyLookup = new DadataAdapter({
-    apiUrl: env?.DADATA_API_URL ?? "https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest",
-  });
-
-  const operationsModule = createApiOperationsModule({
-    db,
-    logger,
-    companyLookup,
-    counterparties: new PartiesCounterpartiesAdapter({
-      createCounterparty: partiesModule.counterparties.commands.create,
-      findCounterpartyById: partiesModule.counterparties.queries.findById,
-      updateCounterparty: partiesModule.counterparties.commands.update,
-    }),
-  });
   const filesModule = createApiFilesModule({
     db,
     logger,
@@ -486,7 +463,7 @@ export function createApplicationServices(
   const customerPortalWorkflow = createCustomerPortalWorkflow({
     calculations: calculationsModule,
     currencies: currenciesService,
-    operations: operationsModule,
+    deals: dealsModule,
     iam: {
       customerMemberships: customerMembershipsService,
       users: iamService,
@@ -496,7 +473,6 @@ export function createApplicationServices(
       customers: partiesModule.customers,
     },
     logger,
-    persistence: createPersistenceContext(db),
   });
 
   // Document generation workflow
@@ -536,7 +512,6 @@ export function createApplicationServices(
     documentsService,
     documentDraftWorkflow,
     documentPostingWorkflow,
-    operationsModule,
     customerPortalWorkflow,
     documentGenerationWorkflow,
     documentExtraction,

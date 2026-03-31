@@ -25,7 +25,7 @@ export interface DealsRow {
   updatedAt: string;
   closedAt: string | null;
   client: string;
-  clientId: number;
+  clientId: string;
   amount: number;
   currency: CurrencyCode;
   amountInBase: number;
@@ -111,7 +111,7 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
     pageIndex: 0,
     pageSize: initialPageSize,
   });
-  const [selectedClientId, setSelectedClientId] = useState<number | undefined>(
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(
     undefined
   );
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(

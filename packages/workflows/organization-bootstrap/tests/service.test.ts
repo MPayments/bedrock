@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 const create = vi.fn(async () => ({ id: "org-1", shortName: "Acme" }));
-const upsertFromCanonical = vi.fn(async () => ({ id: 1, organizationId: "org-1" }));
-
 vi.mock("@bedrock/parties", () => ({
   createPartiesModule: vi.fn(() => ({
     organizations: {
@@ -22,14 +20,7 @@ vi.mock("@bedrock/parties/adapters/drizzle", () => ({
   DrizzleRequisiteBindingReads: vi.fn(),
   DrizzleRequisiteProviderReads: vi.fn(),
   DrizzleRequisiteReads: vi.fn(),
-}));
-
-vi.mock("@bedrock/operations/adapters/drizzle", () => ({
-  DrizzleHoldingOrganizationBridge: vi.fn(function MockHoldingOrganizationBridge() {
-    return {
-      upsertFromCanonical,
-    };
-  }),
+  DrizzleSubAgentProfileReads: vi.fn(),
 }));
 
 vi.mock("@bedrock/platform/persistence", async () => {
@@ -71,10 +62,6 @@ describe("organization bootstrap workflow", () => {
     expect(db.transaction).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledWith({ shortName: "Acme" });
     expect(createLedgerModule).toHaveBeenCalledWith(tx);
-    expect(upsertFromCanonical).toHaveBeenCalledWith({
-      id: "org-1",
-      shortName: "Acme",
-    });
     expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
       organizationId: "org-1",
     });

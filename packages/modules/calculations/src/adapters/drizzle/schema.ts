@@ -3,8 +3,8 @@ import {
   bigint,
   boolean,
   check,
-  index,
   integer,
+  index,
   pgEnum,
   pgTable,
   timestamp,
@@ -54,28 +54,6 @@ export const calculations = pgTable(
     uniqueIndex("calculations_current_snapshot_uq")
       .on(table.currentSnapshotId)
       .where(sql`${table.currentSnapshotId} is not null`),
-  ],
-);
-
-export const calculationApplicationLinks = pgTable(
-  "calculation_application_links",
-  {
-    calculationId: uuid("calculation_id")
-      .primaryKey()
-      .references(() => calculations.id, { onDelete: "cascade" }),
-    applicationId: integer("application_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (table) => [
-    index("calculation_application_links_application_idx").on(
-      table.applicationId,
-    ),
   ],
 );
 
@@ -237,10 +215,6 @@ export const calculationsRelations = relations(calculations, ({ many, one }) => 
     fields: [calculations.currentSnapshotId],
     references: [calculationSnapshots.id],
   }),
-  applicationLink: one(calculationApplicationLinks, {
-    fields: [calculations.id],
-    references: [calculationApplicationLinks.calculationId],
-  }),
   snapshots: many(calculationSnapshots, {
     relationName: "calculation_snapshots_calculation",
   }),
@@ -273,16 +247,6 @@ export const calculationLinesRelations = relations(
     currency: one(currencies, {
       fields: [calculationLines.currencyId],
       references: [currencies.id],
-    }),
-  }),
-);
-
-export const calculationApplicationLinksRelations = relations(
-  calculationApplicationLinks,
-  ({ one }) => ({
-    calculation: one(calculations, {
-      fields: [calculationApplicationLinks.calculationId],
-      references: [calculations.id],
     }),
   }),
 );

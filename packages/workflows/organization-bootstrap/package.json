@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/operations": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*"
   },

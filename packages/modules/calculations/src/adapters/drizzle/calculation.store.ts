@@ -3,14 +3,12 @@ import { eq, sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
-  calculationApplicationLinks,
   calculationLines,
   calculations,
   calculationSnapshots,
 } from "./schema";
 import type {
   CalculationStore,
-  CreateCalculationApplicationLinkInput,
   CreateCalculationLineStoredInput,
   CreateCalculationRootInput,
   CreateCalculationSnapshotInput,
@@ -18,15 +16,6 @@ import type {
 
 export class DrizzleCalculationStore implements CalculationStore {
   constructor(private readonly db: Queryable) {}
-
-  async createCalculationApplicationLink(
-    input: CreateCalculationApplicationLinkInput,
-  ): Promise<void> {
-    await this.db.insert(calculationApplicationLinks).values({
-      calculationId: input.calculationId,
-      applicationId: input.applicationId,
-    });
-  }
 
   async createCalculationRoot(input: CreateCalculationRootInput): Promise<void> {
     await this.db.insert(calculations).values({

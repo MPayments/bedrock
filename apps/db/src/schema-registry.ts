@@ -23,12 +23,12 @@ import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as filesSchema } from "@bedrock/files/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as operationsSchema } from "@bedrock/operations/schema";
 import {
   counterparties,
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyRelationshipKindEnum,
+  customerCounterpartyAssignments,
   customers,
   organizations,
   organizationRequisiteBindings,
@@ -65,6 +65,7 @@ const partiesSchema: {
   counterpartyGroups: typeof counterpartyGroups;
   counterpartyGroupMemberships: typeof counterpartyGroupMemberships;
   counterpartyRelationshipKindEnum: typeof counterpartyRelationshipKindEnum;
+  customerCounterpartyAssignments: typeof customerCounterpartyAssignments;
   organizations: typeof organizations;
   requisiteOwnerTypeEnum: typeof requisiteOwnerTypeEnum;
   requisiteKindEnum: typeof requisiteKindEnum;
@@ -78,6 +79,7 @@ const partiesSchema: {
   counterpartyGroups,
   counterpartyGroupMemberships,
   counterpartyRelationshipKindEnum,
+  customerCounterpartyAssignments,
   organizations,
   requisiteOwnerTypeEnum,
   requisiteKindEnum,
@@ -101,8 +103,7 @@ export type Schema =
   & typeof treasurySchema
   & typeof currenciesSchema
   & typeof reconciliationSchema
-  & typeof crmTasksSchema
-  & typeof operationsSchema;
+  & typeof crmTasksSchema;
 
 const schemaInternal: Schema = {
   ...authSchema,
@@ -119,7 +120,6 @@ const schemaInternal: Schema = {
   ...currenciesSchema,
   ...reconciliationSchema,
   ...crmTasksSchema,
-  ...operationsSchema,
 };
 
 export const schema: Schema = schemaInternal;

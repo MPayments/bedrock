@@ -111,7 +111,7 @@ export default function PortalDealDetailPage() {
     if (!data?.calculation) return;
 
     const response = await fetch(
-      `${API_BASE_URL}/documents/calculations/${data.calculation.id}/export?format=${format}`,
+      `${API_BASE_URL}/calculations/${data.calculation.id}/export?format=${format}`,
       {
         credentials: "include",
       },

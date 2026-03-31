@@ -18,6 +18,7 @@ import {
 export interface DocumentsServiceDeps
   extends Omit<
     DocumentsHandlersDeps,
+    | "documentBusinessLinks"
     | "documentEvents"
     | "documentLinks"
     | "documentOperations"

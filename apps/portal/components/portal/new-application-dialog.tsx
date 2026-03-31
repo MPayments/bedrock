@@ -152,7 +152,7 @@ export function NewDealDialog({
   async function fetchClients() {
     try {
       setLoadingClients(true);
-      const response = await fetch(`${API_BASE_URL}/customer/customers`, {
+      const response = await fetch(`${API_BASE_URL}/customer/contexts`, {
         credentials: "include",
       });
 

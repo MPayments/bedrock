@@ -76,7 +76,7 @@ export async function loadCrmActivity(limit: number): Promise<CrmActivityRespons
   const requestHeaders = await headers();
   const apiUrl =
     process.env.CRM_ACTIVITY_UPSTREAM_URL ??
-    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/v1/operations/activity-log`;
+    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/v1/activity`;
   const url = new URL(apiUrl);
   url.searchParams.set("limit", String(limit));
 

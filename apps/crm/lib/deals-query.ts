@@ -9,7 +9,7 @@ export function buildDealsQueryParams(
     pagination: { pageIndex: number; pageSize: number };
     sorting: SortingState;
     columnFilters: ColumnFiltersState;
-    selectedClientId?: number;
+    selectedClientId?: string;
     selectedAgentId?: string;
     dateRange?: DateRange;
   },
@@ -58,7 +58,7 @@ export function buildDealsQueryParams(
 
   // Фильтр по клиенту
   if (selectedClientId !== undefined) {
-    searchParams.set("clientId", selectedClientId.toString());
+    searchParams.set("customerId", selectedClientId);
   }
 
   // Фильтр по агенту
