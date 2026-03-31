@@ -83,7 +83,7 @@ export function createEasyTemplateXAdapter(
 
       const easyTemplateX = await import("easy-template-x");
       const handler = new easyTemplateX.TemplateHandler();
-      const tags: Array<{ name: string }> =
+      const tags: { name: string }[] =
         await handler.parseTags(templateBuffer);
 
       const IMAGE_FIELDS = new Set(["signature", "stamp"]);

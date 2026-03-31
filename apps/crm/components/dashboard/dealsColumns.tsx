@@ -107,11 +107,7 @@ export interface DealsColumnsOptions {
  * Создаёт колонки для таблицы сделок.
  * Используется на странице /reports/deals.
  */
-export function createDealsColumns(
-  options: DealsColumnsOptions
-): ColumnDef<DealsRow, unknown>[] {
-  const { isAdmin } = options;
-
+export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
   const columns: ColumnDef<DealsRow, unknown>[] = [
     {
       id: "rowNumber",

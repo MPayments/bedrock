@@ -1,13 +1,12 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { GroupHierarchy } from "../../../shared/domain/group-hierarchy";
-import { Counterparty } from "../../../counterparties/domain/counterparty";
-import { SubAgentProfileNotFoundError } from "../errors";
 import {
   UpdateSubAgentProfileInputSchema,
   type UpdateSubAgentProfileInput,
 } from "../contracts/commands";
 import type { SubAgentProfile } from "../contracts/dto";
+import { SubAgentProfileNotFoundError } from "../errors";
 import type { SubAgentProfilesCommandUnitOfWork } from "../ports/sub-agent-profiles.uow";
 
 export class UpdateSubAgentProfileCommand {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -376,8 +376,8 @@ export default function DealDetailPage() {
   // Загрузка файлов
   const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [isUploadingContract, setIsUploadingContract] = useState(false);
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
-  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [, setInvoiceFile] = useState<File | null>(null);
+  const [, setContractFile] = useState<File | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [documentLang, setDocumentLang] = useState<"ru" | "en">("ru");
@@ -393,9 +393,9 @@ export default function DealDetailPage() {
     message: "",
   });
 
-  const showError = (title: string, message: string) => {
+  const showError = useCallback((title: string, message: string) => {
     setErrorDialog({ isOpen: true, title, message });
-  };
+  }, []);
 
   // AlertDialog для подтверждения отмены сделки
   const [cancelDealDialog, setCancelDealDialog] = useState(false);
@@ -404,7 +404,7 @@ export default function DealDetailPage() {
   const [isCloseDealDialogOpen, setIsCloseDealDialogOpen] = useState(false);
   const [costPrice, setCostPrice] = useState("");
   const [isClosingDeal, setIsClosingDeal] = useState(false);
-  const [closeDealPreview, setCloseDealPreview] = useState<{
+  const [, setCloseDealPreview] = useState<{
     costPrice: number;
     agentFee: number;
     totalWithExpenses: number;
@@ -500,7 +500,7 @@ export default function DealDetailPage() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -526,7 +526,7 @@ export default function DealDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dealId]);
 
   const convertDateToInputFormat = (dateStr: string): string => {
     if (!dateStr) return "";
@@ -813,7 +813,7 @@ export default function DealDetailPage() {
     }
   };
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       setLoadingDocuments(true);
       const res = await fetch(`${API_BASE_URL}/deals/${dealId}/documents`, {
@@ -835,7 +835,7 @@ export default function DealDetailPage() {
     } finally {
       setLoadingDocuments(false);
     }
-  };
+  }, [dealId, showError]);
 
   const handleDocumentUpload = async () => {
     if (!uploadDocumentFile) {
@@ -1055,10 +1055,10 @@ export default function DealDetailPage() {
 
   useEffect(() => {
     if (dealId) {
-      fetchData();
-      fetchDocuments();
+      void fetchData();
+      void fetchDocuments();
     }
-  }, [dealId]);
+  }, [dealId, fetchData, fetchDocuments]);
 
   if (loading) {
     return (

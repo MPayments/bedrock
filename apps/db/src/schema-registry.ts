@@ -1,13 +1,18 @@
+import { schema as crmTasksSchema } from "crm/schema";
+
+import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as agreementsSchema } from "@bedrock/agreements/schema";
 import { schema as calculationsSchema } from "@bedrock/calculations/schema";
+import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as dealsSchema } from "@bedrock/deals/schema";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
+import { schema as filesSchema } from "@bedrock/files/schema";
 import {
   account,
   accountRelations,
   agentProfiles,
   agentProfilesRelations,
   customerBootstrapClaims,
-  customerMemberships,
   session,
   sessionRelations,
   twoFactor,
@@ -18,10 +23,6 @@ import {
   userRelations,
   verification,
 } from "@bedrock/iam/schema";
-import { schema as accountingSchema } from "@bedrock/accounting/schema";
-import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as filesSchema } from "@bedrock/files/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import {
   counterparties,
@@ -41,7 +42,6 @@ import {
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 import { schema as treasurySchema } from "@bedrock/treasury/schema";
-import { schema as crmTasksSchema } from "../../crm/lib/server/tasks/schema";
 
 const authSchema = {
   user,

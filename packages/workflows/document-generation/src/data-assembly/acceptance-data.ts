@@ -1,14 +1,14 @@
 import {
+  applyLocalizedTemplateField,
+  getLocalizedValue,
+  withLocalizedTemplateFields,
+} from "../localized-text";
+import {
   formatCurrencyAmount,
   formatDirector,
   formatMoneyInWords,
   getCurrencySymbol,
 } from "../russian-language";
-import {
-  applyLocalizedTemplateField,
-  getLocalizedValue,
-  withLocalizedTemplateFields,
-} from "../localized-text";
 import type { DocumentLang, OrgFiles } from "./types";
 import { formatDateByLang, prune } from "./types";
 

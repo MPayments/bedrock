@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { CreateAgreementCommand } from "../../src/application/commands/create-agreement";
 import {
   AgreementRequisiteBindingMissingError,
   AgreementRequisiteOwnershipError,
 } from "../../src/errors";
-import { CreateAgreementCommand } from "../../src/application/commands/create-agreement";
 
 function createLogger() {
   const logger = {

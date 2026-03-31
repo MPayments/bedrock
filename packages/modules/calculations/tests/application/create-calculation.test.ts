@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { CreateCalculationCommand } from "../../src/application/commands/create-calculation";
 import {
   CalculationFxQuoteCurrencyMismatchError,
   CalculationFxQuoteRateMismatchError,
 } from "../../src/errors";
-import { CreateCalculationCommand } from "../../src/application/commands/create-calculation";
 
 function createLogger() {
   const logger = {

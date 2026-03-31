@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  type Column,
   VisibilityState,
   flexRender,
   getCoreRowModel,
@@ -73,7 +74,7 @@ export default function DealsPage() {
   });
 
   // Используем переиспользуемые колонки
-  const columns = useMemo(() => createDealsColumns({ isAdmin }), [isAdmin]);
+  const columns = useMemo(() => createDealsColumns(), []);
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     ...getDefaultColumnVisibility(isAdmin),
@@ -158,12 +159,12 @@ export default function DealsPage() {
                 title="Поиск по комментарию"
               />
               <DataTableFacetedFilter
-                column={table.getColumn("status") as any}
+                column={table.getColumn("status") as Column<unknown, string> | undefined}
                 title="Статус"
                 options={STATUS_OPTIONS}
               />
               <DataTableFacetedFilter
-                column={table.getColumn("currency") as any}
+                column={table.getColumn("currency") as Column<unknown, string> | undefined}
                 title="Валюта"
                 options={CURRENCY_OPTIONS}
               />

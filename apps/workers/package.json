@@ -28,7 +28,6 @@
     "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "@bedrock/platform": "workspace:*",
-    "bullmq": "^5.34.8",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1"
   },

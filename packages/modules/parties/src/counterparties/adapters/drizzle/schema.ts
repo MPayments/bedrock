@@ -16,13 +16,13 @@ import {
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
 
 import { customers } from "../../../customers/adapters/drizzle/schema";
-import { COUNTERPARTY_RELATIONSHIP_KIND_VALUES } from "../../domain/relationship-kind";
 import { PARTY_KIND_VALUES } from "../../../shared/domain/party-kind";
+import { COUNTERPARTY_RELATIONSHIP_KIND_VALUES } from "../../domain/relationship-kind";
 
-export type LocalizedText = {
+export interface LocalizedText {
   en?: string | null;
   ru?: string | null;
-};
+}
 
 export const counterpartyKindEnum = pgEnum(
   "counterparty_kind",

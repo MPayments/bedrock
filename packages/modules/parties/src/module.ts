@@ -21,10 +21,10 @@ import type { RequisiteBindingReads } from "./requisites/application/ports/requi
 import type { RequisiteProviderReads } from "./requisites/application/ports/requisite-provider.reads";
 import type { RequisiteReads } from "./requisites/application/ports/requisite.reads";
 import type { RequisitesCommandUnitOfWork } from "./requisites/application/ports/requisites.uow";
+import type { PartyRegistryDocumentsReadPort } from "./shared/application/documents-read.port";
 import { createSubAgentProfilesService } from "./sub-agent-profiles/application";
 import type { SubAgentProfileReads } from "./sub-agent-profiles/application/ports/sub-agent-profile.reads";
 import type { SubAgentProfilesCommandUnitOfWork } from "./sub-agent-profiles/application/ports/sub-agent-profiles.uow";
-import type { PartyRegistryDocumentsReadPort } from "./shared/application/documents-read.port";
 
 export type PartiesModuleUnitOfWork = CounterpartiesCommandUnitOfWork &
   CustomersCommandUnitOfWork &

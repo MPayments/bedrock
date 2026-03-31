@@ -1,3 +1,5 @@
+export { crmTasks } from "crm/schema";
+
 export {
   agreementFeeRules,
   agreementFeeRuleKindEnum,
@@ -121,4 +123,3 @@ export {
   reconciliationMatches,
   reconciliationRuns,
 } from "@bedrock/reconciliation/schema";
-export { crmTasks } from "../../crm/lib/server/tasks/schema";

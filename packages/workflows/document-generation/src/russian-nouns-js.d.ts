@@ -1,27 +1,26 @@
 declare module "russian-nouns-js" {
-  const Gender: {
+  interface RussianNounsGender {
     MASCULINE: string;
     FEMININE: string;
     NEUTER: string;
-  };
-  const Case: {
+  }
+  interface RussianNounsCase {
     NOMINATIVE: string;
     GENITIVE: string;
     DATIVE: string;
     ACCUSATIVE: string;
     INSTRUMENTAL: string;
     PREPOSITIONAL: string;
-  };
-  class Engine {
+  }
+  interface RussianNounsEngine {
     decline(lemma: any, caseName: string): string[];
   }
-  function createLemma(opts: { text: string; gender: string }): any;
 
   const RussianNouns: {
-    Gender: typeof Gender;
-    Case: typeof Case;
-    Engine: typeof Engine;
-    createLemma: typeof createLemma;
+    Gender: RussianNounsGender;
+    Case: RussianNounsCase;
+    Engine: new () => RussianNounsEngine;
+    createLemma: (opts: { text: string; gender: string }) => any;
   };
   export default RussianNouns;
 }

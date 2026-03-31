@@ -1,7 +1,8 @@
+import { z } from "zod";
+
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { z } from "zod";
 
 import { AGREEMENTS_UPDATE_IDEMPOTENCY_SCOPE } from "../../domain/constants";
 import { AgreementNotFoundError } from "../../errors";

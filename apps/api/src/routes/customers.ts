@@ -1,6 +1,6 @@
-import ExcelJS from "exceljs";
-import { and, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { and, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
+import ExcelJS from "exceljs";
 
 import {
   CustomerDeleteConflictError,
@@ -11,16 +11,6 @@ import { NotFoundError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { DeletedSchema, ErrorSchema } from "../common";
-import { handleRouteError } from "../common/errors";
-import type { AppContext } from "../context";
-import { db } from "../db/client";
-import type { AuthVariables } from "../middleware/auth";
-import { withRequiredIdempotency } from "../middleware/idempotency";
-import { requirePermission } from "../middleware/permission";
-import {
-  getOrganizationBankRequisiteOrThrow,
-  serializeOrganizationRequisiteForDocuments,
-} from "./organization-requisites";
 import {
   assertCustomerOwnsCounterparty,
   CompatibilityContractSchema,
@@ -29,11 +19,21 @@ import {
   updateCompatibilityContract,
 } from "./contracts-compat";
 import {
+  getOrganizationBankRequisiteOrThrow,
+  serializeOrganizationRequisiteForDocuments,
+} from "./organization-requisites";
+import { handleRouteError } from "../common/errors";
+import type { AppContext } from "../context";
+import {
   CompatibilityFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
   GeneratedDocumentLangSchema,
   serializeCompatibilityFileAttachment,
 } from "./files-compat";
+import { db } from "../db/client";
+import type { AuthVariables } from "../middleware/auth";
+import { withRequiredIdempotency } from "../middleware/idempotency";
+import { requirePermission } from "../middleware/permission";
 
 const HEADER_STYLE: Partial<ExcelJS.Style> = {
   font: { bold: true, name: "Calibri", size: 11 },
@@ -222,15 +222,9 @@ type CustomerWorkspacePatchInput = z.infer<
   typeof CustomerWorkspacePatchInputSchema
 >;
 type CustomerLegalEntityInput = z.infer<typeof CustomerLegalEntityInputSchema>;
-type CustomerLegalEntityPatchInput = z.infer<
-  typeof CustomerLegalEntityPatchInputSchema
->;
 type CustomerWorkspaceSummary = z.infer<typeof CustomerWorkspaceSummarySchema>;
 type CanonicalCustomer = Awaited<
   ReturnType<AppContext["partiesModule"]["customers"]["queries"]["findById"]>
->;
-type CanonicalCounterparty = Awaited<
-  ReturnType<AppContext["partiesModule"]["counterparties"]["queries"]["findById"]>
 >;
 type CanonicalCounterpartyListItem = Awaited<
   ReturnType<AppContext["partiesModule"]["counterparties"]["queries"]["list"]>
@@ -1306,7 +1300,7 @@ export function customersRoutes(ctx: AppContext) {
       const buffer = await exportCustomerWorkspacesXlsx(ctx);
       return new Response(new Uint8Array(buffer), {
         headers: {
-          "Content-Disposition": `attachment; filename=\"${xlsxFilename("customers")}\"`,
+          "Content-Disposition": `attachment; filename="${xlsxFilename("customers")}"`,
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         },

@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChevronLeft,
@@ -423,7 +424,7 @@ export default function OrganizationViewPage() {
 
       for (const [key, enField] of Object.entries(orgMapping)) {
         if (translated[key]) {
-          form.setValue(enField as any, translated[key], {
+          form.setValue(enField as Path<EditOrganizationInput>, translated[key], {
             shouldValidate: true,
             shouldDirty: true,
           });

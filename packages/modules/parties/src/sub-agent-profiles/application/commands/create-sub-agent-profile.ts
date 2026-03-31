@@ -1,7 +1,7 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { GroupHierarchy } from "../../../shared/domain/group-hierarchy";
 import { Counterparty } from "../../../counterparties/domain/counterparty";
+import { GroupHierarchy } from "../../../shared/domain/group-hierarchy";
 import {
   CreateSubAgentProfileInputSchema,
   type CreateSubAgentProfileInput,

@@ -27,11 +27,11 @@ import type {
   DealStatusHistoryEntry,
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
-import type { DealReads } from "../../application/ports/deal.reads";
 import type {
   DealStatus,
   DealType,
 } from "../../application/contracts/zod";
+import type { DealReads } from "../../application/ports/deal.reads";
 
 const DEALS_SORT_COLUMN_MAP = {
   createdAt: deals.createdAt,

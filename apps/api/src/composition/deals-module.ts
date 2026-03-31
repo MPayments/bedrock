@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  DrizzleAgreementReads,
+} from "@bedrock/agreements/adapters/drizzle";
+import {
+  DrizzleCalculationReads,
+} from "@bedrock/calculations/adapters/drizzle";
+import type { CurrenciesService } from "@bedrock/currencies";
+import {
   createDealsModule,
   DealTypeNotSupportedError,
   type DealsModule,
@@ -10,13 +17,6 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
-import {
-  DrizzleAgreementReads,
-} from "@bedrock/agreements/adapters/drizzle";
-import {
-  DrizzleCalculationReads,
-} from "@bedrock/calculations/adapters/drizzle";
-import type { CurrenciesService } from "@bedrock/currencies";
 import {
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,

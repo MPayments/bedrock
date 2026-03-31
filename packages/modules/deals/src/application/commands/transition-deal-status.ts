@@ -1,5 +1,6 @@
-import type { ModuleRuntime } from "@bedrock/shared/core";
 import { z } from "zod";
+
+import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { canTransitionDealStatus } from "../../domain/constants";
 import {

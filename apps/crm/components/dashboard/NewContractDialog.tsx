@@ -133,9 +133,9 @@ export function NewContractDialog({
       });
       setBanks([]);
       setError(null);
-      fetchOrganizations();
+      void fetchOrganizations();
     }
-  }, [open]);
+  }, [fetchOrganizations, open]);
 
   // Загрузка организаций
   const fetchOrganizations = useCallback(async () => {

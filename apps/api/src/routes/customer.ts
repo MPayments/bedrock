@@ -107,7 +107,19 @@ const CustomerPortalCreateDealInputSchema = z.object({
   requestedAmount: z
     .string()
     .trim()
-    .regex(/^\d+(\.\d+)?$/)
+    .refine((value) => {
+      const [whole, fraction, ...rest] = value.split(".");
+
+      if (rest.length > 0 || !whole || !/^[0-9]+$/u.test(whole)) {
+        return false;
+      }
+
+      if (fraction === undefined) {
+        return true;
+      }
+
+      return fraction.length > 0 && /^[0-9]+$/u.test(fraction);
+    })
     .optional(),
   requestedCurrency: z.string().trim().min(3).max(16).optional(),
 });

@@ -16,8 +16,8 @@ import {
   DrizzleRequisiteBindingReads,
   DrizzleRequisiteReads,
 } from "@bedrock/parties/adapters/drizzle";
-import type { Logger } from "@bedrock/platform/observability/logger";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { Logger } from "@bedrock/platform/observability/logger";
 import {
   createPersistenceContext,
   type Database,

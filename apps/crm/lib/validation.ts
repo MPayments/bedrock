@@ -17,7 +17,7 @@ const phoneSchema = z
   .refine(
     (val) => {
       if (!val || val === "") return true;
-      const cleaned = val.replace(/[\s\-\(\)]/g, "");
+      const cleaned = val.replace(/[\s-()]/g, "");
       return /^(\+7|8)?\d{10}$/.test(cleaned);
     },
     { message: "Некорректный формат телефона (например: +7 999 123-45-67)" }
@@ -223,7 +223,7 @@ export const customerOnboardSchema = z.object({
     .refine(
       (val) => {
         if (!val || val === "") return true;
-        const cleaned = val.replace(/[\s\-\(\)]/g, "");
+        const cleaned = val.replace(/[\s-()]/g, "");
         return /^(\+7|8)?\d{10}$/.test(cleaned);
       },
       { message: "Некорректный формат телефона" }

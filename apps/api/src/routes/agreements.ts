@@ -12,8 +12,8 @@ import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
-import { withRequiredIdempotency } from "../middleware/idempotency";
 import type { AuthVariables } from "../middleware/auth";
+import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
 export function agreementsRoutes(ctx: AppContext) {

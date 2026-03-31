@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
-  Building2,
   CheckCircle,
   XCircle,
   Trash2,
@@ -61,6 +60,8 @@ interface OrganizationRow {
   createdAt: string;
 }
 
+type OrganizationListItem = Partial<OrganizationRow> & Record<string, unknown>;
+
 export default function OrganizationsPage() {
   const router = useRouter();
   const [data, setData] = useState<OrganizationRow[]>([]);
@@ -92,7 +93,7 @@ export default function OrganizationsPage() {
 
         const response = await res.json();
         const rawItems = Array.isArray(response) ? response : response.data ?? [];
-        const items: OrganizationRow[] = rawItems.map((item: any) => ({
+        const items: OrganizationRow[] = rawItems.map((item: OrganizationListItem) => ({
           banksCount: item.banksCount ?? 0,
           city: item.city ?? null,
           country: item.country ?? null,

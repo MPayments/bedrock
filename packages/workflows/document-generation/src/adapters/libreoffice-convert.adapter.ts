@@ -1,6 +1,5 @@
-import { promisify } from "node:util";
-
 import * as libre from "libreoffice-convert";
+import { promisify } from "node:util";
 
 import type { PdfConverterPort } from "../service";
 

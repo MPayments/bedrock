@@ -1,8 +1,9 @@
+import { z } from "zod";
+
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
-import { toMinorAmountString } from "@bedrock/shared/money";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
-import { z } from "zod";
+import { toMinorAmountString } from "@bedrock/shared/money";
 
 import { DEALS_CREATE_IDEMPOTENCY_SCOPE } from "../../domain/constants";
 import {

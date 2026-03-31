@@ -4,7 +4,6 @@ import { useState, useEffect, type HTMLAttributes } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
@@ -16,8 +15,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { cn } from "@/lib/utils";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import { BarChart3, FileText, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface DealsStats {

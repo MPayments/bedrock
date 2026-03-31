@@ -1,8 +1,8 @@
 import { basename, extname } from "node:path";
 
 import { trimToNull } from "@bedrock/shared/core";
-import { sha256Hex } from "@bedrock/shared/core/crypto";
 import type { ModuleRuntime } from "@bedrock/shared/core";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type { FileAttachment } from "../contracts/dto";

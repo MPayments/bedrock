@@ -7,11 +7,10 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { account, session, twoFactor, user } from "./schema/auth-schema";
+import { session, twoFactor, user } from "./schema/auth-schema";
 import { userAccessStates } from "./schema/business-schema";
 import type {
   IamUserRecord,
-  IamUserWithLastSessionRecord,
   IamUsersReads,
   ListIamUsersInput,
 } from "../../application/users/ports";

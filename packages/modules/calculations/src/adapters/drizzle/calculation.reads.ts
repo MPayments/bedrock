@@ -59,7 +59,7 @@ const calculationSelect = {
   snapshotUpdatedAt: calculationSnapshots.updatedAt,
 };
 
-type CalculationRow = {
+interface CalculationRow {
   id: string;
   isActive: boolean;
   createdAt: Date;
@@ -94,7 +94,7 @@ type CalculationRow = {
   fxQuoteId: string | null;
   snapshotCreatedAt: Date;
   snapshotUpdatedAt: Date;
-};
+}
 
 function mapSnapshot(row: CalculationRow): CalculationSnapshot {
   return {

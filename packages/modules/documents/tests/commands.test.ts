@@ -166,6 +166,8 @@ function createContext(options: {
     listDocumentEvents: vi.fn(async () => []),
     findDocumentSnapshot: vi.fn(async () => null),
     getLatestPostingArtifacts: vi.fn(async () => null),
+    insertDealLink: vi.fn(async () => undefined),
+    findDealIdByDocumentId: vi.fn(async () => null),
   };
   const idempotency = {
     withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
@@ -215,6 +217,7 @@ function createContext(options: {
         canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
         canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
       },
+      documentBusinessLinks: repository,
       documentEvents: repository,
       documentLinks: repository,
       documentOperations: repository,
@@ -228,6 +231,7 @@ function createContext(options: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
             transaction: repository,
+            documentBusinessLinks: repository,
             documentEvents: repository,
             documentLinks: repository,
             documentOperations: repository,

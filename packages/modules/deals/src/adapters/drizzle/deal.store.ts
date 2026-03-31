@@ -1,5 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
+import type { Queryable } from "@bedrock/platform/persistence";
+
 import {
   dealApprovals,
   dealCalculationLinks,
@@ -8,7 +10,6 @@ import {
   deals,
   dealStatusHistory,
 } from "./schema";
-import type { Queryable } from "@bedrock/platform/persistence";
 import type {
   CreateDealApprovalStoredInput,
   CreateDealLegStoredInput,

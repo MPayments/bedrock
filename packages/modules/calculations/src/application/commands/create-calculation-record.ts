@@ -2,8 +2,8 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { buildCalculationLineDrafts } from "../../domain/line-builder";
 import { CalculationNotFoundError } from "../../errors";
-import type { CalculationDetails } from "../contracts/dto";
 import type { NormalizedCreateCalculationInput } from "../contracts/commands";
+import type { CalculationDetails } from "../contracts/dto";
 import type { CalculationsCommandTx } from "../ports/calculations.uow";
 
 export async function persistCalculation(input: {

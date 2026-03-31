@@ -10,7 +10,6 @@ import {
   FileImage,
   FileText,
   FileType,
-  Globe,
   Loader2,
   Paperclip,
   Pencil,
@@ -18,7 +17,6 @@ import {
   Save,
   Trash2,
   Upload as UploadIcon,
-  UserPlus,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";

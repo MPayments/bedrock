@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Briefcase, ChevronLeft, Download, Loader2 } from "lucide-react";
+import { Briefcase, ChevronLeft, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 

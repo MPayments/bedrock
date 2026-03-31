@@ -1,8 +1,10 @@
+import { z } from "zod";
+
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
-import { z } from "zod";
 
+import { persistCalculation } from "./create-calculation-record";
 import { CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE } from "../../domain/constants";
 import {
   CalculationFxQuoteCurrencyMismatchError,
@@ -17,7 +19,6 @@ import {
 import type { CalculationDetails } from "../contracts/dto";
 import type { CalculationsCommandUnitOfWork } from "../ports/calculations.uow";
 import type { CalculationReferencesPort } from "../ports/references.port";
-import { persistCalculation } from "./create-calculation-record";
 
 const CreateCalculationCommandInputSchema = CreateCalculationInputSchema.extend({
   actorUserId: z.string().trim().min(1),

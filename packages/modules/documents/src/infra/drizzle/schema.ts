@@ -12,13 +12,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { user } from "@bedrock/iam/schema";
 import {
   ledgerOperations,
   outbox,
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
-import { user } from "@bedrock/iam/schema";
 import { counterparties, customers, requisites } from "@bedrock/parties/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";

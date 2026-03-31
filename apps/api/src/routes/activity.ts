@@ -50,7 +50,7 @@ export function activityRoutes(_ctx: AppContext) {
 
     return c.json(
       {
-        data: [] as Array<z.infer<typeof ActivityItemSchema>>,
+        data: [] as z.infer<typeof ActivityItemSchema>[],
         limit,
       },
       200,

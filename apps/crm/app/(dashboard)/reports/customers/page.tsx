@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
+  type Column,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -269,7 +270,7 @@ export default function ClientsReportsPage() {
   ]);
 
   // Используем переиспользуемые колонки
-  const columns = useMemo(() => createDealsColumns({ isAdmin }), [isAdmin]);
+  const columns = useMemo(() => createDealsColumns(), []);
 
   const table = useReactTable({
     data,
@@ -558,12 +559,12 @@ export default function ClientsReportsPage() {
                 />
               )}
               <DataTableFacetedFilter
-                column={table.getColumn("currency") as any}
+                column={table.getColumn("currency") as Column<unknown, string> | undefined}
                 title="Валюта"
                 options={CURRENCY_OPTIONS}
               />
               <DataTableFacetedFilter
-                column={table.getColumn("status") as any}
+                column={table.getColumn("status") as Column<unknown, string> | undefined}
                 title="Статус"
                 options={STATUS_OPTIONS}
               />

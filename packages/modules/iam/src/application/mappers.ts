@@ -1,5 +1,5 @@
 import type { User, UserWithLastSession } from "../contracts";
-import { UserAccount } from "../domain/user-account";
+import type { UserAccount } from "../domain/user-account";
 import { toUserRoleOrNull } from "../domain/user-role";
 import type {
   IamUserRecord,

@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { CreateDealCommand } from "../../src/application/commands/create-deal";
 import {
   DealAgreementCustomerMismatchError,
   DealAgreementInactiveError,
   DealCalculationInactiveError,
   DealTypeNotSupportedError,
 } from "../../src/errors";
-import { CreateDealCommand } from "../../src/application/commands/create-deal";
 
 function createLogger() {
   const logger = {

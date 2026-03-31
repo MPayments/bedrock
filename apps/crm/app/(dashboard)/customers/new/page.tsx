@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { COUNTRIES as countries } from "@bedrock/shared/reference-data/countries";
 import {
@@ -18,7 +18,6 @@ import {
   Building2,
   CheckCircle2,
   Languages,
-  Globe,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
@@ -245,7 +244,7 @@ export default function NewClientPage() {
 
       for (const [key, enField] of Object.entries(mapping)) {
         if (translated[key]) {
-          form.setValue(enField as any, translated[key], {
+          form.setValue(enField as Path<ClientFormData>, translated[key], {
             shouldValidate: true,
             shouldDirty: true,
           });

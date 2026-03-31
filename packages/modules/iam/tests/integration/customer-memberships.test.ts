@@ -1,15 +1,14 @@
 import { randomUUID } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import { createPersistenceContext } from "@bedrock/platform/persistence";
 
+import { db, pool } from "./setup";
 import { createCustomerMembershipsService } from "../../src";
 import {
   DrizzleCustomerMembershipReads,
   DrizzleCustomerMembershipsUnitOfWork,
 } from "../../src/adapters/drizzle";
-import { db, pool } from "./setup";
 
 describe("iam customer memberships integration", () => {
   it("upserts and lists memberships by user id", async () => {

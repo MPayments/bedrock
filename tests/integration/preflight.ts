@@ -26,7 +26,7 @@ const REQUIRED_COLUMNS = [
     columnName: "organization_requisite_id",
   },
   {
-    tableName: "ops_clients",
+    tableName: "counterparties",
     columnName: "customer_id",
   },
 ] as const;

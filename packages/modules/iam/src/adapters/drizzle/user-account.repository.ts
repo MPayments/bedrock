@@ -1,4 +1,4 @@
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 

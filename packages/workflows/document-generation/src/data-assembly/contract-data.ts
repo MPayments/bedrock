@@ -1,12 +1,9 @@
 import {
-  formatDirector,
-  declineBasisToGenitive,
-} from "../russian-language";
-import {
   applyLocalizedTemplateField,
   getLocalizedValue,
   withLocalizedTemplateFields,
 } from "../localized-text";
+import { declineBasisToGenitive, formatDirector } from "../russian-language";
 import type { DocumentLang, OrgFiles } from "./types";
 import { prune } from "./types";
 

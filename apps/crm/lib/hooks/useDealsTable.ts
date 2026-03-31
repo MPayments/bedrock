@@ -198,8 +198,7 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
     fetchData();
     fetchStatistics();
   }, [
-    pagination.pageIndex,
-    pagination.pageSize,
+    pagination,
     sorting,
     columnFilters,
     selectedClientId,

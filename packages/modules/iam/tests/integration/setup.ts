@@ -1,3 +1,4 @@
+import { schema as partiesSchema } from "@bedrock/parties/schema";
 import {
   createTestDrizzleDb,
   createTestPgPool,
@@ -5,7 +6,6 @@ import {
 } from "@bedrock/test-utils/bedrock/integration/postgres";
 
 import { schema as iamSchema } from "../../src/schema";
-import { schema as partiesSchema } from "@bedrock/parties/schema";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, {

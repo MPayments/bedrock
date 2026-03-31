@@ -1,5 +1,3 @@
-import { API_BASE_URL } from "./constants";
-
 export async function translateFieldsToEnglish(
   fields: Record<string, string>
 ): Promise<Record<string, string>> {

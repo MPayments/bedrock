@@ -1,7 +1,7 @@
+import { FileAssetNotFoundError, FileAttachmentDeletionNotAllowedError } from "../../errors";
+import type { FileOwnerType } from "../ports/file.reads";
 import type { FilesCommandUnitOfWork } from "../ports/files.uow";
 import type { ObjectStoragePort } from "../ports/object-storage.port";
-import type { FileOwnerType } from "../ports/file.reads";
-import { FileAssetNotFoundError, FileAttachmentDeletionNotAllowedError } from "../../errors";
 
 export class DeleteFileAttachmentCommand {
   constructor(

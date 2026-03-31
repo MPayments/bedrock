@@ -1,17 +1,16 @@
 import { sql } from "drizzle-orm";
 
 import type { Database } from "../client";
-
 import { loadSeedEnv } from "./load-env";
 
 type SeedSchemaProbeDb = Pick<Database, "execute">;
 
-type SeedSchemaProbeRow = {
+interface SeedSchemaProbeRow {
   currencies: string | null;
   migrations: string | null;
   migrationsPublic: string | null;
   users: string | null;
-};
+}
 
 export async function assertSeedSchemaReady(
   db: SeedSchemaProbeDb,

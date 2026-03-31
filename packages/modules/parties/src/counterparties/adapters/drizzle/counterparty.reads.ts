@@ -14,12 +14,12 @@ import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
-import {
-  CounterpartyRelationshipKindSchema,
-} from "../../domain/relationship-kind";
 import type { Counterparty } from "../../application/contracts/counterparty.dto";
 import type { ListCounterpartiesQuery } from "../../application/contracts/counterparty.queries";
 import type { CounterpartyReads } from "../../application/ports/counterparty.reads";
+import {
+  CounterpartyRelationshipKindSchema,
+} from "../../domain/relationship-kind";
 
 const COUNTERPARTY_SORT_COLUMN_MAP = {
   shortName: counterparties.shortName,

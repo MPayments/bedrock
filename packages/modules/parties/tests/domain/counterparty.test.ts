@@ -32,6 +32,7 @@ describe("counterparty domain", () => {
       {
         id: "cp-1",
         externalId: null,
+        relationshipKind: "customer_owned",
         customerId: "cust-1",
         shortName: " Acme ",
         fullName: " Acme Incorporated ",
@@ -61,6 +62,7 @@ describe("counterparty domain", () => {
         {
           id: "cp-1",
           externalId: null,
+          relationshipKind: "external",
           customerId: null,
           shortName: "Acme",
           fullName: "Acme Incorporated",

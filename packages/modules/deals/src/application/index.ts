@@ -1,8 +1,8 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { CreateDealCommand } from "./commands/create-deal";
 import { AttachDealCalculationCommand } from "./commands/attach-deal-calculation";
+import { CreateDealCommand } from "./commands/create-deal";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
 import type { DealReads } from "./ports/deal.reads";

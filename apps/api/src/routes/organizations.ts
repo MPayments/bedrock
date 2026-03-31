@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import type { z } from "@hono/zod-openapi";
 
 import {
   OrganizationDeleteConflictError,
@@ -18,18 +19,18 @@ import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
+import { countOrganizationBankRequisites } from "./organization-requisites";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
-import { countOrganizationBankRequisites } from "./organization-requisites";
 
 const PaginatedOrganizationsSchema =
   createPaginatedListSchema(OrganizationSchema);
-const OrganizationFilesSchema = z.object({
-  banksCount: z.number().int(),
-  hasFiles: z.boolean(),
-  sealUrl: z.string().nullable(),
-  signatureUrl: z.string().nullable(),
-});
+interface OrganizationFilesResponse {
+  banksCount: number;
+  hasFiles: boolean;
+  sealUrl: string | null;
+  signatureUrl: string | null;
+}
 const OPTIONS_LIMIT = 200;
 
 async function buildOrganizationListRow(
@@ -361,7 +362,7 @@ export function organizationsRoutes(ctx: AppContext) {
           sealUrl: organization.sealKey
             ? `/v1/organizations/${id}/files/seal`
             : null,
-        } satisfies z.infer<typeof OrganizationFilesSchema>,
+        } satisfies OrganizationFilesResponse,
         200,
       );
     })

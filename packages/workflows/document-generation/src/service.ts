@@ -1,6 +1,11 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 import {
+  GenerateDocumentInputSchema,
+  type GenerateDocumentInput,
+  type GeneratedDocument,
+} from "./contracts";
+import {
   assembleAcceptanceData,
   assembleApplicationData,
   assembleCalculationData,
@@ -9,11 +14,6 @@ import {
   bufferToImageContent,
 } from "./data-assembly";
 import type { OrgFiles, DocumentLang, DocumentFormat } from "./data-assembly";
-import {
-  GenerateDocumentInputSchema,
-  type GenerateDocumentInput,
-  type GeneratedDocument,
-} from "./contracts";
 
 export interface TemplateRendererPort {
   renderDocx(

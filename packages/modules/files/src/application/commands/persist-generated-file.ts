@@ -1,21 +1,18 @@
-import { extname } from "node:path";
-
-import { sha256Hex } from "@bedrock/shared/core/crypto";
 import type { ModuleRuntime } from "@bedrock/shared/core";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import type { FilesCommandUnitOfWork } from "../ports/files.uow";
-import type { ObjectStoragePort } from "../ports/object-storage.port";
-import type { FileOwnerType } from "../ports/file.reads";
+import { GENERATED_FILE_LINK_KINDS } from "../../domain/constants";
 import type {
   FileGeneratedFormat,
   FileGeneratedLang,
   FileLinkKind,
 } from "../contracts/zod";
-import { GENERATED_FILE_LINK_KINDS } from "../../domain/constants";
+import type { FileOwnerType } from "../ports/file.reads";
+import type { FilesCommandUnitOfWork } from "../ports/files.uow";
+import type { ObjectStoragePort } from "../ports/object-storage.port";
 
 function sanitizeGeneratedName(fileName: string) {
-  const ext = extname(fileName);
   return fileName
     .replace(/[^a-zA-Z0-9._-]+/g, "_")
     .replace(/^_+|_+$/g, "")

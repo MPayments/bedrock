@@ -2,14 +2,14 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import type { CustomerBootstrapClaim } from "../../contracts/dto";
 import { customerBootstrapClaims } from "./schema";
+import type { CustomerBootstrapClaim } from "../../contracts/dto";
 
-type ClaimKey = {
+interface ClaimKey {
   normalizedInn: string;
   normalizedKpp: string;
   userId: string;
-};
+}
 
 export class DrizzleCustomerBootstrapClaimStore {
   constructor(private readonly db: Queryable) {}
@@ -42,7 +42,7 @@ export class DrizzleCustomerBootstrapClaimStore {
       FOR UPDATE
     `);
 
-    const [row] = (result.rows ?? []) as Array<{
+    const [row] = (result.rows ?? []) as {
       id: string;
       user_id: string;
       normalized_inn: string;
@@ -52,7 +52,7 @@ export class DrizzleCustomerBootstrapClaimStore {
       status: string;
       created_at: Date;
       updated_at: Date;
-    }>;
+    }[];
 
     if (!row) {
       throw new Error("Failed to lock customer bootstrap claim");

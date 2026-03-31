@@ -1,11 +1,8 @@
 import { incline } from "lvovich";
-// @ts-ignore -- CJS module, no named ESM exports
 import numberToWordsRu from "number-to-words-ru";
-
-const convertNumberToWordsRu = numberToWordsRu.convert;
-// @ts-ignore -- russian-nouns-js is a CJS/UMD package with no named ESM exports
 import RussianNouns from "russian-nouns-js";
 
+const convertNumberToWordsRu = numberToWordsRu.convert;
 const { Case, Engine, Gender, createLemma } = RussianNouns;
 
 export type SupportedLang = "ru" | "en";
@@ -163,10 +160,17 @@ export function formatCurrencyAmount(
 
   const roundedValue = Math.round(numericValue * 100) / 100;
   const [integerPart = "0", decimalPart = "00"] = roundedValue.toFixed(2).split(".");
-  const formattedInteger = integerPart.replace(
-    /\B(?=(\d{3})+(?!\d))/g,
-    divider,
-  );
+  const reversedDigits = [...integerPart].reverse();
+  const groupedDigits: string[] = [];
+
+  for (let index = 0; index < reversedDigits.length; index += 1) {
+    groupedDigits.push(reversedDigits[index]!);
+    if ((index + 1) % 3 === 0 && index !== reversedDigits.length - 1) {
+      groupedDigits.push(divider);
+    }
+  }
+
+  const formattedInteger = groupedDigits.reverse().join("");
 
   return `${formattedInteger}.${decimalPart}`;
 }

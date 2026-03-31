@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
+  type Column,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -45,7 +46,6 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { DataTableFacetedFilter } from "@/components/data-table/DataTableFacetedFilter";
-import { DataTablePagination } from "@/components/data-table/DataTablePagination";
 import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
@@ -285,7 +285,7 @@ export default function DealsReportsPage() {
   ]);
 
   // Используем переиспользуемые колонки
-  const columns = useMemo(() => createDealsColumns({ isAdmin }), [isAdmin]);
+  const columns = useMemo(() => createDealsColumns(), []);
 
   const table = useReactTable({
     data,
@@ -637,12 +637,12 @@ export default function DealsReportsPage() {
                 />
               )}
               <DataTableFacetedFilter
-                column={table.getColumn("currency") as any}
+                column={table.getColumn("currency") as Column<unknown, string> | undefined}
                 title="Валюта"
                 options={CURRENCY_OPTIONS}
               />
               <DataTableFacetedFilter
-                column={table.getColumn("status") as any}
+                column={table.getColumn("status") as Column<unknown, string> | undefined}
                 title="Статус"
                 options={STATUS_OPTIONS}
               />

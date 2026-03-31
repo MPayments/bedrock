@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import {
   UserEmailConflictError,
   UserNotFoundError,
@@ -12,6 +11,7 @@ import {
   ListUsersQuerySchema,
   UpdateUserInputSchema,
 } from "@bedrock/iam/contracts";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

@@ -22,7 +22,7 @@ import { user } from "./schema/auth-schema";
 import { agentProfiles } from "./schema/business-schema";
 import { AGENT_PROFILE_ROLE_VALUES } from "../../domain/user-role";
 
-type IamAgentProfileRecord = {
+interface IamAgentProfileRecord {
   id: string;
   tgId: number | null;
   userName: string | null;
@@ -35,9 +35,9 @@ type IamAgentProfileRecord = {
   email: string;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
-type IamListAgentsInput = {
+interface IamListAgentsInput {
   limit: number;
   offset: number;
   sortBy?: "name" | "createdAt";
@@ -47,7 +47,7 @@ type IamListAgentsInput = {
   isAdmin?: boolean;
   role?: string;
   name?: string;
-};
+}
 
 const AGENT_SORT_COLUMN_MAP = {
   name: user.name,

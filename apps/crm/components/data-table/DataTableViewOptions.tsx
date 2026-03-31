@@ -16,6 +16,10 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
 }
 
+interface DataTableColumnMeta {
+  label?: string;
+}
+
 export function DataTableViewOptions<TData>({
   table,
 }: DataTableViewOptionsProps<TData>) {
@@ -51,7 +55,10 @@ export function DataTableViewOptions<TData>({
                 checked={column.getIsVisible()}
                 onCheckedChange={(value) => column.toggleVisibility(!!value)}
               >
-                {String((column.columnDef as any)?.meta?.label ?? column.id)}
+                {String(
+                  (column.columnDef.meta as DataTableColumnMeta | undefined)?.label ??
+                    column.id,
+                )}
               </DropdownMenuCheckboxItem>
             );
           })}

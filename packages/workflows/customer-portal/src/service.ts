@@ -14,10 +14,10 @@ import {
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-type LocalizedText = {
+interface LocalizedText {
   en?: string | null;
   ru?: string | null;
-};
+}
 
 export interface CustomerPortalWorkflowDeps {
   calculations: Pick<CalculationsModule, "calculations">;
@@ -85,9 +85,6 @@ export interface CustomerPortalProfile {
   >;
 }
 
-type CanonicalCustomer = Awaited<
-  ReturnType<PartiesModule["customers"]["queries"]["findById"]>
->;
 type CanonicalCalculation = Awaited<
   ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
 >;
@@ -276,7 +273,7 @@ function mapPortalDealStatus(status: Deal["status"]): Deal["status"] {
   return status;
 }
 
-type CustomerPortalDealListItem = {
+interface CustomerPortalDealListItem {
   calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
   counterpartyId: string | null;
   createdAt: string;
@@ -285,20 +282,20 @@ type CustomerPortalDealListItem = {
   requestedAmount: string | null;
   requestedCurrencyCode: string | null;
   status: Deal["status"];
-};
+}
 
-type CustomerPortalDealListResponse = {
+interface CustomerPortalDealListResponse {
   data: CustomerPortalDealListItem[];
   limit: number;
   offset: number;
   total: number;
-};
+}
 
-type CustomerPortalDealDetailResponse = {
+interface CustomerPortalDealDetailResponse {
   calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
   deal: DealDetails;
   organizationName: string | null;
-};
+}
 
 function mapLegalEntity(
   counterparty: CanonicalCounterpartyListItem,

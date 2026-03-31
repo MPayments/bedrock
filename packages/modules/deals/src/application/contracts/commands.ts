@@ -24,7 +24,18 @@ const nullableShortText = z
 const nullableDecimalText = z
   .string()
   .trim()
-  .regex(/^\d+(\.\d+)?$/, "Must be a positive decimal string")
+  .refine((value) => {
+    if (value.length === 0) {
+      return false;
+    }
+
+    const parts = value.split(".");
+    if (parts.length > 2) {
+      return false;
+    }
+
+    return parts.every((part) => part.length > 0 && /^[0-9]+$/.test(part));
+  }, "Must be a positive decimal string")
   .nullish()
   .transform((value) => trimToNull(value) ?? null);
 

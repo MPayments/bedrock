@@ -83,6 +83,7 @@ describe("options routes", () => {
 
     expect(response.status).toBe(200);
     expect(organizationsQueries.list).toHaveBeenCalledWith({
+      isActive: true,
       limit: 200,
       offset: 0,
       sortBy: "shortName",

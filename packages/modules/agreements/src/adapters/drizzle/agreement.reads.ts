@@ -54,7 +54,7 @@ const agreementSummarySelect = {
   currentVersionUpdatedAt: agreementVersions.updatedAt,
 };
 
-type AgreementSummaryRow = {
+interface AgreementSummaryRow {
   id: string;
   customerId: string;
   organizationId: string;
@@ -68,7 +68,7 @@ type AgreementSummaryRow = {
   currentVersionContractDate: Date | null;
   currentVersionCreatedAt: Date;
   currentVersionUpdatedAt: Date;
-};
+}
 
 function mapAgreementVersionSummary(
   row: AgreementSummaryRow,

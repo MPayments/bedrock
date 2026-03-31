@@ -3,12 +3,11 @@ import { eq } from "drizzle-orm";
 import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
-import type { DealsModule } from "@bedrock/deals";
 import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
-import type { FilesModule } from "@bedrock/files";
+import type { DealsModule } from "@bedrock/deals";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -21,6 +20,7 @@ import {
   documentBusinessLinks,
   documents,
 } from "@bedrock/documents/schema";
+import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
@@ -30,10 +30,10 @@ import {
   createPersistenceContext,
   type Transaction,
 } from "@bedrock/platform/persistence";
-import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
   createCustomerPortalWorkflow,
@@ -65,13 +65,13 @@ import {
 import { createApiAccountingModule } from "./accounting-module";
 import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
-import { createApiDealsModule } from "./deals-module";
-import { createApiFilesModule } from "./files-module";
 import type { ApiCoreServices } from "./core";
+import { createApiDealsModule } from "./deals-module";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import { createApiFilesModule } from "./files-module";
 import { createApiLedgerModule } from "./ledger-module";
 import { createApiPartiesModule } from "./parties-module";
 import { createApiTreasuryModule } from "./treasury-module";

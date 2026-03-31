@@ -1,5 +1,5 @@
-import { and, eq, ilike, isNotNull, or } from "drizzle-orm";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { and, eq, ilike, isNotNull, or } from "drizzle-orm";
 
 import { counterparties } from "@bedrock/parties/schema";
 
@@ -33,9 +33,9 @@ const LegalEntitySearchResultSchema = z.object({
 
 const DADATA_INN_PATTERN = /^\d{10}$|^\d{12}$/;
 
-type DadataResponse = {
+interface DadataResponse {
   payload?: {
-    suggestions?: Array<{
+    suggestions?: {
       data?: {
         address?: {
           data?: { oktmo?: string | null };
@@ -52,10 +52,10 @@ type DadataResponse = {
         opf?: { short?: string | null } | null;
       };
       value?: string;
-    }>;
+    }[];
   };
   resultCode?: string;
-};
+}
 
 async function lookupCompanyByInn(apiUrl: string, inn: string) {
   if (!DADATA_INN_PATTERN.test(inn)) {

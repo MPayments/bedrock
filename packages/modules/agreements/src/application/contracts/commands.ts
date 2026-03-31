@@ -10,7 +10,20 @@ import {
 const DecimalStringSchema = z
   .string()
   .trim()
-  .regex(/^\d+(\.\d+)?$/, "Must be a positive decimal string");
+  .refine((value) => {
+    if (value.length === 0) {
+      return false;
+    }
+
+    const parts = value.split(".");
+    if (parts.length > 2) {
+      return false;
+    }
+
+    return parts.every(
+      (part, index) => part.length > 0 && /^[0-9]+$/.test(part) && !(index === 0 && part.startsWith("+")),
+    );
+  }, "Must be a positive decimal string");
 
 const nullableText = z
   .string()

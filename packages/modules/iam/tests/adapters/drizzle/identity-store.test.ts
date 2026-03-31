@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  account,
-  agentProfiles,
-  session,
-  user,
-  userAccessStates,
-} from "../../../src/schema";
-import {
   DrizzleAgentProfileStore,
   DrizzleCredentialAccountStore,
   DrizzleIamUsersReads,
@@ -15,6 +8,13 @@ import {
   DrizzleUserSessionsStore,
 } from "../../../src/adapters/drizzle";
 import { UserAccount } from "../../../src/domain/user-account";
+import {
+  account,
+  agentProfiles,
+  session,
+  user,
+  userAccessStates,
+} from "../../../src/schema";
 
 function createUserRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {

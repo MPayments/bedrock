@@ -4,6 +4,10 @@ import {
   invariant,
 } from "@bedrock/shared/core/domain";
 
+import {
+  COUNTERPARTY_RELATIONSHIP_KIND_VALUES,
+  type CounterpartyRelationshipKind,
+} from "./relationship-kind";
 import type { GroupHierarchy } from "../../shared/domain/group-hierarchy";
 import {
   PARTY_KIND_VALUES,
@@ -11,15 +15,11 @@ import {
   type CountryCode,
   type PartyKind,
 } from "../../shared/domain/party-kind";
-import {
-  COUNTERPARTY_RELATIONSHIP_KIND_VALUES,
-  type CounterpartyRelationshipKind,
-} from "./relationship-kind";
 
-export type LocalizedText = {
+export interface LocalizedText {
   en?: string | null;
   ru?: string | null;
-};
+}
 
 function normalizeOptionalText(
   value: string | null | undefined,

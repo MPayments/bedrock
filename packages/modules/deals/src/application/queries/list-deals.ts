@@ -1,10 +1,10 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
+import type { Deal } from "../contracts/dto";
 import {
   ListDealsQuerySchema,
   type ListDealsQuery as ListDealsQueryInput,
 } from "../contracts/queries";
-import type { Deal } from "../contracts/dto";
 import type { DealReads } from "../ports/deal.reads";
 
 export class ListDealsQuery {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Column } from "@tanstack/react-table";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Search, X } from "lucide-react";

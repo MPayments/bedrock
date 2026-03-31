@@ -1,7 +1,7 @@
 "use client";
 
 import { Briefcase, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { NewDealDialog } from "@/components/portal/new-application-dialog";
@@ -119,7 +119,7 @@ export default function PortalDealsPage() {
 
   const limit = 10;
 
-  async function fetchDeals(currentPage = page) {
+  const fetchDeals = useCallback(async (currentPage: number) => {
       try {
         setLoading(true);
         setError(null);
@@ -152,11 +152,11 @@ export default function PortalDealsPage() {
       } finally {
         setLoading(false);
       }
-    }
+    }, [limit]);
 
   useEffect(() => {
     void fetchDeals(page);
-  }, [page]);
+  }, [fetchDeals, page]);
 
   function renderDealAmount(deal: DealItem) {
     if (deal.calculation) {

@@ -1,15 +1,15 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
+  SubAgentProfileNotFoundError,
+} from "@bedrock/parties";
+import {
   CreateSubAgentProfileInputSchema,
   ListSubAgentProfilesQuerySchema,
   PaginatedSubAgentProfilesSchema,
   SubAgentProfileSchema,
   UpdateSubAgentProfileInputSchema,
 } from "@bedrock/parties/contracts";
-import {
-  SubAgentProfileNotFoundError,
-} from "@bedrock/parties";
 
 import { DeletedSchema, ErrorSchema } from "../common";
 import type { AppContext } from "../context";

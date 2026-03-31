@@ -2,18 +2,14 @@ import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
 
-import { PartyKindSchema } from "../../domain/party-kind";
 import { OrganizationLocalizedTextSchema } from "./dto";
+import { CountryCodeSchema, PartyKindSchema } from "../../domain/party-kind";
 
 export const CreateOrganizationInputSchema = z.object({
   shortName: z.string().trim().min(1, "shortName is required"),
   fullName: z.string().trim().min(1, "fullName is required"),
   kind: PartyKindSchema.default("legal_entity"),
-  country: z
-    .string()
-    .trim()
-    .nullish()
-    .transform((value) => trimToNull(value) ?? null),
+  country: CountryCodeSchema.nullish().transform((value) => value ?? null),
   externalId: z
     .string()
     .trim()
@@ -113,12 +109,7 @@ export const UpdateOrganizationInputSchema = z.object({
   shortName: z.string().trim().min(1).exactOptional(),
   fullName: z.string().trim().min(1).exactOptional(),
   kind: PartyKindSchema.exactOptional(),
-  country: z
-    .string()
-    .trim()
-    .nullable()
-    .transform((value) => trimToNull(value))
-    .exactOptional(),
+  country: CountryCodeSchema.nullable().exactOptional(),
   externalId: z
     .string()
     .trim()

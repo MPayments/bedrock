@@ -50,6 +50,7 @@ vi.mock("@bedrock/parties/adapters/drizzle", () => ({
   DrizzleRequisiteBindingReads: vi.fn(),
   DrizzleRequisiteProviderReads: vi.fn(),
   DrizzleRequisiteReads: vi.fn(),
+  DrizzleSubAgentProfileReads: vi.fn(),
 }));
 
 vi.mock("@bedrock/platform/persistence", async () => {

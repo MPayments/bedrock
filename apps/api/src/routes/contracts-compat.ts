@@ -1,10 +1,10 @@
 import { z } from "@hono/zod-openapi";
 
-import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import {
   AgreementActiveCustomerInvariantError,
   AgreementRootLinksImmutableError,
 } from "@bedrock/agreements";
+import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { Counterparty } from "@bedrock/parties/contracts";
 import {
   InvalidStateError,
@@ -15,10 +15,24 @@ import {
 import type { AppContext } from "../context";
 import { getOrganizationBankRequisiteOrThrow } from "./organization-requisites";
 
+function isPositiveDecimalString(value: string): boolean {
+  const [whole, fraction, ...rest] = value.split(".");
+
+  if (rest.length > 0 || !whole || !/^[0-9]+$/u.test(whole)) {
+    return false;
+  }
+
+  if (fraction === undefined) {
+    return true;
+  }
+
+  return fraction.length > 0 && /^[0-9]+$/u.test(fraction);
+}
+
 const CompatibilityDecimalStringSchema = z
   .string()
   .trim()
-  .regex(/^\d+(\.\d+)?$/, "Must be a positive decimal string");
+  .refine(isPositiveDecimalString, "Must be a positive decimal string");
 
 function trimToNull(value: string | null | undefined): string | null {
   if (value == null) {
@@ -126,12 +140,12 @@ async function buildCompatibilityFeeRules(input: {
   ctx: AppContext;
   fixedFee?: string | null;
 }) {
-  const feeRules: Array<{
+  const feeRules: {
     currencyId?: string;
     kind: "agent_fee" | "fixed_fee";
     unit: "bps" | "money";
     value: string;
-  }> = [];
+  }[] = [];
 
   const agentFee = trimToNull(input.agentFee);
   if (agentFee) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { type HTMLAttributes, useEffect, useMemo, useState } from "react";
+import { type HTMLAttributes, useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -198,13 +198,7 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
   const [newTaskAssignee, setNewTaskAssignee] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (capabilities?.currentUserId) {
-      void loadTasks();
-    }
-  }, [capabilities?.currentUserId]);
-
-  async function loadTasks() {
+  const loadTasks = useCallback(async () => {
     if (!capabilities?.currentUserId) {
       return;
     }
@@ -223,7 +217,13 @@ export function DashboardTodo({ className }: HTMLAttributes<HTMLDivElement>) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [capabilities?.currentUserId]);
+
+  useEffect(() => {
+    if (capabilities?.currentUserId) {
+      void loadTasks();
+    }
+  }, [capabilities?.currentUserId, loadTasks]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {}),

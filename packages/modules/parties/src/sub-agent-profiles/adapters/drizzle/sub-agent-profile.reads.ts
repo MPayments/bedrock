@@ -7,12 +7,12 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
+import { subAgentProfiles } from "./schema";
 import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
 import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
-import { subAgentProfiles } from "./schema";
 import type { SubAgentProfile } from "../../application/contracts/dto";
 import type { ListSubAgentProfilesQuery } from "../../application/contracts/queries";
 import type { SubAgentProfileReads } from "../../application/ports/sub-agent-profile.reads";

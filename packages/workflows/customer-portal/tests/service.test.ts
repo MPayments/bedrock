@@ -5,7 +5,7 @@ import { createCustomerPortalWorkflow } from "../src";
 function createWorkflow(overrides?: {
   counterpartiesByCustomerId?: Record<
     string,
-    Array<{
+    {
       address?: string | null;
       country?: string | null;
       createdAt?: Date;
@@ -20,15 +20,15 @@ function createWorkflow(overrides?: {
       relationshipKind?: "customer_owned" | "external";
       shortName?: string;
       updatedAt?: Date;
-    }>
+    }[]
   >;
-  memberships?: Array<{
+  memberships?: {
     customerId: string;
     id?: string;
     role?: string;
     status?: string;
     userId: string;
-  }>;
+  }[];
   user?: {
     banned?: boolean | null;
     role?: string | null;

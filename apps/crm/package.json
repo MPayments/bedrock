@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "exports": {
+    "./schema": "./lib/server/tasks/schema.ts"
+  },
   "scripts": {
     "dev": "next dev --turbopack --port 3002",
     "build": "next build",

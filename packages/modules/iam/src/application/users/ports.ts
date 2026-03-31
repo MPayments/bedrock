@@ -1,4 +1,5 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
+
 import type { UserAccount } from "../../domain/user-account";
 
 export interface IamUserRecord {
@@ -29,7 +30,7 @@ export interface IamUserWithLastSessionRecord {
   lastSessionIp: string | null;
 }
 
-export type ListIamUsersInput = {
+export interface ListIamUsersInput {
   limit: number;
   offset: number;
   sortBy?: "name" | "email" | "role" | "createdAt";
@@ -38,9 +39,9 @@ export type ListIamUsersInput = {
   email?: string;
   roles?: string[];
   banned?: boolean;
-};
+}
 
-export type CreateIamUserWithCredentialInput = {
+export interface CreateIamUserWithCredentialInput {
   name: string;
   email: string;
   passwordHash: string;
@@ -48,26 +49,26 @@ export type CreateIamUserWithCredentialInput = {
   emailVerified?: boolean;
   now?: Date;
   provisionAgentProfile?: boolean;
-};
+}
 
-export type UpdateIamUserInput = {
+export interface UpdateIamUserInput {
   id: string;
   name?: string;
   email?: string;
   role?: string | null;
   provisionAgentProfile?: boolean;
-};
+}
 
-export type UpdateIamCredentialPasswordInput = {
+export interface UpdateIamCredentialPasswordInput {
   userId: string;
   passwordHash: string;
-};
+}
 
-export type BanIamUserInput = {
+export interface BanIamUserInput {
   id: string;
   banReason?: string | null;
   banExpires?: Date | null;
-};
+}
 
 export interface IamUsersReads {
   listUsers(input: ListIamUsersInput): Promise<PaginatedList<IamUserRecord>>;

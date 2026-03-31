@@ -1,12 +1,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { serializeCompatibilityCalculation } from "@bedrock/calculations";
 import {
   CalculationDetailsSchema,
   CreateCalculationInputSchema,
   ListCalculationsQuerySchema,
   PaginatedCalculationsSchema,
 } from "@bedrock/calculations/contracts";
-import { serializeCompatibilityCalculation } from "@bedrock/calculations";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
