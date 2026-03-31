@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Save, X } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -14,15 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@bedrock/sdk-ui/components/command";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Field,
   FieldDescription,
@@ -33,11 +25,6 @@ import {
   FieldSet,
 } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@bedrock/sdk-ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -50,10 +37,7 @@ import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
-import {
-  COUNTERPARTY_COUNTRY_OPTIONS,
-  getCountryPresentation,
-} from "@/features/entities/counterparties/lib/countries";
+import { COUNTERPARTY_COUNTRY_OPTIONS } from "@/features/entities/counterparties/lib/countries";
 import { formatDate } from "@/lib/format";
 
 const ORGANIZATION_COUNTRY_CODE_SET = new Set(
@@ -184,15 +168,6 @@ function OrganizationGeneralFormBase({
     control,
     name: "shortName",
   });
-  const selectedCountryCode = useWatch({
-    control,
-    name: "country",
-  });
-  const selectedCountry = useMemo(
-    () => getCountryPresentation(selectedCountryCode),
-    [selectedCountryCode],
-  );
-  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -386,73 +361,18 @@ function OrganizationGeneralFormBase({
                         <FieldLabel htmlFor="organization-country">
                           Страна
                         </FieldLabel>
-                        <Popover
-                          open={countryPickerOpen}
-                          onOpenChange={setCountryPickerOpen}
-                        >
-                          <PopoverTrigger
-                            render={
-                              <Button
-                                id="organization-country"
-                                type="button"
-                                variant="outline"
-                                className="w-full justify-between font-normal"
-                                aria-invalid={fieldState.invalid}
-                              />
-                            }
-                          >
-                            <span className="truncate">
-                              {selectedCountry?.label ??
-                                (field.value
-                                  ? field.value.trim().toUpperCase()
-                                  : "Выберите страну")}
-                            </span>
-                            <ChevronDown className="text-muted-foreground size-4" />
-                          </PopoverTrigger>
-                          <PopoverContent
-                            align="start"
-                            className="w-(--anchor-width) p-0"
-                          >
-                            <Command>
-                              <CommandInput placeholder="Поиск страны..." />
-                              <CommandList className="max-h-64">
-                                <CommandEmpty>Страна не найдена</CommandEmpty>
-                                <CommandGroup>
-                                  {COUNTERPARTY_COUNTRY_OPTIONS.map((option) => (
-                                    <CommandItem
-                                      key={option.value}
-                                      value={option.search}
-                                      data-checked={
-                                        field.value?.toUpperCase() === option.value
-                                      }
-                                      onSelect={() => {
-                                        field.onChange(option.value);
-                                        setCountryPickerOpen(false);
-                                      }}
-                                    >
-                                      {option.label}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                                {field.value ? (
-                                  <>
-                                    <CommandSeparator />
-                                    <CommandGroup>
-                                      <CommandItem
-                                        onSelect={() => {
-                                          field.onChange("");
-                                          setCountryPickerOpen(false);
-                                        }}
-                                      >
-                                        Очистить
-                                      </CommandItem>
-                                    </CommandGroup>
-                                  </>
-                                ) : null}
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <CountrySelect
+                          id="organization-country"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={submitting}
+                          invalid={fieldState.invalid}
+                          placeholder="Выберите страну"
+                          searchPlaceholder="Поиск страны..."
+                          emptyLabel="Страна не найдена"
+                          clearable
+                          clearLabel="Очистить"
+                        />
                         {fieldState.invalid ? (
                           <FieldError errors={[fieldState.error]} />
                         ) : null}

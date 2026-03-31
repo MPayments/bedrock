@@ -65,3 +65,5 @@ export function createApiPartiesReadRuntime(database: Database | Transaction) {
     requisitesQueries: new DrizzleRequisitesQueries(database),
   };
 }
+
+export type ApiPartiesReadRuntime = ReturnType<typeof createApiPartiesReadRuntime>;

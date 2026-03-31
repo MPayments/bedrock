@@ -2,14 +2,14 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence";
 
 import {
-  createCreateCurrencyHandler,
-  createRemoveCurrencyHandler,
-  createUpdateCurrencyHandler,
+  CreateCurrencyCommand,
+  RemoveCurrencyCommand,
+  UpdateCurrencyCommand,
 } from "./application/commands";
 import {
-  createFindCurrencyByCodeHandler,
-  createFindCurrencyByIdHandler,
-  createListCurrenciesHandler,
+  FindCurrencyByCodeQuery,
+  FindCurrencyByIdQuery,
+  ListCurrenciesQuery,
 } from "./application/queries";
 import { createCurrenciesCache } from "./application/shared/cache";
 import {
@@ -36,15 +36,15 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
     logger: deps.logger,
   });
 
-  const list = createListCurrenciesHandler(context);
-  const findByIdRecord = createFindCurrencyByIdHandler(context);
-  const findByCodeRecord = createFindCurrencyByCodeHandler(context);
-  const create = createCreateCurrencyHandler(context);
-  const update = createUpdateCurrencyHandler(context);
-  const remove = createRemoveCurrencyHandler(context);
+  const listCurrencies = new ListCurrenciesQuery(context);
+  const findCurrencyById = new FindCurrencyByIdQuery(context);
+  const findCurrencyByCode = new FindCurrencyByCodeQuery(context);
+  const createCurrency = new CreateCurrencyCommand(context);
+  const updateCurrency = new UpdateCurrencyCommand(context);
+  const removeCurrency = new RemoveCurrencyCommand(context);
 
   async function findById(id: string) {
-    const currency = await findByIdRecord(id);
+    const currency = await findCurrencyById.execute(id);
     if (!currency) {
       throw new CurrencyNotFoundError(id);
     }
@@ -52,7 +52,7 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
   }
 
   async function findByCode(code: string) {
-    const currency = await findByCodeRecord(code);
+    const currency = await findCurrencyByCode.execute(code);
     if (!currency) {
       throw new CurrencyNotFoundError(code);
     }
@@ -60,11 +60,11 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
   }
 
   return {
-    list,
+    list: listCurrencies.execute.bind(listCurrencies),
     findById,
     findByCode,
-    create,
-    update,
-    remove,
+    create: createCurrency.execute.bind(createCurrency),
+    update: updateCurrency.execute.bind(updateCurrency),
+    remove: removeCurrency.execute.bind(removeCurrency),
   };
 }

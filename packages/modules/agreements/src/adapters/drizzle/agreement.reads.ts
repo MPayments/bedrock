@@ -7,7 +7,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import { currencies } from "@bedrock/currencies/schema";
+import type { CurrenciesQueries } from "@bedrock/currencies/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
@@ -138,7 +138,10 @@ function mapPartyRow(row: {
 }
 
 export class DrizzleAgreementReads implements AgreementReads {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly currenciesQueries: Pick<CurrenciesQueries, "listByIds">,
+  ) {}
 
   async findById(id: string): Promise<AgreementDetails | null> {
     const [summary] = (await this.db
@@ -160,12 +163,10 @@ export class DrizzleAgreementReads implements AgreementReads {
           unit: agreementFeeRules.unit,
           valueNumeric: agreementFeeRules.valueNumeric,
           currencyId: agreementFeeRules.currencyId,
-          currencyCode: currencies.code,
           createdAt: agreementFeeRules.createdAt,
           updatedAt: agreementFeeRules.updatedAt,
         })
         .from(agreementFeeRules)
-        .leftJoin(currencies, eq(agreementFeeRules.currencyId, currencies.id))
         .where(eq(agreementFeeRules.agreementVersionId, summary.currentVersionId))
         .orderBy(asc(agreementFeeRules.createdAt)),
       this.db
@@ -181,10 +182,22 @@ export class DrizzleAgreementReads implements AgreementReads {
         .where(eq(agreementParties.agreementVersionId, summary.currentVersionId))
         .orderBy(asc(agreementParties.createdAt)),
     ]);
+    const currenciesById = await this.currenciesQueries.listByIds(
+      feeRuleRows
+        .map((row) => row.currencyId)
+        .filter((currencyId): currencyId is string => Boolean(currencyId)),
+    );
 
     const currentVersion: AgreementVersion = {
       ...mapAgreementVersionSummary(summary),
-      feeRules: feeRuleRows.map(mapFeeRuleRow),
+      feeRules: feeRuleRows.map((row) =>
+        mapFeeRuleRow({
+          ...row,
+          currencyCode: row.currencyId
+            ? currenciesById.get(row.currencyId)?.code ?? null
+            : null,
+        }),
+      ),
       parties: partyRows.map(mapPartyRow),
     };
 

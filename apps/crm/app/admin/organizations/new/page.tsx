@@ -18,6 +18,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 import {
@@ -414,13 +415,20 @@ export default function NewOrganizationPage() {
                   <FormField
                     control={form.control}
                     name="country"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
                         <FormLabel>
                           Страна <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="Турецкая Республика" {...field} />
+                          <CountrySelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            invalid={fieldState.invalid}
+                            placeholder="Выберите страну"
+                            searchPlaceholder="Поиск страны..."
+                            emptyLabel="Страна не найдена"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

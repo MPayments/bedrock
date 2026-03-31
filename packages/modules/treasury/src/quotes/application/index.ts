@@ -7,10 +7,12 @@ import type {
   QuoteFeeComponentsRepository,
   QuoteFinancialLinesRepository,
   QuotesCommandUnitOfWork,
+  QuoteRecord,
   QuoteRatesPort,
   QuotesRepository,
 } from "./ports";
 import { GetQuoteDetailsQuery } from "./queries/get-quote-details";
+import { GetQuoteByIdQuery } from "./queries/get-quote-by-id";
 import { ListQuotesQuery } from "./queries/list-quotes";
 import { PreviewQuoteQuery } from "./queries/preview-quote";
 import type {
@@ -56,6 +58,7 @@ export function createQuotesService(deps: QuotesServiceDeps) {
     deps.quoteFinancialLinesRepository,
     deps.quotesRepository,
   );
+  const getQuoteById = new GetQuoteByIdQuery(deps.quotesRepository);
 
   return {
     commands: {
@@ -64,6 +67,9 @@ export function createQuotesService(deps: QuotesServiceDeps) {
       expireQuotes: expireQuotes.execute.bind(expireQuotes),
     },
     queries: {
+      findById: getQuoteById.execute.bind(getQuoteById) as (
+        id: string,
+      ) => Promise<QuoteRecord | null>,
       previewQuote: previewQuote.execute.bind(previewQuote),
       listQuotes: listQuotes.execute.bind(listQuotes),
       getQuoteDetails: getQuoteDetails.execute.bind(getQuoteDetails),

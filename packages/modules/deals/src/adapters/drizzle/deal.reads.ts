@@ -6,10 +6,9 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 
 import { minorToDecimalString } from "@bedrock/calculations";
-import { currencies } from "@bedrock/currencies/schema";
+import type { CurrenciesQueries } from "@bedrock/currencies/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
@@ -190,10 +189,12 @@ function mapApproval(row: {
 }
 
 export class DrizzleDealReads implements DealReads {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly currenciesQueries: Pick<CurrenciesQueries, "listByIds">,
+  ) {}
 
   async findById(id: string): Promise<DealDetails | null> {
-    const requestedCurrency = alias(currencies, "deal_requested_currency");
     const [dealRow] = await this.db
       .select({
         id: deals.id,
@@ -208,21 +209,22 @@ export class DrizzleDealReads implements DealReads {
         comment: deals.comment,
         requestedAmountMinor: deals.requestedAmountMinor,
         requestedCurrencyId: deals.requestedCurrencyId,
-        requestedCurrencyPrecision: requestedCurrency.precision,
         createdAt: deals.createdAt,
         updatedAt: deals.updatedAt,
       })
       .from(deals)
-      .leftJoin(
-        requestedCurrency,
-        eq(deals.requestedCurrencyId, requestedCurrency.id),
-      )
       .where(eq(deals.id, id))
       .limit(1);
 
     if (!dealRow) {
       return null;
     }
+    const requestedCurrencies = await this.currenciesQueries.listByIds(
+      dealRow.requestedCurrencyId ? [dealRow.requestedCurrencyId] : [],
+    );
+    const requestedCurrencyPrecision = dealRow.requestedCurrencyId
+      ? requestedCurrencies.get(dealRow.requestedCurrencyId)?.precision ?? null
+      : null;
 
     const [legRows, participantRows, historyRows, approvalRows] =
       await Promise.all([
@@ -279,7 +281,10 @@ export class DrizzleDealReads implements DealReads {
       ]);
 
     return {
-      ...mapDeal(dealRow),
+      ...mapDeal({
+        ...dealRow,
+        requestedCurrencyPrecision,
+      }),
       legs: legRows.map(mapLeg),
       participants: participantRows.map(mapParticipant),
       statusHistory: historyRows.map(mapStatusHistory),
@@ -288,7 +293,6 @@ export class DrizzleDealReads implements DealReads {
   }
 
   async list(input: ListDealsQuery): Promise<PaginatedList<Deal>> {
-    const requestedCurrency = alias(currencies, "deal_requested_currency");
     const conditions: SQL[] = [];
 
     if (input.customerId) {
@@ -334,15 +338,10 @@ export class DrizzleDealReads implements DealReads {
           comment: deals.comment,
           requestedAmountMinor: deals.requestedAmountMinor,
           requestedCurrencyId: deals.requestedCurrencyId,
-          requestedCurrencyPrecision: requestedCurrency.precision,
           createdAt: deals.createdAt,
           updatedAt: deals.updatedAt,
         })
         .from(deals)
-        .leftJoin(
-          requestedCurrency,
-          eq(deals.requestedCurrencyId, requestedCurrency.id),
-        )
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
@@ -352,9 +351,21 @@ export class DrizzleDealReads implements DealReads {
         .from(deals)
         .where(where),
     ]);
+    const requestedCurrencies = await this.currenciesQueries.listByIds(
+      rows
+        .map((row) => row.requestedCurrencyId)
+        .filter((currencyId): currencyId is string => Boolean(currencyId)),
+    );
 
     return {
-      data: rows.map(mapDeal),
+      data: rows.map((row) =>
+        mapDeal({
+          ...row,
+          requestedCurrencyPrecision: row.requestedCurrencyId
+            ? requestedCurrencies.get(row.requestedCurrencyId)?.precision ?? null
+            : null,
+        }),
+      ),
       total: countRows[0]?.total ?? 0,
       limit: input.limit,
       offset: input.offset,

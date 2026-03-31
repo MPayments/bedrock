@@ -23,6 +23,23 @@ export interface DocumentAuditEventRow {
   createdAt: Date;
 }
 
+export interface DocumentBusinessLinkRow {
+  documentId: string;
+  dealId: string | null;
+}
+
+export interface DealTraceDocumentRow {
+  documentId: string;
+  dealId: string | null;
+  docType: string;
+  occurredAt: Date;
+  lifecycleStatus: string;
+  submissionStatus: string;
+  approvalStatus: string;
+  postingStatus: string;
+  ledgerOperationIds: string[];
+}
+
 export interface DocumentsReadModel {
   getDocumentByType: (input: {
     documentId: string;
@@ -58,6 +75,12 @@ export interface DocumentsReadModel {
   listAuditEventsByDocumentId: (
     documentIds: string[],
   ) => Promise<DocumentAuditEventRow[]>;
+  findBusinessLinkByDocumentId: (
+    documentId: string,
+  ) => Promise<DocumentBusinessLinkRow | null>;
+  listDealTraceRowsByDealId: (
+    dealId: string,
+  ) => Promise<DealTraceDocumentRow[]>;
 }
 
 export { createDrizzleDocumentsReadModel };

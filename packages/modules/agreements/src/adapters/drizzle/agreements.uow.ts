@@ -1,3 +1,4 @@
+import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createTransactionalPort,
   type PersistenceContext,
@@ -15,7 +16,10 @@ import type {
 function bindAgreementTx(transaction: Transaction): AgreementsCommandTx {
   return {
     transaction,
-    agreementReads: new DrizzleAgreementReads(transaction),
+    agreementReads: new DrizzleAgreementReads(
+      transaction,
+      createCurrenciesQueries({ db: transaction }),
+    ),
     agreementStore: new DrizzleAgreementStore(transaction),
   };
 }

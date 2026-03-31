@@ -30,30 +30,14 @@ import {
   SelectGroup,
   SelectItem,
 } from "@bedrock/sdk-ui/components/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@bedrock/sdk-ui/components/command";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import { Input } from "@bedrock/sdk-ui/components/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@bedrock/sdk-ui/components/popover";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
-import {
-  COUNTERPARTY_COUNTRY_OPTIONS,
-  getCountryPresentation,
-} from "../lib/countries";
+import { COUNTERPARTY_COUNTRY_OPTIONS } from "../lib/countries";
 import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import {
@@ -517,10 +501,6 @@ function CounterpartyGeneralFormBase({
     control,
     name: "shortName",
   });
-  const selectedCountryCode = useWatch({
-    control,
-    name: "country",
-  });
   const selectedGroupIdsRaw = useMemo(
     () => (Array.isArray(selectedGroupIdsValue) ? selectedGroupIdsValue : []),
     [selectedGroupIdsValue],
@@ -528,10 +508,6 @@ function CounterpartyGeneralFormBase({
   const selectedGroupIds = useMemo(
     () => normalizeSelectedGroupIds(selectedGroupIdsRaw),
     [normalizeSelectedGroupIds, selectedGroupIdsRaw],
-  );
-  const selectedCountry = useMemo(
-    () => getCountryPresentation(selectedCountryCode),
-    [selectedCountryCode],
   );
   const selectedCustomerScopeIds = useMemo(
     () =>
@@ -573,7 +549,6 @@ function CounterpartyGeneralFormBase({
     () => new Set(initialExpandedIds),
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
 
   const nowFormatted = formatDate(new Date());
 
@@ -925,76 +900,18 @@ function CounterpartyGeneralFormBase({
                         <FieldLabel htmlFor="counterparty-country">
                           Страна
                         </FieldLabel>
-                        <Popover
-                          open={countryPickerOpen}
-                          onOpenChange={setCountryPickerOpen}
-                        >
-                          <PopoverTrigger
-                            render={
-                              <Button
-                                id="counterparty-country"
-                                type="button"
-                                variant="outline"
-                                className="w-full justify-between font-normal"
-                                aria-invalid={fieldState.invalid}
-                              />
-                            }
-                          >
-                            <span className="truncate">
-                              {selectedCountry?.label ??
-                                (field.value
-                                  ? field.value.trim().toUpperCase()
-                                  : "Выберите страну")}
-                            </span>
-                            <ChevronDown className="text-muted-foreground size-4" />
-                          </PopoverTrigger>
-                          <PopoverContent
-                            align="start"
-                            className="w-(--anchor-width) p-0"
-                          >
-                            <Command>
-                              <CommandInput placeholder="Поиск страны..." />
-                              <CommandList className="max-h-64">
-                                <CommandEmpty>Страна не найдена</CommandEmpty>
-                                <CommandGroup>
-                                  {COUNTERPARTY_COUNTRY_OPTIONS.map(
-                                    (option) => (
-                                      <CommandItem
-                                        key={option.value}
-                                        value={option.search}
-                                        data-checked={
-                                          field.value?.toUpperCase() ===
-                                          option.value
-                                        }
-                                        onSelect={() => {
-                                          field.onChange(option.value);
-                                          setCountryPickerOpen(false);
-                                        }}
-                                      >
-                                        {option.label}
-                                      </CommandItem>
-                                    ),
-                                  )}
-                                </CommandGroup>
-                                {field.value ? (
-                                  <>
-                                    <CommandSeparator />
-                                    <CommandGroup>
-                                      <CommandItem
-                                        onSelect={() => {
-                                          field.onChange("");
-                                          setCountryPickerOpen(false);
-                                        }}
-                                      >
-                                        Очистить
-                                      </CommandItem>
-                                    </CommandGroup>
-                                  </>
-                                ) : null}
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <CountrySelect
+                          id="counterparty-country"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={submitting}
+                          invalid={fieldState.invalid}
+                          placeholder="Выберите страну"
+                          searchPlaceholder="Поиск страны..."
+                          emptyLabel="Страна не найдена"
+                          clearable
+                          clearLabel="Очистить"
+                        />
                         {fieldState.invalid && (
                           <FieldError errors={[fieldState.error]} />
                         )}

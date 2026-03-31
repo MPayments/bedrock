@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
@@ -457,13 +458,15 @@ export default function OrganizationRequisiteDetailPage() {
 
           <div className="space-y-2">
             <Label htmlFor="institutionCountry">Страна банка</Label>
-            <Input
+            <CountrySelect
               id="institutionCountry"
               value={form.institutionCountry}
-              onChange={(event) =>
-                updateField("institutionCountry", event.target.value)
-              }
-              placeholder="TR"
+              onValueChange={(value) => updateField("institutionCountry", value)}
+              placeholder="Выберите страну"
+              searchPlaceholder="Поиск страны..."
+              emptyLabel="Страна не найдена"
+              clearable
+              clearLabel="Очистить"
             />
           </div>
 

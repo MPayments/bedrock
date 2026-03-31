@@ -23,9 +23,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
-import { COUNTRIES } from "@bedrock/shared/reference-data/countries";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Dialog,
   DialogContent,
@@ -1042,15 +1042,11 @@ export default function CustomerDetailPage() {
                       label="Адрес банка"
                       name="bankAddress"
                     />
-                    <SelectField
+                    <CountryField
                       disabled={!isEditing}
                       form={legalEntityForm}
                       label="Страна банка"
                       name="bankCountry"
-                      options={COUNTRIES.map((country) => ({
-                        label: `${country.emoji} ${country.name}`,
-                        value: country.alpha2,
-                      }))}
                     />
                     <Field
                       disabled={!isEditing}
@@ -1387,15 +1383,11 @@ export default function CustomerDetailPage() {
                 label="Директор"
                 name="directorName"
               />
-              <SelectField
+              <CountryField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="Страна"
                 name="country"
-                options={COUNTRIES.map((country) => ({
-                  label: `${country.emoji} ${country.name}`,
-                  value: country.alpha2,
-                }))}
               />
             </div>
             <Field
@@ -1492,25 +1484,24 @@ function Field<TFieldValues extends FieldValues>({
   );
 }
 
-function SelectField<TFieldValues extends FieldValues>({
+function CountryField<TFieldValues extends FieldValues>({
   disabled,
   form,
   label,
   name,
-  options,
 }: {
   disabled: boolean;
   form: UseFormReturn<TFieldValues>;
   label: string;
   name: Path<TFieldValues>;
-  options: Array<{ label: string; value: string }>;
 }) {
   const value = (form.watch(name) as unknown as string | undefined) ?? "";
 
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <Select
+      <CountrySelect
+        id={name}
         value={value}
         onValueChange={(nextValue) =>
           form.setValue(name, nextValue as TFieldValues[typeof name], {
@@ -1518,18 +1509,13 @@ function SelectField<TFieldValues extends FieldValues>({
             shouldValidate: true,
           })
         }
-      >
-        <SelectTrigger disabled={disabled} id={name}>
-          <SelectValue placeholder="Не выбрано" />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        disabled={disabled}
+        placeholder="Не выбрано"
+        searchPlaceholder="Поиск страны..."
+        emptyLabel="Страна не найдена"
+        clearable
+        clearLabel="Очистить"
+      />
     </div>
   );
 }

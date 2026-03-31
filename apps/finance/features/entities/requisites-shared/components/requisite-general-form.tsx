@@ -24,6 +24,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@bedrock/sdk-ui/components/command";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Field,
   FieldDescription,
@@ -50,10 +51,6 @@ import {
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
-import {
-  COUNTERPARTY_COUNTRY_OPTIONS,
-  getCountryPresentation,
-} from "@/features/entities/counterparties/lib/countries";
 import { formatDate } from "@/lib/format";
 
 import {
@@ -128,13 +125,6 @@ type SearchablePickerOption = {
   label: string;
   search: string;
 };
-
-const COUNTRY_PICKER_OPTIONS: SearchablePickerOption[] =
-  COUNTERPARTY_COUNTRY_OPTIONS.map((option) => ({
-    value: option.value,
-    label: option.label,
-    search: option.search,
-  }));
 
 function createSchema() {
   return z
@@ -454,14 +444,6 @@ export function RequisiteGeneralForm({
 
   const label = useWatch({ control: form.control, name: "label" });
   const kind = useWatch({ control: form.control, name: "kind" });
-  const institutionCountryCode = useWatch({
-    control: form.control,
-    name: "institutionCountry",
-  });
-  const selectedInstitutionCountry = useMemo(
-    () => getCountryPresentation(institutionCountryCode),
-    [institutionCountryCode],
-  );
 
   useEffect(() => {
     onLabelChange?.(label ?? "");
@@ -765,10 +747,9 @@ export function RequisiteGeneralForm({
                     control={form.control}
                     name="institutionCountry"
                     render={({ field }) => (
-                      <SearchablePicker
+                      <CountrySelect
                         value={field.value}
                         onValueChange={field.onChange}
-                        options={COUNTRY_PICKER_OPTIONS}
                         placeholder="Выберите страну банка"
                         searchPlaceholder="Поиск страны..."
                         emptyLabel="Страна не найдена"
@@ -777,10 +758,7 @@ export function RequisiteGeneralForm({
                           form.formState.errors.institutionCountry,
                         )}
                         clearable
-                        fallbackLabel={
-                          selectedInstitutionCountry?.label ??
-                          (field.value ? field.value.trim().toUpperCase() : undefined)
-                        }
+                        clearLabel="Очистить"
                       />
                     )}
                   />
@@ -896,10 +874,9 @@ export function RequisiteGeneralForm({
                     control={form.control}
                     name="institutionCountry"
                     render={({ field }) => (
-                      <SearchablePicker
+                      <CountrySelect
                         value={field.value}
                         onValueChange={field.onChange}
-                        options={COUNTRY_PICKER_OPTIONS}
                         placeholder="Выберите страну института"
                         searchPlaceholder="Поиск страны..."
                         emptyLabel="Страна не найдена"
@@ -908,10 +885,7 @@ export function RequisiteGeneralForm({
                           form.formState.errors.institutionCountry,
                         )}
                         clearable
-                        fallbackLabel={
-                          selectedInstitutionCountry?.label ??
-                          (field.value ? field.value.trim().toUpperCase() : undefined)
-                        }
+                        clearLabel="Очистить"
                       />
                     )}
                   />

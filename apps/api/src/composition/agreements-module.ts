@@ -10,6 +10,7 @@ import {
   DrizzleAgreementsUnitOfWork,
 } from "@bedrock/agreements/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
+import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   DrizzleCustomerReads,
   DrizzleOrganizationReads,
@@ -38,13 +39,14 @@ export function createApiAgreementsModule(input: {
   const requisiteReads = new DrizzleRequisiteReads(input.db);
   const requisiteBindingReads = new DrizzleRequisiteBindingReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
+  const currenciesQueries = createCurrenciesQueries({ db: input.db });
 
   return createAgreementsModule({
     logger: input.logger,
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     idempotency: input.idempotency,
-    reads: new DrizzleAgreementReads(input.db),
+    reads: new DrizzleAgreementReads(input.db, currenciesQueries),
     references: {
       async findCustomerById(id: string) {
         return customerReads.findById(id);

@@ -6,6 +6,7 @@ import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
 import type { DocumentsService } from "@bedrock/documents";
+import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
@@ -23,6 +24,7 @@ import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-ac
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
+import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -81,6 +83,8 @@ export interface AppContext {
   documentPostingWorkflow: DocumentPostingWorkflow;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentsReadModel: DocumentsReadModel;
+  partiesReadRuntime: ApiPartiesReadRuntime;
   documentExtraction?: DocumentExtractionPort;
   objectStorage?: S3ObjectStorageAdapter;
 }
@@ -111,6 +115,8 @@ export function createAppContext(env: Env): AppContext {
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
     customerPortalWorkflow: applicationServices.customerPortalWorkflow,
     documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
+    documentsReadModel: applicationServices.documentsReadModel,
+    partiesReadRuntime: applicationServices.partiesReadRuntime,
     documentExtraction: applicationServices.documentExtraction,
     objectStorage: applicationServices.objectStorage,
   };

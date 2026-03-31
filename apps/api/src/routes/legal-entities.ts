@@ -1,10 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, eq, ilike, isNotNull, or } from "drizzle-orm";
-
-import { counterparties } from "@bedrock/parties/schema";
 
 import type { AppContext } from "../context";
-import { db } from "../db/client";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -176,28 +172,14 @@ export function legalEntitiesRoutes(ctx: AppContext) {
   return app
     .openapi(searchRoute, async (c): Promise<any> => {
       const { limit, offset, q } = c.req.valid("query");
-      const rows = await db
-        .select({
-          counterpartyId: counterparties.id,
-          customerId: counterparties.customerId,
-          inn: counterparties.inn,
-          orgName: counterparties.fullName,
-          shortName: counterparties.shortName,
-        })
-        .from(counterparties)
-        .where(
-          and(
-            eq(counterparties.relationshipKind, "customer_owned"),
-            isNotNull(counterparties.customerId),
-            or(
-              ilike(counterparties.shortName, `%${q}%`),
-              ilike(counterparties.fullName, `%${q}%`),
-              ilike(counterparties.inn, `%${q}%`),
-            ),
-          ),
-        )
-        .limit(limit)
-        .offset(offset);
+      const rows =
+        await ctx.partiesReadRuntime.counterpartiesQueries.searchCustomerOwnedLegalEntities(
+          {
+            limit,
+            offset,
+            q,
+          },
+        );
 
       return c.json(
         {

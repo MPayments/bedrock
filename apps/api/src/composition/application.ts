@@ -1,5 +1,3 @@
-import { eq } from "drizzle-orm";
-
 import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
@@ -15,11 +13,10 @@ import {
   type DocumentsService,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import {
-  documentBusinessLinks,
-  documents,
-} from "@bedrock/documents/schema";
+  createDrizzleDocumentsReadModel,
+  type DocumentsReadModel,
+} from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
@@ -73,7 +70,11 @@ import {
 } from "./document-plugin-adapters";
 import { createApiFilesModule } from "./files-module";
 import { createApiLedgerModule } from "./ledger-module";
-import { createApiPartiesModule } from "./parties-module";
+import {
+  createApiPartiesModule,
+  createApiPartiesReadRuntime,
+  type ApiPartiesReadRuntime,
+} from "./parties-module";
 import { createApiTreasuryModule } from "./treasury-module";
 import type { Env } from "../context";
 import { db } from "../db/client";
@@ -93,6 +94,8 @@ export interface ApiApplicationServices {
   documentPostingWorkflow: DocumentPostingWorkflow;
   customerPortalWorkflow: CustomerPortalWorkflow;
   documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentsReadModel: DocumentsReadModel;
+  partiesReadRuntime: ApiPartiesReadRuntime;
   documentExtraction?: OpenAIDocumentExtractionAdapter;
   objectStorage?: S3ObjectStorageAdapter;
 }
@@ -144,6 +147,7 @@ export function createApplicationServices(
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesService = createCurrenciesService({ db, logger });
+  const partiesReadRuntime = createApiPartiesReadRuntime(db);
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
       await currenciesService.findById(id);
@@ -192,6 +196,7 @@ export function createApplicationServices(
     idempotency,
     currencies: currenciesService,
     persistence: createPersistenceContext(db),
+    treasuryQuotes: treasuryModule.quotes.queries,
   });
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
@@ -305,23 +310,6 @@ export function createApplicationServices(
       findById: partiesModule.counterparties.queries.findById,
     },
   };
-  async function resolveDocumentBusinessLinkById(documentId: string) {
-    const [row] = await db
-      .select({
-        dealId: documentBusinessLinks.dealId,
-        documentId: documents.id,
-      })
-      .from(documents)
-      .leftJoin(
-        documentBusinessLinks,
-        eq(documentBusinessLinks.documentId, documents.id),
-      )
-      .where(eq(documents.id, documentId))
-      .limit(1);
-
-    return row ?? null;
-  }
-
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
@@ -341,7 +329,7 @@ export function createApplicationServices(
       }
 
       if (usedDocumentId) {
-        const linkedDocument = await resolveDocumentBusinessLinkById(
+        const linkedDocument = await documentsReadModel.findBusinessLinkByDocumentId(
           usedDocumentId,
         );
 
@@ -514,6 +502,8 @@ export function createApplicationServices(
     documentPostingWorkflow,
     customerPortalWorkflow,
     documentGenerationWorkflow,
+    documentsReadModel,
+    partiesReadRuntime,
     documentExtraction,
     objectStorage,
   };

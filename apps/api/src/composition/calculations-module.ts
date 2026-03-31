@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-
 
 import {
   createCalculationsModule,
@@ -19,7 +17,7 @@ import {
   type Database,
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
-import { fxQuotes } from "@bedrock/treasury/schema";
+import type { TreasuryModule } from "@bedrock/treasury";
 
 export function createApiCalculationsModule(input: {
   currencies: Pick<CurrenciesService, "findById">;
@@ -29,6 +27,7 @@ export function createApiCalculationsModule(input: {
   logger: Logger;
   now?: CalculationsModuleDeps["now"];
   persistence?: PersistenceContext;
+  treasuryQuotes: Pick<TreasuryModule["quotes"]["queries"], "findById">;
 }): CalculationsModule {
   const persistence = input.persistence ?? createPersistenceContext(input.db);
 
@@ -43,19 +42,7 @@ export function createApiCalculationsModule(input: {
         await input.currencies.findById(id);
       },
       async findFxQuoteById(id: string) {
-        const [row] = await input.db
-          .select({
-            id: fxQuotes.id,
-            fromCurrencyId: fxQuotes.fromCurrencyId,
-            toCurrencyId: fxQuotes.toCurrencyId,
-            rateNum: fxQuotes.rateNum,
-            rateDen: fxQuotes.rateDen,
-          })
-          .from(fxQuotes)
-          .where(eq(fxQuotes.id, id))
-          .limit(1);
-
-        return row ?? null;
+        return input.treasuryQuotes.findById(id);
       },
     },
     commandUow: new DrizzleCalculationsUnitOfWork({ persistence }),

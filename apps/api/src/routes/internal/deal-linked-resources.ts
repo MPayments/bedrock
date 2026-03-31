@@ -5,13 +5,7 @@ import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { fileLinks } from "@bedrock/files/schema";
-import {
-  documentBusinessLinks,
-  documentOperations,
-  documents,
-} from "@bedrock/documents/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
-import { fxQuotes } from "@bedrock/treasury/schema";
 
 import { db } from "../../db/client";
 import type { AppContext } from "../../context";
@@ -105,25 +99,7 @@ export async function buildDealTrace(
       sortBy: "createdAt",
       sortOrder: "desc",
     }),
-    db
-      .select({
-        approvalStatus: documents.approvalStatus,
-        dealId: documentBusinessLinks.dealId,
-        docId: documents.id,
-        docType: documents.docType,
-        lifecycleStatus: documents.lifecycleStatus,
-        occurredAt: documents.occurredAt,
-        operationId: documentOperations.operationId,
-        postingStatus: documents.postingStatus,
-        submissionStatus: documents.submissionStatus,
-      })
-      .from(documentBusinessLinks)
-      .innerJoin(documents, eq(documents.id, documentBusinessLinks.documentId))
-      .leftJoin(
-        documentOperations,
-        eq(documentOperations.documentId, documents.id),
-      )
-      .where(eq(documentBusinessLinks.dealId, dealId)),
+    ctx.documentsReadModel.listDealTraceRowsByDealId(dealId),
     db
       .select({
         fileAssetId: fileLinks.fileAssetId,
@@ -142,47 +118,12 @@ export async function buildDealTrace(
       ),
   ]);
 
-  const documentMap = new Map<
-    string,
-    {
-      approvalStatus: string;
-      dealId: string | null;
-      docType: string;
-      id: string;
-      lifecycleStatus: string;
-      occurredAt: Date;
-      operationIds: string[];
-      postingStatus: string;
-      submissionStatus: string;
-    }
-  >();
-
-  for (const row of documentRows) {
-    const entry = documentMap.get(row.docId) ?? {
-      approvalStatus: row.approvalStatus,
-      dealId: row.dealId ?? null,
-      docType: row.docType,
-      id: row.docId,
-      lifecycleStatus: row.lifecycleStatus,
-      occurredAt: row.occurredAt,
-      operationIds: [],
-      postingStatus: row.postingStatus,
-      submissionStatus: row.submissionStatus,
-    };
-
-    if (row.operationId) {
-      entry.operationIds.push(row.operationId);
-    }
-
-    documentMap.set(row.docId, entry);
-  }
-
-  const formalDocuments = [...documentMap.values()].map((row) => ({
+  const formalDocuments = documentRows.map((row) => ({
     approvalStatus: row.approvalStatus,
     dealId: row.dealId,
     docType: row.docType,
-    id: row.id,
-    ledgerOperationIds: [...new Set(row.operationIds)],
+    id: row.documentId,
+    ledgerOperationIds: row.ledgerOperationIds,
     lifecycleStatus: row.lifecycleStatus,
     occurredAt: row.occurredAt,
     postingStatus: row.postingStatus,

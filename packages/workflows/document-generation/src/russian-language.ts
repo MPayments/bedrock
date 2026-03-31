@@ -1,3 +1,5 @@
+/// <reference path="./russian-nouns-js.d.ts" />
+
 import { incline } from "lvovich";
 import numberToWordsRu from "number-to-words-ru";
 import RussianNouns from "russian-nouns-js";

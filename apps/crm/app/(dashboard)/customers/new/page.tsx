@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { COUNTRIES as countries } from "@bedrock/shared/reference-data/countries";
 import {
   ChevronLeft,
   Save,
@@ -22,6 +21,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
@@ -1027,26 +1027,21 @@ export default function NewClientPage() {
                   <FormField
                     control={form.control}
                     name="bankCountry"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
                         <FormLabel>Страна банка</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Выберите страну" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {countries.map((c) => (
-                              <SelectItem key={c.alpha2} value={c.alpha2}>
-                                {c.emoji} {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <CountrySelect
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                            invalid={fieldState.invalid}
+                            placeholder="Выберите страну"
+                            searchPlaceholder="Поиск страны..."
+                            emptyLabel="Страна не найдена"
+                            clearable
+                            clearLabel="Очистить"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

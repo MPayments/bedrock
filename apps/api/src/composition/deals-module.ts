@@ -1,12 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  DrizzleAgreementReads,
-} from "@bedrock/agreements/adapters/drizzle";
-import {
-  DrizzleCalculationReads,
-} from "@bedrock/calculations/adapters/drizzle";
+import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
+import { DrizzleCalculationReads } from "@bedrock/calculations/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
+import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createDealsModule,
   DealTypeNotSupportedError,
@@ -17,10 +14,7 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
-import {
-  DrizzleCounterpartyReads,
-  DrizzleCustomerReads,
-} from "@bedrock/parties/adapters/drizzle";
+import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
@@ -40,19 +34,23 @@ export function createApiDealsModule(input: {
 }): DealsModule {
   const customerReads = new DrizzleCustomerReads(input.db);
   const counterpartyReads = new DrizzleCounterpartyReads(input.db);
-  const agreementReads = new DrizzleAgreementReads(input.db);
   const calculationReads = new DrizzleCalculationReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
+  const currenciesQueries = createCurrenciesQueries({ db: input.db });
+  const agreementReadsWithCurrencies = new DrizzleAgreementReads(
+    input.db,
+    currenciesQueries,
+  );
 
   return createDealsModule({
     logger: input.logger,
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     idempotency: input.idempotency,
-    reads: new DrizzleDealReads(input.db),
+    reads: new DrizzleDealReads(input.db, currenciesQueries),
     references: {
       async findAgreementById(id: string) {
-        const agreement = await agreementReads.findById(id);
+        const agreement = await agreementReadsWithCurrencies.findById(id);
         if (!agreement) {
           return null;
         }
@@ -85,7 +83,7 @@ export function createApiDealsModule(input: {
         return customerReads.findById(id);
       },
       async listActiveAgreementsByCustomerId(customerId: string) {
-        const result = await agreementReads.list({
+        const result = await agreementReadsWithCurrencies.list({
           customerId,
           isActive: true,
           limit: 10,

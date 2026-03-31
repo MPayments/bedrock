@@ -1,12 +1,10 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 import ExcelJS from "exceljs";
 
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
 } from "@bedrock/parties";
-import { customerCounterpartyAssignments, counterparties } from "@bedrock/parties/schema";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
@@ -30,7 +28,6 @@ import {
   GeneratedDocumentLangSchema,
   serializeCompatibilityFileAttachment,
 } from "./files-compat";
-import { db } from "../db/client";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
@@ -410,27 +407,13 @@ async function listCustomerOwnedCounterpartiesByCustomerId(
   return new Map<string, CanonicalCounterpartyListItem[]>(rows);
 }
 
-async function listCounterpartyAssignments(counterpartyIds: string[]) {
-  if (counterpartyIds.length === 0) {
-    return new Map<
-      string,
-      {
-        counterpartyId: string;
-        subAgentCounterpartyId: string | null;
-      }
-    >();
-  }
-
-  const rows = await db
-    .select({
-      counterpartyId: customerCounterpartyAssignments.counterpartyId,
-      subAgentCounterpartyId:
-        customerCounterpartyAssignments.subAgentCounterpartyId,
-    })
-    .from(customerCounterpartyAssignments)
-    .where(inArray(customerCounterpartyAssignments.counterpartyId, counterpartyIds));
-
-  return new Map(rows.map((row) => [row.counterpartyId, row] as const));
+async function listCounterpartyAssignments(
+  ctx: AppContext,
+  counterpartyIds: string[],
+) {
+  return ctx.partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds(
+    counterpartyIds,
+  );
 }
 
 async function listCounterpartyBankRequisites(
@@ -460,22 +443,14 @@ async function listCounterpartyBankRequisites(
 }
 
 async function upsertCounterpartyAssignment(input: {
+  ctx: AppContext;
   counterpartyId: string;
   subAgentCounterpartyId: string | null;
 }) {
-  await db
-    .insert(customerCounterpartyAssignments)
-    .values({
-      counterpartyId: input.counterpartyId,
-      subAgentCounterpartyId: input.subAgentCounterpartyId,
-    })
-    .onConflictDoUpdate({
-      target: customerCounterpartyAssignments.counterpartyId,
-      set: {
-        subAgentCounterpartyId: input.subAgentCounterpartyId,
-        updatedAt: new Date(),
-      },
-    });
+  await input.ctx.partiesReadRuntime.counterpartiesQueries.upsertAssignment({
+    counterpartyId: input.counterpartyId,
+    subAgentCounterpartyId: input.subAgentCounterpartyId,
+  });
 }
 
 async function findOrCreateBankProvider(
@@ -672,6 +647,7 @@ async function mapCustomerWorkspaceDetail(
   counterpartiesList: CanonicalCounterpartyListItem[],
 ) {
   const assignments = await listCounterpartyAssignments(
+    ctx,
     counterpartiesList.map((counterparty) => counterparty.id),
   );
   const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
@@ -779,6 +755,7 @@ async function upsertLegalEntity(
   }
 
   await upsertCounterpartyAssignment({
+    ctx,
     counterpartyId,
     subAgentCounterpartyId:
       normalizeNullableText(input.values.subAgentCounterpartyId) ?? null,
@@ -796,7 +773,7 @@ async function upsertLegalEntity(
     ctx,
     input.customerId,
   );
-  const assignments = await listCounterpartyAssignments([counterpartyId]);
+  const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
   const requisitesByCounterpartyId = await listCounterpartyBankRequisites(ctx, [
     counterpartyId,
   ]);
@@ -855,27 +832,12 @@ async function listCustomerWorkspaces(
         sortBy: "createdAt",
         sortOrder: "desc",
       }),
-      db
-        .select({
-          customerId: counterparties.customerId,
-        })
-        .from(counterparties)
-        .where(
-          and(
-            eq(counterparties.relationshipKind, "customer_owned"),
-            isNotNull(counterparties.customerId),
-            or(
-              ilike(counterparties.shortName, `%${query.q}%`),
-              ilike(counterparties.fullName, `%${query.q}%`),
-              ilike(counterparties.externalId, `%${query.q}%`),
-              ilike(counterparties.inn, `%${query.q}%`),
-              ilike(counterparties.email, `%${query.q}%`),
-              ilike(counterparties.phone, `%${query.q}%`),
-              ilike(counterparties.directorName, `%${query.q}%`),
-            ),
-          ),
-        )
-        .limit(1000),
+      ctx.partiesReadRuntime.counterpartiesQueries.listCustomerIdsByCustomerOwnedCounterpartySearch(
+        {
+          limit: 1000,
+          q: query.q,
+        },
+      ),
     ]);
 
   const customerMap = new Map<string, CanonicalCustomer>();
@@ -883,12 +845,9 @@ async function listCustomerWorkspaces(
     customerMap.set(customer.id, customer);
   }
 
-  const counterpartyCustomerIds = counterpartyMatches
-    .map((row) => row.customerId)
-    .filter((customerId): customerId is string => Boolean(customerId));
-  if (counterpartyCustomerIds.length > 0) {
+  if (counterpartyMatches.length > 0) {
     const customers = await ctx.partiesModule.customers.queries.listByIds(
-      counterpartyCustomerIds,
+      counterpartyMatches,
     );
     for (const customer of customers) {
       customerMap.set(customer.id, customer);
@@ -1392,6 +1351,7 @@ export function customersRoutes(ctx: AppContext) {
           customerId,
         );
         const assignments = await listCounterpartyAssignments(
+          ctx,
           counterpartiesList.map((counterparty) => counterparty.id),
         );
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
@@ -1454,7 +1414,7 @@ export function customersRoutes(ctx: AppContext) {
           ctx,
           customerId,
         );
-        const assignments = await listCounterpartyAssignments([counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
           [counterpartyId],
@@ -1482,7 +1442,7 @@ export function customersRoutes(ctx: AppContext) {
           counterpartyId,
           customerId,
         });
-        const assignments = await listCounterpartyAssignments([counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
         const currentAssignment = assignments.get(counterpartyId) ?? null;
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
@@ -1652,7 +1612,7 @@ export function customersRoutes(ctx: AppContext) {
           counterpartyId,
           customerId,
         });
-        const assignments = await listCounterpartyAssignments([counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
           [counterpartyId],

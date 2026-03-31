@@ -1,6 +1,6 @@
 "use client";
 
-import { COUNTRIES as countries } from "@bedrock/shared/reference-data/countries";
+import { normalizeToAlpha2 } from "@bedrock/shared/reference-data/countries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { API_BASE_URL } from "@/lib/constants";
@@ -51,7 +52,6 @@ const BANK_FIELDS: Array<{
   { name: "account", label: "Расчетный счет", placeholder: "40702810..." },
   { name: "bic", label: "БИК", placeholder: "044525225" },
   { name: "corrAccount", label: "Корр. счет", placeholder: "30101810..." },
-  { name: "bankCountry", label: "Страна банка", placeholder: "RU" },
 ];
 
 export function OnboardForm() {
@@ -67,6 +67,7 @@ export function OnboardForm() {
   const [showBankFields, setShowBankFields] = useState(false);
 
   const {
+    control,
     register,
     handleSubmit,
     setValue,
@@ -93,8 +94,7 @@ export function OnboardForm() {
       account: "",
       bic: "",
       corrAccount: "",
-      bankCountry:
-        countries.find((country) => country.alpha2 === "RU")?.alpha2 ?? "RU",
+      bankCountry: "RU",
     },
   });
 
@@ -124,7 +124,12 @@ export function OnboardForm() {
     for (const field of fields) {
       const value = companyData[field];
       if (value !== undefined && value !== null) {
-        setValue(field, value, {
+        const nextValue =
+          field === "bankCountry" && typeof value === "string"
+            ? normalizeToAlpha2(value) ?? value
+            : value;
+
+        setValue(field, nextValue, {
           shouldDirty: true,
           shouldValidate: true,
         });
@@ -546,6 +551,33 @@ export function OnboardForm() {
                   />
                 </div>
               ))}
+              <div className="space-y-1.5">
+                <Label htmlFor="bankCountry">Страна банка</Label>
+                <Controller
+                  control={control}
+                  name="bankCountry"
+                  render={({ field, fieldState }) => (
+                    <>
+                      <CountrySelect
+                        id="bankCountry"
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        invalid={fieldState.invalid}
+                        placeholder="Выберите страну"
+                        searchPlaceholder="Поиск страны..."
+                        emptyLabel="Страна не найдена"
+                        clearable
+                        clearLabel="Очистить"
+                      />
+                      {fieldState.error ? (
+                        <p className="text-xs text-destructive">
+                          {fieldState.error.message}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                />
+              </div>
             </div>
           ) : null}
         </div>

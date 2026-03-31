@@ -208,5 +208,85 @@ export function createDrizzleDocumentsReadModel(input: {
         createdAt: row.createdAt,
       }));
     },
+    async findBusinessLinkByDocumentId(documentId: string) {
+      const [row] = await db
+        .select({
+          dealId: schema.documentBusinessLinks.dealId,
+          documentId: schema.documents.id,
+        })
+        .from(schema.documents)
+        .leftJoin(
+          schema.documentBusinessLinks,
+          eq(schema.documentBusinessLinks.documentId, schema.documents.id),
+        )
+        .where(eq(schema.documents.id, documentId))
+        .limit(1);
+
+      return row ?? null;
+    },
+    async listDealTraceRowsByDealId(dealId: string) {
+      const rows = await db
+        .select({
+          approvalStatus: schema.documents.approvalStatus,
+          dealId: schema.documentBusinessLinks.dealId,
+          documentId: schema.documents.id,
+          docType: schema.documents.docType,
+          lifecycleStatus: schema.documents.lifecycleStatus,
+          occurredAt: schema.documents.occurredAt,
+          operationId: schema.documentOperations.operationId,
+          postingStatus: schema.documents.postingStatus,
+          submissionStatus: schema.documents.submissionStatus,
+        })
+        .from(schema.documentBusinessLinks)
+        .innerJoin(
+          schema.documents,
+          eq(schema.documents.id, schema.documentBusinessLinks.documentId),
+        )
+        .leftJoin(
+          schema.documentOperations,
+          eq(schema.documentOperations.documentId, schema.documents.id),
+        )
+        .where(eq(schema.documentBusinessLinks.dealId, dealId));
+
+      const byDocumentId = new Map<
+        string,
+        {
+          approvalStatus: string;
+          dealId: string | null;
+          documentId: string;
+          docType: string;
+          lifecycleStatus: string;
+          occurredAt: Date;
+          ledgerOperationIds: string[];
+          postingStatus: string;
+          submissionStatus: string;
+        }
+      >();
+
+      for (const row of rows) {
+        const entry = byDocumentId.get(row.documentId) ?? {
+          approvalStatus: row.approvalStatus,
+          dealId: row.dealId,
+          documentId: row.documentId,
+          docType: row.docType,
+          lifecycleStatus: row.lifecycleStatus,
+          occurredAt: row.occurredAt,
+          ledgerOperationIds: [],
+          postingStatus: row.postingStatus,
+          submissionStatus: row.submissionStatus,
+        };
+
+        if (row.operationId) {
+          entry.ledgerOperationIds.push(row.operationId);
+        }
+
+        byDocumentId.set(row.documentId, entry);
+      }
+
+      return [...byDocumentId.values()].map((row) => ({
+        ...row,
+        ledgerOperationIds: [...new Set(row.ledgerOperationIds)],
+      }));
+    },
   };
 }

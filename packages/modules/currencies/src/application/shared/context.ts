@@ -17,7 +17,7 @@ export interface CurrenciesServiceContext {
 }
 
 export interface CurrenciesQueriesContext {
-  queries: Pick<CurrenciesQueryRepository, "listPrecisionsByCode">;
+  queries: Pick<CurrenciesQueryRepository, "listByIds" | "listPrecisionsByCode">;
 }
 
 export function createCurrenciesServiceContext(input: {
@@ -35,7 +35,7 @@ export function createCurrenciesServiceContext(input: {
 }
 
 export function createCurrenciesQueriesContext(input: {
-  queries: Pick<CurrenciesQueryRepository, "listPrecisionsByCode">;
+  queries: Pick<CurrenciesQueryRepository, "listByIds" | "listPrecisionsByCode">;
 }): CurrenciesQueriesContext {
   return {
     queries: input.queries,
