@@ -15,7 +15,7 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { API_BASE_URL } from "@/lib/constants";
 
-interface Client {
+interface LegalEntity {
   counterpartyId: string;
   hasLegacyShell: boolean;
   inn: string | null;
@@ -29,7 +29,7 @@ interface CustomerContext {
   displayName: string;
   externalRef: string | null;
   description: string | null;
-  legalEntities: Client[];
+  legalEntities: LegalEntity[];
   legalEntityCount: number;
   primaryCounterpartyId: string | null;
 }
@@ -45,7 +45,7 @@ export default function PortalClientsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchClients() {
+    async function fetchCustomerContexts() {
       try {
         const response = await fetch(`${API_BASE_URL}/customer/contexts`, {
           credentials: "include",
@@ -66,7 +66,7 @@ export default function PortalClientsPage() {
       }
     }
 
-    void fetchClients();
+    void fetchCustomerContexts();
   }, [router]);
 
   if (loading) {

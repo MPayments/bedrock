@@ -51,9 +51,14 @@ export const customerOnboardSchema = z.object({
   bankAddress: z.string().optional(),
   bankAddressI18n: localizedTextSchema.optional(),
   account: z.string().optional(),
+  bankProviderId: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().uuid().optional(),
+  ),
   bic: z.string().optional(),
   corrAccount: z.string().optional(),
   bankCountry: z.string().optional(),
+  swift: z.string().optional(),
 });
 
 export type CustomerOnboardInput = z.infer<typeof customerOnboardSchema>;

@@ -55,7 +55,6 @@ export type RequisiteFormValues = {
   description: string;
   beneficiaryName: string;
   institutionName: string;
-  institutionCountry: string;
   accountNo: string;
   corrAccount: string;
   iban: string;

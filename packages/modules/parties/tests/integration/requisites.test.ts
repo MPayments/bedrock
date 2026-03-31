@@ -45,7 +45,6 @@ describe("parties requisites integration", () => {
       description: null,
       beneficiaryName: "Acme Corp",
       institutionName: "Bank",
-      institutionCountry: "US",
       accountNo: "12345",
       isDefault: true,
     });
@@ -123,7 +122,6 @@ describe("parties requisites integration", () => {
       description: null,
       beneficiaryName: "Acme Corp",
       institutionName: "Bank",
-      institutionCountry: "US",
       accountNo: "98765",
     });
 

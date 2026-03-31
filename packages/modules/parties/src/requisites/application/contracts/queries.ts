@@ -17,6 +17,8 @@ interface RequisiteProvidersListFilters {
   kind: { kind: "string"; cardinality: "multi" };
   country: { kind: "string"; cardinality: "multi" };
   name: { kind: "string"; cardinality: "single" };
+  bic: { kind: "string"; cardinality: "multi" };
+  swift: { kind: "string"; cardinality: "multi" };
 }
 
 export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
@@ -26,9 +28,11 @@ export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: REQUISITE_PROVIDERS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    bic: { kind: "string", cardinality: "multi" },
     kind: { kind: "string", cardinality: "multi" },
     country: { kind: "string", cardinality: "multi" },
     name: { kind: "string", cardinality: "single" },
+    swift: { kind: "string", cardinality: "multi" },
   },
 };
 

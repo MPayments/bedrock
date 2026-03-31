@@ -69,7 +69,6 @@ describe("requisite command handlers", () => {
       description: null,
       beneficiaryName: "Acme",
       institutionName: "JPM",
-      institutionCountry: "US",
       accountNo: "1234",
     });
 
@@ -99,7 +98,6 @@ describe("requisite command handlers", () => {
                   description: null,
                   beneficiaryName: "Acme",
                   institutionName: "JPM",
-                  institutionCountry: "US",
                   accountNo: "1234",
                   corrAccount: null,
                   iban: null,

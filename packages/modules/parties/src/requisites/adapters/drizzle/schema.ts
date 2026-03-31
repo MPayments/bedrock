@@ -79,7 +79,6 @@ export const requisites = pgTable(
     description: text("description"),
     beneficiaryName: text("beneficiary_name"),
     institutionName: text("institution_name"),
-    institutionCountry: text("institution_country"),
     accountNo: text("account_no"),
     corrAccount: text("corr_account"),
     iban: text("iban"),

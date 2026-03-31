@@ -459,6 +459,7 @@ export function createApplicationServices(
     parties: {
       counterparties: partiesModule.counterparties,
       customers: partiesModule.customers,
+      requisites: partiesModule.requisites,
     },
     logger,
   });

@@ -7,6 +7,7 @@ import {
 } from "@bedrock/parties";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import { createCustomerBankingService } from "@bedrock/workflow-customer-portal";
 
 import { DeletedSchema, ErrorSchema } from "../common";
 import {
@@ -69,6 +70,7 @@ const CustomerLegalEntitySchema = z.object({
   bankCountry: z.string().nullable(),
   bankName: z.string().nullable(),
   bankNameI18n: LocalizedTextSchema,
+  bankProviderId: z.string().uuid().nullable().optional(),
   bic: z.string().nullable(),
   contractNumber: z.string().nullable(),
   corrAccount: z.string().nullable(),
@@ -99,6 +101,7 @@ const CustomerLegalEntitySchema = z.object({
   shortName: z.string(),
   subAgent: z.any().nullable(),
   subAgentCounterpartyId: z.string().uuid().nullable(),
+  swift: z.string().nullable(),
   updatedAt: z.string(),
 });
 
@@ -163,6 +166,7 @@ const CustomerLegalEntityInputSchema = z.object({
   bankCountry: z.string().trim().nullable().optional(),
   bankName: z.string().trim().nullable().optional(),
   bankNameI18n: LocalizedTextSchema,
+  bankProviderId: z.string().uuid().nullable().optional(),
   bic: z.string().trim().nullable().optional(),
   corrAccount: z.string().trim().nullable().optional(),
   country: z.string().trim().nullable().optional(),
@@ -190,6 +194,7 @@ const CustomerLegalEntityInputSchema = z.object({
   position: z.string().trim().nullable().optional(),
   positionI18n: LocalizedTextSchema,
   subAgentCounterpartyId: z.string().uuid().nullable().optional(),
+  swift: z.string().trim().nullable().optional(),
 });
 
 const CustomerLegalEntityPatchInputSchema =
@@ -278,17 +283,6 @@ function normalizeCountryCode(value: string | null | undefined): string | null {
 
 function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-}
-
-function hasBankDetails(input: CustomerLegalEntityInput) {
-  return Boolean(
-    normalizeNullableText(input.bankName) ||
-      normalizeNullableText(input.bankAddress) ||
-      normalizeNullableText(input.account) ||
-      normalizeNullableText(input.bic) ||
-      normalizeNullableText(input.corrAccount) ||
-      normalizeCountryCode(input.bankCountry),
-  );
 }
 
 function resolveDisplayName(
@@ -453,112 +447,6 @@ async function upsertCounterpartyAssignment(input: {
   });
 }
 
-async function findOrCreateBankProvider(
-  ctx: AppContext,
-  input: CustomerLegalEntityInput,
-) {
-  const providerName =
-    normalizeNullableText(input.bankName) ??
-    normalizeNullableText(input.orgName) ??
-    "Imported bank";
-  const country = normalizeCountryCode(input.bankCountry ?? input.country);
-
-  const existing = await ctx.partiesModule.requisites.queries.listProviders({
-    kind: ["bank"],
-    limit: 50,
-    name: providerName,
-    offset: 0,
-    sortBy: "createdAt",
-    sortOrder: "desc",
-    ...(country ? { country: [country] } : {}),
-  });
-  const matched =
-    existing.data.find(
-      (provider) =>
-        provider.name === providerName &&
-        (country ? provider.country === country : true),
-    ) ?? null;
-  if (matched) {
-    return matched;
-  }
-
-  return ctx.partiesModule.requisites.commands.createProvider({
-    address: normalizeNullableText(input.bankAddress),
-    bic: normalizeNullableText(input.bic),
-    contact: null,
-    country,
-    description: null,
-    kind: "bank",
-    name: providerName,
-    swift: null,
-  });
-}
-
-async function upsertCounterpartyBankRequisite(
-  ctx: AppContext,
-  input: {
-    counterpartyId: string;
-    values: CustomerLegalEntityInput;
-  },
-) {
-  const existingMap = await listCounterpartyBankRequisites(ctx, [input.counterpartyId]);
-  const existing = existingMap.get(input.counterpartyId) ?? null;
-
-  if (!hasBankDetails(input.values) && !existing) {
-    return null;
-  }
-
-  const provider = await findOrCreateBankProvider(ctx, input.values);
-  const currencyCode =
-    normalizeCountryCode(input.values.bankCountry ?? input.values.country) === "RU"
-      ? "RUB"
-      : "USD";
-  const currency = await ctx.currenciesService.findByCode(currencyCode);
-  const bankValues = {
-    accountNo: normalizeNullableText(input.values.account),
-    bankAddress: normalizeNullableText(input.values.bankAddress),
-    bic: normalizeNullableText(input.values.bic),
-    corrAccount: normalizeNullableText(input.values.corrAccount),
-    institutionCountry: normalizeCountryCode(
-      input.values.bankCountry ?? input.values.country,
-    ),
-    institutionName: normalizeNullableText(input.values.bankName),
-    isDefault: true,
-    kind: "bank" as const,
-    label:
-      normalizeNullableText(input.values.bankName) ??
-      normalizeNullableText(input.values.orgName) ??
-      "Bank details",
-    providerId: provider.id,
-  };
-
-  if (existing) {
-    return ctx.partiesModule.requisites.commands.update(existing.id, {
-      ...bankValues,
-      currencyId: currency.id,
-    });
-  }
-
-  return ctx.partiesModule.requisites.commands.create({
-    ...bankValues,
-    address: null,
-    accountRef: null,
-    assetCode: null,
-    beneficiaryName: normalizeNullableText(input.values.orgName),
-    contact: null,
-    currencyId: currency.id,
-    description: null,
-    iban: null,
-    memoTag: null,
-    network: null,
-    notes: null,
-    ownerId: input.counterpartyId,
-    ownerType: "counterparty",
-    subaccountRef: null,
-    swift: null,
-  });
-}
-
 async function mapCustomerLegalEntity(input: {
   assignment: {
     counterpartyId: string;
@@ -574,17 +462,23 @@ async function mapCustomerLegalEntity(input: {
         input.assignment.subAgentCounterpartyId,
       )
     : null;
+  const provider = input.bankRequisite?.providerId
+    ? await input.ctx.partiesModule.requisites.queries.findProviderById(
+        input.bankRequisite.providerId,
+      )
+    : null;
 
   return {
     account: input.bankRequisite?.accountNo ?? null,
     address: input.counterparty.address ?? null,
     addressI18n: input.counterparty.addressI18n ?? null,
-    bankAddress: input.bankRequisite?.bankAddress ?? null,
+    bankAddress: input.bankRequisite?.bankAddress ?? provider?.address ?? null,
     bankAddressI18n: null,
-    bankCountry: input.bankRequisite?.institutionCountry ?? null,
-    bankName: input.bankRequisite?.institutionName ?? null,
+    bankCountry: provider?.country ?? null,
+    bankName: input.bankRequisite?.institutionName ?? provider?.name ?? null,
     bankNameI18n: null,
-    bic: input.bankRequisite?.bic ?? null,
+    bankProviderId: provider?.id ?? null,
+    bic: input.bankRequisite?.bic ?? provider?.bic ?? null,
     contractNumber: input.contract?.contractNumber ?? null,
     corrAccount: input.bankRequisite?.corrAccount ?? null,
     counterpartyId: input.counterparty.id,
@@ -614,6 +508,7 @@ async function mapCustomerLegalEntity(input: {
     shortName: input.counterparty.shortName,
     subAgent,
     subAgentCounterpartyId: input.assignment?.subAgentCounterpartyId ?? null,
+    swift: input.bankRequisite?.swift ?? provider?.swift ?? null,
     updatedAt: serializeDate(input.counterparty.updatedAt),
   };
 }
@@ -729,6 +624,11 @@ async function upsertLegalEntity(
     values: CustomerLegalEntityInput;
   },
 ) {
+  const customerBankingService = createCustomerBankingService({
+    currencies: ctx.currenciesService,
+    logger: ctx.logger,
+    requisites: ctx.partiesModule.requisites,
+  });
   let counterpartyId = input.counterpartyId ?? null;
 
   if (counterpartyId) {
@@ -760,7 +660,7 @@ async function upsertLegalEntity(
     subAgentCounterpartyId:
       normalizeNullableText(input.values.subAgentCounterpartyId) ?? null,
   });
-  await upsertCounterpartyBankRequisite(ctx, {
+  await customerBankingService.upsertCounterpartyBankRequisite({
     counterpartyId,
     values: input.values,
   });
@@ -1450,6 +1350,11 @@ export function customersRoutes(ctx: AppContext) {
         );
         const currentBankRequisite =
           requisitesByCounterpartyId.get(counterpartyId) ?? null;
+        const currentBankProvider = currentBankRequisite?.providerId
+          ? await ctx.partiesModule.requisites.queries.findProviderById(
+              currentBankRequisite.providerId,
+            )
+          : null;
         const values: CustomerLegalEntityInput = {
           account: patch.account ?? currentBankRequisite?.accountNo ?? null,
           address: patch.address ?? current.address ?? null,
@@ -1457,16 +1362,25 @@ export function customersRoutes(ctx: AppContext) {
           bankAddress:
             patch.bankAddress ?? currentBankRequisite?.bankAddress ?? null,
           bankAddressI18n: patch.bankAddressI18n ?? null,
+          bankProviderId:
+            patch.bankProviderId ?? currentBankProvider?.id ?? null,
           bankCountry:
             patch.bankCountry ??
             patch.country ??
-            currentBankRequisite?.institutionCountry ??
+            currentBankProvider?.country ??
             current.country ??
             null,
           bankName:
-            patch.bankName ?? currentBankRequisite?.institutionName ?? null,
+            patch.bankName ??
+            currentBankRequisite?.institutionName ??
+            currentBankProvider?.name ??
+            null,
           bankNameI18n: patch.bankNameI18n ?? null,
-          bic: patch.bic ?? currentBankRequisite?.bic ?? null,
+          bic:
+            patch.bic ??
+            currentBankRequisite?.bic ??
+            currentBankProvider?.bic ??
+            null,
           corrAccount:
             patch.corrAccount ?? currentBankRequisite?.corrAccount ?? null,
           country: patch.country ?? current.country ?? null,
@@ -1492,6 +1406,11 @@ export function customersRoutes(ctx: AppContext) {
           subAgentCounterpartyId:
             patch.subAgentCounterpartyId ??
             currentAssignment?.subAgentCounterpartyId ??
+            null,
+          swift:
+            patch.swift ??
+            currentBankRequisite?.swift ??
+            currentBankProvider?.swift ??
             null,
         };
 

@@ -24,7 +24,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@bedrock/sdk-ui/components/command";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Field,
   FieldDescription,
@@ -102,7 +101,6 @@ const DEFAULT_VALUES: RequisiteFormValues = {
   description: "",
   beneficiaryName: "",
   institutionName: "",
-  institutionCountry: "",
   accountNo: "",
   corrAccount: "",
   iban: "",
@@ -137,7 +135,6 @@ function createSchema() {
       description: z.string(),
       beneficiaryName: z.string(),
       institutionName: z.string(),
-      institutionCountry: z.string(),
       accountNo: z.string(),
       corrAccount: z.string(),
       iban: z.string(),
@@ -168,13 +165,6 @@ function createSchema() {
             code: "custom",
             path: ["institutionName"],
             message: "Банк обязателен для банковских реквизитов",
-          });
-        }
-        if (!data.institutionCountry.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["institutionCountry"],
-            message: "Страна банка обязательна",
           });
         }
         if (!data.accountNo.trim()) {
@@ -218,13 +208,6 @@ function createSchema() {
             message: "Институт обязателен",
           });
         }
-        if (!data.institutionCountry.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["institutionCountry"],
-            message: "Страна института обязательна",
-          });
-        }
         if (!data.accountRef.trim()) {
           ctx.addIssue({
             code: "custom",
@@ -246,7 +229,6 @@ function normalizeValues(values: RequisiteFormValues): RequisiteFormValues {
     description: values.description.trim(),
     beneficiaryName: values.beneficiaryName.trim(),
     institutionName: values.institutionName.trim(),
-    institutionCountry: values.institutionCountry.trim().toUpperCase(),
     accountNo: values.accountNo.trim(),
     corrAccount: values.corrAccount.trim(),
     iban: values.iban.trim(),
@@ -742,31 +724,6 @@ export function RequisiteGeneralForm({
                   </FieldError>
                 </Field>
                 <Field>
-                  <FieldLabel>Страна банка</FieldLabel>
-                  <Controller
-                    control={form.control}
-                    name="institutionCountry"
-                    render={({ field }) => (
-                      <CountrySelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Выберите страну банка"
-                        searchPlaceholder="Поиск страны..."
-                        emptyLabel="Страна не найдена"
-                        disabled={submitting || deleting}
-                        invalid={Boolean(
-                          form.formState.errors.institutionCountry,
-                        )}
-                        clearable
-                        clearLabel="Очистить"
-                      />
-                    )}
-                  />
-                  <FieldError>
-                    {form.formState.errors.institutionCountry?.message}
-                  </FieldError>
-                </Field>
-                <Field>
                   <FieldLabel>Номер счёта</FieldLabel>
                   <Input
                     {...form.register("accountNo")}
@@ -866,31 +823,6 @@ export function RequisiteGeneralForm({
                   />
                   <FieldError>
                     {form.formState.errors.institutionName?.message}
-                  </FieldError>
-                </Field>
-                <Field>
-                  <FieldLabel>Страна института</FieldLabel>
-                  <Controller
-                    control={form.control}
-                    name="institutionCountry"
-                    render={({ field }) => (
-                      <CountrySelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Выберите страну института"
-                        searchPlaceholder="Поиск страны..."
-                        emptyLabel="Страна не найдена"
-                        disabled={submitting || deleting}
-                        invalid={Boolean(
-                          form.formState.errors.institutionCountry,
-                        )}
-                        clearable
-                        clearLabel="Очистить"
-                      />
-                    )}
-                  />
-                  <FieldError>
-                    {form.formState.errors.institutionCountry?.message}
                   </FieldError>
                 </Field>
                 <Field>

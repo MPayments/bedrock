@@ -69,7 +69,6 @@ export function CreateRequisiteFormClient({
             description: values.description || null,
             beneficiaryName: values.beneficiaryName || null,
             institutionName: values.institutionName || null,
-            institutionCountry: values.institutionCountry || null,
             accountNo: values.accountNo || null,
             corrAccount: values.corrAccount || null,
             iban: values.iban || null,

@@ -35,7 +35,6 @@ type UpdatedRequisiteResponse = {
   description: string | null;
   beneficiaryName: string | null;
   institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
@@ -67,7 +66,6 @@ function toFormValues(
     description: requisite.description,
     beneficiaryName: requisite.beneficiaryName,
     institutionName: requisite.institutionName,
-    institutionCountry: requisite.institutionCountry,
     accountNo: requisite.accountNo,
     corrAccount: requisite.corrAccount,
     iban: requisite.iban,
@@ -101,7 +99,6 @@ function toUpdatedRequisite(
     description: payload.description ?? "",
     beneficiaryName: payload.beneficiaryName ?? "",
     institutionName: payload.institutionName ?? "",
-    institutionCountry: payload.institutionCountry ?? "",
     accountNo: payload.accountNo ?? "",
     corrAccount: payload.corrAccount ?? "",
     iban: payload.iban ?? "",
@@ -154,7 +151,6 @@ export function EditRequisiteFormClient({
             description: values.description || null,
             beneficiaryName: values.beneficiaryName || null,
             institutionName: values.institutionName || null,
-            institutionCountry: values.institutionCountry || null,
             accountNo: values.accountNo || null,
             corrAccount: values.corrAccount || null,
             iban: values.iban || null,

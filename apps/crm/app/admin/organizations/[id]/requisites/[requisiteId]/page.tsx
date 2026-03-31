@@ -18,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
@@ -51,7 +50,6 @@ interface RequisiteFormState {
   description: string;
   beneficiaryName: string;
   institutionName: string;
-  institutionCountry: string;
   accountNo: string;
   corrAccount: string;
   iban: string;
@@ -70,7 +68,6 @@ const EMPTY_FORM: RequisiteFormState = {
   description: "",
   beneficiaryName: "",
   institutionName: "",
-  institutionCountry: "",
   accountNo: "",
   corrAccount: "",
   iban: "",
@@ -173,7 +170,6 @@ export default function OrganizationRequisiteDetailPage() {
             description: requisite.description ?? "",
             beneficiaryName: requisite.beneficiaryName ?? "",
             institutionName: requisite.institutionName ?? "",
-            institutionCountry: requisite.institutionCountry ?? "",
             accountNo: requisite.accountNo ?? "",
             corrAccount: requisite.corrAccount ?? "",
             iban: requisite.iban ?? "",
@@ -191,8 +187,6 @@ export default function OrganizationRequisiteDetailPage() {
               current.beneficiaryName ||
               organizationPayload.fullName ||
               organizationPayload.shortName,
-            institutionCountry:
-              current.institutionCountry || organizationPayload.country || "",
           }));
         }
       } catch (err) {
@@ -256,7 +250,6 @@ export default function OrganizationRequisiteDetailPage() {
         description: normalizeNullable(form.description),
         beneficiaryName: normalizeNullable(form.beneficiaryName),
         institutionName: normalizeNullable(form.institutionName),
-        institutionCountry: normalizeNullable(form.institutionCountry),
         accountNo: normalizeNullable(form.accountNo),
         corrAccount: normalizeNullable(form.corrAccount),
         iban: normalizeNullable(form.iban),
@@ -453,20 +446,6 @@ export default function OrganizationRequisiteDetailPage() {
                 updateField("institutionName", event.target.value)
               }
               placeholder="Название банка"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="institutionCountry">Страна банка</Label>
-            <CountrySelect
-              id="institutionCountry"
-              value={form.institutionCountry}
-              onValueChange={(value) => updateField("institutionCountry", value)}
-              placeholder="Выберите страну"
-              searchPlaceholder="Поиск страны..."
-              emptyLabel="Страна не найдена"
-              clearable
-              clearLabel="Очистить"
             />
           </div>
 

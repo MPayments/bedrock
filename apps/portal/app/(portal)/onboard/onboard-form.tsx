@@ -14,9 +14,10 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { z } from "zod";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -47,14 +48,26 @@ const BANK_FIELDS: Array<{
   label: string;
   placeholder: string;
 }> = [
-  { name: "bankName", label: "Банк", placeholder: "АО Банк" },
   { name: "bankAddress", label: "Адрес банка", placeholder: "г. Москва" },
   { name: "account", label: "Расчетный счет", placeholder: "40702810..." },
   { name: "bic", label: "БИК", placeholder: "044525225" },
   { name: "corrAccount", label: "Корр. счет", placeholder: "30101810..." },
+  { name: "swift", label: "SWIFT", placeholder: "DEUTDEFF" },
 ];
 
-export function OnboardForm() {
+type BankProviderSearchResult = {
+  address: string | null;
+  bic: string | null;
+  country: string | null;
+  displayLabel: string;
+  id: string;
+  name: string;
+  swift: string | null;
+};
+
+type CustomerOnboardingFormValues = z.input<typeof customerOnboardSchema>;
+
+export function CustomerOnboardingForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [error, setError] = useState("");
@@ -65,15 +78,20 @@ export function OnboardForm() {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [showExtraFields, setShowExtraFields] = useState(false);
   const [showBankFields, setShowBankFields] = useState(false);
+  const [searchingBankProviders, setSearchingBankProviders] = useState(false);
+  const [bankProviderMatches, setBankProviderMatches] = useState<
+    BankProviderSearchResult[]
+  >([]);
 
   const {
     control,
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
-  } = useForm<CustomerOnboardInput>({
-    resolver: zodResolver(customerOnboardSchema),
+  } = useForm<CustomerOnboardingFormValues>({
+    resolver: zodResolver(customerOnboardSchema) as never,
     defaultValues: {
       name: "",
       orgName: "",
@@ -92,10 +110,17 @@ export function OnboardForm() {
       bankName: "",
       bankAddress: "",
       account: "",
+      bankProviderId: undefined,
       bic: "",
       corrAccount: "",
       bankCountry: "RU",
+      swift: "",
     },
+  });
+  const bankNameValue = useWatch({ control, name: "bankName" });
+  const selectedBankProviderId = useWatch({
+    control,
+    name: "bankProviderId",
   });
 
   function applyCompanyData(companyData: Partial<CustomerOnboardInput>) {
@@ -116,9 +141,11 @@ export function OnboardForm() {
       "bankName",
       "bankAddress",
       "account",
+      "bankProviderId",
       "bic",
       "corrAccount",
       "bankCountry",
+      "swift",
     ];
 
     for (const field of fields) {
@@ -135,6 +162,92 @@ export function OnboardForm() {
         });
       }
     }
+  }
+
+  useEffect(() => {
+    if (!showBankFields) {
+      setBankProviderMatches([]);
+      return;
+    }
+
+    if (selectedBankProviderId) {
+      setBankProviderMatches([]);
+      return;
+    }
+
+    const query = bankNameValue?.trim() ?? "";
+    if (query.length < 2) {
+      setBankProviderMatches([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setSearchingBankProviders(true);
+
+      try {
+        const search = new URLSearchParams({
+          limit: "8",
+          query,
+        });
+        const response = await fetch(
+          `${API_BASE_URL}/customer/legal-entities/bank-providers?${search.toString()}`,
+          {
+            credentials: "include",
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Ошибка поиска банка: ${response.status}`);
+        }
+
+        const payload = (await response.json()) as {
+          data?: BankProviderSearchResult[];
+        };
+        setBankProviderMatches(payload.data ?? []);
+      } catch (searchError) {
+        if ((searchError as Error).name !== "AbortError") {
+          console.error("Bank provider search error:", searchError);
+          setBankProviderMatches([]);
+        }
+      } finally {
+        setSearchingBankProviders(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [bankNameValue, selectedBankProviderId, showBankFields]);
+
+  function applyBankProvider(provider: BankProviderSearchResult) {
+    setValue("bankProviderId", provider.id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("bankName", provider.name, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("bankAddress", provider.address ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("bankCountry", provider.country ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("bic", provider.bic ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("swift", provider.swift ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setBankProviderMatches([]);
   }
 
   async function handleInnSearch() {
@@ -231,43 +344,44 @@ export function OnboardForm() {
     }
   }
 
-  async function onSubmit(data: CustomerOnboardInput) {
+  async function onSubmit(data: CustomerOnboardingFormValues) {
     setError("");
 
     try {
+      const parsed = customerOnboardSchema.parse(data);
       const payload: CustomerOnboardInput = {
-        ...data,
+        ...parsed,
         orgNameI18n: {
-          ru: data.orgName || undefined,
-          en: data.orgNameI18n?.en || undefined,
+          ru: parsed.orgName || undefined,
+          en: parsed.orgNameI18n?.en || undefined,
         },
         orgTypeI18n: {
-          ru: data.orgType || undefined,
-          en: data.orgTypeI18n?.en || undefined,
+          ru: parsed.orgType || undefined,
+          en: parsed.orgTypeI18n?.en || undefined,
         },
         directorNameI18n: {
-          ru: data.directorName || undefined,
-          en: data.directorNameI18n?.en || undefined,
+          ru: parsed.directorName || undefined,
+          en: parsed.directorNameI18n?.en || undefined,
         },
         positionI18n: {
-          ru: data.position || undefined,
-          en: data.positionI18n?.en || undefined,
+          ru: parsed.position || undefined,
+          en: parsed.positionI18n?.en || undefined,
         },
         directorBasisI18n: {
-          ru: data.directorBasis || undefined,
-          en: data.directorBasisI18n?.en || undefined,
+          ru: parsed.directorBasis || undefined,
+          en: parsed.directorBasisI18n?.en || undefined,
         },
         addressI18n: {
-          ru: data.address || undefined,
-          en: data.addressI18n?.en || undefined,
+          ru: parsed.address || undefined,
+          en: parsed.addressI18n?.en || undefined,
         },
         bankNameI18n: {
-          ru: data.bankName || undefined,
-          en: data.bankNameI18n?.en || undefined,
+          ru: parsed.bankName || undefined,
+          en: parsed.bankNameI18n?.en || undefined,
         },
         bankAddressI18n: {
-          ru: data.bankAddress || undefined,
-          en: data.bankAddressI18n?.en || undefined,
+          ru: parsed.bankAddress || undefined,
+          en: parsed.bankAddressI18n?.en || undefined,
         },
       };
 
@@ -408,7 +522,7 @@ export function OnboardForm() {
         </Alert>
       ) : null}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit as never)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">
             Ваше ФИО <span className="text-destructive">*</span>
@@ -541,10 +655,58 @@ export function OnboardForm() {
           </Button>
           {showBankFields ? (
             <div className="grid gap-4 pt-2 md:grid-cols-2">
-              {BANK_FIELDS.map((field) => (
-                <div key={field.name} className="space-y-1.5">
-                  <Label htmlFor={field.name}>{field.label}</Label>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="bankName">Банк</Label>
                   <Input
+                    id="bankName"
+                    {...register("bankName", {
+                      onChange: () => {
+                        if (getValues("bankProviderId")) {
+                          setValue("bankProviderId", undefined, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }
+                      },
+                    })}
+                    placeholder="Начните вводить название банка, БИК или SWIFT"
+                  />
+                  {searchingBankProviders ? (
+                    <p className="text-xs text-muted-foreground">
+                      Ищем подходящие банки...
+                    </p>
+                  ) : null}
+                  {bankProviderMatches.length > 0 ? (
+                    <div className="rounded-md border border-border bg-background">
+                      {bankProviderMatches.map((provider) => (
+                        <button
+                          key={provider.id}
+                          type="button"
+                          className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted/50"
+                          onClick={() => applyBankProvider(provider)}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">
+                              {provider.name}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {provider.displayLabel}
+                            </span>
+                          </span>
+                          {provider.country ? (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {provider.country}
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                {BANK_FIELDS.map((field) => (
+                  <div key={field.name} className="space-y-1.5">
+                    <Label htmlFor={field.name}>{field.label}</Label>
+                    <Input
                     id={field.name}
                     {...register(field.name)}
                     placeholder={field.placeholder}

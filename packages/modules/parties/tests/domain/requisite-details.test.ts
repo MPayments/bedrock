@@ -14,11 +14,9 @@ describe("requisite details domain", () => {
       description: "  Primary  ",
       beneficiaryName: "  Acme Corp  ",
       institutionName: "  JPM  ",
-      institutionCountry: "us",
       accountNo: "  1234  ",
     });
 
-    expect(details.toFields().institutionCountry).toBe("US");
     expect(
       buildRequisiteDisplayLabel({
         ...details.toFields(),

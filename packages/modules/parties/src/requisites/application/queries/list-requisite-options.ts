@@ -24,7 +24,6 @@ export class ListRequisiteOptionsQuery {
         label: row.label,
         beneficiaryName: row.beneficiaryName,
         institutionName: row.institutionName,
-        institutionCountry: row.institutionCountry,
         accountNo: row.accountNo,
         corrAccount: row.corrAccount,
         iban: row.iban,

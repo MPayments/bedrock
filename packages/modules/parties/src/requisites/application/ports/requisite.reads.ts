@@ -13,7 +13,6 @@ export interface RequisiteOptionRecord extends Omit<RequisiteOption, "label"> {
   currencyCode: string;
   beneficiaryName: string | null;
   institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;

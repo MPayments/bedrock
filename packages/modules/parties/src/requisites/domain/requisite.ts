@@ -18,7 +18,6 @@ export interface RequisiteSnapshot {
   description: string | null;
   beneficiaryName: string | null;
   institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
@@ -57,7 +56,6 @@ export interface UpdateRequisiteProps {
   description: string | null;
   beneficiaryName: string | null;
   institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;

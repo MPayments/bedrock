@@ -69,6 +69,7 @@ const CustomerPortalCreateLegalEntityInputSchema = z.object({
   bankCountry: z.string().nullable().optional(),
   bankName: z.string().nullable().optional(),
   bankNameI18n: LocalizedTextSchema,
+  bankProviderId: z.string().uuid().nullable().optional(),
   bic: z.string().nullable().optional(),
   corrAccount: z.string().nullable().optional(),
   country: z.string().nullable().optional(),
@@ -96,6 +97,22 @@ const CustomerPortalCreateLegalEntityInputSchema = z.object({
   position: z.string().nullable().optional(),
   positionI18n: LocalizedTextSchema,
   subAgentCounterpartyId: z.string().uuid().nullable().optional(),
+  swift: z.string().nullable().optional(),
+});
+
+const CustomerPortalBankProviderSearchQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(8),
+  query: z.string().trim().min(1),
+});
+
+const CustomerPortalBankProviderSearchResultSchema = z.object({
+  address: z.string().nullable(),
+  bic: z.string().nullable(),
+  country: z.string().nullable(),
+  displayLabel: z.string(),
+  id: z.string().uuid(),
+  name: z.string(),
+  swift: z.string().nullable(),
 });
 
 const CustomerPortalDealIdParamSchema = z.object({
@@ -255,6 +272,32 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
+  const searchBankProvidersRoute = createRoute({
+    method: "get",
+    path: "/legal-entities/bank-providers",
+    tags: ["Customer"],
+    summary: "Search bank providers for legal entity onboarding",
+    request: {
+      query: CustomerPortalBankProviderSearchQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              data: z.array(CustomerPortalBankProviderSearchResultSchema),
+            }),
+          },
+        },
+        description: "Bank provider matches",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
   const createDealRoute = createRoute({
     method: "post",
     path: "/deals",
@@ -353,13 +396,34 @@ export function customerRoutes(ctx: AppContext) {
       }
 
       try {
-        const result = await ctx.customerPortalWorkflow.createClient(
+        const result = await ctx.customerPortalWorkflow.createLegalEntity(
           {
             userId: user.id,
           },
           input,
         );
         return c.json(result, 201);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(searchBankProvidersRoute, async (c) => {
+      const user = c.get("user")!;
+      const query = c.req.valid("query");
+
+      try {
+        const data = await ctx.customerPortalWorkflow.searchBankProviders(
+          { userId: user.id },
+          query,
+        );
+        return c.json({ data }, 200);
       } catch (error) {
         if (
           error instanceof Error &&

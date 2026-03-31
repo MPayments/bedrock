@@ -67,7 +67,6 @@ describe("requisites pages", () => {
       description: "",
       beneficiaryName: "",
       institutionName: "",
-      institutionCountry: "",
       accountNo: "",
       corrAccount: "",
       iban: "",

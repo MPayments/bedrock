@@ -110,7 +110,6 @@ export interface RequisiteFieldsInput {
   kind: RequisiteKind;
   beneficiaryName?: string | null;
   institutionName?: string | null;
-  institutionCountry?: string | null;
   accountNo?: string | null;
   corrAccount?: string | null;
   iban?: string | null;
@@ -132,7 +131,6 @@ export interface RequisiteDetailsFields {
   description: string | null;
   beneficiaryName: string | null;
   institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
@@ -161,7 +159,6 @@ function normalizeRequisiteDetails(
     description: normalizeOptionalText(input.description),
     beneficiaryName: normalizeOptionalText(input.beneficiaryName),
     institutionName: normalizeOptionalText(input.institutionName),
-    institutionCountry: normalizeOptionalText(input.institutionCountry),
     accountNo: normalizeOptionalText(input.accountNo),
     corrAccount: normalizeOptionalText(input.corrAccount),
     iban: normalizeOptionalText(input.iban),
@@ -226,9 +223,6 @@ export function collectRequisiteFieldIssues(
       if (!hasText(input.institutionName)) {
         issues.push("institutionName is required for bank requisites");
       }
-      if (!hasText(input.institutionCountry)) {
-        issues.push("institutionCountry is required for bank requisites");
-      }
       if (!hasText(input.accountNo)) {
         issues.push("accountNo is required for bank requisites");
       }
@@ -248,11 +242,6 @@ export function collectRequisiteFieldIssues(
     case "custodian":
       if (!hasText(input.institutionName)) {
         issues.push(`institutionName is required for ${input.kind} requisites`);
-      }
-      if (!hasText(input.institutionCountry)) {
-        issues.push(
-          `institutionCountry is required for ${input.kind} requisites`,
-        );
       }
       if (!hasText(input.accountRef)) {
         issues.push(`accountRef is required for ${input.kind} requisites`);

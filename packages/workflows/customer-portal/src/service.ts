@@ -14,6 +14,11 @@ import {
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
+import {
+  createCustomerBankingService,
+  type BankProviderSearchResult,
+} from "./bank-requisites";
+
 interface LocalizedText {
   en?: string | null;
   ru?: string | null;
@@ -27,7 +32,7 @@ export interface CustomerPortalWorkflowDeps {
     customerMemberships: CustomerMembershipsService;
     users: Pick<IamService, "queries">;
   };
-  parties: Pick<PartiesModule, "counterparties" | "customers">;
+  parties: Pick<PartiesModule, "counterparties" | "customers" | "requisites">;
   logger: Logger;
 }
 
@@ -44,6 +49,7 @@ export interface CustomerPortalCreateLegalEntityInput {
   bankCountry?: string | null;
   bankName?: string | null;
   bankNameI18n?: LocalizedText | null;
+  bankProviderId?: string | null;
   bic?: string | null;
   corrAccount?: string | null;
   country?: string | null;
@@ -65,6 +71,7 @@ export interface CustomerPortalCreateLegalEntityInput {
   position?: string | null;
   positionI18n?: LocalizedText | null;
   subAgentCounterpartyId?: string | null;
+  swift?: string | null;
 }
 
 export class CustomerNotAuthorizedError extends Error {
@@ -129,7 +136,7 @@ export interface CustomerPortalCustomerContext {
 
 export interface CustomerPortalWorkflow {
   assertPortalAccess(ctx: CustomerContext): Promise<void>;
-  createClient(
+  createLegalEntity(
     ctx: CustomerContext,
     input: CustomerPortalCreateLegalEntityInput,
   ): Promise<{
@@ -166,19 +173,22 @@ export interface CustomerPortalWorkflow {
     position: string | null;
     positionI18n: LocalizedText | null;
     subAgentCounterpartyId: string | null;
+    swift: string | null;
     updatedAt: string;
     userId: string | null;
   }>;
+  searchBankProviders(
+    ctx: CustomerContext,
+    input: {
+      limit?: number;
+      query: string;
+    },
+  ): Promise<BankProviderSearchResult[]>;
   getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile>;
-  getClients(ctx: CustomerContext): Promise<{
-    data: CustomerPortalCustomerContext[];
-    total: number;
-  }>;
   getCustomerContexts(ctx: CustomerContext): Promise<{
     data: CustomerPortalCustomerContext[];
     total: number;
   }>;
-  getClientById(ctx: CustomerContext, clientId: number): Promise<never>;
   createDeal(
     ctx: CustomerContext,
     input: {
@@ -321,6 +331,12 @@ function mapLegalEntity(
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ): CustomerPortalWorkflow {
+  const customerBankingService = createCustomerBankingService({
+    currencies: deps.currencies,
+    logger: deps.logger,
+    requisites: deps.parties.requisites,
+  });
+
   async function listMembershipsByUserId(userId: string) {
     return deps.iam.customerMemberships.queries.listByUserId({ userId });
   }
@@ -589,20 +605,28 @@ export function createCustomerPortalWorkflow(
     }
   }
 
+  async function assertOnboardingAccess(
+    ctx: CustomerContext,
+  ): Promise<CustomerPortalProfile> {
+    const profile = await getProfile(ctx);
+
+    if (profile.hasCrmAccess && !profile.hasCustomerPortalAccess) {
+      throw new CustomerNotAuthorizedError(
+        `User ${ctx.userId} must use CRM to create legal entities`,
+      );
+    }
+
+    return profile;
+  }
+
   return {
     assertPortalAccess,
 
-    async createClient(
+    async createLegalEntity(
       ctx: CustomerContext,
       input: CustomerPortalCreateLegalEntityInput,
     ) {
-      const profile = await getProfile(ctx);
-
-      if (profile.hasCrmAccess && !profile.hasCustomerPortalAccess) {
-        throw new CustomerNotAuthorizedError(
-          `User ${ctx.userId} must use CRM to create legal entities`,
-        );
-      }
+      await assertOnboardingAccess(ctx);
 
       const customer = await deps.parties.customers.commands.create({
         description: null,
@@ -650,17 +674,23 @@ export function createCustomerPortalWorkflow(
         userId: ctx.userId,
       });
 
+      const { provider, requisite } =
+        await customerBankingService.upsertCounterpartyBankRequisite({
+          counterpartyId: counterparty.id,
+          values: input,
+        });
+
       return {
-        account: normalizeNullableText(input.account),
+        account: requisite?.accountNo ?? null,
         address: counterparty.address,
         addressI18n: counterparty.addressI18n,
-        bankAddress: normalizeNullableText(input.bankAddress),
+        bankAddress: requisite?.bankAddress ?? provider?.address ?? null,
         bankAddressI18n: input.bankAddressI18n ?? null,
-        bankCountry: normalizeCountryCode(input.bankCountry ?? input.country),
-        bankName: normalizeNullableText(input.bankName),
+        bankCountry: provider?.country ?? null,
+        bankName: requisite?.institutionName ?? provider?.name ?? null,
         bankNameI18n: input.bankNameI18n ?? null,
-        bic: normalizeNullableText(input.bic),
-        corrAccount: normalizeNullableText(input.corrAccount),
+        bic: requisite?.bic ?? provider?.bic ?? null,
+        corrAccount: requisite?.corrAccount ?? null,
         counterpartyId: counterparty.id,
         createdAt: counterparty.createdAt.toISOString(),
         customerId: customer.id,
@@ -686,20 +716,18 @@ export function createCustomerPortalWorkflow(
         subAgentCounterpartyId: normalizeNullableText(
           input.subAgentCounterpartyId,
         ),
+        swift: requisite?.swift ?? provider?.swift ?? null,
         updatedAt: counterparty.updatedAt.toISOString(),
         userId: null,
       };
     },
 
-    getProfile,
-
-    async getClients(ctx: CustomerContext) {
-      const data = await getCustomerContextsByUserId(ctx.userId);
-      return {
-        data,
-        total: data.length,
-      };
+    async searchBankProviders(ctx: CustomerContext, input) {
+      await assertOnboardingAccess(ctx);
+      return customerBankingService.searchBankProviders(input);
     },
+
+    getProfile,
 
     async getCustomerContexts(ctx: CustomerContext) {
       const data = await getCustomerContextsByUserId(ctx.userId);
@@ -707,12 +735,6 @@ export function createCustomerPortalWorkflow(
         data,
         total: data.length,
       };
-    },
-
-    async getClientById(_ctx: CustomerContext, clientId: number) {
-      throw new CustomerNotAuthorizedError(
-        `Legacy client ${clientId} is no longer supported`,
-      );
     },
 
     async createDeal(

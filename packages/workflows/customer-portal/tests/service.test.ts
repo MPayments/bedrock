@@ -279,6 +279,99 @@ function createWorkflow(overrides?: {
         ),
       },
     },
+    requisites: {
+      commands: {
+        create: vi.fn(async (input) => ({
+          id: "requisite-created",
+          ownerType: input.ownerType,
+          ownerId: input.ownerId,
+          providerId: input.providerId,
+          currencyId: input.currencyId,
+          kind: input.kind,
+          label: input.label,
+          description: input.description ?? null,
+          beneficiaryName: input.beneficiaryName ?? null,
+          institutionName: input.institutionName ?? null,
+          accountNo: input.accountNo ?? null,
+          corrAccount: input.corrAccount ?? null,
+          iban: input.iban ?? null,
+          bic: input.bic ?? null,
+          swift: input.swift ?? null,
+          bankAddress: input.bankAddress ?? null,
+          network: input.network ?? null,
+          assetCode: input.assetCode ?? null,
+          address: input.address ?? null,
+          memoTag: input.memoTag ?? null,
+          accountRef: input.accountRef ?? null,
+          subaccountRef: input.subaccountRef ?? null,
+          contact: input.contact ?? null,
+          notes: input.notes ?? null,
+          isDefault: input.isDefault ?? false,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          archivedAt: null,
+        })),
+        createProvider: vi.fn(async (input) => ({
+          id: "provider-created",
+          kind: input.kind,
+          name: input.name,
+          description: input.description ?? null,
+          country: input.country ?? null,
+          address: input.address ?? null,
+          contact: input.contact ?? null,
+          bic: input.bic ?? null,
+          swift: input.swift ?? null,
+          archivedAt: null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        })),
+        update: vi.fn(async (id: string, input) => ({
+          id,
+          ownerType: "counterparty",
+          ownerId: "counterparty-created",
+          providerId: input.providerId ?? "provider-created",
+          currencyId: input.currencyId ?? "usd-id",
+          kind: input.kind ?? "bank",
+          label: input.label ?? "Bank details",
+          description: input.description ?? null,
+          beneficiaryName: input.beneficiaryName ?? null,
+          institutionName: input.institutionName ?? null,
+          accountNo: input.accountNo ?? null,
+          corrAccount: input.corrAccount ?? null,
+          iban: input.iban ?? null,
+          bic: input.bic ?? null,
+          swift: input.swift ?? null,
+          bankAddress: input.bankAddress ?? null,
+          network: input.network ?? null,
+          assetCode: input.assetCode ?? null,
+          address: input.address ?? null,
+          memoTag: input.memoTag ?? null,
+          accountRef: input.accountRef ?? null,
+          subaccountRef: input.subaccountRef ?? null,
+          contact: input.contact ?? null,
+          notes: input.notes ?? null,
+          isDefault: input.isDefault ?? false,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          archivedAt: null,
+        })),
+      },
+      queries: {
+        findProviderById: vi.fn(async () => null),
+        list: vi.fn(async () => ({
+          data: [],
+          limit: 50,
+          offset: 0,
+          total: 0,
+        })),
+        listProviders: vi.fn(async () => ({
+          data: [],
+          limit: 50,
+          offset: 0,
+          total: 0,
+        })),
+      },
+    },
   };
 
   return {
@@ -413,14 +506,18 @@ describe("customer portal workflow", () => {
       },
     });
 
-    const result = await workflow.createClient(
+    const result = await workflow.createLegalEntity(
       { userId: "user-1" },
       {
+        bankCountry: "RU",
+        bic: "044525225",
         directorName: "Иван Иванов",
         email: "finance@example.com",
         inn: "7700000000",
         orgName: "Acme Corp",
         phone: "+79990001122",
+        account: "40702810900000000001",
+        bankName: "АО Банк",
       },
     );
 
@@ -445,8 +542,14 @@ describe("customer portal workflow", () => {
       status: "active",
       userId: "user-1",
     });
+    expect(parties.requisites.commands.createProvider).toHaveBeenCalled();
+    expect(parties.requisites.commands.create).toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
+        account: "40702810900000000001",
+        bankCountry: "RU",
+        bankName: "АО Банк",
+        bic: "044525225",
         counterpartyId: "counterparty-created",
         customerId: "customer-created",
         id: 0,
@@ -464,11 +567,77 @@ describe("customer portal workflow", () => {
     });
 
     await expect(
-      workflow.createClient(
+      workflow.createLegalEntity(
         { userId: "user-1" },
         {
           orgName: "CRM only",
         },
+      ),
+    ).rejects.toMatchObject({
+      name: "CustomerNotAuthorizedError",
+    });
+  });
+
+  it("allows bank-provider search during initial onboarding", async () => {
+    const { parties, workflow } = createWorkflow({
+      memberships: [],
+      user: {
+        role: "customer",
+      },
+    });
+    const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
+      typeof vi.fn
+    >;
+    listProvidersMock.mockResolvedValueOnce({
+      data: [
+        {
+          address: "Москва",
+          archivedAt: null,
+          bic: "044525225",
+          contact: null,
+          country: "RU",
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          description: null,
+          id: "provider-1",
+          kind: "bank",
+          name: "АО Банк",
+          swift: "BANKRUMM",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        },
+      ],
+      limit: 8,
+      offset: 0,
+      total: 1,
+    });
+
+    await expect(
+      workflow.searchBankProviders(
+        { userId: "user-1" },
+        { query: "Банк", limit: 8 },
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        bic: "044525225",
+        country: "RU",
+        id: "provider-1",
+        name: "АО Банк",
+        swift: "BANKRUMM",
+      }),
+    ]);
+  });
+
+  it("rejects bank-provider search for CRM-only users", async () => {
+    const { workflow } = createWorkflow({
+      memberships: [],
+      user: {
+        role: "user",
+      },
+    });
+
+    await expect(
+      workflow.searchBankProviders(
+        { userId: "user-1" },
+        { query: "Банк", limit: 8 },
       ),
     ).rejects.toMatchObject({
       name: "CustomerNotAuthorizedError",
