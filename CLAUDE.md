@@ -80,6 +80,25 @@ packages/tooling/    — ESLint config, TS config, test utils
 
 `shared -> modules/workflows/plugins/sdk -> apps/*`. Platform subpaths provide shared infrastructure to all layers. Apps and workflows do composition; they don't own business logic.
 
+### CRM Domain (ex-MPayments)
+
+The CRM/operations domain (merged from the MPayments app) is split across 4 bounded-context modules:
+
+| Module | Package | Owns |
+|---|---|---|
+| **Parties** | `@bedrock/parties` | customers, counterparties, organizations, requisites, sub-agent profiles |
+| **Deals** | `@bedrock/deals` | deal lifecycle, legs, participants, approvals, bonuses, extensions |
+| **Calculations** | `@bedrock/calculations` | FX/fee calculations with versioned snapshots and line items |
+| **Agreements** | `@bedrock/agreements` | service agreements with versioned terms and fee rules |
+
+Supporting: `apps/crm` (Next.js frontend + `crm_tasks` table), `@bedrock/iam` (agent profiles, auth).
+Workflows: `customer-portal`, `deal-commission`, `document-generation`.
+
+Dependency order: Parties/Calculations (no CRM deps) -> Agreements (refs parties) -> Deals (refs all three).
+Cross-module reads use **references ports** (dependency inversion), not direct imports.
+
+See `CRM_ARCHITECTURE.md` for detailed entity mappings, business flows, and composition wiring.
+
 ### Internal Package Layers (DDD / Explicit Architecture)
 
 Every runtime module follows this structure:
@@ -134,4 +153,6 @@ Hono with `@hono/zod-openapi`. Each route module is a function receiving app con
 
 - `README.md` — Setup and topology overview
 - `AGENTS.md` — Detailed coding conventions and patterns
+- `CRM_ARCHITECTURE.md` — CRM domain: module map, entity transformation, business flows, composition
+- `MERGE.md` — MPayments merge phases and status
 - `docs/adr/**` — Architecture Decision Records (especially ADR 0001)

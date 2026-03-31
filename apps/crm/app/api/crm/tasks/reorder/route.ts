@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { toSafeErrorResponse } from "@/lib/server/api-error";
 import { requireCrmApiSession } from "@/lib/server/auth";
 import { reorderCrmTasks } from "@/lib/server/tasks/service";
 import {
@@ -8,23 +9,6 @@ import {
 } from "@/lib/tasks/contracts";
 
 export const dynamic = "force-dynamic";
-
-function toErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected error";
-
-  if (message === "Forbidden") {
-    return NextResponse.json({ error: message }, { status: 403 });
-  }
-
-  if (
-    message === "Some tasks were not found"
-    || message === "Tasks must share the same assignee"
-  ) {
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function POST(request: NextRequest) {
   const auth = await requireCrmApiSession();
@@ -50,6 +34,6 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    return toErrorResponse(error);
+    return toSafeErrorResponse(error);
   }
 }

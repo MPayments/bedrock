@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { toSafeErrorResponse } from "@/lib/server/api-error";
 import { requireCrmApiSession } from "@/lib/server/auth";
 import {
   deleteCrmTask,
@@ -11,24 +12,6 @@ import {
 } from "@/lib/tasks/contracts";
 
 export const dynamic = "force-dynamic";
-
-function toErrorResponse(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected error";
-
-  if (message === "Forbidden") {
-    return NextResponse.json({ error: message }, { status: 403 });
-  }
-
-  if (message === "Not found") {
-    return NextResponse.json({ error: message }, { status: 404 });
-  }
-
-  if (message.startsWith("Unknown ")) {
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 type RouteContext = {
   params: Promise<{
@@ -58,7 +41,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const task = await updateCrmTask(auth.value, id, parsedInput.data);
     return NextResponse.json(task, { status: 200 });
   } catch (error) {
-    return toErrorResponse(error);
+    return toSafeErrorResponse(error);
   }
 }
 
@@ -77,6 +60,6 @@ export async function DELETE(_: NextRequest, context: RouteContext) {
       { status: 200 },
     );
   } catch (error) {
-    return toErrorResponse(error);
+    return toSafeErrorResponse(error);
   }
 }
