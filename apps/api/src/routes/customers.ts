@@ -472,13 +472,13 @@ async function mapCustomerLegalEntity(input: {
     account: input.bankRequisite?.accountNo ?? null,
     address: input.counterparty.address ?? null,
     addressI18n: input.counterparty.addressI18n ?? null,
-    bankAddress: input.bankRequisite?.bankAddress ?? provider?.address ?? null,
+    bankAddress: provider?.address ?? null,
     bankAddressI18n: null,
     bankCountry: provider?.country ?? null,
-    bankName: input.bankRequisite?.institutionName ?? provider?.name ?? null,
+    bankName: provider?.name ?? null,
     bankNameI18n: null,
     bankProviderId: provider?.id ?? null,
-    bic: input.bankRequisite?.bic ?? provider?.bic ?? null,
+    bic: provider?.bic ?? null,
     contractNumber: input.contract?.contractNumber ?? null,
     corrAccount: input.bankRequisite?.corrAccount ?? null,
     counterpartyId: input.counterparty.id,
@@ -508,7 +508,7 @@ async function mapCustomerLegalEntity(input: {
     shortName: input.counterparty.shortName,
     subAgent,
     subAgentCounterpartyId: input.assignment?.subAgentCounterpartyId ?? null,
-    swift: input.bankRequisite?.swift ?? provider?.swift ?? null,
+    swift: provider?.swift ?? null,
     updatedAt: serializeDate(input.counterparty.updatedAt),
   };
 }
@@ -1359,8 +1359,7 @@ export function customersRoutes(ctx: AppContext) {
           account: patch.account ?? currentBankRequisite?.accountNo ?? null,
           address: patch.address ?? current.address ?? null,
           addressI18n: patch.addressI18n ?? current.addressI18n ?? null,
-          bankAddress:
-            patch.bankAddress ?? currentBankRequisite?.bankAddress ?? null,
+          bankAddress: patch.bankAddress ?? currentBankProvider?.address ?? null,
           bankAddressI18n: patch.bankAddressI18n ?? null,
           bankProviderId:
             patch.bankProviderId ?? currentBankProvider?.id ?? null,
@@ -1372,13 +1371,11 @@ export function customersRoutes(ctx: AppContext) {
             null,
           bankName:
             patch.bankName ??
-            currentBankRequisite?.institutionName ??
             currentBankProvider?.name ??
             null,
           bankNameI18n: patch.bankNameI18n ?? null,
           bic:
             patch.bic ??
-            currentBankRequisite?.bic ??
             currentBankProvider?.bic ??
             null,
           corrAccount:
@@ -1409,7 +1406,6 @@ export function customersRoutes(ctx: AppContext) {
             null,
           swift:
             patch.swift ??
-            currentBankRequisite?.swift ??
             currentBankProvider?.swift ??
             null,
         };

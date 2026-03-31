@@ -291,13 +291,9 @@ function createWorkflow(overrides?: {
           label: input.label,
           description: input.description ?? null,
           beneficiaryName: input.beneficiaryName ?? null,
-          institutionName: input.institutionName ?? null,
           accountNo: input.accountNo ?? null,
           corrAccount: input.corrAccount ?? null,
           iban: input.iban ?? null,
-          bic: input.bic ?? null,
-          swift: input.swift ?? null,
-          bankAddress: input.bankAddress ?? null,
           network: input.network ?? null,
           assetCode: input.assetCode ?? null,
           address: input.address ?? null,
@@ -335,13 +331,9 @@ function createWorkflow(overrides?: {
           label: input.label ?? "Bank details",
           description: input.description ?? null,
           beneficiaryName: input.beneficiaryName ?? null,
-          institutionName: input.institutionName ?? null,
           accountNo: input.accountNo ?? null,
           corrAccount: input.corrAccount ?? null,
           iban: input.iban ?? null,
-          bic: input.bic ?? null,
-          swift: input.swift ?? null,
-          bankAddress: input.bankAddress ?? null,
           network: input.network ?? null,
           assetCode: input.assetCode ?? null,
           address: input.address ?? null,
@@ -509,15 +501,21 @@ describe("customer portal workflow", () => {
     const result = await workflow.createLegalEntity(
       { userId: "user-1" },
       {
-        bankCountry: "RU",
-        bic: "044525225",
+        bankMode: "manual",
+        bankProvider: {
+          country: "RU",
+          name: "АО Банк",
+          routingCode: "044525225",
+        },
+        bankRequisite: {
+          accountNo: "40702810900000000001",
+          beneficiaryName: "Acme Corp",
+        },
         directorName: "Иван Иванов",
         email: "finance@example.com",
         inn: "7700000000",
         orgName: "Acme Corp",
         phone: "+79990001122",
-        account: "40702810900000000001",
-        bankName: "АО Банк",
       },
     );
 
@@ -570,6 +568,7 @@ describe("customer portal workflow", () => {
       workflow.createLegalEntity(
         { userId: "user-1" },
         {
+          bankMode: "existing",
           orgName: "CRM only",
         },
       ),

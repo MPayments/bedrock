@@ -17,13 +17,9 @@ export interface RequisiteSnapshot {
   label: string;
   description: string | null;
   beneficiaryName: string | null;
-  institutionName: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
-  bic: string | null;
-  swift: string | null;
-  bankAddress: string | null;
   network: string | null;
   assetCode: string | null;
   address: string | null;
@@ -55,13 +51,9 @@ export interface UpdateRequisiteProps {
   label: string;
   description: string | null;
   beneficiaryName: string | null;
-  institutionName: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
-  bic: string | null;
-  swift: string | null;
-  bankAddress: string | null;
   network: string | null;
   assetCode: string | null;
   address: string | null;

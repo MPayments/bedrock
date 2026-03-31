@@ -10,6 +10,7 @@ import {
   getRequestContext,
   withRequiredIdempotency,
 } from "../middleware/idempotency";
+import { lookupCompanyByInn } from "./legal-entities";
 
 const LocalizedTextSchema = z
   .object({
@@ -61,17 +62,35 @@ const CustomerPortalCustomerContextsSchema = z.object({
 });
 
 const CustomerPortalCreateLegalEntityInputSchema = z.object({
-  account: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
   addressI18n: LocalizedTextSchema,
-  bankAddress: z.string().nullable().optional(),
-  bankAddressI18n: LocalizedTextSchema,
-  bankCountry: z.string().nullable().optional(),
-  bankName: z.string().nullable().optional(),
-  bankNameI18n: LocalizedTextSchema,
+  bankMode: z.enum(["existing", "manual"]),
   bankProviderId: z.string().uuid().nullable().optional(),
-  bic: z.string().nullable().optional(),
-  corrAccount: z.string().nullable().optional(),
+  bankProvider: z
+    .object({
+      address: z.string().nullable().optional(),
+      country: z.string().nullable().optional(),
+      name: z.string().nullable().optional(),
+      routingCode: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  bankProviderI18n: z
+    .object({
+      address: LocalizedTextSchema,
+      name: LocalizedTextSchema,
+    })
+    .nullable()
+    .optional(),
+  bankRequisite: z
+    .object({
+      accountNo: z.string().nullable().optional(),
+      beneficiaryName: z.string().nullable().optional(),
+      corrAccount: z.string().nullable().optional(),
+      iban: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
   country: z.string().nullable().optional(),
   directorBasis: z.string().nullable().optional(),
   directorBasisI18n: LocalizedTextSchema,
@@ -97,7 +116,6 @@ const CustomerPortalCreateLegalEntityInputSchema = z.object({
   position: z.string().nullable().optional(),
   positionI18n: LocalizedTextSchema,
   subAgentCounterpartyId: z.string().uuid().nullable().optional(),
-  swift: z.string().nullable().optional(),
 });
 
 const CustomerPortalBankProviderSearchQuerySchema = z.object({
@@ -113,6 +131,20 @@ const CustomerPortalBankProviderSearchResultSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   swift: z.string().nullable(),
+});
+
+const CustomerPortalCompanyLookupResultSchema = z.object({
+  address: z.string().nullable(),
+  directorBasis: z.string().nullable(),
+  directorName: z.string().nullable(),
+  inn: z.string(),
+  kpp: z.string().nullable(),
+  ogrn: z.string().nullable(),
+  okpo: z.string().nullable(),
+  oktmo: z.string().nullable(),
+  orgName: z.string(),
+  orgType: z.string().nullable(),
+  position: z.string().nullable(),
 });
 
 const CustomerPortalDealIdParamSchema = z.object({
@@ -298,6 +330,49 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
+  const lookupByInnRoute = createRoute({
+    method: "get",
+    path: "/legal-entities/lookup-by-inn",
+    tags: ["Customer"],
+    summary: "Lookup company by INN for portal onboarding",
+    request: {
+      query: z.object({
+        inn: z.string().min(1),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CustomerPortalCompanyLookupResultSchema.nullable(),
+          },
+        },
+        description: "Lookup result",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  const parseCardRoute = createRoute({
+    method: "post",
+    path: "/legal-entities/parse-card",
+    tags: ["Customer"],
+    summary: "Parse uploaded customer card for portal onboarding",
+    responses: {
+      200: {
+        content: { "application/json": { schema: z.any() } },
+        description: "Parsed card data",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
   const createDealRoute = createRoute({
     method: "post",
     path: "/deals",
@@ -434,6 +509,68 @@ export function customerRoutes(ctx: AppContext) {
 
         throw error;
       }
+    })
+    .openapi(lookupByInnRoute, async (c) => {
+      const user = c.get("user")!;
+      const { inn } = c.req.valid("query");
+
+      try {
+        await ctx.customerPortalWorkflow.assertOnboardingAccess({
+          userId: user.id,
+        });
+        const result = await lookupCompanyByInn(ctx.env.DADATA_API_URL, inn);
+        return c.json(result, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(parseCardRoute, async (c): Promise<any> => {
+      const user = c.get("user")!;
+
+      try {
+        await ctx.customerPortalWorkflow.assertOnboardingAccess({
+          userId: user.id,
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+
+      if (!ctx.documentExtraction) {
+        return c.json({ error: "AI extraction not configured" }, 503);
+      }
+
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!file || typeof file === "string") {
+        return c.json({ error: "File is required" }, 400);
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const mimeType = file.type;
+      const result =
+        mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          ? await ctx.documentExtraction.extractFromDocx(buffer)
+          : mimeType ===
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ? await ctx.documentExtraction.extractFromXlsx(buffer)
+            : await ctx.documentExtraction.extractFromPdf(buffer);
+
+      return c.json(result, 200);
     })
     .openapi(createDealRoute, async (c): Promise<any> => {
       const user = c.get("user")!;

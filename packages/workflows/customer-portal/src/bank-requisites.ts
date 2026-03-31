@@ -5,16 +5,21 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 type RequisitesApi = PartiesModule["requisites"];
 
 export interface LegalEntityBankingInput {
-  account?: string | null;
-  bankAddress?: string | null;
-  bankCountry?: string | null;
-  bankName?: string | null;
   bankProviderId?: string | null;
-  bic?: string | null;
-  corrAccount?: string | null;
+  bankProvider?: {
+    address?: string | null;
+    country?: string | null;
+    name?: string | null;
+    routingCode?: string | null;
+  } | null;
+  bankRequisite?: {
+    accountNo?: string | null;
+    beneficiaryName?: string | null;
+    corrAccount?: string | null;
+    iban?: string | null;
+  } | null;
   country?: string | null;
   orgName: string;
-  swift?: string | null;
 }
 
 export interface CustomerBankingServiceDeps {
@@ -63,28 +68,48 @@ function normalizeCountryCode(value: string | null | undefined): string | null {
 
 function hasBankSignal(input: LegalEntityBankingInput) {
   return Boolean(
-    normalizeNullableText(input.bankName) ||
-      normalizeNullableText(input.bankAddress) ||
-      normalizeNullableText(input.account) ||
-      normalizeNullableText(input.bic) ||
-      normalizeNullableText(input.swift) ||
-      normalizeNullableText(input.corrAccount) ||
-      normalizeCountryCode(input.bankCountry) ||
+    normalizeNullableText(input.bankProvider?.name) ||
+      normalizeNullableText(input.bankProvider?.address) ||
+      normalizeCountryCode(input.bankProvider?.country) ||
+      normalizeNullableText(input.bankProvider?.routingCode) ||
+      normalizeNullableText(input.bankRequisite?.beneficiaryName) ||
+      normalizeNullableText(input.bankRequisite?.accountNo) ||
+      normalizeNullableText(input.bankRequisite?.corrAccount) ||
+      normalizeNullableText(input.bankRequisite?.iban) ||
       normalizeNullableText(input.bankProviderId),
   );
 }
 
-function canCreateProvider(input: LegalEntityBankingInput) {
-  const country = normalizeCountryCode(input.bankCountry ?? input.country);
-  if (!country) {
-    return false;
+function resolveRoutingFields(input: {
+  bic?: string | null;
+  country?: string | null;
+  routingCode?: string | null;
+  swift?: string | null;
+}) {
+  const country = normalizeCountryCode(input.country);
+  const normalizedBic = normalizeNullableText(input.bic);
+  const normalizedSwift =
+    normalizeNullableText(input.swift)?.toUpperCase() ?? null;
+  const routingCode =
+    normalizeNullableText(input.routingCode)?.toUpperCase() ?? null;
+
+  if (normalizedBic || normalizedSwift) {
+    return {
+      bic: normalizedBic,
+      swift: normalizedSwift,
+    };
   }
 
-  if (country === "RU") {
-    return normalizeNullableText(input.bic) !== null;
+  if (!routingCode) {
+    return {
+      bic: null,
+      swift: null,
+    };
   }
 
-  return normalizeNullableText(input.swift) !== null;
+  return country === "RU"
+    ? { bic: routingCode, swift: null }
+    : { bic: null, swift: routingCode };
 }
 
 function buildProviderLabel(input: {
@@ -103,18 +128,11 @@ function buildProviderLabel(input: {
     : input.name;
 }
 
-function isBankPayloadComplete(input: {
+function isBankRequisitePayloadComplete(input: {
   accountNo: string | null;
   beneficiaryName: string | null;
-  institutionName: string | null;
-  provider: Awaited<ReturnType<RequisitesApi["queries"]["findProviderById"]>> | null;
 }) {
-  return Boolean(
-    input.provider &&
-      input.beneficiaryName &&
-      input.institutionName &&
-      input.accountNo,
-  );
+  return Boolean(input.beneficiaryName && input.accountNo);
 }
 
 async function listCounterpartyBankRequisites(
@@ -213,19 +231,26 @@ export function createCustomerBankingService(
     return Array.from(merged.values()).slice(0, limit);
   }
 
-  async function resolveBankProvider(input: LegalEntityBankingInput) {
+  async function resolveBankProvider(
+    input: LegalEntityBankingInput,
+    options?: { allowCreate?: boolean },
+  ) {
     const selectedProviderId = normalizeNullableText(input.bankProviderId);
     if (selectedProviderId) {
       return deps.requisites.queries.findProviderById(selectedProviderId);
     }
 
     const providerName =
-      normalizeNullableText(input.bankName) ??
+      normalizeNullableText(input.bankProvider?.name) ??
       normalizeNullableText(input.orgName) ??
       "Imported bank";
-    const country = normalizeCountryCode(input.bankCountry ?? input.country);
-    const bic = normalizeNullableText(input.bic);
-    const swift = normalizeNullableText(input.swift)?.toUpperCase() ?? null;
+    const country = normalizeCountryCode(
+      input.bankProvider?.country ?? input.country,
+    );
+    const { bic, swift } = resolveRoutingFields({
+      country,
+      routingCode: input.bankProvider?.routingCode,
+    });
 
     const existing = await deps.requisites.queries.listProviders({
       bic: bic ? [bic] : undefined,
@@ -250,16 +275,16 @@ export function createCustomerBankingService(
       return matched;
     }
 
-    if (!canCreateProvider(input)) {
+    if (!options?.allowCreate || !country || (!bic && !swift)) {
       return null;
     }
 
     return deps.requisites.commands.createProvider({
-      address: normalizeNullableText(input.bankAddress),
+      address: normalizeNullableText(input.bankProvider?.address),
       bic,
       contact: null,
       country,
-      description: null,
+      description: "Created manually via portal onboarding",
       kind: "bank",
       name: providerName,
       swift,
@@ -279,44 +304,50 @@ export function createCustomerBankingService(
       return { provider: null, requisite: null };
     }
 
-    const provider = await resolveBankProvider(input.values);
-    const beneficiaryName = normalizeNullableText(input.values.orgName);
-    const institutionName =
-      normalizeNullableText(input.values.bankName) ?? provider?.name ?? null;
-    const accountNo = normalizeNullableText(input.values.account);
+    let provider = await resolveBankProvider(input.values);
+    const beneficiaryName =
+      normalizeNullableText(input.values.bankRequisite?.beneficiaryName) ??
+      normalizeNullableText(input.values.orgName);
+    const accountNo = normalizeNullableText(input.values.bankRequisite?.accountNo);
 
     if (
-      !isBankPayloadComplete({
+      !isBankRequisitePayloadComplete({
         accountNo,
         beneficiaryName,
-        institutionName,
-        provider,
       })
     ) {
+      if (!provider && normalizeNullableText(input.values.bankProviderId)) {
+        provider = await resolveBankProvider(input.values, {
+          allowCreate: false,
+        });
+      }
       return { provider, requisite: existing };
     }
 
-    const resolvedProvider = provider!;
+    if (!provider) {
+      provider = await resolveBankProvider(input.values, {
+        allowCreate: true,
+      });
+    }
+
+    if (!provider) {
+      return { provider: null, requisite: existing };
+    }
+
+    const resolvedProvider = provider;
     const currencyCode = resolvedProvider.country === "RU" ? "RUB" : "USD";
     const currency = await deps.currencies.findByCode(currencyCode);
     const bankValues = {
       accountNo,
-      bankAddress: normalizeNullableText(input.values.bankAddress),
-      bic: normalizeNullableText(input.values.bic) ?? resolvedProvider.bic ?? null,
-      corrAccount: normalizeNullableText(input.values.corrAccount),
-      institutionName,
+      corrAccount: normalizeNullableText(input.values.bankRequisite?.corrAccount),
       isDefault: true,
       kind: "bank" as const,
       label:
-        normalizeNullableText(input.values.bankName) ??
+        normalizeNullableText(input.values.bankProvider?.name) ??
         resolvedProvider.name ??
         normalizeNullableText(input.values.orgName) ??
         "Bank details",
       providerId: resolvedProvider.id,
-      swift:
-        normalizeNullableText(input.values.swift)?.toUpperCase() ??
-        resolvedProvider.swift ??
-        null,
     };
 
     const requisite = existing
@@ -333,7 +364,7 @@ export function createCustomerBankingService(
           contact: null,
           currencyId: currency.id,
           description: null,
-          iban: null,
+          iban: normalizeNullableText(input.values.bankRequisite?.iban),
           memoTag: null,
           network: null,
           notes: null,

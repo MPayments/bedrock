@@ -34,13 +34,9 @@ type UpdatedRequisiteResponse = {
   label: string;
   description: string | null;
   beneficiaryName: string | null;
-  institutionName: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
-  bic: string | null;
-  swift: string | null;
-  bankAddress: string | null;
   network: string | null;
   assetCode: string | null;
   address: string | null;
@@ -65,13 +61,9 @@ function toFormValues(
     label: requisite.label,
     description: requisite.description,
     beneficiaryName: requisite.beneficiaryName,
-    institutionName: requisite.institutionName,
     accountNo: requisite.accountNo,
     corrAccount: requisite.corrAccount,
     iban: requisite.iban,
-    bic: requisite.bic,
-    swift: requisite.swift,
-    bankAddress: requisite.bankAddress,
     network: requisite.network,
     assetCode: requisite.assetCode,
     address: requisite.address,
@@ -98,13 +90,9 @@ function toUpdatedRequisite(
     label: payload.label,
     description: payload.description ?? "",
     beneficiaryName: payload.beneficiaryName ?? "",
-    institutionName: payload.institutionName ?? "",
     accountNo: payload.accountNo ?? "",
     corrAccount: payload.corrAccount ?? "",
     iban: payload.iban ?? "",
-    bic: payload.bic ?? "",
-    swift: payload.swift ?? "",
-    bankAddress: payload.bankAddress ?? "",
     network: payload.network ?? "",
     assetCode: payload.assetCode ?? "",
     address: payload.address ?? "",
@@ -150,13 +138,9 @@ export function EditRequisiteFormClient({
             label: values.label,
             description: values.description || null,
             beneficiaryName: values.beneficiaryName || null,
-            institutionName: values.institutionName || null,
             accountNo: values.accountNo || null,
             corrAccount: values.corrAccount || null,
             iban: values.iban || null,
-            bic: values.bic || null,
-            swift: values.swift || null,
-            bankAddress: values.bankAddress || null,
             network: values.network || null,
             assetCode: values.assetCode || null,
             address: values.address || null,

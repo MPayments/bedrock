@@ -63,18 +63,21 @@ export async function serializeOrganizationRequisiteForDocuments(
   ctx: AppContext,
   requisite: Requisite,
 ) {
-  const currency = await ctx.currenciesService.findById(requisite.currencyId);
+  const [currency, provider] = await Promise.all([
+    ctx.currenciesService.findById(requisite.currencyId),
+    ctx.partiesModule.requisites.queries.findProviderById(requisite.providerId),
+  ]);
 
   return {
     accountNo: requisite.accountNo,
-    bankAddress: requisite.bankAddress,
-    bic: requisite.bic,
+    bankAddress: provider?.address ?? null,
+    bic: provider?.bic ?? null,
     corrAccount: requisite.corrAccount,
     currencyCode: currency.code,
     id: requisite.id,
-    institutionName: requisite.institutionName,
+    institutionName: provider?.name ?? null,
     label: requisite.label,
     ownerId: requisite.ownerId,
-    swift: requisite.swift,
+    swift: provider?.swift ?? null,
   };
 }

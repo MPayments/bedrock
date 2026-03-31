@@ -100,13 +100,9 @@ const DEFAULT_VALUES: RequisiteFormValues = {
   label: "",
   description: "",
   beneficiaryName: "",
-  institutionName: "",
   accountNo: "",
   corrAccount: "",
   iban: "",
-  bic: "",
-  swift: "",
-  bankAddress: "",
   network: "",
   assetCode: "",
   address: "",
@@ -134,13 +130,9 @@ function createSchema() {
       label: z.string().trim().min(1, "Название обязательно"),
       description: z.string(),
       beneficiaryName: z.string(),
-      institutionName: z.string(),
       accountNo: z.string(),
       corrAccount: z.string(),
       iban: z.string(),
-      bic: z.string(),
-      swift: z.string(),
-      bankAddress: z.string(),
       network: z.string(),
       assetCode: z.string(),
       address: z.string(),
@@ -158,13 +150,6 @@ function createSchema() {
             code: "custom",
             path: ["beneficiaryName"],
             message: "Получатель обязателен для банковских реквизитов",
-          });
-        }
-        if (!data.institutionName.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["institutionName"],
-            message: "Банк обязателен для банковских реквизитов",
           });
         }
         if (!data.accountNo.trim()) {
@@ -201,13 +186,6 @@ function createSchema() {
       }
 
       if (data.kind === "exchange" || data.kind === "custodian") {
-        if (!data.institutionName.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["institutionName"],
-            message: "Институт обязателен",
-          });
-        }
         if (!data.accountRef.trim()) {
           ctx.addIssue({
             code: "custom",
@@ -228,13 +206,9 @@ function normalizeValues(values: RequisiteFormValues): RequisiteFormValues {
     label: values.label.trim(),
     description: values.description.trim(),
     beneficiaryName: values.beneficiaryName.trim(),
-    institutionName: values.institutionName.trim(),
     accountNo: values.accountNo.trim(),
     corrAccount: values.corrAccount.trim(),
     iban: values.iban.trim(),
-    bic: values.bic.trim(),
-    swift: values.swift.trim(),
-    bankAddress: values.bankAddress.trim(),
     network: values.network.trim(),
     assetCode: values.assetCode.trim(),
     address: values.address.trim(),
@@ -714,16 +688,6 @@ export function RequisiteGeneralForm({
                   </FieldError>
                 </Field>
                 <Field>
-                  <FieldLabel>Банк</FieldLabel>
-                  <Input
-                    {...form.register("institutionName")}
-                    disabled={submitting || deleting}
-                  />
-                  <FieldError>
-                    {form.formState.errors.institutionName?.message}
-                  </FieldError>
-                </Field>
-                <Field>
                   <FieldLabel>Номер счёта</FieldLabel>
                   <Input
                     {...form.register("accountNo")}
@@ -744,28 +708,6 @@ export function RequisiteGeneralForm({
                   <FieldLabel>IBAN</FieldLabel>
                   <Input
                     {...form.register("iban")}
-                    disabled={submitting || deleting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>BIC</FieldLabel>
-                  <Input
-                    {...form.register("bic")}
-                    disabled={submitting || deleting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>SWIFT</FieldLabel>
-                  <Input
-                    {...form.register("swift")}
-                    disabled={submitting || deleting}
-                  />
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Адрес банка</FieldLabel>
-                  <Textarea
-                    {...form.register("bankAddress")}
-                    rows={3}
                     disabled={submitting || deleting}
                   />
                 </Field>
@@ -815,16 +757,6 @@ export function RequisiteGeneralForm({
           {(kind === "exchange" || kind === "custodian") && (
             <FieldSet>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Институт</FieldLabel>
-                  <Input
-                    {...form.register("institutionName")}
-                    disabled={submitting || deleting}
-                  />
-                  <FieldError>
-                    {form.formState.errors.institutionName?.message}
-                  </FieldError>
-                </Field>
                 <Field>
                   <FieldLabel>Account Ref</FieldLabel>
                   <Input

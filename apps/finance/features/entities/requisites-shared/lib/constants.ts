@@ -54,13 +54,9 @@ export type RequisiteFormValues = {
   label: string;
   description: string;
   beneficiaryName: string;
-  institutionName: string;
   accountNo: string;
   corrAccount: string;
   iban: string;
-  bic: string;
-  swift: string;
-  bankAddress: string;
   network: string;
   assetCode: string;
   address: string;
@@ -100,21 +96,15 @@ const DEFAULT_IDENTITY_FIELDS: Pick<
   RequisiteFormValues,
   | "accountNo"
   | "iban"
-  | "swift"
-  | "bic"
   | "address"
   | "accountRef"
   | "subaccountRef"
-  | "institutionName"
 > = {
   accountNo: "",
   iban: "",
-  swift: "",
-  bic: "",
   address: "",
   accountRef: "",
   subaccountRef: "",
-  institutionName: "",
 };
 
 export function resolveRequisiteIdentity(
@@ -125,20 +115,11 @@ export function resolveRequisiteIdentity(
 
   switch (input.kind) {
     case "bank":
-      return (
-        normalized.accountNo.trim() ||
-        normalized.iban.trim() ||
-        normalized.swift.trim() ||
-        normalized.bic.trim()
-      );
+      return normalized.accountNo.trim() || normalized.iban.trim();
     case "blockchain":
       return normalized.address.trim();
     case "exchange":
     case "custodian":
-      return (
-        normalized.accountRef.trim() ||
-        normalized.subaccountRef.trim() ||
-        normalized.institutionName.trim()
-      );
+      return normalized.accountRef.trim() || normalized.subaccountRef.trim();
   }
 }

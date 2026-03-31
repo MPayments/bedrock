@@ -41,17 +41,26 @@ export interface CustomerContext {
 }
 
 export interface CustomerPortalCreateLegalEntityInput {
-  account?: string | null;
   address?: string | null;
   addressI18n?: LocalizedText | null;
-  bankAddress?: string | null;
-  bankAddressI18n?: LocalizedText | null;
-  bankCountry?: string | null;
-  bankName?: string | null;
-  bankNameI18n?: LocalizedText | null;
+  bankMode: "existing" | "manual";
   bankProviderId?: string | null;
-  bic?: string | null;
-  corrAccount?: string | null;
+  bankProvider?: {
+    address?: string | null;
+    country?: string | null;
+    name?: string | null;
+    routingCode?: string | null;
+  } | null;
+  bankProviderI18n?: {
+    address?: LocalizedText | null;
+    name?: LocalizedText | null;
+  } | null;
+  bankRequisite?: {
+    accountNo?: string | null;
+    beneficiaryName?: string | null;
+    corrAccount?: string | null;
+    iban?: string | null;
+  } | null;
   country?: string | null;
   directorBasis?: string | null;
   directorBasisI18n?: LocalizedText | null;
@@ -71,7 +80,6 @@ export interface CustomerPortalCreateLegalEntityInput {
   position?: string | null;
   positionI18n?: LocalizedText | null;
   subAgentCounterpartyId?: string | null;
-  swift?: string | null;
 }
 
 export class CustomerNotAuthorizedError extends Error {
@@ -136,6 +144,7 @@ export interface CustomerPortalCustomerContext {
 
 export interface CustomerPortalWorkflow {
   assertPortalAccess(ctx: CustomerContext): Promise<void>;
+  assertOnboardingAccess(ctx: CustomerContext): Promise<CustomerPortalProfile>;
   createLegalEntity(
     ctx: CustomerContext,
     input: CustomerPortalCreateLegalEntityInput,
@@ -621,6 +630,7 @@ export function createCustomerPortalWorkflow(
 
   return {
     assertPortalAccess,
+    assertOnboardingAccess,
 
     async createLegalEntity(
       ctx: CustomerContext,
@@ -637,7 +647,9 @@ export function createCustomerPortalWorkflow(
         await deps.parties.counterparties.commands.create({
           address: normalizeNullableText(input.address),
           addressI18n: input.addressI18n ?? null,
-          country: normalizeCountryCode(input.country ?? input.bankCountry),
+          country: normalizeCountryCode(
+            input.country ?? input.bankProvider?.country,
+          ),
           customerId: customer.id,
           description: null,
           directorBasis: normalizeNullableText(input.directorBasis),
@@ -684,12 +696,12 @@ export function createCustomerPortalWorkflow(
         account: requisite?.accountNo ?? null,
         address: counterparty.address,
         addressI18n: counterparty.addressI18n,
-        bankAddress: requisite?.bankAddress ?? provider?.address ?? null,
-        bankAddressI18n: input.bankAddressI18n ?? null,
+        bankAddress: provider?.address ?? null,
+        bankAddressI18n: input.bankProviderI18n?.address ?? null,
         bankCountry: provider?.country ?? null,
-        bankName: requisite?.institutionName ?? provider?.name ?? null,
-        bankNameI18n: input.bankNameI18n ?? null,
-        bic: requisite?.bic ?? provider?.bic ?? null,
+        bankName: provider?.name ?? null,
+        bankNameI18n: input.bankProviderI18n?.name ?? null,
+        bic: provider?.bic ?? null,
         corrAccount: requisite?.corrAccount ?? null,
         counterpartyId: counterparty.id,
         createdAt: counterparty.createdAt.toISOString(),
@@ -716,7 +728,7 @@ export function createCustomerPortalWorkflow(
         subAgentCounterpartyId: normalizeNullableText(
           input.subAgentCounterpartyId,
         ),
-        swift: requisite?.swift ?? provider?.swift ?? null,
+        swift: provider?.swift ?? null,
         updatedAt: counterparty.updatedAt.toISOString(),
         userId: null,
       };

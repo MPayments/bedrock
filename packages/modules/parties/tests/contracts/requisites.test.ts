@@ -21,7 +21,6 @@ describe("requisites contracts", () => {
       label: "  Main bank  ",
       description: "   ",
       beneficiaryName: "  Acme Ltd  ",
-      institutionName: "  JPM  ",
       accountNo: "  12345  ",
     });
 

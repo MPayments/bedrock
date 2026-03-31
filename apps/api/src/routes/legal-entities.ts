@@ -53,7 +53,7 @@ interface DadataResponse {
   resultCode?: string;
 }
 
-async function lookupCompanyByInn(apiUrl: string, inn: string) {
+export async function lookupCompanyByInn(apiUrl: string, inn: string) {
   if (!DADATA_INN_PATTERN.test(inn)) {
     throw new Error("INN must be exactly 10 or 12 digits");
   }

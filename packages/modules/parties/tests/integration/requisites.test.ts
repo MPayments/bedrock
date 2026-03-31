@@ -44,7 +44,6 @@ describe("parties requisites integration", () => {
       label: "Main",
       description: null,
       beneficiaryName: "Acme Corp",
-      institutionName: "Bank",
       accountNo: "12345",
       isDefault: true,
     });
@@ -121,7 +120,6 @@ describe("parties requisites integration", () => {
       label: "Binding Requisite",
       description: null,
       beneficiaryName: "Acme Corp",
-      institutionName: "Bank",
       accountNo: "98765",
     });
 

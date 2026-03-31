@@ -2,33 +2,51 @@
 
 import { normalizeToAlpha2 } from "@bedrock/shared/reference-data/countries";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { defineStepper, Get } from "@stepperize/react";
+import { StepStatus, useStepItemContext } from "@stepperize/react/primitives";
 import {
-  AlertCircle,
   Building2,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   FileText,
   Loader2,
   Search,
   Sparkles,
   Upload,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import {
+  Controller,
+  type FieldErrors,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { Label } from "@bedrock/sdk-ui/components/label";
 import { API_BASE_URL } from "@/lib/constants";
 import {
   type CustomerOnboardInput,
   customerOnboardSchema,
 } from "@/lib/validation";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@bedrock/sdk-ui/components/command";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@bedrock/sdk-ui/components/popover";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 const EXTRA_FIELDS: Array<{
   name: keyof CustomerOnboardInput;
@@ -36,23 +54,19 @@ const EXTRA_FIELDS: Array<{
   placeholder: string;
 }> = [
   { name: "orgType", label: "Тип организации", placeholder: "ООО" },
-  { name: "position", label: "Должность директора", placeholder: "Генеральный директор" },
-  { name: "directorBasis", label: "Основание полномочий", placeholder: "Устав" },
+  {
+    name: "position",
+    label: "Должность директора",
+    placeholder: "Генеральный директор",
+  },
+  {
+    name: "directorBasis",
+    label: "Основание полномочий",
+    placeholder: "Устав",
+  },
   { name: "address", label: "Адрес", placeholder: "г. Москва, ул. ..." },
   { name: "kpp", label: "КПП", placeholder: "123456789" },
   { name: "ogrn", label: "ОГРН", placeholder: "1234567890123" },
-];
-
-const BANK_FIELDS: Array<{
-  name: keyof CustomerOnboardInput;
-  label: string;
-  placeholder: string;
-}> = [
-  { name: "bankAddress", label: "Адрес банка", placeholder: "г. Москва" },
-  { name: "account", label: "Расчетный счет", placeholder: "40702810..." },
-  { name: "bic", label: "БИК", placeholder: "044525225" },
-  { name: "corrAccount", label: "Корр. счет", placeholder: "30101810..." },
-  { name: "swift", label: "SWIFT", placeholder: "DEUTDEFF" },
 ];
 
 type BankProviderSearchResult = {
@@ -67,128 +81,331 @@ type BankProviderSearchResult = {
 
 type CustomerOnboardingFormValues = z.input<typeof customerOnboardSchema>;
 
-export function CustomerOnboardingForm() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-  const [error, setError] = useState("");
-  const [innSearchValue, setInnSearchValue] = useState("");
-  const [searchingByInn, setSearchingByInn] = useState(false);
-  const [innSearchSuccess, setInnSearchSuccess] = useState(false);
-  const [parsingFile, setParsingFile] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [showExtraFields, setShowExtraFields] = useState(false);
-  const [showBankFields, setShowBankFields] = useState(false);
-  const [searchingBankProviders, setSearchingBankProviders] = useState(false);
-  const [bankProviderMatches, setBankProviderMatches] = useState<
-    BankProviderSearchResult[]
-  >([]);
+const { Stepper, ...onboardingStepperDefinition } = defineStepper(
+  {
+    id: "source",
+    title: "Источник данных",
+    description: "По ИНН, PDF или полностью вручную",
+  },
+  {
+    id: "profile",
+    title: "Контакты",
+    description: "Основные данные заявителя и компании",
+  },
+  {
+    id: "company",
+    title: "Организация",
+    description: "Юридические данные компании",
+  },
+  {
+    id: "bank",
+    title: "Банк",
+    description: "Выбор банка из справочника или ручной ввод",
+  },
+  {
+    id: "requisites",
+    title: "Реквизиты",
+    description: "Снимок реквизитов для юридического лица",
+  },
+  {
+    id: "review",
+    title: "Проверка",
+    description: "Проверьте данные перед отправкой",
+  },
+);
 
-  const {
-    control,
-    register,
-    handleSubmit,
-    setValue,
-    getValues,
-    formState: { errors, isSubmitting },
-  } = useForm<CustomerOnboardingFormValues>({
-    resolver: zodResolver(customerOnboardSchema) as never,
-    defaultValues: {
-      name: "",
-      orgName: "",
-      orgType: "",
-      inn: "",
-      directorName: "",
-      position: "",
-      directorBasis: "",
-      address: "",
-      email: "",
-      phone: "",
-      kpp: "",
-      ogrn: "",
-      oktmo: "",
-      okpo: "",
-      bankName: "",
-      bankAddress: "",
-      account: "",
-      bankProviderId: undefined,
-      bic: "",
-      corrAccount: "",
-      bankCountry: "RU",
-      swift: "",
-    },
-  });
-  const bankNameValue = useWatch({ control, name: "bankName" });
-  const selectedBankProviderId = useWatch({
-    control,
-    name: "bankProviderId",
-  });
+type OnboardingStepId = Get.Id<typeof onboardingStepperDefinition.steps>;
 
-  function applyCompanyData(companyData: Partial<CustomerOnboardInput>) {
-    const fields: Array<keyof CustomerOnboardInput> = [
-      "orgName",
-      "orgType",
-      "directorName",
-      "position",
-      "directorBasis",
-      "address",
-      "email",
-      "phone",
-      "inn",
-      "kpp",
-      "ogrn",
-      "oktmo",
-      "okpo",
-      "bankName",
-      "bankAddress",
-      "account",
-      "bankProviderId",
-      "bic",
-      "corrAccount",
-      "bankCountry",
-      "swift",
-    ];
+const STEP_ERROR_FIELDS: Record<OnboardingStepId, string[]> = {
+  bank: [
+    "bankProviderId",
+    "bankProvider.name",
+    "bankProvider.country",
+    "bankProvider.routingCode",
+    "bankProvider.address",
+  ],
+  company: [
+    "orgName",
+    "directorName",
+    "orgType",
+    "position",
+    "directorBasis",
+    "address",
+    "kpp",
+    "ogrn",
+  ],
+  profile: ["name", "email", "phone"],
+  requisites: [
+    "bankRequisite.beneficiaryName",
+    "bankRequisite.accountNo",
+    "bankRequisite.corrAccount",
+    "bankRequisite.iban",
+  ],
+  review: [],
+  source: ["inn"],
+};
 
-    for (const field of fields) {
-      const value = companyData[field];
-      if (value !== undefined && value !== null) {
-        const nextValue =
-          field === "bankCountry" && typeof value === "string"
-            ? normalizeToAlpha2(value) ?? value
-            : value;
+const STEP_VALIDATION_FIELDS: Record<OnboardingStepId, string[]> = {
+  bank: STEP_ERROR_FIELDS.bank,
+  company: STEP_ERROR_FIELDS.company,
+  profile: STEP_ERROR_FIELDS.profile,
+  requisites: STEP_ERROR_FIELDS.requisites,
+  review: [],
+  source: [],
+};
 
-        setValue(field, nextValue, {
-          shouldDirty: true,
-          shouldValidate: true,
-        });
-      }
+function getNestedError(
+  errors: FieldErrors<CustomerOnboardingFormValues>,
+  path: string,
+) {
+  const segments = path.split(".");
+  let current: unknown = errors;
+
+  for (const segment of segments) {
+    if (!current || typeof current !== "object") {
+      return undefined;
     }
+
+    current = (current as Record<string, unknown>)[segment];
   }
 
+  return current;
+}
+
+function stepHasErrors(
+  errors: FieldErrors<CustomerOnboardingFormValues>,
+  stepId: OnboardingStepId,
+) {
+  return STEP_ERROR_FIELDS[stepId].some((path) => getNestedError(errors, path));
+}
+
+function resolveFirstInvalidStep(
+  errors: FieldErrors<CustomerOnboardingFormValues>,
+) {
+  return onboardingStepperDefinition.steps.find((step) =>
+    stepHasErrors(errors, step.id as OnboardingStepId),
+  )?.id as OnboardingStepId | undefined;
+}
+
+function getErrorMessage(error: unknown) {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return null;
+  }
+
+  return typeof error.message === "string" ? error.message : null;
+}
+
+const StepperTriggerWrapper = ({ hasError }: { hasError: boolean }) => {
+  const item = useStepItemContext();
+  const isInactive = item.status === "inactive";
+  const variant = hasError
+    ? "destructive"
+    : isInactive
+      ? "secondary"
+      : "default";
+
+  return (
+    <Stepper.Trigger
+      render={(domProps) => (
+        <Button
+          className="rounded-full"
+          variant={variant}
+          size="icon"
+          {...domProps}
+        >
+          <Stepper.Indicator>{item.index + 1}</Stepper.Indicator>
+        </Button>
+      )}
+    />
+  );
+};
+
+const StepperTitleWrapper = ({
+  hasError,
+  title,
+}: {
+  hasError: boolean;
+  title: string;
+}) => {
+  return (
+    <Stepper.Title
+      render={(domProps) => (
+        <h4
+          className={`text-base font-medium ${hasError ? "text-destructive" : ""}`}
+          {...domProps}
+        >
+          {title}
+        </h4>
+      )}
+    />
+  );
+};
+
+const StepperDescriptionWrapper = ({
+  description,
+  hasError,
+}: {
+  description?: string;
+  hasError: boolean;
+}) => {
+  if (!description) return null;
+
+  return (
+    <Stepper.Description
+      render={(domProps) => (
+        <p
+          className={`text-sm ${hasError ? "text-destructive/80" : "text-muted-foreground"}`}
+          {...domProps}
+        >
+          {description}
+        </p>
+      )}
+    />
+  );
+};
+
+const StepperSeparatorVertical = ({
+  status,
+  isLast,
+}: {
+  status: StepStatus;
+  isLast: boolean;
+}) => {
+  if (isLast) return null;
+
+  return (
+    <div className="flex justify-center self-stretch ps-[calc(var(--spacing)*4.5-1px)]">
+      <Stepper.Separator
+        orientation="vertical"
+        data-status={status}
+        className="h-full w-0.5 bg-muted transition-all duration-300 ease-in-out data-[status=success]:bg-primary"
+      />
+    </div>
+  );
+};
+
+function ContentWithTracking(props: {
+  children: React.ReactNode;
+  id: OnboardingStepId;
+  isActive: boolean;
+}) {
+  const { children, id, isActive } = props;
+  const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (!showBankFields) {
-      setBankProviderMatches([]);
+    if (isActive && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [isActive]);
+
+  return (
+    <Stepper.Content
+      step={id}
+      render={(domProps) => (
+        <div
+          ref={ref}
+          {...domProps}
+          className="min-h-[160px] rounded-xl border bg-background p-5 transition-all duration-300"
+        >
+          {children}
+        </div>
+      )}
+    />
+  );
+}
+
+function normalizeRoutingCode(input: {
+  bic?: string | null;
+  country?: string | null;
+  routingCode?: string | null;
+  swift?: string | null;
+}) {
+  const country = input.country?.trim().toUpperCase() || "";
+  const bic = input.bic?.trim() || "";
+  const swift = input.swift?.trim().toUpperCase() || "";
+  const routingCode = input.routingCode?.trim().toUpperCase() || "";
+
+  if (bic || swift) {
+    return {
+      bic,
+      routingCode: bic || swift,
+      swift,
+    };
+  }
+
+  if (!routingCode) {
+    return {
+      bic: "",
+      routingCode: "",
+      swift: "",
+    };
+  }
+
+  return country === "RU"
+    ? {
+        bic: routingCode,
+        routingCode,
+        swift: "",
+      }
+    : {
+        bic: "",
+        routingCode,
+        swift: routingCode,
+      };
+}
+
+function hasProviderSelection(
+  bankMode: CustomerOnboardingFormValues["bankMode"],
+  bankProviderId: string | null,
+) {
+  return bankMode === "existing" && Boolean(bankProviderId);
+}
+
+function createManualBankProvider(provider: BankProviderSearchResult) {
+  const routing = normalizeRoutingCode({
+    bic: provider.bic,
+    country: provider.country,
+    swift: provider.swift,
+  });
+
+  return {
+    address: provider.address ?? "",
+    country: provider.country ?? "",
+    name: provider.name,
+    routingCode: routing.routingCode,
+  };
+}
+
+function BankCombobox(props: {
+  onManualEntry: () => void;
+  onSelect: (provider: BankProviderSearchResult) => void;
+}) {
+  const { onManualEntry, onSelect } = props;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [matches, setMatches] = useState<BankProviderSearchResult[]>([]);
+
+  useEffect(() => {
+    if (!open) {
       return;
     }
 
-    if (selectedBankProviderId) {
-      setBankProviderMatches([]);
-      return;
-    }
-
-    const query = bankNameValue?.trim() ?? "";
-    if (query.length < 2) {
-      setBankProviderMatches([]);
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setIsLoading(false);
+      setMatches([]);
       return;
     }
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(async () => {
-      setSearchingBankProviders(true);
+      setIsLoading(true);
 
       try {
         const search = new URLSearchParams({
           limit: "8",
-          query,
+          query: trimmed,
         });
         const response = await fetch(
           `${API_BASE_URL}/customer/legal-entities/bank-providers?${search.toString()}`,
@@ -205,14 +422,13 @@ export function CustomerOnboardingForm() {
         const payload = (await response.json()) as {
           data?: BankProviderSearchResult[];
         };
-        setBankProviderMatches(payload.data ?? []);
+        setMatches(payload.data ?? []);
       } catch (searchError) {
         if ((searchError as Error).name !== "AbortError") {
           console.error("Bank provider search error:", searchError);
-          setBankProviderMatches([]);
         }
       } finally {
-        setSearchingBankProviders(false);
+        setIsLoading(false);
       }
     }, 250);
 
@@ -220,54 +436,326 @@ export function CustomerOnboardingForm() {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [bankNameValue, selectedBankProviderId, showBankFields]);
+  }, [open, query]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-between font-normal"
+          />
+        }
+      >
+        <span className="truncate text-muted-foreground">
+          Найти банк по названию или SWIFT / BIC
+        </span>
+        <Search className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Начните вводить название банка или SWIFT / BIC"
+          />
+          <CommandList className="max-h-72">
+            {query.trim().length < 2 ? (
+              <CommandEmpty>Введите минимум 2 символа для поиска</CommandEmpty>
+            ) : null}
+            {query.trim().length >= 2 && matches.length === 0 && !isLoading ? (
+              <CommandEmpty>Банк не найден</CommandEmpty>
+            ) : null}
+            {isLoading ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                Ищем подходящие банки...
+              </div>
+            ) : null}
+            {matches.length > 0 ? (
+              <CommandGroup heading="Результаты">
+                {matches.map((provider) => (
+                  <CommandItem
+                    key={provider.id}
+                    value={provider.displayLabel}
+                    onSelect={() => {
+                      onSelect(provider);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">
+                        {provider.name}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {provider.displayLabel}
+                      </div>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                value="manual-entry"
+                onSelect={() => {
+                  onManualEntry();
+                  setOpen(false);
+                  setQuery("");
+                }}
+              >
+                Ввести банк вручную
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function CustomerOnboardingForm() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const stepperRef = useRef<{
+    navigation: {
+      goTo: (id: OnboardingStepId) => void | Promise<void>;
+    };
+  } | null>(null);
+  const [searchingByInn, setSearchingByInn] = useState(false);
+  const [innSearchSuccess, setInnSearchSuccess] = useState(false);
+  const [parsingFile, setParsingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [showAdvancedRequisiteFields, setShowAdvancedRequisiteFields] =
+    useState(false);
+  const [syncBeneficiaryName, setSyncBeneficiaryName] = useState(true);
+
+  const {
+    control,
+    trigger,
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<CustomerOnboardingFormValues>({
+    resolver: zodResolver(customerOnboardSchema) as never,
+    defaultValues: {
+      address: "",
+      bankMode: "existing",
+      bankProvider: {
+        address: "",
+        country: "RU",
+        name: "",
+        routingCode: "",
+      },
+      bankProviderId: null,
+      bankRequisite: {
+        accountNo: "",
+        beneficiaryName: "",
+        corrAccount: "",
+        iban: "",
+      },
+      directorBasis: "",
+      directorName: "",
+      email: "",
+      inn: "",
+      kpp: "",
+      name: "",
+      ogrn: "",
+      okpo: "",
+      oktmo: "",
+      orgName: "",
+      orgType: "",
+      phone: "",
+      position: "",
+    },
+  });
+
+  const bankMode = useWatch({ control, name: "bankMode" });
+  const bankProviderId = useWatch({ control, name: "bankProviderId" });
+  const applicantName = useWatch({ control, name: "name" });
+  const orgName = useWatch({ control, name: "orgName" });
+  const bankProviderName = useWatch({ control, name: "bankProvider.name" });
+  const bankProviderAddress = useWatch({
+    control,
+    name: "bankProvider.address",
+  });
+  const bankProviderCountry = useWatch({
+    control,
+    name: "bankProvider.country",
+  });
+  const bankProviderRoutingCode = useWatch({
+    control,
+    name: "bankProvider.routingCode",
+  });
+  const innValue = useWatch({ control, name: "inn" });
+  const accountNoValue = useWatch({ control, name: "bankRequisite.accountNo" });
+  const beneficiaryNameValue = useWatch({
+    control,
+    name: "bankRequisite.beneficiaryName",
+  });
+
+  useEffect(() => {
+    if (syncBeneficiaryName) {
+      setValue("bankRequisite.beneficiaryName", orgName ?? "", {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+  }, [orgName, setValue, syncBeneficiaryName]);
+
+  function applyCompanyData(companyData: Record<string, unknown>) {
+    const bankCountry =
+      typeof companyData.bankCountry === "string"
+        ? (normalizeToAlpha2(companyData.bankCountry) ??
+          companyData.bankCountry)
+        : "";
+    const routingCode = normalizeRoutingCode({
+      bic: typeof companyData.bic === "string" ? companyData.bic : null,
+      country: bankCountry || null,
+      swift: typeof companyData.swift === "string" ? companyData.swift : null,
+    });
+
+    const scalarFields = [
+      "orgName",
+      "orgType",
+      "directorName",
+      "position",
+      "directorBasis",
+      "address",
+      "email",
+      "phone",
+      "inn",
+      "kpp",
+      "ogrn",
+      "oktmo",
+      "okpo",
+    ] as const;
+
+    for (const field of scalarFields) {
+      const value = companyData[field];
+      if (typeof value === "string") {
+        setValue(field, value, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
+
+    if (
+      typeof companyData.bankName === "string" ||
+      typeof companyData.bankAddress === "string" ||
+      typeof companyData.account === "string" ||
+      typeof companyData.bic === "string" ||
+      typeof companyData.swift === "string"
+    ) {
+      setValue("bankMode", "manual", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankProviderId", null, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankProvider.name", String(companyData.bankName ?? ""), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankProvider.address", String(companyData.bankAddress ?? ""), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankProvider.country", bankCountry, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankProvider.routingCode", routingCode.routingCode, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("bankRequisite.accountNo", String(companyData.account ?? ""), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue(
+        "bankRequisite.corrAccount",
+        String(companyData.corrAccount ?? ""),
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+    }
+  }
 
   function applyBankProvider(provider: BankProviderSearchResult) {
+    const nextProvider = createManualBankProvider(provider);
+
+    setValue("bankMode", "existing", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
     setValue("bankProviderId", provider.id, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setValue("bankName", provider.name, {
+    setValue("bankProvider.name", nextProvider.name, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setValue("bankAddress", provider.address ?? "", {
+    setValue("bankProvider.address", nextProvider.address, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setValue("bankCountry", provider.country ?? "", {
+    setValue("bankProvider.country", nextProvider.country, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setValue("bic", provider.bic ?? "", {
+    setValue("bankProvider.routingCode", nextProvider.routingCode, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setValue("swift", provider.swift ?? "", {
+  }
+
+  function enableManualBankEntry() {
+    setValue("bankMode", "manual", {
       shouldDirty: true,
       shouldValidate: true,
     });
-    setBankProviderMatches([]);
+    setValue("bankProviderId", null, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+
+  function enableBankDirectorySearch() {
+    setValue("bankMode", "existing", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("bankProviderId", null, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   }
 
   async function handleInnSearch() {
-    const inn = innSearchValue.trim();
-    if (!inn) {
-      setError("Введите ИНН для поиска");
-      return;
-    }
-    if (!/^\d{10,12}$/.test(inn)) {
-      setError("ИНН должен содержать 10 или 12 цифр");
+    const isValid = await trigger("inn", { shouldFocus: true });
+    const inn = innValue?.trim() ?? "";
+
+    if (!isValid || !inn) {
       return;
     }
 
-    setError("");
     setSearchingByInn(true);
     setInnSearchSuccess(false);
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/customer/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -278,17 +766,12 @@ export function CustomerOnboardingForm() {
         throw new Error(payload.message || `Ошибка поиска: ${response.status}`);
       }
 
-      const companyData = await response.json();
+      const companyData = (await response.json()) as Record<string, unknown>;
       applyCompanyData(companyData);
       setInnSearchSuccess(true);
-      setShowExtraFields(true);
+      void stepperRef.current?.navigation.goTo("profile");
     } catch (searchError) {
       console.error("INN search error:", searchError);
-      setError(
-        searchError instanceof Error
-          ? searchError.message
-          : "Ошибка поиска компании по ИНН",
-      );
     } finally {
       setSearchingByInn(false);
     }
@@ -299,42 +782,43 @@ export function CustomerOnboardingForm() {
     if (!file) return;
 
     if (file.type !== "application/pdf") {
-      setError("Поддерживается только PDF формат");
+      console.error("PDF parse error: unsupported file type", file.type);
+      setUploadedFileName(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       return;
     }
 
     setParsingFile(true);
-    setError("");
     setUploadedFileName(file.name);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE_URL}/legal-entities/parse-card`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/customer/legal-entities/parse-card`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.message || `Ошибка распознавания: ${response.status}`);
+        throw new Error(
+          payload.message || `Ошибка распознавания: ${response.status}`,
+        );
       }
 
-      const extractedData = await response.json();
+      const extractedData = (await response.json()) as Record<string, unknown>;
       applyCompanyData(extractedData);
-      setShowExtraFields(true);
-      if (extractedData.bankName || extractedData.account || extractedData.bic) {
-        setShowBankFields(true);
-      }
+      setInnSearchSuccess(false);
+      void stepperRef.current?.navigation.goTo("profile");
     } catch (parseError) {
       console.error("Parse error:", parseError);
-      setError(
-        parseError instanceof Error
-          ? parseError.message
-          : "Ошибка распознавания файла",
-      );
       setUploadedFileName(null);
     } finally {
       setParsingFile(false);
@@ -345,43 +829,43 @@ export function CustomerOnboardingForm() {
   }
 
   async function onSubmit(data: CustomerOnboardingFormValues) {
-    setError("");
-
     try {
       const parsed = customerOnboardSchema.parse(data);
       const payload: CustomerOnboardInput = {
         ...parsed,
-        orgNameI18n: {
-          ru: parsed.orgName || undefined,
-          en: parsed.orgNameI18n?.en || undefined,
+        addressI18n: {
+          en: parsed.addressI18n?.en || undefined,
+          ru: parsed.address || undefined,
         },
-        orgTypeI18n: {
-          ru: parsed.orgType || undefined,
-          en: parsed.orgTypeI18n?.en || undefined,
-        },
-        directorNameI18n: {
-          ru: parsed.directorName || undefined,
-          en: parsed.directorNameI18n?.en || undefined,
-        },
-        positionI18n: {
-          ru: parsed.position || undefined,
-          en: parsed.positionI18n?.en || undefined,
+        bankProviderI18n: {
+          address: {
+            en: undefined,
+            ru: parsed.bankProvider.address || undefined,
+          },
+          name: {
+            en: undefined,
+            ru: parsed.bankProvider.name || undefined,
+          },
         },
         directorBasisI18n: {
-          ru: parsed.directorBasis || undefined,
           en: parsed.directorBasisI18n?.en || undefined,
+          ru: parsed.directorBasis || undefined,
         },
-        addressI18n: {
-          ru: parsed.address || undefined,
-          en: parsed.addressI18n?.en || undefined,
+        directorNameI18n: {
+          en: parsed.directorNameI18n?.en || undefined,
+          ru: parsed.directorName || undefined,
         },
-        bankNameI18n: {
-          ru: parsed.bankName || undefined,
-          en: parsed.bankNameI18n?.en || undefined,
+        orgNameI18n: {
+          en: parsed.orgNameI18n?.en || undefined,
+          ru: parsed.orgName || undefined,
         },
-        bankAddressI18n: {
-          ru: parsed.bankAddress || undefined,
-          en: parsed.bankAddressI18n?.en || undefined,
+        orgTypeI18n: {
+          en: parsed.orgTypeI18n?.en || undefined,
+          ru: parsed.orgType || undefined,
+        },
+        positionI18n: {
+          en: parsed.positionI18n?.en || undefined,
+          ru: parsed.position || undefined,
         },
       };
 
@@ -396,186 +880,196 @@ export function CustomerOnboardingForm() {
       });
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.message || "Не удалось создать организацию");
+        const responsePayload = await response.json().catch(() => ({}));
+        throw new Error(
+          responsePayload.message || "Не удалось создать организацию",
+        );
       }
 
       router.push("/clients");
       router.refresh();
     } catch (submitError) {
       console.error("Onboard error:", submitError);
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось сохранить данные",
-      );
     }
   }
 
-  return (
-    <div className="mx-auto w-full max-w-lg">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold">Добро пожаловать</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Заполните информацию о вашей организации
-        </p>
-      </div>
+  function onInvalidSubmit(
+    formErrors: FieldErrors<CustomerOnboardingFormValues>,
+  ) {
+    const invalidStep = resolveFirstInvalidStep(formErrors);
+    if (invalidStep) {
+      void stepperRef.current?.navigation.goTo(invalidStep);
+    }
+  }
 
-      <div className="mb-6 rounded-lg border bg-muted/30 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Быстрое заполнение по ИНН</span>
-        </div>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Введите ИНН"
-            value={innSearchValue}
-            onChange={(event) => {
-              setInnSearchValue(event.target.value.replace(/\D/g, ""));
-              setInnSearchSuccess(false);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void handleInnSearch();
-              }
-            }}
-            disabled={searchingByInn}
-            maxLength={12}
-            className="h-11"
-            inputMode="numeric"
-          />
-          <Button
-            type="button"
-            onClick={() => void handleInnSearch()}
-            disabled={searchingByInn || !innSearchValue.trim()}
-            className="h-11 px-4"
-          >
-            {searchingByInn ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-        {innSearchSuccess ? (
-          <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Данные загружены</span>
-          </div>
-        ) : null}
-      </div>
+  async function handleNextStep(currentStepId: OnboardingStepId) {
+    const fields = STEP_VALIDATION_FIELDS[currentStepId];
 
-      <div className="relative mb-6">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">или</span>
-        </div>
-      </div>
+    if (fields.length === 0) {
+      return true;
+    }
 
-      <div className="mb-6 rounded-lg border bg-muted/30 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Загрузите карту партнера (PDF)</span>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/pdf"
-          onChange={handleFileUpload}
-          className="hidden"
-          disabled={parsingFile}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={parsingFile}
-          className="h-11 w-full"
-        >
-          {parsingFile ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Распознавание...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Загрузить PDF
-            </>
-          )}
-        </Button>
-        {uploadedFileName && !parsingFile ? (
-          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-            <FileText className="h-4 w-4" />
-            <span className="truncate">{uploadedFileName}</span>
-          </div>
-        ) : null}
-      </div>
+    const valid = await trigger(fields as never, {
+      shouldFocus: true,
+    });
 
-      {error ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+    if (!valid) {
+      return false;
+    }
 
-      <form onSubmit={handleSubmit(onSubmit as never)} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="name">
-            Ваше ФИО <span className="text-destructive">*</span>
-          </Label>
-          <Input id="name" {...register("name")} placeholder="Иванов Иван Иванович" />
-          {errors.name ? (
-            <p className="text-xs text-destructive">{errors.name.message}</p>
-          ) : null}
-        </div>
+    return true;
+  }
 
-        <div className="space-y-1.5">
-          <Label htmlFor="orgName">
-            Название организации <span className="text-destructive">*</span>
-          </Label>
-          <Input id="orgName" {...register("orgName")} placeholder="ООО «Компания»" />
-          {errors.orgName ? (
-            <p className="text-xs text-destructive">{errors.orgName.message}</p>
-          ) : null}
-        </div>
+  const providerSelected = hasProviderSelection(
+    bankMode,
+    (bankProviderId as string | null | undefined) ?? null,
+  );
 
-        <div className="space-y-1.5">
-          <Label htmlFor="inn">
-            ИНН <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="inn"
-            {...register("inn")}
-            placeholder="1234567890"
-            inputMode="numeric"
-            maxLength={12}
-          />
-          {errors.inn ? (
-            <p className="text-xs text-destructive">{errors.inn.message}</p>
-          ) : null}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="directorName">
-            ФИО директора <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="directorName"
-            {...register("directorName")}
-            placeholder="Петров Петр Петрович"
-          />
-          {errors.directorName ? (
-            <p className="text-xs text-destructive">
-              {errors.directorName.message}
+  function renderStepContent(stepId: OnboardingStepId) {
+    if (stepId === "source") {
+      return (
+        <div className="space-y-5">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Как хотите начать?</p>
+            <p className="text-sm text-muted-foreground">
+              Быстро заполните организацию по ИНН, загрузите карточку партнера
+              или переходите к ручному заполнению.
             </p>
-          ) : null}
-        </div>
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Быстрое заполнение по ИНН</span>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="source-inn">
+                Введите ИНН <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="source-inn"
+                  {...register("inn")}
+                  inputMode="numeric"
+                  maxLength={12}
+                  disabled={searchingByInn}
+                  placeholder="1234567890"
+                  onChange={(event) => {
+                    register("inn").onChange(event);
+                    setInnSearchSuccess(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleInnSearch();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={() => void handleInnSearch()}
+                  disabled={searchingByInn}
+                  className="shrink-0"
+                >
+                  {searchingByInn ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Заполнить"
+                  )}
+                </Button>
+              </div>
+              {errors.inn ? (
+                <p className="text-xs text-destructive">{errors.inn.message}</p>
+              ) : null}
+              {innSearchSuccess ? (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Данные организации загружены</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">
+                Загрузите карту партнера (PDF)
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Мы попытаемся извлечь реквизиты и заполнить форму автоматически.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileUpload}
+              className="hidden"
+              disabled={parsingFile}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={parsingFile}
+              className="w-full"
+            >
+              {parsingFile ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Распознавание...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Загрузить PDF
+                </>
+              )}
+            </Button>
+            {uploadedFileName && !parsingFile ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileText className="h-4 w-4" />
+                <span className="truncate">{uploadedFileName}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border border-dashed p-4">
+            <p className="text-sm font-medium">Заполнить вручную</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Если у вас нет ИНН под рукой или карточки партнера, продолжайте по
+              шагам и заполните данные вручную.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (stepId === "profile") {
+      return (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Контакты заявителя</p>
+            <p className="text-sm text-muted-foreground">
+              Кто оформляет onboarding и как с вами связаться.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="name">
+              Ваше ФИО <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="name"
+              {...register("name")}
+              placeholder="Иванов Иван Иванович"
+            />
+            {errors.name ? (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            ) : null}
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -604,152 +1098,495 @@ export function CustomerOnboardingForm() {
             ) : null}
           </div>
         </div>
+      );
+    }
 
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setShowExtraFields((current) => !current)}
-            className="w-full justify-between px-0"
-          >
-            <span className="text-sm text-muted-foreground">
-              Дополнительные данные организации
-            </span>
-            {showExtraFields ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
-          {showExtraFields ? (
-            <div className="grid gap-4 pt-2 md:grid-cols-2">
-              {EXTRA_FIELDS.map((field) => (
-                <div key={field.name} className="space-y-1.5">
-                  <Label htmlFor={field.name}>{field.label}</Label>
-                  <Input
-                    id={field.name}
-                    {...register(field.name)}
-                    placeholder={field.placeholder}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
+    if (stepId === "company") {
+      return (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Данные организации</p>
+            <p className="text-sm text-muted-foreground">
+              Юридическая информация компании и подписанта.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="orgName">
+              Название организации <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="orgName"
+              {...register("orgName")}
+              placeholder="ООО «Компания»"
+            />
+            {errors.orgName ? (
+              <p className="text-xs text-destructive">
+                {errors.orgName.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="directorName">
+              ФИО директора <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="directorName"
+              {...register("directorName")}
+              placeholder="Петров Петр Петрович"
+            />
+            {errors.directorName ? (
+              <p className="text-xs text-destructive">
+                {errors.directorName.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {EXTRA_FIELDS.map((field) => (
+              <div key={field.name} className="space-y-1.5">
+                <Label htmlFor={field.name}>{field.label}</Label>
+                <Input
+                  id={field.name}
+                  {...register(field.name)}
+                  placeholder={field.placeholder}
+                />
+                {getErrorMessage((errors as Record<string, unknown>)[field.name]) ? (
+                  <p className="text-xs text-destructive">
+                    {getErrorMessage((errors as Record<string, unknown>)[field.name])}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
+      );
+    }
 
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setShowBankFields((current) => !current)}
-            className="w-full justify-between px-0"
-          >
-            <span className="text-sm text-muted-foreground">
-              Банковские реквизиты
-            </span>
-            {showBankFields ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
-          {showBankFields ? (
-            <div className="grid gap-4 pt-2 md:grid-cols-2">
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label htmlFor="bankName">Банк</Label>
-                  <Input
-                    id="bankName"
-                    {...register("bankName", {
-                      onChange: () => {
-                        if (getValues("bankProviderId")) {
-                          setValue("bankProviderId", undefined, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                        }
-                      },
-                    })}
-                    placeholder="Начните вводить название банка, БИК или SWIFT"
-                  />
-                  {searchingBankProviders ? (
-                    <p className="text-xs text-muted-foreground">
-                      Ищем подходящие банки...
-                    </p>
-                  ) : null}
-                  {bankProviderMatches.length > 0 ? (
-                    <div className="rounded-md border border-border bg-background">
-                      {bankProviderMatches.map((provider) => (
-                        <button
-                          key={provider.id}
-                          type="button"
-                          className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted/50"
-                          onClick={() => applyBankProvider(provider)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">
-                              {provider.name}
-                            </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {provider.displayLabel}
-                            </span>
-                          </span>
-                          {provider.country ? (
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {provider.country}
-                            </span>
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-                {BANK_FIELDS.map((field) => (
-                  <div key={field.name} className="space-y-1.5">
-                    <Label htmlFor={field.name}>{field.label}</Label>
-                    <Input
-                    id={field.name}
-                    {...register(field.name)}
-                    placeholder={field.placeholder}
-                  />
-                </div>
-              ))}
-              <div className="space-y-1.5">
-                <Label htmlFor="bankCountry">Страна банка</Label>
-                <Controller
-                  control={control}
-                  name="bankCountry"
-                  render={({ field, fieldState }) => (
-                    <>
-                      <CountrySelect
-                        id="bankCountry"
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                        invalid={fieldState.invalid}
-                        placeholder="Выберите страну"
-                        searchPlaceholder="Поиск страны..."
-                        emptyLabel="Страна не найдена"
-                        clearable
-                        clearLabel="Очистить"
+    if (stepId === "bank") {
+      return (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Банк</p>
+            <p className="text-sm text-muted-foreground">
+              Выберите банк из справочника или введите данные вручную.
+            </p>
+          </div>
+
+          {!providerSelected ? (
+            <div className="space-y-3">
+              <BankCombobox
+                onManualEntry={enableManualBankEntry}
+                onSelect={applyBankProvider}
+              />
+              {errors.bankProviderId ? (
+                <p className="text-xs text-destructive">
+                  {errors.bankProviderId.message}
+                </p>
+              ) : null}
+              {bankMode === "manual" ? (
+                <div className="rounded-md border border-dashed p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Ручной ввод банка</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={enableBankDirectorySearch}
+                    >
+                      Выбрать из справочника
+                    </Button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="bankProvider.name">Название банка</Label>
+                      <Input
+                        id="bankProvider.name"
+                        {...register("bankProvider.name")}
+                        placeholder="АО Банк"
                       />
-                      {fieldState.error ? (
+                      {errors.bankProvider?.name ? (
                         <p className="text-xs text-destructive">
-                          {fieldState.error.message}
+                          {errors.bankProvider.name.message}
                         </p>
                       ) : null}
-                    </>
-                  )}
-                />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankProvider.country">Страна банка</Label>
+                      <Controller
+                        control={control}
+                        name="bankProvider.country"
+                        render={({ field, fieldState }) => (
+                          <>
+                            <CountrySelect
+                              id="bankProvider.country"
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                              invalid={fieldState.invalid}
+                              placeholder="Выберите страну"
+                              searchPlaceholder="Поиск страны..."
+                              emptyLabel="Страна не найдена"
+                              clearable
+                              clearLabel="Очистить"
+                            />
+                            {fieldState.error ? (
+                              <p className="text-xs text-destructive">
+                                {fieldState.error.message}
+                              </p>
+                            ) : null}
+                          </>
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankProvider.routingCode">
+                        SWIFT / BIC
+                      </Label>
+                      <Input
+                        id="bankProvider.routingCode"
+                        {...register("bankProvider.routingCode")}
+                        placeholder="DEUTDEFF / 044525225"
+                      />
+                      {errors.bankProvider?.routingCode ? (
+                        <p className="text-xs text-destructive">
+                          {errors.bankProvider.routingCode.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="bankProvider.address">Адрес банка</Label>
+                      <Textarea
+                        id="bankProvider.address"
+                        {...register("bankProvider.address")}
+                        rows={3}
+                        placeholder="г. Москва"
+                      />
+                      {errors.bankProvider?.address ? (
+                        <p className="text-xs text-destructive">
+                          {errors.bankProvider.address.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-md border bg-muted/20 p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Банк из справочника</p>
+                  <p className="text-xs text-muted-foreground">
+                    Данные банка доступны только для чтения. Для изменения
+                    переключитесь на ручной ввод.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={enableBankDirectorySearch}
+                  >
+                    Изменить банк
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={enableManualBankEntry}
+                  >
+                    Ввести вручную
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="selected-bank-name">Название банка</Label>
+                  <Input
+                    id="selected-bank-name"
+                    value={bankProviderName ?? ""}
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="selected-bank-country">Страна банка</Label>
+                  <Input
+                    id="selected-bank-country"
+                    value={bankProviderCountry ?? ""}
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="selected-bank-routing">SWIFT / BIC</Label>
+                  <Input
+                    id="selected-bank-routing"
+                    value={bankProviderRoutingCode ?? ""}
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="selected-bank-address">Адрес банка</Label>
+                  <Textarea
+                    id="selected-bank-address"
+                    value={bankProviderAddress ?? ""}
+                    rows={3}
+                    readOnly
+                  />
+                </div>
               </div>
             </div>
-          ) : null}
+          )}
+        </div>
+      );
+    }
+
+    if (stepId === "review") {
+      const reviewRows = [
+        { label: "ИНН", value: innValue },
+        { label: "Контакт", value: applicantName },
+        { label: "Организация", value: orgName },
+        {
+          label: "Банк",
+          value: bankProviderName,
+        },
+        { label: "Счет", value: accountNoValue },
+        { label: "Получатель", value: beneficiaryNameValue },
+      ];
+
+      return (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Проверьте данные перед отправкой</p>
+            <p className="text-sm text-muted-foreground">
+              Если что-то выглядит неверно, вернитесь к нужному шагу и
+              поправьте поля.
+            </p>
+          </div>
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <dl className="space-y-3">
+              {reviewRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex flex-col gap-1 border-b pb-3 last:border-b-0 last:pb-0"
+                >
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {row.label}
+                  </dt>
+                  <dd className="text-sm font-medium">
+                    {row.value?.trim() ? row.value : "Не заполнено"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Реквизиты счета</p>
+            <p className="text-sm text-muted-foreground">
+              Реквизиты сохраняются как снимок данных для этого юридического лица.
+            </p>
+          </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="bankRequisite.beneficiaryName">Получатель</Label>
+            <Input
+              id="bankRequisite.beneficiaryName"
+              {...register("bankRequisite.beneficiaryName", {
+                onChange: () => setSyncBeneficiaryName(false),
+              })}
+              placeholder="ООО «Компания»"
+            />
+            {errors.bankRequisite?.beneficiaryName ? (
+              <p className="text-xs text-destructive">
+                {errors.bankRequisite.beneficiaryName.message}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bankRequisite.accountNo">Номер счета</Label>
+            <Input
+              id="bankRequisite.accountNo"
+              {...register("bankRequisite.accountNo")}
+              placeholder="40702810..."
+            />
+            {errors.bankRequisite?.accountNo ? (
+              <p className="text-xs text-destructive">
+                {errors.bankRequisite.accountNo.message}
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : null}
-          Сохранить организацию
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setShowAdvancedRequisiteFields((current) => !current)}
+          className="justify-start px-0 text-sm text-muted-foreground"
+        >
+          {showAdvancedRequisiteFields
+            ? "Скрыть дополнительные реквизиты"
+            : "Показать дополнительные реквизиты"}
         </Button>
+
+        {showAdvancedRequisiteFields ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bankRequisite.corrAccount">Корр. счет</Label>
+              <Input
+                id="bankRequisite.corrAccount"
+                {...register("bankRequisite.corrAccount")}
+                placeholder="30101810..."
+              />
+              {errors.bankRequisite?.corrAccount ? (
+                <p className="text-xs text-destructive">
+                  {errors.bankRequisite.corrAccount.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bankRequisite.iban">IBAN</Label>
+              <Input
+                id="bankRequisite.iban"
+                {...register("bankRequisite.iban")}
+                placeholder="DE89370400440532013000"
+              />
+              {errors.bankRequisite?.iban ? (
+                <p className="text-xs text-destructive">
+                  {errors.bankRequisite.iban.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="mb-6">
+        <h1 className="text-xl font-bold">Добро пожаловать</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Заполните информацию о вашей организации
+        </p>
+      </div>
+
+      <form
+        onSubmit={handleSubmit(onSubmit as never, onInvalidSubmit)}
+        className="space-y-6"
+      >
+        <Stepper.Root className="w-full space-y-4" orientation="vertical">
+          {({ stepper }) => (
+            <>
+              {(() => {
+                stepperRef.current = stepper;
+                return null;
+              })()}
+              <Stepper.List className="flex list-none flex-col">
+                {stepper.state.all.map((stepData, index) => {
+                  const currentIndex = stepper.state.current.index;
+                  const status =
+                    index < currentIndex
+                      ? "success"
+                      : index === currentIndex
+                        ? "active"
+                        : "inactive";
+                  const isLast = index === stepper.state.all.length - 1;
+                  const data = stepData as {
+                    description?: string;
+                    id: string;
+                    title: string;
+                  };
+                  const hasError = stepHasErrors(
+                    errors,
+                    stepData.id as OnboardingStepId,
+                  );
+
+                  return (
+                    <Fragment key={stepData.id}>
+                      <Stepper.Item
+                        step={stepData.id}
+                        className="group peer relative flex items-center gap-2"
+                      >
+                        <StepperTriggerWrapper hasError={hasError} />
+                        <div className="flex flex-col items-start gap-1">
+                          <StepperTitleWrapper
+                            hasError={hasError}
+                            title={data.title}
+                          />
+                          <StepperDescriptionWrapper
+                            description={data.description}
+                            hasError={hasError}
+                          />
+                        </div>
+                      </Stepper.Item>
+                      <div className="flex gap-4">
+                        <StepperSeparatorVertical
+                          status={status}
+                          isLast={isLast}
+                        />
+                        <div className="flex-1 py-2 ps-4">
+                          <ContentWithTracking
+                            id={stepData.id as OnboardingStepId}
+                            isActive={status === "active"}
+                          >
+                            {renderStepContent(stepData.id as OnboardingStepId)}
+                          </ContentWithTracking>
+                        </div>
+                      </div>
+                    </Fragment>
+                  );
+                })}
+              </Stepper.List>
+              <Stepper.Actions className="sticky bottom-0 flex justify-end gap-4 bg-background py-4">
+                {!stepper.state.isFirst ? (
+                  <Stepper.Prev
+                    render={(domProps) => (
+                      <Button type="button" variant="secondary" {...domProps}>
+                        Назад
+                      </Button>
+                    )}
+                  />
+                ) : null}
+                {stepper.state.isLast ? (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Сохранить организацию
+                  </Button>
+                ) : (
+                  <Stepper.Next
+                    render={(domProps) => (
+                      <Button
+                        type="button"
+                        {...domProps}
+                        onClick={async (event) => {
+                          const valid = await handleNextStep(
+                            stepper.state.current.data.id as OnboardingStepId,
+                          );
+                          if (valid) {
+                            domProps.onClick?.(event);
+                          }
+                        }}
+                      >
+                        Далее
+                      </Button>
+                    )}
+                  />
+                )}
+              </Stepper.Actions>
+            </>
+          )}
+        </Stepper.Root>
       </form>
     </div>
   );

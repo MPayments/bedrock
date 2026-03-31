@@ -13,7 +13,6 @@ describe("requisite details domain", () => {
       kind: "bank",
       description: "  Primary  ",
       beneficiaryName: "  Acme Corp  ",
-      institutionName: "  JPM  ",
       accountNo: "  1234  ",
     });
 
