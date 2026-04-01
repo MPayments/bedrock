@@ -17,10 +17,6 @@ import {
   resolveEffectiveCustomerAgreementByCustomerId,
   updateCustomerAgreement,
 } from "./customer-agreements";
-import {
-  getOrganizationBankRequisiteOrThrow,
-  serializeOrganizationRequisiteForDocuments,
-} from "./organization-requisites";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import {
@@ -1734,63 +1730,10 @@ export function customersRoutes(ctx: AppContext) {
       try {
         const { counterpartyId, customerId } = c.req.valid("param");
         const { format, lang } = c.req.valid("query");
-        await assertCustomerOwnsCounterparty(ctx, {
-          counterpartyId,
-          customerId,
-        });
-
-        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
-          ctx,
-          customerId,
-        );
-        if (!contract) {
-          return c.json({ error: "Contract not found" }, 404);
-        }
-
-        const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
-          counterpartyId,
-          customerId,
-        });
-        const assignments = await listCounterpartyAssignments(ctx, [
-          counterpartyId,
-        ]);
-        const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
-          ctx,
-          [counterpartyId],
-        );
-        const legalEntity = await mapCustomerLegalEntity({
-          assignment: assignments.get(counterpartyId) ?? null,
-          bankRequisite: requisitesByCounterpartyId.get(counterpartyId) ?? null,
-          contract,
-          counterparty,
-          ctx,
-        });
-
-        const organization =
-          await ctx.partiesModule.organizations.queries.findById(
-            contract.organizationId,
-          );
-        const organizationRequisite = await getOrganizationBankRequisiteOrThrow(
-          ctx,
-          contract.organizationRequisiteId,
-        );
-        if (
-          !organization ||
-          organizationRequisite.ownerId !== organization.id
-        ) {
-          return c.json({ error: "Organization not found" }, 404);
-        }
-
         const result =
-          await ctx.documentGenerationWorkflow.generateClientContract({
-            client: legalEntity as unknown as Record<string, unknown>,
-            contract: contract as unknown as Record<string, unknown>,
-            organization: organization as unknown as Record<string, unknown>,
-            organizationRequisite:
-              await serializeOrganizationRequisiteForDocuments(
-                ctx,
-                organizationRequisite,
-              ),
+          await ctx.documentGenerationWorkflow.generateCustomerContract({
+            counterpartyId,
+            customerId,
             format,
             lang,
           });

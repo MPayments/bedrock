@@ -107,6 +107,25 @@ export class DrizzleRequisiteReads implements RequisiteReads {
     return toPublicRequisite(mapRowToSnapshot(row));
   }
 
+  async listActiveBankByCounterpartyId(
+    counterpartyId: string,
+  ): Promise<Requisite[]> {
+    const rows = await this.db
+      .select()
+      .from(requisites)
+      .where(
+        and(
+          eq(requisites.ownerType, "counterparty"),
+          eq(requisites.counterpartyId, counterpartyId),
+          eq(requisites.kind, "bank"),
+          isNull(requisites.archivedAt),
+        ),
+      )
+      .orderBy(desc(requisites.createdAt));
+
+    return rows.map((row) => toPublicRequisite(mapRowToSnapshot(row)));
+  }
+
   async list(input: {
     limit: number;
     offset: number;

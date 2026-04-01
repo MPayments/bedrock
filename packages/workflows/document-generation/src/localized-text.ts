@@ -44,22 +44,22 @@ export function withLocalizedTemplateFields(
 export function applyLocalizedTemplateField(
   data: Record<string, unknown>,
   key: string,
-  entity: Record<string, unknown>,
+  entity: object,
   baseField: string,
   lang: SupportedLang,
 ): void {
-  const localized = entity[`${baseField}I18n`] as
+  const localized = (entity as Record<string, unknown>)[`${baseField}I18n`] as
     | LocalizedTextValue
     | undefined;
   withLocalizedTemplateFields(data, key, localized, lang);
 }
 
 export function getLocalizedValue(
-  entity: Record<string, unknown>,
+  entity: object,
   baseField: string,
   lang: SupportedLang,
 ): string | undefined {
-  const localized = entity[`${baseField}I18n`] as
+  const localized = (entity as Record<string, unknown>)[`${baseField}I18n`] as
     | LocalizedTextValue
     | undefined;
   return resolveLocalizedText(localized, lang);

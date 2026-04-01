@@ -4,21 +4,29 @@ import {
   withLocalizedTemplateFields,
 } from "../localized-text";
 import { declineBasisToGenitive, formatDirector } from "../russian-language";
+import type {
+  ClientContractAgreement,
+  ClientContractClient,
+  ClientContractOrganization,
+  ClientContractOrganizationBankRequisite,
+} from "../contracts";
+import { resolveDocumentNumber } from "./document-number";
 import type { DocumentLang, OrgFiles } from "./types";
 import { prune } from "./types";
 
 export function assembleClientContractData(
-  client: Record<string, unknown>,
-  contract: Record<string, unknown>,
-  organization: Record<string, unknown>,
-  organizationRequisite: Record<string, unknown>,
+  client: ClientContractClient,
+  agreement: ClientContractAgreement,
+  organization: ClientContractOrganization,
+  organizationRequisite: ClientContractOrganizationBankRequisite,
   orgFiles: OrgFiles,
   lang: DocumentLang,
 ): Record<string, unknown> {
-  const contractNumber =
-    (contract.contractNumber as string) || String(client.id);
-  const contractDate =
-    (contract.contractDate as string) || "";
+  const contractNumber = resolveDocumentNumber(
+    agreement.contractNumber,
+    agreement.id,
+  );
+  const contractDate = agreement.contractDate || "";
 
   const clientDirectorName =
     getLocalizedValue(client, "directorName", lang) || "";
@@ -36,6 +44,7 @@ export function assembleClientContractData(
 
   const raw: Record<string, unknown> = {
     contractNumber,
+    number: contractNumber,
     directorName: genitive,
     directorInitials: initials,
     directorBasis: directorBasisGenitive,
@@ -44,8 +53,8 @@ export function assembleClientContractData(
     account: client.account,
     corrAccount: client.corrAccount,
     bic: client.bic,
-    agentFee: contract.agentFee,
-    fixedFee: contract.fixedFee,
+    agentFee: agreement.agentFee,
+    fixedFee: agreement.fixedFee,
     date: contractDate,
     agentTaxId: organization.taxId,
     agentKpp: organization.kpp,

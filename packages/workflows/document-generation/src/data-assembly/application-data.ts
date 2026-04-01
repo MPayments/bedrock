@@ -9,6 +9,7 @@ import {
   formatDirector,
   getCurrencySymbol,
 } from "../russian-language";
+import { resolveDocumentNumber } from "./document-number";
 import type { DocumentLang, OrgFiles } from "./types";
 import { formatDateByLang, prune } from "./types";
 
@@ -39,17 +40,28 @@ export function assembleApplicationData(
 
   const baseCurrency = (calculation.baseCurrencyCode as string) || "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
+  const applicationNumber = resolveDocumentNumber(deal.applicationNumber, deal.id);
+  const contractNumber = resolveDocumentNumber(contract.contractNumber, contract.id);
+  const dealContractNumber = resolveDocumentNumber(
+    deal.contractNumber,
+    deal.contractId ?? deal.id,
+  );
+  const dealInvoiceNumber = resolveDocumentNumber(
+    deal.invoiceNumber,
+    deal.invoiceId ?? deal.id,
+  );
 
   const raw: Record<string, unknown> = {
-    applicationNumber: String(deal.id),
+    applicationNumber,
+    number: applicationNumber,
     directorName: genitive,
     directorInitials: initials,
     directorBasis: directorBasisGenitive,
-    contractNumber: contract.contractNumber,
+    contractNumber,
     contractDate: contract.contractDate,
-    dealContractNumber: deal.contractNumber,
+    dealContractNumber,
     dealContractDate: deal.contractDate,
-    dealInvoiceNumber: deal.invoiceNumber,
+    dealInvoiceNumber,
     dealInvoiceDate: deal.invoiceDate,
     account: deal.account,
     swiftCode: deal.swiftCode,

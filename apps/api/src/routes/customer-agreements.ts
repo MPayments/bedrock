@@ -13,7 +13,6 @@ import {
 } from "@bedrock/shared/core/errors";
 
 import type { AppContext } from "../context";
-import { getOrganizationBankRequisiteOrThrow } from "./organization-requisites";
 
 function isPositiveDecimalString(value: string): boolean {
   const [whole, fraction, ...rest] = value.split(".");
@@ -302,31 +301,6 @@ export async function assertCustomerOwnsCounterparty(
   return counterparty;
 }
 
-async function assertAgreementRootInput(
-  ctx: AppContext,
-  input: {
-    organizationId: string;
-    organizationRequisiteId: string;
-  },
-) {
-  const organization = await ctx.partiesModule.organizations.queries.findById(
-    input.organizationId,
-  );
-  if (!organization) {
-    throw new NotFoundError("Organization", input.organizationId);
-  }
-
-  const requisite = await getOrganizationBankRequisiteOrThrow(
-    ctx,
-    input.organizationRequisiteId,
-  );
-  if (requisite.ownerId !== input.organizationId) {
-    throw new ValidationError(
-      "Organization requisite does not belong to organization",
-    );
-  }
-}
-
 export async function createCustomerAgreementForCustomer(
   ctx: AppContext,
   input: {
@@ -350,11 +324,6 @@ export async function createCustomerAgreementForCustomer(
       `Active agreement already exists for customer ${input.customerId}`,
     );
   }
-
-  await assertAgreementRootInput(ctx, {
-    organizationId: input.organizationId,
-    organizationRequisiteId: input.organizationRequisiteId,
-  });
 
   const agreement = await ctx.agreementsModule.agreements.commands.create({
     actorUserId,
@@ -400,16 +369,6 @@ export async function updateCustomerAgreement(
     input.organizationRequisiteId !== current.organizationRequisiteId
   ) {
     throw new AgreementRootLinksImmutableError();
-  }
-
-  if (
-    input.organizationId !== undefined ||
-    input.organizationRequisiteId !== undefined
-  ) {
-    await assertAgreementRootInput(ctx, {
-      organizationId: current.organizationId,
-      organizationRequisiteId: current.organizationRequisiteId,
-    });
   }
 
   const updated = await ctx.agreementsModule.agreements.commands.update({

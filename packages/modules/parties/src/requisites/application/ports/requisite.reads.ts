@@ -37,6 +37,7 @@ export interface RequisiteSubjectRecord {
 export interface RequisiteReads {
   findById(id: string): Promise<Requisite | null>;
   findActiveById(id: string): Promise<Requisite | null>;
+  listActiveBankByCounterpartyId(counterpartyId: string): Promise<Requisite[]>;
   list(query: ListRequisitesQuery): Promise<PaginatedList<Requisite>>;
   listOptions(query: ListRequisiteOptionsQuery): Promise<RequisiteOptionRecord[]>;
   listLabelsById(ids: string[]): Promise<Map<string, string>>;

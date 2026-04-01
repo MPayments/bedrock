@@ -478,6 +478,9 @@ export function createApplicationServices(
   });
 
   const documentGenerationWorkflow = createDocumentGenerationWorkflow({
+    agreements: agreementsModule,
+    currencies: currenciesService,
+    parties: partiesModule,
     templateRenderer: templateAdapter,
     pdfConverter: createLibreOfficeConvertAdapter(),
     templateManager: templateAdapter,
