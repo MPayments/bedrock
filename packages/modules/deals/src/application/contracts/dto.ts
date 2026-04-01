@@ -8,11 +8,16 @@ import {
 import {
   DealApprovalStatusSchema,
   DealApprovalTypeSchema,
+  DealCapabilityKindSchema,
+  DealCapabilityStatusSchema,
   DealLegKindSchema,
   DealLegStateSchema,
+  DealOperationalPositionKindSchema,
+  DealOperationalPositionStateSchema,
   DealParticipantRoleSchema,
   DealSectionIdSchema,
   DealStatusSchema,
+  DealTransitionBlockerCodeSchema,
   DealTimelineEventTypeSchema,
   DealTimelineVisibilitySchema,
   DealTypeSchema,
@@ -200,6 +205,24 @@ export const DealTimelineEventSchema = z.object({
 
 export type DealTimelineEvent = z.infer<typeof DealTimelineEventSchema>;
 
+export const DealTransitionBlockerSchema = z.object({
+  code: DealTransitionBlockerCodeSchema,
+  message: z.string(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type DealTransitionBlocker = z.infer<typeof DealTransitionBlockerSchema>;
+
+export const DealTransitionReadinessSchema = z.object({
+  allowed: z.boolean(),
+  blockers: z.array(DealTransitionBlockerSchema),
+  targetStatus: DealStatusSchema,
+});
+
+export type DealTransitionReadiness = z.infer<
+  typeof DealTransitionReadinessSchema
+>;
+
 export const DealRelatedQuoteSchema = z.object({
   expiresAt: z.date().nullable(),
   id: z.uuid(),
@@ -227,10 +250,14 @@ export const DealRelatedAttachmentSchema = z.object({
 export type DealRelatedAttachment = z.infer<typeof DealRelatedAttachmentSchema>;
 
 export const DealRelatedFormalDocumentSchema = z.object({
+  approvalStatus: z.string().nullable(),
+  createdAt: z.date().nullable(),
   docType: z.string(),
   id: z.uuid(),
+  lifecycleStatus: z.string().nullable(),
   occurredAt: z.date().nullable(),
-  status: z.string().nullable(),
+  postingStatus: z.string().nullable(),
+  submissionStatus: z.string().nullable(),
 });
 
 export type DealRelatedFormalDocument = z.infer<
@@ -277,17 +304,54 @@ export const DealQuoteAcceptanceSchema = z.object({
 
 export type DealQuoteAcceptance = z.infer<typeof DealQuoteAcceptanceSchema>;
 
+export const DealCapabilityStateSchema = z.object({
+  applicantCounterpartyId: z.uuid().nullable(),
+  dealType: DealTypeSchema,
+  internalEntityOrganizationId: z.uuid().nullable(),
+  kind: DealCapabilityKindSchema,
+  note: z.string().nullable(),
+  reasonCode: z.string().nullable(),
+  status: DealCapabilityStatusSchema,
+  updatedAt: z.date().nullable(),
+  updatedByUserId: z.string().nullable(),
+});
+
+export type DealCapabilityState = z.infer<typeof DealCapabilityStateSchema>;
+
+export const DealOperationalPositionSchema = z.object({
+  amountMinor: z.string().nullable(),
+  currencyId: z.uuid().nullable(),
+  kind: DealOperationalPositionKindSchema,
+  reasonCode: z.string().nullable(),
+  sourceRefs: z.array(z.string()),
+  state: DealOperationalPositionStateSchema,
+  updatedAt: z.date().nullable(),
+});
+
+export type DealOperationalPosition = z.infer<
+  typeof DealOperationalPositionSchema
+>;
+
+export const DealOperationalStateSchema = z.object({
+  capabilities: z.array(DealCapabilityStateSchema),
+  positions: z.array(DealOperationalPositionSchema),
+});
+
+export type DealOperationalState = z.infer<typeof DealOperationalStateSchema>;
+
 export const DealWorkflowProjectionSchema = z.object({
   acceptedQuote: DealQuoteAcceptanceSchema.nullable(),
   executionPlan: z.array(DealWorkflowLegSchema),
   intake: DealIntakeDraftSchema,
   nextAction: z.string(),
+  operationalState: DealOperationalStateSchema,
   participants: z.array(DealWorkflowParticipantSchema),
   relatedResources: DealRelatedResourcesSchema,
   revision: z.number().int().positive(),
   sectionCompleteness: z.array(DealSectionCompletenessSchema),
   summary: DealSummarySchema,
   timeline: z.array(DealTimelineEventSchema),
+  transitionReadiness: z.array(DealTransitionReadinessSchema),
 });
 
 export type DealWorkflowProjection = z.infer<

@@ -1,4 +1,7 @@
 import {
+  dealCapabilityKindEnum,
+  dealCapabilityStates,
+  dealCapabilityStatusEnum,
   dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
@@ -10,6 +13,9 @@ import {
   dealIntakeSnapshots,
   dealParticipantRoleEnum,
   dealParticipants,
+  dealOperationalPositionKindEnum,
+  dealOperationalPositions,
+  dealOperationalPositionStateEnum,
   deals,
   dealStatusEnum,
   dealTimelineEventTypeEnum,
@@ -20,6 +26,9 @@ import {
 } from "./adapters/drizzle/schema";
 
 export {
+  dealCapabilityKindEnum,
+  dealCapabilityStates,
+  dealCapabilityStatusEnum,
   dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
@@ -31,6 +40,9 @@ export {
   dealIntakeSnapshots,
   dealParticipantRoleEnum,
   dealParticipants,
+  dealOperationalPositionKindEnum,
+  dealOperationalPositions,
+  dealOperationalPositionStateEnum,
   deals,
   dealStatusEnum,
   dealTimelineEventTypeEnum,
@@ -42,6 +54,8 @@ export {
 
 export const schema = {
   deals,
+  dealCapabilityStates,
+  dealOperationalPositions,
   dealIntakeSnapshots,
   dealLegs,
   dealParticipants,
@@ -55,6 +69,10 @@ export const schema = {
   dealLegKindEnum,
   dealLegStateEnum,
   dealParticipantRoleEnum,
+  dealCapabilityKindEnum,
+  dealCapabilityStatusEnum,
+  dealOperationalPositionKindEnum,
+  dealOperationalPositionStateEnum,
   dealTimelineEventTypeEnum,
   dealTimelineVisibilityEnum,
   dealApprovalTypeEnum,

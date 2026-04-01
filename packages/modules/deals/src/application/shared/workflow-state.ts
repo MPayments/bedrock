@@ -12,11 +12,14 @@ import type {
   UpdateDealIntakeInput,
 } from "../contracts/commands";
 import type {
+  DealOperationalState,
   DealIntakeDraft,
   DealQuoteAcceptance,
+  DealWorkflowLeg,
 } from "../contracts/dto";
 import type {
   CreateDealLegStoredInput,
+  ReplaceDealOperationalPositionStoredInput,
   CreateDealParticipantStoredInput,
 } from "../ports/deal.store";
 import type {
@@ -206,15 +209,20 @@ export async function deriveDealRootState(input: {
 
 export function buildDealLegRows(input: {
   dealId: string;
+  existingLegs?: DealWorkflowLeg[];
   generateUuid: () => string;
   intake: DealIntakeDraft;
 }): CreateDealLegStoredInput[] {
+  const existingLegStateByKey = new Map(
+    (input.existingLegs ?? []).map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
+  );
+
   return buildDealExecutionPlan(input.intake).map((leg) => ({
     dealId: input.dealId,
     id: input.generateUuid(),
     idx: leg.idx,
     kind: leg.kind,
-    state: leg.state,
+    state: existingLegStateByKey.get(`${leg.idx}:${leg.kind}`) ?? leg.state,
   }));
 }
 
@@ -280,6 +288,23 @@ export function buildDealParticipantRows(input: {
   return participants;
 }
 
+export function buildDealOperationalPositionRows(input: {
+  dealId: string;
+  generateUuid: () => string;
+  operationalState: DealOperationalState;
+}): ReplaceDealOperationalPositionStoredInput[] {
+  return input.operationalState.positions.map((position) => ({
+    amountMinor: position.amountMinor ? BigInt(position.amountMinor) : null,
+    currencyId: position.currencyId,
+    dealId: input.dealId,
+    id: input.generateUuid(),
+    kind: position.kind,
+    reasonCode: position.reasonCode,
+    sourceRefs: position.sourceRefs,
+    state: position.state,
+  }));
+}
+
 export function createTimelinePayloadEvent(input: {
   actorLabel?: string | null;
   actorUserId?: string | null;
@@ -301,7 +326,8 @@ export function createTimelinePayloadEvent(input: {
     | "attachment_uploaded"
     | "attachment_deleted"
     | "document_created"
-    | "document_status_changed";
+    | "document_status_changed"
+    | "leg_state_changed";
   visibility?: "customer_safe" | "internal";
 }) {
   return {

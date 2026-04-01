@@ -13,7 +13,11 @@ import {
   type AcceptDealQuoteInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
-import { createTimelinePayloadEvent, deriveDealRootState } from "../shared/workflow-state";
+import {
+  buildDealOperationalPositionRows,
+  createTimelinePayloadEvent,
+  deriveDealRootState,
+} from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 
@@ -38,6 +42,7 @@ export class AcceptDealQuoteCommand {
     raw: AcceptDealQuoteCommandInput,
   ): Promise<DealWorkflowProjection> {
     const validated = AcceptDealQuoteCommandInputSchema.parse(raw);
+    const now = this.runtime.now();
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -49,24 +54,29 @@ export class AcceptDealQuoteCommand {
       if (!quote) {
         throw new NotFoundError("Quote", validated.quoteId);
       }
+      const quoteExpired =
+        quote.expiresAt !== null && quote.expiresAt.getTime() <= now.getTime();
       if (quote.dealId !== validated.dealId) {
         throw new DealQuoteDealMismatchError(validated.dealId, validated.quoteId);
       }
       if (
         existing.acceptedQuote?.quoteId === validated.quoteId &&
         existing.acceptedQuote.dealRevision === existing.revision &&
-        quote.status === "active"
+        quote.status === "active" &&
+        !quoteExpired
       ) {
         return existing;
       }
-      if (quote.status !== "active") {
-        throw new DealQuoteInactiveError(validated.quoteId, quote.status);
+      if (quote.status !== "active" || quoteExpired) {
+        throw new DealQuoteInactiveError(
+          validated.quoteId,
+          quoteExpired ? "expired" : quote.status,
+        );
       }
 
       const agreement = await this.references.findAgreementById(
         existing.summary.agreementId,
       );
-      const now = this.runtime.now();
 
       await tx.dealStore.supersedeCurrentQuoteAcceptances({
         dealId: validated.dealId,
@@ -131,6 +141,19 @@ export class AcceptDealQuoteCommand {
       if (!updated) {
         throw new DealNotFoundError(validated.dealId);
       }
+
+      await tx.dealStore.setDealRoot({
+        dealId: validated.dealId,
+        nextAction: updated.nextAction,
+      });
+      await tx.dealStore.replaceDealOperationalPositions({
+        dealId: validated.dealId,
+        positions: buildDealOperationalPositionRows({
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          operationalState: updated.operationalState,
+        }),
+      });
 
       return updated;
     });

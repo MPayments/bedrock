@@ -1,24 +1,32 @@
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createTransactionalPort,
+  type Queryable,
   type PersistenceContext,
   type Transaction,
   type TransactionalPort,
 } from "@bedrock/platform/persistence";
 
-import { DrizzleDealReads } from "./deal.reads";
+import {
+  DrizzleDealReads,
+  type DealDocumentsReadModel,
+} from "./deal.reads";
 import { DrizzleDealStore } from "./deal.store";
 import type {
   DealsCommandTx,
   DealsCommandUnitOfWork,
 } from "../../application/ports/deals.uow";
 
-function bindDealsTx(transaction: Transaction): DealsCommandTx {
+function bindDealsTx(
+  transaction: Transaction,
+  bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel,
+): DealsCommandTx {
   return {
     transaction,
     dealReads: new DrizzleDealReads(
       transaction,
       createCurrenciesQueries({ db: transaction }),
+      bindDocumentsReadModel?.(transaction),
     ),
     dealStore: new DrizzleDealStore(transaction),
   };
@@ -27,10 +35,13 @@ function bindDealsTx(transaction: Transaction): DealsCommandTx {
 export class DrizzleDealsUnitOfWork implements DealsCommandUnitOfWork {
   private readonly transactional: TransactionalPort<DealsCommandTx>;
 
-  constructor(input: { persistence: PersistenceContext }) {
+  constructor(input: {
+    bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel;
+    persistence: PersistenceContext;
+  }) {
     this.transactional = createTransactionalPort(
       input.persistence,
-      bindDealsTx,
+      (transaction) => bindDealsTx(transaction, input.bindDocumentsReadModel),
     );
   }
 

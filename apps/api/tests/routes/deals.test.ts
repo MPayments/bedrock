@@ -25,7 +25,10 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import { DealNotFoundError } from "@bedrock/deals";
+import {
+  DealNotFoundError,
+  DealTransitionBlockedError,
+} from "@bedrock/deals";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -81,6 +84,7 @@ function createDealsModuleStub() {
   return {
     deals: {
       queries: {
+        findWorkflowById: vi.fn(),
         list: vi.fn(),
         findById: vi.fn(),
         listCalculationHistory: vi.fn(),
@@ -88,8 +92,101 @@ function createDealsModuleStub() {
       commands: {
         acceptQuote: vi.fn(),
         create: vi.fn(),
+        transitionStatus: vi.fn(),
+        updateLegState: vi.fn(),
       },
     },
+  };
+}
+
+function createWorkflowProjection() {
+  const now = new Date("2026-03-30T00:00:00.000Z");
+
+  return {
+    acceptedQuote: null,
+    executionPlan: [
+      { idx: 1, kind: "collect" as const, state: "ready" as const },
+      { idx: 2, kind: "payout" as const, state: "pending" as const },
+    ],
+    intake: {
+      common: {
+        applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
+        customerNote: "Draft payment deal",
+        requestedExecutionDate: now,
+      },
+      externalBeneficiary: {
+        bankInstructionSnapshot: null,
+        beneficiaryCounterpartyId: "00000000-0000-4000-8000-000000000005",
+        beneficiarySnapshot: null,
+      },
+      incomingReceipt: {
+        contractNumber: null,
+        expectedAmount: null,
+        expectedAt: null,
+        expectedCurrencyId: null,
+        invoiceNumber: null,
+        payerCounterpartyId: null,
+        payerSnapshot: null,
+      },
+      moneyRequest: {
+        purpose: "Supplier payment",
+        sourceAmount: "100.00",
+        sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
+        targetCurrencyId: null,
+      },
+      settlementDestination: {
+        bankInstructionSnapshot: null,
+        mode: null,
+        requisiteId: null,
+      },
+      type: "payment" as const,
+    },
+    nextAction: "Update execution leg state",
+    operationalState: {
+      capabilities: [],
+      positions: [],
+    },
+    participants: [
+      {
+        counterpartyId: null,
+        customerId: "00000000-0000-4000-8000-000000000001",
+        displayName: "Customer",
+        id: "00000000-0000-4000-8000-000000000021",
+        organizationId: null,
+        role: "customer" as const,
+      },
+    ],
+    relatedResources: {
+      attachments: [],
+      calculations: [],
+      formalDocuments: [],
+      quotes: [],
+    },
+    revision: 1,
+    sectionCompleteness: [],
+    summary: {
+      agreementId: "00000000-0000-4000-8000-000000000002",
+      agentId: null,
+      calculationId: null,
+      createdAt: now,
+      id: "00000000-0000-4000-8000-000000000010",
+      status: "draft" as const,
+      type: "payment" as const,
+      updatedAt: now,
+    },
+    timeline: [],
+    transitionReadiness: [
+      {
+        allowed: false,
+        blockers: [
+          {
+            code: "intake_incomplete",
+            message: "Required intake sections are incomplete",
+          },
+        ],
+        targetStatus: "submitted" as const,
+      },
+    ],
   };
 }
 
@@ -370,6 +467,64 @@ describe("deals routes", () => {
       dealId: detail.id,
       idempotencyKey: "from-quote-1",
       quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("returns structured blockers when a status transition is blocked", async () => {
+    const { app, dealsModule } = createTestApp();
+    dealsModule.deals.commands.transitionStatus.mockRejectedValue(
+      new DealTransitionBlockedError("submitted", [
+        {
+          code: "intake_incomplete",
+          message: "Required intake sections are incomplete",
+        },
+      ] as any),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/status",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ status: "submitted" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "deal.transition_blocked",
+      details: {
+        targetStatus: "submitted",
+      },
+      error: "Deal transition to submitted is blocked",
+    });
+  });
+
+  it("updates a deal execution leg state", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.updateLegState.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/state",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ state: "in_progress" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.updateLegState).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idx: 1,
+      state: "in_progress",
     });
   });
 });

@@ -3,12 +3,17 @@ import {
   asc,
   desc,
   eq,
+  inArray,
   sql,
   type SQL,
 } from "drizzle-orm";
 
 import { minorToDecimalString } from "@bedrock/calculations";
-import { calculationSnapshots, calculations } from "@bedrock/calculations/schema";
+import {
+  calculationLines,
+  calculationSnapshots,
+  calculations,
+} from "@bedrock/calculations/schema";
 import type { CurrenciesQueries } from "@bedrock/currencies/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
@@ -19,12 +24,15 @@ import {
 import { counterparties, customers, organizations } from "@bedrock/parties/schema";
 
 import {
-  buildDealExecutionPlan,
+  buildEffectiveDealExecutionPlan,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
 } from "../../domain/workflow";
+import { buildDealOperationalState } from "../../domain/operational-state";
+import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
+  dealCapabilityStates,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
@@ -36,6 +44,7 @@ import {
 } from "./schema";
 import type {
   Deal,
+  DealCapabilityState,
   DealApproval,
   DealCalculationHistoryItem,
   DealDetails,
@@ -95,7 +104,8 @@ function mapTimelineEvent(row: {
     | "attachment_uploaded"
     | "attachment_deleted"
     | "document_created"
-    | "document_status_changed";
+    | "document_status_changed"
+    | "leg_state_changed";
   visibility: "customer_safe" | "internal";
 }): DealTimelineEvent {
   return {
@@ -115,34 +125,61 @@ function mapTimelineEvent(row: {
 }
 
 function mapQuoteAcceptance(row: {
-  acceptedAt: Date;
+  acceptedAt: Date | string;
   acceptedByUserId: string;
   agreementVersionId: string | null;
   dealId: string;
   dealRevision: number;
-  expiresAt: Date | null;
+  expiresAt: Date | string | null;
   id: string;
   quoteId: string;
   quoteStatus: string;
   replacedByQuoteId: string | null;
   revokedAt: Date | null;
-  usedAt: Date | null;
+  usedAt: Date | string | null;
   usedDocumentId: string | null;
 }): DealQuoteAcceptance {
+  const toDateOrNull = (value: Date | string | null) =>
+    value ? new Date(value) : null;
+
   return {
-    acceptedAt: row.acceptedAt,
+    acceptedAt: new Date(row.acceptedAt),
     acceptedByUserId: row.acceptedByUserId,
     agreementVersionId: row.agreementVersionId,
     dealId: row.dealId,
     dealRevision: Number(row.dealRevision),
-    expiresAt: row.expiresAt,
+    expiresAt: toDateOrNull(row.expiresAt),
     id: row.id,
     quoteId: row.quoteId,
     quoteStatus: row.quoteStatus,
     replacedByQuoteId: row.replacedByQuoteId,
     revokedAt: row.revokedAt,
-    usedAt: row.usedAt,
+    usedAt: toDateOrNull(row.usedAt),
     usedDocumentId: row.usedDocumentId,
+  };
+}
+
+function mapCapabilityState(row: {
+  applicantCounterpartyId: string;
+  capabilityKind: DealCapabilityState["kind"];
+  dealType: DealCapabilityState["dealType"];
+  internalEntityOrganizationId: string;
+  note: string | null;
+  reasonCode: string | null;
+  status: DealCapabilityState["status"];
+  updatedAt: Date;
+  updatedByUserId: string | null;
+}): DealCapabilityState {
+  return {
+    applicantCounterpartyId: row.applicantCounterpartyId,
+    dealType: row.dealType,
+    internalEntityOrganizationId: row.internalEntityOrganizationId,
+    kind: row.capabilityKind,
+    note: row.note,
+    reasonCode: row.reasonCode,
+    status: row.status,
+    updatedAt: row.updatedAt,
+    updatedByUserId: row.updatedByUserId,
   };
 }
 
@@ -271,10 +308,36 @@ type DealSummaryRow = {
   updatedAt: Date;
 };
 
+type DealQuoteRow = {
+  createdAt: Date;
+  dealId: string | null;
+  expiresAt: Date;
+  id: string;
+  status: string;
+  usedDocumentId: string | null;
+};
+
+export type DealTraceDocumentRow = {
+  approvalStatus: string;
+  dealId: string | null;
+  documentId: string;
+  docType: string;
+  ledgerOperationIds: string[];
+  lifecycleStatus: string;
+  occurredAt: Date;
+  postingStatus: string;
+  submissionStatus: string;
+};
+
+export interface DealDocumentsReadModel {
+  listDealTraceRowsByDealId(dealId: string): Promise<DealTraceDocumentRow[]>;
+}
+
 export class DrizzleDealReads implements DealReads {
   constructor(
     private readonly db: Queryable,
     private readonly currenciesQueries: Pick<CurrenciesQueries, "listByIds">,
+    private readonly documentsReadModel?: DealDocumentsReadModel,
   ) {}
 
   private async loadSummaryRow(id: string): Promise<DealSummaryRow | null> {
@@ -358,6 +421,42 @@ export class DrizzleDealReads implements DealReads {
     return rows.map(mapTimelineEvent);
   }
 
+  private async loadStoredLegs(
+    dealId: string,
+  ): Promise<DealWorkflowProjection["executionPlan"]> {
+    const rows = await this.db
+      .select({
+        idx: dealLegs.idx,
+        kind: dealLegs.kind,
+        state: dealLegs.state,
+      })
+      .from(dealLegs)
+      .where(eq(dealLegs.dealId, dealId))
+      .orderBy(asc(dealLegs.idx));
+
+    return rows.map((row) => ({
+      idx: row.idx,
+      kind: row.kind,
+      state: row.state,
+    }));
+  }
+
+  private async loadCapabilityStatesForWorkflow(input: {
+    applicantCounterpartyId: string | null;
+    dealType: DealCapabilityState["dealType"];
+    internalEntityOrganizationId: string | null;
+  }): Promise<DealCapabilityState[]> {
+    if (!input.applicantCounterpartyId || !input.internalEntityOrganizationId) {
+      return [];
+    }
+
+    return this.listCapabilityStates({
+      applicantCounterpartyId: input.applicantCounterpartyId,
+      dealType: input.dealType,
+      internalEntityOrganizationId: input.internalEntityOrganizationId,
+    });
+  }
+
   private async loadAcceptedQuote(
     dealId: string,
     revision: number,
@@ -426,15 +525,76 @@ export class DrizzleDealReads implements DealReads {
     }));
   }
 
+  private async loadFormalDocuments(
+    dealId: string,
+  ): Promise<DealWorkflowProjection["relatedResources"]["formalDocuments"]> {
+    if (!this.documentsReadModel) {
+      return [];
+    }
+
+    const rows = await this.documentsReadModel.listDealTraceRowsByDealId(dealId);
+
+    return rows.map((row) => ({
+      approvalStatus: row.approvalStatus,
+      createdAt: row.occurredAt,
+      docType: row.docType,
+      id: row.documentId,
+      lifecycleStatus: row.lifecycleStatus,
+      occurredAt: row.occurredAt,
+      postingStatus: row.postingStatus,
+      submissionStatus: row.submissionStatus,
+    }));
+  }
+
+  private async loadCalculationOperationalLines(calculationId: string | null) {
+    if (!calculationId) {
+      return [];
+    }
+
+    const rows = await this.db
+      .select({
+        amountMinor: calculationLines.amountMinor,
+        currencyId: calculationLines.currencyId,
+        kind: calculationLines.kind,
+        updatedAt: calculationLines.updatedAt,
+      })
+      .from(calculationLines)
+      .innerJoin(
+        calculations,
+        eq(calculationLines.calculationSnapshotId, calculations.currentSnapshotId),
+      )
+      .where(
+        and(
+          eq(calculations.id, calculationId),
+          inArray(calculationLines.kind, ["fee_revenue", "spread_revenue"]),
+        ),
+      );
+
+    const result: {
+      amountMinor: string;
+      currencyId: string;
+      kind: "fee_revenue" | "spread_revenue";
+      updatedAt: Date;
+    }[] = [];
+
+    for (const row of rows) {
+      if (row.kind !== "fee_revenue" && row.kind !== "spread_revenue") {
+        continue;
+      }
+
+      result.push({
+        amountMinor: row.amountMinor.toString(),
+        currencyId: row.currencyId,
+        kind: row.kind,
+        updatedAt: row.updatedAt,
+      });
+    }
+
+    return result;
+  }
+
   private async loadQuotes(dealId: string) {
-    const result = await this.db.execute<{
-      createdAt: Date;
-      dealId: string | null;
-      expiresAt: Date;
-      id: string;
-      status: string;
-      usedDocumentId: string | null;
-    }>(sql`
+    const result = await this.db.execute<DealQuoteRow>(sql`
       select
         id,
         deal_id as "dealId",
@@ -465,32 +625,90 @@ export class DrizzleDealReads implements DealReads {
   private async buildWorkflowProjectionFromSummary(
     summary: DealSummaryRow,
   ): Promise<DealWorkflowProjection> {
-    const [participants, timeline, acceptedQuote, calculationRefs, quotes] =
+    const [
+      participants,
+      timeline,
+      acceptedQuote,
+      approvals,
+      storedLegs,
+      calculationRefs,
+      quotes,
+      formalDocuments,
+    ] =
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
         this.loadTimeline(summary.id),
         this.loadAcceptedQuote(summary.id, Number(summary.intakeRevision)),
+        this.loadApprovals(summary.id),
+        this.loadStoredLegs(summary.id),
         this.loadCalculationRefs(summary.id),
         this.loadQuotes(summary.id),
+        this.loadFormalDocuments(summary.id),
       ]);
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
-    const nextAction =
-      summary.nextAction ??
-      deriveDealNextAction({
-        acceptance: acceptedQuote,
-        calculationId: summary.calculationId,
-        completeness: sectionCompleteness,
-        intake: summary.snapshot,
-        now: new Date(),
-        status: summary.status,
-      });
+    const now = new Date();
+    const executionPlan = buildEffectiveDealExecutionPlan({
+      acceptance: acceptedQuote,
+      documents: formalDocuments,
+      intake: summary.snapshot,
+      now,
+      storedLegs,
+    });
+    const [capabilityStates, calculationOperationalLines] = await Promise.all([
+      this.loadCapabilityStatesForWorkflow({
+        applicantCounterpartyId:
+          participants.find((participant) => participant.role === "applicant")
+            ?.counterpartyId ?? null,
+        dealType: summary.type,
+        internalEntityOrganizationId:
+          participants.find(
+            (participant) => participant.role === "internal_entity",
+          )?.organizationId ?? null,
+      }),
+      this.loadCalculationOperationalLines(summary.calculationId),
+    ]);
+    const operationalState = buildDealOperationalState({
+      calculationId: summary.calculationId,
+      calculationLines: calculationOperationalLines,
+      capabilityStates,
+      executionPlan,
+      intake: summary.snapshot,
+      participants,
+      sectionCompleteness,
+      status: summary.status,
+      updatedAt: summary.updatedAt,
+    });
+    const transitionReadiness = listDealTransitionReadiness({
+      acceptance: acceptedQuote,
+      approvals,
+      calculationId: summary.calculationId,
+      completeness: sectionCompleteness,
+      documents: formalDocuments,
+      executionPlan,
+      intake: summary.snapshot,
+      now,
+      operationalState,
+      participants,
+      status: summary.status,
+    });
+    const nextAction = deriveDealNextAction({
+      acceptance: acceptedQuote,
+      calculationId: summary.calculationId,
+      completeness: sectionCompleteness,
+      executionPlan,
+      intake: summary.snapshot,
+      now,
+      status: summary.status,
+      transitionReadiness,
+    });
 
     return {
       acceptedQuote,
-      executionPlan: buildDealExecutionPlan(summary.snapshot),
+      executionPlan,
       intake: summary.snapshot,
       nextAction,
+      operationalState,
       participants,
       relatedResources: {
         attachments: [],
@@ -499,7 +717,7 @@ export class DrizzleDealReads implements DealReads {
           id: row.id,
           sourceQuoteId: row.sourceQuoteId,
         })),
-        formalDocuments: [],
+        formalDocuments,
         quotes: quotes.map((row) => ({
           expiresAt: row.expiresAt,
           id: row.id,
@@ -519,6 +737,7 @@ export class DrizzleDealReads implements DealReads {
         updatedAt: summary.updatedAt,
       },
       timeline,
+      transitionReadiness,
     };
   }
 
@@ -529,6 +748,67 @@ export class DrizzleDealReads implements DealReads {
     }
 
     return this.buildWorkflowProjectionFromSummary(summary);
+  }
+
+  async listCapabilityStates(input: {
+    applicantCounterpartyId?: string;
+    capabilityKind?: DealCapabilityState["kind"];
+    dealType?: DealCapabilityState["dealType"];
+    internalEntityOrganizationId?: string;
+    status?: DealCapabilityState["status"];
+  }): Promise<DealCapabilityState[]> {
+    const conditions: SQL[] = [];
+
+    if (input.applicantCounterpartyId) {
+      conditions.push(
+        eq(
+          dealCapabilityStates.applicantCounterpartyId,
+          input.applicantCounterpartyId,
+        ),
+      );
+    }
+    if (input.internalEntityOrganizationId) {
+      conditions.push(
+        eq(
+          dealCapabilityStates.internalEntityOrganizationId,
+          input.internalEntityOrganizationId,
+        ),
+      );
+    }
+    if (input.dealType) {
+      conditions.push(eq(dealCapabilityStates.dealType, input.dealType));
+    }
+    if (input.capabilityKind) {
+      conditions.push(
+        eq(dealCapabilityStates.capabilityKind, input.capabilityKind),
+      );
+    }
+    if (input.status) {
+      conditions.push(eq(dealCapabilityStates.status, input.status));
+    }
+
+    const rows = await this.db
+      .select({
+        applicantCounterpartyId: dealCapabilityStates.applicantCounterpartyId,
+        capabilityKind: dealCapabilityStates.capabilityKind,
+        dealType: dealCapabilityStates.dealType,
+        internalEntityOrganizationId:
+          dealCapabilityStates.internalEntityOrganizationId,
+        note: dealCapabilityStates.note,
+        reasonCode: dealCapabilityStates.reasonCode,
+        status: dealCapabilityStates.status,
+        updatedAt: dealCapabilityStates.updatedAt,
+        updatedByUserId: dealCapabilityStates.updatedByUserId,
+      })
+      .from(dealCapabilityStates)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(
+        asc(dealCapabilityStates.dealType),
+        asc(dealCapabilityStates.capabilityKind),
+        asc(dealCapabilityStates.updatedAt),
+      );
+
+    return rows.map(mapCapabilityState);
   }
 
   async findPortalProjectionById(id: string): Promise<PortalDealProjection | null> {
@@ -638,11 +918,9 @@ export class DrizzleDealReads implements DealReads {
       updatedAt: workflow.summary.updatedAt,
     });
 
-    const approvals = await this.loadApprovals(id);
-
     return {
       ...compat,
-      approvals,
+      approvals: await this.loadApprovals(id),
       legs: workflow.executionPlan.map((leg) => ({
         createdAt: workflow.summary.createdAt,
         id: `${workflow.summary.id}-${leg.idx}`,
@@ -665,14 +943,31 @@ export class DrizzleDealReads implements DealReads {
       return null;
     }
 
-    const quotes = await this.loadQuotes(id);
+    const [quotes, traceDocumentRows]: [DealQuoteRow[], DealTraceDocumentRow[]] =
+      await Promise.all([
+        this.loadQuotes(id),
+        this.documentsReadModel?.listDealTraceRowsByDealId(id) ?? Promise.resolve([]),
+      ]);
+    const ledgerOperationIds = [
+      ...new Set(traceDocumentRows.flatMap((row) => row.ledgerOperationIds)),
+    ];
 
     return {
       calculationId: workflow.summary.calculationId,
       dealId: workflow.summary.id,
-      formalDocuments: [],
+      formalDocuments: traceDocumentRows.map((row) => ({
+        approvalStatus: row.approvalStatus,
+        dealId: row.dealId,
+        docType: row.docType,
+        id: row.documentId,
+        ledgerOperationIds: row.ledgerOperationIds,
+        lifecycleStatus: row.lifecycleStatus,
+        occurredAt: row.occurredAt,
+        postingStatus: row.postingStatus,
+        submissionStatus: row.submissionStatus,
+      })),
       generatedFiles: [],
-      ledgerOperationIds: [],
+      ledgerOperationIds,
       quotes: quotes.map((row) => ({
         createdAt: row.createdAt,
         dealId: row.dealId,

@@ -14,6 +14,7 @@ import {
 import type { DealWorkflowProjection } from "../contracts/dto";
 import {
   buildDealLegRows,
+  buildDealOperationalPositionRows,
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
@@ -142,6 +143,7 @@ export class ReplaceDealIntakeCommand {
         dealId: validated.dealId,
         legs: buildDealLegRows({
           dealId: validated.dealId,
+          existingLegs: existing.executionPlan,
           generateUuid: () => this.runtime.generateUuid(),
           intake: validated.intake,
         }),
@@ -194,6 +196,19 @@ export class ReplaceDealIntakeCommand {
       if (!updated) {
         throw new DealNotFoundError(validated.dealId);
       }
+
+      await tx.dealStore.setDealRoot({
+        dealId: validated.dealId,
+        nextAction: updated.nextAction,
+      });
+      await tx.dealStore.replaceDealOperationalPositions({
+        dealId: validated.dealId,
+        positions: buildDealOperationalPositionRows({
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          operationalState: updated.operationalState,
+        }),
+      });
 
       return updated;
     });

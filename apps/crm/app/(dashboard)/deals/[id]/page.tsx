@@ -11,17 +11,19 @@ import { AgreementCard } from "./_components/agreement-card";
 import { AttachmentsCard } from "./_components/attachments-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CustomerCard } from "./_components/customer-card";
+import { DealTimelineCard } from "./_components/deal-timeline-card";
 import { DealHeader } from "./_components/deal-header";
 import { DealInfoCard } from "./_components/deal-info-card";
 import { ErrorDialog } from "./_components/error-dialog";
+import { ExecutionPlanCard } from "./_components/execution-plan-card";
 import { FinancialCard } from "./_components/financial-card";
 import { FormalDocumentsCard } from "./_components/formal-documents-card";
 import { LegalEntityCard } from "./_components/legal-entity-card";
+import { OperationalStateCard } from "./_components/operational-state-card";
 import { OrganizationCard } from "./_components/organization-card";
 import { OrganizationRequisiteCard } from "./_components/organization-requisite-card";
-import { StatusHistoryCard } from "./_components/status-history-card";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
-import { STATUS_LABELS, VALID_TRANSITIONS } from "./_components/constants";
+import { STATUS_LABELS } from "./_components/constants";
 import {
   decimalToMinorString,
   feeBpsToPercentString,
@@ -39,12 +41,16 @@ import type {
   ApiCustomerWorkspace,
   ApiDealCalculationHistoryItem,
   ApiDealDetails,
+  ApiDealTransitionBlocker,
+  ApiDealTransitionReadiness,
+  ApiDealWorkflowProjection,
   ApiFormalDocument,
   ApiOrganization,
   ApiRequisite,
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
+  DealLegState,
   DealStatus,
 } from "./_components/types";
 
@@ -61,23 +67,129 @@ type DealPageData = {
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
   requestedCurrency: ApiCurrency | null;
+  workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
 };
-
-function getStatusOptions(status: DealStatus) {
-  return VALID_TRANSITIONS[status] ?? [];
-}
 
 async function parseErrorMessage(response: Response, fallback: string) {
   try {
     const payload = (await response.json()) as {
+      code?: string;
+      details?: {
+        blockers?: ApiDealTransitionBlocker[];
+      };
       error?: string;
       message?: string;
     };
+
+    if (
+      payload.code === "deal.transition_blocked" &&
+      payload.details?.blockers?.length
+    ) {
+      return payload.details.blockers.map((blocker) => blocker.message).join("\n");
+    }
+
     return payload.message ?? payload.error ?? fallback;
   } catch {
     return fallback;
   }
+}
+
+function buildStatusHistoryFromWorkflow(
+  workflow: ApiDealWorkflowProjection,
+) {
+  return workflow.timeline
+    .filter(
+      (event) => event.type === "deal_created" || event.type === "status_changed",
+    )
+    .map((event) => ({
+      changedBy: event.actor?.userId ?? null,
+      comment:
+        typeof event.payload.comment === "string" ? event.payload.comment : null,
+      createdAt: event.occurredAt,
+      id: event.id,
+      status:
+        event.type === "status_changed" &&
+        typeof event.payload.status === "string"
+          ? (event.payload.status as DealStatus)
+          : workflow.summary.status,
+    }));
+}
+
+function buildDealViewFromWorkflow(
+  workflow: ApiDealWorkflowProjection,
+): ApiDealDetails {
+  const customerId =
+    workflow.participants.find((participant) => participant.role === "customer")
+      ?.customerId ?? "";
+  const applicant = workflow.participants.find(
+    (participant) => participant.role === "applicant",
+  );
+
+  return {
+    agreementId: workflow.summary.agreementId,
+    agentId: workflow.summary.agentId,
+    approvals: [],
+    calculationId: workflow.summary.calculationId,
+    comment: workflow.intake.common.customerNote,
+    createdAt: workflow.summary.createdAt,
+    customerId,
+    id: workflow.summary.id,
+    intakeComment: workflow.intake.common.customerNote,
+    participants: [
+      ...workflow.participants.map((participant) => {
+        const role: ApiDealDetails["participants"][number]["role"] =
+          participant.role === "customer"
+            ? "customer"
+            : participant.role === "internal_entity"
+              ? "organization"
+              : "counterparty";
+
+        return {
+          counterpartyId: participant.counterpartyId,
+          customerId: participant.customerId,
+          id: participant.id,
+          organizationId: participant.organizationId,
+          partyId:
+            participant.customerId ??
+            participant.organizationId ??
+            participant.counterpartyId ??
+            applicant?.counterpartyId ??
+            participant.id,
+          role,
+        };
+      }),
+    ],
+    reason: workflow.intake.moneyRequest.purpose,
+    requestedAmount: workflow.intake.moneyRequest.sourceAmount,
+    requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
+    status: workflow.summary.status,
+    statusHistory: buildStatusHistoryFromWorkflow(workflow),
+    type: workflow.summary.type,
+    updatedAt: workflow.summary.updatedAt,
+  };
+}
+
+function mapWorkflowDocumentsToFormalDocuments(
+  workflow: ApiDealWorkflowProjection,
+): ApiFormalDocument[] {
+  return workflow.relatedResources.formalDocuments.map((document) => ({
+    amount: null,
+    approvalStatus: document.approvalStatus ?? "unknown",
+    createdAt:
+      document.createdAt ?? document.occurredAt ?? workflow.summary.createdAt,
+    currency: null,
+    docType: document.docType,
+    id: document.id,
+    lifecycleStatus: document.lifecycleStatus ?? "unknown",
+    postingStatus: document.postingStatus ?? "unknown",
+    submissionStatus: document.submissionStatus ?? "unknown",
+    title: null,
+  }));
+}
+
+function formatBlockers(blockers: ApiDealTransitionBlocker[]) {
+  return blockers.map((blocker) => `• ${blocker.message}`).join("\n");
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -232,6 +344,7 @@ export default function DealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [commentValue, setCommentValue] = useState("");
   const [isSavingComment, setIsSavingComment] = useState(false);
@@ -278,39 +391,36 @@ export default function DealDetailPage() {
       setLoading(true);
       setError(null);
 
-      const deal = await fetchJson<ApiDealDetails>(`${API_BASE_URL}/deals/${dealId}`);
-      const counterpartyId =
-        deal.participants.find(
-          (participant) => participant.role === "counterparty",
-        )?.counterpartyId ?? null;
+      const workflow = await fetchJson<ApiDealWorkflowProjection>(
+        `${API_BASE_URL}/deals/${dealId}/workflow`,
+      );
+      const deal = buildDealViewFromWorkflow(workflow);
+      const counterpartyId = workflow.intake.common.applicantCounterpartyId;
+      const customerId =
+        workflow.participants.find((participant) => participant.role === "customer")
+          ?.customerId ?? deal.customerId;
 
       const [
         attachments,
         customer,
         agreement,
-        formalDocuments,
         requestedCurrency,
         calculation,
         calculationHistory,
         currencyOptions,
       ] = await Promise.all([
         fetchJson<ApiAttachment[]>(`${API_BASE_URL}/deals/${dealId}/attachments`),
-        fetchJson<ApiCustomerWorkspace>(
-          `${API_BASE_URL}/customers/${deal.customerId}`,
-        ),
+        fetchJson<ApiCustomerWorkspace>(`${API_BASE_URL}/customers/${customerId}`),
         fetchJson<ApiAgreementDetails>(
-          `${API_BASE_URL}/agreements/${deal.agreementId}`,
+          `${API_BASE_URL}/agreements/${workflow.summary.agreementId}`,
         ),
-        fetchJson<ApiFormalDocument[]>(
-          `${API_BASE_URL}/deals/${dealId}/formal-documents`,
-        ),
-        deal.requestedCurrencyId
+        workflow.intake.moneyRequest.sourceCurrencyId
           ? fetchJson<ApiCurrency>(
-              `${API_BASE_URL}/currencies/${deal.requestedCurrencyId}`,
+              `${API_BASE_URL}/currencies/${workflow.intake.moneyRequest.sourceCurrencyId}`,
             )
           : Promise.resolve(null),
-        deal.calculationId
-          ? fetchCalculationView(deal.calculationId)
+        workflow.summary.calculationId
+          ? fetchCalculationView(workflow.summary.calculationId)
           : Promise.resolve(null),
         fetchCalculationHistory(dealId),
         fetchCurrencyOptions(),
@@ -343,12 +453,13 @@ export default function DealDetailPage() {
         currencyOptions,
         customer,
         deal,
-        formalDocuments,
+        formalDocuments: mapWorkflowDocumentsToFormalDocuments(workflow),
         legalEntity,
         organization,
         organizationRequisite,
         organizationRequisiteProvider,
         requestedCurrency,
+        workflow,
       });
     } catch (nextError) {
       console.error("Deal detail load error:", nextError);
@@ -517,7 +628,7 @@ export default function DealDetailPage() {
   ]);
 
   const calculationTypeSupported = data
-    ? ["payment", "currency_exchange"].includes(data.deal.type)
+    ? data.workflow.executionPlan.some((leg) => leg.kind === "convert")
     : false;
   const calculationStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
@@ -567,6 +678,62 @@ export default function DealDetailPage() {
         );
       } finally {
         setIsUpdatingStatus(false);
+      }
+    },
+    [dealId, loadDeal, showError],
+  );
+
+  const handleBlockedTransitionClick = useCallback(
+    (status: DealStatus) => {
+      const readiness = data?.workflow.transitionReadiness.find(
+        (item) => item.targetStatus === status,
+      );
+
+      showError(
+        "Переход заблокирован",
+        readiness?.blockers?.length
+          ? formatBlockers(readiness.blockers)
+          : `Переход в статус "${STATUS_LABELS[status]}" сейчас недоступен.`,
+      );
+    },
+    [data?.workflow.transitionReadiness, showError],
+  );
+
+  const handleLegStateUpdate = useCallback(
+    async (idx: number, state: DealLegState) => {
+      try {
+        setIsUpdatingLegKey(`${idx}:${state}`);
+
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/state`,
+          {
+            body: JSON.stringify({ state }),
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            method: "POST",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка обновления этапа исполнения: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Deal leg state update error:", nextError);
+        showError(
+          "Ошибка обновления этапа исполнения",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось обновить этап исполнения",
+        );
+      } finally {
+        setIsUpdatingLegKey(null);
       }
     },
     [dealId, loadDeal, showError],
@@ -723,17 +890,16 @@ export default function DealDetailPage() {
     );
   }
 
-  const statusOptions = getStatusOptions(data.deal.status);
-
   return (
     <div className="space-y-6">
       <DealHeader
         dealId={data.deal.id}
-        status={data.deal.status}
-        statusOptions={statusOptions}
         isUpdatingStatus={isUpdatingStatus}
         onBack={() => router.back()}
+        onBlockedStatusClick={handleBlockedTransitionClick}
         onStatusChange={handleStatusUpdate}
+        status={data.deal.status}
+        transitionReadiness={data.workflow.transitionReadiness}
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
@@ -756,6 +922,17 @@ export default function DealDetailPage() {
             disabledReason={calculationDisabledReason}
             isCreating={isCreatingCalculation}
             onCreate={handleOpenCalculationDialog}
+          />
+          <ExecutionPlanCard
+            executionPlan={data.workflow.executionPlan}
+            isUpdatingLegKey={isUpdatingLegKey}
+            onBlockedTransitionClick={handleBlockedTransitionClick}
+            onUpdateLegState={handleLegStateUpdate}
+            sectionCompleteness={data.workflow.sectionCompleteness}
+            transitionReadiness={data.workflow.transitionReadiness}
+          />
+          <OperationalStateCard
+            operationalState={data.workflow.operationalState}
           />
           <FormalDocumentsCard documents={data.formalDocuments} />
           <AttachmentsCard
@@ -782,7 +959,7 @@ export default function DealDetailPage() {
             requisite={data.organizationRequisite}
             provider={data.organizationRequisiteProvider}
           />
-          <StatusHistoryCard statusHistory={data.deal.statusHistory} />
+          <DealTimelineCard timeline={data.workflow.timeline} />
         </div>
       </div>
 

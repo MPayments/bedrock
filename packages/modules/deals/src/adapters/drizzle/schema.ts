@@ -27,8 +27,12 @@ import type { DealIntakeDraft } from "../../application/contracts/dto";
 import {
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
+  DEAL_CAPABILITY_KIND_VALUES,
+  DEAL_CAPABILITY_STATUS_VALUES,
   DEAL_LEG_KIND_VALUES,
   DEAL_LEG_STATE_VALUES,
+  DEAL_OPERATIONAL_POSITION_KIND_VALUES,
+  DEAL_OPERATIONAL_POSITION_STATE_VALUES,
   DEAL_PARTICIPANT_ROLE_VALUES,
   DEAL_STATUS_VALUES,
   DEAL_TIMELINE_EVENT_TYPE_VALUES,
@@ -40,6 +44,22 @@ export const dealTypeEnum = pgEnum("deal_type", DEAL_TYPE_VALUES);
 export const dealStatusEnum = pgEnum("deal_status", DEAL_STATUS_VALUES);
 export const dealLegKindEnum = pgEnum("deal_leg_kind", DEAL_LEG_KIND_VALUES);
 export const dealLegStateEnum = pgEnum("deal_leg_state", DEAL_LEG_STATE_VALUES);
+export const dealCapabilityKindEnum = pgEnum(
+  "deal_capability_kind",
+  DEAL_CAPABILITY_KIND_VALUES,
+);
+export const dealCapabilityStatusEnum = pgEnum(
+  "deal_capability_status",
+  DEAL_CAPABILITY_STATUS_VALUES,
+);
+export const dealOperationalPositionKindEnum = pgEnum(
+  "deal_operational_position_kind",
+  DEAL_OPERATIONAL_POSITION_KIND_VALUES,
+);
+export const dealOperationalPositionStateEnum = pgEnum(
+  "deal_operational_position_state",
+  DEAL_OPERATIONAL_POSITION_STATE_VALUES,
+);
 export const dealParticipantRoleEnum = pgEnum(
   "deal_participant_role",
   DEAL_PARTICIPANT_ROLE_VALUES,
@@ -326,6 +346,79 @@ export const dealQuoteAcceptances = pgTable(
   ],
 );
 
+export const dealCapabilityStates = pgTable(
+  "deal_capability_states",
+  {
+    id: uuid("id").primaryKey(),
+    applicantCounterpartyId: uuid("applicant_counterparty_id")
+      .notNull()
+      .references(() => counterparties.id, { onDelete: "cascade" }),
+    internalEntityOrganizationId: uuid("internal_entity_organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dealType: dealTypeEnum("deal_type").notNull(),
+    capabilityKind: dealCapabilityKindEnum("capability_kind").notNull(),
+    status: dealCapabilityStatusEnum("status").notNull(),
+    reasonCode: text("reason_code"),
+    note: text("note"),
+    updatedByUserId: text("updated_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_capability_states_scope_uq").on(
+      table.applicantCounterpartyId,
+      table.internalEntityOrganizationId,
+      table.dealType,
+      table.capabilityKind,
+    ),
+    index("deal_capability_states_applicant_idx").on(
+      table.applicantCounterpartyId,
+    ),
+    index("deal_capability_states_internal_entity_idx").on(
+      table.internalEntityOrganizationId,
+    ),
+    index("deal_capability_states_status_idx").on(table.status),
+  ],
+);
+
+export const dealOperationalPositions = pgTable(
+  "deal_operational_positions",
+  {
+    id: uuid("id").primaryKey(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    kind: dealOperationalPositionKindEnum("kind").notNull(),
+    state: dealOperationalPositionStateEnum("state").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }),
+    currencyId: uuid("currency_id").references(() => currencies.id, {
+      onDelete: "set null",
+    }),
+    reasonCode: text("reason_code"),
+    sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_operational_positions_deal_kind_uq").on(
+      table.dealId,
+      table.kind,
+    ),
+    index("deal_operational_positions_deal_idx").on(table.dealId),
+    index("deal_operational_positions_state_idx").on(table.state),
+  ],
+);
+
 export const dealApprovals = pgTable(
   "deal_approvals",
   {
@@ -406,6 +499,7 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
     references: [dealIntakeSnapshots.dealId],
   }),
   legs: many(dealLegs),
+  operationalPositions: many(dealOperationalPositions),
   participants: many(dealParticipants),
   quoteAcceptances: many(dealQuoteAcceptances),
   timelineEvents: many(dealTimelineEvents),
@@ -491,6 +585,38 @@ export const dealQuoteAcceptancesRelations = relations(
     }),
     deal: one(deals, {
       fields: [dealQuoteAcceptances.dealId],
+      references: [deals.id],
+    }),
+  }),
+);
+
+export const dealCapabilityStatesRelations = relations(
+  dealCapabilityStates,
+  ({ one }) => ({
+    applicant: one(counterparties, {
+      fields: [dealCapabilityStates.applicantCounterpartyId],
+      references: [counterparties.id],
+    }),
+    internalEntity: one(organizations, {
+      fields: [dealCapabilityStates.internalEntityOrganizationId],
+      references: [organizations.id],
+    }),
+    updatedBy: one(user, {
+      fields: [dealCapabilityStates.updatedByUserId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const dealOperationalPositionsRelations = relations(
+  dealOperationalPositions,
+  ({ one }) => ({
+    currency: one(currencies, {
+      fields: [dealOperationalPositions.currencyId],
+      references: [currencies.id],
+    }),
+    deal: one(deals, {
+      fields: [dealOperationalPositions.dealId],
       references: [deals.id],
     }),
   }),

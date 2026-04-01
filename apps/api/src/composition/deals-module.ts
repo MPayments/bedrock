@@ -6,6 +6,7 @@ import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { DrizzleCalculationReads } from "@bedrock/calculations/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import {
   createDealsModule,
   DealTypeNotSupportedError,
@@ -40,6 +41,7 @@ export function createApiDealsModule(input: {
   const calculationReads = new DrizzleCalculationReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
   const currenciesQueries = createCurrenciesQueries({ db: input.db });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
   const agreementReadsWithCurrencies = new DrizzleAgreementReads(
     input.db,
     currenciesQueries,
@@ -50,7 +52,11 @@ export function createApiDealsModule(input: {
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     idempotency: input.idempotency,
-    reads: new DrizzleDealReads(input.db, currenciesQueries),
+    reads: new DrizzleDealReads(
+      input.db,
+      currenciesQueries,
+      documentsReadModel,
+    ),
     references: {
       async findAgreementById(id: string) {
         const agreement = await agreementReadsWithCurrencies.findById(id);
@@ -144,6 +150,9 @@ export function createApiDealsModule(input: {
         }
       },
     },
-    commandUow: new DrizzleDealsUnitOfWork({ persistence }),
+    commandUow: new DrizzleDealsUnitOfWork({
+      bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
+      persistence,
+    }),
   });
 }

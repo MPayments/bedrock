@@ -15,6 +15,49 @@ export type DealType =
   | "currency_transit"
   | "exporter_settlement";
 
+export type DealLegKind =
+  | "collect"
+  | "convert"
+  | "transit_hold"
+  | "payout"
+  | "settle_exporter";
+
+export type DealLegState =
+  | "pending"
+  | "ready"
+  | "in_progress"
+  | "done"
+  | "blocked"
+  | "skipped";
+
+export type DealCapabilityKind =
+  | "can_collect"
+  | "can_fx"
+  | "can_payout"
+  | "can_transit"
+  | "can_exporter_settle";
+
+export type DealCapabilityStatus = "enabled" | "disabled" | "pending";
+
+export type DealOperationalPositionKind =
+  | "customer_receivable"
+  | "provider_payable"
+  | "intercompany_due_from"
+  | "intercompany_due_to"
+  | "in_transit"
+  | "suspense"
+  | "exporter_expected_receivable"
+  | "fee_revenue"
+  | "spread_revenue";
+
+export type DealOperationalPositionState =
+  | "not_applicable"
+  | "pending"
+  | "ready"
+  | "in_progress"
+  | "done"
+  | "blocked";
+
 export type ApiDealParticipant = {
   counterpartyId: string | null;
   customerId: string | null;
@@ -22,6 +65,232 @@ export type ApiDealParticipant = {
   organizationId: string | null;
   partyId: string;
   role: "customer" | "organization" | "counterparty";
+};
+
+export type ApiDealWorkflowParticipant = {
+  counterpartyId: string | null;
+  customerId: string | null;
+  displayName: string | null;
+  id: string;
+  organizationId: string | null;
+  role:
+    | "customer"
+    | "applicant"
+    | "internal_entity"
+    | "external_payer"
+    | "external_beneficiary";
+};
+
+export type ApiDealWorkflowLeg = {
+  idx: number;
+  kind: DealLegKind;
+  state: DealLegState;
+};
+
+export type ApiDealTransitionBlocker = {
+  code: string;
+  message: string;
+  meta?: Record<string, unknown>;
+};
+
+export type ApiDealTransitionReadiness = {
+  allowed: boolean;
+  blockers: ApiDealTransitionBlocker[];
+  targetStatus: DealStatus;
+};
+
+export type ApiDealTimelineEvent = {
+  actor: {
+    label: string | null;
+    userId: string | null;
+  } | null;
+  id: string;
+  occurredAt: string;
+  payload: Record<string, unknown>;
+  type:
+    | "deal_created"
+    | "intake_saved"
+    | "participant_changed"
+    | "status_changed"
+    | "quote_created"
+    | "quote_accepted"
+    | "quote_expired"
+    | "quote_used"
+    | "calculation_attached"
+    | "attachment_uploaded"
+    | "attachment_deleted"
+    | "document_created"
+    | "document_status_changed"
+    | "leg_state_changed";
+  visibility: "customer_safe" | "internal";
+};
+
+export type ApiDealSectionCompleteness = {
+  blockingReasons: string[];
+  complete: boolean;
+  sectionId:
+    | "common"
+    | "moneyRequest"
+    | "incomingReceipt"
+    | "externalBeneficiary"
+    | "settlementDestination";
+};
+
+export type ApiDealAcceptedQuote = {
+  acceptedAt: string;
+  acceptedByUserId: string;
+  agreementVersionId: string | null;
+  dealId: string;
+  dealRevision: number;
+  expiresAt: string | null;
+  id: string;
+  quoteId: string;
+  quoteStatus: string;
+  replacedByQuoteId: string | null;
+  revokedAt: string | null;
+  usedAt: string | null;
+  usedDocumentId: string | null;
+} | null;
+
+export type ApiDealCapabilityState = {
+  applicantCounterpartyId: string | null;
+  dealType: DealType;
+  internalEntityOrganizationId: string | null;
+  kind: DealCapabilityKind;
+  note: string | null;
+  reasonCode: string | null;
+  status: DealCapabilityStatus;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+};
+
+export type ApiDealOperationalPosition = {
+  amountMinor: string | null;
+  currencyId: string | null;
+  kind: DealOperationalPositionKind;
+  reasonCode: string | null;
+  sourceRefs: string[];
+  state: DealOperationalPositionState;
+  updatedAt: string | null;
+};
+
+export type ApiDealOperationalState = {
+  capabilities: ApiDealCapabilityState[];
+  positions: ApiDealOperationalPosition[];
+};
+
+export type ApiDealWorkflowProjection = {
+  acceptedQuote: ApiDealAcceptedQuote;
+  executionPlan: ApiDealWorkflowLeg[];
+  intake: {
+    common: {
+      applicantCounterpartyId: string | null;
+      customerNote: string | null;
+      requestedExecutionDate: string | null;
+    };
+    externalBeneficiary: {
+      bankInstructionSnapshot: {
+        accountNo: string | null;
+        bankAddress: string | null;
+        bankCountry: string | null;
+        bankName: string | null;
+        beneficiaryName: string | null;
+        bic: string | null;
+        corrAccount: string | null;
+        iban: string | null;
+        label: string | null;
+        swift: string | null;
+      } | null;
+      beneficiaryCounterpartyId: string | null;
+      beneficiarySnapshot: {
+        country: string | null;
+        displayName: string | null;
+        inn: string | null;
+        legalName: string | null;
+      } | null;
+    };
+    incomingReceipt: {
+      contractNumber: string | null;
+      expectedAmount: string | null;
+      expectedAt: string | null;
+      expectedCurrencyId: string | null;
+      invoiceNumber: string | null;
+      payerCounterpartyId: string | null;
+      payerSnapshot: {
+        country: string | null;
+        displayName: string | null;
+        inn: string | null;
+        legalName: string | null;
+      } | null;
+    };
+    moneyRequest: {
+      purpose: string | null;
+      sourceAmount: string | null;
+      sourceCurrencyId: string | null;
+      targetCurrencyId: string | null;
+    };
+    settlementDestination: {
+      bankInstructionSnapshot: {
+        accountNo: string | null;
+        bankAddress: string | null;
+        bankCountry: string | null;
+        bankName: string | null;
+        beneficiaryName: string | null;
+        bic: string | null;
+        corrAccount: string | null;
+        iban: string | null;
+        label: string | null;
+        swift: string | null;
+      } | null;
+      mode: "applicant_requisite" | "manual" | null;
+      requisiteId: string | null;
+    };
+    type: DealType;
+  };
+  nextAction: string | null;
+  operationalState: ApiDealOperationalState;
+  participants: ApiDealWorkflowParticipant[];
+  relatedResources: {
+    attachments: {
+      createdAt: string;
+      fileName: string;
+      id: string;
+    }[];
+    calculations: {
+      createdAt: string;
+      id: string;
+      sourceQuoteId: string | null;
+    }[];
+    formalDocuments: {
+      approvalStatus: string | null;
+      createdAt: string | null;
+      docType: string;
+      id: string;
+      lifecycleStatus: string | null;
+      occurredAt: string | null;
+      postingStatus: string | null;
+      submissionStatus: string | null;
+    }[];
+    quotes: {
+      expiresAt: string | null;
+      id: string;
+      status: string;
+    }[];
+  };
+  revision: number;
+  sectionCompleteness: ApiDealSectionCompleteness[];
+  summary: {
+    agreementId: string;
+    agentId: string | null;
+    calculationId: string | null;
+    createdAt: string;
+    id: string;
+    status: DealStatus;
+    type: DealType;
+    updatedAt: string;
+  };
+  timeline: ApiDealTimelineEvent[];
+  transitionReadiness: ApiDealTransitionReadiness[];
 };
 
 export type ApiDealStatusHistory = {

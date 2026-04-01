@@ -118,7 +118,7 @@ describe("deals integration characterization", () => {
     expect(history[0]?.sourceQuoteId).toBe(quote.id);
   });
 
-  it("allows generic valid status transitions even when intake is incomplete and rejects transitions outside the static map", async () => {
+  it("blocks status transitions when business requirements are not met and still rejects transitions outside the static map", async () => {
     const fixture = await createAgreementFixture();
     const created = await fixture.runtime.modules.deals.deals.commands.create({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
@@ -141,14 +141,14 @@ describe("deals integration characterization", () => {
     );
     expect(workflowBefore?.nextAction).toBe("Complete intake");
 
-    const submitted = await fixture.runtime.modules.deals.deals.commands.transitionStatus({
-      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      comment: "Move to submitted",
-      dealId: created.id,
-      status: "submitted",
-    });
-
-    expect(submitted.status).toBe("submitted");
+    await expect(
+      fixture.runtime.modules.deals.deals.commands.transitionStatus({
+        actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+        comment: "Move to submitted",
+        dealId: created.id,
+        status: "submitted",
+      }),
+    ).rejects.toThrow("Deal transition to submitted is blocked");
 
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({
@@ -156,7 +156,7 @@ describe("deals integration characterization", () => {
         dealId: created.id,
         status: "done",
       }),
-    ).rejects.toThrow("Cannot transition deal status from submitted to done");
+    ).rejects.toThrow("Cannot transition deal status from draft to done");
   });
 
   it("makes an accepted quote non-current after intake revision changes without deleting acceptance history", async () => {
@@ -205,7 +205,7 @@ describe("deals integration characterization", () => {
 
     expect(replaced.revision).toBe(2);
     expect(replaced.acceptedQuote).toBeNull();
-    expect(replaced.nextAction).toBe("Accept quote");
+    expect(replaced.nextAction).toBe("Submit deal");
 
     const acceptanceRows = await fixture.runtime.pool.query<{
       count: string;
@@ -331,6 +331,6 @@ describe("deals integration characterization", () => {
 
     expect(workflow?.acceptedQuote?.quoteId).toBe(quote.id);
     expect(workflow?.acceptedQuote?.quoteStatus).toBe("used");
-    expect(workflow?.nextAction).toBe("Accept quote");
+    expect(workflow?.nextAction).toBe("Submit deal");
   });
 });

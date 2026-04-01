@@ -8,7 +8,10 @@ import {
   type AppendDealTimelineEventInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
-import { createTimelinePayloadEvent } from "../shared/workflow-state";
+import {
+  buildDealOperationalPositionRows,
+  createTimelinePayloadEvent,
+} from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 
 const AppendDealTimelineEventCommandInputSchema =
@@ -59,6 +62,19 @@ export class AppendDealTimelineEventCommand {
       if (!updated) {
         throw new DealNotFoundError(validated.dealId);
       }
+
+      await tx.dealStore.setDealRoot({
+        dealId: validated.dealId,
+        nextAction: updated.nextAction,
+      });
+      await tx.dealStore.replaceDealOperationalPositions({
+        dealId: validated.dealId,
+        positions: buildDealOperationalPositionRows({
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          operationalState: updated.operationalState,
+        }),
+      });
 
       return updated;
     });

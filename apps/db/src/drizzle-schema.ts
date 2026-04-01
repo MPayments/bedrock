@@ -17,6 +17,9 @@ export {
   calculationSnapshots,
 } from "@bedrock/calculations/schema";
 export {
+  dealCapabilityKindEnum,
+  dealCapabilityStates,
+  dealCapabilityStatusEnum,
   dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
@@ -28,6 +31,9 @@ export {
   dealLegs,
   dealParticipantRoleEnum,
   dealParticipants,
+  dealOperationalPositionKindEnum,
+  dealOperationalPositions,
+  dealOperationalPositionStateEnum,
   deals,
   dealQuoteAcceptances,
   dealStatusEnum,

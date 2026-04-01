@@ -2,8 +2,12 @@ import type { DealIntakeDraft } from "../contracts/dto";
 import type {
   DealApprovalStatus,
   DealApprovalType,
+  DealCapabilityKind,
+  DealCapabilityStatus,
   DealLegKind,
   DealLegState,
+  DealOperationalPositionKind,
+  DealOperationalPositionState,
   DealParticipantRole,
   DealStatus,
   DealTimelineEventType,
@@ -82,6 +86,29 @@ export interface CreateDealApprovalStoredInput {
   status: DealApprovalStatus;
 }
 
+export interface UpsertDealCapabilityStateStoredInput {
+  applicantCounterpartyId: string;
+  capabilityKind: DealCapabilityKind;
+  dealType: DealType;
+  id: string;
+  internalEntityOrganizationId: string;
+  note: string | null;
+  reasonCode: string | null;
+  status: DealCapabilityStatus;
+  updatedByUserId: string | null;
+}
+
+export interface ReplaceDealOperationalPositionStoredInput {
+  amountMinor: bigint | null;
+  currencyId: string | null;
+  dealId: string;
+  id: string;
+  kind: DealOperationalPositionKind;
+  reasonCode: string | null;
+  sourceRefs: string[];
+  state: DealOperationalPositionState;
+}
+
 export interface DealStore {
   createDealApprovals(input: CreateDealApprovalStoredInput[]): Promise<void>;
   createDealCalculationLinks(
@@ -102,6 +129,10 @@ export interface DealStore {
   createDealTimelineEvents(
     input: CreateDealTimelineEventStoredInput[],
   ): Promise<void>;
+  replaceDealOperationalPositions(input: {
+    dealId: string;
+    positions: ReplaceDealOperationalPositionStoredInput[];
+  }): Promise<void>;
   replaceDealLegs(input: {
     dealId: string;
     legs: CreateDealLegStoredInput[];
@@ -131,4 +162,12 @@ export interface DealStore {
     replacedByQuoteId: string;
     revokedAt: Date;
   }): Promise<void>;
+  upsertDealCapabilityState(
+    input: UpsertDealCapabilityStateStoredInput,
+  ): Promise<void>;
+  updateDealLegState(input: {
+    dealId: string;
+    idx: number;
+    state: DealLegState;
+  }): Promise<boolean>;
 }

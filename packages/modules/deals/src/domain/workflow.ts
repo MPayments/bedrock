@@ -1,7 +1,9 @@
 import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
+  DealRelatedFormalDocument,
   DealSectionCompleteness,
+  DealTransitionReadiness,
   DealTimelineEvent,
   DealWorkflowLeg,
   DealWorkflowParticipant,
@@ -54,7 +56,7 @@ export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
   );
 }
 
-function isAcceptedQuoteCurrentAndExecutable(input: {
+export function isAcceptedQuoteCurrentAndExecutable(input: {
   acceptance: DealQuoteAcceptance | null;
   now: Date;
 }): boolean {
@@ -239,12 +241,103 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
   }
 }
 
+function hasPostedFxExecuteDocument(
+  documents: DealRelatedFormalDocument[],
+): boolean {
+  return documents.some(
+    (document) =>
+      document.docType === "fx_execute" &&
+      document.lifecycleStatus === "active" &&
+      document.postingStatus === "posted",
+  );
+}
+
+function hasPostedTransferDocument(
+  documents: DealRelatedFormalDocument[],
+): boolean {
+  return documents.some(
+    (document) =>
+      ["transfer_intra", "transfer_intercompany", "transfer_resolution"].includes(
+        document.docType,
+      ) &&
+      document.lifecycleStatus === "active" &&
+      document.postingStatus === "posted",
+  );
+}
+
+export function buildEffectiveDealExecutionPlan(input: {
+  acceptance: DealQuoteAcceptance | null;
+  documents: DealRelatedFormalDocument[];
+  intake: DealIntakeDraft;
+  now: Date;
+  storedLegs: DealWorkflowLeg[];
+}): DealWorkflowLeg[] {
+  const basePlan = buildDealExecutionPlan(input.intake);
+  const storedByKey = new Map(
+    input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
+  );
+  const merged = basePlan.map((leg) => ({
+    ...leg,
+    state: storedByKey.get(`${leg.idx}:${leg.kind}`) ?? leg.state,
+  }));
+  const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
+    acceptance: input.acceptance,
+    now: input.now,
+  });
+  const hasExecutedConvert =
+    input.acceptance?.quoteStatus === "used" ||
+    hasPostedFxExecuteDocument(input.documents);
+  const downstreamLegs = merged.filter((leg) =>
+    ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
+  );
+  const canAutoCompleteSingleDownstreamLeg =
+    downstreamLegs.length === 1 && hasPostedTransferDocument(input.documents);
+
+  return merged.map((leg) => {
+    if (
+      leg.kind === "convert" &&
+      leg.state !== "done" &&
+      leg.state !== "skipped"
+    ) {
+      if (hasExecutedConvert) {
+        return {
+          ...leg,
+          state: "done",
+        };
+      }
+
+      if (hasExecutableAcceptedQuote && leg.state === "pending") {
+        return {
+          ...leg,
+          state: "ready",
+        };
+      }
+    }
+
+    if (
+      canAutoCompleteSingleDownstreamLeg &&
+      ["payout", "transit_hold", "settle_exporter"].includes(leg.kind) &&
+      leg.state !== "done" &&
+      leg.state !== "skipped"
+    ) {
+      return {
+        ...leg,
+        state: "done",
+      };
+    }
+
+    return leg;
+  });
+}
+
 export function deriveDealNextAction(input: {
   acceptance: DealQuoteAcceptance | null;
   calculationId: string | null;
   completeness: DealSectionCompleteness[];
+  executionPlan?: DealWorkflowLeg[];
   intake: DealIntakeDraft;
   now?: Date;
+  transitionReadiness?: DealTransitionReadiness[];
   status: string;
 }): string {
   if (!isRequiredDealSectionComplete(input.intake.type, input.completeness)) {
@@ -253,6 +346,31 @@ export function deriveDealNextAction(input: {
 
   if (input.status === "draft") {
     return "Submit deal";
+  }
+
+  if (["done", "cancelled", "rejected"].includes(input.status)) {
+    return "No action";
+  }
+
+  const allBlockers =
+    input.transitionReadiness?.flatMap((item) => item.blockers) ?? [];
+
+  if (
+    allBlockers.some((blocker) =>
+      ["capability_pending", "capability_disabled"].includes(blocker.code),
+    )
+  ) {
+    return "Resolve operational capability";
+  }
+
+  if (
+    allBlockers.some((blocker) =>
+      ["operational_position_incomplete", "operational_position_blocked"].includes(
+        blocker.code,
+      ),
+    )
+  ) {
+    return "Resolve operational state";
   }
 
   const now = input.now ?? new Date();
@@ -269,8 +387,42 @@ export function deriveDealNextAction(input: {
     return "Create calculation from accepted quote";
   }
 
-  if (["done", "cancelled", "rejected"].includes(input.status)) {
-    return "No action";
+  if (
+    allBlockers.some((blocker) =>
+      ["approval_pending", "approval_rejected"].includes(blocker.code),
+    )
+  ) {
+    return "Resolve approvals";
+  }
+
+  if (
+    allBlockers.some((blocker) =>
+      ["opening_document_missing", "opening_document_not_ready"].includes(
+        blocker.code,
+      ),
+    )
+  ) {
+    return "Prepare documents";
+  }
+
+  if (
+    allBlockers.some((blocker) =>
+      ["execution_leg_blocked", "execution_leg_not_ready", "execution_leg_not_done"].includes(
+        blocker.code,
+      ),
+    )
+  ) {
+    return "Update execution leg state";
+  }
+
+  if (
+    allBlockers.some((blocker) =>
+      ["closing_document_missing", "closing_document_not_ready"].includes(
+        blocker.code,
+      ),
+    )
+  ) {
+    return "Prepare closing documents";
   }
 
   return "Continue processing";

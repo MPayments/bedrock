@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 import type { ModuleRuntime } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { canTransitionDealStatus } from "../../domain/constants";
+import { canTransitionDealLegState } from "../../domain/constants";
 import {
+  DealLegStateTransitionError,
   DealNotFoundError,
-  DealTransitionBlockedError,
-  DealStatusTransitionError,
 } from "../../errors";
 import {
-  TransitionDealStatusInputSchema,
-  type TransitionDealStatusInput,
+  UpdateDealLegStateInputSchema,
+  type UpdateDealLegStateInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
 import {
@@ -19,27 +19,28 @@ import {
 } from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 
-const TransitionDealStatusCommandInputSchema =
-  TransitionDealStatusInputSchema.extend({
-    actorUserId: z.string().trim().min(1),
-    dealId: z.uuid(),
-  });
+const UpdateDealLegStateCommandInputSchema = UpdateDealLegStateInputSchema.extend({
+  actorUserId: z.string().trim().min(1),
+  dealId: z.uuid(),
+  idx: z.number().int().positive(),
+});
 
-type TransitionDealStatusCommandInput = TransitionDealStatusInput & {
+type UpdateDealLegStateCommandInput = UpdateDealLegStateInput & {
   actorUserId: string;
   dealId: string;
+  idx: number;
 };
 
-export class TransitionDealStatusCommand {
+export class UpdateDealLegStateCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
   ) {}
 
   async execute(
-    raw: TransitionDealStatusCommandInput,
+    raw: UpdateDealLegStateCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = TransitionDealStatusCommandInputSchema.parse(raw);
+    const validated = UpdateDealLegStateCommandInputSchema.parse(raw);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -47,28 +48,38 @@ export class TransitionDealStatusCommand {
         throw new DealNotFoundError(validated.dealId);
       }
 
-      if (!canTransitionDealStatus(existing.summary.status, validated.status)) {
-        throw new DealStatusTransitionError(
-          existing.summary.status,
-          validated.status,
+      const leg = existing.executionPlan.find(
+        (candidate) => candidate.idx === validated.idx,
+      );
+      if (!leg) {
+        throw new ValidationError(
+          `Deal ${validated.dealId} does not have leg ${validated.idx}`,
         );
       }
 
-      const readiness = existing.transitionReadiness.find(
-        (candidate) => candidate.targetStatus === validated.status,
-      );
-      if (readiness && !readiness.allowed) {
-        throw new DealTransitionBlockedError(validated.status, readiness.blockers);
-      }
-
-      if (existing.summary.status === validated.status) {
+      if (leg.state === validated.state) {
         return existing;
       }
 
-      await tx.dealStore.setDealRoot({
+      if (!canTransitionDealLegState(leg.state, validated.state)) {
+        throw new DealLegStateTransitionError(
+          validated.idx,
+          leg.state,
+          validated.state,
+        );
+      }
+
+      const updatedLeg = await tx.dealStore.updateDealLegState({
         dealId: validated.dealId,
-        status: validated.status,
+        idx: validated.idx,
+        state: validated.state,
       });
+      if (!updatedLeg) {
+        throw new ValidationError(
+          `Deal ${validated.dealId} does not have stored leg ${validated.idx}`,
+        );
+      }
+
       await tx.dealStore.createDealTimelineEvents([
         createTimelinePayloadEvent({
           actorUserId: validated.actorUserId,
@@ -77,10 +88,13 @@ export class TransitionDealStatusCommand {
           occurredAt: this.runtime.now(),
           payload: {
             comment: validated.comment ?? null,
-            status: validated.status,
+            fromState: leg.state,
+            idx: leg.idx,
+            kind: leg.kind,
+            state: validated.state,
           },
-          type: "status_changed",
-          visibility: "customer_safe",
+          type: "leg_state_changed",
+          visibility: "internal",
         }),
       ]);
 

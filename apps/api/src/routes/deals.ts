@@ -13,6 +13,7 @@ import {
   PaginatedDealsSchema,
   ReplaceDealIntakeInputSchema,
   TransitionDealStatusInputSchema,
+  UpdateDealLegStateInputSchema,
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
 import {
@@ -67,6 +68,14 @@ export function dealsRoutes(ctx: AppContext) {
       param: {
         in: "path",
         name: "quoteId",
+      },
+    }),
+  });
+  const DealLegParamsSchema = IdParamSchema.extend({
+    idx: z.coerce.number().int().positive().openapi({
+      param: {
+        in: "path",
+        name: "idx",
       },
     }),
   });
@@ -485,8 +494,49 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealDetailsSchema } },
+        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
         description: "Deal status updated",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Transition blocked",
+      },
+    },
+  });
+
+  const updateLegStateRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/legs/{idx}/state",
+    tags: ["Deals"],
+    summary: "Update execution leg state",
+    request: {
+      params: DealLegParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateDealLegStateInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        description: "Execution leg state updated",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Leg state transition blocked",
       },
     },
   });
@@ -1021,6 +1071,22 @@ export function dealsRoutes(ctx: AppContext) {
           ...body,
           actorUserId: c.get("user")!.id,
           dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(updateLegStateRoute, async (c) => {
+      try {
+        const { id, idx } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.updateLegState({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+          idx,
         });
 
         return jsonOk(c, result);

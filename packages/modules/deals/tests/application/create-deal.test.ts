@@ -35,6 +35,7 @@ function createHarness() {
     createDealTimelineEvents: vi.fn(),
     createDealQuoteAcceptance: vi.fn(),
     replaceDealLegs: vi.fn(),
+    replaceDealOperationalPositions: vi.fn(),
     replaceDealParticipants: vi.fn(),
     replaceIntakeSnapshot: vi.fn(),
     setDealRoot: vi.fn(),
@@ -130,6 +131,11 @@ describe("create deal command", () => {
     };
 
     harness.dealReads.findWorkflowById.mockResolvedValue({
+      operationalState: {
+        capabilities: [],
+        positions: [],
+      },
+      nextAction: "Complete intake",
       summary: { id: "00000000-0000-4000-8000-000000000010" },
     });
     harness.dealReads.findById.mockResolvedValue(expected);

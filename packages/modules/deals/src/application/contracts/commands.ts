@@ -6,7 +6,13 @@ import {
   DealIntakeDraftSchema,
   DealSettlementDestinationModeSchema,
 } from "./dto";
-import { DealStatusSchema, DealTypeSchema } from "./zod";
+import {
+  DealCapabilityKindSchema,
+  DealCapabilityStatusSchema,
+  DealLegStateSchema,
+  DealStatusSchema,
+  DealTypeSchema,
+} from "./zod";
 
 const nullableText = z
   .string()
@@ -193,6 +199,41 @@ export const TransitionDealStatusInputSchema = z.object({
 
 export type TransitionDealStatusInput = z.infer<
   typeof TransitionDealStatusInputSchema
+>;
+
+export const UpdateDealLegStateInputSchema = z.object({
+  comment: nullableText.optional(),
+  state: DealLegStateSchema,
+});
+
+export type UpdateDealLegStateInput = z.infer<
+  typeof UpdateDealLegStateInputSchema
+>;
+
+export const ListDealCapabilityStatesQuerySchema = z.object({
+  applicantCounterpartyId: z.uuid().optional(),
+  capabilityKind: DealCapabilityKindSchema.optional(),
+  dealType: DealTypeSchema.optional(),
+  internalEntityOrganizationId: z.uuid().optional(),
+  status: DealCapabilityStatusSchema.optional(),
+});
+
+export type ListDealCapabilityStatesQuery = z.infer<
+  typeof ListDealCapabilityStatesQuerySchema
+>;
+
+export const UpsertDealCapabilityStateInputSchema = z.object({
+  applicantCounterpartyId: z.uuid(),
+  capabilityKind: DealCapabilityKindSchema,
+  dealType: DealTypeSchema,
+  internalEntityOrganizationId: z.uuid(),
+  note: nullableText,
+  reasonCode: nullableShortText,
+  status: DealCapabilityStatusSchema,
+});
+
+export type UpsertDealCapabilityStateInput = z.infer<
+  typeof UpsertDealCapabilityStateInputSchema
 >;
 
 export const LegacyPortalCreateDealInputSchema = z.object({

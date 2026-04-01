@@ -24,6 +24,31 @@ function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function buildErrorBody(error: unknown) {
+  const payload: {
+    code?: string;
+    details?: unknown;
+    error: string;
+  } = {
+    error: resolveErrorMessage(error),
+  };
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    payload.code = error.code;
+  }
+
+  if (error && typeof error === "object" && "details" in error) {
+    payload.details = error.details;
+  }
+
+  return payload;
+}
+
 /**
  * Shared route-level error handler.
  *
@@ -43,14 +68,14 @@ export function handleRouteError(c: Context, error: unknown): any {
     error instanceof DocumentNotFoundError ||
     error instanceof NotFoundError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 404);
+    return c.json(buildErrorBody(error), 404);
   }
 
   if (
     error instanceof PermissionError ||
     error instanceof DocumentPolicyDeniedError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 403);
+    return c.json(buildErrorBody(error), 403);
   }
 
   if (
@@ -58,7 +83,7 @@ export function handleRouteError(c: Context, error: unknown): any {
     error instanceof DocumentGraphError ||
     error instanceof ValidationError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 400);
+    return c.json(buildErrorBody(error), 400);
   }
 
   if (
@@ -68,7 +93,7 @@ export function handleRouteError(c: Context, error: unknown): any {
     error instanceof ActionReceiptConflictError ||
     error instanceof ActionReceiptStoredError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 409);
+    return c.json(buildErrorBody(error), 409);
   }
 
   // Unknown error -- rethrow to let global handler return 500

@@ -13,6 +13,8 @@ import { schema as partiesSchema } from "../../../packages/modules/parties/src/s
 import { schema as treasurySchema } from "../../../packages/modules/treasury/src/schema";
 
 import { seedCurrencies } from "../../../packages/modules/treasury/tests/helpers";
+import { assertIntegrationDbSchemaState } from "../preflight";
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./fixtures";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, {
@@ -26,8 +28,10 @@ const db = createTestDrizzleDb(pool, {
 });
 
 async function cleanupCommercialCoreTables() {
+  await deleteIfTableExists(pool, "deal_operational_positions");
   await deleteIfTableExists(pool, "deal_timeline_events");
   await deleteIfTableExists(pool, "deal_quote_acceptances");
+  await deleteIfTableExists(pool, "deal_capability_states");
   await deleteIfTableExists(pool, "deal_approvals");
   await deleteIfTableExists(pool, "deal_calculation_links");
   await deleteIfTableExists(pool, "deal_legs");
@@ -69,6 +73,21 @@ registerPgIntegrationLifecycle({
   pool,
   cleanup: cleanupCommercialCoreTables,
   setup: async () => {
+    await assertIntegrationDbSchemaState(pool);
+    await pool.query(
+      `
+        insert into "user" (
+          id,
+          name,
+          email,
+          email_verified,
+          role
+        )
+        values ($1, 'Commercial Core Admin', 'commercial-core-admin@bedrock.test', true, 'admin')
+        on conflict (id) do nothing
+      `,
+      [COMMERCIAL_CORE_ACTOR_USER_ID],
+    );
     await seedCurrencies(db);
   },
 });

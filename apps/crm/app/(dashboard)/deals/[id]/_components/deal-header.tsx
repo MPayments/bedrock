@@ -13,25 +13,29 @@ import {
 import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { STATUS_COLORS, STATUS_LABELS } from "./constants";
-import type { DealStatus } from "./types";
+import type { ApiDealTransitionReadiness, DealStatus } from "./types";
 
 type DealHeaderProps = {
   dealId: string;
-  status: DealStatus;
-  statusOptions: DealStatus[];
   isUpdatingStatus: boolean;
   onBack: () => void;
+  onBlockedStatusClick: (status: DealStatus) => void;
   onStatusChange: (status: DealStatus) => void;
+  status: DealStatus;
+  transitionReadiness: ApiDealTransitionReadiness[];
 };
 
 export function DealHeader({
   dealId,
-  status,
-  statusOptions,
   isUpdatingStatus,
   onBack,
+  onBlockedStatusClick,
   onStatusChange,
+  status,
+  transitionReadiness,
 }: DealHeaderProps) {
+  const hasTransitions = transitionReadiness.length > 0;
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
@@ -49,7 +53,7 @@ export function DealHeader({
         </div>
       </div>
 
-      {statusOptions.length > 0 && (
+      {hasTransitions && (
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="default" size="sm" />}>
             Изменить статус
@@ -60,13 +64,24 @@ export function DealHeader({
               <DropdownMenuLabel>Доступные переходы</DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {statusOptions.map((nextStatus) => (
+            {transitionReadiness.map((item) => (
               <DropdownMenuItem
-                key={nextStatus}
+                key={item.targetStatus}
                 disabled={isUpdatingStatus}
-                onClick={() => onStatusChange(nextStatus)}
+                onClick={() =>
+                  item.allowed
+                    ? onStatusChange(item.targetStatus)
+                    : onBlockedStatusClick(item.targetStatus)
+                }
               >
-                {STATUS_LABELS[nextStatus]}
+                <div className="flex flex-col">
+                  <span>{STATUS_LABELS[item.targetStatus]}</span>
+                  {!item.allowed && item.blockers[0] && (
+                    <span className="text-xs text-muted-foreground">
+                      {item.blockers[0].message}
+                    </span>
+                  )}
+                </div>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

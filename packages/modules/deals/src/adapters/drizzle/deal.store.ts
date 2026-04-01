@@ -3,10 +3,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
+  dealCapabilityStates,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
+  dealOperationalPositions,
   dealParticipants,
   deals,
   dealQuoteAcceptances,
@@ -16,11 +18,13 @@ import type {
   CreateDealApprovalStoredInput,
   CreateDealIntakeSnapshotStoredInput,
   CreateDealLegStoredInput,
+  ReplaceDealOperationalPositionStoredInput,
   CreateDealParticipantStoredInput,
   CreateDealQuoteAcceptanceStoredInput,
   CreateDealRootInput,
   CreateDealTimelineEventStoredInput,
   DealStore,
+  UpsertDealCapabilityStateStoredInput,
 } from "../../application/ports/deal.store";
 
 export class DrizzleDealStore implements DealStore {
@@ -147,6 +151,32 @@ export class DrizzleDealStore implements DealStore {
     );
   }
 
+  async replaceDealOperationalPositions(input: {
+    dealId: string;
+    positions: ReplaceDealOperationalPositionStoredInput[];
+  }): Promise<void> {
+    await this.db
+      .delete(dealOperationalPositions)
+      .where(eq(dealOperationalPositions.dealId, input.dealId));
+
+    if (input.positions.length === 0) {
+      return;
+    }
+
+    await this.db.insert(dealOperationalPositions).values(
+      input.positions.map((position) => ({
+        amountMinor: position.amountMinor,
+        currencyId: position.currencyId,
+        dealId: position.dealId,
+        id: position.id,
+        kind: position.kind,
+        reasonCode: position.reasonCode,
+        sourceRefs: position.sourceRefs,
+        state: position.state,
+      })),
+    );
+  }
+
   async createDealTimelineEvents(
     input: CreateDealTimelineEventStoredInput[],
   ): Promise<void> {
@@ -207,6 +237,39 @@ export class DrizzleDealStore implements DealStore {
           isNull(dealQuoteAcceptances.revokedAt),
         ),
       );
+  }
+
+  async upsertDealCapabilityState(
+    input: UpsertDealCapabilityStateStoredInput,
+  ): Promise<void> {
+    await this.db
+      .insert(dealCapabilityStates)
+      .values({
+        applicantCounterpartyId: input.applicantCounterpartyId,
+        capabilityKind: input.capabilityKind,
+        dealType: input.dealType,
+        id: input.id,
+        internalEntityOrganizationId: input.internalEntityOrganizationId,
+        note: input.note,
+        reasonCode: input.reasonCode,
+        status: input.status,
+        updatedByUserId: input.updatedByUserId,
+      })
+      .onConflictDoUpdate({
+        target: [
+          dealCapabilityStates.applicantCounterpartyId,
+          dealCapabilityStates.internalEntityOrganizationId,
+          dealCapabilityStates.dealType,
+          dealCapabilityStates.capabilityKind,
+        ],
+        set: {
+          note: input.note,
+          reasonCode: input.reasonCode,
+          status: input.status,
+          updatedByUserId: input.updatedByUserId,
+          updatedAt: new Date(),
+        },
+      });
   }
 
   async createDealApprovals(
@@ -270,5 +333,21 @@ export class DrizzleDealStore implements DealStore {
     }
 
     await this.db.update(deals).set(values).where(eq(deals.id, input.dealId));
+  }
+
+  async updateDealLegState(input: {
+    dealId: string;
+    idx: number;
+    state: CreateDealLegStoredInput["state"];
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(dealLegs)
+      .set({
+        state: input.state,
+      })
+      .where(and(eq(dealLegs.dealId, input.dealId), eq(dealLegs.idx, input.idx)))
+      .returning({ id: dealLegs.id });
+
+    return updated.length > 0;
   }
 }

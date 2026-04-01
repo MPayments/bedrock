@@ -32,6 +32,7 @@ import {
   currenciesRoutes,
   dealsRoutes,
   documentsRoutes,
+  internalDealCapabilitiesRoutes,
   legalEntitiesRoutes,
   organizationsRoutes,
   profileRoutes,
@@ -211,6 +212,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/currencies", currenciesRoutes(ctx))
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
+    .route("/internal/deal-capabilities", internalDealCapabilitiesRoutes(ctx))
     .route("/legal-entities", legalEntitiesRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))

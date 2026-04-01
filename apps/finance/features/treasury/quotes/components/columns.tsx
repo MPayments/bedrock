@@ -8,6 +8,8 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import type { FxQuoteListItem } from "@/features/treasury/quotes/lib/queries";
 import { formatDate } from "@/lib/format";
 
+import { DealWorkflowDialog } from "./deal-workflow-dialog";
+
 function getStatusLabel(status: FxQuoteListItem["status"]) {
   switch (status) {
     case "active":
@@ -111,6 +113,9 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
           </div>
           <div className="text-muted-foreground text-xs">
             {row.original.dealRef.applicantName ?? "Заявитель не указан"}
+          </div>
+          <div>
+            <DealWorkflowDialog dealId={row.original.dealRef.dealId} />
           </div>
         </div>
       ) : (

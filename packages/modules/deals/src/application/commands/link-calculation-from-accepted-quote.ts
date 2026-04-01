@@ -14,7 +14,11 @@ import {
   type LinkDealCalculationFromAcceptedQuoteInput,
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
-import { createTimelinePayloadEvent, deriveDealRootState } from "../shared/workflow-state";
+import {
+  buildDealOperationalPositionRows,
+  createTimelinePayloadEvent,
+  deriveDealRootState,
+} from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 
@@ -57,8 +61,14 @@ export class LinkCalculationFromAcceptedQuoteCommand {
     if (!quote) {
       throw new NotFoundError("Quote", validated.quoteId);
     }
-    if (quote.status !== "active") {
-      throw new DealQuoteInactiveError(validated.quoteId, quote.status);
+    const now = this.runtime.now();
+    const quoteExpired =
+      quote.expiresAt !== null && quote.expiresAt.getTime() <= now.getTime();
+    if (quote.status !== "active" || quoteExpired) {
+      throw new DealQuoteInactiveError(
+        validated.quoteId,
+        quoteExpired ? "expired" : quote.status,
+      );
     }
 
     return this.commandUow.run(async (tx) => {
@@ -100,7 +110,7 @@ export class LinkCalculationFromAcceptedQuoteCommand {
           actorUserId: validated.actorUserId,
           dealId: validated.dealId,
           generateUuid: () => this.runtime.generateUuid(),
-          occurredAt: this.runtime.now(),
+          occurredAt: now,
           payload: {
             calculationId: validated.calculationId,
             quoteId: validated.quoteId,
@@ -110,6 +120,24 @@ export class LinkCalculationFromAcceptedQuoteCommand {
           visibility: "internal",
         }),
       ]);
+
+      const updatedWorkflow = await tx.dealReads.findWorkflowById(validated.dealId);
+      if (!updatedWorkflow) {
+        throw new DealNotFoundError(validated.dealId);
+      }
+
+      await tx.dealStore.setDealRoot({
+        dealId: validated.dealId,
+        nextAction: updatedWorkflow.nextAction,
+      });
+      await tx.dealStore.replaceDealOperationalPositions({
+        dealId: validated.dealId,
+        positions: buildDealOperationalPositionRows({
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          operationalState: updatedWorkflow.operationalState,
+        }),
+      });
 
       const updated = await tx.dealReads.findById(validated.dealId);
       if (!updated) {

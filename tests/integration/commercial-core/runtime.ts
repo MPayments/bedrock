@@ -290,8 +290,11 @@ export function createCommercialCoreRuntime() {
         const [quote] = await db
           .select({
             dealId: fxQuotes.dealId,
+            expiresAt: fxQuotes.expiresAt,
             id: fxQuotes.id,
             status: fxQuotes.status,
+            usedAt: fxQuotes.usedAt,
+            usedDocumentId: fxQuotes.usedDocumentId,
           })
           .from(fxQuotes)
           .where(eq(fxQuotes.id, id))

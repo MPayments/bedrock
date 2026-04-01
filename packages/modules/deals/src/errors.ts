@@ -4,6 +4,9 @@ import {
   ValidationError,
 } from "@bedrock/shared/core/errors";
 
+import type { DealTransitionBlocker } from "./application/contracts/dto";
+import type { DealStatus } from "./application/contracts/zod";
+
 export class DealNotFoundError extends NotFoundError {
   constructor(id: string) {
     super("Deal", id);
@@ -68,6 +71,22 @@ export class DealStatusTransitionError extends ValidationError {
   }
 }
 
+export class DealTransitionBlockedError extends InvalidStateError {
+  readonly code = "deal.transition_blocked";
+  readonly details: {
+    blockers: DealTransitionBlocker[];
+    targetStatus: DealStatus;
+  };
+
+  constructor(targetStatus: DealStatus, blockers: DealTransitionBlocker[]) {
+    super(`Deal transition to ${targetStatus} is blocked`);
+    this.details = {
+      blockers,
+      targetStatus,
+    };
+  }
+}
+
 export class DealQuoteNotAcceptedError extends ValidationError {
   constructor(dealId: string, quoteId: string) {
     super(`Quote ${quoteId} is not the accepted quote for deal ${dealId}`);
@@ -83,5 +102,23 @@ export class DealQuoteDealMismatchError extends ValidationError {
 export class DealQuoteInactiveError extends ValidationError {
   constructor(quoteId: string, status: string) {
     super(`Quote ${quoteId} is not active: ${status}`);
+  }
+}
+
+export class DealLegStateTransitionError extends InvalidStateError {
+  readonly code = "deal.leg_state_invalid";
+  readonly details: {
+    from: string;
+    idx: number;
+    to: string;
+  };
+
+  constructor(idx: number, from: string, to: string) {
+    super(`Cannot transition deal leg ${idx} from ${from} to ${to}`);
+    this.details = {
+      from,
+      idx,
+      to,
+    };
   }
 }

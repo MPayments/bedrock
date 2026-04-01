@@ -8,6 +8,8 @@ import { CreateDealDraftCommand } from "./commands/create-deal-draft";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
+import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
+import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
@@ -16,6 +18,7 @@ import { FindDealByIdQuery } from "./queries/find-deal-by-id";
 import { FindDealTraceByIdQuery } from "./queries/find-deal-trace-by-id";
 import { FindDealWorkflowByIdQuery } from "./queries/find-deal-workflow-by-id";
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
+import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
@@ -60,12 +63,19 @@ export function createDealsService(deps: DealsServiceDeps) {
   const transitionDealStatus = new TransitionDealStatusCommand(
     deps.runtime,
     deps.commandUow,
-    deps.references,
   );
   const acceptDealQuote = new AcceptDealQuoteCommand(
     deps.runtime,
     deps.commandUow,
     deps.references,
+  );
+  const updateDealLegState = new UpdateDealLegStateCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const upsertDealCapabilityState = new UpsertDealCapabilityStateCommand(
+    deps.runtime,
+    deps.commandUow,
   );
   const appendTimelineEvent = new AppendDealTimelineEventCommand(
     deps.runtime,
@@ -75,6 +85,7 @@ export function createDealsService(deps: DealsServiceDeps) {
   const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
   const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
+  const listCapabilityStates = new ListDealCapabilityStatesQuery(deps.reads);
   const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
   const listPortalDeals = new ListPortalDealsQuery(deps.reads);
@@ -91,6 +102,10 @@ export function createDealsService(deps: DealsServiceDeps) {
         ),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
+      upsertCapabilityState: upsertDealCapabilityState.execute.bind(
+        upsertDealCapabilityState,
+      ),
+      updateLegState: updateDealLegState.execute.bind(updateDealLegState),
       updateIntake: updateDealIntake.execute.bind(updateDealIntake),
     },
     queries: {
@@ -98,6 +113,9 @@ export function createDealsService(deps: DealsServiceDeps) {
       findPortalById: findPortalDealById.execute.bind(findPortalDealById),
       findTraceById: findDealTraceById.execute.bind(findDealTraceById),
       findWorkflowById: findDealWorkflowById.execute.bind(findDealWorkflowById),
+      listCapabilityStates: listCapabilityStates.execute.bind(
+        listCapabilityStates,
+      ),
       listCalculationHistory: listCalculationHistory.execute.bind(
         listCalculationHistory,
       ),
