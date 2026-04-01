@@ -1,7 +1,7 @@
 CREATE TYPE "public"."agreement_fee_rule_kind" AS ENUM('agent_fee', 'fixed_fee');--> statement-breakpoint
 CREATE TYPE "public"."agreement_fee_rule_unit" AS ENUM('bps', 'money');--> statement-breakpoint
 CREATE TYPE "public"."agreement_party_role" AS ENUM('customer', 'organization');--> statement-breakpoint
-CREATE TYPE "public"."calculation_line_kind" AS ENUM('original_amount', 'fee_amount', 'total_amount', 'additional_expenses', 'fee_amount_in_base', 'total_in_base', 'additional_expenses_in_base', 'total_with_expenses_in_base');--> statement-breakpoint
+CREATE TYPE "public"."calculation_line_kind" AS ENUM('original_amount', 'fee_amount', 'total_amount', 'additional_expenses', 'fee_amount_in_base', 'total_in_base', 'additional_expenses_in_base', 'total_with_expenses_in_base', 'fee_revenue', 'spread_revenue', 'provider_fee_expense', 'pass_through', 'adjustment');--> statement-breakpoint
 CREATE TYPE "public"."calculation_rate_source" AS ENUM('cbr', 'investing', 'xe', 'manual', 'fx_quote');--> statement-breakpoint
 CREATE TYPE "public"."chart_account_kind" AS ENUM('asset', 'liability', 'equity', 'revenue', 'expense', 'active_passive');--> statement-breakpoint
 CREATE TYPE "public"."chart_normal_side" AS ENUM('debit', 'credit', 'both');--> statement-breakpoint
@@ -10,9 +10,12 @@ CREATE TYPE "public"."counterparty_kind" AS ENUM('legal_entity', 'individual');-
 CREATE TYPE "public"."counterparty_relationship_kind" AS ENUM('customer_owned', 'external');--> statement-breakpoint
 CREATE TYPE "public"."deal_approval_status" AS ENUM('pending', 'approved', 'rejected', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."deal_approval_type" AS ENUM('commercial', 'compliance', 'operations');--> statement-breakpoint
-CREATE TYPE "public"."deal_leg_kind" AS ENUM('payment', 'currency_exchange', 'currency_transit', 'exporter_settlement');--> statement-breakpoint
-CREATE TYPE "public"."deal_participant_role" AS ENUM('customer', 'organization', 'counterparty');--> statement-breakpoint
+CREATE TYPE "public"."deal_leg_kind" AS ENUM('collect', 'convert', 'transit_hold', 'payout', 'settle_exporter');--> statement-breakpoint
+CREATE TYPE "public"."deal_leg_state" AS ENUM('pending', 'ready', 'in_progress', 'done', 'blocked', 'skipped');--> statement-breakpoint
+CREATE TYPE "public"."deal_participant_role" AS ENUM('customer', 'applicant', 'internal_entity', 'external_payer', 'external_beneficiary');--> statement-breakpoint
 CREATE TYPE "public"."deal_status" AS ENUM('draft', 'submitted', 'rejected', 'preparing_documents', 'awaiting_funds', 'awaiting_payment', 'closing_documents', 'done', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."deal_timeline_event_type" AS ENUM('deal_created', 'intake_saved', 'participant_changed', 'status_changed', 'quote_created', 'quote_expired', 'quote_used', 'calculation_attached', 'attachment_uploaded', 'attachment_deleted', 'document_created', 'document_status_changed');--> statement-breakpoint
+CREATE TYPE "public"."deal_timeline_visibility" AS ENUM('customer_safe', 'internal');--> statement-breakpoint
 CREATE TYPE "public"."deal_type" AS ENUM('payment', 'currency_exchange', 'currency_transit', 'exporter_settlement');--> statement-breakpoint
 CREATE TYPE "public"."dimension_mode" AS ENUM('required', 'optional', 'forbidden');--> statement-breakpoint
 CREATE TYPE "public"."dimension_policy_scope" AS ENUM('line', 'debit', 'credit');--> statement-breakpoint
@@ -318,6 +321,7 @@ CREATE TABLE "calculation_snapshots" (
 	"additional_expenses_rate_den" bigint,
 	"calculation_timestamp" timestamp with time zone NOT NULL,
 	"fx_quote_id" uuid,
+	"quote_snapshot" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "calculation_snapshots_rate_positive_chk" CHECK ("calculation_snapshots"."rate_num" > 0 and "calculation_snapshots"."rate_den" > 0),
@@ -496,14 +500,6 @@ CREATE TABLE "customer_memberships" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "portal_access_grants" (
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"status" text DEFAULT 'pending_onboarding' NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"user_id" text NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "customers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"external_ref" text,
@@ -538,25 +534,15 @@ CREATE TABLE "deal_calculation_links" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"deal_id" uuid NOT NULL,
 	"calculation_id" uuid NOT NULL,
+	"source_quote_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "deal_extensions" (
+CREATE TABLE "deal_intake_snapshots" (
 	"deal_id" uuid PRIMARY KEY NOT NULL,
-	"organization_requisite_id" uuid,
-	"invoice_number" text,
-	"invoice_date" text,
-	"company_name" text,
-	"company_name_i18n" jsonb,
-	"bank_name" text,
-	"bank_name_i18n" jsonb,
-	"account" text,
-	"swift_code" text,
-	"contract_date" text,
-	"contract_number" text,
-	"cost_price" text,
-	"closed_at" timestamp with time zone,
+	"revision" integer NOT NULL,
+	"snapshot" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -566,7 +552,7 @@ CREATE TABLE "deal_legs" (
 	"deal_id" uuid NOT NULL,
 	"idx" integer NOT NULL,
 	"kind" "deal_leg_kind" NOT NULL,
-	"status" "deal_status" DEFAULT 'draft' NOT NULL,
+	"state" "deal_leg_state" DEFAULT 'pending' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -599,24 +585,40 @@ CREATE TABLE "deal_participants" (
         and "deal_participants"."organization_id" is null
         and "deal_participants"."counterparty_id" is null
       ) or (
-        "deal_participants"."role" = 'organization'
-        and "deal_participants"."customer_id" is null
+        "deal_participants"."role" = 'internal_entity'
         and "deal_participants"."organization_id" is not null
+        and "deal_participants"."customer_id" is null
         and "deal_participants"."counterparty_id" is null
       ) or (
-        "deal_participants"."role" = 'counterparty'
+        "deal_participants"."role" in ('applicant', 'external_payer', 'external_beneficiary')
+        and "deal_participants"."counterparty_id" is not null
         and "deal_participants"."customer_id" is null
         and "deal_participants"."organization_id" is null
-        and "deal_participants"."counterparty_id" is not null
       ))
 );
 --> statement-breakpoint
-CREATE TABLE "deal_status_history" (
+CREATE TABLE "deal_quote_acceptances" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"deal_id" uuid NOT NULL,
-	"status" "deal_status" NOT NULL,
-	"changed_by" text,
-	"comment" text,
+	"quote_id" uuid NOT NULL,
+	"accepted_by_user_id" text NOT NULL,
+	"accepted_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deal_revision" integer NOT NULL,
+	"agreement_version_id" uuid,
+	"replaced_by_quote_id" uuid,
+	"revoked_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "deal_timeline_events" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"deal_id" uuid NOT NULL,
+	"type" "deal_timeline_event_type" NOT NULL,
+	"visibility" "deal_timeline_visibility" DEFAULT 'internal' NOT NULL,
+	"actor_user_id" text,
+	"actor_label" text,
+	"payload" jsonb NOT NULL,
+	"source_ref" text,
+	"occurred_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -628,11 +630,10 @@ CREATE TABLE "deals" (
 	"type" "deal_type" NOT NULL,
 	"status" "deal_status" DEFAULT 'draft' NOT NULL,
 	"agent_id" text,
-	"reason" text,
-	"intake_comment" text,
-	"comment" text,
-	"requested_amount_minor" bigint,
-	"requested_currency_id" uuid,
+	"next_action" text,
+	"source_amount_minor" bigint,
+	"source_currency_id" uuid,
+	"target_currency_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -987,6 +988,14 @@ CREATE TABLE "outbox" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "portal_access_grants" (
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"status" text DEFAULT 'pending_onboarding' NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"user_id" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "posting_code_dimension_policy" (
 	"posting_code" text NOT NULL,
 	"dimension_key" text NOT NULL,
@@ -1088,14 +1097,9 @@ CREATE TABLE "requisites" (
 	"label" text NOT NULL,
 	"description" text,
 	"beneficiary_name" text,
-	"institution_name" text,
-	"institution_country" text,
 	"account_no" text,
 	"corr_account" text,
 	"iban" text,
-	"bic" text,
-	"swift" text,
-	"bank_address" text,
 	"network" text,
 	"asset_code" text,
 	"address" text,
@@ -1251,24 +1255,28 @@ ALTER TABLE "customer_counterparty_assignments" ADD CONSTRAINT "customer_counter
 ALTER TABLE "customer_counterparty_assignments" ADD CONSTRAINT "customer_counterparty_assignments_sub_agent_counterparty_id_counterparties_id_fk" FOREIGN KEY ("sub_agent_counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "portal_access_grants" ADD CONSTRAINT "portal_access_grants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_agent_bonuses" ADD CONSTRAINT "deal_agent_bonuses_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_agent_bonuses" ADD CONSTRAINT "deal_agent_bonuses_agent_id_user_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_approvals" ADD CONSTRAINT "deal_approvals_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_calculation_id_calculations_id_fk" FOREIGN KEY ("calculation_id") REFERENCES "public"."calculations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deal_extensions" ADD CONSTRAINT "deal_extensions_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_intake_snapshots" ADD CONSTRAINT "deal_intake_snapshots_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_legs" ADD CONSTRAINT "deal_legs_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_participants" ADD CONSTRAINT "deal_participants_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_participants" ADD CONSTRAINT "deal_participants_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_participants" ADD CONSTRAINT "deal_participants_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_participants" ADD CONSTRAINT "deal_participants_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deal_status_history" ADD CONSTRAINT "deal_status_history_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_quote_acceptances" ADD CONSTRAINT "deal_quote_acceptances_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_quote_acceptances" ADD CONSTRAINT "deal_quote_acceptances_accepted_by_user_id_user_id_fk" FOREIGN KEY ("accepted_by_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_quote_acceptances" ADD CONSTRAINT "deal_quote_acceptances_agreement_version_id_agreement_versions_id_fk" FOREIGN KEY ("agreement_version_id") REFERENCES "public"."agreement_versions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_timeline_events" ADD CONSTRAINT "deal_timeline_events_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deal_timeline_events" ADD CONSTRAINT "deal_timeline_events_actor_user_id_user_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deals" ADD CONSTRAINT "deals_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deals" ADD CONSTRAINT "deals_agreement_id_agreements_id_fk" FOREIGN KEY ("agreement_id") REFERENCES "public"."agreements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deals" ADD CONSTRAINT "deals_calculation_id_calculations_id_fk" FOREIGN KEY ("calculation_id") REFERENCES "public"."calculations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deals" ADD CONSTRAINT "deals_agent_id_user_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deals" ADD CONSTRAINT "deals_requested_currency_id_currencies_id_fk" FOREIGN KEY ("requested_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deals" ADD CONSTRAINT "deals_source_currency_id_currencies_id_fk" FOREIGN KEY ("source_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deals" ADD CONSTRAINT "deals_target_currency_id_currencies_id_fk" FOREIGN KEY ("target_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_business_links" ADD CONSTRAINT "document_business_links_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_events" ADD CONSTRAINT "document_events_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_from_document_id_documents_id_fk" FOREIGN KEY ("from_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1296,6 +1304,7 @@ ALTER TABLE "fx_quote_financial_lines" ADD CONSTRAINT "fx_quote_financial_lines_
 ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk" FOREIGN KEY ("book_account_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "portal_access_grants" ADD CONSTRAINT "portal_access_grants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_debit_instance_id_book_account_instances_id_fk" FOREIGN KEY ("debit_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1356,7 +1365,6 @@ CREATE UNIQUE INDEX "books_default_owner_uq" ON "books" USING btree ("owner_id")
 CREATE INDEX "books_owner_idx" ON "books" USING btree ("owner_id");--> statement-breakpoint
 CREATE INDEX "books_owner_default_idx" ON "books" USING btree ("owner_id","is_default");--> statement-breakpoint
 CREATE UNIQUE INDEX "calculation_lines_snapshot_idx_uq" ON "calculation_lines" USING btree ("calculation_snapshot_id","idx");--> statement-breakpoint
-CREATE UNIQUE INDEX "calculation_lines_snapshot_kind_uq" ON "calculation_lines" USING btree ("calculation_snapshot_id","kind");--> statement-breakpoint
 CREATE INDEX "calculation_lines_snapshot_idx" ON "calculation_lines" USING btree ("calculation_snapshot_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "calculation_snapshots_calc_snapshot_uq" ON "calculation_snapshots" USING btree ("calculation_id","snapshot_number");--> statement-breakpoint
 CREATE INDEX "calculation_snapshots_calc_idx" ON "calculation_snapshots" USING btree ("calculation_id");--> statement-breakpoint
@@ -1379,9 +1387,6 @@ CREATE UNIQUE INDEX "customer_bootstrap_claims_user_inn_kpp_idx" ON "customer_bo
 CREATE INDEX "customer_counterparty_assignments_sub_agent_idx" ON "customer_counterparty_assignments" USING btree ("sub_agent_counterparty_id");--> statement-breakpoint
 CREATE INDEX "customer_memberships_user_id_idx" ON "customer_memberships" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "customer_memberships_customer_user_idx" ON "customer_memberships" USING btree ("customer_id","user_id");--> statement-breakpoint
-CREATE INDEX "portal_access_grants_status_idx" ON "portal_access_grants" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "portal_access_grants_user_id_idx" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "portal_access_grants_user_id_unique" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "deal_agent_bonuses_deal_agent_uq" ON "deal_agent_bonuses" USING btree ("deal_id","agent_id");--> statement-breakpoint
 CREATE INDEX "deal_agent_bonuses_deal_idx" ON "deal_agent_bonuses" USING btree ("deal_id");--> statement-breakpoint
 CREATE INDEX "deal_agent_bonuses_agent_idx" ON "deal_agent_bonuses" USING btree ("agent_id");--> statement-breakpoint
@@ -1389,19 +1394,31 @@ CREATE INDEX "deal_approvals_deal_requested_idx" ON "deal_approvals" USING btree
 CREATE UNIQUE INDEX "deal_calculation_links_deal_calc_uq" ON "deal_calculation_links" USING btree ("deal_id","calculation_id");--> statement-breakpoint
 CREATE INDEX "deal_calculation_links_deal_idx" ON "deal_calculation_links" USING btree ("deal_id");--> statement-breakpoint
 CREATE INDEX "deal_calculation_links_calculation_idx" ON "deal_calculation_links" USING btree ("calculation_id");--> statement-breakpoint
-CREATE INDEX "deal_extensions_org_req_idx" ON "deal_extensions" USING btree ("organization_requisite_id");--> statement-breakpoint
-CREATE INDEX "deal_extensions_closed_at_idx" ON "deal_extensions" USING btree ("closed_at");--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_revision_idx" ON "deal_intake_snapshots" USING btree ("revision");--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_applicant_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'common' ->> 'applicantCounterpartyId')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_invoice_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'incomingReceipt' ->> 'invoiceNumber')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_contract_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'incomingReceipt' ->> 'contractNumber')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_requested_execution_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'common' ->> 'requestedExecutionDate')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_expected_at_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'incomingReceipt' ->> 'expectedAt')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_payer_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'incomingReceipt' ->> 'payerCounterpartyId')));--> statement-breakpoint
+CREATE INDEX "deal_intake_snapshots_beneficiary_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId')));--> statement-breakpoint
 CREATE UNIQUE INDEX "deal_legs_deal_idx_uq" ON "deal_legs" USING btree ("deal_id","idx");--> statement-breakpoint
 CREATE INDEX "deal_legs_deal_idx" ON "deal_legs" USING btree ("deal_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "deal_participants_deal_role_uq" ON "deal_participants" USING btree ("deal_id","role");--> statement-breakpoint
 CREATE INDEX "deal_participants_deal_idx" ON "deal_participants" USING btree ("deal_id");--> statement-breakpoint
-CREATE INDEX "deal_status_history_deal_created_idx" ON "deal_status_history" USING btree ("deal_id","created_at");--> statement-breakpoint
+CREATE INDEX "deal_quote_acceptances_deal_idx" ON "deal_quote_acceptances" USING btree ("deal_id","accepted_at");--> statement-breakpoint
+CREATE INDEX "deal_quote_acceptances_quote_idx" ON "deal_quote_acceptances" USING btree ("quote_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "deal_quote_acceptances_deal_quote_uq" ON "deal_quote_acceptances" USING btree ("deal_id","quote_id");--> statement-breakpoint
+CREATE INDEX "deal_timeline_events_deal_occurred_idx" ON "deal_timeline_events" USING btree ("deal_id","occurred_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "deal_timeline_events_deal_source_ref_uq" ON "deal_timeline_events" USING btree ("deal_id","source_ref");--> statement-breakpoint
 CREATE INDEX "deals_customer_idx" ON "deals" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "deals_agreement_idx" ON "deals" USING btree ("agreement_id");--> statement-breakpoint
 CREATE INDEX "deals_calculation_idx" ON "deals" USING btree ("calculation_id");--> statement-breakpoint
 CREATE INDEX "deals_agent_idx" ON "deals" USING btree ("agent_id");--> statement-breakpoint
 CREATE INDEX "deals_status_idx" ON "deals" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "deals_type_idx" ON "deals" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "deals_source_currency_idx" ON "deals" USING btree ("source_currency_id");--> statement-breakpoint
+CREATE INDEX "deals_target_currency_idx" ON "deals" USING btree ("target_currency_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "document_business_links_document_uq" ON "document_business_links" USING btree ("document_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "document_business_links_document_deal_kind_uq" ON "document_business_links" USING btree ("document_id","deal_id","link_kind");--> statement-breakpoint
 CREATE INDEX "document_business_links_deal_idx" ON "document_business_links" USING btree ("deal_id");--> statement-breakpoint
@@ -1462,6 +1479,9 @@ CREATE UNIQUE INDEX "outbox_kind_ref_uq" ON "outbox" USING btree ("kind","ref_id
 CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","available_at","created_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint
 CREATE INDEX "outbox_status_avail_idx" ON "outbox" USING btree ("status","available_at");--> statement-breakpoint
+CREATE INDEX "portal_access_grants_status_idx" ON "portal_access_grants" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "portal_access_grants_user_id_idx" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "portal_access_grants_user_id_unique" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "postings_op_line_uq" ON "postings" USING btree ("operation_id","line_no");--> statement-breakpoint
 CREATE INDEX "postings_op_idx" ON "postings" USING btree ("operation_id");--> statement-breakpoint
 CREATE INDEX "postings_book_currency_idx" ON "postings" USING btree ("book_id","currency");--> statement-breakpoint

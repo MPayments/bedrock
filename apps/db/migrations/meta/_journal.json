@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774949696438,
-      "tag": "0000_sad_mantis",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774953600000,
-      "tag": "0001_add_deal_calculation_history",
+      "when": 1775073474610,
+      "tag": "0000_chilly_slipstream",
       "breakpoints": true
     }
   ]

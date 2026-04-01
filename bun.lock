@@ -303,6 +303,7 @@
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "@types/pg": "^8.16.0",
@@ -325,6 +326,7 @@
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "@types/pg": "^8.16.0",
@@ -369,6 +371,7 @@
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "@types/pg": "^8.16.0",
@@ -779,7 +782,11 @@
       "name": "@bedrock/workflow-document-generation",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/agreements": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
+        "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
         "easy-template-x": "^7.1.1",
         "libreoffice-convert": "^1.6.1",
         "lvovich": "^2.0.0",

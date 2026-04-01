@@ -8,6 +8,9 @@ const REQUIRED_TABLES = [
   { schemaName: "public", tableName: "requisite_providers" },
   { schemaName: "public", tableName: "requisites" },
   { schemaName: "public", tableName: "organization_requisite_bindings" },
+  { schemaName: "public", tableName: "deal_intake_snapshots" },
+  { schemaName: "public", tableName: "deal_timeline_events" },
+  { schemaName: "public", tableName: "deal_quote_acceptances" },
   { schemaName: "public", tableName: "accounting_report_line_mappings" },
   { schemaName: "public", tableName: "accounting_close_packages" },
 ] as const;
@@ -28,6 +31,22 @@ const REQUIRED_COLUMNS = [
   {
     tableName: "counterparties",
     columnName: "customer_id",
+  },
+  {
+    tableName: "deals",
+    columnName: "next_action",
+  },
+  {
+    tableName: "deal_legs",
+    columnName: "state",
+  },
+  {
+    tableName: "deal_calculation_links",
+    columnName: "source_quote_id",
+  },
+  {
+    tableName: "calculation_snapshots",
+    columnName: "quote_snapshot",
   },
 ] as const;
 

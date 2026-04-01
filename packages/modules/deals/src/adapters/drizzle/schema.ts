@@ -287,9 +287,10 @@ export const dealTimelineEvents = pgTable(
       table.dealId,
       table.occurredAt,
     ),
-    uniqueIndex("deal_timeline_events_deal_source_ref_uq")
-      .on(table.dealId, table.sourceRef)
-      .where(sql`${table.sourceRef} is not null`),
+    uniqueIndex("deal_timeline_events_deal_source_ref_uq").on(
+      table.dealId,
+      table.sourceRef,
+    ),
   ],
 );
 
