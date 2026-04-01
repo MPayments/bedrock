@@ -110,6 +110,13 @@ const navItems: AppNavItem[] = [
         icon: "ticket-percent",
         audience: "admin",
       },
+      {
+        id: "treasury-deals",
+        title: "Сделки",
+        href: "/treasury/deals",
+        icon: "handshake",
+        audience: "admin",
+      },
     ],
   },
   {

@@ -35,11 +35,11 @@ import type {
   ApiAgreementDetails,
   ApiAttachment,
   ApiCalculationDetails,
+  ApiCrmDealWorkbenchProjection,
   ApiCurrency,
   ApiCurrencyOption,
   ApiCustomerLegalEntity,
   ApiCustomerWorkspace,
-  ApiDealCalculationHistoryItem,
   ApiDealDetails,
   ApiDealTransitionBlocker,
   ApiDealTransitionReadiness,
@@ -67,6 +67,7 @@ type DealPageData = {
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
   requestedCurrency: ApiCurrency | null;
+  workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
 };
@@ -95,49 +96,28 @@ async function parseErrorMessage(response: Response, fallback: string) {
   }
 }
 
-function buildStatusHistoryFromWorkflow(
-  workflow: ApiDealWorkflowProjection,
-) {
-  return workflow.timeline
-    .filter(
-      (event) => event.type === "deal_created" || event.type === "status_changed",
-    )
-    .map((event) => ({
-      changedBy: event.actor?.userId ?? null,
-      comment:
-        typeof event.payload.comment === "string" ? event.payload.comment : null,
-      createdAt: event.occurredAt,
-      id: event.id,
-      status:
-        event.type === "status_changed" &&
-        typeof event.payload.status === "string"
-          ? (event.payload.status as DealStatus)
-          : workflow.summary.status,
-    }));
-}
-
-function buildDealViewFromWorkflow(
-  workflow: ApiDealWorkflowProjection,
+function buildDealViewFromWorkbench(
+  workbench: ApiCrmDealWorkbenchProjection,
 ): ApiDealDetails {
   const customerId =
-    workflow.participants.find((participant) => participant.role === "customer")
+    workbench.participants.find((participant) => participant.role === "customer")
       ?.customerId ?? "";
-  const applicant = workflow.participants.find(
+  const applicant = workbench.participants.find(
     (participant) => participant.role === "applicant",
   );
 
   return {
-    agreementId: workflow.summary.agreementId,
-    agentId: workflow.summary.agentId,
-    approvals: [],
-    calculationId: workflow.summary.calculationId,
-    comment: workflow.intake.common.customerNote,
-    createdAt: workflow.summary.createdAt,
+    agreementId: workbench.summary.agreementId,
+    agentId: workbench.summary.agentId,
+    approvals: workbench.approvals,
+    calculationId: workbench.summary.calculationId,
+    comment: workbench.intake.common.customerNote,
+    createdAt: workbench.summary.createdAt,
     customerId,
-    id: workflow.summary.id,
-    intakeComment: workflow.intake.common.customerNote,
+    id: workbench.summary.id,
+    intakeComment: workbench.intake.common.customerNote,
     participants: [
-      ...workflow.participants.map((participant) => {
+      ...workbench.participants.map((participant) => {
         const role: ApiDealDetails["participants"][number]["role"] =
           participant.role === "customer"
             ? "customer"
@@ -160,24 +140,40 @@ function buildDealViewFromWorkflow(
         };
       }),
     ],
-    reason: workflow.intake.moneyRequest.purpose,
-    requestedAmount: workflow.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
-    status: workflow.summary.status,
-    statusHistory: buildStatusHistoryFromWorkflow(workflow),
-    type: workflow.summary.type,
-    updatedAt: workflow.summary.updatedAt,
+    reason: workbench.intake.moneyRequest.purpose,
+    requestedAmount: workbench.intake.moneyRequest.sourceAmount,
+    requestedCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+    status: workbench.summary.status,
+    statusHistory: workbench.timeline
+      .filter(
+        (event) =>
+          event.type === "deal_created" || event.type === "status_changed",
+      )
+      .map((event) => ({
+        changedBy: event.actor?.userId ?? null,
+        comment:
+          typeof event.payload.comment === "string" ? event.payload.comment : null,
+        createdAt: event.occurredAt,
+        id: event.id,
+        status:
+          event.type === "status_changed" &&
+          typeof event.payload.status === "string"
+            ? (event.payload.status as DealStatus)
+            : workbench.summary.status,
+      })),
+    type: workbench.summary.type,
+    updatedAt: workbench.summary.updatedAt,
   };
 }
 
-function mapWorkflowDocumentsToFormalDocuments(
-  workflow: ApiDealWorkflowProjection,
+function mapRelatedDocumentsToFormalDocuments(
+  documents: ApiCrmDealWorkbenchProjection["relatedResources"]["formalDocuments"],
+  createdAtFallback: string,
 ): ApiFormalDocument[] {
-  return workflow.relatedResources.formalDocuments.map((document) => ({
+  return documents.map((document) => ({
     amount: null,
     approvalStatus: document.approvalStatus ?? "unknown",
-    createdAt:
-      document.createdAt ?? document.occurredAt ?? workflow.summary.createdAt,
+    createdAt: document.createdAt ?? document.occurredAt ?? createdAtFallback,
     currency: null,
     docType: document.docType,
     id: document.id,
@@ -208,13 +204,9 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function fetchCalculationView(
-  calculationId: string,
+async function fetchCalculationViewFromDetails(
+  calculation: ApiCalculationDetails,
 ): Promise<CalculationView> {
-  const calculation = await fetchJson<ApiCalculationDetails>(
-    `${API_BASE_URL}/calculations/${calculationId}`,
-  );
-
   const currencyIds = [
     calculation.currentSnapshot.calculationCurrencyId,
     calculation.currentSnapshot.baseCurrencyId,
@@ -286,22 +278,6 @@ async function fetchCalculationView(
       baseCurrency.precision,
     ),
   };
-}
-
-async function fetchCalculationHistory(
-  dealId: string,
-): Promise<CalculationHistoryView[]> {
-  const history = await fetchJson<ApiDealCalculationHistoryItem[]>(
-    `${API_BASE_URL}/deals/${dealId}/calculations`,
-  );
-
-  return history.map((item) => ({
-    calculationId: item.calculationId,
-    calculationTimestamp: item.calculationTimestamp,
-    createdAt: item.createdAt,
-    fxQuoteId: item.fxQuoteId,
-    rate: rationalToDecimalString(item.rateNum, item.rateDen),
-  }));
 }
 
 async function fetchCurrencyOptions(): Promise<ApiCurrencyOption[]> {
@@ -391,75 +367,58 @@ export default function DealDetailPage() {
       setLoading(true);
       setError(null);
 
-      const workflow = await fetchJson<ApiDealWorkflowProjection>(
-        `${API_BASE_URL}/deals/${dealId}/workflow`,
+      const workbench = await fetchJson<ApiCrmDealWorkbenchProjection>(
+        `${API_BASE_URL}/deals/${dealId}/crm-workbench`,
       );
-      const deal = buildDealViewFromWorkflow(workflow);
-      const counterpartyId = workflow.intake.common.applicantCounterpartyId;
-      const customerId =
-        workflow.participants.find((participant) => participant.role === "customer")
-          ?.customerId ?? deal.customerId;
+      const deal = buildDealViewFromWorkbench(workbench);
 
-      const [
-        attachments,
-        customer,
-        agreement,
-        requestedCurrency,
-        calculation,
-        calculationHistory,
-        currencyOptions,
-      ] = await Promise.all([
-        fetchJson<ApiAttachment[]>(`${API_BASE_URL}/deals/${dealId}/attachments`),
-        fetchJson<ApiCustomerWorkspace>(`${API_BASE_URL}/customers/${customerId}`),
-        fetchJson<ApiAgreementDetails>(
-          `${API_BASE_URL}/agreements/${workflow.summary.agreementId}`,
-        ),
-        workflow.intake.moneyRequest.sourceCurrencyId
+      if (
+        !workbench.context.agreement ||
+        !workbench.context.customer ||
+        !workbench.context.internalEntity ||
+        !workbench.context.internalEntityRequisite
+      ) {
+        throw new Error("CRM workbench is missing required deal context");
+      }
+
+      const [requestedCurrency, calculation, currencyOptions] = await Promise.all([
+        workbench.intake.moneyRequest.sourceCurrencyId
           ? fetchJson<ApiCurrency>(
-              `${API_BASE_URL}/currencies/${workflow.intake.moneyRequest.sourceCurrencyId}`,
+              `${API_BASE_URL}/currencies/${workbench.intake.moneyRequest.sourceCurrencyId}`,
             )
           : Promise.resolve(null),
-        workflow.summary.calculationId
-          ? fetchCalculationView(workflow.summary.calculationId)
+        workbench.pricing.currentCalculation
+          ? fetchCalculationViewFromDetails(workbench.pricing.currentCalculation)
           : Promise.resolve(null),
-        fetchCalculationHistory(dealId),
         fetchCurrencyOptions(),
       ]);
 
-      const legalEntity = counterpartyId
-        ? customer.legalEntities.find(
-            (candidate) => candidate.counterpartyId === counterpartyId,
-          ) ?? null
-        : null;
-
-      const [organization, organizationRequisite] = await Promise.all([
-        fetchJson<ApiOrganization>(
-          `${API_BASE_URL}/organizations/${agreement.organizationId}`,
-        ),
-        fetchJson<ApiRequisite>(
-          `${API_BASE_URL}/requisites/${agreement.organizationRequisiteId}`,
-        ),
-      ]);
-
-      const organizationRequisiteProvider = await fetchJson<ApiRequisiteProvider | null>(
-        `${API_BASE_URL}/requisites/${agreement.organizationRequisiteId}/provider`,
-      );
-
       setData({
-        agreement,
-        attachments,
+        agreement: workbench.context.agreement,
+        attachments: workbench.relatedResources.attachments,
         calculation,
-        calculationHistory,
+        calculationHistory: workbench.pricing.calculationHistory.map((item) => ({
+          calculationId: item.calculationId,
+          calculationTimestamp: item.calculationTimestamp,
+          createdAt: item.createdAt,
+          fxQuoteId: item.fxQuoteId,
+          rate: rationalToDecimalString(item.rateNum, item.rateDen),
+        })),
         currencyOptions,
-        customer,
+        customer: workbench.context.customer,
         deal,
-        formalDocuments: mapWorkflowDocumentsToFormalDocuments(workflow),
-        legalEntity,
-        organization,
-        organizationRequisite,
-        organizationRequisiteProvider,
+        formalDocuments: mapRelatedDocumentsToFormalDocuments(
+          workbench.relatedResources.formalDocuments,
+          workbench.summary.createdAt,
+        ),
+        legalEntity: workbench.context.applicant,
+        organization: workbench.context.internalEntity,
+        organizationRequisite: workbench.context.internalEntityRequisite,
+        organizationRequisiteProvider:
+          workbench.context.internalEntityRequisiteProvider,
         requestedCurrency,
-        workflow,
+        workbench,
+        workflow: workbench.workflow,
       });
     } catch (nextError) {
       console.error("Deal detail load error:", nextError);
@@ -628,7 +587,7 @@ export default function DealDetailPage() {
   ]);
 
   const calculationTypeSupported = data
-    ? data.workflow.executionPlan.some((leg) => leg.kind === "convert")
+    ? data.workbench.pricing.quoteEligibility
     : false;
   const calculationStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)

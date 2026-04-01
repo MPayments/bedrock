@@ -1,8 +1,16 @@
 "use client";
 
-import { Briefcase, ChevronLeft, Download, Loader2 } from "lucide-react";
+import {
+  Briefcase,
+  ChevronLeft,
+  Download,
+  Loader2,
+  Paperclip,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -15,10 +23,13 @@ import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
+  buildPortalDealAttachmentDownloadUrl,
+  deletePortalDealAttachment,
   type PortalDealProjectionResponse,
   type PortalDealStatus,
   type PortalDealType,
   requestPortalDealProjection,
+  uploadPortalDealAttachment,
 } from "@/lib/portal-deals";
 
 const STATUS_LABELS: Record<PortalDealStatus, string> = {
@@ -79,30 +90,83 @@ export default function PortalDealDetailPage() {
   const [data, setData] = useState<PortalDealProjectionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(
+    null,
+  );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function loadProjection() {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await requestPortalDealProjection(dealId);
+      setData(result);
+    } catch (fetchError) {
+      console.error("Deal fetch error:", fetchError);
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Ошибка загрузки данных",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await requestPortalDealProjection(dealId);
-        setData(result);
-      } catch (fetchError) {
-        console.error("Deal fetch error:", fetchError);
-        setError(
-          fetchError instanceof Error
-            ? fetchError.message
-            : "Ошибка загрузки данных",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (dealId) {
-      void fetchData();
+      void loadProjection();
     }
   }, [dealId]);
+
+  async function handleAttachmentSelection(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      setUploadingAttachment(true);
+      setAttachmentError(null);
+      await uploadPortalDealAttachment({
+        dealId,
+        file,
+      });
+      await loadProjection();
+    } catch (uploadError) {
+      setAttachmentError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Не удалось загрузить вложение",
+      );
+    } finally {
+      setUploadingAttachment(false);
+      event.target.value = "";
+    }
+  }
+
+  async function handleAttachmentDelete(attachmentId: string) {
+    try {
+      setDeletingAttachmentId(attachmentId);
+      setAttachmentError(null);
+      await deletePortalDealAttachment({
+        attachmentId,
+        dealId,
+      });
+      await loadProjection();
+    } catch (deleteError) {
+      setAttachmentError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить вложение",
+      );
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  }
 
   async function handleDownload(format: "pdf" | "docx") {
     if (!data?.calculationSummary) {
@@ -196,6 +260,48 @@ export default function PortalDealDetailPage() {
             </p>
             <p className="text-sm font-medium">{data.nextAction}</p>
           </div>
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">
+              Полнота подачи
+            </p>
+            <p className="text-sm font-medium">
+              {data.submissionCompleteness.complete
+                ? "Заявка заполнена"
+                : "Требуются действия клиента"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">
+              Котировка
+            </p>
+            <p className="text-sm font-medium">
+              {data.quoteSummary?.expiresAt
+                ? `Действует до ${formatDate(data.quoteSummary.expiresAt)}`
+                : "Еще не выпущена"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Действия клиента</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data.requiredActions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Ожидайте следующий этап обработки сделки.
+            </p>
+          ) : (
+            data.requiredActions.map((action) => (
+              <div
+                key={action}
+                className="rounded-md border bg-muted/30 px-3 py-2 text-sm"
+              >
+                {action}
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -261,6 +367,80 @@ export default function PortalDealDetailPage() {
               {data.customerSafeIntake.customerNote ?? "Не указан"}
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2">
+              <Paperclip className="h-5 w-5" />
+              Вложения
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleAttachmentSelection}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={uploadingAttachment}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {uploadingAttachment ? "Загрузка…" : "Загрузить"}
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {attachmentError ? (
+            <p className="text-sm text-destructive">{attachmentError}</p>
+          ) : null}
+          {data.attachments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Пока нет загруженных документов клиента.
+            </p>
+          ) : (
+            data.attachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{attachment.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateTime(attachment.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      window.location.href = buildPortalDealAttachmentDownloadUrl({
+                        attachmentId: attachment.id,
+                        dealId,
+                      });
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={deletingAttachmentId === attachment.id}
+                    onClick={() => void handleAttachmentDelete(attachment.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

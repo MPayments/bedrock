@@ -21,13 +21,33 @@ export interface PortalDealCalculationSummary {
   id: string;
 }
 
+export interface PortalDealAttachment {
+  createdAt: string;
+  fileName: string;
+  id: string;
+}
+
+export interface PortalDealQuoteSummary {
+  expiresAt: string | null;
+  quoteId: string | null;
+  status: string | null;
+}
+
+export interface PortalSubmissionCompleteness {
+  blockingReasons: string[];
+  complete: boolean;
+}
+
 export interface PortalDealListItemProjection {
   applicantDisplayName: string | null;
+  attachmentCount: number;
   calculationSummary: PortalDealCalculationSummary | null;
   createdAt: string;
   id: string;
   nextAction: string;
+  quoteExpiresAt: string | null;
   status: PortalDealStatus;
+  submissionComplete: boolean;
   type: PortalDealType;
 }
 
@@ -64,6 +84,7 @@ export interface PortalDealTimelineEvent {
 }
 
 export interface PortalDealProjectionResponse {
+  attachments: PortalDealAttachment[];
   calculationSummary: PortalDealCalculationSummary | null;
   customerSafeIntake: {
     contractNumber: string | null;
@@ -78,6 +99,9 @@ export interface PortalDealProjectionResponse {
     targetCurrencyId: string | null;
   };
   nextAction: string;
+  quoteSummary: PortalDealQuoteSummary | null;
+  requiredActions: string[];
+  submissionCompleteness: PortalSubmissionCompleteness;
   summary: {
     applicantDisplayName: string | null;
     createdAt: string;
@@ -147,6 +171,75 @@ export async function requestPortalDealProjection(id: string) {
   }
 
   return (await response.json()) as PortalDealProjectionResponse;
+}
+
+export async function requestPortalDealAttachments(id: string) {
+  const response = await fetch(`${API_BASE_URL}/customer/deals/${id}/attachments`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки вложений: ${response.status}`);
+  }
+
+  return (await response.json()) as PortalDealAttachment[];
+}
+
+export async function uploadPortalDealAttachment(input: {
+  dealId: string;
+  description?: string | null;
+  file: File;
+}) {
+  const formData = new FormData();
+  formData.set("file", input.file);
+  if (input.description) {
+    formData.set("description", input.description);
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/customer/deals/${input.dealId}/attachments`,
+    {
+      body: formData,
+      credentials: "include",
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    const errorPayload = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(errorPayload?.error ?? "Не удалось загрузить вложение");
+  }
+
+  return (await response.json()) as PortalDealAttachment;
+}
+
+export function buildPortalDealAttachmentDownloadUrl(input: {
+  attachmentId: string;
+  dealId: string;
+}) {
+  return `${API_BASE_URL}/customer/deals/${input.dealId}/attachments/${input.attachmentId}/download`;
+}
+
+export async function deletePortalDealAttachment(input: {
+  attachmentId: string;
+  dealId: string;
+}) {
+  const response = await fetch(
+    `${API_BASE_URL}/customer/deals/${input.dealId}/attachments/${input.attachmentId}`,
+    {
+      credentials: "include",
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    const errorPayload = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(errorPayload?.error ?? "Не удалось удалить вложение");
+  }
 }
 
 export async function createPortalDealDraft(input: CreatePortalDealDraftInput) {

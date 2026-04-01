@@ -34,6 +34,7 @@
     "@bedrock/shared": "workspace:*",
     "@bedrock/treasury": "workspace:*",
     "@bedrock/workflow-customer-portal": "workspace:*",
+    "@bedrock/workflow-deal-projections": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-document-generation": "workspace:*",
     "@bedrock/workflow-document-posting": "workspace:*",

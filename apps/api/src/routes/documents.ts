@@ -12,7 +12,7 @@ import {
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/model";
 
-import { authByAudience } from "../auth";
+import * as authModule from "../auth";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
@@ -185,6 +185,40 @@ function parseJournalOperationsQuery(requestUrl: string) {
   });
 }
 
+type DocumentPermissionAuthSurface = {
+  api: {
+    userHasPermission: (input: {
+      body: {
+        permissions: {
+          documents: DocumentPermissionAction[];
+        };
+        userId: string;
+      };
+    }) => Promise<{ success: boolean }>;
+  };
+};
+
+function resolveAuthSurface(
+  audience: AuthVariables["audience"],
+): DocumentPermissionAuthSurface {
+  if (Reflect.has(authModule, "authByAudience")) {
+    const byAudience = Reflect.get(authModule, "authByAudience") as Record<
+      string,
+      DocumentPermissionAuthSurface
+    >;
+    const surface = byAudience[audience ?? "crm"] ?? byAudience.crm;
+    if (surface) {
+      return surface;
+    }
+  }
+
+  if (Reflect.has(authModule, "default")) {
+    return Reflect.get(authModule, "default") as DocumentPermissionAuthSurface;
+  }
+
+  throw new Error("Auth surface not configured");
+}
+
 export function documentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const adminSystemOnlyActionsByDocType: Partial<
@@ -220,7 +254,7 @@ export function documentsRoutes(ctx: AppContext) {
     userId: string,
     audience: AuthVariables["audience"],
   ): Promise<Map<DocumentPermissionAction, boolean>> {
-    const auth = authByAudience[audience ?? "crm"];
+    const auth = resolveAuthSurface(audience);
     const uniquePermissions = Array.from(
       new Set<DocumentPermissionAction>(
         Object.values(DOCUMENT_ACTION_TO_PERMISSION),

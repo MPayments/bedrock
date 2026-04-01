@@ -78,17 +78,6 @@ export function LegalEntityCard({ legalEntity }: LegalEntityCardProps) {
                 <div className="text-base">{legalEntity.email}</div>
               </div>
             )}
-            {legalEntity.subAgent && (
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">
-                  Субагент
-                </div>
-                <div className="text-base">
-                  {legalEntity.subAgent.shortName} ·{" "}
-                  {legalEntity.subAgent.commissionRate}%
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <div className="text-sm text-muted-foreground">

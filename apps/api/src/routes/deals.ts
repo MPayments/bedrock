@@ -27,6 +27,12 @@ import {
   QuoteListItemSchema,
   QuoteSchema,
 } from "@bedrock/treasury/contracts";
+import {
+  CrmDealWorkbenchProjectionSchema,
+  FinanceDealQueueFiltersSchema,
+  FinanceDealQueueProjectionSchema,
+  FinanceDealWorkspaceProjectionSchema,
+} from "@bedrock/workflow-deal-projections/contracts";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -204,6 +210,27 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const financeQueuesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/finance/queues",
+    tags: ["Deals"],
+    summary: "List finance deal queues",
+    request: {
+      query: FinanceDealQueueFiltersSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FinanceDealQueueProjectionSchema,
+          },
+        },
+        description: "Finance deal queues",
+      },
+    },
+  });
+
   const getRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -250,6 +277,64 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Deal workflow projection",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+    },
+  });
+
+  const getCrmWorkbenchRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/crm-workbench",
+    tags: ["Deals"],
+    summary: "Get CRM deal workbench projection",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CrmDealWorkbenchProjectionSchema,
+          },
+        },
+        description: "CRM deal workbench projection",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+    },
+  });
+
+  const getFinanceWorkspaceRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/finance-workspace",
+    tags: ["Deals"],
+    summary: "Get finance deal workspace projection",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FinanceDealWorkspaceProjectionSchema,
+          },
+        },
+        description: "Finance deal workspace projection",
       },
       404: {
         content: {
@@ -755,6 +840,15 @@ export function dealsRoutes(ctx: AppContext) {
   });
 
   return app
+    .openapi(financeQueuesRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result = await ctx.dealProjectionsWorkflow.listFinanceDealQueues(query);
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(listRoute, async (c) => {
       try {
         const query = c.req.valid("query");
@@ -959,6 +1053,36 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const result = await ctx.dealsModule.deals.queries.findWorkflowById(id);
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getCrmWorkbenchRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.dealProjectionsWorkflow.getCrmDealWorkbenchProjection(id);
+
+        if (!result) {
+          return c.json({ error: `Deal ${id} not found` }, 404 as const);
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getFinanceWorkspaceRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(id);
+
+        if (!result) {
+          return c.json({ error: `Deal ${id} not found` }, 404 as const);
+        }
+
         return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);

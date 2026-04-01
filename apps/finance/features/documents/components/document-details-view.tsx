@@ -25,6 +25,7 @@ import {
   type DocumentDetailsDto,
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
+import { DealWorkflowDialog } from "@/features/treasury/quotes/components/deal-workflow-dialog";
 
 import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
@@ -128,11 +129,13 @@ function buildDocumentHref(
 }
 
 export function DocumentDetailsView({
+  dealId,
   details,
   documentBasePath,
   userRole,
   formOptions,
 }: {
+  dealId?: string | null;
   details: DocumentDetailsDto;
   documentBasePath: string;
   userRole: UserRole;
@@ -170,6 +173,7 @@ export function DocumentDetailsView({
               documentId={document.id}
               allowedActions={document.allowedActions}
             />
+            {dealId ? <DealWorkflowDialog dealId={dealId} /> : null}
           </div>
         </CardHeader>
         <CardContent className="grid gap-6 py-6 md:grid-cols-2">

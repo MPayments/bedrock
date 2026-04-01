@@ -28,6 +28,7 @@ export const DocumentSchema = z.object({
   amount: z.string().nullable(),
   currency: z.string().nullable(),
   memo: z.string().nullable(),
+  dealId: z.string().nullable(),
   counterpartyId: z.string().nullable(),
   customerId: z.string().nullable(),
   organizationRequisiteId: z.string().nullable(),

@@ -37,6 +37,10 @@ import {
   type CustomerPortalWorkflow,
 } from "@bedrock/workflow-customer-portal";
 import {
+  createDealProjectionsWorkflow,
+  type DealProjectionsWorkflow,
+} from "@bedrock/workflow-deal-projections";
+import {
   createDocumentDraftWorkflow,
   type DocumentDraftWorkflow,
 } from "@bedrock/workflow-document-drafts";
@@ -92,6 +96,7 @@ export interface ApiApplicationServices {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   dealQuoteWorkflow: DealQuoteWorkflow;
+  dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
@@ -459,6 +464,15 @@ export function createApplicationServices(
     objectStorage,
     persistence: createPersistenceContext(db),
   });
+  const dealProjectionsWorkflow = createDealProjectionsWorkflow({
+    agreements: agreementsModule,
+    calculations: calculationsModule,
+    deals: dealsModule,
+    documentsReadModel,
+    files: filesModule,
+    parties: partiesModule,
+    treasury: treasuryModule,
+  });
 
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
@@ -514,6 +528,7 @@ export function createApplicationServices(
     currenciesService,
     treasuryModule,
     dealQuoteWorkflow,
+    dealProjectionsWorkflow,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,

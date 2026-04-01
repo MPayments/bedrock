@@ -3,14 +3,18 @@ import type { MiddlewareHandler } from "hono";
 
 import {
   CreatePortalDealInputSchema,
-  PortalDealListProjectionSchema,
-  PortalDealProjectionSchema,
 } from "@bedrock/deals/contracts";
+import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
+import {
+  PortalDealListProjectionSchema,
+  PortalDealProjectionSchema,
+} from "@bedrock/workflow-deal-projections/contracts";
 
 import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
 import { lookupCompanyByInn } from "./legal-entities";
+import { DeletedSchema } from "../common";
 import { withStoredResultRouteIdempotency } from "../common/route-idempotency";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -333,6 +337,11 @@ const CustomerPortalCompanyLookupResultSchema = z.object({
 const CustomerPortalDealIdParamSchema = z.object({
   id: z.string().uuid(),
 });
+const CustomerPortalDealAttachmentParamsSchema = CustomerPortalDealIdParamSchema.extend(
+  {
+    attachmentId: z.string().uuid(),
+  },
+);
 
 const CustomerPortalCreateDealInputSchema = z.object({
   counterpartyId: z.string().uuid(),
@@ -693,7 +702,7 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
-  const getDealProjectionRoute = createRoute({
+const getDealProjectionRoute = createRoute({
     method: "get",
     path: "/deals/{id}/projection",
     tags: ["Customer"],
@@ -713,6 +722,148 @@ export function customerRoutes(ctx: AppContext) {
       },
     },
   });
+
+  const listDealAttachmentsRoute = createRoute({
+    method: "get",
+    path: "/deals/{id}/attachments",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "List customer-safe deal attachments",
+    request: { params: CustomerPortalDealIdParamSchema },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(PortalDealProjectionSchema.shape.attachments.element),
+          },
+        },
+        description: "Customer-safe deal attachments",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  const uploadDealAttachmentRoute = createRoute({
+    method: "post",
+    path: "/deals/{id}/attachments",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Upload a customer-safe deal attachment",
+    request: { params: CustomerPortalDealIdParamSchema },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: PortalDealProjectionSchema.shape.attachments.element,
+          },
+        },
+        description: "Uploaded attachment",
+      },
+      400: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "File is required",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  const downloadDealAttachmentRoute = createRoute({
+    method: "get",
+    path: "/deals/{id}/attachments/{attachmentId}/download",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Download a customer-safe deal attachment",
+    request: { params: CustomerPortalDealAttachmentParamsSchema },
+    responses: {
+      302: {
+        description: "Redirect to attachment download",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  const deleteDealAttachmentRoute = createRoute({
+    method: "delete",
+    path: "/deals/{id}/attachments/{attachmentId}",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Delete a customer-safe deal attachment",
+    request: { params: CustomerPortalDealAttachmentParamsSchema },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DeletedSchema,
+          },
+        },
+        description: "Attachment deleted",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  async function listAuthorizedCustomerIds(userId: string) {
+    const result = await ctx.customerPortalWorkflow.getCustomerContexts({ userId });
+    return Array.from(new Set(result.data.map((item) => item.customerId)));
+  }
+
+  async function findAuthorizedPortalDealProjection(
+    userId: string,
+    dealId: string,
+  ) {
+    const customerIds = await listAuthorizedCustomerIds(userId);
+
+    for (const customerId of customerIds) {
+      const projection = await ctx.dealProjectionsWorkflow.getPortalDealProjection(
+        dealId,
+        customerId,
+      );
+
+      if (projection) {
+        return projection;
+      }
+    }
+
+    throw new Error("CustomerNotAuthorizedError");
+  }
+
+  async function listAuthorizedPortalDealProjections(
+    userId: string,
+    input: { limit?: number; offset?: number },
+  ) {
+    const customerIds = await listAuthorizedCustomerIds(userId);
+
+    const results = await Promise.all(
+      customerIds.map((customerId) =>
+        ctx.dealProjectionsWorkflow.listPortalDeals(customerId, 200, 0),
+      ),
+    );
+
+    const allDeals = results.flatMap((result) => result.data);
+    allDeals.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+
+    const limit = input.limit ?? 20;
+    const offset = input.offset ?? 0;
+
+    return {
+      data: allDeals.slice(offset, offset + limit),
+      limit,
+      offset,
+      total: allDeals.length,
+    };
+  }
 
   return app
     .openapi(getProfileRoute, async (c) => {
@@ -937,11 +1088,16 @@ export function customerRoutes(ctx: AppContext) {
           return result;
         }
 
-        return c.json(result, 201);
+        const projection = await findAuthorizedPortalDealProjection(
+          user.id,
+          result.summary.id,
+        );
+        return c.json(projection, 201);
       } catch (error) {
         if (
           error instanceof Error &&
-          error.name === "CustomerNotAuthorizedError"
+          (error.name === "CustomerNotAuthorizedError" ||
+            error.message === "CustomerNotAuthorizedError")
         ) {
           return c.json({ error: error.message }, 403);
         }
@@ -961,10 +1117,7 @@ export function customerRoutes(ctx: AppContext) {
     .openapi(listDealProjectionsRoute, async (c) => {
       const user = c.get("user")!;
       const query = c.req.valid("query");
-      const result = await ctx.customerPortalWorkflow.listMyDealProjections(
-        { userId: user.id },
-        query,
-      );
+      const result = await listAuthorizedPortalDealProjections(user.id, query);
       return c.json(result, 200);
     })
     .openapi(getDealRoute, async (c) => {
@@ -993,17 +1146,159 @@ export function customerRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const result = await ctx.customerPortalWorkflow.getDealProjectionById(
-          { userId: user.id },
-          id,
-        );
+        const result = await findAuthorizedPortalDealProjection(user.id, id);
         return c.json(result, 200);
       } catch (error) {
         if (
           error instanceof Error &&
-          error.name === "CustomerNotAuthorizedError"
+          (error.name === "CustomerNotAuthorizedError" ||
+            error.message === "CustomerNotAuthorizedError")
         ) {
           return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listDealAttachmentsRoute, async (c) => {
+      const user = c.get("user")!;
+      const { id } = c.req.valid("param");
+
+      try {
+        const projection = await findAuthorizedPortalDealProjection(user.id, id);
+        return c.json(projection.attachments, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: "Deal not found" }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(uploadDealAttachmentRoute, async (c) => {
+      const user = c.get("user")!;
+      const { id } = c.req.valid("param");
+
+      try {
+        await findAuthorizedPortalDealProjection(user.id, id);
+
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400);
+        }
+
+        const uploaded = await ctx.filesModule.files.commands.uploadDealAttachment({
+          buffer: Buffer.from(await file.arrayBuffer()),
+          description:
+            typeof body.description === "string" ? body.description : null,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          ownerId: id,
+          uploadedBy: user.id,
+        });
+
+        await ctx.dealsModule.deals.commands.appendTimelineEvent({
+          actorUserId: user.id,
+          dealId: id,
+          payload: {
+            attachmentId: uploaded.id,
+            fileName: uploaded.fileName,
+          },
+          sourceRef: `attachment:${uploaded.id}:uploaded:customer`,
+          type: "attachment_uploaded",
+          visibility: "customer_safe",
+        });
+
+        const projection = await findAuthorizedPortalDealProjection(user.id, id);
+        const attachment = projection.attachments.find(
+          (item) => item.id === uploaded.id,
+        );
+
+        return c.json(
+          attachment ?? {
+            createdAt: uploaded.createdAt,
+            fileName: uploaded.fileName,
+            id: uploaded.id,
+          },
+          201,
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: "Deal not found" }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(downloadDealAttachmentRoute, async (c) => {
+      const user = c.get("user")!;
+      const { attachmentId, id } = c.req.valid("param");
+
+      try {
+        const projection = await findAuthorizedPortalDealProjection(user.id, id);
+        if (!projection.attachments.some((attachment) => attachment.id === attachmentId)) {
+          return c.json({ error: "Deal not found" }, 403);
+        }
+
+        const url =
+          await ctx.filesModule.files.queries.getDealAttachmentDownloadUrl({
+            fileAssetId: attachmentId,
+            ownerId: id,
+          });
+
+        return c.redirect(url, 302);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: "Deal not found" }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(deleteDealAttachmentRoute, async (c) => {
+      const user = c.get("user")!;
+      const { attachmentId, id } = c.req.valid("param");
+
+      try {
+        const projection = await findAuthorizedPortalDealProjection(user.id, id);
+        if (!projection.attachments.some((attachment) => attachment.id === attachmentId)) {
+          return c.json({ error: "Deal not found" }, 403);
+        }
+
+        await ctx.filesModule.files.commands.deleteDealAttachment({
+          fileAssetId: attachmentId,
+          ownerId: id,
+        });
+
+        await ctx.dealsModule.deals.commands.appendTimelineEvent({
+          actorUserId: user.id,
+          dealId: id,
+          payload: {
+            attachmentId,
+          },
+          sourceRef: `attachment:${attachmentId}:deleted:customer`,
+          type: "attachment_deleted",
+          visibility: "customer_safe",
+        });
+
+        return c.json({ deleted: true }, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: "Deal not found" }, 403);
         }
 
         throw error;

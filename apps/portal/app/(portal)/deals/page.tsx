@@ -325,6 +325,27 @@ export default function PortalDealsPage() {
                     <p className="text-sm font-medium">
                       {deal.applicantDisplayName ?? "Организация не указана"}
                     </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
+                          deal.submissionComplete
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                        }`}
+                      >
+                        {deal.submissionComplete
+                          ? "Заявка заполнена"
+                          : "Нужно дополнить"}
+                      </span>
+                      <span className="text-muted-foreground">
+                        Вложений: {deal.attachmentCount}
+                      </span>
+                      {deal.quoteExpiresAt ? (
+                        <span className="text-muted-foreground">
+                          Котировка до {formatDate(deal.quoteExpiresAt)}
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Следующее действие: {deal.nextAction}
                     </p>

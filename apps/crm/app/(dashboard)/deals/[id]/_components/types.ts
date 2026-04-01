@@ -388,33 +388,18 @@ export type ApiAgreementDetails = {
 };
 
 export type ApiCustomerLegalEntity = {
-  account: string | null;
-  beneficiaryName: string | null;
-  bic: string | null;
-  corrAccount: string | null;
   counterpartyId: string;
   directorBasis: string | null;
   directorName: string | null;
   email: string | null;
   fullName: string;
-  iban: string | null;
   inn: string | null;
   kpp: string | null;
-  ogrn: string | null;
   orgName: string;
   phone: string | null;
   position: string | null;
   relationshipKind: "customer_owned" | "external";
   shortName: string;
-  subAgent: {
-    commissionRate: number;
-    counterpartyId: string;
-    fullName: string;
-    kind: "individual" | "legal_entity";
-    shortName: string;
-  } | null;
-  swift: string | null;
-  vatId: string | null;
 };
 
 export type ApiCustomerWorkspace = {
@@ -423,8 +408,6 @@ export type ApiCustomerWorkspace = {
   externalRef: string | null;
   id: string;
   legalEntities: ApiCustomerLegalEntity[];
-  orgName: string | null;
-  shortName: string | null;
 };
 
 export type ApiOrganization = {
@@ -532,4 +515,42 @@ export type DealPageData = {
   organizationRequisiteProvider: ApiRequisiteProvider | null;
   requestedCurrency: ApiCurrency | null;
   currencyOptions: ApiCurrencyOption[];
+  workbench: ApiCrmDealWorkbenchProjection;
+};
+
+export type ApiCrmDealWorkbenchProjection = {
+  acceptedQuote: ApiDealAcceptedQuote;
+  approvals: ApiDealDetails["approvals"];
+  context: {
+    agreement: ApiAgreementDetails | null;
+    applicant: ApiCustomerLegalEntity | null;
+    customer: ApiCustomerWorkspace | null;
+    internalEntity: ApiOrganization | null;
+    internalEntityRequisite: ApiRequisite | null;
+    internalEntityRequisiteProvider: ApiRequisiteProvider | null;
+  };
+  executionPlan: ApiDealWorkflowLeg[];
+  intake: ApiDealWorkflowProjection["intake"];
+  nextAction: string;
+  operationalState: ApiDealOperationalState;
+  participants: ApiDealWorkflowParticipant[];
+  pricing: {
+    calculationHistory: ApiDealCalculationHistoryItem[];
+    currentCalculation: ApiCalculationDetails | null;
+    quoteEligibility: boolean;
+    quotes: ApiDealWorkflowProjection["relatedResources"]["quotes"];
+  };
+  relatedResources: {
+    attachments: ApiAttachment[];
+    formalDocuments: ApiDealWorkflowProjection["relatedResources"]["formalDocuments"];
+  };
+  sectionCompleteness: ApiDealSectionCompleteness[];
+  summary: ApiDealWorkflowProjection["summary"] & {
+    applicantDisplayName: string | null;
+    customerDisplayName: string | null;
+    internalEntityDisplayName: string | null;
+  };
+  timeline: ApiDealTimelineEvent[];
+  transitionReadiness: ApiDealTransitionReadiness[];
+  workflow: ApiDealWorkflowProjection;
 };

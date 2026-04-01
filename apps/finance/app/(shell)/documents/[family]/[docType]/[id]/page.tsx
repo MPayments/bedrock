@@ -44,6 +44,7 @@ export default async function DocumentsDetailsPage({ params }: PageProps) {
   return (
     <DocumentDetailsView
       details={details}
+      dealId={details.document.dealId}
       documentBasePath={`/documents/${family}`}
       userRole={session.role}
       formOptions={formOptions}

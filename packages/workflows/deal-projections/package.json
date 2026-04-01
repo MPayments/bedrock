@@ -1,0 +1,44 @@
+{
+  "name": "@bedrock/workflow-deal-projections",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.test.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/agreements": "workspace:*",
+    "@bedrock/calculations": "workspace:*",
+    "@bedrock/deals": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/files": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "workflow",
+    "tags": [
+      "workflow",
+      "deal-projections"
+    ]
+  }
+}
