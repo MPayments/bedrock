@@ -4,16 +4,6 @@ import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Command,
@@ -45,37 +35,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  type PortalCustomerContext,
+  type PortalLegalEntityContext,
+  requestCustomerContexts,
+} from "@/lib/customer-contexts";
 import {
   formatCustomerLegalEntityLabel,
   isDuplicateCustomerLegalEntityName,
 } from "@/lib/legal-entities";
 import { cn } from "@/lib/utils";
 
-interface CustomerLegalEntity {
-  counterpartyId: string;
-  inn: string | null;
-  shortName: string;
-}
-
-interface CustomerContext {
-  customerId: string;
-  displayName: string;
-  legalEntities: CustomerLegalEntity[];
-  primaryCounterpartyId: string | null;
-}
-
-interface CustomerClientsResponse {
-  data: CustomerContext[];
-  total: number;
-}
-
-interface LegalEntityOption extends CustomerLegalEntity {
+interface LegalEntityOption extends PortalLegalEntityContext {
+  agentAgreementStatus: "active" | "missing";
   customerDisplayName: string;
   customerId: string;
 }
 
 interface NewDealDialogProps {
+  customerContexts?: PortalCustomerContext[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -90,12 +79,13 @@ const CURRENCIES = [
 ];
 
 export function NewDealDialog({
+  customerContexts,
   open,
   onOpenChange,
   onSuccess,
 }: NewDealDialogProps) {
   const router = useRouter();
-  const [customers, setCustomers] = useState<CustomerContext[]>([]);
+  const [customers, setCustomers] = useState<PortalCustomerContext[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientsOpen, setClientsOpen] = useState(false);
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
@@ -111,6 +101,7 @@ export function NewDealDialog({
     () =>
       customers.flatMap((customer) =>
         customer.legalEntities.map((legalEntity) => ({
+          agentAgreementStatus: customer.agentAgreement.status,
           ...legalEntity,
           customerDisplayName: customer.displayName,
           customerId: customer.customerId,
@@ -118,20 +109,35 @@ export function NewDealDialog({
       ),
     [customers],
   );
+  const eligibleLegalEntities = useMemo(
+    () =>
+      legalEntities.filter(
+        (legalEntity) => legalEntity.agentAgreementStatus === "active",
+      ),
+    [legalEntities],
+  );
 
   const selectedLegalEntity =
     legalEntities.find(
       (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
     ) ?? null;
+  const selectedLegalEntityEligible =
+    selectedLegalEntity?.agentAgreementStatus === "active";
 
   useEffect(() => {
-    if (open && customers.length === 0) {
+    if (customerContexts) {
+      setCustomers(customerContexts);
+    }
+  }, [customerContexts]);
+
+  useEffect(() => {
+    if (open && !customerContexts && customers.length === 0) {
       void fetchClients();
     }
-  }, [customers.length, open]);
+  }, [customerContexts, customers.length, open]);
 
   useEffect(() => {
-    if (!open || selectedCounterpartyId || legalEntities.length === 0) {
+    if (!open || selectedCounterpartyId || eligibleLegalEntities.length === 0) {
       return;
     }
 
@@ -140,30 +146,29 @@ export function NewDealDialog({
         .flatMap((customer) =>
           customer.legalEntities.map((legalEntity) => ({
             counterpartyId: legalEntity.counterpartyId,
+            eligible: customer.agentAgreement.status === "active",
             preferred:
               customer.primaryCounterpartyId === legalEntity.counterpartyId,
           })),
         )
-        .find((item) => item.preferred)?.counterpartyId ??
-      legalEntities[0]?.counterpartyId;
+        .find((item) => item.preferred && item.eligible)?.counterpartyId ??
+      eligibleLegalEntities[0]?.counterpartyId;
 
     if (preferredCounterparty) {
       setSelectedCounterpartyId(preferredCounterparty);
     }
-  }, [customers, legalEntities, open, selectedCounterpartyId]);
+  }, [customers, eligibleLegalEntities, open, selectedCounterpartyId]);
+
+  useEffect(() => {
+    if (selectedCounterpartyId && !selectedLegalEntityEligible) {
+      setSelectedCounterpartyId(undefined);
+    }
+  }, [selectedCounterpartyId, selectedLegalEntityEligible]);
 
   async function fetchClients() {
     try {
       setLoadingClients(true);
-      const response = await fetch(`${API_BASE_URL}/customer/contexts`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Ошибка загрузки организаций");
-      }
-
-      const data: CustomerClientsResponse = await response.json();
+      const data = await requestCustomerContexts();
       setCustomers(data.data ?? []);
     } catch (fetchError) {
       console.error("Error fetching clients:", fetchError);
@@ -174,8 +179,15 @@ export function NewDealDialog({
   }
 
   async function handleCreate() {
-    if (!selectedCounterpartyId) {
-      setError("Выберите юридическое лицо");
+    if (eligibleLegalEntities.length === 0) {
+      setError("Чтобы создать сделку, сначала заключите агентский договор.");
+      return;
+    }
+
+    if (!selectedCounterpartyId || !selectedLegalEntityEligible) {
+      setError(
+        "Чтобы создать сделку, выберите организацию с действующим агентским договором.",
+      );
       return;
     }
 
@@ -281,12 +293,16 @@ export function NewDealDialog({
                         {legalEntities.map((legalEntity) => (
                           <CommandItem
                             key={legalEntity.counterpartyId}
+                            disabled={legalEntity.agentAgreementStatus !== "active"}
                             value={formatCustomerLegalEntityLabel({
                               customerDisplayName:
                                 legalEntity.customerDisplayName,
                               legalEntityName: legalEntity.shortName,
                             })}
                             onSelect={() => {
+                              if (legalEntity.agentAgreementStatus !== "active") {
+                                return;
+                              }
                               setSelectedCounterpartyId(
                                 legalEntity.counterpartyId,
                               );
@@ -320,6 +336,11 @@ export function NewDealDialog({
                                   ИНН: {legalEntity.inn}
                                 </span>
                               ) : null}
+                              {legalEntity.agentAgreementStatus !== "active" ? (
+                                <span className="block truncate text-xs text-amber-600">
+                                  Агентский договор не заключен
+                                </span>
+                              ) : null}
                             </div>
                           </CommandItem>
                         ))}
@@ -333,6 +354,11 @@ export function NewDealDialog({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Загрузка юридических лиц...
                 </div>
+              ) : null}
+              {!loadingClients && eligibleLegalEntities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Чтобы создать сделку, сначала заключите агентский договор.
+                </p>
               ) : null}
             </div>
 
@@ -375,7 +401,15 @@ export function NewDealDialog({
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Отмена
             </Button>
-            <Button onClick={handleCreate} disabled={creating || loadingClients}>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                creating ||
+                loadingClients ||
+                !selectedCounterpartyId ||
+                !selectedLegalEntityEligible
+              }
+            >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Создать сделку
             </Button>

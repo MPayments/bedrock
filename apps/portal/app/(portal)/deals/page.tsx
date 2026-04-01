@@ -1,13 +1,28 @@
 "use client";
 
-import { Briefcase, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  Briefcase,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Plus,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { NewDealDialog } from "@/components/portal/new-application-dialog";
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+
+import { NewDealDialog } from "@/components/portal/new-application-dialog";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  hasActiveAgentAgreement,
+  type PortalCustomerContext,
+  requestCustomerContexts,
+} from "@/lib/customer-contexts";
 
 type DealStatus =
   | "draft"
@@ -41,46 +56,52 @@ interface DealsResponse {
   total: number;
 }
 
-const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> = {
-  draft: {
-    label: "Черновик",
-    className: "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300",
-  },
-  submitted: {
-    label: "Отправлена",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  },
-  rejected: {
-    label: "Отклонена",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  },
-  preparing_documents: {
-    label: "Подготовка документов",
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  },
-  awaiting_funds: {
-    label: "Ожидание средств",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  },
-  awaiting_payment: {
-    label: "Ожидание оплаты",
-    className:
-      "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
-  },
-  closing_documents: {
-    label: "Закрытие документов",
-    className: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
-  },
-  done: {
-    label: "Завершена",
-    className:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-  },
-  cancelled: {
-    label: "Отменена",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  },
-};
+const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> =
+  {
+    draft: {
+      label: "Черновик",
+      className:
+        "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300",
+    },
+    submitted: {
+      label: "Отправлена",
+      className:
+        "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+    },
+    rejected: {
+      label: "Отклонена",
+      className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+    },
+    preparing_documents: {
+      label: "Подготовка документов",
+      className:
+        "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    awaiting_funds: {
+      label: "Ожидание средств",
+      className:
+        "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+    },
+    awaiting_payment: {
+      label: "Ожидание оплаты",
+      className:
+        "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+    },
+    closing_documents: {
+      label: "Закрытие документов",
+      className:
+        "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
+    },
+    done: {
+      label: "Завершена",
+      className:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+    },
+    cancelled: {
+      label: "Отменена",
+      className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+    },
+  };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -116,10 +137,19 @@ export default function PortalDealsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [customerContexts, setCustomerContexts] = useState<
+    PortalCustomerContext[]
+  >([]);
+  const [loadingCustomerContexts, setLoadingCustomerContexts] = useState(true);
+  const [customerContextsError, setCustomerContextsError] = useState<
+    string | null
+  >(null);
+  const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
 
   const limit = 10;
 
-  const fetchDeals = useCallback(async (currentPage: number) => {
+  const fetchDeals = useCallback(
+    async (currentPage: number) => {
       try {
         setLoading(true);
         setError(null);
@@ -147,16 +177,54 @@ export default function PortalDealsPage() {
       } catch (fetchError) {
         console.error("Error fetching deals:", fetchError);
         setError(
-          fetchError instanceof Error ? fetchError.message : "Ошибка загрузки сделок",
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Ошибка загрузки сделок",
         );
       } finally {
         setLoading(false);
       }
-    }, [limit]);
+    },
+    [limit],
+  );
+
+  const fetchCustomerContexts = useCallback(async () => {
+    try {
+      setLoadingCustomerContexts(true);
+      setCustomerContextsError(null);
+      const data = await requestCustomerContexts();
+      setCustomerContexts(data.data ?? []);
+    } catch (fetchError) {
+      console.error("Error fetching customer contexts:", fetchError);
+      setCustomerContextsError(
+        "Не удалось проверить статус агентского договора",
+      );
+    } finally {
+      setLoadingCustomerContexts(false);
+    }
+  }, []);
 
   useEffect(() => {
     void fetchDeals(page);
   }, [fetchDeals, page]);
+
+  useEffect(() => {
+    void fetchCustomerContexts();
+  }, [fetchCustomerContexts]);
+
+  const canCreateDeal = customerContexts.some(hasActiveAgentAgreement);
+  const dealCreationDisabled = loadingCustomerContexts || !canCreateDeal;
+  const showMissingAgreementAlert =
+    !loadingCustomerContexts &&
+    !customerContextsError &&
+    !canCreateDeal &&
+    !agreementAlertDismissed;
+
+  useEffect(() => {
+    if (canCreateDeal) {
+      setAgreementAlertDismissed(false);
+    }
+  }, [canCreateDeal]);
 
   function renderDealAmount(deal: DealItem) {
     if (deal.calculation) {
@@ -177,7 +245,10 @@ export default function PortalDealsPage() {
 
     if (deal.requestedAmount && deal.requestedCurrencyCode) {
       return {
-        amount: formatCurrency(deal.requestedAmount, deal.requestedCurrencyCode),
+        amount: formatCurrency(
+          deal.requestedAmount,
+          deal.requestedCurrencyCode,
+        ),
         summary: null,
       };
     }
@@ -197,23 +268,60 @@ export default function PortalDealsPage() {
             <h1 className="text-2xl font-bold">Мои сделки</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {totalItems}{" "}
-              {totalItems === 1 ? "сделка" : totalItems < 5 ? "сделки" : "сделок"}
+              {totalItems === 1
+                ? "сделка"
+                : totalItems < 5
+                  ? "сделки"
+                  : "сделок"}
             </p>
           </div>
         </div>
-        <Button size="sm" onClick={() => setDialogOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => setDialogOpen(true)}
+          disabled={dealCreationDisabled}
+        >
           <Plus className="mr-1 h-4 w-4" />
           <span className="hidden sm:inline">Создать сделку</span>
           <span className="sm:hidden">Создать</span>
         </Button>
       </div>
 
+      {customerContextsError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Не удалось проверить статус агентского договора.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {showMissingAgreementAlert ? (
+        <Alert variant="warning" className="pr-12">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Заключите агентский договор, чтобы создавать сделки.
+          </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/50 dark:hover:text-amber-100"
+            onClick={() => setAgreementAlertDismissed(true)}
+            aria-label="Закрыть уведомление"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </Alert>
+      ) : null}
+
       <NewDealDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        customerContexts={customerContexts}
         onSuccess={() => {
           setPage(1);
           void fetchDeals(1);
+          void fetchCustomerContexts();
         }}
       />
 
@@ -255,7 +363,9 @@ export default function PortalDealsPage() {
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">#{deal.id}</span>
+                      <span className="font-medium text-foreground">
+                        #{deal.id}
+                      </span>
                       <span>•</span>
                       <span>{formatDate(deal.createdAt)}</span>
                     </div>
@@ -302,7 +412,9 @@ export default function PortalDealsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
             disabled={page === totalPages}
           >
             Далее

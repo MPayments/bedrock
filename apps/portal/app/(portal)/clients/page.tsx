@@ -14,54 +14,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import { API_BASE_URL } from "@/lib/constants";
+
+import {
+  type PortalCustomerContext,
+  requestCustomerContexts,
+} from "@/lib/customer-contexts";
 import { isDuplicateCustomerLegalEntityName } from "@/lib/legal-entities";
-
-interface LegalEntity {
-  counterpartyId: string;
-  inn: string | null;
-  phone: string | null;
-  relationshipKind: "customer_owned" | "external";
-  shortName: string;
-}
-
-interface CustomerContext {
-  agentAgreement: {
-    contractNumber: string | null;
-    status: "active" | "missing";
-  };
-  customerId: string;
-  displayName: string;
-  externalRef: string | null;
-  description: string | null;
-  legalEntities: LegalEntity[];
-  legalEntityCount: number;
-  primaryCounterpartyId: string | null;
-}
-
-interface CustomerClientsResponse {
-  data: CustomerContext[];
-  total: number;
-}
 
 export default function PortalClientsPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState<CustomerContext[]>([]);
+  const [customers, setCustomers] = useState<PortalCustomerContext[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchCustomerContexts() {
       try {
-        const response = await fetch(`${API_BASE_URL}/customer/contexts`, {
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          router.push("/onboard");
-          return;
-        }
-
-        const data: CustomerClientsResponse = await response.json();
+        const data = await requestCustomerContexts();
         setCustomers(data.data);
       } catch (error) {
         console.error("Error fetching clients:", error);
