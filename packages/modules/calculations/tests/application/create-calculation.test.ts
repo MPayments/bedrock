@@ -121,6 +121,19 @@ describe("create calculation command", () => {
       rateDen: "100",
       calculationTimestamp: "2026-03-30T12:00:00.000Z",
       fxQuoteId: "00000000-0000-4000-8000-000000000020",
+      financialLines: [
+        {
+          kind: "fee_revenue",
+          currencyId: "00000000-0000-4000-8000-000000000001",
+          amountMinor: "125",
+        },
+        {
+          kind: "pass_through",
+          currencyId: "00000000-0000-4000-8000-000000000002",
+          amountMinor: "10",
+        },
+      ],
+      quoteSnapshot: { ref: "quote-1" },
     });
 
     expect(result).toBe(expected);
@@ -138,24 +151,16 @@ describe("create calculation command", () => {
         feeBps: 125n,
         rateNum: 81n,
         rateDen: 100n,
+        quoteSnapshot: { ref: "quote-1" },
       }),
     );
     expect(harness.calculationStore.createCalculationLines).toHaveBeenCalledWith([
       expect.objectContaining({
-        kind: "original_amount",
+        kind: "fee_revenue",
         idx: 0,
         calculationSnapshotId: "00000000-0000-4000-8000-000000000011",
       }),
-      expect.objectContaining({ kind: "fee_amount", idx: 1 }),
-      expect.objectContaining({ kind: "total_amount", idx: 2 }),
-      expect.objectContaining({ kind: "additional_expenses", idx: 3 }),
-      expect.objectContaining({ kind: "fee_amount_in_base", idx: 4 }),
-      expect.objectContaining({ kind: "total_in_base", idx: 5 }),
-      expect.objectContaining({ kind: "additional_expenses_in_base", idx: 6 }),
-      expect.objectContaining({
-        kind: "total_with_expenses_in_base",
-        idx: 7,
-      }),
+      expect.objectContaining({ kind: "pass_through", idx: 1 }),
     ]);
     expect(harness.calculationStore.setCurrentSnapshot).toHaveBeenCalledWith({
       calculationId: "00000000-0000-4000-8000-000000000010",

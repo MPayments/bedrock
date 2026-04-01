@@ -71,9 +71,11 @@ function createDealsModuleStub() {
       queries: {
         list: vi.fn(),
         findById: vi.fn(),
+        listCalculationHistory: vi.fn(),
       },
       commands: {
         create: vi.fn(),
+        attachCalculation: vi.fn(),
       },
     },
   };
@@ -81,6 +83,24 @@ function createDealsModuleStub() {
 
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
+  const treasuryModule = {
+    quotes: {
+      queries: {
+        listQuotes: vi.fn(),
+        getQuoteDetails: vi.fn(),
+      },
+    },
+  };
+  const calculationsModule = {
+    calculations: {
+      commands: {
+        create: vi.fn(),
+      },
+    },
+  };
+  const currenciesService = {
+    findByCode: vi.fn(),
+  };
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -95,9 +115,23 @@ function createTestApp() {
     await next();
   });
 
-  app.route("/deals", dealsRoutes({ dealsModule } as any));
+  app.route(
+    "/deals",
+    dealsRoutes({
+      dealsModule,
+      treasuryModule,
+      calculationsModule,
+      currenciesService,
+    } as any),
+  );
 
-  return { app, dealsModule };
+  return {
+    app,
+    dealsModule,
+    treasuryModule,
+    calculationsModule,
+    currenciesService,
+  };
 }
 
 describe("deals routes", () => {
@@ -184,5 +218,203 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("lists calculation history for a deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.queries.listCalculationHistory.mockResolvedValue([
+      {
+        calculationId: detail.calculationId,
+        calculationTimestamp: detail.createdAt,
+        createdAt: detail.createdAt,
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000101",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000102",
+        originalAmountMinor: "10000",
+        feeAmountMinor: "100",
+        totalAmountMinor: "10100",
+        totalInBaseMinor: "9000",
+        totalWithExpensesInBaseMinor: "9100",
+        rateNum: "9",
+        rateDen: "10",
+        fxQuoteId: "00000000-0000-4000-8000-000000000201",
+        sourceQuoteId: "00000000-0000-4000-8000-000000000201",
+      },
+    ]);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.queries.listCalculationHistory).toHaveBeenCalledWith(
+      detail.id,
+    );
+  });
+
+  it("requires idempotency for attach calculation", async () => {
+    const { app, dealsModule } = createTestApp();
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/calculation",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          calculationId: "00000000-0000-4000-8000-000000000011",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(dealsModule.deals.commands.attachCalculation).not.toHaveBeenCalled();
+  });
+
+  it("creates a calculation from a quote and attaches it", async () => {
+    const {
+      app,
+      dealsModule,
+      treasuryModule,
+      calculationsModule,
+      currenciesService,
+    } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+      calculationId: null,
+    };
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+
+    treasuryModule.quotes.queries.getQuoteDetails.mockResolvedValue({
+      quote: {
+        id: "00000000-0000-4000-8000-000000000210",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000301",
+        toCurrencyId: "00000000-0000-4000-8000-000000000302",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: 10000n,
+        toAmountMinor: 9000n,
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        dealDirection: null,
+        dealForm: null,
+        rateNum: 9n,
+        rateDen: 10n,
+        status: "active",
+        dealId: detail.id,
+        usedByRef: null,
+        usedDocumentId: null,
+        usedAt: null,
+        expiresAt: new Date("2026-04-01T00:00:00.000Z"),
+        idempotencyKey: "quote-1",
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      legs: [],
+      feeComponents: [],
+      financialLines: [
+        {
+          id: "line-1",
+          bucket: "fee_revenue",
+          currency: "USD",
+          amountMinor: 100n,
+          source: "rule",
+        },
+        {
+          id: "line-2",
+          bucket: "pass_through",
+          currency: "EUR",
+          amountMinor: 50n,
+          source: "rule",
+        },
+      ],
+      pricingTrace: {},
+    });
+
+    currenciesService.findByCode.mockImplementation(async (code: string) => ({
+      id:
+        code === "USD"
+          ? "00000000-0000-4000-8000-000000000401"
+          : "00000000-0000-4000-8000-000000000402",
+      code,
+      precision: 2,
+    }));
+
+    calculationsModule.calculations.commands.create.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000501",
+      isActive: true,
+      currentSnapshot: {
+        id: "00000000-0000-4000-8000-000000000502",
+        snapshotNumber: 1,
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+        originalAmountMinor: "10000",
+        feeBps: "10000",
+        feeAmountMinor: "100",
+        totalAmountMinor: "10100",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+        feeAmountInBaseMinor: "90",
+        totalInBaseMinor: "9000",
+        additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000302",
+        additionalExpensesAmountMinor: "50",
+        additionalExpensesInBaseMinor: "50",
+        totalWithExpensesInBaseMinor: "9140",
+        rateSource: "fx_quote",
+        rateNum: "9",
+        rateDen: "10",
+        additionalExpensesRateSource: null,
+        additionalExpensesRateNum: null,
+        additionalExpensesRateDen: null,
+        calculationTimestamp: new Date("2026-04-01T00:00:00.000Z"),
+        fxQuoteId: "00000000-0000-4000-8000-000000000210",
+        quoteSnapshot: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      lines: [],
+    });
+
+    dealsModule.deals.commands.attachCalculation.mockResolvedValue(detail);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/from-quote`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "from-quote-1",
+        },
+        body: JSON.stringify({ quoteId: "00000000-0000-4000-8000-000000000210" }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(calculationsModule.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+        originalAmountMinor: "10000",
+        feeAmountMinor: "100",
+        totalAmountMinor: "10100",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+        feeAmountInBaseMinor: "90",
+        totalInBaseMinor: "9000",
+        additionalExpensesAmountMinor: "50",
+        totalWithExpensesInBaseMinor: "9140",
+        rateSource: "fx_quote",
+        rateNum: "9",
+        rateDen: "10",
+        fxQuoteId: "00000000-0000-4000-8000-000000000210",
+      }),
+    );
+    expect(dealsModule.deals.commands.attachCalculation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealId: detail.id,
+        calculationId: "00000000-0000-4000-8000-000000000501",
+        sourceQuoteId: "00000000-0000-4000-8000-000000000210",
+      }),
+    );
   });
 });
