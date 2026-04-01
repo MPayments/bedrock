@@ -182,12 +182,20 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
     return updated[0] as QuoteRecord | undefined;
   }
 
-  async expireOldQuotes(now: Date): Promise<void> {
-    await this.db.execute(sql`
-      UPDATE ${schema.fxQuotes}
-      SET status = 'expired'
-      WHERE status = 'active'
-        AND expires_at <= ${now}
-    `);
+  async expireOldQuotes(now: Date): Promise<QuoteRecord[]> {
+    const expired = await this.db
+      .update(schema.fxQuotes)
+      .set({
+        status: "expired",
+      })
+      .where(
+        and(
+          eq(schema.fxQuotes.status, "active"),
+          sql`${schema.fxQuotes.expiresAt} <= ${now}`,
+        ),
+      )
+      .returning();
+
+    return expired as QuoteRecord[];
   }
 }

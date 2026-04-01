@@ -4,7 +4,6 @@ import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-or
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import { currencies as currenciesTable } from "@bedrock/currencies/schema";
 import {
-  AttachDealCalculationInputSchema,
   CreateDealInputSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
@@ -22,7 +21,6 @@ import {
 } from "@bedrock/deals/schema";
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
-import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -51,7 +49,6 @@ import {
 import { toDocumentDto } from "./internal/document-dto";
 import {
   serializeQuote,
-  serializeQuoteDetails,
   serializeQuoteListItem,
 } from "./internal/treasury-quote-dto";
 
@@ -362,39 +359,6 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Deal revision conflict",
-      },
-    },
-  });
-
-  const attachCalculationRoute = createRoute({
-    middleware: [requirePermission({ deals: ["update"] })],
-    method: "patch",
-    path: "/{id}/calculation",
-    tags: ["Deals"],
-    summary: "Attach or replace the current deal calculation",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: AttachDealCalculationInputSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: DealDetailsSchema } },
-        description: "Deal calculation attached",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Missing idempotency header",
       },
     },
   });
@@ -1000,27 +964,6 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(attachCalculationRoute, async (c) => {
-      try {
-        const { id } = c.req.valid("param");
-        const body = c.req.valid("json");
-        const result = await withRequiredIdempotency(c, () =>
-          ctx.dealsModule.deals.commands.attachCalculation({
-            ...body,
-            actorUserId: c.get("user")!.id,
-            dealId: id,
-          }),
-        );
-
-        if (result instanceof Response) {
-          return result;
-        }
-
-        return jsonOk(c, result);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
     .openapi(acceptQuoteRoute, async (c) => {
       try {
         const { id, quoteId } = c.req.valid("param");
@@ -1053,154 +996,12 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await withRequiredIdempotency(c, async (idempotencyKey) => {
           const deal = await requireDeal(ctx, id);
           assertDealAllowsCommercialWrite(deal);
-          const workflow = await ctx.dealsModule.deals.queries.findWorkflowById(id);
-          if (!workflow) {
-            throw new ValidationError(`Deal ${id} not found`);
-          }
-          if (workflow.acceptedQuote?.quoteId !== body.quoteId) {
-            throw new ValidationError(
-              `Quote ${body.quoteId} must be accepted before creating a calculation for deal ${id}`,
-            );
-          }
-
-          const quoteDetails =
-            await ctx.treasuryModule.quotes.queries.getQuoteDetails({
-              quoteRef: body.quoteId,
-            });
-          const quote = quoteDetails.quote;
-
-          if (quote.dealId !== id) {
-            throw new ValidationError(
-              `Quote ${quote.id} is not linked to deal ${id}`,
-            );
-          }
-
-          if (!quote.fromCurrency || !quote.toCurrency) {
-            throw new ValidationError(
-              `Quote ${quote.id} is missing currency codes`,
-            );
-          }
-
-          if (quote.status !== "active") {
-            throw new ValidationError(
-              `Quote ${quote.id} is not active`,
-            );
-          }
-
-          const currencyCodes = new Set(
-            quoteDetails.financialLines.map((line) => line.currency),
-          );
-          const currencies = await Promise.all(
-            Array.from(currencyCodes).map((code) =>
-              ctx.currenciesService.findByCode(code),
-            ),
-          );
-          const currencyIdByCode = new Map(
-            currencies.map((currency) => [currency.code, currency.id]),
-          );
-
-          const feeAmountMinor = quoteDetails.financialLines.reduce(
-            (total, line) =>
-              line.bucket === "fee_revenue" && line.currency === quote.fromCurrency
-                ? total + line.amountMinor
-                : total,
-            0n,
-          );
-          const additionalExpensesAmountMinor =
-            quoteDetails.financialLines.reduce(
-              (total, line) =>
-                line.bucket === "pass_through" &&
-                line.currency === quote.toCurrency
-                  ? total + line.amountMinor
-                  : total,
-              0n,
-            );
-
-          if (feeAmountMinor < 0n) {
-            throw new ValidationError(
-              `Quote ${quote.id} has negative fee_revenue total`,
-            );
-          }
-
-          if (additionalExpensesAmountMinor < 0n) {
-            throw new ValidationError(
-              `Quote ${quote.id} has negative pass_through total`,
-            );
-          }
-
-          const originalAmountMinor = quote.fromAmountMinor;
-          const feeBps =
-            originalAmountMinor === 0n
-              ? 0n
-              : (feeAmountMinor * 10000n) / originalAmountMinor;
-          const totalAmountMinor = originalAmountMinor + feeAmountMinor;
-          const feeAmountInBaseMinor =
-            (feeAmountMinor * quote.rateNum) / quote.rateDen;
-          const totalInBaseMinor = quote.toAmountMinor;
-          const additionalExpensesCurrencyId =
-            additionalExpensesAmountMinor === 0n ? null : quote.toCurrencyId;
-          const additionalExpensesInBaseMinor = additionalExpensesAmountMinor;
-          const totalWithExpensesInBaseMinor =
-            totalInBaseMinor +
-            feeAmountInBaseMinor +
-            additionalExpensesInBaseMinor;
-
-          const financialLines = quoteDetails.financialLines
-            .filter((line) => line.amountMinor !== 0n)
-            .map((line) => {
-              const currencyId = currencyIdByCode.get(line.currency);
-              if (!currencyId) {
-                throw new ValidationError(
-                  `Currency ${line.currency} is not configured`,
-                );
-              }
-
-              return {
-                kind: line.bucket,
-                currencyId,
-                amountMinor: line.amountMinor.toString(),
-              };
-            });
-
-          const calculation =
-            await ctx.calculationsModule.calculations.commands.create({
-              actorUserId: c.get("user")!.id,
-              idempotencyKey,
-              calculationCurrencyId: quote.fromCurrencyId,
-              originalAmountMinor: originalAmountMinor.toString(),
-              feeBps: feeBps.toString(),
-              feeAmountMinor: feeAmountMinor.toString(),
-              totalAmountMinor: totalAmountMinor.toString(),
-              baseCurrencyId: quote.toCurrencyId,
-              feeAmountInBaseMinor: feeAmountInBaseMinor.toString(),
-              totalInBaseMinor: totalInBaseMinor.toString(),
-              additionalExpensesCurrencyId,
-              additionalExpensesAmountMinor:
-                additionalExpensesAmountMinor.toString(),
-              additionalExpensesInBaseMinor:
-                additionalExpensesInBaseMinor.toString(),
-              totalWithExpensesInBaseMinor:
-                totalWithExpensesInBaseMinor.toString(),
-              rateSource: "fx_quote",
-              rateNum: quote.rateNum.toString(),
-              rateDen: quote.rateDen.toString(),
-              additionalExpensesRateSource: null,
-              additionalExpensesRateNum: null,
-              additionalExpensesRateDen: null,
-              calculationTimestamp: quote.createdAt,
-              fxQuoteId: quote.id,
-              financialLines,
-              quoteSnapshot: serializeQuoteDetails(quoteDetails),
-            });
-
-          await ctx.dealsModule.deals.commands.attachCalculation({
+          return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
             actorUserId: c.get("user")!.id,
             dealId: id,
-            calculationId: calculation.id,
-            sourceQuoteId: quote.id,
+            idempotencyKey,
+            quoteId: body.quoteId,
           });
-
-          return calculation;
         });
 
         if (result instanceof Response) {

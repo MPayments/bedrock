@@ -65,6 +65,10 @@ import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
 import { createApiDealsModule } from "./deals-module";
 import {
+  createDealQuoteWorkflow,
+  type DealQuoteWorkflow,
+} from "./deal-quote-workflow";
+import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
@@ -87,6 +91,7 @@ export interface ApiApplicationServices {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealQuoteWorkflow: DealQuoteWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
@@ -206,6 +211,12 @@ export function createApplicationServices(
     idempotency,
     persistence: createPersistenceContext(db),
   });
+  const dealQuoteWorkflow = createDealQuoteWorkflow({
+    calculations: calculationsModule,
+    currencies: currenciesService,
+    deals: dealsModule,
+    treasury: treasuryModule,
+  });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
     createLedgerModule: createLedgerModuleForTransaction,
@@ -313,6 +324,7 @@ export function createApplicationServices(
   };
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
+    expireQuotes: dealQuoteWorkflow.expireQuotes,
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
     markQuoteUsed: async (
       input: Parameters<typeof treasuryModule.quotes.commands.markQuoteUsed>[0],
@@ -351,7 +363,7 @@ export function createApplicationServices(
         dealId = dealId ?? linkedDocument.dealId ?? null;
       }
 
-      return treasuryModule.quotes.commands.markQuoteUsed({
+      return dealQuoteWorkflow.markQuoteUsed({
         ...input,
         dealId,
         usedDocumentId,
@@ -501,6 +513,7 @@ export function createApplicationServices(
     partiesModule,
     currenciesService,
     treasuryModule,
+    dealQuoteWorkflow,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,

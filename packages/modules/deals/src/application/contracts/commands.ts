@@ -151,13 +151,13 @@ export const UpdateDealIntakeInputSchema = z
 
 export type UpdateDealIntakeInput = z.infer<typeof UpdateDealIntakeInputSchema>;
 
-export const AttachDealCalculationInputSchema = z.object({
+export const LinkDealCalculationFromAcceptedQuoteInputSchema = z.object({
   calculationId: z.uuid(),
-  sourceQuoteId: z.uuid().nullable().optional(),
+  quoteId: z.uuid(),
 });
 
-export type AttachDealCalculationInput = z.infer<
-  typeof AttachDealCalculationInputSchema
+export type LinkDealCalculationFromAcceptedQuoteInput = z.infer<
+  typeof LinkDealCalculationFromAcceptedQuoteInputSchema
 >;
 
 export const AcceptDealQuoteInputSchema = z.object({
@@ -171,6 +171,7 @@ export const AppendDealTimelineEventInputSchema = z.object({
   sourceRef: nullableShortText,
   type: z.enum([
     "quote_created",
+    "quote_accepted",
     "quote_expired",
     "quote_used",
     "attachment_uploaded",

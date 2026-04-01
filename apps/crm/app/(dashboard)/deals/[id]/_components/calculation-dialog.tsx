@@ -100,7 +100,10 @@ export function CalculationDialog({
           </div>
           <div className="grid gap-2">
             <Label>Валюта назначения</Label>
-            <Select value={toCurrency} onValueChange={onToCurrencyChange}>
+            <Select
+              value={toCurrency}
+              onValueChange={(value) => onToCurrencyChange(value ?? "")}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Выберите валюту" />
               </SelectTrigger>

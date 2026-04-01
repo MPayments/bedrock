@@ -14,7 +14,7 @@ CREATE TYPE "public"."deal_leg_kind" AS ENUM('collect', 'convert', 'transit_hold
 CREATE TYPE "public"."deal_leg_state" AS ENUM('pending', 'ready', 'in_progress', 'done', 'blocked', 'skipped');--> statement-breakpoint
 CREATE TYPE "public"."deal_participant_role" AS ENUM('customer', 'applicant', 'internal_entity', 'external_payer', 'external_beneficiary');--> statement-breakpoint
 CREATE TYPE "public"."deal_status" AS ENUM('draft', 'submitted', 'rejected', 'preparing_documents', 'awaiting_funds', 'awaiting_payment', 'closing_documents', 'done', 'cancelled');--> statement-breakpoint
-CREATE TYPE "public"."deal_timeline_event_type" AS ENUM('deal_created', 'intake_saved', 'participant_changed', 'status_changed', 'quote_created', 'quote_expired', 'quote_used', 'calculation_attached', 'attachment_uploaded', 'attachment_deleted', 'document_created', 'document_status_changed');--> statement-breakpoint
+CREATE TYPE "public"."deal_timeline_event_type" AS ENUM('deal_created', 'intake_saved', 'participant_changed', 'status_changed', 'quote_created', 'quote_accepted', 'quote_expired', 'quote_used', 'calculation_attached', 'attachment_uploaded', 'attachment_deleted', 'document_created', 'document_status_changed');--> statement-breakpoint
 CREATE TYPE "public"."deal_timeline_visibility" AS ENUM('customer_safe', 'internal');--> statement-breakpoint
 CREATE TYPE "public"."deal_type" AS ENUM('payment', 'currency_exchange', 'currency_transit', 'exporter_settlement');--> statement-breakpoint
 CREATE TYPE "public"."dimension_mode" AS ENUM('required', 'optional', 'forbidden');--> statement-breakpoint

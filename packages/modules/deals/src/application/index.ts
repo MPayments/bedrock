@@ -2,10 +2,10 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
-import { AttachDealCalculationCommand } from "./commands/attach-deal-calculation";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { CreateDealCommand } from "./commands/create-deal";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
+import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
@@ -51,11 +51,12 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
     deps.references,
   );
-  const attachDealCalculation = new AttachDealCalculationCommand(
-    deps.runtime,
-    deps.commandUow,
-    deps.references,
-  );
+  const linkCalculationFromAcceptedQuote =
+    new LinkCalculationFromAcceptedQuoteCommand(
+      deps.runtime,
+      deps.commandUow,
+      deps.references,
+    );
   const transitionDealStatus = new TransitionDealStatusCommand(
     deps.runtime,
     deps.commandUow,
@@ -81,10 +82,13 @@ export function createDealsService(deps: DealsServiceDeps) {
   return {
     commands: {
       acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
-      attachCalculation: attachDealCalculation.execute.bind(attachDealCalculation),
       appendTimelineEvent: appendTimelineEvent.execute.bind(appendTimelineEvent),
       create: createDeal.execute.bind(createDeal),
       createDraft: createDealDraft.execute.bind(createDealDraft),
+      linkCalculationFromAcceptedQuote:
+        linkCalculationFromAcceptedQuote.execute.bind(
+          linkCalculationFromAcceptedQuote,
+        ),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateIntake: updateDealIntake.execute.bind(updateDealIntake),

@@ -12,20 +12,21 @@ import type { IamService } from "@bedrock/iam";
 import type { PortalAccessGrantsService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
+import type { DocumentExtractionPort } from "@bedrock/platform/ai";
 import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
+import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
-import type { DocumentExtractionPort } from "@bedrock/platform/ai";
-import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
+import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import { createCoreServices } from "./composition/core";
 import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
@@ -79,6 +80,7 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealQuoteWorkflow: DealQuoteWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   iamService: IamService;
@@ -113,6 +115,7 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     organizationBootstrapWorkflow:
       applicationServices.organizationBootstrapWorkflow,
     requisiteAccountingWorkflow:

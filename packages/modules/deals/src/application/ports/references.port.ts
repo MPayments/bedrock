@@ -16,8 +16,11 @@ export interface DealCalculationReference {
 
 export interface DealQuoteReference {
   dealId: string | null;
+  expiresAt: Date | null;
   id: string;
   status: string;
+  usedAt: Date | null;
+  usedDocumentId: string | null;
 }
 
 export interface DealCurrencyReference {

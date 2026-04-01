@@ -90,8 +90,11 @@ export function createApiDealsModule(input: {
         const [quote] = await input.db
           .select({
             dealId: fxQuotes.dealId,
+            expiresAt: fxQuotes.expiresAt,
             id: fxQuotes.id,
             status: fxQuotes.status,
+            usedAt: fxQuotes.usedAt,
+            usedDocumentId: fxQuotes.usedDocumentId,
           })
           .from(fxQuotes)
           .where(eq(fxQuotes.id, id))
@@ -103,8 +106,11 @@ export function createApiDealsModule(input: {
 
         return {
           dealId: quote.dealId,
+          expiresAt: quote.expiresAt,
           id: quote.id,
           status: quote.status,
+          usedAt: quote.usedAt,
+          usedDocumentId: quote.usedDocumentId,
         };
       },
       async listActiveAgreementsByCustomerId(customerId: string) {

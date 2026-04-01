@@ -6,37 +6,41 @@ import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
   DealCalculationInactiveError,
   DealNotFoundError,
+  DealQuoteInactiveError,
   DealQuoteNotAcceptedError,
 } from "../../errors";
 import {
-  AttachDealCalculationInputSchema,
-  type AttachDealCalculationInput,
+  LinkDealCalculationFromAcceptedQuoteInputSchema,
+  type LinkDealCalculationFromAcceptedQuoteInput,
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
 import { createTimelinePayloadEvent, deriveDealRootState } from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 
-const AttachDealCalculationCommandInputSchema =
-  AttachDealCalculationInputSchema.extend({
+const LinkCalculationFromAcceptedQuoteCommandInputSchema =
+  LinkDealCalculationFromAcceptedQuoteInputSchema.extend({
     actorUserId: z.string().trim().min(1),
     dealId: z.uuid(),
   });
 
-type AttachDealCalculationCommandInput = AttachDealCalculationInput & {
-  actorUserId: string;
-  dealId: string;
-};
+type LinkCalculationFromAcceptedQuoteCommandInput =
+  LinkDealCalculationFromAcceptedQuoteInput & {
+    actorUserId: string;
+    dealId: string;
+  };
 
-export class AttachDealCalculationCommand {
+export class LinkCalculationFromAcceptedQuoteCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
     private readonly references: DealReferencesPort,
   ) {}
 
-  async execute(raw: AttachDealCalculationCommandInput): Promise<DealDetails> {
-    const validated = AttachDealCalculationCommandInputSchema.parse(raw);
+  async execute(
+    raw: LinkCalculationFromAcceptedQuoteCommandInput,
+  ): Promise<DealDetails> {
+    const validated = LinkCalculationFromAcceptedQuoteCommandInputSchema.parse(raw);
     const calculation = await this.references.findCalculationById(
       validated.calculationId,
     );
@@ -49,19 +53,24 @@ export class AttachDealCalculationCommand {
       throw new DealCalculationInactiveError(validated.calculationId);
     }
 
+    const quote = await this.references.findQuoteById(validated.quoteId);
+    if (!quote) {
+      throw new NotFoundError("Quote", validated.quoteId);
+    }
+    if (quote.status !== "active") {
+      throw new DealQuoteInactiveError(validated.quoteId, quote.status);
+    }
+
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
       if (!existing) {
         throw new DealNotFoundError(validated.dealId);
       }
 
-      if (
-        validated.sourceQuoteId &&
-        existing.acceptedQuote?.quoteId !== validated.sourceQuoteId
-      ) {
+      if (existing.acceptedQuote?.quoteId !== validated.quoteId) {
         throw new DealQuoteNotAcceptedError(
           validated.dealId,
-          validated.sourceQuoteId,
+          validated.quoteId,
         );
       }
 
@@ -83,7 +92,7 @@ export class AttachDealCalculationCommand {
           calculationId: validated.calculationId,
           dealId: validated.dealId,
           id: this.runtime.generateUuid(),
-          sourceQuoteId: validated.sourceQuoteId ?? null,
+          sourceQuoteId: validated.quoteId,
         },
       ]);
       await tx.dealStore.createDealTimelineEvents([
@@ -94,8 +103,9 @@ export class AttachDealCalculationCommand {
           occurredAt: this.runtime.now(),
           payload: {
             calculationId: validated.calculationId,
-            quoteId: validated.sourceQuoteId ?? null,
+            quoteId: validated.quoteId,
           },
+          sourceRef: `calculation:${validated.calculationId}:quote:${validated.quoteId}`,
           type: "calculation_attached",
           visibility: "internal",
         }),

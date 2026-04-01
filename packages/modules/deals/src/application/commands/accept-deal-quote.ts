@@ -52,6 +52,13 @@ export class AcceptDealQuoteCommand {
       if (quote.dealId !== validated.dealId) {
         throw new DealQuoteDealMismatchError(validated.dealId, validated.quoteId);
       }
+      if (
+        existing.acceptedQuote?.quoteId === validated.quoteId &&
+        existing.acceptedQuote.dealRevision === existing.revision &&
+        quote.status === "active"
+      ) {
+        return existing;
+      }
       if (quote.status !== "active") {
         throw new DealQuoteInactiveError(validated.quoteId, quote.status);
       }
@@ -66,13 +73,14 @@ export class AcceptDealQuoteCommand {
         replacedByQuoteId: validated.quoteId,
         revokedAt: now,
       });
+      const acceptanceId = this.runtime.generateUuid();
       await tx.dealStore.createDealQuoteAcceptance({
         acceptedAt: now,
         acceptedByUserId: validated.actorUserId,
         agreementVersionId: agreement?.currentVersionId ?? null,
         dealId: validated.dealId,
         dealRevision: existing.revision,
-        id: this.runtime.generateUuid(),
+        id: acceptanceId,
         quoteId: validated.quoteId,
       });
 
@@ -83,10 +91,14 @@ export class AcceptDealQuoteCommand {
           agreementVersionId: agreement?.currentVersionId ?? null,
           dealId: validated.dealId,
           dealRevision: existing.revision,
-          id: this.runtime.generateUuid(),
+          expiresAt: quote.expiresAt ?? null,
+          id: acceptanceId,
           quoteId: validated.quoteId,
+          quoteStatus: quote.status,
           replacedByQuoteId: null,
           revokedAt: null,
+          usedAt: quote.usedAt ?? null,
+          usedDocumentId: quote.usedDocumentId ?? null,
         },
         calculationId: existing.summary.calculationId,
         intake: existing.intake,
@@ -105,10 +117,12 @@ export class AcceptDealQuoteCommand {
           generateUuid: () => this.runtime.generateUuid(),
           occurredAt: now,
           payload: {
+            replacedQuoteId: existing.acceptedQuote?.quoteId ?? null,
             quoteId: validated.quoteId,
-            revision: existing.revision,
+            dealRevision: existing.revision,
           },
-          type: "quote_used",
+          sourceRef: `quote:${validated.quoteId}:accepted`,
+          type: "quote_accepted",
           visibility: "internal",
         }),
       ]);

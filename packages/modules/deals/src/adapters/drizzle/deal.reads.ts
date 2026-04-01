@@ -3,7 +3,6 @@ import {
   asc,
   desc,
   eq,
-  isNull,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -89,6 +88,7 @@ function mapTimelineEvent(row: {
     | "participant_changed"
     | "status_changed"
     | "quote_created"
+    | "quote_accepted"
     | "quote_expired"
     | "quote_used"
     | "calculation_attached"
@@ -120,10 +120,14 @@ function mapQuoteAcceptance(row: {
   agreementVersionId: string | null;
   dealId: string;
   dealRevision: number;
+  expiresAt: Date | null;
   id: string;
   quoteId: string;
+  quoteStatus: string;
   replacedByQuoteId: string | null;
   revokedAt: Date | null;
+  usedAt: Date | null;
+  usedDocumentId: string | null;
 }): DealQuoteAcceptance {
   return {
     acceptedAt: row.acceptedAt,
@@ -131,10 +135,14 @@ function mapQuoteAcceptance(row: {
     agreementVersionId: row.agreementVersionId,
     dealId: row.dealId,
     dealRevision: Number(row.dealRevision),
+    expiresAt: row.expiresAt,
     id: row.id,
     quoteId: row.quoteId,
+    quoteStatus: row.quoteStatus,
     replacedByQuoteId: row.replacedByQuoteId,
     revokedAt: row.revokedAt,
+    usedAt: row.usedAt,
+    usedDocumentId: row.usedDocumentId,
   };
 }
 
@@ -352,28 +360,47 @@ export class DrizzleDealReads implements DealReads {
 
   private async loadAcceptedQuote(
     dealId: string,
+    revision: number,
   ): Promise<DealQuoteAcceptance | null> {
-    const [row] = await this.db
-      .select({
-        acceptedAt: dealQuoteAcceptances.acceptedAt,
-        acceptedByUserId: dealQuoteAcceptances.acceptedByUserId,
-        agreementVersionId: dealQuoteAcceptances.agreementVersionId,
-        dealId: dealQuoteAcceptances.dealId,
-        dealRevision: dealQuoteAcceptances.dealRevision,
-        id: dealQuoteAcceptances.id,
-        quoteId: dealQuoteAcceptances.quoteId,
-        replacedByQuoteId: dealQuoteAcceptances.replacedByQuoteId,
-        revokedAt: dealQuoteAcceptances.revokedAt,
-      })
-      .from(dealQuoteAcceptances)
-      .where(
-        and(
-          eq(dealQuoteAcceptances.dealId, dealId),
-          isNull(dealQuoteAcceptances.revokedAt),
-        ),
-      )
-      .orderBy(desc(dealQuoteAcceptances.acceptedAt))
-      .limit(1);
+    const result = await this.db.execute<{
+      acceptedAt: Date;
+      acceptedByUserId: string;
+      agreementVersionId: string | null;
+      dealId: string;
+      dealRevision: number;
+      expiresAt: Date | null;
+      id: string;
+      quoteId: string;
+      quoteStatus: string;
+      replacedByQuoteId: string | null;
+      revokedAt: Date | null;
+      usedAt: Date | null;
+      usedDocumentId: string | null;
+    }>(sql`
+      select
+        a.accepted_at as "acceptedAt",
+        a.accepted_by_user_id as "acceptedByUserId",
+        a.agreement_version_id as "agreementVersionId",
+        a.deal_id as "dealId",
+        a.deal_revision as "dealRevision",
+        q.expires_at as "expiresAt",
+        a.id,
+        a.quote_id as "quoteId",
+        q.status as "quoteStatus",
+        a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revoked_at as "revokedAt",
+        q.used_at as "usedAt",
+        q.used_document_id as "usedDocumentId"
+      from deal_quote_acceptances a
+      inner join fx_quotes q
+        on q.id = a.quote_id
+      where a.deal_id = ${dealId}
+        and a.deal_revision = ${revision}
+        and a.revoked_at is null
+      order by a.accepted_at desc
+      limit 1
+    `);
+    const [row] = result.rows;
 
     return row ? mapQuoteAcceptance(row) : null;
   }
@@ -442,7 +469,7 @@ export class DrizzleDealReads implements DealReads {
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
         this.loadTimeline(summary.id),
-        this.loadAcceptedQuote(summary.id),
+        this.loadAcceptedQuote(summary.id, Number(summary.intakeRevision)),
         this.loadCalculationRefs(summary.id),
         this.loadQuotes(summary.id),
       ]);
@@ -455,6 +482,7 @@ export class DrizzleDealReads implements DealReads {
         calculationId: summary.calculationId,
         completeness: sectionCompleteness,
         intake: summary.snapshot,
+        now: new Date(),
         status: summary.status,
       });
 

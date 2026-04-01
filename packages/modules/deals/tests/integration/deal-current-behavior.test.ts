@@ -59,7 +59,7 @@ describe("deals integration characterization", () => {
     expect(workflow?.intake.common.customerNote).toBe("Updated legacy note");
   });
 
-  it("attaches a calculation link to the accepted quote for a convert deal", async () => {
+  it("links a calculation only from the accepted quote for a convert deal", async () => {
     const fixture = await createAgreementFixture();
     const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
@@ -98,12 +98,15 @@ describe("deals integration characterization", () => {
       rateNum: quote.rateNum,
     });
 
-    const attached = await fixture.runtime.modules.deals.deals.commands.attachCalculation({
-      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      calculationId: calculation.id,
-      dealId: draft.summary.id,
-      sourceQuoteId: quote.id,
-    });
+    const attached =
+      await fixture.runtime.modules.deals.deals.commands.linkCalculationFromAcceptedQuote(
+        {
+          actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+          calculationId: calculation.id,
+          dealId: draft.summary.id,
+          quoteId: quote.id,
+        },
+      );
 
     expect(attached.calculationId).toBe(calculation.id);
 
@@ -154,5 +157,180 @@ describe("deals integration characterization", () => {
         status: "done",
       }),
     ).rejects.toThrow("Cannot transition deal status from submitted to done");
+  });
+
+  it("makes an accepted quote non-current after intake revision changes without deleting acceptance history", async () => {
+    const fixture = await createAgreementFixture();
+    const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: createPaymentIntakeDraft({
+        applicantCounterpartyId: fixture.applicant.id,
+        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+        sourceCurrencyId: fixture.currencies.usd.id,
+        targetCurrencyId: fixture.currencies.eur.id,
+      }),
+    });
+
+    const quote = await createFxQuoteFixture({
+      dealId: draft.summary.id,
+      fromAmountMinor: 100000n,
+      fromCurrencyId: fixture.currencies.usd.id,
+      rateDen: 100n,
+      rateNum: 91n,
+      toAmountMinor: 91000n,
+      toCurrencyId: fixture.currencies.eur.id,
+    });
+
+    await fixture.runtime.modules.deals.deals.commands.acceptQuote({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: draft.summary.id,
+      quoteId: quote.id,
+    });
+
+    const replaced = await fixture.runtime.modules.deals.deals.commands.replaceIntake({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: draft.summary.id,
+      expectedRevision: draft.revision,
+      intake: {
+        ...draft.intake,
+        common: {
+          ...draft.intake.common,
+          customerNote: "Revised after pricing",
+        },
+      },
+    });
+
+    expect(replaced.revision).toBe(2);
+    expect(replaced.acceptedQuote).toBeNull();
+    expect(replaced.nextAction).toBe("Accept quote");
+
+    const acceptanceRows = await fixture.runtime.pool.query<{
+      count: string;
+    }>(
+      "select count(*)::text as count from deal_quote_acceptances where deal_id = $1",
+      [draft.summary.id],
+    );
+    expect(acceptanceRows.rows[0]?.count).toBe("1");
+  });
+
+  it("supersedes the prior accepted quote while keeping acceptance history", async () => {
+    const fixture = await createAgreementFixture();
+    const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: createPaymentIntakeDraft({
+        applicantCounterpartyId: fixture.applicant.id,
+        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+        sourceCurrencyId: fixture.currencies.usd.id,
+        targetCurrencyId: fixture.currencies.eur.id,
+      }),
+    });
+
+    const firstQuote = await createFxQuoteFixture({
+      dealId: draft.summary.id,
+      fromAmountMinor: 100000n,
+      fromCurrencyId: fixture.currencies.usd.id,
+      rateDen: 100n,
+      rateNum: 91n,
+      toAmountMinor: 91000n,
+      toCurrencyId: fixture.currencies.eur.id,
+    });
+    const secondQuote = await createFxQuoteFixture({
+      dealId: draft.summary.id,
+      fromAmountMinor: 100000n,
+      fromCurrencyId: fixture.currencies.usd.id,
+      rateDen: 100n,
+      rateNum: 92n,
+      toAmountMinor: 92000n,
+      toCurrencyId: fixture.currencies.eur.id,
+    });
+
+    await fixture.runtime.modules.deals.deals.commands.acceptQuote({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: draft.summary.id,
+      quoteId: firstQuote.id,
+    });
+    const updated = await fixture.runtime.modules.deals.deals.commands.acceptQuote({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: draft.summary.id,
+      quoteId: secondQuote.id,
+    });
+
+    expect(updated.acceptedQuote?.quoteId).toBe(secondQuote.id);
+
+    const acceptanceRows = await fixture.runtime.pool.query<{
+      quoteId: string;
+      replacedByQuoteId: string | null;
+      revokedAt: Date | null;
+    }>(
+      `select
+         quote_id as "quoteId",
+         replaced_by_quote_id as "replacedByQuoteId",
+         revoked_at as "revokedAt"
+       from deal_quote_acceptances
+       where deal_id = $1
+       order by accepted_at asc`,
+      [draft.summary.id],
+    );
+
+    expect(acceptanceRows.rows).toHaveLength(2);
+    expect(acceptanceRows.rows[0]?.quoteId).toBe(firstQuote.id);
+    expect(acceptanceRows.rows[0]?.replacedByQuoteId).toBe(secondQuote.id);
+    expect(acceptanceRows.rows[0]?.revokedAt).not.toBeNull();
+    expect(acceptanceRows.rows[1]?.quoteId).toBe(secondQuote.id);
+  });
+
+  it("falls back to Accept quote when the accepted quote is no longer executable", async () => {
+    const fixture = await createAgreementFixture();
+    const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: createPaymentIntakeDraft({
+        applicantCounterpartyId: fixture.applicant.id,
+        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+        sourceCurrencyId: fixture.currencies.usd.id,
+        targetCurrencyId: fixture.currencies.eur.id,
+      }),
+    });
+
+    const quote = await createFxQuoteFixture({
+      dealId: draft.summary.id,
+      fromAmountMinor: 100000n,
+      fromCurrencyId: fixture.currencies.usd.id,
+      rateDen: 100n,
+      rateNum: 91n,
+      toAmountMinor: 91000n,
+      toCurrencyId: fixture.currencies.eur.id,
+    });
+
+    await fixture.runtime.modules.deals.deals.commands.acceptQuote({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: draft.summary.id,
+      quoteId: quote.id,
+    });
+
+    await fixture.runtime.pool.query(
+      `update fx_quotes
+       set status = 'used',
+           used_by_ref = 'fx_execute:doc-1',
+           used_at = $2
+       where id = $1`,
+      [quote.id, new Date("2026-01-06T10:10:00.000Z")],
+    );
+
+    const workflow = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
+      draft.summary.id,
+    );
+
+    expect(workflow?.acceptedQuote?.quoteId).toBe(quote.id);
+    expect(workflow?.acceptedQuote?.quoteStatus).toBe("used");
+    expect(workflow?.nextAction).toBe("Accept quote");
   });
 });

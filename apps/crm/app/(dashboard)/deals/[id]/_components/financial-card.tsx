@@ -21,9 +21,7 @@ type FinancialCardProps = {
   activeCalculationId: string | null;
   disabledReason: string | null;
   isCreating: boolean;
-  isSwitching: boolean;
   onCreate: () => void;
-  onSwitch: (calculationId: string) => void;
 };
 
 export function FinancialCard({
@@ -32,9 +30,7 @@ export function FinancialCard({
   activeCalculationId,
   disabledReason,
   isCreating,
-  isSwitching,
   onCreate,
-  onSwitch,
 }: FinancialCardProps) {
   return (
     <Card>
@@ -46,8 +42,8 @@ export function FinancialCard({
         <div className="flex flex-wrap items-center gap-2">
           {calculationHistory.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isSwitching}>
+              <DropdownMenuTrigger>
+                <Button variant="outline" size="sm">
                   История
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
@@ -61,8 +57,7 @@ export function FinancialCard({
                     return (
                       <DropdownMenuItem
                         key={item.calculationId}
-                        disabled={isSwitching || isCurrent}
-                        onClick={() => onSwitch(item.calculationId)}
+                        disabled
                       >
                         <div className="flex flex-col">
                           <span className="text-sm">

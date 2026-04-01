@@ -1,6 +1,5 @@
 export {
   AcceptDealQuoteInputSchema,
-  AttachDealCalculationInputSchema,
   AppendDealTimelineEventInputSchema,
   CreateDealDraftInputSchema,
   CreateDealInputSchema,
@@ -12,7 +11,6 @@ export {
   TransitionDealStatusInputSchema,
   UpdateDealIntakeInputSchema,
   type AcceptDealQuoteInput,
-  type AttachDealCalculationInput,
   type AppendDealTimelineEventInput,
   type CreateDealDraftInput,
   type CreateDealInput,

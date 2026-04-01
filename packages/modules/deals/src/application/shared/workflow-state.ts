@@ -294,6 +294,7 @@ export function createTimelinePayloadEvent(input: {
     | "participant_changed"
     | "status_changed"
     | "quote_created"
+    | "quote_accepted"
     | "quote_expired"
     | "quote_used"
     | "calculation_attached"

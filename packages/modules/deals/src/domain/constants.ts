@@ -62,6 +62,7 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "participant_changed",
   "status_changed",
   "quote_created",
+  "quote_accepted",
   "quote_expired",
   "quote_used",
   "calculation_attached",

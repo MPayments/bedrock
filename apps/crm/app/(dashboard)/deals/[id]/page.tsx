@@ -253,7 +253,6 @@ export default function DealDetailPage() {
   });
   const [isCalculationDialogOpen, setIsCalculationDialogOpen] = useState(false);
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
-  const [isSwitchingCalculation, setIsSwitchingCalculation] = useState(false);
   const [overrideCalculationAmount, setOverrideCalculationAmount] =
     useState(false);
   const [calculationAmount, setCalculationAmount] = useState("");
@@ -475,6 +474,13 @@ export default function DealDetailPage() {
       );
 
       await fetchJson(
+        `${API_BASE_URL}/deals/${dealId}/quotes/${quote.id}/accept`,
+        {
+          method: "POST",
+        },
+      );
+
+      await fetchJson(
         `${API_BASE_URL}/deals/${dealId}/calculations/from-quote`,
         {
           method: "POST",
@@ -509,49 +515,6 @@ export default function DealDetailPage() {
     overrideCalculationAmount,
     showError,
   ]);
-
-  const handleSwitchCalculation = useCallback(
-    async (calculationId: string) => {
-      try {
-        setIsSwitchingCalculation(true);
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/calculation`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              "Idempotency-Key": createIdempotencyKey(),
-            },
-            body: JSON.stringify({ calculationId }),
-            credentials: "include",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка смены расчета: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Calculation switch error:", nextError);
-        showError(
-          "Ошибка переключения расчета",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось переключить расчет",
-        );
-      } finally {
-        setIsSwitchingCalculation(false);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
 
   const calculationTypeSupported = data
     ? ["payment", "currency_exchange"].includes(data.deal.type)
@@ -792,9 +755,7 @@ export default function DealDetailPage() {
             activeCalculationId={data.deal.calculationId}
             disabledReason={calculationDisabledReason}
             isCreating={isCreatingCalculation}
-            isSwitching={isSwitchingCalculation}
             onCreate={handleOpenCalculationDialog}
-            onSwitch={handleSwitchCalculation}
           />
           <FormalDocumentsCard documents={data.formalDocuments} />
           <AttachmentsCard

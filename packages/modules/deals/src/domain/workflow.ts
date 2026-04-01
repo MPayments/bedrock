@@ -54,6 +54,31 @@ export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
   );
 }
 
+function isAcceptedQuoteCurrentAndExecutable(input: {
+  acceptance: DealQuoteAcceptance | null;
+  now: Date;
+}): boolean {
+  const acceptance = input.acceptance;
+
+  if (!acceptance) {
+    return false;
+  }
+
+  if (acceptance.dealRevision < 1) {
+    return false;
+  }
+
+  if (acceptance.quoteStatus !== "active") {
+    return false;
+  }
+
+  if (acceptance.expiresAt && acceptance.expiresAt.getTime() <= input.now.getTime()) {
+    return false;
+  }
+
+  return true;
+}
+
 export function evaluateDealSectionCompleteness(
   intake: DealIntakeDraft,
 ): DealSectionCompleteness[] {
@@ -219,6 +244,7 @@ export function deriveDealNextAction(input: {
   calculationId: string | null;
   completeness: DealSectionCompleteness[];
   intake: DealIntakeDraft;
+  now?: Date;
   status: string;
 }): string {
   if (!isRequiredDealSectionComplete(input.intake.type, input.completeness)) {
@@ -229,7 +255,13 @@ export function deriveDealNextAction(input: {
     return "Submit deal";
   }
 
-  if (dealIntakeHasConvertLeg(input.intake) && !input.acceptance) {
+  const now = input.now ?? new Date();
+  const hasCurrentAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
+    acceptance: input.acceptance,
+    now,
+  });
+
+  if (dealIntakeHasConvertLeg(input.intake) && !hasCurrentAcceptedQuote) {
     return "Accept quote";
   }
 

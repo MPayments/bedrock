@@ -265,10 +265,14 @@ export const DealQuoteAcceptanceSchema = z.object({
   agreementVersionId: z.uuid().nullable(),
   dealId: z.uuid(),
   dealRevision: z.number().int().positive(),
+  expiresAt: z.date().nullable(),
   id: z.uuid(),
   quoteId: z.uuid(),
+  quoteStatus: z.string(),
   replacedByQuoteId: z.uuid().nullable(),
   revokedAt: z.date().nullable(),
+  usedAt: z.date().nullable(),
+  usedDocumentId: z.uuid().nullable(),
 });
 
 export type DealQuoteAcceptance = z.infer<typeof DealQuoteAcceptanceSchema>;

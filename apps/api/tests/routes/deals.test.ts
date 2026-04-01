@@ -6,9 +6,21 @@ const { userHasPermission } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/auth", () => ({
-  default: {
-    api: {
-      userHasPermission,
+  authByAudience: {
+    crm: {
+      api: {
+        userHasPermission,
+      },
+    },
+    finance: {
+      api: {
+        userHasPermission,
+      },
+    },
+    portal: {
+      api: {
+        userHasPermission,
+      },
     },
   },
 }));
@@ -74,8 +86,8 @@ function createDealsModuleStub() {
         listCalculationHistory: vi.fn(),
       },
       commands: {
+        acceptQuote: vi.fn(),
         create: vi.fn(),
-        attachCalculation: vi.fn(),
       },
     },
   };
@@ -83,6 +95,9 @@ function createDealsModuleStub() {
 
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
+  const dealQuoteWorkflow = {
+    createCalculationFromAcceptedQuote: vi.fn(),
+  };
   const treasuryModule = {
     quotes: {
       queries: {
@@ -118,6 +133,7 @@ function createTestApp() {
   app.route(
     "/deals",
     dealsRoutes({
+      dealQuoteWorkflow,
       dealsModule,
       treasuryModule,
       calculationsModule,
@@ -127,6 +143,7 @@ function createTestApp() {
 
   return {
     app,
+    dealQuoteWorkflow,
     dealsModule,
     treasuryModule,
     calculationsModule,
@@ -253,8 +270,8 @@ describe("deals routes", () => {
     );
   });
 
-  it("requires idempotency for attach calculation", async () => {
-    const { app, dealsModule } = createTestApp();
+  it("does not expose the legacy attach calculation route", async () => {
+    const { app } = createTestApp();
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/calculation",
@@ -269,80 +286,38 @@ describe("deals routes", () => {
       },
     );
 
-    expect(response.status).toBe(400);
-    expect(dealsModule.deals.commands.attachCalculation).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
   });
 
-  it("creates a calculation from a quote and attaches it", async () => {
-    const {
-      app,
-      dealsModule,
-      treasuryModule,
-      calculationsModule,
-      currenciesService,
-    } = createTestApp();
+  it("accepts a quote for a deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = { summary: { id: "00000000-0000-4000-8000-000000000010" } };
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("creates a calculation from the accepted quote via the workflow", async () => {
+    const { app, dealQuoteWorkflow, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
       status: "submitted" as const,
       calculationId: null,
     };
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
-
-    treasuryModule.quotes.queries.getQuoteDetails.mockResolvedValue({
-      quote: {
-        id: "00000000-0000-4000-8000-000000000210",
-        fromCurrencyId: "00000000-0000-4000-8000-000000000301",
-        toCurrencyId: "00000000-0000-4000-8000-000000000302",
-        fromCurrency: "USD",
-        toCurrency: "EUR",
-        fromAmountMinor: 10000n,
-        toAmountMinor: 9000n,
-        pricingMode: "auto_cross",
-        pricingTrace: {},
-        dealDirection: null,
-        dealForm: null,
-        rateNum: 9n,
-        rateDen: 10n,
-        status: "active",
-        dealId: detail.id,
-        usedByRef: null,
-        usedDocumentId: null,
-        usedAt: null,
-        expiresAt: new Date("2026-04-01T00:00:00.000Z"),
-        idempotencyKey: "quote-1",
-        createdAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      legs: [],
-      feeComponents: [],
-      financialLines: [
-        {
-          id: "line-1",
-          bucket: "fee_revenue",
-          currency: "USD",
-          amountMinor: 100n,
-          source: "rule",
-        },
-        {
-          id: "line-2",
-          bucket: "pass_through",
-          currency: "EUR",
-          amountMinor: 50n,
-          source: "rule",
-        },
-      ],
-      pricingTrace: {},
-    });
-
-    currenciesService.findByCode.mockImplementation(async (code: string) => ({
-      id:
-        code === "USD"
-          ? "00000000-0000-4000-8000-000000000401"
-          : "00000000-0000-4000-8000-000000000402",
-      code,
-      precision: 2,
-    }));
-
-    calculationsModule.calculations.commands.create.mockResolvedValue({
+    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000501",
       isActive: true,
       currentSnapshot: {
@@ -377,8 +352,6 @@ describe("deals routes", () => {
       lines: [],
     });
 
-    dealsModule.deals.commands.attachCalculation.mockResolvedValue(detail);
-
     const response = await app.request(
       `http://localhost/deals/${detail.id}/calculations/from-quote`,
       {
@@ -392,29 +365,11 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(calculationsModule.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
-        originalAmountMinor: "10000",
-        feeAmountMinor: "100",
-        totalAmountMinor: "10100",
-        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
-        feeAmountInBaseMinor: "90",
-        totalInBaseMinor: "9000",
-        additionalExpensesAmountMinor: "50",
-        totalWithExpensesInBaseMinor: "9140",
-        rateSource: "fx_quote",
-        rateNum: "9",
-        rateDen: "10",
-        fxQuoteId: "00000000-0000-4000-8000-000000000210",
-      }),
-    );
-    expect(dealsModule.deals.commands.attachCalculation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dealId: detail.id,
-        calculationId: "00000000-0000-4000-8000-000000000501",
-        sourceQuoteId: "00000000-0000-4000-8000-000000000210",
-      }),
-    );
+    expect(dealQuoteWorkflow.createCalculationFromAcceptedQuote).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: detail.id,
+      idempotencyKey: "from-quote-1",
+      quoteId: "00000000-0000-4000-8000-000000000210",
+    });
   });
 });

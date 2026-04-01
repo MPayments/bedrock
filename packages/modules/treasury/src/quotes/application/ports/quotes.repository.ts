@@ -160,5 +160,5 @@ export interface QuotesRepository {
     tx?: PersistenceSession,
   ): Promise<QuoteLegRecord[]>;
   markQuoteUsedIfActive(input: MarkQuoteUsedInput): Promise<QuoteRecord | undefined>;
-  expireOldQuotes(now: Date): Promise<void>;
+  expireOldQuotes(now: Date): Promise<QuoteRecord[]>;
 }

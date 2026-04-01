@@ -109,14 +109,14 @@ export class ReplaceDealIntakeCommand {
         );
       }
 
+      const nextRevision = validated.expectedRevision + 1;
       const rootState = await deriveDealRootState({
-        acceptance: existing.acceptedQuote,
+        acceptance: null,
         calculationId: existing.summary.calculationId,
         intake: validated.intake,
         references: this.references,
         status: existing.summary.status,
       });
-      const nextRevision = validated.expectedRevision + 1;
       const replaced = await tx.dealStore.replaceIntakeSnapshot({
         dealId: validated.dealId,
         expectedRevision: validated.expectedRevision,
