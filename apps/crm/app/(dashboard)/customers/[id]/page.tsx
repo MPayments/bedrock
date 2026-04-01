@@ -1,31 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, ChevronLeft, Loader2, Plus, X } from "lucide-react";
 import {
-  Archive,
-  Building2,
-  ChevronLeft,
-  Download,
-  File,
-  FileImage,
-  FileText,
-  FileType,
-  Loader2,
-  Paperclip,
-  Pencil,
-  Plus,
-  Save,
-  Trash2,
-  Upload as UploadIcon,
-} from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
 
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -34,202 +22,36 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@bedrock/sdk-ui/components/dialog";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { Label } from "@bedrock/sdk-ui/components/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@bedrock/sdk-ui/components/select";
-import { Separator } from "@bedrock/sdk-ui/components/separator";
-import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
-import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { API_BASE_URL } from "@/lib/constants";
+import { CustomerDetailHeader } from "./_components/customer-detail-header";
 import {
-  createCustomerBankingPayload,
-  mapFlatBankingToFormValues,
-} from "@/lib/customer-banking";
+  CustomerLegalEntityPanel,
+  CountryField,
+  Field,
+} from "./_components/customer-legal-entity-panel";
+import { CustomerSummaryCard } from "./_components/customer-summary-card";
+import { PendingEntitySwitchDialog } from "./_components/pending-entity-switch-dialog";
 import {
-  customerBankingFieldsSchema,
-  type CustomerBankingFormData,
-} from "@/lib/validation";
-
-type SubAgent = {
-  commissionRate: number;
-  counterpartyId: string;
-  country: string | null;
-  fullName: string;
-  isActive: boolean;
-  kind: "individual" | "legal_entity";
-  shortName: string;
-};
-
-type CustomerLegalEntity = {
-  account: string | null;
-  address: string | null;
-  bankAddress: string | null;
-  bankCountry: string | null;
-  bankName: string | null;
-  bankProviderId: string | null;
-  bic: string | null;
-  beneficiaryName: string | null;
-  contractNumber: string | null;
-  corrAccount: string | null;
-  counterpartyId: string;
-  country: string | null;
-  createdAt: string;
-  directorBasis: string | null;
-  directorName: string | null;
-  email: string | null;
-  externalId: string | null;
-  fullName: string;
-  inn: string | null;
-  iban: string | null;
-  kpp: string | null;
-  ogrn: string | null;
-  okpo: string | null;
-  oktmo: string | null;
-  orgName: string;
-  orgType: string | null;
-  phone: string | null;
-  position: string | null;
-  relationshipKind: "customer_owned" | "external";
-  shortName: string;
-  subAgent: SubAgent | null;
-  subAgentCounterpartyId: string | null;
-  swift: string | null;
-  updatedAt: string;
-};
-
-type CustomerWorkspaceDetail = {
-  createdAt: string;
-  description: string | null;
-  displayName: string;
-  externalRef: string | null;
-  id: string;
-  legalEntities: CustomerLegalEntity[];
-  legalEntityCount: number;
-  primaryCounterpartyId: string | null;
-  updatedAt: string;
-};
-
-type ClientDocument = {
-  createdAt: string;
-  description: string | null;
-  fileName: string;
-  fileSize: number;
-  id: string;
-  mimeType: string;
-  updatedAt: string;
-  uploadedBy: string | null;
-};
-
-const legalEntityFormSchema = z.object({
-  address: z.string().optional(),
-  directorBasis: z.string().optional(),
-  directorName: z.string().optional(),
-  email: z.string().optional(),
-  inn: z.string().optional(),
-  kpp: z.string().optional(),
-  ogrn: z.string().optional(),
-  okpo: z.string().optional(),
-  oktmo: z.string().optional(),
-  orgName: z.string().min(1, "Название юридического лица обязательно"),
-  orgType: z.string().optional(),
-  phone: z.string().optional(),
-  position: z.string().optional(),
-}).merge(customerBankingFieldsSchema);
-
-type LegalEntityFormData = z.infer<typeof legalEntityFormSchema>;
-
-const createLegalEntitySchema = z.object({
-  address: z.string().optional(),
-  country: z.string().max(2).optional(),
-  directorName: z.string().optional(),
-  email: z.string().optional(),
-  inn: z.string().optional(),
-  orgName: z.string().min(1, "Название юридического лица обязательно"),
-  phone: z.string().optional(),
-});
-
-type CreateLegalEntityFormData = z.infer<typeof createLegalEntitySchema>;
+  buildCustomerEntityHref,
+  createLegalEntitySchema,
+  customerFormSchema,
+  customerToFormValues,
+  type ClientDocument,
+  type CustomerFormData,
+  type CreateLegalEntityFormData,
+  type CustomerLegalEntity,
+  type CustomerWorkspaceDetail,
+  legalEntityFormSchema,
+  legalEntityToFormValues,
+  type LegalEntityFormData,
+  resolveActiveLegalEntityId,
+} from "./_lib/customer-detail";
 
 function normalizeOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function formatRelationshipKind(
-  value: "customer_owned" | "external",
-): string {
-  return value === "customer_owned" ? "Клиент" : "Внешнее юр. лицо";
-}
-
-function legalEntityToFormValues(
-  legalEntity: CustomerLegalEntity | null,
-): LegalEntityFormData {
-  const bankingValues = mapFlatBankingToFormValues({
-    account: legalEntity?.account,
-    bankAddress: legalEntity?.bankAddress,
-    bankCountry: legalEntity?.bankCountry,
-    bankMode: legalEntity?.bankProviderId ? "existing" : "manual",
-    bankName: legalEntity?.bankName,
-    bankProviderId: legalEntity?.bankProviderId,
-    beneficiaryName: legalEntity?.beneficiaryName ?? legalEntity?.orgName,
-    bic: legalEntity?.bic,
-    corrAccount: legalEntity?.corrAccount,
-    iban: legalEntity?.iban,
-    swift: legalEntity?.swift,
-  });
-
-  return {
-    address: legalEntity?.address ?? "",
-    ...bankingValues,
-    directorBasis: legalEntity?.directorBasis ?? "",
-    directorName: legalEntity?.directorName ?? "",
-    email: legalEntity?.email ?? "",
-    inn: legalEntity?.inn ?? "",
-    kpp: legalEntity?.kpp ?? "",
-    ogrn: legalEntity?.ogrn ?? "",
-    okpo: legalEntity?.okpo ?? "",
-    oktmo: legalEntity?.oktmo ?? "",
-    orgName: legalEntity?.orgName ?? "",
-    orgType: legalEntity?.orgType ?? "",
-    phone: legalEntity?.phone ?? "",
-    position: legalEntity?.position ?? "",
-  };
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
-  const units = ["Bytes", "KB", "MB", "GB"];
-  const unitIndex = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${Math.round((bytes / Math.pow(1024, unitIndex)) * 100) / 100} ${units[unitIndex]}`;
-}
-
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) {
-    return <FileImage className="h-5 w-5" />;
-  }
-  if (mimeType === "application/pdf") {
-    return <FileText className="h-5 w-5" />;
-  }
-  if (mimeType.includes("word") || mimeType.includes("document")) {
-    return <FileType className="h-5 w-5" />;
-  }
-  if (mimeType === "application/zip") {
-    return <Archive className="h-5 w-5" />;
-  }
-
-  return <Paperclip className="h-5 w-5" />;
 }
 
 async function downloadResponseAsFile(
@@ -252,20 +74,33 @@ async function downloadResponseAsFile(
   document.body.removeChild(anchor);
 }
 
+type PendingEntitySwitch = {
+  counterpartyId: string;
+  mode: "push" | "replace";
+} | null;
+
 export default function CustomerDetailPage() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const customerId = params.id as string;
+  const entityParam = searchParams.get("entity");
 
-  const [workspace, setWorkspace] = useState<CustomerWorkspaceDetail | null>(null);
-  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
+  const [workspace, setWorkspace] = useState<CustomerWorkspaceDetail | null>(
+    null,
+  );
+  const [activeCounterpartyId, setActiveCounterpartyId] = useState<
     string | null
   >(null);
+  const [pendingEntitySwitch, setPendingEntitySwitch] =
+    useState<PendingEntitySwitch>(null);
+  const [entitySwitchDialogOpen, setEntitySwitchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [customerSaving, setCustomerSaving] = useState(false);
+  const [legalEntitySaving, setLegalEntitySaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
@@ -276,17 +111,28 @@ export default function CustomerDetailPage() {
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadDocumentFile, setUploadDocumentFile] = useState<File | null>(null);
-  const [uploadDocumentDescription, setUploadDocumentDescription] = useState("");
+  const [uploadDocumentFile, setUploadDocumentFile] = useState<File | null>(
+    null,
+  );
+  const [uploadDocumentDescription, setUploadDocumentDescription] =
+    useState("");
   const [newLegalEntityOpen, setNewLegalEntityOpen] = useState(false);
   const [creatingLegalEntity, setCreatingLegalEntity] = useState(false);
-  const [customerDescription, setCustomerDescription] = useState("");
-  const [customerExternalRef, setCustomerExternalRef] = useState("");
+  const [emptyAlertDismissed, setEmptyAlertDismissed] = useState(false);
+  const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
+  const [requisitesDirty, setRequisitesDirty] = useState(false);
+  const [requisitesResetSignal, setRequisitesResetSignal] = useState(0);
+
+  const customerForm = useForm<CustomerFormData>({
+    defaultValues: customerToFormValues(null),
+    resolver: zodResolver(customerFormSchema) as never,
+  });
 
   const legalEntityForm = useForm<LegalEntityFormData>({
     defaultValues: legalEntityToFormValues(null),
     resolver: zodResolver(legalEntityFormSchema) as never,
   });
+
   const createLegalEntityForm = useForm<CreateLegalEntityFormData>({
     defaultValues: {
       address: "",
@@ -300,23 +146,96 @@ export default function CustomerDetailPage() {
     resolver: zodResolver(createLegalEntitySchema),
   });
 
-  const selectedLegalEntity = useMemo(
-    () =>
-      workspace?.legalEntities.find(
-        (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
-      ) ??
-      workspace?.legalEntities[0] ??
-      null,
-    [selectedCounterpartyId, workspace],
+  const resolvedActiveCounterpartyId = useMemo(() => {
+    if (!workspace) {
+      return null;
+    }
+
+    return resolveActiveLegalEntityId({
+      legalEntities: workspace.legalEntities,
+      primaryCounterpartyId: workspace.primaryCounterpartyId,
+      requestedCounterpartyId: entityParam,
+    });
+  }, [entityParam, workspace]);
+
+  const selectedLegalEntity = useMemo(() => {
+    const targetCounterpartyId =
+      activeCounterpartyId ?? resolvedActiveCounterpartyId;
+
+    if (!workspace || !targetCounterpartyId) {
+      return null;
+    }
+
+    return (
+      workspace.legalEntities.find(
+        (legalEntity) => legalEntity.counterpartyId === targetCounterpartyId,
+      ) ?? null
+    );
+  }, [activeCounterpartyId, resolvedActiveCounterpartyId, workspace]);
+
+  const customerDirty = customerForm.formState.isDirty;
+  const legalEntityDirty = legalEntityForm.formState.isDirty;
+  const hasUnsavedChanges =
+    customerDirty || legalEntityDirty || requisitesDirty;
+  const hasCustomerAgreement = workspace?.hasActiveAgreement ?? false;
+  const showMissingAgreementAlert =
+    selectedLegalEntity !== null &&
+    !hasCustomerAgreement &&
+    !agreementAlertDismissed;
+  const showMissingLegalEntitiesAlert =
+    workspace !== null &&
+    workspace.legalEntities.length === 0 &&
+    !emptyAlertDismissed;
+
+  const navigateToEntity = useCallback(
+    (counterpartyId: string | null, mode: "push" | "replace") => {
+      const href = buildCustomerEntityHref({
+        counterpartyId,
+        pathname,
+        searchParams: new URLSearchParams(searchParams.toString()),
+      });
+
+      if (mode === "replace") {
+        router.replace(href);
+        return;
+      }
+
+      router.push(href);
+    },
+    [pathname, router, searchParams],
   );
 
-  const isPrimaryLegalEntity =
-    workspace !== null &&
-    selectedLegalEntity !== null &&
-    (workspace.primaryCounterpartyId === selectedLegalEntity.counterpartyId ||
-      (!workspace.primaryCounterpartyId &&
-        workspace.legalEntities[0]?.counterpartyId ===
-          selectedLegalEntity.counterpartyId));
+  const resetDraftsFromWorkspace = useCallback(
+    (legalEntity: CustomerLegalEntity | null) => {
+      customerForm.reset(customerToFormValues(workspace));
+      legalEntityForm.reset(legalEntityToFormValues(legalEntity));
+      setRequisitesDirty(false);
+      setRequisitesResetSignal((current) => current + 1);
+      setError(null);
+    },
+    [customerForm, legalEntityForm, workspace],
+  );
+
+  const requestEntityChange = useCallback(
+    (counterpartyId: string, mode: "push" | "replace" = "push") => {
+      if (
+        !counterpartyId ||
+        counterpartyId === activeCounterpartyId ||
+        !workspace
+      ) {
+        return;
+      }
+
+      if (hasUnsavedChanges) {
+        setPendingEntitySwitch({ counterpartyId, mode });
+        setEntitySwitchDialogOpen(true);
+        return;
+      }
+
+      navigateToEntity(counterpartyId, mode);
+    },
+    [activeCounterpartyId, hasUnsavedChanges, navigateToEntity, workspace],
+  );
 
   const fetchDocuments = useCallback(
     async (counterpartyId: string | null) => {
@@ -374,24 +293,8 @@ export default function CustomerDetailPage() {
 
       const data: CustomerWorkspaceDetail = await response.json();
       setWorkspace(data);
-      setCustomerDescription(data.description ?? "");
-      setCustomerExternalRef(data.externalRef ?? "");
-      setSelectedCounterpartyId((current) => {
-        if (
-          current &&
-          data.legalEntities.some(
-            (legalEntity) => legalEntity.counterpartyId === current,
-          )
-        ) {
-          return current;
-        }
 
-        return (
-          data.primaryCounterpartyId ??
-          data.legalEntities[0]?.counterpartyId ??
-          null
-        );
-      });
+      return data;
     } catch (fetchError) {
       console.error("Failed to fetch customer workspace", fetchError);
       setError(
@@ -399,6 +302,7 @@ export default function CustomerDetailPage() {
           ? fetchError.message
           : "Не удалось загрузить клиента",
       );
+      return null;
     } finally {
       setLoading(false);
     }
@@ -409,26 +313,138 @@ export default function CustomerDetailPage() {
   }, [fetchWorkspace]);
 
   useEffect(() => {
+    if (!workspace) {
+      return;
+    }
+
+    if (entityParam !== resolvedActiveCounterpartyId) {
+      navigateToEntity(resolvedActiveCounterpartyId, "replace");
+    }
+  }, [entityParam, navigateToEntity, resolvedActiveCounterpartyId, workspace]);
+
+  useEffect(() => {
+    if (!workspace) {
+      return;
+    }
+
+    if (!resolvedActiveCounterpartyId) {
+      setActiveCounterpartyId(null);
+      return;
+    }
+
+    if (activeCounterpartyId === null) {
+      setActiveCounterpartyId(resolvedActiveCounterpartyId);
+      return;
+    }
+
+    if (resolvedActiveCounterpartyId === activeCounterpartyId) {
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setPendingEntitySwitch({
+        counterpartyId: resolvedActiveCounterpartyId,
+        mode: "replace",
+      });
+      setEntitySwitchDialogOpen(true);
+      navigateToEntity(activeCounterpartyId, "replace");
+      return;
+    }
+
+    setActiveCounterpartyId(resolvedActiveCounterpartyId);
+  }, [
+    activeCounterpartyId,
+    hasUnsavedChanges,
+    navigateToEntity,
+    resolvedActiveCounterpartyId,
+    workspace,
+  ]);
+
+  useEffect(() => {
+    if (!workspace || customerDirty) {
+      return;
+    }
+
+    customerForm.reset(customerToFormValues(workspace));
+  }, [customerDirty, customerForm, workspace]);
+
+  useEffect(() => {
+    if (legalEntityDirty) {
+      return;
+    }
+
     legalEntityForm.reset(legalEntityToFormValues(selectedLegalEntity));
-  }, [legalEntityForm, selectedLegalEntity]);
+  }, [legalEntityDirty, legalEntityForm, selectedLegalEntity]);
+
+  useEffect(() => {
+    if (workspace?.legalEntities.length) {
+      setEmptyAlertDismissed(false);
+    }
+  }, [workspace?.legalEntities.length]);
+
+  useEffect(() => {
+    setAgreementAlertDismissed(false);
+  }, [hasCustomerAgreement]);
 
   useEffect(() => {
     void fetchDocuments(selectedLegalEntity?.counterpartyId ?? null);
   }, [fetchDocuments, selectedLegalEntity?.counterpartyId]);
 
-  async function handleSave(data: LegalEntityFormData) {
-    if (!workspace || !selectedLegalEntity) {
+  async function handleSaveCustomer(data: CustomerFormData) {
+    if (!workspace) {
       return;
     }
 
     try {
-      setSaving(true);
+      setCustomerSaving(true);
       setError(null);
 
-      const bankingPayload = createCustomerBankingPayload(data);
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+        body: JSON.stringify({
+          description: normalizeOptionalText(data.description),
+          displayName: data.displayName.trim(),
+          externalRef: normalizeOptionalText(data.externalRef),
+        }),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        const message = await response
+          .json()
+          .catch(() => ({ error: "Ошибка сохранения клиента" }));
+        throw new Error(message.error ?? "Ошибка сохранения клиента");
+      }
+
+      const updatedWorkspace: CustomerWorkspaceDetail = await response.json();
+      setWorkspace(updatedWorkspace);
+      customerForm.reset(customerToFormValues(updatedWorkspace));
+    } catch (saveError) {
+      console.error("Failed to save customer workspace", saveError);
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Не удалось сохранить клиента",
+      );
+    } finally {
+      setCustomerSaving(false);
+    }
+  }
+
+  async function handleSaveLegalEntity(data: LegalEntityFormData) {
+    if (!selectedLegalEntity) {
+      return;
+    }
+
+    try {
+      setLegalEntitySaving(true);
+      setError(null);
+
       const legalEntityPayload = {
         address: normalizeOptionalText(data.address),
-        ...bankingPayload,
         directorBasis: normalizeOptionalText(data.directorBasis),
         directorName: normalizeOptionalText(data.directorName),
         email: normalizeOptionalText(data.email),
@@ -462,41 +478,32 @@ export default function CustomerDetailPage() {
         throw new Error(message.error ?? "Ошибка сохранения юридического лица");
       }
 
-      const customerPayload: Record<string, string | null> = {
-        description: normalizeOptionalText(customerDescription),
-        externalRef: normalizeOptionalText(customerExternalRef),
-      };
-      if (isPrimaryLegalEntity) {
-        customerPayload.displayName = data.orgName.trim();
-      }
-
-      const customerResponse = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        body: JSON.stringify(customerPayload),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "PATCH",
-      });
-
-      if (!customerResponse.ok) {
-        const message = await customerResponse
-          .json()
-          .catch(() => ({ error: "Ошибка сохранения клиента" }));
-        throw new Error(message.error ?? "Ошибка сохранения клиента");
-      }
-
-      setIsEditing(false);
-      await fetchWorkspace();
+      const updatedLegalEntity: CustomerLegalEntity =
+        await legalEntityResponse.json();
+      setWorkspace((currentWorkspace) =>
+        currentWorkspace
+          ? {
+              ...currentWorkspace,
+              legalEntities: currentWorkspace.legalEntities.map(
+                (legalEntity) =>
+                  legalEntity.counterpartyId ===
+                  updatedLegalEntity.counterpartyId
+                    ? updatedLegalEntity
+                    : legalEntity,
+              ),
+            }
+          : currentWorkspace,
+      );
+      legalEntityForm.reset(legalEntityToFormValues(updatedLegalEntity));
     } catch (saveError) {
-      console.error("Failed to save customer workspace", saveError);
+      console.error("Failed to save legal entity", saveError);
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "Не удалось сохранить изменения",
+          : "Не удалось сохранить юридическое лицо",
       );
     } finally {
-      setSaving(false);
+      setLegalEntitySaving(false);
     }
   }
 
@@ -544,7 +551,8 @@ export default function CustomerDetailPage() {
         {
           body: JSON.stringify({
             address: normalizeOptionalText(values.address),
-            country: normalizeOptionalText(values.country)?.toUpperCase() ?? null,
+            country:
+              normalizeOptionalText(values.country)?.toUpperCase() ?? null,
             directorName: normalizeOptionalText(values.directorName),
             email: normalizeOptionalText(values.email),
             inn: normalizeOptionalText(values.inn),
@@ -569,8 +577,16 @@ export default function CustomerDetailPage() {
       const created: CustomerLegalEntity = await response.json();
       createLegalEntityForm.reset();
       setNewLegalEntityOpen(false);
-      setSelectedCounterpartyId(created.counterpartyId);
-      await fetchWorkspace();
+      setWorkspace((currentWorkspace) =>
+        currentWorkspace
+          ? {
+              ...currentWorkspace,
+              legalEntities: [...currentWorkspace.legalEntities, created],
+              legalEntityCount: currentWorkspace.legalEntityCount + 1,
+            }
+          : currentWorkspace,
+      );
+      navigateToEntity(created.counterpartyId, "push");
     } catch (createError) {
       console.error("Failed to create legal entity", createError);
       setError(
@@ -616,7 +632,6 @@ export default function CustomerDetailPage() {
       setUploadDocumentDescription("");
       setUploadDocumentFile(null);
       await fetchDocuments(selectedLegalEntity.counterpartyId);
-      await fetchWorkspace();
     } catch (uploadError) {
       console.error("Failed to upload document", uploadError);
       setError(
@@ -732,6 +747,20 @@ export default function CustomerDetailPage() {
     }
   }
 
+  function handleConfirmEntitySwitch() {
+    const nextSwitch = pendingEntitySwitch;
+
+    setEntitySwitchDialogOpen(false);
+    setPendingEntitySwitch(null);
+    resetDraftsFromWorkspace(selectedLegalEntity);
+
+    if (!nextSwitch) {
+      return;
+    }
+
+    navigateToEntity(nextSwitch.counterpartyId, nextSwitch.mode);
+  }
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -760,54 +789,16 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Назад
-          </Button>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold">{workspace.displayName}</h1>
-            <p className="text-sm text-muted-foreground">
-              {workspace.legalEntityCount}{" "}
-              {workspace.legalEntityCount === 1
-                ? "юридическое лицо"
-                : workspace.legalEntityCount < 5
-                  ? "юридических лица"
-                  : "юридических лиц"}
-            </p>
-            {!selectedLegalEntity ? (
-              <p className="text-sm text-amber-600">
-                У клиента пока нет юридических лиц. Добавьте первое юридическое
-                лицо, чтобы продолжить.
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => setNewLegalEntityOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить юр. лицо
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setIsEditing((current) => !current)}
-          >
-            <Pencil className="mr-2 h-4 w-4" />
-            {isEditing ? "Отменить редактирование" : "Редактировать"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setContractDialogOpen(true)}
-            disabled={!selectedLegalEntity}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Создать / редактировать договор
-          </Button>
-          <ArchiveCustomerButton deleting={deleting} onConfirm={handleArchive} />
-        </div>
-      </div>
+      <CustomerDetailHeader
+        canManageAgreement={selectedLegalEntity !== null}
+        deleting={deleting}
+        legalEntityCount={workspace.legalEntityCount}
+        onAddLegalEntity={() => setNewLegalEntityOpen(true)}
+        onArchive={handleArchive}
+        onBack={() => router.back()}
+        onOpenContractDialog={() => setContractDialogOpen(true)}
+        title={workspace.displayName}
+      />
 
       {error ? (
         <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
@@ -815,439 +806,103 @@ export default function CustomerDetailPage() {
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Паспорт клиента</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Название клиента</Label>
-            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-              {workspace.displayName}
-            </div>
+      {showMissingLegalEntitiesAlert ? (
+        <Alert variant="warning" className="pr-12">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            У клиента пока нет юридических лиц. Добавьте первое юридическое
+            лицо, чтобы продолжить.
+          </AlertDescription>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/50 dark:hover:text-amber-100"
+            onClick={() => setEmptyAlertDismissed(true)}
+            aria-label="Закрыть уведомление"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </Alert>
+      ) : null}
+
+      {showMissingAgreementAlert ? (
+        <Alert variant="warning" className="pr-12">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Для клиента пока не создан агентский договор.
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => setContractDialogOpen(true)}
+            >
+              Создать договор
+            </Button>
+          </AlertDescription>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/50 dark:hover:text-amber-100"
+            onClick={() => setAgreementAlertDismissed(true)}
+            aria-label="Закрыть уведомление"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </Alert>
+      ) : null}
+
+      <CustomerSummaryCard
+        createdAt={workspace.createdAt}
+        form={customerForm}
+        onSave={(data) => {
+          void handleSaveCustomer(data);
+        }}
+        saving={customerSaving}
+        workspace={workspace}
+      />
+
+      <div>
+        {workspace.legalEntities.length > 0 && selectedLegalEntity ? (
+          <CustomerLegalEntityPanel
+            contractLang={contractLang}
+            deletingDocumentId={deletingDocumentId}
+            documents={documents}
+            downloadingContract={downloadingContract}
+            form={legalEntityForm}
+            loadingDocuments={loadingDocuments}
+            onContractLangChange={setContractLang}
+            onDeleteDocument={(documentId) => {
+              void handleDeleteDocument(documentId);
+            }}
+            onDownloadContract={(format) => {
+              void handleDownloadContract(format);
+            }}
+            onDownloadDocument={(document) => {
+              void handleDownloadDocument(document);
+            }}
+            onEntityChange={(counterpartyId) => {
+              requestEntityChange(counterpartyId, "push");
+            }}
+            onRequisitesDirtyChange={setRequisitesDirty}
+            requisitesResetSignal={requisitesResetSignal}
+            onSave={(data) => {
+              void handleSaveLegalEntity(data);
+            }}
+            onUploadDocument={() => setUploadDialogOpen(true)}
+            saving={legalEntitySaving}
+            selectedLegalEntity={selectedLegalEntity}
+            workspaceLegalEntities={workspace.legalEntities}
+            workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
+          />
+        ) : (
+          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            У этого клиента пока нет юридических лиц.
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="customer-external-ref">Внешний ID</Label>
-            {isEditing ? (
-              <Input
-                id="customer-external-ref"
-                value={customerExternalRef}
-                onChange={(event) => setCustomerExternalRef(event.target.value)}
-                placeholder="Например: crm-0001"
-              />
-            ) : (
-              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                {workspace.externalRef ?? "Не указан"}
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label>Создан</Label>
-            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-              {new Date(workspace.createdAt).toLocaleString("ru-RU")}
-            </div>
-          </div>
-          <div className="space-y-2 lg:col-span-3">
-            <Label htmlFor="customer-description">Описание</Label>
-            {isEditing ? (
-              <Textarea
-                id="customer-description"
-                value={customerDescription}
-                onChange={(event) => setCustomerDescription(event.target.value)}
-                placeholder="Описание клиента"
-                rows={3}
-              />
-            ) : (
-              <div className="min-h-[88px] rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                {workspace.description ?? "Описание не указано"}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Юридические лица
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {workspace.legalEntities.length > 0 ? (
-            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-              <div className="space-y-3">
-                <Label>Активное юридическое лицо</Label>
-                <Select
-                  value={selectedLegalEntity?.counterpartyId ?? ""}
-                  onValueChange={(value) => setSelectedCounterpartyId(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите юридическое лицо" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workspace.legalEntities.map((legalEntity) => (
-                      <SelectItem
-                        key={legalEntity.counterpartyId}
-                        value={legalEntity.counterpartyId}
-                      >
-                        {legalEntity.shortName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <div className="space-y-2">
-                  {workspace.legalEntities.map((legalEntity) => {
-                    const isSelected =
-                      legalEntity.counterpartyId ===
-                      selectedLegalEntity?.counterpartyId;
-                    const isPrimary =
-                      workspace.primaryCounterpartyId ===
-                        legalEntity.counterpartyId ||
-                      (!workspace.primaryCounterpartyId &&
-                        workspace.legalEntities[0]?.counterpartyId ===
-                          legalEntity.counterpartyId);
-
-                    return (
-                      <button
-                        key={legalEntity.counterpartyId}
-                        className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
-                          isSelected
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:bg-muted/40"
-                        }`}
-                        onClick={() =>
-                          setSelectedCounterpartyId(legalEntity.counterpartyId)
-                        }
-                        type="button"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">
-                              {legalEntity.shortName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {legalEntity.inn
-                                ? `ИНН: ${legalEntity.inn}`
-                                : "ИНН не указан"}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {isPrimary ? (
-                              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                                Основное
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {selectedLegalEntity ? (
-                <form
-                  className="space-y-4"
-                  onSubmit={legalEntityForm.handleSubmit(handleSave)}
-                >
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Название юр. лица"
-                      name="orgName"
-                      required
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Тип организации"
-                      name="orgType"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="ИНН"
-                      name="inn"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="КПП"
-                      name="kpp"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="ОГРН"
-                      name="ogrn"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="ОКПО"
-                      name="okpo"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="ОКТМО"
-                      name="oktmo"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Email"
-                      name="email"
-                      type="email"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Телефон"
-                      name="phone"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Директор"
-                      name="directorName"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Должность"
-                      name="position"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Основание полномочий"
-                      name="directorBasis"
-                    />
-                    <Field
-                      disabled={!isEditing}
-                      form={legalEntityForm}
-                      label="Адрес"
-                      name="address"
-                    />
-                  </div>
-
-                  <CustomerBankingSection
-                    disabled={!isEditing}
-                    form={
-                      legalEntityForm as unknown as UseFormReturn<CustomerBankingFormData>
-                    }
-                  />
-
-                  <Separator />
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">
-                          Системные привязки
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm">
-                        <InfoRow
-                          label="ID контрагента"
-                          value={selectedLegalEntity.counterpartyId}
-                        />
-                        <InfoRow
-                          label="Тип связи"
-                          value={formatRelationshipKind(
-                            selectedLegalEntity.relationshipKind,
-                          )}
-                        />
-                        <InfoRow
-                          label="Агентский договор"
-                          value={
-                            selectedLegalEntity.contractNumber ?? "Не заключен"
-                          }
-                        />
-                      </CardContent>
-                    </Card>
-
-                    {selectedLegalEntity.subAgent ? (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">
-                            Субагент
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                          <InfoRow
-                            label="Имя"
-                            value={selectedLegalEntity.subAgent.shortName}
-                          />
-                          <InfoRow
-                            label="Комиссия"
-                            value={`${selectedLegalEntity.subAgent.commissionRate}%`}
-                          />
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">
-                            Субагент
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                          Субагент не назначен.
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between gap-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <File className="h-4 w-4" />
-                          Документы
-                        </CardTitle>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setUploadDialogOpen(true)}
-                          type="button"
-                        >
-                          <UploadIcon className="mr-2 h-4 w-4" />
-                          Загрузить документ
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {loadingDocuments ? (
-                        <div className="flex justify-center py-6">
-                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        </div>
-                      ) : documents.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Документы ещё не загружены.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {documents.map((document) => (
-                            <div
-                              key={document.id}
-                              className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                            >
-                              <div className="flex min-w-0 flex-1 items-center gap-3">
-                                <div className="shrink-0">
-                                  {getFileIcon(document.mimeType)}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium">
-                                    {document.fileName}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatFileSize(document.fileSize)} •{" "}
-                                    {new Date(document.createdAt).toLocaleString(
-                                      "ru-RU",
-                                    )}
-                                  </p>
-                                  {document.description ? (
-                                    <p className="truncate text-xs text-muted-foreground">
-                                      {document.description}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    void handleDownloadDocument(document)
-                                  }
-                                  type="button"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  disabled={deletingDocumentId === document.id}
-                                  onClick={() =>
-                                    void handleDeleteDocument(document.id)
-                                  }
-                                  type="button"
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                      value={contractLang}
-                      onValueChange={(value) =>
-                        setContractLang((value as "ru" | "en") ?? "ru")
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ru">Русский</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      disabled={downloadingContract}
-                      onClick={() => void handleDownloadContract("docx")}
-                      type="button"
-                    >
-                      {downloadingContract ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="mr-2 h-4 w-4" />
-                      )}
-                      Скачать DOCX
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={downloadingContract}
-                      onClick={() => void handleDownloadContract("pdf")}
-                      type="button"
-                    >
-                      {downloadingContract ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="mr-2 h-4 w-4" />
-                      )}
-                      Скачать PDF
-                    </Button>
-                    <Button disabled={!isEditing || saving} type="submit">
-                      {saving ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      Сохранить изменения
-                    </Button>
-                  </div>
-                </form>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              У этого клиента пока нет юридических лиц.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent>
@@ -1259,24 +914,33 @@ export default function CustomerDetailPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="document-file">Файл</Label>
-              <Input
+              <label htmlFor="document-file" className="text-sm font-medium">
+                Файл
+              </label>
+              <input
                 id="document-file"
                 onChange={(event) =>
                   setUploadDocumentFile(event.target.files?.[0] ?? null)
                 }
                 type="file"
+                className="border-input bg-background file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-8 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="document-description">Описание</Label>
-              <Input
+              <label
+                htmlFor="document-description"
+                className="text-sm font-medium"
+              >
+                Описание
+              </label>
+              <input
                 id="document-description"
                 onChange={(event) =>
                   setUploadDocumentDescription(event.target.value)
                 }
                 placeholder="Например: подписанный договор"
                 value={uploadDocumentDescription}
+                className="border-input bg-background file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-8 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
               />
             </div>
           </div>
@@ -1311,12 +975,14 @@ export default function CustomerDetailPage() {
           <DialogHeader>
             <DialogTitle>Добавить юридическое лицо</DialogTitle>
             <DialogDescription>
-              Создайте новое customer-owned юридическое лицо для этого клиента.
+              Создайте новое юридическое лицо для этого клиента.
             </DialogDescription>
           </DialogHeader>
           <form
             className="space-y-4"
-            onSubmit={createLegalEntityForm.handleSubmit(handleCreateLegalEntity)}
+            onSubmit={createLegalEntityForm.handleSubmit(
+              handleCreateLegalEntity,
+            )}
           >
             <Field
               disabled={creatingLegalEntity}
@@ -1385,6 +1051,17 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <PendingEntitySwitchDialog
+        open={entitySwitchDialogOpen}
+        onOpenChange={(open) => {
+          setEntitySwitchDialogOpen(open);
+          if (!open) {
+            setPendingEntitySwitch(null);
+          }
+        }}
+        onConfirm={handleConfirmEntitySwitch}
+      />
+
       {selectedLegalEntity ? (
         <NewContractDialog
           counterpartyId={selectedLegalEntity.counterpartyId}
@@ -1397,137 +1074,5 @@ export default function CustomerDetailPage() {
         />
       ) : null}
     </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="break-words">{value}</p>
-    </div>
-  );
-}
-
-function Field<TFieldValues extends FieldValues>({
-  disabled,
-  form,
-  label,
-  name,
-  required = false,
-  type = "text",
-}: {
-  disabled: boolean;
-  form: UseFormReturn<TFieldValues>;
-  label: string;
-  name: Path<TFieldValues>;
-  required?: boolean;
-  type?: string;
-}) {
-  const error =
-    (form.formState.errors[name] as { message?: string } | undefined)?.message ??
-    null;
-  const value = (form.watch(name) as unknown as string | undefined) ?? "";
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>
-        {label}
-        {required ? <span className="text-destructive"> *</span> : null}
-      </Label>
-      <Input
-        disabled={disabled}
-        id={name}
-        onChange={(event) =>
-          form.setValue(name, event.target.value as TFieldValues[typeof name], {
-            shouldDirty: true,
-            shouldValidate: true,
-          })
-        }
-        type={type}
-        value={value}
-      />
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function CountryField<TFieldValues extends FieldValues>({
-  disabled,
-  form,
-  label,
-  name,
-}: {
-  disabled: boolean;
-  form: UseFormReturn<TFieldValues>;
-  label: string;
-  name: Path<TFieldValues>;
-}) {
-  const value = (form.watch(name) as unknown as string | undefined) ?? "";
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      <CountrySelect
-        id={name}
-        value={value}
-        onValueChange={(nextValue) =>
-          form.setValue(name, nextValue as TFieldValues[typeof name], {
-            shouldDirty: true,
-            shouldValidate: true,
-          })
-        }
-        disabled={disabled}
-        placeholder="Не выбрано"
-        searchPlaceholder="Поиск страны..."
-        emptyLabel="Страна не найдена"
-        clearable
-        clearLabel="Очистить"
-      />
-    </div>
-  );
-}
-
-function ArchiveCustomerButton({
-  deleting,
-  onConfirm,
-}: {
-  deleting: boolean;
-  onConfirm: () => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button variant="outline" onClick={() => setOpen(true)} type="button">
-        <Trash2 className="mr-2 h-4 w-4" />
-        Архивировать клиента
-      </Button>
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Архивировать клиента?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Клиент и связанные записи будут переведены в архив. Основные
-              данные сохранятся.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleting}
-              onClick={() => {
-                void onConfirm();
-              }}
-            >
-              {deleting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Архивировать
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   );
 }

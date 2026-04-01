@@ -125,6 +125,7 @@ const CustomerWorkspaceDetailSchema = z.object({
   description: z.string().nullable(),
   displayName: z.string(),
   externalRef: z.string().nullable(),
+  hasActiveAgreement: z.boolean(),
   id: z.string().uuid(),
   legalEntities: z.array(CustomerLegalEntitySchema),
   legalEntityCount: z.number().int(),
@@ -139,37 +140,49 @@ const CustomerWorkspaceListQuerySchema = z.object({
 });
 
 const CustomerWorkspaceParamSchema = z.object({
-  id: z.string().uuid().openapi({
-    param: {
-      in: "path",
-      name: "id",
-    },
-  }),
+  id: z
+    .string()
+    .uuid()
+    .openapi({
+      param: {
+        in: "path",
+        name: "id",
+      },
+    }),
 });
 
 const CustomerLegalEntityParamsSchema = z.object({
-  counterpartyId: z.string().uuid().openapi({
-    param: {
-      in: "path",
-      name: "counterpartyId",
-    },
-  }),
-  customerId: z.string().uuid().openapi({
-    param: {
-      in: "path",
-      name: "customerId",
-    },
-  }),
+  counterpartyId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: {
+        in: "path",
+        name: "counterpartyId",
+      },
+    }),
+  customerId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: {
+        in: "path",
+        name: "customerId",
+      },
+    }),
 });
 
 const CustomerLegalEntityDocumentParamsSchema =
   CustomerLegalEntityParamsSchema.extend({
-    documentId: z.string().uuid().openapi({
-      param: {
-        in: "path",
-        name: "documentId",
-      },
-    }),
+    documentId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "documentId",
+        },
+      }),
   });
 
 const CustomerLegalEntityInputSchema = z.object({
@@ -220,11 +233,12 @@ const CustomerLegalEntityInputSchema = z.object({
 const CustomerLegalEntityPatchInputSchema =
   CustomerLegalEntityInputSchema.partial();
 
-const CustomerWorkspaceUpsertInputSchema = CustomerLegalEntityInputSchema.extend({
-  description: z.string().trim().nullable().optional(),
-  displayName: z.string().trim().min(1).optional(),
-  externalRef: z.string().trim().nullable().optional(),
-});
+const CustomerWorkspaceUpsertInputSchema =
+  CustomerLegalEntityInputSchema.extend({
+    description: z.string().trim().nullable().optional(),
+    displayName: z.string().trim().min(1).optional(),
+    externalRef: z.string().trim().nullable().optional(),
+  });
 
 const CustomerWorkspacePatchInputSchema = z.object({
   description: z.string().trim().nullable().optional(),
@@ -251,7 +265,9 @@ const PaginatedCustomerWorkspacesSchema = createPaginatedListSchema(
   CustomerWorkspaceSummarySchema,
 );
 
-type CustomerWorkspaceListQuery = z.infer<typeof CustomerWorkspaceListQuerySchema>;
+type CustomerWorkspaceListQuery = z.infer<
+  typeof CustomerWorkspaceListQuerySchema
+>;
 type CustomerWorkspaceUpsertInput = z.infer<
   typeof CustomerWorkspaceUpsertInputSchema
 >;
@@ -302,7 +318,9 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function normalizeNullableText(value: string | null | undefined): string | null {
+function normalizeNullableText(
+  value: string | null | undefined,
+): string | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -324,7 +342,8 @@ function deriveRoutingCode(input: {
   swift?: string | null | undefined;
 }) {
   const routingCode =
-    normalizeNullableText(input.bankProvider?.routingCode)?.toUpperCase() ?? null;
+    normalizeNullableText(input.bankProvider?.routingCode)?.toUpperCase() ??
+    null;
   const bic = normalizeNullableText(input.bic);
   const swift = normalizeNullableText(input.swift)?.toUpperCase() ?? null;
   const country = normalizeCountryCode(
@@ -379,7 +398,9 @@ function buildCustomerBankingInput(input: CustomerLegalEntityInput) {
 }
 
 function serializeDate(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return value instanceof Date
+    ? value.toISOString()
+    : new Date(value).toISOString();
 }
 
 function resolveDisplayName(
@@ -449,7 +470,9 @@ function buildCounterpartyPayload(input: {
   return {
     address: normalizeNullableText(input.values.address),
     addressI18n: input.values.addressI18n ?? null,
-    country: normalizeCountryCode(input.values.country ?? input.values.bankCountry),
+    country: normalizeCountryCode(
+      input.values.country ?? input.values.bankCountry,
+    ),
     customerId: input.customerId,
     description: null,
     directorBasis: normalizeNullableText(input.values.directorBasis),
@@ -523,7 +546,9 @@ async function listCounterpartyBankRequisites(
         sortOrder: "desc",
       });
       const preferred =
-        result.data.find((item) => item.isDefault && item.archivedAt === null) ??
+        result.data.find(
+          (item) => item.isDefault && item.archivedAt === null,
+        ) ??
         result.data.find((item) => item.archivedAt === null) ??
         null;
       return [counterpartyId, preferred] as const;
@@ -668,6 +693,7 @@ async function mapCustomerWorkspaceDetail(
     description: customer.description,
     displayName: customer.displayName,
     externalRef: customer.externalRef,
+    hasActiveAgreement: contract !== null,
     id: customer.id,
     legalEntities,
     legalEntityCount: legalEntities.length,
@@ -839,14 +865,16 @@ async function listCustomerWorkspaces(
     ]);
 
   const customerMap = new Map<string, CanonicalCustomer>();
-  for (const customer of [...displayNameMatches.data, ...externalRefMatches.data]) {
+  for (const customer of [
+    ...displayNameMatches.data,
+    ...externalRefMatches.data,
+  ]) {
     customerMap.set(customer.id, customer);
   }
 
   if (counterpartyMatches.length > 0) {
-    const customers = await ctx.partiesModule.customers.queries.listByIds(
-      counterpartyMatches,
-    );
+    const customers =
+      await ctx.partiesModule.customers.queries.listByIds(counterpartyMatches);
     for (const customer of customers) {
       customerMap.set(customer.id, customer);
     }
@@ -877,7 +905,10 @@ async function listCustomerWorkspaces(
 
 async function getCustomerWorkspace(ctx: AppContext, customerId: string) {
   const customer = await getCustomerOrThrow(ctx, customerId);
-  const counterpartiesList = await getCustomerOwnedCounterparties(ctx, customerId);
+  const counterpartiesList = await getCustomerOwnedCounterparties(
+    ctx,
+    customerId,
+  );
   return mapCustomerWorkspaceDetail(ctx, customer, counterpartiesList);
 }
 
@@ -945,7 +976,9 @@ export function customersRoutes(ctx: AppContext) {
     request: { params: CustomerWorkspaceParamSchema },
     responses: {
       200: {
-        content: { "application/json": { schema: CustomerWorkspaceDetailSchema } },
+        content: {
+          "application/json": { schema: CustomerWorkspaceDetailSchema },
+        },
         description: "Customer workspace detail",
       },
       404: {
@@ -971,7 +1004,9 @@ export function customersRoutes(ctx: AppContext) {
     },
     responses: {
       201: {
-        content: { "application/json": { schema: CustomerWorkspaceDetailSchema } },
+        content: {
+          "application/json": { schema: CustomerWorkspaceDetailSchema },
+        },
         description: "Customer workspace created",
       },
     },
@@ -994,7 +1029,9 @@ export function customersRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: CustomerWorkspaceDetailSchema } },
+        content: {
+          "application/json": { schema: CustomerWorkspaceDetailSchema },
+        },
         description: "Customer workspace updated",
       },
       404: {
@@ -1033,10 +1070,14 @@ export function customersRoutes(ctx: AppContext) {
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/{customerId}/legal-entities",
-    request: { params: CustomerLegalEntityParamsSchema.omit({ counterpartyId: true }) },
+    request: {
+      params: CustomerLegalEntityParamsSchema.omit({ counterpartyId: true }),
+    },
     responses: {
       200: {
-        content: { "application/json": { schema: z.array(CustomerLegalEntitySchema) } },
+        content: {
+          "application/json": { schema: z.array(CustomerLegalEntitySchema) },
+        },
         description: "Customer-owned legal entities",
       },
       404: {
@@ -1323,7 +1364,8 @@ export function customersRoutes(ctx: AppContext) {
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       const canonical = extractCanonicalCreateInput(input, input.orgName);
-      const customer = await ctx.partiesModule.customers.commands.create(canonical);
+      const customer =
+        await ctx.partiesModule.customers.commands.create(canonical);
       await upsertLegalEntity(ctx, {
         customerId: customer.id,
         values: input,
@@ -1397,7 +1439,8 @@ export function customersRoutes(ctx: AppContext) {
           counterpartiesList.map((counterparty) =>
             mapCustomerLegalEntity({
               assignment: assignments.get(counterparty.id) ?? null,
-              bankRequisite: requisitesByCounterpartyId.get(counterparty.id) ?? null,
+              bankRequisite:
+                requisitesByCounterpartyId.get(counterparty.id) ?? null,
               contract,
               counterparty,
               ctx,
@@ -1445,7 +1488,9 @@ export function customersRoutes(ctx: AppContext) {
           ctx,
           customerId,
         );
-        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [
+          counterpartyId,
+        ]);
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
           [counterpartyId],
@@ -1454,7 +1499,8 @@ export function customersRoutes(ctx: AppContext) {
         return c.json(
           await mapCustomerLegalEntity({
             assignment: assignments.get(counterpartyId) ?? null,
-            bankRequisite: requisitesByCounterpartyId.get(counterpartyId) ?? null,
+            bankRequisite:
+              requisitesByCounterpartyId.get(counterpartyId) ?? null,
             contract,
             counterparty,
             ctx,
@@ -1473,7 +1519,9 @@ export function customersRoutes(ctx: AppContext) {
           counterpartyId,
           customerId,
         });
-        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [
+          counterpartyId,
+        ]);
         const currentAssignment = assignments.get(counterpartyId) ?? null;
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
@@ -1488,13 +1536,14 @@ export function customersRoutes(ctx: AppContext) {
           : null;
         const currentRoutingCode =
           currentBankProvider?.country === "RU"
-            ? currentBankProvider?.bic ?? null
-            : currentBankProvider?.swift ?? currentBankProvider?.bic ?? null;
+            ? (currentBankProvider?.bic ?? null)
+            : (currentBankProvider?.swift ?? currentBankProvider?.bic ?? null);
         const values: CustomerLegalEntityInput = {
           account: patch.account ?? currentBankRequisite?.accountNo ?? null,
           address: patch.address ?? current.address ?? null,
           addressI18n: patch.addressI18n ?? current.addressI18n ?? null,
-          bankAddress: patch.bankAddress ?? currentBankProvider?.address ?? null,
+          bankAddress:
+            patch.bankAddress ?? currentBankProvider?.address ?? null,
           bankAddressI18n: patch.bankAddressI18n ?? null,
           bankMode:
             patch.bankMode ??
@@ -1521,9 +1570,7 @@ export function customersRoutes(ctx: AppContext) {
               patch.bankName ??
               currentBankProvider?.name ??
               null,
-            routingCode:
-              patch.bankProvider?.routingCode ??
-              currentRoutingCode,
+            routingCode: patch.bankProvider?.routingCode ?? currentRoutingCode,
           },
           bankCountry:
             patch.bankCountry ??
@@ -1531,10 +1578,7 @@ export function customersRoutes(ctx: AppContext) {
             currentBankProvider?.country ??
             current.country ??
             null,
-          bankName:
-            patch.bankName ??
-            currentBankProvider?.name ??
-            null,
+          bankName: patch.bankName ?? currentBankProvider?.name ?? null,
           bankNameI18n: patch.bankNameI18n ?? null,
           bankRequisite: {
             accountNo:
@@ -1558,10 +1602,7 @@ export function customersRoutes(ctx: AppContext) {
               currentBankRequisite?.iban ??
               null,
           },
-          bic:
-            patch.bic ??
-            currentBankProvider?.bic ??
-            null,
+          bic: patch.bic ?? currentBankProvider?.bic ?? null,
           beneficiaryName:
             patch.beneficiaryName ??
             currentBankRequisite?.beneficiaryName ??
@@ -1593,10 +1634,7 @@ export function customersRoutes(ctx: AppContext) {
             patch.subAgentCounterpartyId ??
             currentAssignment?.subAgentCounterpartyId ??
             null,
-          swift:
-            patch.swift ??
-            currentBankProvider?.swift ??
-            null,
+          swift: patch.swift ?? currentBankProvider?.swift ?? null,
         };
 
         const result = await upsertLegalEntity(ctx, {
@@ -1620,10 +1658,7 @@ export function customersRoutes(ctx: AppContext) {
           await ctx.filesModule.files.queries.listCounterpartyAttachments(
             counterpartyId,
           );
-        return c.json(
-          result.map(serializeCustomerFileAttachment),
-          200,
-        );
+        return c.json(result.map(serializeCustomerFileAttachment), 200);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1716,7 +1751,9 @@ export function customersRoutes(ctx: AppContext) {
           counterpartyId,
           customerId,
         });
-        const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
+        const assignments = await listCounterpartyAssignments(ctx, [
+          counterpartyId,
+        ]);
         const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
           ctx,
           [counterpartyId],
@@ -1737,7 +1774,10 @@ export function customersRoutes(ctx: AppContext) {
           ctx,
           contract.organizationRequisiteId,
         );
-        if (!organization || organizationRequisite.ownerId !== organization.id) {
+        if (
+          !organization ||
+          organizationRequisite.ownerId !== organization.id
+        ) {
           return c.json({ error: "Organization not found" }, 404);
         }
 
@@ -1746,10 +1786,11 @@ export function customersRoutes(ctx: AppContext) {
             client: legalEntity as unknown as Record<string, unknown>,
             contract: contract as unknown as Record<string, unknown>,
             organization: organization as unknown as Record<string, unknown>,
-            organizationRequisite: await serializeOrganizationRequisiteForDocuments(
-              ctx,
-              organizationRequisite,
-            ),
+            organizationRequisite:
+              await serializeOrganizationRequisiteForDocuments(
+                ctx,
+                organizationRequisite,
+              ),
             format,
             lang,
           });

@@ -110,6 +110,16 @@ export {
   type ListRequisiteProvidersQuery,
 } from "./requisites/application/contracts/queries";
 export {
+  BankRequisiteWorkspaceItemSchema,
+  BankRequisiteWorkspaceProviderSchema,
+  BankRequisiteWorkspaceResponseSchema,
+  ListBankRequisiteWorkspaceQuerySchema,
+  type BankRequisiteWorkspaceItem,
+  type BankRequisiteWorkspaceProvider,
+  type BankRequisiteWorkspaceResponse,
+  type ListBankRequisiteWorkspaceQuery,
+} from "./requisites/application/contracts/bank-workspace";
+export {
   CreateRequisiteInputSchema,
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,

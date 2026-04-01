@@ -72,8 +72,10 @@
       "name": "crm",
       "version": "0.1.0",
       "dependencies": {
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/deals": "workspace:*",
         "@bedrock/iam": "workspace:*",
+        "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/sdk-ui": "workspace:*",
         "@bedrock/shared": "workspace:*",
