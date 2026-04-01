@@ -43,7 +43,13 @@ export async function validateCurrencyReferences(
     ids.add(input.additionalExpensesCurrencyId);
   }
 
-  await Promise.all(Array.from(ids).map((id) => references.assertCurrencyExists(id)));
+  for (const line of input.financialLines) {
+    ids.add(line.currencyId);
+  }
+
+  await Promise.all(
+    Array.from(ids).map((id) => references.assertCurrencyExists(id)),
+  );
 }
 
 export async function validateQuoteProvenance(
@@ -147,6 +153,8 @@ export class CreateCalculationCommand {
             validated.additionalExpensesRateDen ?? null,
           calculationTimestamp: validated.calculationTimestamp.toISOString(),
           fxQuoteId: validated.fxQuoteId ?? null,
+          financialLines: validated.financialLines ?? [],
+          quoteSnapshot: validated.quoteSnapshot ?? null,
         },
         actorId: validated.actorUserId,
         serializeResult: (result) => ({ calculationId: result.id }),

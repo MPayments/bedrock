@@ -25,6 +25,7 @@ export interface CreateCalculationSnapshotInput {
   fxQuoteId: string | null;
   id: string;
   originalAmountMinor: bigint;
+  quoteSnapshot: Record<string, unknown> | null;
   rateDen: bigint;
   rateNum: bigint;
   rateSource: CalculationRateSource;

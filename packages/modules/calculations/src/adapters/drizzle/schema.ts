@@ -5,6 +5,7 @@ import {
   check,
   integer,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   timestamp,
@@ -114,6 +115,7 @@ export const calculationSnapshots = pgTable(
       withTimezone: true,
     }).notNull(),
     fxQuoteId: uuid("fx_quote_id").references(() => fxQuotes.id),
+    quoteSnapshot: jsonb("quote_snapshot").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -200,10 +202,6 @@ export const calculationLines = pgTable(
     uniqueIndex("calculation_lines_snapshot_idx_uq").on(
       table.calculationSnapshotId,
       table.idx,
-    ),
-    uniqueIndex("calculation_lines_snapshot_kind_uq").on(
-      table.calculationSnapshotId,
-      table.kind,
     ),
     index("calculation_lines_snapshot_idx").on(table.calculationSnapshotId),
   ],

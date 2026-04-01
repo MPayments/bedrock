@@ -10,6 +10,7 @@ export {
 } from "./application/contracts/commands";
 export {
   DealApprovalSchema,
+  DealCalculationHistoryItemSchema,
   DealDetailsSchema,
   DealLegSchema,
   DealParticipantSchema,
@@ -22,6 +23,7 @@ export {
   PaginatedDealsSchema,
   type Deal,
   type DealApproval,
+  type DealCalculationHistoryItem,
   type DealDetails,
   type DealLeg,
   type DealParticipant,

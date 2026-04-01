@@ -55,6 +55,7 @@ const calculationSelect = {
   additionalExpensesRateDen: calculationSnapshots.additionalExpensesRateDen,
   calculationTimestamp: calculationSnapshots.calculationTimestamp,
   fxQuoteId: calculationSnapshots.fxQuoteId,
+  quoteSnapshot: calculationSnapshots.quoteSnapshot,
   snapshotCreatedAt: calculationSnapshots.createdAt,
   snapshotUpdatedAt: calculationSnapshots.updatedAt,
 };
@@ -92,6 +93,7 @@ interface CalculationRow {
   additionalExpensesRateDen: bigint | null;
   calculationTimestamp: Date;
   fxQuoteId: string | null;
+  quoteSnapshot: Record<string, unknown> | null;
   snapshotCreatedAt: Date;
   snapshotUpdatedAt: Date;
 }
@@ -122,6 +124,7 @@ function mapSnapshot(row: CalculationRow): CalculationSnapshot {
       row.additionalExpensesRateDen?.toString() ?? null,
     calculationTimestamp: row.calculationTimestamp,
     fxQuoteId: row.fxQuoteId,
+    quoteSnapshot: row.quoteSnapshot,
     createdAt: row.snapshotCreatedAt,
     updatedAt: row.snapshotUpdatedAt,
   };
@@ -143,9 +146,14 @@ function mapLineRow(row: {
   kind:
     | "additional_expenses"
     | "additional_expenses_in_base"
+    | "adjustment"
     | "fee_amount"
     | "fee_amount_in_base"
+    | "fee_revenue"
     | "original_amount"
+    | "pass_through"
+    | "provider_fee_expense"
+    | "spread_revenue"
     | "total_amount"
     | "total_in_base"
     | "total_with_expenses_in_base";

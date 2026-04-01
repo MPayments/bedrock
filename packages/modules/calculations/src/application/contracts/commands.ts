@@ -1,11 +1,24 @@
 import { z } from "zod";
 
-import { CalculationRateSourceSchema } from "./zod";
+import {
+  CalculationLineKindSchema,
+  CalculationRateSourceSchema,
+} from "./zod";
 
 const NonNegativeIntegerStringSchema = z
   .string()
   .trim()
   .regex(/^(0|[1-9]\d*)$/, "Must be a non-negative integer string");
+const SignedIntegerStringSchema = z
+  .string()
+  .trim()
+  .regex(/^-?(0|[1-9]\d*)$/, "Must be an integer string");
+
+const FinancialLineInputSchema = z.object({
+  kind: CalculationLineKindSchema,
+  currencyId: z.uuid(),
+  amountMinor: SignedIntegerStringSchema,
+});
 
 export const CreateCalculationInputSchema = z
   .object({
@@ -35,6 +48,8 @@ export const CreateCalculationInputSchema = z
       .optional(),
     calculationTimestamp: z.coerce.date(),
     fxQuoteId: z.uuid().nullable().optional(),
+    financialLines: z.array(FinancialLineInputSchema).optional(),
+    quoteSnapshot: z.record(z.string(), z.unknown()).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.rateNum === "0") {
@@ -161,6 +176,7 @@ export type NormalizedCreateCalculationInput = Omit<
   | "additionalExpensesRateNum"
   | "additionalExpensesRateDen"
   | "fxQuoteId"
+  | "financialLines"
 > & {
   additionalExpensesCurrencyId: string | null;
   additionalExpensesRateSource:
@@ -172,6 +188,11 @@ export type NormalizedCreateCalculationInput = Omit<
   feeAmountMinor: bigint;
   feeBps: bigint;
   fxQuoteId: string | null;
+  financialLines: {
+    amountMinor: bigint;
+    currencyId: string;
+    kind: z.infer<typeof CalculationLineKindSchema>;
+  }[];
   originalAmountMinor: bigint;
   rateDen: bigint;
   rateNum: bigint;
@@ -186,6 +207,12 @@ export function normalizeCreateCalculationInput(
   input: CreateCalculationInput,
 ): NormalizedCreateCalculationInput {
   const validated = CreateCalculationInputSchema.parse(input);
+  const normalizedLines =
+    validated.financialLines?.map((line) => ({
+      kind: line.kind,
+      currencyId: line.currencyId,
+      amountMinor: BigInt(line.amountMinor),
+    })) ?? [];
 
   return {
     ...validated,
@@ -220,5 +247,6 @@ export function normalizeCreateCalculationInput(
         ? BigInt(validated.additionalExpensesRateDen)
         : null,
     fxQuoteId: validated.fxQuoteId ?? null,
+    financialLines: normalizedLines,
   };
 }

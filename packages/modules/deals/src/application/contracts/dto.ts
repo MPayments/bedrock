@@ -14,6 +14,10 @@ import {
   DealTypeSchema,
 } from "./zod";
 
+const NonNegativeIntegerStringSchema = z
+  .string()
+  .regex(/^(0|[1-9]\d*)$/);
+
 export const DealLegSchema = z.object({
   id: z.uuid(),
   idx: z.number().int().positive(),
@@ -90,6 +94,27 @@ export const DealDetailsSchema = DealSchema.extend({
 });
 
 export type DealDetails = z.infer<typeof DealDetailsSchema>;
+
+export const DealCalculationHistoryItemSchema = z.object({
+  calculationId: z.uuid(),
+  calculationTimestamp: z.date(),
+  createdAt: z.date(),
+  calculationCurrencyId: z.uuid(),
+  baseCurrencyId: z.uuid(),
+  originalAmountMinor: NonNegativeIntegerStringSchema,
+  feeAmountMinor: NonNegativeIntegerStringSchema,
+  totalAmountMinor: NonNegativeIntegerStringSchema,
+  totalInBaseMinor: NonNegativeIntegerStringSchema,
+  totalWithExpensesInBaseMinor: NonNegativeIntegerStringSchema,
+  rateNum: NonNegativeIntegerStringSchema,
+  rateDen: NonNegativeIntegerStringSchema,
+  fxQuoteId: z.uuid().nullable(),
+  sourceQuoteId: z.uuid().nullable(),
+});
+
+export type DealCalculationHistoryItem = z.infer<
+  typeof DealCalculationHistoryItemSchema
+>;
 
 export const DealTraceQuoteSchema = z.object({
   id: z.uuid(),

@@ -61,7 +61,12 @@ export interface CreateDealApprovalStoredInput {
 
 export interface DealStore {
   createDealCalculationLinks(
-    input: { id: string; calculationId: string; dealId: string }[],
+    input: {
+      id: string;
+      calculationId: string;
+      dealId: string;
+      sourceQuoteId?: string | null;
+    }[],
   ): Promise<void>;
   createDealRoot(input: CreateDealRootInput): Promise<void>;
   createDealLegs(input: CreateDealLegStoredInput[]): Promise<void>;

@@ -52,6 +52,7 @@ export class DrizzleCalculationStore implements CalculationStore {
       additionalExpensesRateDen: input.additionalExpensesRateDen,
       calculationTimestamp: input.calculationTimestamp,
       fxQuoteId: input.fxQuoteId,
+      quoteSnapshot: input.quoteSnapshot,
     });
   }
 

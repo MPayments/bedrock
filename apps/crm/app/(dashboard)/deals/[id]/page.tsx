@@ -15,6 +15,7 @@ import {
   Landmark,
   PackageOpen,
   Paperclip,
+  Plus,
   Save,
   Trash2,
   Upload,
@@ -26,6 +27,7 @@ import {
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,13 @@ import {
 } from "@bedrock/sdk-ui/components/dropdown-menu";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
@@ -154,6 +163,13 @@ type ApiCurrency = {
   code: string;
   id: string;
   precision: number;
+};
+
+type ApiCurrencyOption = {
+  code: string;
+  id: string;
+  label: string;
+  name: string;
 };
 
 type ApiAgreementFeeRule = AgreementFeeRuleView & {
@@ -268,6 +284,23 @@ type ApiFormalDocument = {
   title: string | null;
 };
 
+type ApiDealCalculationHistoryItem = {
+  baseCurrencyId: string;
+  calculationCurrencyId: string;
+  calculationId: string;
+  calculationTimestamp: string;
+  createdAt: string;
+  feeAmountMinor: string;
+  fxQuoteId: string | null;
+  originalAmountMinor: string;
+  rateDen: string;
+  rateNum: string;
+  sourceQuoteId: string | null;
+  totalAmountMinor: string;
+  totalInBaseMinor: string;
+  totalWithExpensesInBaseMinor: string;
+};
+
 type CalculationView = {
   additionalExpenses: string;
   additionalExpensesCurrencyCode: string | null;
@@ -284,10 +317,19 @@ type CalculationView = {
   totalWithExpensesInBase: string;
 };
 
+type CalculationHistoryView = {
+  calculationId: string;
+  calculationTimestamp: string;
+  createdAt: string;
+  fxQuoteId: string | null;
+  rate: string;
+};
+
 type DealPageData = {
   agreement: ApiAgreementDetails;
   attachments: ApiAttachment[];
   calculation: CalculationView | null;
+  calculationHistory: CalculationHistoryView[];
   customer: ApiCustomerWorkspace;
   deal: ApiDealDetails;
   formalDocuments: ApiFormalDocument[];
@@ -295,7 +337,8 @@ type DealPageData = {
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
-  requestedCurrencyCode: string | null;
+  requestedCurrency: ApiCurrency | null;
+  currencyOptions: ApiCurrencyOption[];
 };
 
 const STATUS_LABELS: Record<DealStatus, string> = {
@@ -366,6 +409,43 @@ function minorToDecimalString(amountMinor: string, precision: number) {
   const fractionPart = padded.slice(padded.length - precision);
 
   return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
+
+function decimalToMinorString(amount: string, precision: number): string | null {
+  const normalized = amount.trim().replace(",", ".");
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/^(\d+)(?:\.(\d+))?$/);
+  if (!match) {
+    return null;
+  }
+
+  const integerPart = match[1] ?? "0";
+  const rawFraction = match[2] ?? "";
+  if (rawFraction.length > precision) {
+    return null;
+  }
+
+  const fractionPart = rawFraction.padEnd(precision, "0");
+  const combined = `${integerPart}${fractionPart}`;
+  if (!/^\d+$/.test(combined)) {
+    return null;
+  }
+
+  const trimmed = combined.replace(/^0+(?=\d)/, "");
+  return trimmed.length > 0 ? trimmed : "0";
+}
+
+function formatDateTimeInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  const day = `${value.getDate()}`.padStart(2, "0");
+  const hours = `${value.getHours()}`.padStart(2, "0");
+  const minutes = `${value.getMinutes()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 function rationalToDecimalString(
@@ -602,6 +682,53 @@ async function fetchCalculationView(
   };
 }
 
+async function fetchCalculationHistory(
+  dealId: string,
+): Promise<CalculationHistoryView[]> {
+  const history = await fetchJson<ApiDealCalculationHistoryItem[]>(
+    `${API_BASE_URL}/deals/${dealId}/calculations`,
+  );
+
+  return history.map((item) => ({
+    calculationId: item.calculationId,
+    calculationTimestamp: item.calculationTimestamp,
+    createdAt: item.createdAt,
+    fxQuoteId: item.fxQuoteId,
+    rate: rationalToDecimalString(item.rateNum, item.rateDen),
+  }));
+}
+
+async function fetchCurrencyOptions(): Promise<ApiCurrencyOption[]> {
+  const response = await fetchJson<{ data: ApiCurrencyOption[] }>(
+    `${API_BASE_URL}/currencies/options`,
+  );
+
+  return response.data;
+}
+
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function resolveDefaultToCurrency(
+  options: ApiCurrencyOption[],
+  fromCurrencyCode: string | null,
+) {
+  if (options.length === 0) {
+    return "";
+  }
+
+  if (!fromCurrencyCode) {
+    return options[0]?.code ?? "";
+  }
+
+  return options.find((option) => option.code !== fromCurrencyCode)?.code ?? "";
+}
+
 export default function DealDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -630,6 +757,16 @@ export default function DealDetailPage() {
     message: "",
     title: "",
   });
+  const [isCalculationDialogOpen, setIsCalculationDialogOpen] = useState(false);
+  const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
+  const [isSwitchingCalculation, setIsSwitchingCalculation] = useState(false);
+  const [overrideCalculationAmount, setOverrideCalculationAmount] =
+    useState(false);
+  const [calculationAmount, setCalculationAmount] = useState("");
+  const [calculationToCurrency, setCalculationToCurrency] = useState("");
+  const [calculationAsOf, setCalculationAsOf] = useState(
+    formatDateTimeInput(new Date()),
+  );
 
   const showError = useCallback((title: string, message: string) => {
     setErrorDialog({
@@ -661,6 +798,8 @@ export default function DealDetailPage() {
         formalDocuments,
         requestedCurrency,
         calculation,
+        calculationHistory,
+        currencyOptions,
       ] = await Promise.all([
         fetchJson<ApiAttachment[]>(`${API_BASE_URL}/deals/${dealId}/attachments`),
         fetchJson<ApiCustomerWorkspace>(
@@ -680,6 +819,8 @@ export default function DealDetailPage() {
         deal.calculationId
           ? fetchCalculationView(deal.calculationId)
           : Promise.resolve(null),
+        fetchCalculationHistory(dealId),
+        fetchCurrencyOptions(),
       ]);
 
       const legalEntity = counterpartyId
@@ -705,6 +846,8 @@ export default function DealDetailPage() {
         agreement,
         attachments,
         calculation,
+        calculationHistory,
+        currencyOptions,
         customer,
         deal,
         formalDocuments,
@@ -712,7 +855,7 @@ export default function DealDetailPage() {
         organization,
         organizationRequisite,
         organizationRequisiteProvider,
-        requestedCurrencyCode: requestedCurrency?.code ?? null,
+        requestedCurrency,
       });
     } catch (nextError) {
       console.error("Deal detail load error:", nextError);
@@ -729,6 +872,211 @@ export default function DealDetailPage() {
   useEffect(() => {
     void loadDeal();
   }, [loadDeal]);
+
+  useEffect(() => {
+    if (!data || overrideCalculationAmount) {
+      return;
+    }
+
+    setCalculationAmount(data.deal.requestedAmount ?? "");
+  }, [data, overrideCalculationAmount]);
+
+  useEffect(() => {
+    if (!data || calculationToCurrency) {
+      return;
+    }
+
+    setCalculationToCurrency(
+      resolveDefaultToCurrency(
+        data.currencyOptions,
+        data.requestedCurrency?.code ?? null,
+      ),
+    );
+  }, [calculationToCurrency, data]);
+
+  const handleOpenCalculationDialog = useCallback(() => {
+    if (!data) {
+      return;
+    }
+
+    setOverrideCalculationAmount(false);
+    setCalculationAmount(data.deal.requestedAmount ?? "");
+    setCalculationToCurrency(
+      resolveDefaultToCurrency(
+        data.currencyOptions,
+        data.requestedCurrency?.code ?? null,
+      ),
+    );
+    setCalculationAsOf(formatDateTimeInput(new Date()));
+    setIsCalculationDialogOpen(true);
+  }, [data]);
+
+  const handleCreateCalculation = useCallback(async () => {
+    if (!data) {
+      return;
+    }
+
+    if (!data.requestedCurrency || !data.deal.requestedAmount) {
+      showError(
+        "Недостаточно данных",
+        "Для расчета нужна запрошенная сумма и валюта сделки.",
+      );
+      return;
+    }
+
+    if (!calculationToCurrency) {
+      showError("Недостаточно данных", "Выберите валюту назначения.");
+      return;
+    }
+
+    if (calculationToCurrency === data.requestedCurrency.code) {
+      showError("Недопустимая валютная пара", "Выберите другую валюту.");
+      return;
+    }
+
+    const amountSource = overrideCalculationAmount
+      ? calculationAmount
+      : data.deal.requestedAmount;
+    const amountMinor = decimalToMinorString(
+      amountSource,
+      data.requestedCurrency.precision,
+    );
+
+    if (!amountMinor || BigInt(amountMinor) <= 0n) {
+      showError(
+        "Некорректная сумма",
+        "Введите сумму больше нуля в формате 1000.00.",
+      );
+      return;
+    }
+
+    const asOfDate = calculationAsOf
+      ? new Date(calculationAsOf)
+      : new Date();
+
+    if (Number.isNaN(asOfDate.getTime())) {
+      showError("Некорректная дата", "Выберите дату расчета.");
+      return;
+    }
+
+    try {
+      setIsCreatingCalculation(true);
+
+      const quote = await fetchJson<{ id: string }>(
+        `${API_BASE_URL}/deals/${dealId}/quotes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify({
+            mode: "auto_cross",
+            fromCurrency: data.requestedCurrency.code,
+            toCurrency: calculationToCurrency,
+            fromAmountMinor: amountMinor,
+            asOf: asOfDate.toISOString(),
+          }),
+        },
+      );
+
+      await fetchJson(
+        `${API_BASE_URL}/deals/${dealId}/calculations/from-quote`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify({ quoteId: quote.id }),
+        },
+      );
+
+      setIsCalculationDialogOpen(false);
+      await loadDeal();
+    } catch (nextError) {
+      console.error("Calculation creation error:", nextError);
+      showError(
+        "Ошибка создания расчета",
+        nextError instanceof Error
+          ? nextError.message
+          : "Не удалось создать расчет",
+      );
+    } finally {
+      setIsCreatingCalculation(false);
+    }
+  }, [
+    calculationAmount,
+    calculationAsOf,
+    calculationToCurrency,
+    data,
+    dealId,
+    loadDeal,
+    overrideCalculationAmount,
+    showError,
+  ]);
+
+  const handleSwitchCalculation = useCallback(
+    async (calculationId: string) => {
+      try {
+        setIsSwitchingCalculation(true);
+
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/calculation`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({ calculationId }),
+            credentials: "include",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка смены расчета: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Calculation switch error:", nextError);
+        showError(
+          "Ошибка переключения расчета",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось переключить расчет",
+        );
+      } finally {
+        setIsSwitchingCalculation(false);
+      }
+    },
+    [dealId, loadDeal, showError],
+  );
+
+  const calculationTypeSupported = data
+    ? ["payment", "currency_exchange"].includes(data.deal.type)
+    : false;
+  const calculationStatusAllowed = data
+    ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
+    : false;
+  const calculationHasRequestedAmount = Boolean(
+    data?.deal.requestedAmount && data?.requestedCurrency,
+  );
+  const calculationDisabledReason = !data
+    ? "Данные сделки еще загружаются."
+    : !calculationTypeSupported
+      ? "В этой версии расчет доступен только для платежей и конверсий."
+      : !calculationStatusAllowed
+        ? `Нельзя создать расчет для статуса "${STATUS_LABELS[data.deal.status]}".`
+        : !calculationHasRequestedAmount
+          ? "У сделки нет запрошенной суммы или валюты."
+          : null;
 
   const handleStatusUpdate = useCallback(
     async (status: DealStatus) => {
@@ -1001,7 +1349,7 @@ export default function DealDetailPage() {
                   <div className="text-base font-medium">
                     {formatCurrency(
                       data.deal.requestedAmount,
-                      data.requestedCurrencyCode,
+                      data.requestedCurrency?.code ?? null,
                     )}
                   </div>
                 </div>
@@ -1079,13 +1427,71 @@ export default function DealDetailPage() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-muted-foreground" />
                 Финансовая информация
               </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                {data.calculationHistory.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isSwitchingCalculation}
+                      >
+                        История
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-72">
+                      <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        {data.calculationHistory.map((item) => {
+                          const isCurrent =
+                            item.calculationId === data.deal.calculationId;
+                          return (
+                            <DropdownMenuItem
+                              key={item.calculationId}
+                              disabled={isSwitchingCalculation || isCurrent}
+                              onClick={() =>
+                                handleSwitchCalculation(item.calculationId)
+                              }
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-sm">
+                                  {formatDate(item.calculationTimestamp)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  курс {item.rate} · {getUuidPrefix(item.calculationId)}
+                                  {isCurrent ? " · активный" : ""}
+                                </span>
+                              </div>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleOpenCalculationDialog}
+                  disabled={Boolean(calculationDisabledReason) || isCreatingCalculation}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {data.calculation ? "Новая версия" : "Создать расчет"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              {calculationDisabledReason && (
+                <div className="mb-3 rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  {calculationDisabledReason}
+                </div>
+              )}
               {data.calculation ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
@@ -1633,6 +2039,108 @@ export default function DealDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        onOpenChange={(open) => {
+          setIsCalculationDialogOpen(open);
+          if (!open) {
+            setOverrideCalculationAmount(false);
+          }
+        }}
+        open={isCalculationDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Создать расчет</DialogTitle>
+            <DialogDescription>
+              Создайте котировку и сохраните расчет для этой сделки.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Валюта сделки</Label>
+              <Input
+                disabled
+                value={data?.requestedCurrency?.code ?? "—"}
+              />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="deal-calculation-amount">Сумма</Label>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    id="deal-calculation-amount-override"
+                    checked={overrideCalculationAmount}
+                    onCheckedChange={(checked) =>
+                      setOverrideCalculationAmount(Boolean(checked))
+                    }
+                  />
+                  <Label
+                    htmlFor="deal-calculation-amount-override"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Изменить сумму
+                  </Label>
+                </div>
+              </div>
+              <Input
+                id="deal-calculation-amount"
+                disabled={!overrideCalculationAmount}
+                placeholder="Например 1000.00"
+                value={calculationAmount}
+                onChange={(event) => setCalculationAmount(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Валюта назначения</Label>
+              <Select
+                value={calculationToCurrency}
+                onValueChange={setCalculationToCurrency}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите валюту" />
+                </SelectTrigger>
+                <SelectContent>
+                  {data?.currencyOptions
+                    .filter(
+                      (option) =>
+                        option.code !== data.requestedCurrency?.code,
+                    )
+                    .map((option) => (
+                      <SelectItem key={option.code} value={option.code}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="deal-calculation-asof">Дата расчета</Label>
+              <Input
+                id="deal-calculation-asof"
+                type="datetime-local"
+                value={calculationAsOf}
+                onChange={(event) => setCalculationAsOf(event.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCalculationDialogOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={handleCreateCalculation}
+              disabled={isCreatingCalculation || Boolean(calculationDisabledReason)}
+            >
+              {isCreatingCalculation ? "Создание..." : "Создать расчет"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         onOpenChange={(open) => {

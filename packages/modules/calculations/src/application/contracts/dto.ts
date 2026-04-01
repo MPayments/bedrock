@@ -13,13 +13,16 @@ import {
 const NonNegativeIntegerStringSchema = z
   .string()
   .regex(/^(0|[1-9]\d*)$/);
+const SignedIntegerStringSchema = z
+  .string()
+  .regex(/^-?(0|[1-9]\d*)$/);
 
 export const CalculationLineSchema = z.object({
   id: z.uuid(),
   idx: z.number().int().nonnegative(),
   kind: CalculationLineKindSchema,
   currencyId: z.uuid(),
-  amountMinor: NonNegativeIntegerStringSchema,
+  amountMinor: SignedIntegerStringSchema,
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -49,6 +52,7 @@ export const CalculationSnapshotSchema = z.object({
   additionalExpensesRateDen: NonNegativeIntegerStringSchema.nullable(),
   calculationTimestamp: z.date(),
   fxQuoteId: z.uuid().nullable(),
+  quoteSnapshot: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

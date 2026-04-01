@@ -9,6 +9,7 @@ import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
 import { FindDealByIdQuery } from "./queries/find-deal-by-id";
+import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
 import { ListDealsQuery } from "./queries/list-deals";
 
 export interface DealsServiceDeps {
@@ -41,6 +42,7 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
   );
   const findDealById = new FindDealByIdQuery(deps.reads);
+  const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
 
   return {
@@ -52,6 +54,9 @@ export function createDealsService(deps: DealsServiceDeps) {
     },
     queries: {
       findById: findDealById.execute.bind(findDealById),
+      listCalculationHistory: listCalculationHistory.execute.bind(
+        listCalculationHistory,
+      ),
       list: listDeals.execute.bind(listDeals),
     },
   };

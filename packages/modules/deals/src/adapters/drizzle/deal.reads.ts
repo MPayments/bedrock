@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm";
 
 import { minorToDecimalString } from "@bedrock/calculations";
+import { calculationSnapshots, calculations } from "@bedrock/calculations/schema";
 import type { CurrenciesQueries } from "@bedrock/currencies/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
@@ -16,10 +17,18 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { dealApprovals, dealLegs, dealParticipants, deals, dealStatusHistory } from "./schema";
+import {
+  dealApprovals,
+  dealCalculationLinks,
+  dealLegs,
+  dealParticipants,
+  deals,
+  dealStatusHistory,
+} from "./schema";
 import type {
   Deal,
   DealApproval,
+  DealCalculationHistoryItem,
   DealDetails,
   DealLeg,
   DealParticipant,
@@ -370,5 +379,57 @@ export class DrizzleDealReads implements DealReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  async listCalculationHistory(
+    dealId: string,
+  ): Promise<DealCalculationHistoryItem[]> {
+    const rows = await this.db
+      .select({
+        calculationId: dealCalculationLinks.calculationId,
+        createdAt: dealCalculationLinks.createdAt,
+        calculationTimestamp: calculationSnapshots.calculationTimestamp,
+        calculationCurrencyId: calculationSnapshots.calculationCurrencyId,
+        baseCurrencyId: calculationSnapshots.baseCurrencyId,
+        originalAmountMinor: calculationSnapshots.originalAmountMinor,
+        feeAmountMinor: calculationSnapshots.feeAmountMinor,
+        totalAmountMinor: calculationSnapshots.totalAmountMinor,
+        totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          calculationSnapshots.totalWithExpensesInBaseMinor,
+        rateNum: calculationSnapshots.rateNum,
+        rateDen: calculationSnapshots.rateDen,
+        fxQuoteId: calculationSnapshots.fxQuoteId,
+        sourceQuoteId: dealCalculationLinks.sourceQuoteId,
+      })
+      .from(dealCalculationLinks)
+      .innerJoin(
+        calculations,
+        eq(dealCalculationLinks.calculationId, calculations.id),
+      )
+      .innerJoin(
+        calculationSnapshots,
+        eq(calculations.currentSnapshotId, calculationSnapshots.id),
+      )
+      .where(eq(dealCalculationLinks.dealId, dealId))
+      .orderBy(desc(dealCalculationLinks.createdAt));
+
+    return rows.map((row) => ({
+      calculationId: row.calculationId,
+      calculationTimestamp: row.calculationTimestamp,
+      createdAt: row.createdAt,
+      calculationCurrencyId: row.calculationCurrencyId,
+      baseCurrencyId: row.baseCurrencyId,
+      originalAmountMinor: row.originalAmountMinor.toString(),
+      feeAmountMinor: row.feeAmountMinor.toString(),
+      totalAmountMinor: row.totalAmountMinor.toString(),
+      totalInBaseMinor: row.totalInBaseMinor.toString(),
+      totalWithExpensesInBaseMinor:
+        row.totalWithExpensesInBaseMinor.toString(),
+      rateNum: row.rateNum.toString(),
+      rateDen: row.rateDen.toString(),
+      fxQuoteId: row.fxQuoteId,
+      sourceQuoteId: row.sourceQuoteId ?? null,
+    }));
   }
 }

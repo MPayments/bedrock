@@ -1,6 +1,5 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { buildCalculationLineDrafts } from "../../domain/line-builder";
 import { CalculationNotFoundError } from "../../errors";
 import type { NormalizedCreateCalculationInput } from "../contracts/commands";
 import type { CalculationDetails } from "../contracts/dto";
@@ -13,7 +12,7 @@ export async function persistCalculation(input: {
 }): Promise<CalculationDetails> {
   const calculationId = input.runtime.generateUuid();
   const snapshotId = input.runtime.generateUuid();
-  const lines = buildCalculationLineDrafts(input.normalized);
+  const lines = input.normalized.financialLines;
 
   await input.tx.calculationStore.createCalculationRoot({
     id: calculationId,
@@ -47,13 +46,14 @@ export async function persistCalculation(input: {
     additionalExpensesRateDen: input.normalized.additionalExpensesRateDen,
     calculationTimestamp: input.normalized.calculationTimestamp,
     fxQuoteId: input.normalized.fxQuoteId,
+    quoteSnapshot: input.normalized.quoteSnapshot ?? null,
   });
 
   await input.tx.calculationStore.createCalculationLines(
-    lines.map((line) => ({
+    lines.map((line, idx) => ({
       id: input.runtime.generateUuid(),
       calculationSnapshotId: snapshotId,
-      idx: line.idx,
+      idx,
       kind: line.kind,
       currencyId: line.currencyId,
       amountMinor: line.amountMinor,

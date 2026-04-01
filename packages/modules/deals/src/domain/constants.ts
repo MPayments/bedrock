@@ -66,7 +66,7 @@ export function canDealWriteTreasuryOrFormalDocuments(input: {
   status: (typeof DEAL_STATUS_VALUES)[number];
   type: (typeof DEAL_TYPE_VALUES)[number];
 }): boolean {
-  if (input.type !== "payment") {
+  if (!["payment", "currency_exchange"].includes(input.type)) {
     return false;
   }
 

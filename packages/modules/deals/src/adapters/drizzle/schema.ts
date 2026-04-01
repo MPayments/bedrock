@@ -162,6 +162,7 @@ export const dealCalculationLinks = pgTable(
     calculationId: uuid("calculation_id")
       .notNull()
       .references(() => calculations.id, { onDelete: "cascade" }),
+    sourceQuoteId: uuid("source_quote_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

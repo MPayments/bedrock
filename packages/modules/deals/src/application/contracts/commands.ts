@@ -94,6 +94,7 @@ export type UpdateDealIntakeInput = z.infer<typeof UpdateDealIntakeInputSchema>;
 
 export const AttachDealCalculationInputSchema = z.object({
   calculationId: z.uuid(),
+  sourceQuoteId: z.uuid().nullable().optional(),
 });
 
 export type AttachDealCalculationInput = z.infer<

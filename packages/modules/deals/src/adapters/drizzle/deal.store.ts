@@ -40,7 +40,12 @@ export class DrizzleDealStore implements DealStore {
   }
 
   async createDealCalculationLinks(
-    input: { id: string; calculationId: string; dealId: string }[],
+    input: {
+      id: string;
+      calculationId: string;
+      dealId: string;
+      sourceQuoteId?: string | null;
+    }[],
   ): Promise<void> {
     if (input.length === 0) {
       return;
@@ -51,6 +56,7 @@ export class DrizzleDealStore implements DealStore {
         id: link.id,
         calculationId: link.calculationId,
         dealId: link.dealId,
+        sourceQuoteId: link.sourceQuoteId ?? null,
       })),
     ).onConflictDoNothing({
       target: [dealCalculationLinks.dealId, dealCalculationLinks.calculationId],

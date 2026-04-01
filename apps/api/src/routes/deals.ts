@@ -1,10 +1,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
 
+import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import { currencies as currenciesTable } from "@bedrock/currencies/schema";
 import {
   AttachDealCalculationInputSchema,
   CreateDealInputSchema,
+  DealCalculationHistoryItemSchema,
   DealDetailsSchema,
   DealTraceSchema,
   ListDealsQuerySchema,
@@ -15,6 +17,7 @@ import {
 import { deals as dealsTable } from "@bedrock/deals/schema";
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -37,10 +40,15 @@ import {
   createDealScopedFormalDocument,
   createDealScopedQuote,
   DealScopedCreateDocumentInputSchema,
+  assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
 import { toDocumentDto } from "./internal/document-dto";
-import { serializeQuote, serializeQuoteListItem } from "./internal/treasury-quote-dto";
+import {
+  serializeQuote,
+  serializeQuoteDetails,
+  serializeQuoteListItem,
+} from "./internal/treasury-quote-dto";
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -51,6 +59,10 @@ export function dealsRoutes(ctx: AppContext) {
         name: "attachmentId",
       },
     }),
+  });
+  const DealCalculationHistorySchema = z.array(DealCalculationHistoryItemSchema);
+  const DealCalculationFromQuoteInputSchema = z.object({
+    quoteId: z.string().uuid(),
   });
 
   const listRoute = createRoute({
@@ -300,6 +312,88 @@ export function dealsRoutes(ctx: AppContext) {
       200: {
         content: { "application/json": { schema: DealDetailsSchema } },
         description: "Deal calculation attached",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Missing idempotency header",
+      },
+    },
+  });
+
+  const listCalculationHistoryRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/calculations",
+    tags: ["Deals"],
+    summary: "List deal calculation history",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealCalculationHistorySchema,
+          },
+        },
+        description: "Deal calculation history",
+      },
+    },
+  });
+
+  const createCalculationFromQuoteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/calculations/from-quote",
+    tags: ["Deals"],
+    summary: "Create a calculation from a treasury quote and attach to deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: DealCalculationFromQuoteInputSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: CalculationDetailsSchema,
+          },
+        },
+        description: "Calculation created and attached",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or quote not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Idempotency conflict",
       },
     },
   });
@@ -773,13 +867,187 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await ctx.dealsModule.deals.commands.attachCalculation({
-          ...body,
-          actorUserId: c.get("user")!.id,
-          dealId: id,
-        });
+        const result = await withRequiredIdempotency(c, () =>
+          ctx.dealsModule.deals.commands.attachCalculation({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            dealId: id,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
 
         return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listCalculationHistoryRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const history =
+          await ctx.dealsModule.deals.queries.listCalculationHistory(id);
+        return jsonOk(c, history);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createCalculationFromQuoteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, async (idempotencyKey) => {
+          const deal = await requireDeal(ctx, id);
+          assertDealAllowsCommercialWrite(deal);
+
+          const quoteDetails =
+            await ctx.treasuryModule.quotes.queries.getQuoteDetails({
+              quoteRef: body.quoteId,
+            });
+          const quote = quoteDetails.quote;
+
+          if (quote.dealId !== id) {
+            throw new ValidationError(
+              `Quote ${quote.id} is not linked to deal ${id}`,
+            );
+          }
+
+          if (!quote.fromCurrency || !quote.toCurrency) {
+            throw new ValidationError(
+              `Quote ${quote.id} is missing currency codes`,
+            );
+          }
+
+          if (quote.status !== "active") {
+            throw new ValidationError(
+              `Quote ${quote.id} is not active`,
+            );
+          }
+
+          const currencyCodes = new Set(
+            quoteDetails.financialLines.map((line) => line.currency),
+          );
+          const currencies = await Promise.all(
+            Array.from(currencyCodes).map((code) =>
+              ctx.currenciesService.findByCode(code),
+            ),
+          );
+          const currencyIdByCode = new Map(
+            currencies.map((currency) => [currency.code, currency.id]),
+          );
+
+          const feeAmountMinor = quoteDetails.financialLines.reduce(
+            (total, line) =>
+              line.bucket === "fee_revenue" && line.currency === quote.fromCurrency
+                ? total + line.amountMinor
+                : total,
+            0n,
+          );
+          const additionalExpensesAmountMinor =
+            quoteDetails.financialLines.reduce(
+              (total, line) =>
+                line.bucket === "pass_through" &&
+                line.currency === quote.toCurrency
+                  ? total + line.amountMinor
+                  : total,
+              0n,
+            );
+
+          if (feeAmountMinor < 0n) {
+            throw new ValidationError(
+              `Quote ${quote.id} has negative fee_revenue total`,
+            );
+          }
+
+          if (additionalExpensesAmountMinor < 0n) {
+            throw new ValidationError(
+              `Quote ${quote.id} has negative pass_through total`,
+            );
+          }
+
+          const originalAmountMinor = quote.fromAmountMinor;
+          const feeBps =
+            originalAmountMinor === 0n
+              ? 0n
+              : (feeAmountMinor * 10000n) / originalAmountMinor;
+          const totalAmountMinor = originalAmountMinor + feeAmountMinor;
+          const feeAmountInBaseMinor =
+            (feeAmountMinor * quote.rateNum) / quote.rateDen;
+          const totalInBaseMinor = quote.toAmountMinor;
+          const additionalExpensesCurrencyId =
+            additionalExpensesAmountMinor === 0n ? null : quote.toCurrencyId;
+          const additionalExpensesInBaseMinor = additionalExpensesAmountMinor;
+          const totalWithExpensesInBaseMinor =
+            totalInBaseMinor +
+            feeAmountInBaseMinor +
+            additionalExpensesInBaseMinor;
+
+          const financialLines = quoteDetails.financialLines
+            .filter((line) => line.amountMinor !== 0n)
+            .map((line) => {
+              const currencyId = currencyIdByCode.get(line.currency);
+              if (!currencyId) {
+                throw new ValidationError(
+                  `Currency ${line.currency} is not configured`,
+                );
+              }
+
+              return {
+                kind: line.bucket,
+                currencyId,
+                amountMinor: line.amountMinor.toString(),
+              };
+            });
+
+          const calculation =
+            await ctx.calculationsModule.calculations.commands.create({
+              actorUserId: c.get("user")!.id,
+              idempotencyKey,
+              calculationCurrencyId: quote.fromCurrencyId,
+              originalAmountMinor: originalAmountMinor.toString(),
+              feeBps: feeBps.toString(),
+              feeAmountMinor: feeAmountMinor.toString(),
+              totalAmountMinor: totalAmountMinor.toString(),
+              baseCurrencyId: quote.toCurrencyId,
+              feeAmountInBaseMinor: feeAmountInBaseMinor.toString(),
+              totalInBaseMinor: totalInBaseMinor.toString(),
+              additionalExpensesCurrencyId,
+              additionalExpensesAmountMinor:
+                additionalExpensesAmountMinor.toString(),
+              additionalExpensesInBaseMinor:
+                additionalExpensesInBaseMinor.toString(),
+              totalWithExpensesInBaseMinor:
+                totalWithExpensesInBaseMinor.toString(),
+              rateSource: "fx_quote",
+              rateNum: quote.rateNum.toString(),
+              rateDen: quote.rateDen.toString(),
+              additionalExpensesRateSource: null,
+              additionalExpensesRateNum: null,
+              additionalExpensesRateDen: null,
+              calculationTimestamp: quote.createdAt,
+              fxQuoteId: quote.id,
+              financialLines,
+              quoteSnapshot: serializeQuoteDetails(quoteDetails),
+            });
+
+          await ctx.dealsModule.deals.commands.attachCalculation({
+            actorUserId: c.get("user")!.id,
+            dealId: id,
+            calculationId: calculation.id,
+            sourceQuoteId: quote.id,
+          });
+
+          return calculation;
+        });
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result, 201);
       } catch (error) {
         return handleRouteError(c, error);
       }

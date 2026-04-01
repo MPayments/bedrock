@@ -62,6 +62,7 @@ export class AttachDealCalculationCommand {
           id: this.runtime.generateUuid(),
           calculationId: validated.calculationId,
           dealId: validated.dealId,
+          sourceQuoteId: validated.sourceQuoteId ?? null,
         },
       ]);
 

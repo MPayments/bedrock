@@ -15,6 +15,11 @@ export const CALCULATION_LINE_KIND_VALUES = [
   "total_in_base",
   "additional_expenses_in_base",
   "total_with_expenses_in_base",
+  "fee_revenue",
+  "spread_revenue",
+  "provider_fee_expense",
+  "pass_through",
+  "adjustment",
 ] as const;
 
 export const CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE = "calculations.create";
