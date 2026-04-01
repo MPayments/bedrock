@@ -40,6 +40,19 @@ function getPricingModeLabel(mode: FxQuoteListItem["pricingMode"]) {
   return mode === "auto_cross" ? "Auto cross" : "Explicit route";
 }
 
+function getDealTypeLabel(type: NonNullable<FxQuoteListItem["dealRef"]>["type"]) {
+  switch (type) {
+    case "payment":
+      return "Платеж";
+    case "currency_exchange":
+      return "Обмен";
+    case "currency_transit":
+      return "Транзит";
+    case "exporter_settlement":
+      return "Экспортер";
+  }
+}
+
 export const columns: ColumnDef<FxQuoteListItem>[] = [
   {
     accessorKey: "idempotencyKey",
@@ -79,6 +92,30 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
         </div>
       </div>
     ),
+    enableSorting: false,
+  },
+  {
+    id: "dealRef",
+    accessorFn: (row) =>
+      row.dealRef
+        ? `${row.dealRef.type}:${row.dealRef.applicantName ?? row.dealRef.dealId}`
+        : "",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Сделка" />
+    ),
+    cell: ({ row }) =>
+      row.original.dealRef ? (
+        <div className="space-y-1">
+          <div className="font-medium">
+            {getDealTypeLabel(row.original.dealRef.type)}
+          </div>
+          <div className="text-muted-foreground text-xs">
+            {row.original.dealRef.applicantName ?? "Заявитель не указан"}
+          </div>
+        </div>
+      ) : (
+        <span className="text-muted-foreground text-xs">-</span>
+      ),
     enableSorting: false,
   },
   {

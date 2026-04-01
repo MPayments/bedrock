@@ -33,6 +33,34 @@ const QuoteRefParamsSchema = z.object({
 export function treasuryQuotesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
+  async function buildDealRefByDealId(dealIds: (string | null)[]) {
+    const uniqueDealIds = Array.from(
+      new Set(dealIds.filter((dealId): dealId is string => Boolean(dealId))),
+    );
+    const entries = await Promise.all(
+      uniqueDealIds.map(async (dealId) => {
+        const workflow = await ctx.dealsModule.deals.queries.findWorkflowById(dealId);
+        const applicantName =
+          workflow?.participants.find((participant) => participant.role === "applicant")
+            ?.displayName ?? null;
+
+        return [
+          dealId,
+          workflow
+            ? {
+                applicantName,
+                dealId,
+                status: workflow.summary.status,
+                type: workflow.summary.type,
+              }
+            : null,
+        ] as const;
+      }),
+    );
+
+    return new Map(entries);
+  }
+
   const createQuoteRoute = createRoute({
     middleware: [requirePermission({ documents: ["create"] })],
     method: "post",
@@ -175,10 +203,18 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
     .openapi(listQuotesRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.treasuryModule.quotes.queries.listQuotes(query);
+      const dealRefByDealId = await buildDealRefByDealId(
+        result.data.map((quote) => quote.dealId ?? null),
+      );
 
       return c.json(
         {
-          data: result.data.map((quote) => serializeQuoteListItem(quote)),
+          data: result.data.map((quote) =>
+            serializeQuoteListItem(
+              quote,
+              quote.dealId ? (dealRefByDealId.get(quote.dealId) ?? null) : null,
+            ),
+          ),
           total: result.total,
           limit: result.limit,
           offset: result.offset,
@@ -232,7 +268,18 @@ export function treasuryQuotesRoutes(ctx: AppContext) {
           await ctx.treasuryModule.quotes.queries.getQuoteDetails({
             quoteRef,
           });
-        return c.json(serializeQuoteDetails(details), 200);
+        const dealRefByDealId = await buildDealRefByDealId([
+          details.quote.dealId ?? null,
+        ]);
+        return c.json(
+          serializeQuoteDetails(
+            details,
+            details.quote.dealId
+              ? (dealRefByDealId.get(details.quote.dealId) ?? null)
+              : null,
+          ),
+          200,
+        );
       } catch (error) {
         if (error instanceof z.ZodError) {
           return c.json(

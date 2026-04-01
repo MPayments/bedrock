@@ -18,46 +18,22 @@ import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { NewDealDialog } from "@/components/portal/new-application-dialog";
-import { API_BASE_URL } from "@/lib/constants";
 import {
   hasActiveAgentAgreement,
   type PortalCustomerContext,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
+import {
+  type PortalDealListItemProjection,
+  type PortalDealStatus,
+  type PortalDealType,
+  requestPortalDealProjections,
+} from "@/lib/portal-deals";
 
-type DealStatus =
-  | "draft"
-  | "submitted"
-  | "rejected"
-  | "preparing_documents"
-  | "awaiting_funds"
-  | "awaiting_payment"
-  | "closing_documents"
-  | "done"
-  | "cancelled";
-
-interface DealItem {
-  id: string;
-  counterpartyId: string | null;
-  createdAt: string;
-  organizationName: string | null;
-  requestedAmount: string | null;
-  requestedCurrencyCode: string | null;
-  calculation: {
-    originalAmount: string;
-    currencyCode: string;
-    totalWithExpensesInBase: string;
-    baseCurrencyCode: string;
-  } | null;
-  status: DealStatus;
-}
-
-interface DealsResponse {
-  data: DealItem[];
-  total: number;
-}
-
-const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> =
+const STATUS_CONFIG: Record<
+  PortalDealStatus,
+  { label: string; className: string }
+> =
   {
     draft: {
       label: "Черновик",
@@ -103,23 +79,31 @@ const STATUS_CONFIG: Record<DealStatus, { label: string; className: string }> =
       className: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
     },
   };
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  RUB: "₽",
-  CNY: "¥",
-  TRY: "₺",
-  AED: "د.إ",
+const TYPE_CONFIG: Record<
+  PortalDealType,
+  { label: string; className: string }
+> = {
+  payment: {
+    label: "Платеж",
+    className:
+      "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300",
+  },
+  currency_exchange: {
+    label: "Обмен валюты",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  },
+  currency_transit: {
+    label: "Валютный транзит",
+    className:
+      "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
+  },
+  exporter_settlement: {
+    label: "Экспортерское финансирование",
+    className:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+  },
 };
-
-function formatCurrency(value: number | string, currency: string) {
-  const symbol = CURRENCY_SYMBOLS[currency.toUpperCase()] || currency;
-  return `${new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value))} ${symbol}`;
-}
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString("ru-RU", {
@@ -131,7 +115,7 @@ function formatDate(dateString: string) {
 
 export default function PortalDealsPage() {
   const router = useRouter();
-  const [deals, setDeals] = useState<DealItem[]>([]);
+  const [deals, setDeals] = useState<PortalDealListItemProjection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -154,24 +138,10 @@ export default function PortalDealsPage() {
       try {
         setLoading(true);
         setError(null);
-
-        const params = new URLSearchParams({
-          offset: ((currentPage - 1) * limit).toString(),
-          limit: limit.toString(),
+        const data = await requestPortalDealProjections({
+          limit,
+          offset: (currentPage - 1) * limit,
         });
-
-        const response = await fetch(
-          `${API_BASE_URL}/customer/deals?${params.toString()}`,
-          {
-            credentials: "include",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`Ошибка загрузки: ${response.status}`);
-        }
-
-        const data: DealsResponse = await response.json();
         setDeals(data.data ?? []);
         setTotalItems(data.total ?? 0);
         setTotalPages(Math.max(1, Math.ceil((data.total ?? 0) / limit)));
@@ -226,39 +196,6 @@ export default function PortalDealsPage() {
       setAgreementAlertDismissed(false);
     }
   }, [canCreateDeal]);
-
-  function renderDealAmount(deal: DealItem) {
-    if (deal.calculation) {
-      return {
-        amount: formatCurrency(
-          deal.calculation.originalAmount,
-          deal.calculation.currencyCode,
-        ),
-        summary:
-          deal.calculation.currencyCode !== deal.calculation.baseCurrencyCode
-            ? formatCurrency(
-                deal.calculation.totalWithExpensesInBase,
-                deal.calculation.baseCurrencyCode,
-              )
-            : null,
-      };
-    }
-
-    if (deal.requestedAmount && deal.requestedCurrencyCode) {
-      return {
-        amount: formatCurrency(
-          deal.requestedAmount,
-          deal.requestedCurrencyCode,
-        ),
-        summary: null,
-      };
-    }
-
-    return {
-      amount: "Сумма уточняется",
-      summary: null,
-    };
-  }
 
   return (
     <div className="space-y-4">
@@ -353,7 +290,7 @@ export default function PortalDealsPage() {
         <div className="space-y-3">
           {deals.map((deal) => {
             const status = STATUS_CONFIG[deal.status];
-            const amounts = renderDealAmount(deal);
+            const type = TYPE_CONFIG[deal.type];
 
             return (
               <Card
@@ -362,7 +299,7 @@ export default function PortalDealsPage() {
                 onClick={() => router.push(`/deals/${deal.id}`)}
               >
                 <CardContent className="p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">
                         #{getUuidPrefix(deal.id)}
@@ -370,23 +307,31 @@ export default function PortalDealsPage() {
                       <span>•</span>
                       <span>{formatDate(deal.createdAt)}</span>
                     </div>
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
-                    >
-                      {status.label}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${type.className}`}
+                      >
+                        {type.label}
+                      </span>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
                   </div>
 
-                  <p className="mb-2 text-sm font-medium">
-                    {deal.organizationName ?? "Организация не указана"}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>{amounts.amount}</span>
-                    {amounts.summary ? (
-                      <>
-                        <span>≈</span>
-                        <span>{amounts.summary}</span>
-                      </>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">
+                      {deal.applicantDisplayName ?? "Организация не указана"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Следующее действие: {deal.nextAction}
+                    </p>
+                    {deal.calculationSummary ? (
+                      <p className="text-xs text-muted-foreground">
+                        Расчет привязан
+                      </p>
                     ) : null}
                   </div>
                 </CardContent>

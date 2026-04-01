@@ -3,9 +3,10 @@ import { z } from "zod";
 import { trimToNull } from "@bedrock/shared/core";
 
 import {
-  DealStatusSchema,
-  DealTypeSchema,
-} from "./zod";
+  DealIntakeDraftSchema,
+  DealSettlementDestinationModeSchema,
+} from "./dto";
+import { DealStatusSchema, DealTypeSchema } from "./zod";
 
 const nullableText = z
   .string()
@@ -39,40 +40,98 @@ const nullableDecimalText = z
   .nullish()
   .transform((value) => trimToNull(value) ?? null);
 
-export const CreateDealInputSchema = z.object({
-  customerId: z.uuid(),
-  agreementId: z.uuid().optional(),
-  calculationId: z.uuid().nullable().optional(),
-  type: DealTypeSchema,
-  counterpartyId: z.uuid().optional(),
-  agentId: nullableShortText,
-  reason: nullableText,
-  intakeComment: nullableText,
-  comment: nullableText,
-  requestedAmount: nullableDecimalText,
-  requestedCurrencyId: z.uuid().nullable().optional(),
-}).superRefine((value, ctx) => {
-  const hasRequestedAmount = value.requestedAmount !== null;
-  const hasRequestedCurrencyId = value.requestedCurrencyId != null;
+const nullableDateText = z
+  .string()
+  .trim()
+  .date()
+  .nullish()
+  .transform((value) => (value ? new Date(`${value}T00:00:00.000Z`) : null));
 
-  if (hasRequestedAmount !== hasRequestedCurrencyId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "requestedAmount and requestedCurrencyId must be provided together",
-      path: hasRequestedAmount ? ["requestedCurrencyId"] : ["requestedAmount"],
-    });
-  }
-});
+export const CreateDealInputSchema = z
+  .object({
+    agentId: nullableShortText,
+    agreementId: z.uuid().optional(),
+    calculationId: z.uuid().nullable().optional(),
+    comment: nullableText,
+    counterpartyId: z.uuid().optional(),
+    customerId: z.uuid(),
+    intakeComment: nullableText,
+    reason: nullableText,
+    requestedAmount: nullableDecimalText,
+    requestedCurrencyId: z.uuid().nullable().optional(),
+    type: DealTypeSchema,
+  })
+  .superRefine((value, ctx) => {
+    const hasRequestedAmount = value.requestedAmount !== null;
+    const hasRequestedCurrencyId = value.requestedCurrencyId != null;
+
+    if (hasRequestedAmount !== hasRequestedCurrencyId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "requestedAmount and requestedCurrencyId must be provided together",
+        path: hasRequestedAmount ? ["requestedCurrencyId"] : ["requestedAmount"],
+      });
+    }
+  });
 
 export type CreateDealInput = z.infer<typeof CreateDealInputSchema>;
 
+export const CreatePortalDealInputSchema = z.object({
+  common: z.object({
+    applicantCounterpartyId: z.uuid(),
+    customerNote: nullableText,
+    requestedExecutionDate: z.coerce.date().nullable(),
+  }),
+  incomingReceipt: z
+    .object({
+      contractNumber: nullableShortText,
+      expectedAmount: nullableDecimalText,
+      expectedAt: z.coerce.date().nullable().optional().default(null),
+      expectedCurrencyId: z.uuid().nullable().optional().default(null),
+      invoiceNumber: nullableShortText,
+    })
+    .optional()
+    .default(() => ({
+      contractNumber: null,
+      expectedAmount: null,
+      expectedAt: null,
+      expectedCurrencyId: null,
+      invoiceNumber: null,
+    })),
+  moneyRequest: z.object({
+    purpose: nullableText,
+    sourceAmount: nullableDecimalText,
+    sourceCurrencyId: z.uuid().nullable(),
+    targetCurrencyId: z.uuid().nullable().optional().default(null),
+  }),
+  type: DealTypeSchema,
+});
+
+export type CreatePortalDealInput = z.infer<typeof CreatePortalDealInputSchema>;
+
+export const CreateDealDraftInputSchema = z.object({
+  agreementId: z.uuid().optional(),
+  customerId: z.uuid(),
+  intake: DealIntakeDraftSchema,
+});
+
+export type CreateDealDraftInput = z.infer<typeof CreateDealDraftInputSchema>;
+
+export const ReplaceDealIntakeInputSchema = z.object({
+  expectedRevision: z.number().int().positive(),
+  intake: DealIntakeDraftSchema,
+});
+
+export type ReplaceDealIntakeInput = z.infer<typeof ReplaceDealIntakeInputSchema>;
+
 export const UpdateDealIntakeInputSchema = z
   .object({
-    counterpartyId: z.uuid().nullable().optional(),
     agentId: nullableShortText.optional(),
-    reason: nullableText.optional(),
-    intakeComment: nullableText.optional(),
     comment: nullableText.optional(),
+    counterpartyId: z.uuid().nullable().optional(),
+    intakeComment: nullableText.optional(),
+    reason: nullableText.optional(),
     requestedAmount: nullableDecimalText.optional(),
     requestedCurrencyId: z.uuid().nullable().optional(),
   })
@@ -101,11 +160,83 @@ export type AttachDealCalculationInput = z.infer<
   typeof AttachDealCalculationInputSchema
 >;
 
+export const AcceptDealQuoteInputSchema = z.object({
+  quoteId: z.uuid(),
+});
+
+export type AcceptDealQuoteInput = z.infer<typeof AcceptDealQuoteInputSchema>;
+
+export const AppendDealTimelineEventInputSchema = z.object({
+  payload: z.record(z.string(), z.unknown()).optional().default({}),
+  sourceRef: nullableShortText,
+  type: z.enum([
+    "quote_created",
+    "quote_expired",
+    "quote_used",
+    "attachment_uploaded",
+    "attachment_deleted",
+    "document_created",
+    "document_status_changed",
+  ]),
+  visibility: z.enum(["customer_safe", "internal"]).optional().default("internal"),
+});
+
+export type AppendDealTimelineEventInput = z.infer<
+  typeof AppendDealTimelineEventInputSchema
+>;
+
 export const TransitionDealStatusInputSchema = z.object({
-  status: DealStatusSchema,
   comment: nullableText.optional(),
+  status: DealStatusSchema,
 });
 
 export type TransitionDealStatusInput = z.infer<
   typeof TransitionDealStatusInputSchema
+>;
+
+export const LegacyPortalCreateDealInputSchema = z.object({
+  counterpartyId: z.uuid(),
+  requestedAmount: nullableDecimalText.optional(),
+  requestedCurrency: z.string().trim().min(3).max(16).optional(),
+});
+
+export type LegacyPortalCreateDealInput = z.infer<
+  typeof LegacyPortalCreateDealInputSchema
+>;
+
+export const PortalSettlementDestinationInputSchema = z.object({
+  bankInstructionSnapshot: z
+    .object({
+      accountNo: nullableShortText,
+      bankAddress: nullableText,
+      bankCountry: nullableShortText,
+      bankName: nullableShortText,
+      beneficiaryName: nullableShortText,
+      bic: nullableShortText,
+      corrAccount: nullableShortText,
+      iban: nullableShortText,
+      label: nullableShortText,
+      swift: nullableShortText,
+    })
+    .nullable()
+    .optional()
+    .default(null),
+  mode: DealSettlementDestinationModeSchema.nullable().optional().default(null),
+  requisiteId: z.uuid().nullable().optional().default(null),
+});
+
+export type PortalSettlementDestinationInput = z.infer<
+  typeof PortalSettlementDestinationInputSchema
+>;
+
+export const PortalIncomingReceiptInputSchema = z.object({
+  contractNumber: nullableShortText,
+  expectedAmount: nullableDecimalText,
+  expectedAt: nullableDateText.optional(),
+  expectedCurrencyId: z.uuid().nullable().optional(),
+  invoiceNumber: nullableShortText,
+});
+
+export type PortalIncomingReceiptInput = z.infer<
+  typeof PortalIncomingReceiptInputSchema
 >;

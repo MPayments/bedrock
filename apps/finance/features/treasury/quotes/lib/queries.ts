@@ -14,6 +14,20 @@ import type { FxQuotesSearchParams } from "./validations";
 
 const QuoteListItemSchema = FxQuoteListItemContractSchema.extend({
   createdAt: z.coerce.date(),
+  dealRef: z
+    .object({
+      applicantName: z.string().nullable(),
+      dealId: z.string().uuid(),
+      status: z.string(),
+      type: z.enum([
+        "payment",
+        "currency_exchange",
+        "currency_transit",
+        "exporter_settlement",
+      ]),
+    })
+    .nullable()
+    .optional(),
   usedAt: z.coerce.date().nullable(),
   expiresAt: z.coerce.date(),
 });

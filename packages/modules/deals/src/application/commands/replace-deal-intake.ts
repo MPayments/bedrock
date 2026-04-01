@@ -1,0 +1,201 @@
+import { z } from "zod";
+
+import type { ModuleRuntime } from "@bedrock/shared/core";
+import { NotFoundError } from "@bedrock/shared/core/errors";
+
+import {
+  DealNotFoundError,
+  DealRevisionConflictError,
+} from "../../errors";
+import {
+  ReplaceDealIntakeInputSchema,
+  type ReplaceDealIntakeInput,
+} from "../contracts/commands";
+import type { DealWorkflowProjection } from "../contracts/dto";
+import {
+  buildDealLegRows,
+  buildDealParticipantRows,
+  createTimelinePayloadEvent,
+  deriveDealRootState,
+} from "../shared/workflow-state";
+import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
+import type { DealReferencesPort } from "../ports/references.port";
+
+const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend({
+  actorUserId: z.string().trim().min(1),
+  dealId: z.uuid(),
+});
+
+type ReplaceDealIntakeCommandInput = ReplaceDealIntakeInput & {
+  actorUserId: string;
+  dealId: string;
+};
+
+function participantFingerprint(input: DealWorkflowProjection["intake"]) {
+  return JSON.stringify({
+    applicantCounterpartyId: input.common.applicantCounterpartyId,
+    beneficiaryCounterpartyId:
+      input.externalBeneficiary.beneficiaryCounterpartyId,
+    payerCounterpartyId: input.incomingReceipt.payerCounterpartyId,
+  });
+}
+
+export class ReplaceDealIntakeCommand {
+  constructor(
+    private readonly runtime: ModuleRuntime,
+    private readonly commandUow: DealsCommandUnitOfWork,
+    private readonly references: DealReferencesPort,
+  ) {}
+
+  async execute(
+    raw: ReplaceDealIntakeCommandInput,
+  ): Promise<DealWorkflowProjection> {
+    const validated = ReplaceDealIntakeCommandInputSchema.parse(raw);
+
+    return this.commandUow.run(async (tx) => {
+      const existing = await tx.dealReads.findWorkflowById(validated.dealId);
+
+      if (!existing) {
+        throw new DealNotFoundError(validated.dealId);
+      }
+
+      const customerParticipant = existing.participants.find(
+        (participant) => participant.role === "customer",
+      );
+      if (!customerParticipant?.customerId) {
+        throw new DealNotFoundError(validated.dealId);
+      }
+
+      const agreement = await this.references.findAgreementById(
+        existing.summary.agreementId,
+      );
+      if (!agreement) {
+        throw new NotFoundError("Agreement", existing.summary.agreementId);
+      }
+
+      if (
+        validated.intake.common.applicantCounterpartyId &&
+        !(await this.references.findCounterpartyById(
+          validated.intake.common.applicantCounterpartyId,
+        ))
+      ) {
+        throw new NotFoundError(
+          "Counterparty",
+          validated.intake.common.applicantCounterpartyId,
+        );
+      }
+
+      if (
+        validated.intake.moneyRequest.sourceCurrencyId &&
+        !(await this.references.findCurrencyById(
+          validated.intake.moneyRequest.sourceCurrencyId,
+        ))
+      ) {
+        throw new NotFoundError(
+          "Currency",
+          validated.intake.moneyRequest.sourceCurrencyId,
+        );
+      }
+
+      if (
+        validated.intake.moneyRequest.targetCurrencyId &&
+        !(await this.references.findCurrencyById(
+          validated.intake.moneyRequest.targetCurrencyId,
+        ))
+      ) {
+        throw new NotFoundError(
+          "Currency",
+          validated.intake.moneyRequest.targetCurrencyId,
+        );
+      }
+
+      const rootState = await deriveDealRootState({
+        acceptance: existing.acceptedQuote,
+        calculationId: existing.summary.calculationId,
+        intake: validated.intake,
+        references: this.references,
+        status: existing.summary.status,
+      });
+      const nextRevision = validated.expectedRevision + 1;
+      const replaced = await tx.dealStore.replaceIntakeSnapshot({
+        dealId: validated.dealId,
+        expectedRevision: validated.expectedRevision,
+        nextRevision,
+        snapshot: validated.intake,
+      });
+
+      if (!replaced) {
+        throw new DealRevisionConflictError(
+          validated.dealId,
+          validated.expectedRevision,
+        );
+      }
+
+      await tx.dealStore.setDealRoot({
+        dealId: validated.dealId,
+        nextAction: rootState.nextAction,
+        sourceAmountMinor: rootState.sourceAmountMinor,
+        sourceCurrencyId: rootState.sourceCurrencyId,
+        targetCurrencyId: rootState.targetCurrencyId,
+      });
+      await tx.dealStore.replaceDealLegs({
+        dealId: validated.dealId,
+        legs: buildDealLegRows({
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          intake: validated.intake,
+        }),
+      });
+      await tx.dealStore.replaceDealParticipants({
+        dealId: validated.dealId,
+        participants: buildDealParticipantRows({
+          agreement,
+          customerId: customerParticipant.customerId,
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          intake: validated.intake,
+        }),
+      });
+
+      const now = this.runtime.now();
+      const events = [
+        createTimelinePayloadEvent({
+          actorUserId: validated.actorUserId,
+          dealId: validated.dealId,
+          generateUuid: () => this.runtime.generateUuid(),
+          occurredAt: now,
+          payload: { revision: nextRevision },
+          type: "intake_saved",
+          visibility: "internal",
+        }),
+      ];
+
+      if (
+        participantFingerprint(existing.intake) !==
+        participantFingerprint(validated.intake)
+      ) {
+        events.push(
+          createTimelinePayloadEvent({
+            actorUserId: validated.actorUserId,
+            dealId: validated.dealId,
+            generateUuid: () => this.runtime.generateUuid(),
+            occurredAt: now,
+            payload: { revision: nextRevision },
+            type: "participant_changed",
+            visibility: "internal",
+          }),
+        );
+      }
+
+      await tx.dealStore.createDealTimelineEvents(events);
+
+      const updated = await tx.dealReads.findWorkflowById(validated.dealId);
+
+      if (!updated) {
+        throw new DealNotFoundError(validated.dealId);
+      }
+
+      return updated;
+    });
+  }
+}

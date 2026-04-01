@@ -1,6 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 
+import {
+  CreatePortalDealInputSchema,
+  PortalDealListProjectionSchema,
+  PortalDealProjectionSchema,
+} from "@bedrock/deals/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
 
@@ -351,6 +356,8 @@ const CustomerPortalCreateDealInputSchema = z.object({
   requestedCurrency: z.string().trim().min(3).max(16).optional(),
 });
 
+const CustomerPortalCreateDealDraftInputSchema = CreatePortalDealInputSchema;
+
 const CustomerPortalDealListItemSchema = z.object({
   calculation: z.any().nullable(),
   counterpartyId: z.string().uuid().nullable(),
@@ -589,6 +596,40 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
+  const createDealDraftRoute = createRoute({
+    method: "post",
+    path: "/deals/drafts",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Create typed customer deal draft",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: CustomerPortalCreateDealDraftInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      400: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Missing Idempotency-Key",
+      },
+      201: {
+        content: {
+          "application/json": { schema: PortalDealProjectionSchema },
+        },
+        description: "Typed deal draft created",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
   const listDealsRoute = createRoute({
     method: "get",
     path: "/deals",
@@ -609,6 +650,28 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
+  const listDealProjectionsRoute = createRoute({
+    method: "get",
+    path: "/deals/projections",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "List customer-safe deal projections",
+    request: {
+      query: z.object({
+        limit: z.coerce.number().int().default(20),
+        offset: z.coerce.number().int().default(0),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: PortalDealListProjectionSchema },
+        },
+        description: "Portal deal projections",
+      },
+    },
+  });
+
   const getDealRoute = createRoute({
     method: "get",
     path: "/deals/{id}",
@@ -622,6 +685,27 @@ export function customerRoutes(ctx: AppContext) {
           "application/json": { schema: CustomerPortalDealDetailSchema },
         },
         description: "Deal detail",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+    },
+  });
+
+  const getDealProjectionRoute = createRoute({
+    method: "get",
+    path: "/deals/{id}/projection",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Get customer-safe deal projection",
+    request: { params: CustomerPortalDealIdParamSchema },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: PortalDealProjectionSchema },
+        },
+        description: "Portal deal projection",
       },
       403: {
         content: { "application/json": { schema: z.object({ error: z.string() }) } },
@@ -836,10 +920,48 @@ export function customerRoutes(ctx: AppContext) {
         throw error;
       }
     })
+    .openapi(createDealDraftRoute, async (c): Promise<any> => {
+      const user = c.get("user")!;
+      const input = c.req.valid("json");
+
+      try {
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.customerPortalWorkflow.createDealDraft(
+            { userId: user.id },
+            input,
+            { idempotencyKey },
+          ),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return c.json(result, 201);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
     .openapi(listDealsRoute, async (c) => {
       const user = c.get("user")!;
       const query = c.req.valid("query");
       const result = await ctx.customerPortalWorkflow.listMyDeals(
+        { userId: user.id },
+        query,
+      );
+      return c.json(result, 200);
+    })
+    .openapi(listDealProjectionsRoute, async (c) => {
+      const user = c.get("user")!;
+      const query = c.req.valid("query");
+      const result = await ctx.customerPortalWorkflow.listMyDealProjections(
         { userId: user.id },
         query,
       );
@@ -851,6 +973,27 @@ export function customerRoutes(ctx: AppContext) {
 
       try {
         const result = await ctx.customerPortalWorkflow.getDealById(
+          { userId: user.id },
+          id,
+        );
+        return c.json(result, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(getDealProjectionRoute, async (c) => {
+      const user = c.get("user")!;
+      const { id } = c.req.valid("param");
+
+      try {
+        const result = await ctx.customerPortalWorkflow.getDealProjectionById(
           { userId: user.id },
           id,
         );

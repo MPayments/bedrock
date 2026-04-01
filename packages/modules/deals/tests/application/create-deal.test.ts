@@ -6,7 +6,6 @@ import { CreateDealCommand } from "../../src/application/commands/create-deal";
 import {
   DealAgreementCustomerMismatchError,
   DealAgreementInactiveError,
-  DealCalculationInactiveError,
   DealTypeNotSupportedError,
 } from "../../src/errors";
 
@@ -25,15 +24,21 @@ function createLogger() {
 function createHarness() {
   const dealReads = {
     findById: vi.fn(),
+    findWorkflowById: vi.fn(),
     list: vi.fn(),
   };
   const dealStore = {
-    createDealRoot: vi.fn(),
-    createDealCalculationLinks: vi.fn(),
-    createDealLegs: vi.fn(),
-    createDealParticipants: vi.fn(),
-    createDealStatusHistory: vi.fn(),
     createDealApprovals: vi.fn(),
+    createDealCalculationLinks: vi.fn(),
+    createDealIntakeSnapshot: vi.fn(),
+    createDealRoot: vi.fn(),
+    createDealTimelineEvents: vi.fn(),
+    createDealQuoteAcceptance: vi.fn(),
+    replaceDealLegs: vi.fn(),
+    replaceDealParticipants: vi.fn(),
+    replaceIntakeSnapshot: vi.fn(),
+    setDealRoot: vi.fn(),
+    supersedeCurrentQuoteAcceptances: vi.fn(),
   };
   const tx = {
     transaction: { id: "tx-1" } as any,
@@ -48,22 +53,23 @@ function createHarness() {
   };
   const references = {
     findAgreementById: vi.fn(async () => ({
-      id: "agreement-1",
+      currentVersionId: "version-1",
       customerId: "00000000-0000-4000-8000-000000000001",
+      id: "agreement-1",
+      isActive: true,
       organizationId: "00000000-0000-4000-8000-000000000002",
-      isActive: true,
     })),
-    findCalculationById: vi.fn(async () => ({
-      id: "calculation-1",
-      isActive: true,
-    })),
+    findCalculationById: vi.fn(),
     findCounterpartyById: vi.fn(async () => ({ id: "counterparty-1" })),
+    findCurrencyById: vi.fn(async () => ({
+      code: "USD",
+      id: "00000000-0000-4000-8000-000000000005",
+      precision: 2,
+    })),
     findCustomerById: vi.fn(async () => ({ id: "customer-1" })),
-    validateSupportedCreateType: vi.fn((type: string) => {
-      if (type !== "payment") {
-        throw new DealTypeNotSupportedError(type);
-      }
-    }),
+    findQuoteById: vi.fn(),
+    listActiveAgreementsByCustomerId: vi.fn(async () => []),
+    validateSupportedCreateType: vi.fn(),
   };
   const uuids = [
     "00000000-0000-4000-8000-000000000010",
@@ -71,126 +77,190 @@ function createHarness() {
     "00000000-0000-4000-8000-000000000012",
     "00000000-0000-4000-8000-000000000013",
     "00000000-0000-4000-8000-000000000014",
+    "00000000-0000-4000-8000-000000000015",
+    "00000000-0000-4000-8000-000000000016",
   ];
   const runtime = createModuleRuntime({
-    service: "deals",
+    generateUuid: () =>
+      uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     logger: createLogger(),
-    generateUuid: () => uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     now: () => new Date("2026-03-30T12:00:00.000Z"),
+    service: "deals",
   });
   const command = new CreateDealCommand(
     runtime,
     commandUow as any,
     idempotency as any,
-    references,
+    references as any,
   );
 
   return {
+    commandUow,
     dealReads,
     dealStore,
-    commandUow,
+    handler: command.execute.bind(command),
     idempotency,
     references,
-    handler: command.execute.bind(command),
   };
 }
 
 describe("create deal command", () => {
-  it("creates a draft deal with a default payment leg, participants, and status history", async () => {
+  it("creates a compatibility draft via typed intake snapshot, participants, and timeline", async () => {
     const harness = createHarness();
     const expected = {
-      id: "00000000-0000-4000-8000-000000000010",
-      customerId: "00000000-0000-4000-8000-000000000001",
-      agreementId: "00000000-0000-4000-8000-000000000002",
-      calculationId: "00000000-0000-4000-8000-000000000003",
-      type: "payment",
-      status: "draft",
+      agreementId: "agreement-1",
+      approvals: [],
+      calculationId: null,
       comment: "Deal comment",
       createdAt: new Date("2026-03-30T12:00:00.000Z"),
-      updatedAt: new Date("2026-03-30T12:00:00.000Z"),
+      customerId: "00000000-0000-4000-8000-000000000001",
+      id: "00000000-0000-4000-8000-000000000010",
+      intakeComment: "Deal comment",
       legs: [],
+      nextAction: "Complete intake",
       participants: [],
+      reason: null,
+      requestedAmount: "100.50",
+      requestedCurrencyId: "00000000-0000-4000-8000-000000000005",
+      revision: 1,
+      status: "draft",
       statusHistory: [],
-      approvals: [],
+      type: "payment",
+      updatedAt: new Date("2026-03-30T12:00:00.000Z"),
     };
+
+    harness.dealReads.findWorkflowById.mockResolvedValue({
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    });
     harness.dealReads.findById.mockResolvedValue(expected);
 
     const result = await harness.handler({
       actorUserId: "user-1",
-      idempotencyKey: "deal-create-1",
-      customerId: "00000000-0000-4000-8000-000000000001",
       agreementId: "00000000-0000-4000-8000-000000000002",
-      calculationId: "00000000-0000-4000-8000-000000000003",
-      type: "payment",
-      counterpartyId: "00000000-0000-4000-8000-000000000004",
       comment: "  Deal comment  ",
+      counterpartyId: "00000000-0000-4000-8000-000000000004",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      idempotencyKey: "deal-create-1",
+      requestedAmount: "100.50",
+      requestedCurrencyId: "00000000-0000-4000-8000-000000000005",
+      type: "payment",
     });
 
     expect(result).toBe(expected);
-    expect(harness.commandUow.run).toHaveBeenCalledTimes(1);
+    expect(harness.commandUow.run).toHaveBeenCalledTimes(2);
     expect(harness.idempotency.withIdempotencyTx).toHaveBeenCalledTimes(1);
     expect(harness.dealStore.createDealRoot).toHaveBeenCalledWith({
-      id: "00000000-0000-4000-8000-000000000010",
-      customerId: "00000000-0000-4000-8000-000000000001",
       agreementId: "agreement-1",
-      calculationId: "00000000-0000-4000-8000-000000000003",
-      type: "payment",
       agentId: null,
-      reason: null,
-      intakeComment: null,
-      comment: "Deal comment",
-      requestedAmountMinor: null,
-      requestedCurrencyId: null,
+      calculationId: null,
+      customerId: "00000000-0000-4000-8000-000000000001",
+      id: "00000000-0000-4000-8000-000000000010",
+      nextAction: "Complete intake",
+      sourceAmountMinor: 10050n,
+      sourceCurrencyId: "00000000-0000-4000-8000-000000000005",
+      status: "draft",
+      targetCurrencyId: null,
+      type: "payment",
     });
-    expect(harness.dealStore.createDealCalculationLinks).toHaveBeenCalledWith([
-      {
-        id: "00000000-0000-4000-8000-000000000011",
-        calculationId: "calculation-1",
-        dealId: "00000000-0000-4000-8000-000000000010",
+    expect(harness.dealStore.createDealIntakeSnapshot).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      revision: 1,
+      snapshot: {
+        common: {
+          applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
+          customerNote: "Deal comment",
+          requestedExecutionDate: null,
+        },
+        externalBeneficiary: {
+          bankInstructionSnapshot: null,
+          beneficiaryCounterpartyId: null,
+          beneficiarySnapshot: null,
+        },
+        incomingReceipt: {
+          contractNumber: null,
+          expectedAmount: null,
+          expectedAt: null,
+          expectedCurrencyId: null,
+          invoiceNumber: null,
+          payerCounterpartyId: null,
+          payerSnapshot: null,
+        },
+        moneyRequest: {
+          purpose: null,
+          sourceAmount: "100.50",
+          sourceCurrencyId: "00000000-0000-4000-8000-000000000005",
+          targetCurrencyId: null,
+        },
+        settlementDestination: {
+          bankInstructionSnapshot: null,
+          mode: null,
+          requisiteId: null,
+        },
+        type: "payment",
       },
-    ]);
-    expect(harness.dealStore.createDealLegs).toHaveBeenCalledWith([
+    });
+    expect(harness.dealStore.replaceDealLegs).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      legs: [
+        {
+          dealId: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000011",
+          idx: 1,
+          kind: "collect",
+          state: "pending",
+        },
+        {
+          dealId: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000012",
+          idx: 2,
+          kind: "payout",
+          state: "pending",
+        },
+      ],
+    });
+    expect(harness.dealStore.replaceDealParticipants).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      participants: [
+        {
+          counterpartyId: null,
+          customerId: "00000000-0000-4000-8000-000000000001",
+          dealId: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000013",
+          organizationId: null,
+          role: "customer",
+        },
+        {
+          counterpartyId: null,
+          customerId: null,
+          dealId: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000014",
+          organizationId: "00000000-0000-4000-8000-000000000002",
+          role: "internal_entity",
+        },
+        {
+          counterpartyId: "00000000-0000-4000-8000-000000000004",
+          customerId: null,
+          dealId: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000015",
+          organizationId: null,
+          role: "applicant",
+        },
+      ],
+    });
+    expect(harness.dealStore.createDealTimelineEvents).toHaveBeenCalledWith([
       {
-        id: "00000000-0000-4000-8000-000000000012",
+        actorLabel: null,
+        actorUserId: "user-1",
         dealId: "00000000-0000-4000-8000-000000000010",
-        idx: 1,
-        kind: "payment",
-        status: "draft",
-      },
-    ]);
-    expect(harness.dealStore.createDealParticipants).toHaveBeenCalledWith([
-      {
-        id: "00000000-0000-4000-8000-000000000013",
-        dealId: "00000000-0000-4000-8000-000000000010",
-        role: "customer",
-        customerId: "00000000-0000-4000-8000-000000000001",
-        organizationId: null,
-        counterpartyId: null,
-      },
-      {
-        id: "00000000-0000-4000-8000-000000000014",
-        dealId: "00000000-0000-4000-8000-000000000010",
-        role: "organization",
-        customerId: null,
-        organizationId: "00000000-0000-4000-8000-000000000002",
-        counterpartyId: null,
-      },
-      {
-        id: "00000000-0000-4000-8000-000000000099",
-        dealId: "00000000-0000-4000-8000-000000000010",
-        role: "counterparty",
-        customerId: null,
-        organizationId: null,
-        counterpartyId: "00000000-0000-4000-8000-000000000004",
-      },
-    ]);
-    expect(harness.dealStore.createDealStatusHistory).toHaveBeenCalledWith([
-      {
-        id: "00000000-0000-4000-8000-000000000099",
-        dealId: "00000000-0000-4000-8000-000000000010",
-        status: "draft",
-        changedBy: "user-1",
-        comment: "Deal comment",
+        id: "00000000-0000-4000-8000-000000000016",
+        occurredAt: new Date("2026-03-30T12:00:00.000Z"),
+        payload: {
+          intakeType: "payment",
+          status: "draft",
+        },
+        sourceRef: null,
+        type: "deal_created",
+        visibility: "customer_safe",
       },
     ]);
   });
@@ -198,21 +268,21 @@ describe("create deal command", () => {
   it("rejects inactive agreements", async () => {
     const harness = createHarness();
     harness.references.findAgreementById.mockResolvedValue({
-      id: "agreement-1",
+      currentVersionId: "version-1",
       customerId: "00000000-0000-4000-8000-000000000001",
-      organizationId: "00000000-0000-4000-8000-000000000002",
+      id: "agreement-1",
       isActive: false,
+      organizationId: "00000000-0000-4000-8000-000000000002",
     });
 
     await expect(
       harness.handler({
         actorUserId: "user-1",
-        idempotencyKey: "deal-create-2",
-        customerId: "00000000-0000-4000-8000-000000000001",
         agreementId: "00000000-0000-4000-8000-000000000002",
-        calculationId: "00000000-0000-4000-8000-000000000003",
-        type: "payment",
         comment: null,
+        customerId: "00000000-0000-4000-8000-000000000001",
+        idempotencyKey: "deal-create-2",
+        type: "payment",
       }),
     ).rejects.toBeInstanceOf(DealAgreementInactiveError);
   });
@@ -220,57 +290,43 @@ describe("create deal command", () => {
   it("rejects agreement ownership mismatches", async () => {
     const harness = createHarness();
     harness.references.findAgreementById.mockResolvedValue({
-      id: "agreement-1",
+      currentVersionId: "version-1",
       customerId: "different-customer",
-      organizationId: "00000000-0000-4000-8000-000000000002",
+      id: "agreement-1",
       isActive: true,
+      organizationId: "00000000-0000-4000-8000-000000000002",
     });
 
     await expect(
       harness.handler({
         actorUserId: "user-1",
-        idempotencyKey: "deal-create-3",
-        customerId: "00000000-0000-4000-8000-000000000001",
         agreementId: "00000000-0000-4000-8000-000000000002",
-        calculationId: "00000000-0000-4000-8000-000000000003",
-        type: "payment",
         comment: null,
+        customerId: "00000000-0000-4000-8000-000000000001",
+        idempotencyKey: "deal-create-3",
+        type: "payment",
       }),
     ).rejects.toBeInstanceOf(DealAgreementCustomerMismatchError);
   });
 
-  it("rejects inactive calculations", async () => {
+  it("rejects unsupported create types when the reference policy denies them", async () => {
     const harness = createHarness();
-    harness.references.findCalculationById.mockResolvedValue({
-      id: "calculation-1",
-      isActive: false,
-    });
+    harness.references.validateSupportedCreateType.mockImplementation(
+      (type: string) => {
+        if (type !== "payment") {
+          throw new DealTypeNotSupportedError(type);
+        }
+      },
+    );
 
     await expect(
       harness.handler({
         actorUserId: "user-1",
+        agreementId: "00000000-0000-4000-8000-000000000002",
+        comment: null,
+        customerId: "00000000-0000-4000-8000-000000000001",
         idempotencyKey: "deal-create-4",
-        customerId: "00000000-0000-4000-8000-000000000001",
-        agreementId: "00000000-0000-4000-8000-000000000002",
-        calculationId: "00000000-0000-4000-8000-000000000003",
-        type: "payment",
-        comment: null,
-      }),
-    ).rejects.toBeInstanceOf(DealCalculationInactiveError);
-  });
-
-  it("rejects non-payment create types in phase 16", async () => {
-    const harness = createHarness();
-
-    await expect(
-      harness.handler({
-        actorUserId: "user-1",
-        idempotencyKey: "deal-create-5",
-        customerId: "00000000-0000-4000-8000-000000000001",
-        agreementId: "00000000-0000-4000-8000-000000000002",
-        calculationId: "00000000-0000-4000-8000-000000000003",
         type: "currency_exchange",
-        comment: null,
       }),
     ).rejects.toBeInstanceOf(DealTypeNotSupportedError);
   });

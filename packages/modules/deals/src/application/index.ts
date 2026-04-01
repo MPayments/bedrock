@@ -1,16 +1,24 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
 import { AttachDealCalculationCommand } from "./commands/attach-deal-calculation";
+import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { CreateDealCommand } from "./commands/create-deal";
+import { CreateDealDraftCommand } from "./commands/create-deal-draft";
+import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
 import { FindDealByIdQuery } from "./queries/find-deal-by-id";
+import { FindDealTraceByIdQuery } from "./queries/find-deal-trace-by-id";
+import { FindDealWorkflowByIdQuery } from "./queries/find-deal-workflow-by-id";
+import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
 import { ListDealsQuery } from "./queries/list-deals";
+import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
 export interface DealsServiceDeps {
   commandUow: DealsCommandUnitOfWork;
@@ -21,10 +29,21 @@ export interface DealsServiceDeps {
 }
 
 export function createDealsService(deps: DealsServiceDeps) {
+  const createDealDraft = new CreateDealDraftCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.idempotency,
+    deps.references,
+  );
   const createDeal = new CreateDealCommand(
     deps.runtime,
     deps.commandUow,
     deps.idempotency,
+    deps.references,
+  );
+  const replaceDealIntake = new ReplaceDealIntakeCommand(
+    deps.runtime,
+    deps.commandUow,
     deps.references,
   );
   const updateDealIntake = new UpdateDealIntakeCommand(
@@ -40,24 +59,46 @@ export function createDealsService(deps: DealsServiceDeps) {
   const transitionDealStatus = new TransitionDealStatusCommand(
     deps.runtime,
     deps.commandUow,
+    deps.references,
+  );
+  const acceptDealQuote = new AcceptDealQuoteCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const appendTimelineEvent = new AppendDealTimelineEventCommand(
+    deps.runtime,
+    deps.commandUow,
   );
   const findDealById = new FindDealByIdQuery(deps.reads);
+  const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
+  const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
+  const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
   const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
+  const listPortalDeals = new ListPortalDealsQuery(deps.reads);
 
   return {
     commands: {
+      acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
       attachCalculation: attachDealCalculation.execute.bind(attachDealCalculation),
+      appendTimelineEvent: appendTimelineEvent.execute.bind(appendTimelineEvent),
       create: createDeal.execute.bind(createDeal),
+      createDraft: createDealDraft.execute.bind(createDealDraft),
+      replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateIntake: updateDealIntake.execute.bind(updateDealIntake),
     },
     queries: {
       findById: findDealById.execute.bind(findDealById),
+      findPortalById: findPortalDealById.execute.bind(findPortalDealById),
+      findTraceById: findDealTraceById.execute.bind(findDealTraceById),
+      findWorkflowById: findDealWorkflowById.execute.bind(findDealWorkflowById),
       listCalculationHistory: listCalculationHistory.execute.bind(
         listCalculationHistory,
       ),
       list: listDeals.execute.bind(listDeals),
+      listPortalDeals: listPortalDeals.execute.bind(listPortalDeals),
     },
   };
 }

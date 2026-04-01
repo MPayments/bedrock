@@ -9,7 +9,12 @@ import type {
   QuoteRecord,
 } from "@bedrock/treasury/contracts";
 
-export function serializeQuote(quote: QuoteRecord): Quote {
+type QuoteDealRef = NonNullable<Quote["dealRef"]>;
+
+export function serializeQuote(
+  quote: QuoteRecord,
+  dealRef: QuoteDealRef | null = null,
+): Quote {
   return {
     id: quote.id,
     fromCurrencyId: quote.fromCurrencyId,
@@ -32,12 +37,16 @@ export function serializeQuote(quote: QuoteRecord): Quote {
     expiresAt: quote.expiresAt.toISOString(),
     idempotencyKey: quote.idempotencyKey,
     createdAt: quote.createdAt.toISOString(),
+    dealRef,
   };
 }
 
-export function serializeQuoteListItem(quote: QuoteRecord): QuoteListItem {
+export function serializeQuoteListItem(
+  quote: QuoteRecord,
+  dealRef: QuoteDealRef | null = null,
+): QuoteListItem {
   return {
-    ...serializeQuote(quote),
+    ...serializeQuote(quote, dealRef),
     fromAmount: minorToAmountString(quote.fromAmountMinor, {
       currency: quote.fromCurrency ?? "",
     }),
@@ -49,9 +58,10 @@ export function serializeQuoteListItem(quote: QuoteRecord): QuoteListItem {
 
 export function serializeQuoteDetails(
   details: QuoteDetailsRecord,
+  dealRef: QuoteDealRef | null = null,
 ): QuoteDetailsResponse {
   return {
-    quote: serializeQuote(details.quote),
+    quote: serializeQuote(details.quote, dealRef),
     legs: details.legs.map((leg) => ({
       id: leg.id,
       quoteId: leg.quoteId,

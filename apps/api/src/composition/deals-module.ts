@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
+
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { DrizzleCalculationReads } from "@bedrock/calculations/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
@@ -22,6 +24,7 @@ import {
   type Database,
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
+import { fxQuotes } from "@bedrock/treasury/schema";
 
 export function createApiDealsModule(input: {
   currencies: Pick<CurrenciesService, "findById">;
@@ -56,6 +59,7 @@ export function createApiDealsModule(input: {
         }
 
         return {
+          currentVersionId: agreement.currentVersion.id,
           id: agreement.id,
           customerId: agreement.customerId,
           organizationId: agreement.organizationId,
@@ -82,6 +86,27 @@ export function createApiDealsModule(input: {
       async findCustomerById(id: string) {
         return customerReads.findById(id);
       },
+      async findQuoteById(id: string) {
+        const [quote] = await input.db
+          .select({
+            dealId: fxQuotes.dealId,
+            id: fxQuotes.id,
+            status: fxQuotes.status,
+          })
+          .from(fxQuotes)
+          .where(eq(fxQuotes.id, id))
+          .limit(1);
+
+        if (!quote) {
+          return null;
+        }
+
+        return {
+          dealId: quote.dealId,
+          id: quote.id,
+          status: quote.status,
+        };
+      },
       async listActiveAgreementsByCustomerId(customerId: string) {
         const result = await agreementReadsWithCurrencies.list({
           customerId,
@@ -93,6 +118,7 @@ export function createApiDealsModule(input: {
         });
 
         return result.data.map((agreement) => ({
+          currentVersionId: agreement.currentVersion.id,
           id: agreement.id,
           customerId: agreement.customerId,
           organizationId: agreement.organizationId,
@@ -100,7 +126,14 @@ export function createApiDealsModule(input: {
         }));
       },
       validateSupportedCreateType(type) {
-        if (type !== "payment") {
+        if (
+          ![
+            "payment",
+            "currency_exchange",
+            "currency_transit",
+            "exporter_settlement",
+          ].includes(type)
+        ) {
           throw new DealTypeNotSupportedError(type);
         }
       },

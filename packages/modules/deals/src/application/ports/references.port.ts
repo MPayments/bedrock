@@ -1,15 +1,23 @@
 import type { DealType } from "../contracts/zod";
 
 export interface DealAgreementReference {
+  currentVersionId: string | null;
   id: string;
   customerId: string;
   organizationId: string;
   isActive: boolean;
+  allowedDealTypes?: DealType[];
 }
 
 export interface DealCalculationReference {
   id: string;
   isActive: boolean;
+}
+
+export interface DealQuoteReference {
+  dealId: string | null;
+  id: string;
+  status: string;
 }
 
 export interface DealCurrencyReference {
@@ -21,9 +29,20 @@ export interface DealCurrencyReference {
 export interface DealReferencesPort {
   findAgreementById(id: string): Promise<DealAgreementReference | null>;
   findCalculationById(id: string): Promise<DealCalculationReference | null>;
-  findCounterpartyById(id: string): Promise<{ id: string } | null>;
+  findCounterpartyById(
+    id: string,
+  ): Promise<
+    | {
+        id: string;
+        customerId?: string | null;
+        fullName?: string | null;
+        shortName?: string | null;
+      }
+    | null
+  >;
   findCurrencyById(id: string): Promise<DealCurrencyReference | null>;
   findCustomerById(id: string): Promise<{ id: string } | null>;
+  findQuoteById(id: string): Promise<DealQuoteReference | null>;
   listActiveAgreementsByCustomerId(
     customerId: string,
   ): Promise<DealAgreementReference[]>;

@@ -5,7 +5,14 @@ import {
 } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
-import type { Deal, DealDetails } from "@bedrock/deals/contracts";
+import type {
+  CreatePortalDealInput,
+  Deal,
+  DealDetails,
+  DealIntakeDraft,
+  PortalDealListProjection,
+  PortalDealProjection,
+} from "@bedrock/deals/contracts";
 import {
   type CustomerMembershipsService,
   type IamService,
@@ -211,14 +218,29 @@ export interface CustomerPortalWorkflow {
       idempotencyKey: string;
     },
   ): Promise<DealDetails>;
+  createDealDraft(
+    ctx: CustomerContext,
+    input: CreatePortalDealInput,
+    options: {
+      idempotencyKey: string;
+    },
+  ): Promise<PortalDealProjection>;
   listMyDeals(
     ctx: CustomerContext,
     input?: { limit?: number; offset?: number },
   ): Promise<CustomerPortalDealListResponse>;
+  listMyDealProjections(
+    ctx: CustomerContext,
+    input?: { limit?: number; offset?: number },
+  ): Promise<PortalDealListProjection>;
   getDealById(
     ctx: CustomerContext,
     dealId: string,
   ): Promise<CustomerPortalDealDetailResponse>;
+  getDealProjectionById(
+    ctx: CustomerContext,
+    dealId: string,
+  ): Promise<PortalDealProjection>;
 }
 
 function normalizeNullableText(value: string | null | undefined): string | null {
@@ -292,6 +314,76 @@ async function serializeCompatibilityCalculationForDeal(
 
 function mapPortalDealStatus(status: Deal["status"]): Deal["status"] {
   return status;
+}
+
+function createEmptyPortalDealIntakeDraft(
+  type: CreatePortalDealInput["type"],
+): DealIntakeDraft {
+  return {
+    type,
+    common: {
+      applicantCounterpartyId: null,
+      customerNote: null,
+      requestedExecutionDate: null,
+    },
+    externalBeneficiary: {
+      bankInstructionSnapshot: null,
+      beneficiaryCounterpartyId: null,
+      beneficiarySnapshot: null,
+    },
+    incomingReceipt: {
+      contractNumber: null,
+      expectedAmount: null,
+      expectedAt: null,
+      expectedCurrencyId: null,
+      invoiceNumber: null,
+      payerCounterpartyId: null,
+      payerSnapshot: null,
+    },
+    moneyRequest: {
+      purpose: null,
+      sourceAmount: null,
+      sourceCurrencyId: null,
+      targetCurrencyId: null,
+    },
+    settlementDestination: {
+      bankInstructionSnapshot: null,
+      mode: null,
+      requisiteId: null,
+    },
+  };
+}
+
+function buildPortalDealIntakeDraft(
+  input: CreatePortalDealInput,
+): DealIntakeDraft {
+  const intake = createEmptyPortalDealIntakeDraft(input.type);
+
+  intake.common = {
+    applicantCounterpartyId: input.common.applicantCounterpartyId,
+    customerNote: input.common.customerNote ?? null,
+    requestedExecutionDate: input.common.requestedExecutionDate ?? null,
+  };
+  intake.moneyRequest = {
+    purpose: input.moneyRequest.purpose ?? null,
+    sourceAmount: input.moneyRequest.sourceAmount ?? null,
+    sourceCurrencyId: input.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: input.moneyRequest.targetCurrencyId ?? null,
+  };
+
+  if (input.incomingReceipt) {
+    intake.incomingReceipt = {
+      contractNumber: input.incomingReceipt.contractNumber ?? null,
+      expectedAmount: input.incomingReceipt.expectedAmount ?? null,
+      expectedAt: input.incomingReceipt.expectedAt ?? null,
+      expectedCurrencyId: input.incomingReceipt.expectedCurrencyId ?? null,
+      invoiceNumber: input.incomingReceipt.invoiceNumber ?? null,
+      payerCounterpartyId: null,
+      payerSnapshot: null,
+    };
+  }
+
+  return intake;
 }
 
 interface CustomerPortalDealListItem {
@@ -801,6 +893,51 @@ export function createCustomerPortalWorkflow(
       return result;
     },
 
+    async createDealDraft(
+      ctx: CustomerContext,
+      input: CreatePortalDealInput,
+      options: {
+        idempotencyKey: string;
+      },
+    ) {
+      const applicant = await assertCounterpartyOwnership(
+        ctx.userId,
+        input.common.applicantCounterpartyId,
+      );
+
+      if (!applicant.customerId) {
+        throw new CustomerNotAuthorizedError(
+          `Counterparty ${applicant.id} is not linked to a customer`,
+        );
+      }
+
+      const created = await deps.deals.deals.commands.createDraft({
+        actorUserId: ctx.userId,
+        customerId: applicant.customerId,
+        idempotencyKey: options.idempotencyKey,
+        intake: buildPortalDealIntakeDraft(input),
+      });
+
+      deps.logger.info("Customer created typed deal draft", {
+        applicantCounterpartyId: applicant.id,
+        dealId: created.summary.id,
+        type: input.type,
+        userId: ctx.userId,
+      });
+
+      const projection = await deps.deals.deals.queries.findPortalById(
+        created.summary.id,
+      );
+
+      if (!projection) {
+        throw new CustomerNotAuthorizedError(
+          `Deal ${created.summary.id} not found`,
+        );
+      }
+
+      return projection;
+    },
+
     async listMyDeals(
       ctx: CustomerContext,
       input?: { limit?: number; offset?: number },
@@ -836,6 +973,46 @@ export function createCustomerPortalWorkflow(
       };
     },
 
+    async listMyDealProjections(
+      ctx: CustomerContext,
+      input?: { limit?: number; offset?: number },
+    ): Promise<PortalDealListProjection> {
+      const customerIds = await listAuthorizedCustomerIds(ctx.userId);
+
+      if (customerIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          limit: input?.limit ?? 20,
+          offset: input?.offset ?? 0,
+        };
+      }
+
+      const uniqueCustomerIds = Array.from(new Set(customerIds));
+      const results = await Promise.all(
+        uniqueCustomerIds.map((customerId) =>
+          deps.deals.deals.queries.listPortalDeals({
+            customerId,
+            limit: 200,
+            offset: 0,
+          }),
+        ),
+      );
+
+      const allDeals = results.flatMap((result) => result.data);
+      allDeals.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      const limit = input?.limit ?? 20;
+      const offset = input?.offset ?? 0;
+
+      return {
+        data: allDeals.slice(offset, offset + limit),
+        total: allDeals.length,
+        limit,
+        offset,
+      };
+    },
+
     async getDealById(
       ctx: CustomerContext,
       dealId: string,
@@ -863,6 +1040,26 @@ export function createCustomerPortalWorkflow(
         deal: detail,
         organizationName,
       };
+    },
+
+    async getDealProjectionById(
+      ctx: CustomerContext,
+      dealId: string,
+    ): Promise<PortalDealProjection> {
+      const detail = await deps.deals.deals.queries.findById(dealId);
+
+      if (!detail) {
+        throw new CustomerNotAuthorizedError(`Deal ${dealId} not found`);
+      }
+
+      await assertDealOwnership(ctx.userId, detail);
+
+      const projection = await deps.deals.deals.queries.findPortalById(dealId);
+      if (!projection) {
+        throw new CustomerNotAuthorizedError(`Deal ${dealId} not found`);
+      }
+
+      return projection;
     },
   };
 }

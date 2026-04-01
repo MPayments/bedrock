@@ -1,21 +1,17 @@
 import { z } from "zod";
 
 import type { ModuleRuntime } from "@bedrock/shared/core";
-import { NotFoundError } from "@bedrock/shared/core/errors";
-import { toMinorAmountString } from "@bedrock/shared/money";
 
-
-import {
-  DealNotFoundError,
-  DealRequestedAmountCurrencyMismatchError,
-} from "../../errors";
+import { DealNotFoundError } from "../../errors";
 import {
   UpdateDealIntakeInputSchema,
   type UpdateDealIntakeInput,
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
+import { applyLegacyIntakePatch } from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
+import { ReplaceDealIntakeCommand } from "./replace-deal-intake";
 
 const UpdateDealIntakeCommandInputSchema = UpdateDealIntakeInputSchema.extend({
   actorUserId: z.string().trim().min(1),
@@ -28,88 +24,57 @@ type UpdateDealIntakeCommandInput = UpdateDealIntakeInput & {
 };
 
 export class UpdateDealIntakeCommand {
+  private readonly replaceIntakeCommand: ReplaceDealIntakeCommand;
+
   constructor(
-    private readonly runtime: ModuleRuntime,
+    runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
-    private readonly references: DealReferencesPort,
-  ) {}
+    references: DealReferencesPort,
+  ) {
+    this.replaceIntakeCommand = new ReplaceDealIntakeCommand(
+      runtime,
+      commandUow,
+      references,
+    );
+  }
 
   async execute(raw: UpdateDealIntakeCommandInput): Promise<DealDetails> {
     const validated = UpdateDealIntakeCommandInputSchema.parse(raw);
+    const existing = await this.commandUow.run((tx) =>
+      tx.dealReads.findWorkflowById(validated.dealId),
+    );
 
-    if (
-      ("requestedAmount" in validated) !== ("requestedCurrencyId" in validated)
-    ) {
-      throw new DealRequestedAmountCurrencyMismatchError();
+    if (!existing) {
+      throw new DealNotFoundError(validated.dealId);
     }
 
-    const [counterparty, requestedCurrency] = await Promise.all([
-      validated.counterpartyId
-        ? this.references.findCounterpartyById(validated.counterpartyId)
-        : Promise.resolve(validated.counterpartyId === null ? null : undefined),
-      validated.requestedCurrencyId
-        ? this.references.findCurrencyById(validated.requestedCurrencyId)
-        : Promise.resolve(validated.requestedCurrencyId === null ? null : undefined),
-    ]);
+    const updated = await this.replaceIntakeCommand.execute({
+      actorUserId: validated.actorUserId,
+      dealId: validated.dealId,
+      expectedRevision: existing.revision,
+      intake: applyLegacyIntakePatch({
+        current: existing.intake,
+        patch: validated,
+      }),
+    });
 
-    if (validated.counterpartyId && !counterparty) {
-      throw new NotFoundError("Counterparty", validated.counterpartyId);
-    }
-
-    if (validated.requestedCurrencyId && !requestedCurrency) {
-      throw new NotFoundError("Currency", validated.requestedCurrencyId);
+    if (validated.agentId !== undefined) {
+      await this.commandUow.run((tx) =>
+        tx.dealStore.setDealRoot({
+          agentId: validated.agentId ?? null,
+          dealId: validated.dealId,
+        }),
+      );
     }
 
     return this.commandUow.run(async (tx) => {
-      const existing = await tx.dealReads.findById(validated.dealId);
-      if (!existing) {
-        throw new DealNotFoundError(validated.dealId);
+      const detail = await tx.dealReads.findById(updated.summary.id);
+
+      if (!detail) {
+        throw new DealNotFoundError(updated.summary.id);
       }
 
-      await tx.dealStore.updateDealRoot({
-        dealId: validated.dealId,
-        ...(validated.agentId !== undefined
-          ? { agentId: validated.agentId ?? null }
-          : {}),
-        ...(validated.comment !== undefined
-          ? { comment: validated.comment ?? null }
-          : {}),
-        ...(validated.intakeComment !== undefined
-          ? { intakeComment: validated.intakeComment ?? null }
-          : {}),
-        ...(validated.reason !== undefined
-          ? { reason: validated.reason ?? null }
-          : {}),
-        ...(validated.requestedAmount !== undefined
-          ? {
-              requestedAmountMinor:
-                validated.requestedAmount && requestedCurrency
-                  ? BigInt(
-                      toMinorAmountString(
-                        validated.requestedAmount,
-                        requestedCurrency.code,
-                      ),
-                    )
-                  : null,
-              requestedCurrencyId: requestedCurrency?.id ?? null,
-            }
-          : {}),
-      });
-
-      if (validated.counterpartyId !== undefined) {
-        await tx.dealStore.setCounterpartyParticipant({
-          dealId: validated.dealId,
-          counterpartyId: validated.counterpartyId ?? null,
-          id: validated.counterpartyId ? this.runtime.generateUuid() : undefined,
-        });
-      }
-
-      const updated = await tx.dealReads.findById(validated.dealId);
-      if (!updated) {
-        throw new DealNotFoundError(validated.dealId);
-      }
-
-      return updated;
+      return detail;
     });
   }
 }
