@@ -12,11 +12,11 @@ import { createCustomerBankingService } from "@bedrock/workflow-customer-portal"
 import { DeletedSchema, ErrorSchema } from "../common";
 import {
   assertCustomerOwnsCounterparty,
-  CompatibilityContractSchema,
-  createCompatibilityContractForCustomer,
-  resolveEffectiveCompatibilityContractByCustomerId,
-  updateCompatibilityContract,
-} from "./contracts-compat";
+  createCustomerAgreementForCustomer,
+  CustomerAgreementSchema,
+  resolveEffectiveCustomerAgreementByCustomerId,
+  updateCustomerAgreement,
+} from "./customer-agreements";
 import {
   getOrganizationBankRequisiteOrThrow,
   serializeOrganizationRequisiteForDocuments,
@@ -24,11 +24,11 @@ import {
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import {
-  CompatibilityFileAttachmentSchema,
+  CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
   GeneratedDocumentLangSchema,
-  serializeCompatibilityFileAttachment,
-} from "./files-compat";
+  serializeCustomerFileAttachment,
+} from "./customer-files";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
@@ -85,7 +85,6 @@ const CustomerLegalEntitySchema = z.object({
   email: z.string().nullable(),
   externalId: z.string().nullable(),
   fullName: z.string(),
-  hasLegacyShell: z.boolean(),
   inn: z.string().nullable(),
   iban: z.string().nullable(),
   kpp: z.string().nullable(),
@@ -551,7 +550,7 @@ async function mapCustomerLegalEntity(input: {
     subAgentCounterpartyId: string | null;
   } | null;
   bankRequisite: CounterpartyBankRequisite;
-  contract?: z.infer<typeof CompatibilityContractSchema> | null;
+  contract?: z.infer<typeof CustomerAgreementSchema> | null;
   counterparty: CanonicalCounterpartyListItem;
   ctx: AppContext;
 }) {
@@ -590,7 +589,6 @@ async function mapCustomerLegalEntity(input: {
     email: input.counterparty.email ?? null,
     externalId: input.counterparty.externalId,
     fullName: input.counterparty.fullName,
-    hasLegacyShell: false,
     inn: input.counterparty.inn ?? input.counterparty.externalId ?? null,
     iban: input.bankRequisite?.iban ?? null,
     kpp: input.counterparty.kpp ?? null,
@@ -649,7 +647,7 @@ async function mapCustomerWorkspaceDetail(
     ctx,
     counterpartiesList.map((counterparty) => counterparty.id),
   );
-  const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+  const contract = await resolveEffectiveCustomerAgreementByCustomerId(
     ctx,
     customer.id,
   );
@@ -769,7 +767,7 @@ async function upsertLegalEntity(
     counterpartyId,
     customerId: input.customerId,
   });
-  const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+  const contract = await resolveEffectiveCustomerAgreementByCustomerId(
     ctx,
     input.customerId,
   );
@@ -1155,7 +1153,7 @@ export function customersRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: z.array(CompatibilityFileAttachmentSchema),
+            schema: z.array(CustomerFileAttachmentSchema),
           },
         },
         description: "Legal entity documents",
@@ -1174,7 +1172,7 @@ export function customersRoutes(ctx: AppContext) {
       201: {
         content: {
           "application/json": {
-            schema: CompatibilityFileAttachmentSchema,
+            schema: CustomerFileAttachmentSchema,
           },
         },
         description: "Document uploaded",
@@ -1263,7 +1261,7 @@ export function customersRoutes(ctx: AppContext) {
       201: {
         content: {
           "application/json": {
-            schema: CompatibilityContractSchema,
+            schema: CustomerAgreementSchema,
           },
         },
         description: "Contract created or updated",
@@ -1391,7 +1389,7 @@ export function customersRoutes(ctx: AppContext) {
           ctx,
           counterpartiesList.map((counterparty) => counterparty.id),
         );
-        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
           ctx,
           customerId,
         );
@@ -1443,7 +1441,7 @@ export function customersRoutes(ctx: AppContext) {
           counterpartyId,
           customerId,
         });
-        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
           ctx,
           customerId,
         );
@@ -1623,7 +1621,7 @@ export function customersRoutes(ctx: AppContext) {
             counterpartyId,
           );
         return c.json(
-          result.map(serializeCompatibilityFileAttachment),
+          result.map(serializeCustomerFileAttachment),
           200,
         );
       } catch (error) {
@@ -1656,7 +1654,7 @@ export function customersRoutes(ctx: AppContext) {
             ownerId: counterpartyId,
             uploadedBy: sessionUser.id,
           });
-        return c.json(serializeCompatibilityFileAttachment(result), 201);
+        return c.json(serializeCustomerFileAttachment(result), 201);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1706,7 +1704,7 @@ export function customersRoutes(ctx: AppContext) {
           customerId,
         });
 
-        const contract = await resolveEffectiveCompatibilityContractByCustomerId(
+        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
           ctx,
           customerId,
         );
@@ -1786,14 +1784,14 @@ export function customersRoutes(ctx: AppContext) {
           customerId,
         });
 
-        const existing = await resolveEffectiveCompatibilityContractByCustomerId(
+        const existing = await resolveEffectiveCustomerAgreementByCustomerId(
           ctx,
           customerId,
         );
 
         if (existing) {
           const updated = await withRequiredIdempotency(c, (idempotencyKey) =>
-            updateCompatibilityContract(
+            updateCustomerAgreement(
               ctx,
               {
                 agentFee: input.agentFee,
@@ -1817,7 +1815,7 @@ export function customersRoutes(ctx: AppContext) {
         }
 
         const created = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createCompatibilityContractForCustomer(
+          createCustomerAgreementForCustomer(
             ctx,
             {
               agentFee: input.agentFee,

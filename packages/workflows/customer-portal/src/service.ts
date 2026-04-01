@@ -124,7 +124,6 @@ export interface CustomerPortalLegalEntity {
   directorName: string | null;
   externalId: string | null;
   fullName: string;
-  hasLegacyShell: boolean;
   inn: string | null;
   phone: string | null;
   relationshipKind: "customer_owned" | "external";
@@ -331,7 +330,6 @@ function mapLegalEntity(
     email: counterparty.email ?? null,
     externalId: counterparty.externalId,
     fullName: counterparty.fullName,
-    hasLegacyShell: false,
     inn: counterparty.inn ?? counterparty.externalId ?? null,
     phone: counterparty.phone ?? null,
     relationshipKind: counterparty.relationshipKind,

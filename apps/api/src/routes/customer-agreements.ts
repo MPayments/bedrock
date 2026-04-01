@@ -29,7 +29,7 @@ function isPositiveDecimalString(value: string): boolean {
   return fraction.length > 0 && /^[0-9]+$/u.test(fraction);
 }
 
-const CompatibilityDecimalStringSchema = z
+const AgreementDecimalStringSchema = z
   .string()
   .trim()
   .refine(isPositiveDecimalString, "Must be a positive decimal string");
@@ -57,7 +57,7 @@ function normalizeDecimalString(value: string): string {
 }
 
 function shiftPositiveDecimalString(value: string, decimalPlaces: number): string {
-  const normalized = CompatibilityDecimalStringSchema.parse(value);
+  const normalized = AgreementDecimalStringSchema.parse(value);
   const [wholeRaw, fractionRaw = ""] = normalized.split(".");
   const digits = `${wholeRaw}${fractionRaw}`.replace(/^0+(?=\d)/, "") || "0";
   const nextScale = fractionRaw.length - decimalPlaces;
@@ -117,7 +117,7 @@ function parseCompatibilityDate(
   return parsed;
 }
 
-function serializeCompatibilityFees(agreement: AgreementDetails) {
+function serializeAgreementFees(agreement: AgreementDetails) {
   let agentFee: string | null = null;
   let fixedFee: string | null = null;
 
@@ -135,7 +135,7 @@ function serializeCompatibilityFees(agreement: AgreementDetails) {
   return { agentFee, fixedFee };
 }
 
-async function buildCompatibilityFeeRules(input: {
+async function buildAgreementFeeRules(input: {
   agentFee?: string | null;
   ctx: AppContext;
   fixedFee?: string | null;
@@ -164,7 +164,7 @@ async function buildCompatibilityFeeRules(input: {
       kind: "fixed_fee",
       unit: "money",
       value: normalizeDecimalString(
-        CompatibilityDecimalStringSchema.parse(fixedFee),
+        AgreementDecimalStringSchema.parse(fixedFee),
       ),
     });
   }
@@ -172,7 +172,7 @@ async function buildCompatibilityFeeRules(input: {
   return feeRules;
 }
 
-export const CompatibilityContractSchema = z.object({
+export const CustomerAgreementSchema = z.object({
   id: z.string().uuid(),
   contractNumber: z.string().nullable(),
   contractDate: z.string().nullable(),
@@ -185,7 +185,7 @@ export const CompatibilityContractSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const CompatibilityUpdateContractInputSchema = z
+export const CustomerAgreementUpdateContractInputSchema = z
   .object({
     organizationId: z.string().uuid().optional(),
     organizationRequisiteId: z.string().uuid().optional(),
@@ -196,15 +196,15 @@ export const CompatibilityUpdateContractInputSchema = z
   })
   .strict();
 
-export type CompatibilityContract = z.infer<typeof CompatibilityContractSchema>;
-export type CompatibilityUpdateContractInput = z.infer<
-  typeof CompatibilityUpdateContractInputSchema
+export type CustomerAgreement = z.infer<typeof CustomerAgreementSchema>;
+export type CustomerAgreementUpdateInput = z.infer<
+  typeof CustomerAgreementUpdateContractInputSchema
 >;
 
-export function serializeCompatibilityContract(
+export function serializeCustomerAgreement(
   agreement: AgreementDetails,
-): CompatibilityContract {
-  const fees = serializeCompatibilityFees(agreement);
+): CustomerAgreement {
+  const fees = serializeAgreementFees(agreement);
 
   return {
     id: agreement.id,
@@ -272,12 +272,12 @@ export async function resolveEffectiveAgreementByCustomerId(
   return result.data[0] ?? null;
 }
 
-export async function resolveEffectiveCompatibilityContractByCustomerId(
+export async function resolveEffectiveCustomerAgreementByCustomerId(
   ctx: AppContext,
   customerId: string,
-): Promise<CompatibilityContract | null> {
+): Promise<CustomerAgreement | null> {
   const agreement = await resolveEffectiveAgreementByCustomerId(ctx, customerId);
-  return agreement ? serializeCompatibilityContract(agreement) : null;
+  return agreement ? serializeCustomerAgreement(agreement) : null;
 }
 
 export async function assertCustomerOwnsCounterparty(
@@ -302,7 +302,7 @@ export async function assertCustomerOwnsCounterparty(
   return counterparty;
 }
 
-async function assertAgreementCompatibilityRootInput(
+async function assertAgreementRootInput(
   ctx: AppContext,
   input: {
     organizationId: string;
@@ -327,7 +327,7 @@ async function assertAgreementCompatibilityRootInput(
   }
 }
 
-export async function createCompatibilityContractForCustomer(
+export async function createCustomerAgreementForCustomer(
   ctx: AppContext,
   input: {
     agentFee?: string | null;
@@ -340,7 +340,7 @@ export async function createCompatibilityContractForCustomer(
   },
   actorUserId: string,
   idempotencyKey: string,
-): Promise<CompatibilityContract> {
+): Promise<CustomerAgreement> {
   const existing = await resolveEffectiveAgreementByCustomerId(
     ctx,
     input.customerId,
@@ -351,7 +351,7 @@ export async function createCompatibilityContractForCustomer(
     );
   }
 
-  await assertAgreementCompatibilityRootInput(ctx, {
+  await assertAgreementRootInput(ctx, {
     organizationId: input.organizationId,
     organizationRequisiteId: input.organizationRequisiteId,
   });
@@ -364,23 +364,23 @@ export async function createCompatibilityContractForCustomer(
     organizationRequisiteId: input.organizationRequisiteId,
     contractDate: parseCompatibilityDate(input.contractDate) ?? undefined,
     contractNumber: trimToNull(input.contractNumber),
-    feeRules: await buildCompatibilityFeeRules({
+    feeRules: await buildAgreementFeeRules({
       agentFee: input.agentFee,
       ctx,
       fixedFee: input.fixedFee,
     }),
   });
 
-  return serializeCompatibilityContract(agreement);
+  return serializeCustomerAgreement(agreement);
 }
 
-export async function updateCompatibilityContract(
+export async function updateCustomerAgreement(
   ctx: AppContext,
-  input: CompatibilityUpdateContractInput,
+  input: CustomerAgreementUpdateInput,
   agreementId: string,
   actorUserId: string,
   idempotencyKey: string,
-): Promise<CompatibilityContract> {
+): Promise<CustomerAgreement> {
   const current = await ctx.agreementsModule.agreements.queries.findById(
     agreementId,
   );
@@ -406,7 +406,7 @@ export async function updateCompatibilityContract(
     input.organizationId !== undefined ||
     input.organizationRequisiteId !== undefined
   ) {
-    await assertAgreementCompatibilityRootInput(ctx, {
+    await assertAgreementRootInput(ctx, {
       organizationId: current.organizationId,
       organizationRequisiteId: current.organizationRequisiteId,
     });
@@ -424,12 +424,12 @@ export async function updateCompatibilityContract(
     feeRules:
       input.agentFee === undefined && input.fixedFee === undefined
         ? undefined
-        : await buildCompatibilityFeeRules({
+        : await buildAgreementFeeRules({
             agentFee: input.agentFee,
             ctx,
             fixedFee: input.fixedFee,
           }),
   });
 
-  return serializeCompatibilityContract(updated);
+  return serializeCustomerAgreement(updated);
 }

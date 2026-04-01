@@ -490,7 +490,6 @@ describe("customer portal workflow", () => {
           legalEntities: [
             expect.objectContaining({
               counterpartyId: "counterparty-1",
-              hasLegacyShell: false,
               shortName: "Acme RU",
             }),
           ],
@@ -503,7 +502,6 @@ describe("customer portal workflow", () => {
           legalEntities: [
             expect.objectContaining({
               counterpartyId: "counterparty-2",
-              hasLegacyShell: false,
               shortName: "Acme EU",
             }),
           ],

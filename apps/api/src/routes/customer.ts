@@ -4,8 +4,9 @@ import type { MiddlewareHandler } from "hono";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
 
-import { resolveEffectiveCompatibilityContractByCustomerId } from "./contracts-compat";
+import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
 import { lookupCompanyByInn } from "./legal-entities";
+import { withStoredResultRouteIdempotency } from "../common/route-idempotency";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import {
@@ -38,7 +39,6 @@ const CustomerPortalLegalEntitySchema = z.object({
   email: z.string().nullable(),
   externalId: z.string().nullable(),
   fullName: z.string(),
-  hasLegacyShell: z.boolean(),
   inn: z.string().nullable(),
   phone: z.string().nullable(),
   relationshipKind: z.enum(["customer_owned", "external"]),
@@ -107,8 +107,45 @@ const CustomerPortalBankRequisiteInputSchema = z
   .nullable()
   .optional();
 
+type CustomerPortalCreateLegalEntityResponse = Awaited<
+  ReturnType<AppContext["customerPortalWorkflow"]["createLegalEntity"]>
+>;
+
+const CUSTOMER_PORTAL_CREATE_LEGAL_ENTITY_IDEMPOTENCY_SCOPE =
+  "customer.portal.create-legal-entity";
+
 function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
+}
+
+async function withCustomerPortalCreateLegalEntityIdempotency(input: {
+  c: {
+    get: (key: "requestContext") => ReturnType<typeof getRequestContext>;
+    json: (body: unknown, status?: number) => Response;
+  };
+  ctx: AppContext;
+  request: z.infer<typeof CustomerPortalCreateLegalEntityInputSchema>;
+  run: () => Promise<CustomerPortalCreateLegalEntityResponse>;
+  userId: string;
+}) {
+  const idempotencyKey = getRequestContext(input.c)?.idempotencyKey;
+
+  if (!idempotencyKey) {
+    return input.c.json({ error: "Idempotency-Key header is required" }, 400);
+  }
+
+  return withStoredResultRouteIdempotency({
+    actorId: input.userId,
+    idempotency: input.ctx.idempotency,
+    idempotencyKey,
+    persistence: input.ctx.persistence,
+    request: {
+      input: input.request,
+      userId: input.userId,
+    },
+    run: input.run,
+    scope: CUSTOMER_PORTAL_CREATE_LEGAL_ENTITY_IDEMPOTENCY_SCOPE,
+  });
 }
 
 function hasBankSignal(input: {
@@ -604,7 +641,7 @@ export function customerRoutes(ctx: AppContext) {
         await Promise.all(
           result.data.map(async (customerContext) => {
             const contract =
-              await resolveEffectiveCompatibilityContractByCustomerId(
+              await resolveEffectiveCustomerAgreementByCustomerId(
                 ctx,
                 customerContext.customerId,
               );
@@ -635,22 +672,29 @@ export function customerRoutes(ctx: AppContext) {
         200,
       );
     })
-    .openapi(createLegalEntityRoute, async (c) => {
+    .openapi(createLegalEntityRoute, async (c): Promise<any> => {
       const user = c.get("user")!;
       const input = c.req.valid("json");
-      const idempotencyKey = getRequestContext(c)?.idempotencyKey;
-
-      if (!idempotencyKey) {
-        return c.json({ error: "Idempotency-Key header is required" }, 400);
-      }
 
       try {
-        const result = await ctx.customerPortalWorkflow.createLegalEntity(
-          {
-            userId: user.id,
-          },
-          input,
-        );
+        const result = await withCustomerPortalCreateLegalEntityIdempotency({
+          c,
+          ctx,
+          request: input,
+          run: () =>
+            ctx.customerPortalWorkflow.createLegalEntity(
+              {
+                userId: user.id,
+              },
+              input,
+            ),
+          userId: user.id,
+        });
+
+        if (result instanceof Response) {
+          return result;
+        }
+
         return c.json(result, 201);
       } catch (error) {
         if (

@@ -27,7 +27,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/reports") ||
     pathname === "/"
   ) {
-    if (!session.isAuthenticated) {
+    if (!session.isAuthenticated || !session.canAccessDashboard) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
     return NextResponse.next();

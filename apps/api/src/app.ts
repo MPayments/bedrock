@@ -5,7 +5,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import { authByAudience } from "./auth";
+import {
+  authByAudience,
+  getValidatedSessionForAudience,
+  type AuthAudience,
+} from "./auth";
 import { createAppContext, parseEnv, type AppContext } from "./context";
 import {
   authMiddleware,
@@ -106,6 +110,21 @@ app.use(
   }),
 );
 
+function registerValidatedGetSessionRoute(audience: AuthAudience) {
+  app.on(["GET", "POST"], `/api/auth/${audience}/get-session`, async (c) => {
+    const session = await getValidatedSessionForAudience({
+      audience,
+      headers: c.req.raw.headers,
+    });
+
+    return c.json(session, 200);
+  });
+}
+
+registerValidatedGetSessionRoute("finance");
+registerValidatedGetSessionRoute("crm");
+registerValidatedGetSessionRoute("portal");
+
 app.on(["POST", "GET"], "/api/auth/finance/*", (c) => {
   return authByAudience.finance.handler(c.req.raw);
 });
@@ -179,7 +198,7 @@ function createV1Routes(ctx: AppContext) {
 }
 
 const v1 = createV1Routes(ctx);
-const clientRoutes = new Hono().route("/v1", v1);
+const _clientRoutes = new Hono().route("/v1", v1);
 
 app.route("/v1", v1);
 
@@ -208,12 +227,18 @@ app.get(
     pageTitle: openApiInfo.info.title,
     sources: [
       { url: "/api/open-api", title: "Api" },
-      { url: "/api/auth/finance/open-api/generate-schema", title: "Auth Finance" },
+      {
+        url: "/api/auth/finance/open-api/generate-schema",
+        title: "Auth Finance",
+      },
       { url: "/api/auth/crm/open-api/generate-schema", title: "Auth CRM" },
-      { url: "/api/auth/portal/open-api/generate-schema", title: "Auth Portal" },
+      {
+        url: "/api/auth/portal/open-api/generate-schema",
+        title: "Auth Portal",
+      },
     ],
   }),
 );
 
 export { app };
-export type AppType = typeof clientRoutes;
+export type AppType = typeof _clientRoutes;

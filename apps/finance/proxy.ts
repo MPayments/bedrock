@@ -42,6 +42,16 @@ export async function proxy(request: NextRequest) {
     if (!res.ok) {
       return redirectToLogin(request, pathname);
     }
+
+    const payload = await res.json().catch(() => null);
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("session" in payload) ||
+      !("user" in payload)
+    ) {
+      return redirectToLogin(request, pathname);
+    }
   } catch {
     return redirectToLogin(request, pathname);
   }

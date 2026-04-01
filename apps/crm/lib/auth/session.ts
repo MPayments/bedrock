@@ -18,7 +18,7 @@ export const getServerSessionSnapshot = cache(readSessionSnapshot);
 
 export async function requireDashboardSession() {
   const session = await getServerSessionSnapshot();
-  if (!session.isAuthenticated) {
+  if (!session.isAuthenticated || !session.canAccessDashboard) {
     redirect("/login");
   }
   return session;

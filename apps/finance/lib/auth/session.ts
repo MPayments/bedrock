@@ -58,6 +58,17 @@ function resolveFeatureFlags(): FeatureFlagMap {
   }
 }
 
+function createAnonymousSessionSnapshot(): UserSessionSnapshot {
+  return {
+    isAuthenticated: false,
+    role: "finance",
+    requiresTwoFactorSetup: false,
+    featureFlags: resolveFeatureFlags(),
+    user: null,
+    session: null,
+  };
+}
+
 async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   const requestHeaders = await headers();
   const authHeaders = {
@@ -72,28 +83,14 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   });
 
   if (!response.ok) {
-    return {
-      isAuthenticated: false,
-      role: "finance",
-      requiresTwoFactorSetup: false,
-      featureFlags: resolveFeatureFlags(),
-      user: null,
-      session: null,
-    };
+    return createAnonymousSessionSnapshot();
   }
 
   const payload = await response.json();
   const parsed = SessionResponseSchema.safeParse(payload);
 
   if (!parsed.success) {
-    return {
-      isAuthenticated: false,
-      role: "finance",
-      requiresTwoFactorSetup: false,
-      featureFlags: resolveFeatureFlags(),
-      user: null,
-      session: null,
-    };
+    return createAnonymousSessionSnapshot();
   }
 
   const profileResponse = await fetch(`${API_URL}/v1/me`, {
@@ -101,14 +98,26 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
     headers: authHeaders,
   });
 
-  const profilePayload = profileResponse.ok ? await profileResponse.json() : null;
+  if (!profileResponse.ok) {
+    return createAnonymousSessionSnapshot();
+  }
+
+  const profilePayload = await profileResponse.json();
   const parsedProfile = ProfileResponseSchema.safeParse(profilePayload);
-  const role = resolveRole(
-    parsedProfile.success ? parsedProfile.data.role ?? undefined : undefined,
-  );
+
+  if (!parsedProfile.success) {
+    return createAnonymousSessionSnapshot();
+  }
+
+  if (
+    parsedProfile.data.role !== "admin" &&
+    parsedProfile.data.role !== "finance"
+  ) {
+    return createAnonymousSessionSnapshot();
+  }
+
+  const role = resolveRole(parsedProfile.data.role);
   const requiresTwoFactorSetup =
-    parsedProfile.success &&
-    parsedProfile.data.role !== null &&
     !parsedProfile.data.twoFactorEnabled;
 
   return {

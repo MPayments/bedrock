@@ -79,6 +79,10 @@ export async function fetchSessionSnapshot(input: {
   }
 
   const role = resolveRole(parsedSession.data.user);
+  if (!role) {
+    return createAnonymousSessionSnapshot();
+  }
+
   let hasCustomerPortalAccess = false;
   let customerPortalCustomers: UserSessionSnapshot["customerPortalCustomers"] =
     [];

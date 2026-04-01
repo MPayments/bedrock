@@ -91,7 +91,6 @@ type CustomerLegalEntity = {
   email: string | null;
   externalId: string | null;
   fullName: string;
-  hasLegacyShell: boolean;
   inn: string | null;
   iban: string | null;
   kpp: string | null;

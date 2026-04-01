@@ -12,7 +12,9 @@ import type { IamService } from "@bedrock/iam";
 import type { PortalAccessGrantsService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
+import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
@@ -67,6 +69,8 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
+  idempotency: IdempotencyService;
+  persistence: PersistenceContext;
   accountingModule: AccountingModule;
   agreementsModule: AgreementsModule;
   calculationsModule: CalculationsModule;
@@ -98,6 +102,8 @@ export function createAppContext(env: Env): AppContext {
   return {
     env,
     logger: core.logger,
+    idempotency: core.idempotency,
+    persistence: core.persistence,
     accountingModule: core.accountingModule,
     agreementsModule: applicationServices.agreementsModule,
     calculationsModule: applicationServices.calculationsModule,

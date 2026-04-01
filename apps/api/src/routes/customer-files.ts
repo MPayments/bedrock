@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import type { FileAttachment } from "@bedrock/files/contracts";
 
-export const CompatibilityFileAttachmentSchema = z.object({
+export const CustomerFileAttachmentSchema = z.object({
   id: z.string().uuid(),
   fileName: z.string(),
   fileSize: z.number().int(),
@@ -19,9 +19,9 @@ export const GeneratedDocumentFormatSchema = z
 
 export const GeneratedDocumentLangSchema = z.enum(["ru", "en"]).default("ru");
 
-export function serializeCompatibilityFileAttachment(
+export function serializeCustomerFileAttachment(
   file: FileAttachment,
-): z.infer<typeof CompatibilityFileAttachmentSchema> {
+): z.infer<typeof CustomerFileAttachmentSchema> {
   return {
     id: file.id,
     fileName: file.fileName,
