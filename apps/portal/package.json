@@ -8,9 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsgo --noEmit"
+    "check-types": "rm -rf .next/dev/types && tsgo --noEmit"
   },
   "dependencies": {
+    "@bedrock/iam": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@bedrock/shared": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

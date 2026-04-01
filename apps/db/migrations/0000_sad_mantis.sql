@@ -496,6 +496,14 @@ CREATE TABLE "customer_memberships" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "portal_access_grants" (
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"status" text DEFAULT 'pending_onboarding' NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"user_id" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "customers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"external_ref" text,
@@ -1113,6 +1121,7 @@ CREATE TABLE "requisites" (
 --> statement-breakpoint
 CREATE TABLE "session" (
 	"id" text PRIMARY KEY NOT NULL,
+	"audience" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"token" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1242,6 +1251,7 @@ ALTER TABLE "customer_counterparty_assignments" ADD CONSTRAINT "customer_counter
 ALTER TABLE "customer_counterparty_assignments" ADD CONSTRAINT "customer_counterparty_assignments_sub_agent_counterparty_id_counterparties_id_fk" FOREIGN KEY ("sub_agent_counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_memberships" ADD CONSTRAINT "customer_memberships_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "portal_access_grants" ADD CONSTRAINT "portal_access_grants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_agent_bonuses" ADD CONSTRAINT "deal_agent_bonuses_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_agent_bonuses" ADD CONSTRAINT "deal_agent_bonuses_agent_id_user_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_approvals" ADD CONSTRAINT "deal_approvals_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1369,6 +1379,9 @@ CREATE UNIQUE INDEX "customer_bootstrap_claims_user_inn_kpp_idx" ON "customer_bo
 CREATE INDEX "customer_counterparty_assignments_sub_agent_idx" ON "customer_counterparty_assignments" USING btree ("sub_agent_counterparty_id");--> statement-breakpoint
 CREATE INDEX "customer_memberships_user_id_idx" ON "customer_memberships" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "customer_memberships_customer_user_idx" ON "customer_memberships" USING btree ("customer_id","user_id");--> statement-breakpoint
+CREATE INDEX "portal_access_grants_status_idx" ON "portal_access_grants" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "portal_access_grants_user_id_idx" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "portal_access_grants_user_id_unique" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "deal_agent_bonuses_deal_agent_uq" ON "deal_agent_bonuses" USING btree ("deal_id","agent_id");--> statement-breakpoint
 CREATE INDEX "deal_agent_bonuses_deal_idx" ON "deal_agent_bonuses" USING btree ("deal_id");--> statement-breakpoint
 CREATE INDEX "deal_agent_bonuses_agent_idx" ON "deal_agent_bonuses" USING btree ("agent_id");--> statement-breakpoint

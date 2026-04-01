@@ -9,6 +9,7 @@ interface SeedSchemaProbeRow {
   currencies: string | null;
   migrations: string | null;
   migrationsPublic: string | null;
+  portalAccessGrants: string | null;
   users: string | null;
 }
 
@@ -20,6 +21,7 @@ export async function assertSeedSchemaReady(
       to_regclass('drizzle.__drizzle_migrations') AS migrations,
       to_regclass('public.__drizzle_migrations') AS "migrationsPublic",
       to_regclass('public.currencies') AS currencies,
+      to_regclass('public.portal_access_grants') AS "portalAccessGrants",
       to_regclass('public."user"') AS users
   `);
 
@@ -27,6 +29,7 @@ export async function assertSeedSchemaReady(
   const missingTables = [
     row?.migrations || row?.migrationsPublic ? null : "__drizzle_migrations",
     row?.currencies ? null : "currencies",
+    row?.portalAccessGrants ? null : "portal_access_grants",
     row?.users ? null : "user",
   ].filter((value): value is string => value !== null);
 

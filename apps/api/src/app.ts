@@ -10,6 +10,7 @@ import {
   getValidatedSessionForAudience,
   type AuthAudience,
 } from "./auth";
+import { buildSessionSnapshotForAudience } from "./auth/session-snapshots";
 import { createAppContext, parseEnv, type AppContext } from "./context";
 import {
   authMiddleware,
@@ -42,10 +43,19 @@ import {
   usersRoutes,
 } from "./routes";
 import { customerAuthRoutes } from "./routes/customer-auth";
+import { assertApiSchemaReady } from "./startup/schema-readiness";
 
 const env = parseEnv();
 
 const ctx = createAppContext(env);
+void assertApiSchemaReady(ctx.persistence).catch((error: unknown) => {
+  ctx.logger.error("API runtime schema is out of date", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  process.exitCode = 1;
+  setImmediate(() => process.exit(1));
+});
+
 void ctx.documentsService
   .validateAccountingSourceCoverage()
   .catch((error: unknown) => {
@@ -121,9 +131,24 @@ function registerValidatedGetSessionRoute(audience: AuthAudience) {
   });
 }
 
+function registerSessionSnapshotRoute(audience: AuthAudience) {
+  app.get(`/api/auth/${audience}/session-snapshot`, async (c) => {
+    const sessionSnapshot = await buildSessionSnapshotForAudience({
+      audience,
+      ctx,
+      headers: c.req.raw.headers,
+    });
+
+    return c.json(sessionSnapshot, 200);
+  });
+}
+
 registerValidatedGetSessionRoute("finance");
 registerValidatedGetSessionRoute("crm");
 registerValidatedGetSessionRoute("portal");
+registerSessionSnapshotRoute("finance");
+registerSessionSnapshotRoute("crm");
+registerSessionSnapshotRoute("portal");
 
 app.on(["POST", "GET"], "/api/auth/finance/*", (c) => {
   return authByAudience.finance.handler(c.req.raw);

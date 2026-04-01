@@ -430,6 +430,12 @@ export function customerRoutes(ctx: AppContext) {
         },
         description: "Customer profile",
       },
+      403: {
+        content: {
+          "application/json": { schema: z.object({ error: z.string() }) },
+        },
+        description: "Not authorized",
+      },
     },
   });
 
@@ -627,10 +633,21 @@ export function customerRoutes(ctx: AppContext) {
   return app
     .openapi(getProfileRoute, async (c) => {
       const user = c.get("user")!;
-      const result = await ctx.customerPortalWorkflow.getProfile({
-        userId: user.id,
-      });
-      return c.json(result, 200);
+      try {
+        const result = await ctx.customerPortalWorkflow.assertOnboardingAccess({
+          userId: user.id,
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "CustomerNotAuthorizedError"
+        ) {
+          return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
     })
     .openapi(listContextsRoute, async (c) => {
       const user = c.get("user")!;

@@ -5,6 +5,7 @@ import {
   openAPI as openApiPlugin,
   twoFactor,
 } from "better-auth/plugins";
+import { randomBytes } from "node:crypto";
 
 import {
   betterAuthSchema,
@@ -15,15 +16,17 @@ import {
   DrizzlePortalAccessGrantReads,
   DrizzleUserAccountRepository,
 } from "@bedrock/iam/adapters/drizzle";
+import {
+  AUTH_AUDIENCE_VALUES,
+  type AuthAudience,
+} from "@bedrock/iam/contracts";
 
 import { ac, admin, agent, customer, finance, user } from "./permissions";
 import { db } from "../db/client";
 
 export const AUTH_AUDIENCE_HEADER = "x-bedrock-app-audience";
 
-export const AUTH_AUDIENCES = ["finance", "crm", "portal"] as const;
-
-export type AuthAudience = (typeof AUTH_AUDIENCES)[number];
+export const AUTH_AUDIENCES = AUTH_AUDIENCE_VALUES;
 
 interface AuthSurfaceConfig {
   appName: string;
@@ -88,6 +91,26 @@ function isAuthAudience(value: string | null | undefined): value is AuthAudience
     typeof value === "string" &&
     (AUTH_AUDIENCES as readonly string[]).includes(value)
   );
+}
+
+let resolvedDevBetterAuthSecret: string | null = null;
+
+function resolveBetterAuthSecret() {
+  const configuredSecret = process.env.BETTER_AUTH_SECRET ?? "";
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (configuredSecret.length >= 32) {
+    return configuredSecret;
+  }
+
+  if (isProduction) {
+    throw new Error(
+      "BETTER_AUTH_SECRET must be at least 32 characters long in production.",
+    );
+  }
+
+  resolvedDevBetterAuthSecret ??= randomBytes(48).toString("base64url");
+  return resolvedDevBetterAuthSecret;
 }
 
 async function hasActivePortalMembership(userId: string) {
@@ -180,7 +203,7 @@ function createAuthSurface(audience: AuthAudience) {
 
   return betterAuth({
     appName: config.appName,
-    secret: process.env.BETTER_AUTH_SECRET!,
+    secret: resolveBetterAuthSecret(),
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: config.basePath,
     trustedOrigins: getTrustedOrigins(audience),
@@ -288,4 +311,5 @@ export async function getValidatedSession(input: { headers: Headers }) {
   return resolved.length === 1 ? resolved[0] : null;
 }
 
+export type { AuthAudience };
 export { type ResourcePermissions } from "./permissions";

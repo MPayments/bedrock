@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsgo --noEmit"
+    "check-types": "rm -rf .next/dev/types && tsgo --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

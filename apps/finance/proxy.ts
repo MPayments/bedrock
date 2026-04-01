@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
+import { FinanceAuthSessionSnapshotSchema } from "@bedrock/iam/contracts";
+
 const PUBLIC_PATHS = new Set(["/login", "/two-factor"]);
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -33,7 +35,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/auth/finance/get-session`, {
+    const res = await fetch(`${API_URL}/api/auth/finance/session-snapshot`, {
       headers: {
         cookie: request.headers.get("cookie") ?? "",
         "x-bedrock-app-audience": "finance",
@@ -44,12 +46,8 @@ export async function proxy(request: NextRequest) {
     }
 
     const payload = await res.json().catch(() => null);
-    if (
-      !payload ||
-      typeof payload !== "object" ||
-      !("session" in payload) ||
-      !("user" in payload)
-    ) {
+    const parsed = FinanceAuthSessionSnapshotSchema.safeParse(payload);
+    if (!parsed.success || !parsed.data.isAuthenticated) {
       return redirectToLogin(request, pathname);
     }
   } catch {

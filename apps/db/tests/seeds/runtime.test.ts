@@ -10,6 +10,7 @@ describe("seed runtime preflight", () => {
           {
             migrations: "drizzle.__drizzle_migrations",
             migrationsPublic: null,
+            portalAccessGrants: "public.portal_access_grants",
             currencies: "public.currencies",
             users: 'public."user"',
           },
@@ -27,6 +28,7 @@ describe("seed runtime preflight", () => {
           {
             migrations: null,
             migrationsPublic: null,
+            portalAccessGrants: null,
             currencies: null,
             users: null,
           },

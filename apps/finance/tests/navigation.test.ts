@@ -8,6 +8,7 @@ import type { UserSessionSnapshot } from "@/lib/auth/types";
 
 function createSession(role: "finance" | "admin"): UserSessionSnapshot {
   return {
+    audience: "finance",
     isAuthenticated: true,
     role,
     requiresTwoFactorSetup: false,

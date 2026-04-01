@@ -5,45 +5,16 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { FinanceAuthSessionSnapshotSchema } from "@bedrock/iam/contracts";
 import type {
   AppAudience,
   FeatureFlagMap,
-  UserRole,
   UserSessionSnapshot,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 const FeatureFlagsSchema = z.record(z.string(), z.boolean());
-
-const SessionResponseSchema = z
-  .looseObject({
-    session: z
-      .looseObject({
-        id: z.string(),
-        expiresAt: z.string().nullable().optional(),
-      })
-      ,
-    user: z
-      .looseObject({
-        id: z.string(),
-        name: z.string(),
-        email: z.string(),
-        image: z.string().nullable().optional(),
-      })
-      ,
-  })
-  ;
-
-const ProfileResponseSchema = z.object({
-  id: z.string(),
-  role: z.string().nullable(),
-  twoFactorEnabled: z.boolean().nullable(),
-});
-
-function resolveRole(role: string | undefined): UserRole {
-  return role === "admin" ? "admin" : "finance";
-}
 
 function resolveFeatureFlags(): FeatureFlagMap {
   const raw = process.env.NEXT_PUBLIC_FEATURE_FLAGS;
@@ -60,10 +31,11 @@ function resolveFeatureFlags(): FeatureFlagMap {
 
 function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return {
-    isAuthenticated: false,
-    role: "finance",
-    requiresTwoFactorSetup: false,
+    audience: "finance",
     featureFlags: resolveFeatureFlags(),
+    isAuthenticated: false,
+    requiresTwoFactorSetup: false,
+    role: "finance",
     user: null,
     session: null,
   };
@@ -75,7 +47,7 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
     cookie: requestHeaders.get("cookie") ?? "",
     "x-bedrock-app-audience": "finance",
   };
-  const response = await fetch(`${API_URL}/api/auth/finance/get-session`, {
+  const response = await fetch(`${API_URL}/api/auth/finance/session-snapshot`, {
     headers: {
       ...authHeaders,
     },
@@ -87,54 +59,15 @@ async function readSessionSnapshot(): Promise<UserSessionSnapshot> {
   }
 
   const payload = await response.json();
-  const parsed = SessionResponseSchema.safeParse(payload);
+  const parsed = FinanceAuthSessionSnapshotSchema.safeParse(payload);
 
   if (!parsed.success) {
     return createAnonymousSessionSnapshot();
   }
 
-  const profileResponse = await fetch(`${API_URL}/v1/me`, {
-    cache: "no-store",
-    headers: authHeaders,
-  });
-
-  if (!profileResponse.ok) {
-    return createAnonymousSessionSnapshot();
-  }
-
-  const profilePayload = await profileResponse.json();
-  const parsedProfile = ProfileResponseSchema.safeParse(profilePayload);
-
-  if (!parsedProfile.success) {
-    return createAnonymousSessionSnapshot();
-  }
-
-  if (
-    parsedProfile.data.role !== "admin" &&
-    parsedProfile.data.role !== "finance"
-  ) {
-    return createAnonymousSessionSnapshot();
-  }
-
-  const role = resolveRole(parsedProfile.data.role);
-  const requiresTwoFactorSetup =
-    !parsedProfile.data.twoFactorEnabled;
-
   return {
-    isAuthenticated: true,
-    role,
-    requiresTwoFactorSetup,
     featureFlags: resolveFeatureFlags(),
-    user: {
-      id: parsed.data.user.id,
-      name: parsed.data.user.name,
-      email: parsed.data.user.email,
-      image: parsed.data.user.image ?? null,
-    },
-    session: {
-      id: parsed.data.session.id,
-      expiresAt: parsed.data.session.expiresAt ?? null,
-    },
+    ...parsed.data,
   };
 }
 
