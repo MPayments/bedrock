@@ -46,6 +46,7 @@ import {
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import {
   AlertDialog,
@@ -514,10 +515,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     throw new Error(
-      await parseErrorMessage(
-        response,
-        `Ошибка запроса: ${response.status}`,
-      ),
+      await parseErrorMessage(response, `Ошибка запроса: ${response.status}`),
     );
   }
 
@@ -932,7 +930,7 @@ export default function DealDetailPage() {
           </Button>
           <div className="flex min-w-0 items-center gap-3">
             <h1 className="truncate text-2xl font-bold">
-              Сделка #{data.deal.id}
+              Сделка #{getUuidPrefix(data.deal.id)}
             </h1>
             <Badge className={STATUS_COLORS[data.deal.status]}>
               {STATUS_LABELS[data.deal.status]}

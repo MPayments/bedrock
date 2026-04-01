@@ -1,14 +1,16 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
+import { Handshake } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, type HTMLAttributes } from "react";
+
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
-import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { getUuidPrefix } from "@bedrock/shared/core/uuid";
+
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { Handshake } from "lucide-react";
 
 interface Deal {
   id: string;
@@ -133,7 +135,7 @@ export function DashboardDeals({ className }: HTMLAttributes<HTMLDivElement>) {
                   className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight last:border-b-0 cursor-pointer"
                 >
                   <div className="flex w-full items-center gap-2">
-                    <span>Сделка #{deal.id}</span>
+                    <span>Сделка #{getUuidPrefix(deal.id)}</span>
                     <span className="ml-auto text-xs">
                       {formatDate(deal.createdAt)}
                     </span>
@@ -191,7 +193,7 @@ export function DashboardDeals({ className }: HTMLAttributes<HTMLDivElement>) {
                   className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight last:border-b-0 cursor-pointer"
                 >
                   <div className="flex w-full items-center gap-2">
-                    <span>Сделка #{deal.id}</span>
+                    <span>Сделка #{getUuidPrefix(deal.id)}</span>
                     <span className="ml-auto text-xs">
                       {formatDate(deal.createdAt)}
                     </span>
@@ -249,7 +251,7 @@ export function DashboardDeals({ className }: HTMLAttributes<HTMLDivElement>) {
                   className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight last:border-b-0 cursor-pointer"
                 >
                   <div className="flex w-full items-center gap-2">
-                    <span>Сделка #{deal.id}</span>
+                    <span>Сделка #{getUuidPrefix(deal.id)}</span>
                     <span className="ml-auto text-xs">
                       {formatDate(deal.createdAt)}
                     </span>

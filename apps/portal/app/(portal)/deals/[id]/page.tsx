@@ -1,11 +1,13 @@
 "use client";
 
 import { Briefcase, ChevronLeft, Download, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { getUuidPrefix } from "@bedrock/shared/core/uuid";
+
 import { API_BASE_URL } from "@/lib/constants";
 
 type DealStatus =
@@ -166,7 +168,7 @@ export default function PortalDealDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3">
-            <span>Сделка #{data.deal.id}</span>
+            <span>Сделка #{getUuidPrefix(data.deal.id)}</span>
             <span className="text-sm font-medium text-muted-foreground">
               {STATUS_LABELS[data.deal.status]}
             </span>

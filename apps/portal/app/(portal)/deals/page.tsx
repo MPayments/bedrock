@@ -9,12 +9,13 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { NewDealDialog } from "@/components/portal/new-application-dialog";
 import { API_BASE_URL } from "@/lib/constants";
@@ -364,7 +365,7 @@ export default function PortalDealsPage() {
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">
-                        #{deal.id}
+                        #{getUuidPrefix(deal.id)}
                       </span>
                       <span>•</span>
                       <span>{formatDate(deal.createdAt)}</span>

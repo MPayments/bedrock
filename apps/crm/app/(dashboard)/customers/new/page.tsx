@@ -1,30 +1,50 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, type Path, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  ChevronLeft,
-  Save,
-  Loader2,
-  Plus,
-  UserPlus,
-  Upload,
-  FileText,
-  Sparkles,
-  Search,
+  AlertCircle,
   Building2,
   CheckCircle2,
+  FileText,
   Languages,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  Upload,
+  UserPlus,
+  X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useForm,
+  type Path,
+  type PathValue,
+  type UseFormReturn,
+} from "react-hook-form";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@bedrock/sdk-ui/components/accordion";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
-import { Separator } from "@bedrock/sdk-ui/components/separator";
-import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,125 +52,239 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+
 import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
 import { API_BASE_URL } from "@/lib/constants";
-import {
-  createCustomerBankingPayload,
-  getDefaultCustomerBankingValues,
-  mapFlatBankingToFormValues,
-} from "@/lib/customer-banking";
+import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
+import type { CustomerBankingFormData } from "@/lib/validation";
+import { CustomerCreateHeader } from "./_components/customer-create-header";
+import { PendingCreateLeaveDialog } from "./_components/pending-create-leave-dialog";
 import {
-  clientSchema,
-  type ClientFormData,
-  type CustomerBankingFormData,
-} from "@/lib/validation";
+  buildCustomerCreatePayload,
+  customerCreateSchema,
+  getCustomerCreateDefaultValues,
+  type CustomerCreateFormData,
+} from "./_lib/customer-create";
 
-interface SubAgent {
-  id: string;
-  name: string;
+type SubAgent = {
   commission: number;
-  kind: "individual" | "legal_entity";
+  id: string;
   isActive: boolean;
+  kind: "individual" | "legal_entity";
+  name: string;
+};
+
+function getNestedError(errors: Record<string, unknown>, path: string) {
+  const segments = path.split(".");
+  let current: unknown = errors;
+
+  for (const segment of segments) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+
+    current = (current as Record<string, unknown>)[segment];
+  }
+
+  if (!current || typeof current !== "object" || !("message" in current)) {
+    return null;
+  }
+
+  return typeof current.message === "string" ? current.message : null;
 }
 
-export default function NewClientPage() {
+function Field({
+  form,
+  label,
+  name,
+  placeholder,
+  required = false,
+  type = "text",
+}: {
+  form: UseFormReturn<CustomerCreateFormData>;
+  label: string;
+  name: Path<CustomerCreateFormData>;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
+}) {
+  const error = getNestedError(
+    form.formState.errors as Record<string, unknown>,
+    name,
+  );
+  const value = (form.watch(name) as string | undefined) ?? "";
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </Label>
+      <Input
+        id={name}
+        value={value}
+        onChange={(event) =>
+          form.setValue(
+            name,
+            event.target.value as PathValue<
+              CustomerCreateFormData,
+              typeof name
+            >,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          )
+        }
+        placeholder={placeholder}
+        type={type}
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+function TextareaField({
+  form,
+  label,
+  name,
+  placeholder,
+  rows = 3,
+}: {
+  form: UseFormReturn<CustomerCreateFormData>;
+  label: string;
+  name: Path<CustomerCreateFormData>;
+  placeholder?: string;
+  rows?: number;
+}) {
+  const error = getNestedError(
+    form.formState.errors as Record<string, unknown>,
+    name,
+  );
+  const value = (form.watch(name) as string | undefined) ?? "";
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Textarea
+        id={name}
+        value={value}
+        onChange={(event) =>
+          form.setValue(
+            name,
+            event.target.value as PathValue<
+              CustomerCreateFormData,
+              typeof name
+            >,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          )
+        }
+        placeholder={placeholder}
+        rows={rows}
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+export default function NewCustomerPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Поиск по ИНН
-  const [innSearchValue, setInnSearchValue] = useState("");
-  const [searchingByInn, setSearchingByInn] = useState(false);
-  const [innSearchSuccess, setInnSearchSuccess] = useState(false);
-
-  // Загрузка файла для парсинга
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [parsingFile, setParsingFile] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-  // Перевод на английский
-  const [translating, setTranslating] = useState(false);
-
-  // Субагенты
-  const [addSubAgent, setAddSubAgent] = useState(false);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [loadingSubAgents, setLoadingSubAgents] = useState(false);
-  const [selectedSubAgentId, setSelectedSubAgentId] = useState<string>("");
   const [createNewSubAgent, setCreateNewSubAgent] = useState(false);
+  const [creatingSubAgent, setCreatingSubAgent] = useState(false);
   const [newSubAgentName, setNewSubAgentName] = useState("");
   const [newSubAgentCommission, setNewSubAgentCommission] = useState("");
   const [newSubAgentKind, setNewSubAgentKind] = useState<
     "individual" | "legal_entity"
   >("individual");
-  const [creatingSubAgent, setCreatingSubAgent] = useState(false);
   const [subAgentErrors, setSubAgentErrors] = useState<{
-    name?: string;
     commission?: string;
+    name?: string;
   }>({});
 
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientSchema) as never,
-    defaultValues: {
-      ...getDefaultCustomerBankingValues(),
-      orgName: "",
-      orgNameI18n: { ru: "", en: "" },
-      orgType: "",
-      orgTypeI18n: { ru: "", en: "" },
-      inn: "",
-      kpp: "",
-      ogrn: "",
-      oktmo: "",
-      okpo: "",
-      directorName: "",
-      directorNameI18n: { ru: "", en: "" },
-      position: "",
-      positionI18n: { ru: "", en: "" },
-      directorBasis: "",
-      directorBasisI18n: { ru: "", en: "" },
-      address: "",
-      addressI18n: { ru: "", en: "" },
-      email: "",
-      phone: "",
-    },
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+
+  const [innSearchValue, setInnSearchValue] = useState("");
+  const [searchingByInn, setSearchingByInn] = useState(false);
+  const [innSearchSuccess, setInnSearchSuccess] = useState(false);
+
+  const [parsingFile, setParsingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  const [translating, setTranslating] = useState(false);
+
+  const form = useForm<CustomerCreateFormData>({
+    defaultValues: getCustomerCreateDefaultValues(),
     mode: "onBlur",
+    resolver: zodResolver(customerCreateSchema) as never,
   });
 
-  // Загрузка списка субагентов
-  useEffect(() => {
-    if (addSubAgent && subAgents.length === 0) {
-      loadSubAgents();
-    }
-  }, [addSubAgent, subAgents.length]);
+  const addSubAgent = form.watch("addSubAgent");
+  const formDirty = form.formState.isDirty;
 
-  const loadSubAgents = async () => {
+  const loadSubAgents = useCallback(async () => {
     setLoadingSubAgents(true);
+
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
+      const response = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
         credentials: "include",
       });
-      if (res.ok) {
-        const raw = await res.json();
-        setSubAgents(Array.isArray(raw) ? raw : raw.data ?? []);
+
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки субагентов: ${response.status}`);
       }
-    } catch (err) {
-      console.error("Error loading sub-agents:", err);
+
+      const raw = await response.json();
+      setSubAgents(Array.isArray(raw) ? raw : (raw.data ?? []));
+    } catch (loadError) {
+      console.error("Error loading sub-agents:", loadError);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Ошибка загрузки субагентов",
+      );
     } finally {
       setLoadingSubAgents(false);
     }
-  };
+  }, []);
 
-  // Поиск компании по ИНН
-  const handleInnSearch = async () => {
+  useEffect(() => {
+    if (addSubAgent && subAgents.length === 0) {
+      void loadSubAgents();
+    }
+  }, [addSubAgent, loadSubAgents, subAgents.length]);
+
+  function attemptLeave() {
+    if (formDirty) {
+      setLeaveDialogOpen(true);
+      return;
+    }
+
+    router.back();
+  }
+
+  function resetInlineSubAgentDraft() {
+    setCreateNewSubAgent(false);
+    setCreatingSubAgent(false);
+    setNewSubAgentName("");
+    setNewSubAgentCommission("");
+    setNewSubAgentKind("individual");
+    setSubAgentErrors({});
+  }
+
+  async function handleInnSearch() {
     const inn = innSearchValue.trim();
+
     if (!inn) {
       setError("Введите ИНН для поиска");
       return;
@@ -166,22 +300,22 @@ export default function NewClientPage() {
     setInnSearchSuccess(false);
 
     try {
-      const res = await fetch(
+      const response = await fetch(
         `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
-        }
+        },
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Ошибка поиска: ${res.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Ошибка поиска: ${response.status}`,
+        );
       }
 
-      const companyData = await res.json();
-
-      // Заполняем форму найденными данными
-      const fieldsToSet: (keyof ClientFormData)[] = [
+      const companyData = await response.json();
+      const fieldsToSet: Path<CustomerCreateFormData>[] = [
         "orgName",
         "orgType",
         "directorName",
@@ -196,98 +330,87 @@ export default function NewClientPage() {
       ];
 
       fieldsToSet.forEach((field) => {
-        if (companyData[field]) {
-          form.setValue(field, companyData[field], {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
+        const value = companyData[field];
+        if (typeof value === "string" && value.length > 0) {
+          form.setValue(
+            field,
+            value as PathValue<CustomerCreateFormData, typeof field>,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
         }
       });
 
       setInnSearchSuccess(true);
-    } catch (err) {
-      console.error("INN search error:", err);
+    } catch (searchError) {
+      console.error("INN search error:", searchError);
       setError(
-        err instanceof Error ? err.message : "Ошибка поиска компании по ИНН"
+        searchError instanceof Error
+          ? searchError.message
+          : "Ошибка поиска компании по ИНН",
       );
     } finally {
       setSearchingByInn(false);
     }
-  };
+  }
 
-  const handleTranslateToEnglish = async () => {
+  async function handleTranslateToEnglish() {
     setTranslating(true);
     setError(null);
 
     try {
       const values = form.getValues();
-      const ruFields: Record<string, string> = {
+      const translated = await translateFieldsToEnglish({
+        address: values.address,
+        directorBasis: values.directorBasis,
+        directorName: values.directorName,
         orgName: values.orgName,
         orgType: values.orgType,
-        directorName: values.directorName,
         position: values.position,
-        directorBasis: values.directorBasis,
-        address: values.address || "",
-      };
+      });
 
-      const translated = await translateFieldsToEnglish(ruFields);
-
-      const mapping: Record<string, keyof ClientFormData | `${string}.${string}`> = {
+      const mapping: Record<string, Path<CustomerCreateFormData>> = {
+        address: "addressI18n.en",
+        directorBasis: "directorBasisI18n.en",
+        directorName: "directorNameI18n.en",
         orgName: "orgNameI18n.en",
         orgType: "orgTypeI18n.en",
-        directorName: "directorNameI18n.en",
         position: "positionI18n.en",
-        directorBasis: "directorBasisI18n.en",
-        address: "addressI18n.en",
       };
 
-      for (const [key, enField] of Object.entries(mapping)) {
-        if (translated[key]) {
-          form.setValue(enField as Path<ClientFormData>, translated[key], {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
+      Object.entries(mapping).forEach(([sourceField, targetField]) => {
+        const value = translated[sourceField];
+        if (typeof value === "string" && value.length > 0) {
+          form.setValue(
+            targetField,
+            value as PathValue<CustomerCreateFormData, typeof targetField>,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
         }
-      }
-    } catch (err) {
-      console.error("Translation error:", err);
+      });
+    } catch (translationError) {
+      console.error("Translation error:", translationError);
       setError(
-        err instanceof Error ? err.message : "Ошибка перевода полей"
+        translationError instanceof Error
+          ? translationError.message
+          : "Ошибка перевода полей",
       );
     } finally {
       setTranslating(false);
     }
-  };
+  }
 
-  const validateSubAgent = (): boolean => {
-    const errors: { name?: string; commission?: string } = {};
-
-    if (!newSubAgentName.trim()) {
-      errors.name = "Имя субагента обязательно";
-    } else if (newSubAgentName.length > 255) {
-      errors.name = "Имя субагента не должно превышать 255 символов";
-    }
-
-    const commission = parseFloat(newSubAgentCommission);
-    if (!newSubAgentCommission.trim()) {
-      errors.commission = "Комиссия обязательна";
-    } else if (isNaN(commission)) {
-      errors.commission = "Комиссия должна быть числом";
-    } else if (commission < 0) {
-      errors.commission = "Комиссия не может быть отрицательной";
-    } else if (commission > 100) {
-      errors.commission = "Комиссия не может превышать 100%";
-    }
-
-    setSubAgentErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  async function handleFileUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
+
+    if (!file) {
+      return;
+    }
 
     if (file.type !== "application/pdf") {
       setError("Поддерживается только PDF формат");
@@ -302,20 +425,23 @@ export default function NewClientPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE_URL}/legal-entities/parse-card`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/legal-entities/parse-card`,
+        {
+          body: formData,
+          credentials: "include",
+          method: "POST",
+        },
+      );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка распознавания: ${res.status}`
+          errorData.message || `Ошибка распознавания: ${response.status}`,
         );
       }
 
-      const extractedData = await res.json();
+      const extractedData = await response.json();
       const bankDefaults = mapFlatBankingToFormValues({
         account: extractedData.account,
         bankAddress: extractedData.bankAddress,
@@ -325,9 +451,7 @@ export default function NewClientPage() {
         corrAccount: extractedData.corrAccount,
         swift: extractedData.swift,
       });
-
-      // Заполняем форму извлечёнными данными
-      const fieldsToSet: (keyof ClientFormData)[] = [
+      const fieldsToSet: Path<CustomerCreateFormData>[] = [
         "orgName",
         "orgType",
         "directorName",
@@ -344,11 +468,16 @@ export default function NewClientPage() {
       ];
 
       fieldsToSet.forEach((field) => {
-        if (extractedData[field]) {
-          form.setValue(field, extractedData[field], {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
+        const value = extractedData[field];
+        if (typeof value === "string" && value.length > 0) {
+          form.setValue(
+            field,
+            value as PathValue<CustomerCreateFormData, typeof field>,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
         }
       });
 
@@ -387,210 +516,208 @@ export default function NewClientPage() {
           },
         );
       }
-    } catch (err) {
-      console.error("Parse error:", err);
+    } catch (parseError) {
+      console.error("Parse error:", parseError);
       setError(
-        err instanceof Error ? err.message : "Ошибка распознавания файла"
+        parseError instanceof Error
+          ? parseError.message
+          : "Ошибка распознавания файла",
       );
       setUploadedFileName(null);
     } finally {
       setParsingFile(false);
-      // Сбрасываем input, чтобы можно было загрузить тот же файл снова
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
-  };
+  }
 
-  const handleCreateSubAgent = async () => {
+  function validateSubAgent() {
+    const nextErrors: { commission?: string; name?: string } = {};
+
+    if (!newSubAgentName.trim()) {
+      nextErrors.name = "Имя субагента обязательно";
+    } else if (newSubAgentName.length > 255) {
+      nextErrors.name = "Имя субагента не должно превышать 255 символов";
+    }
+
+    const commission = Number.parseFloat(newSubAgentCommission);
+    if (!newSubAgentCommission.trim()) {
+      nextErrors.commission = "Комиссия обязательна";
+    } else if (Number.isNaN(commission)) {
+      nextErrors.commission = "Комиссия должна быть числом";
+    } else if (commission < 0) {
+      nextErrors.commission = "Комиссия не может быть отрицательной";
+    } else if (commission > 100) {
+      nextErrors.commission = "Комиссия не может превышать 100%";
+    }
+
+    setSubAgentErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
+  async function handleCreateSubAgent() {
     if (!validateSubAgent()) {
       return;
     }
 
     setCreatingSubAgent(true);
+    setError(null);
+
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
+        body: JSON.stringify({
+          commission: Number.parseFloat(newSubAgentCommission),
+          kind: newSubAgentKind,
+          name: newSubAgentName.trim(),
+        }),
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
-        body: JSON.stringify({
-          name: newSubAgentName.trim(),
-          commission: parseFloat(newSubAgentCommission),
-          kind: newSubAgentKind,
-        }),
+        method: "POST",
       });
 
-      if (res.ok) {
-        const newSubAgent = await res.json();
-        setSubAgents((prev) => [...prev, newSubAgent]);
-        setSelectedSubAgentId(newSubAgent.id);
-        setCreateNewSubAgent(false);
-        setNewSubAgentName("");
-        setNewSubAgentCommission("");
-        setNewSubAgentKind("individual");
-        setSubAgentErrors({});
-      } else {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Ошибка создания субагента");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Ошибка создания субагента");
       }
-    } catch (err) {
-      console.error("Error creating sub-agent:", err);
+
+      const newSubAgent = (await response.json()) as SubAgent;
+      setSubAgents((current) => [...current, newSubAgent]);
+      form.setValue("selectedSubAgentId", newSubAgent.id, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      resetInlineSubAgentDraft();
+    } catch (createError) {
+      console.error("Error creating sub-agent:", createError);
       setError(
-        err instanceof Error ? err.message : "Ошибка создания субагента"
+        createError instanceof Error
+          ? createError.message
+          : "Ошибка создания субагента",
       );
     } finally {
       setCreatingSubAgent(false);
     }
-  };
+  }
 
-  const onSubmit = async (data: ClientFormData) => {
+  async function onSubmit(data: CustomerCreateFormData) {
     setLoading(true);
     setError(null);
 
     try {
-      const bankingPayload = createCustomerBankingPayload(data);
-      const payload: Record<string, unknown> = {
-        ...data,
-        ...bankingPayload,
-        orgNameI18n: {
-          ru: data.orgName || undefined,
-          en: data.orgNameI18n?.en || undefined,
-        },
-        orgTypeI18n: {
-          ru: data.orgType || undefined,
-          en: data.orgTypeI18n?.en || undefined,
-        },
-        directorNameI18n: {
-          ru: data.directorName || undefined,
-          en: data.directorNameI18n?.en || undefined,
-        },
-        positionI18n: {
-          ru: data.position || undefined,
-          en: data.positionI18n?.en || undefined,
-        },
-        directorBasisI18n: {
-          ru: data.directorBasis || undefined,
-          en: data.directorBasisI18n?.en || undefined,
-        },
-        addressI18n: {
-          ru: data.address || undefined,
-          en: data.addressI18n?.en || undefined,
-        },
-      };
-
-      // Добавляем субагента если выбран
-      if (addSubAgent && selectedSubAgentId) {
-        payload.subAgentCounterpartyId = selectedSubAgentId;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/customers`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/customers`, {
+        body: JSON.stringify(buildCustomerCreatePayload(data)),
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
-        body: JSON.stringify(payload),
+        method: "POST",
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Ошибка создания: ${res.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Ошибка создания: ${response.status}`,
+        );
       }
 
-      const customer = await res.json();
+      const customer = await response.json();
       router.push(`/customers/${customer.id}`);
-    } catch (err) {
-      console.error("Create client error:", err);
-      setError(err instanceof Error ? err.message : "Ошибка создания клиента");
+    } catch (submitError) {
+      console.error("Create customer error:", submitError);
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Ошибка создания клиента",
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="space-y-4">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-          <h1 className="text-2xl font-bold">Новый клиент</h1>
-        </div>
-      </div>
+      <CustomerCreateHeader
+        onBack={attemptLeave}
+        onCancel={attemptLeave}
+        saving={loading}
+      />
 
-      {/* Поиск по ИНН */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            Автозаполнение по ИНН
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex-1 max-w-xs">
-              <Input
-                placeholder="Введите ИНН (10 или 12 цифр)"
-                value={innSearchValue}
-                onChange={(e) => {
-                  setInnSearchValue(e.target.value.replace(/\D/g, ""));
-                  setInnSearchSuccess(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleInnSearch();
-                  }
-                }}
-                disabled={searchingByInn}
-                maxLength={12}
-              />
+      {error ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Не удалось обработать действие</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="h-full">
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Building2 className="h-4 w-4 text-primary" />
+                Автозаполнение по ИНН
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Заполнит данные юридического лица из ЕГРЮЛ/ЕГРИП.
+              </p>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Введите ИНН"
+              value={innSearchValue}
+              onChange={(event) => {
+                setInnSearchValue(event.target.value.replace(/\D/g, ""));
+                setInnSearchSuccess(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleInnSearch();
+                }
+              }}
+              disabled={searchingByInn}
+              maxLength={12}
+            />
             <Button
               type="button"
-              onClick={handleInnSearch}
+              onClick={() => void handleInnSearch()}
               disabled={searchingByInn || !innSearchValue.trim()}
+              className="w-full"
             >
               {searchingByInn ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Поиск...
-                </>
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Найти компанию
-                </>
+                <Search className="size-4" />
               )}
+              Найти компанию
             </Button>
-
-            {innSearchSuccess && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
+            {innSearchSuccess ? (
+              <div className="flex items-center gap-2 text-xs text-green-600">
                 <CheckCircle2 className="h-4 w-4" />
-                <span>Данные загружены</span>
+                Данные юридического лица обновлены
               </div>
-            )}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Введите ИНН организации для автоматического заполнения данных из
-            ЕГРЮЛ/ЕГРИП
-          </p>
-        </CardContent>
-      </Card>
+            ) : null}
+          </CardContent>
+        </Card>
 
-      {/* Загрузка карточки клиента */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Автозаполнение из PDF
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <Card className="h-full">
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Автозаполнение из PDF
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Извлечет реквизиты из PDF-карточки клиента.
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <input
               type="file"
               ref={fileInputRef}
@@ -600,655 +727,471 @@ export default function NewClientPage() {
               disabled={parsingFile}
             />
             <Button
+              className="w-full"
               type="button"
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={parsingFile}
-              className="w-full sm:w-auto"
             >
               {parsingFile ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Распознавание...
-                </>
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Загрузить карточку клиента
-                </>
+                <Upload className="size-4" />
               )}
+              Загрузить PDF
             </Button>
-
-            {uploadedFileName && !parsingFile && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {uploadedFileName ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <FileText className="h-4 w-4" />
-                <span>{uploadedFileName}</span>
+                <span className="truncate">{uploadedFileName}</span>
               </div>
-            )}
+            ) : null}
+          </CardContent>
+        </Card>
 
-            {parsingFile && (
-              <div className="text-sm text-muted-foreground">
-                Анализируем документ с помощью AI...
-              </div>
-            )}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Загрузите PDF с реквизитами организации для автоматического
-            заполнения полей
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Перевод на английский */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Languages className="h-5 w-5 text-primary" />
-            Перевод на английский
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <Card className="h-full">
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Languages className="h-4 w-4 text-primary" />
+                Перевод на английский
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Заполнит English fields по русским данным юридического лица.
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent>
             <Button
+              className="w-full"
               type="button"
               variant="outline"
-              onClick={handleTranslateToEnglish}
+              onClick={() => void handleTranslateToEnglish()}
               disabled={translating}
-              className="w-full sm:w-auto"
             >
               {translating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Перевод...
-                </>
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <>
-                  <Languages className="mr-2 h-4 w-4" />
-                  Заполнить английские поля
-                </>
+                <Languages className="size-4" />
               )}
+              Заполнить английские поля
             </Button>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Автоматически переведёт заполненные русские поля на английский
-            с помощью AI
-          </p>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-        {error && (
-            <div className="my-4 rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-              {error}
+      <form
+        id="customer-create-form"
+        className="space-y-4"
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
+        <Card>
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle>Данные клиента</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Канонические поля клиента в CRM.
+              </p>
             </div>
-          )}
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Основные данные организации */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Данные организации</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="orgName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Название организации{" "}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="ООО «Компания»" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="orgNameI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Название организации (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Company name in English" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="orgType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Тип организации{" "}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="ООО, ИП, АО..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="orgTypeI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Тип организации (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="LLC, Ltd..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="inn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          ИНН <span className="text-destructive">*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="1234567890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="kpp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>КПП</FormLabel>
-                        <FormControl>
-                          <Input placeholder="123456789" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="ogrn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ОГРН</FormLabel>
-                        <FormControl>
-                          <Input placeholder="1234567890123" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="okpo"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ОКПО</FormLabel>
-                        <FormControl>
-                          <Input placeholder="12345678" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="oktmo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ОКТМО</FormLabel>
-                      <FormControl>
-                        <Input placeholder="12345678901" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Директор */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Руководитель</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="directorName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        ФИО директора{" "}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="Иванов Иван Иванович" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="directorNameI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ФИО директора (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Director full name in English" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="position"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Должность <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="Должность" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="positionI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Должность (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Director position in English" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="directorBasis"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Основание полномочий{" "}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="Основание полномочий" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="directorBasisI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Основание полномочий (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Authority basis in English" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Separator />
-
-                <CardTitle className="text-lg">Контакты</CardTitle>
-
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Адрес</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="г. Москва, ул. Примерная, д. 1"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="addressI18n.en"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Адрес (EN)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Legal address in English" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="info@company.ru"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Телефон</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+7 (999) 123-45-67" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-2">
+            <Field
+              form={form}
+              label="Название клиента"
+              name="displayName"
+              placeholder="ООО «Компания»"
+              required
+            />
+            <Field
+              form={form}
+              label="Внешний ID"
+              name="externalRef"
+              placeholder="Например: crm-0001"
+            />
             <div className="lg:col-span-2">
-              <CustomerBankingSection
-                form={
-                  form as unknown as UseFormReturn<CustomerBankingFormData>
-                }
+              <TextareaField
+                form={form}
+                label="Описание"
+                name="description"
+                placeholder="Описание клиента"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle>Данные юр. лица</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Первое юридическое лицо клиента и контактные данные.
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field
+                form={form}
+                label="Название юр. лица"
+                name="orgName"
+                placeholder="ООО «Компания»"
+                required
+              />
+              <Field
+                form={form}
+                label="Тип организации"
+                name="orgType"
+                placeholder="ООО, ИП, АО..."
+                required
+              />
+              <Field
+                form={form}
+                label="ИНН"
+                name="inn"
+                placeholder="1234567890"
+                required
+              />
+              <Field
+                form={form}
+                label="КПП"
+                name="kpp"
+                placeholder="123456789"
+              />
+              <Field
+                form={form}
+                label="ОГРН"
+                name="ogrn"
+                placeholder="1234567890123"
+              />
+              <Field
+                form={form}
+                label="ОКПО"
+                name="okpo"
+                placeholder="12345678"
+              />
+              <Field
+                form={form}
+                label="ОКТМО"
+                name="oktmo"
+                placeholder="12345678901"
+              />
+              <Field
+                form={form}
+                label="Email"
+                name="email"
+                placeholder="info@company.ru"
+                type="email"
+              />
+              <Field
+                form={form}
+                label="Телефон"
+                name="phone"
+                placeholder="+7 (999) 123-45-67"
+              />
+              <Field
+                form={form}
+                label="Директор"
+                name="directorName"
+                placeholder="Иванов Иван Иванович"
+                required
+              />
+              <Field
+                form={form}
+                label="Должность"
+                name="position"
+                placeholder="Генеральный директор"
+                required
+              />
+              <Field
+                form={form}
+                label="Основание полномочий"
+                name="directorBasis"
+                placeholder="Устав"
+                required
+              />
+              <Field
+                form={form}
+                label="Адрес"
+                name="address"
+                placeholder="г. Москва, ул. Примерная, д. 1"
               />
             </div>
 
-            {/* Субагент */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  Субагент
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="addSubAgent"
-                    checked={addSubAgent}
-                    onCheckedChange={(checked) => {
-                      setAddSubAgent(checked === true);
-                      if (!checked) {
-                        setSelectedSubAgentId("");
-                        setCreateNewSubAgent(false);
-                      }
-                    }}
-                  />
-                  <Label
-                    htmlFor="addSubAgent"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                  >
-                    Добавить субагента
-                  </Label>
-                </div>
-
-                {addSubAgent && (
-                  <div className="space-y-4 pt-2">
-                    {loadingSubAgents ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Загрузка субагентов...
-                      </div>
-                    ) : (
-                      <>
-                        {!createNewSubAgent ? (
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label>Выберите субагента</Label>
-                              <Select
-                                value={selectedSubAgentId}
-                                onValueChange={(value) =>
-                                  setSelectedSubAgentId(value ?? "")
-                                }
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Выберите субагента..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {subAgents.map((agent) => (
-                                    <SelectItem
-                                      key={agent.id}
-                                      value={agent.id}
-                                    >
-                                      {agent.name} ({agent.commission}%)
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="flex items-center">
-                              <span className="text-sm text-muted-foreground">
-                                или
-                              </span>
-                              <Button
-                                type="button"
-                                variant="link"
-                                size="sm"
-                                onClick={() => setCreateNewSubAgent(true)}
-                                className="ml-2"
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Создать нового субагента
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-medium">
-                                Новый субагент
-                              </h4>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setCreateNewSubAgent(false);
-                                  setNewSubAgentName("");
-                                  setNewSubAgentCommission("");
-                                  setNewSubAgentKind("individual");
-                                  setSubAgentErrors({});
-                                }}
-                              >
-                                Отмена
-                              </Button>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="newSubAgentName">
-                                  Имя субагента{" "}
-                                  <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                  id="newSubAgentName"
-                                  value={newSubAgentName}
-                                  onChange={(e) => {
-                                    setNewSubAgentName(e.target.value);
-                                    if (subAgentErrors.name) {
-                                      setSubAgentErrors((prev) => ({
-                                        ...prev,
-                                        name: undefined,
-                                      }));
-                                    }
-                                  }}
-                                  placeholder="Иванов И.И."
-                                  className={
-                                    subAgentErrors.name
-                                      ? "border-destructive"
-                                      : ""
-                                  }
-                                />
-                                {subAgentErrors.name && (
-                                  <p className="text-sm text-destructive">
-                                    {subAgentErrors.name}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="newSubAgentCommission">
-                                  Комиссия (%){" "}
-                                  <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                  id="newSubAgentCommission"
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max="100"
-                                  value={newSubAgentCommission}
-                                  onChange={(e) => {
-                                    setNewSubAgentCommission(e.target.value);
-                                    if (subAgentErrors.commission) {
-                                      setSubAgentErrors((prev) => ({
-                                        ...prev,
-                                        commission: undefined,
-                                      }));
-                                    }
-                                  }}
-                                  placeholder="1.5"
-                                  className={
-                                    subAgentErrors.commission
-                                      ? "border-destructive"
-                                      : ""
-                                  }
-                                />
-                                {subAgentErrors.commission && (
-                                  <p className="text-sm text-destructive">
-                                    {subAgentErrors.commission}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Тип субагента</Label>
-                                <Select
-                                  value={newSubAgentKind}
-                                  onValueChange={(value) =>
-                                    setNewSubAgentKind(
-                                      value as "individual" | "legal_entity",
-                                    )
-                                  }
-                                >
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="individual">
-                                      Физическое лицо
-                                    </SelectItem>
-                                    <SelectItem value="legal_entity">
-                                      Юридическое лицо
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <Button
-                              type="button"
-                              onClick={handleCreateSubAgent}
-                              disabled={creatingSubAgent}
-                              size="sm"
-                            >
-                              {creatingSubAgent ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Создание...
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="mr-2 h-4 w-4" />
-                                  Создать субагента
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    )}
+            <Accordion defaultValue={[]} multiple>
+              <AccordionItem value="organization-english">
+                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                  English fields: организация
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid gap-4 pt-3 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="Название организации (EN)"
+                      name="orgNameI18n.en"
+                      placeholder="Company name in English"
+                    />
+                    <Field
+                      form={form}
+                      label="Тип организации (EN)"
+                      name="orgTypeI18n.en"
+                      placeholder="LLC, Ltd..."
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="contacts-english">
+                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                  English fields: контакты и представитель
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid gap-4 pt-3 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="ФИО директора (EN)"
+                      name="directorNameI18n.en"
+                      placeholder="Director full name in English"
+                    />
+                    <Field
+                      form={form}
+                      label="Должность (EN)"
+                      name="positionI18n.en"
+                      placeholder="Director position in English"
+                    />
+                    <Field
+                      form={form}
+                      label="Основание полномочий (EN)"
+                      name="directorBasisI18n.en"
+                      placeholder="Authority basis in English"
+                    />
+                    <Field
+                      form={form}
+                      label="Адрес (EN)"
+                      name="addressI18n.en"
+                      placeholder="Legal address in English"
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
 
-          <div className="mt-6 flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={loading}
-            >
-              Отмена
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Сохранение...
-                </>
+        <div>
+          <CustomerBankingSection
+            form={form as unknown as UseFormReturn<CustomerBankingFormData>}
+          />
+        </div>
+
+        {addSubAgent ? (
+          <Card>
+            <CardHeader className="border-b">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    Субагент
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Привязка существующего или нового субагента к клиенту.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    form.setValue("addSubAgent", false, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    form.setValue("selectedSubAgentId", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    resetInlineSubAgentDraft();
+                  }}
+                >
+                  <X className="size-4" />
+                  Убрать субагента
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingSubAgents ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Загрузка субагентов...
+                </div>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Сохранить
+                  {createNewSubAgent ? (
+                    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Новый субагент</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={resetInlineSubAgentDraft}
+                        >
+                          Отмена
+                        </Button>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="new-sub-agent-name">
+                            Имя субагента
+                            <span className="text-destructive"> *</span>
+                          </Label>
+                          <Input
+                            id="new-sub-agent-name"
+                            value={newSubAgentName}
+                            onChange={(event) => {
+                              setNewSubAgentName(event.target.value);
+                              if (subAgentErrors.name) {
+                                setSubAgentErrors((current) => ({
+                                  ...current,
+                                  name: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder="Иванов И.И."
+                          />
+                          {subAgentErrors.name ? (
+                            <p className="text-xs text-destructive">
+                              {subAgentErrors.name}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="new-sub-agent-commission">
+                            Комиссия (%)
+                            <span className="text-destructive"> *</span>
+                          </Label>
+                          <Input
+                            id="new-sub-agent-commission"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={newSubAgentCommission}
+                            onChange={(event) => {
+                              setNewSubAgentCommission(event.target.value);
+                              if (subAgentErrors.commission) {
+                                setSubAgentErrors((current) => ({
+                                  ...current,
+                                  commission: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder="1.5"
+                          />
+                          {subAgentErrors.commission ? (
+                            <p className="text-xs text-destructive">
+                              {subAgentErrors.commission}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Тип субагента</Label>
+                          <Select
+                            value={newSubAgentKind}
+                            onValueChange={(value) =>
+                              setNewSubAgentKind(
+                                (value as "individual" | "legal_entity") ??
+                                  "individual",
+                              )
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="individual">
+                                Физическое лицо
+                              </SelectItem>
+                              <SelectItem value="legal_entity">
+                                Юридическое лицо
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => void handleCreateSubAgent()}
+                        disabled={creatingSubAgent}
+                      >
+                        {creatingSubAgent ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Plus className="size-4" />
+                        )}
+                        Создать субагента
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Выберите субагента</Label>
+                        <Select
+                          value={form.watch("selectedSubAgentId")}
+                          onValueChange={(value) =>
+                            form.setValue("selectedSubAgentId", value ?? "", {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите субагента..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subAgents.map((agent) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.name} ({agent.commission}%)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setCreateNewSubAgent(true)}
+                      >
+                        <Plus className="size-4" />
+                        Создать нового субагента
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
-            </Button>
-          </div>
-        </form>
-      </Form>
+            </CardContent>
+          </Card>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              form.setValue("addSubAgent", true, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          >
+            <UserPlus className="size-4" />
+            Добавить субагента
+          </Button>
+        )}
+      </form>
+
+      <PendingCreateLeaveDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        onConfirm={() => {
+          setLeaveDialogOpen(false);
+          router.back();
+        }}
+      />
     </div>
   );
 }

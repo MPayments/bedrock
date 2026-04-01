@@ -3,3 +3,7 @@ export function isUuidLike(value: string): boolean {
     value,
   );
 }
+
+export function getUuidPrefix(value: string): string {
+  return isUuidLike(value) ? value.slice(0, 8) : value;
+}
