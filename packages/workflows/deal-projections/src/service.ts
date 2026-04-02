@@ -668,7 +668,7 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
     return {
       blockers: collectBlockingReasons(workflow),
       queue: "failed_instruction",
-      queueReason: "Заблокировано downstream-исполнение",
+      queueReason: "Сделка заблокирована на этапе исполнения",
     };
   }
 
@@ -687,7 +687,7 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
     return {
       blockers: [],
       queue: "execution",
-      queueReason: "Сделка ожидает downstream-исполнение",
+      queueReason: "Сделка ожидает исполнения",
     };
   }
 
@@ -707,7 +707,7 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
   return {
     blockers: collectBlockingReasons(workflow),
     queue: "funding",
-    queueReason: "Сделка ожидает следующий шаг по фондированию",
+    queueReason: "Сделка ожидает следующий шаг на этапе фондирования",
   };
 }
 
@@ -1035,6 +1035,7 @@ export function createDealProjectionsWorkflow(
         return {
           applicantName,
           blockingReasons: queueContext.blockers,
+          createdAt: workflow.summary.createdAt,
           dealId: workflow.summary.id,
           documentSummary: {
             attachmentCount: attachments.length,

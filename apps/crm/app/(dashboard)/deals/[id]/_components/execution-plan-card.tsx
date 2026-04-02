@@ -14,6 +14,7 @@ import {
   DEAL_LEG_STATE_COLORS,
   DEAL_LEG_STATE_LABELS,
   DEAL_SECTION_LABELS,
+  formatDealWorkflowMessage,
   STATUS_LABELS,
 } from "./constants";
 import type {
@@ -76,7 +77,9 @@ export function ExecutionPlanCard({
                 </div>
                 {section.blockingReasons.length > 0 && (
                   <div className="mt-2 text-sm text-muted-foreground">
-                    {section.blockingReasons.join(" ")}
+                    {section.blockingReasons
+                      .map((reason) => formatDealWorkflowMessage(reason))
+                      .join(" ")}
                   </div>
                 )}
               </div>
@@ -104,7 +107,7 @@ export function ExecutionPlanCard({
                   <div className="font-medium">{STATUS_LABELS[item.targetStatus]}</div>
                   {!item.allowed && item.blockers[0] && (
                     <div className="text-sm text-muted-foreground">
-                      {item.blockers[0].message}
+                      {formatDealWorkflowMessage(item.blockers[0].message)}
                     </div>
                   )}
                 </div>

@@ -96,6 +96,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
   rates: { label: "Курсы", href: "/treasury/rates", icon: "chart-candlestick" },
+  deals: { label: "Сделки", href: "/treasury/deals", icon: "handshake" },
   quotes: { label: "Котировки", href: "/treasury/quotes", icon: "ticket-percent" },
 
   orders: { label: "Ордера" },

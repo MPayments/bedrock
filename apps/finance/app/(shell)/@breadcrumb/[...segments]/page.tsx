@@ -4,6 +4,8 @@ import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { getOrganizationById } from "@/features/entities/organizations/lib/queries";
 import { getRequisiteProviderById } from "@/features/entities/requisite-providers/lib/queries";
 import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
+import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
+import { getFinanceDealWorkspaceById } from "@/features/treasury/deals/lib/queries";
 import {
   getDocumentTypeLabel,
   isKnownDocumentType,
@@ -69,6 +71,18 @@ const dynamicResolvers = {
     getById: getCounterpartyById,
     getLabel: (counterparty) => counterparty.shortName,
     getId: (counterparty) => counterparty.id,
+  }),
+  deals: createResourceSegmentResolver({
+    singularLabel: "Сделка",
+    hrefPrefix: "/treasury/deals",
+    getById: getFinanceDealWorkspaceById,
+    getLabel: (deal) =>
+      getFinanceDealDisplayTitle({
+        applicantDisplayName: deal.summary.applicantDisplayName,
+        id: deal.summary.id,
+        type: deal.summary.type,
+      }),
+    getId: (deal) => deal.summary.id,
   }),
   customers: createResourceSegmentResolver({
     singularLabel: "Клиент",

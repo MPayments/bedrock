@@ -5,54 +5,18 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import {
+  getDealQuoteStatusLabel,
+  getDealQuoteStatusVariant,
+  getFinanceDealTypeLabel,
+} from "@/features/treasury/deals/labels";
 import type { FxQuoteListItem } from "@/features/treasury/quotes/lib/queries";
 import { formatDate } from "@/lib/format";
 
 import { DealWorkflowDialog } from "./deal-workflow-dialog";
 
-function getStatusLabel(status: FxQuoteListItem["status"]) {
-  switch (status) {
-    case "active":
-      return "Активна";
-    case "used":
-      return "Использована";
-    case "expired":
-      return "Истекла";
-    case "cancelled":
-      return "Отменена";
-  }
-}
-
-function getStatusVariant(
-  status: FxQuoteListItem["status"],
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "active":
-      return "default";
-    case "used":
-      return "secondary";
-    case "expired":
-      return "destructive";
-    case "cancelled":
-      return "outline";
-  }
-}
-
 function getPricingModeLabel(mode: FxQuoteListItem["pricingMode"]) {
   return mode === "auto_cross" ? "Auto cross" : "Explicit route";
-}
-
-function getDealTypeLabel(type: NonNullable<FxQuoteListItem["dealRef"]>["type"]) {
-  switch (type) {
-    case "payment":
-      return "Платеж";
-    case "currency_exchange":
-      return "Обмен";
-    case "currency_transit":
-      return "Транзит";
-    case "exporter_settlement":
-      return "Экспортер";
-  }
 }
 
 export const columns: ColumnDef<FxQuoteListItem>[] = [
@@ -109,7 +73,7 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
       row.original.dealRef ? (
         <div className="space-y-1">
           <div className="font-medium">
-            {getDealTypeLabel(row.original.dealRef.type)}
+            {getFinanceDealTypeLabel(row.original.dealRef.type)}
           </div>
           <div className="text-muted-foreground text-xs">
             {row.original.dealRef.applicantName ?? "Заявитель не указан"}
@@ -150,8 +114,8 @@ export const columns: ColumnDef<FxQuoteListItem>[] = [
       <DataTableColumnHeader column={column} label="Статус" />
     ),
     cell: ({ row }) => (
-      <Badge variant={getStatusVariant(row.original.status)}>
-        {getStatusLabel(row.original.status)}
+      <Badge variant={getDealQuoteStatusVariant(row.original.status)}>
+        {getDealQuoteStatusLabel(row.original.status)}
       </Badge>
     ),
     meta: {

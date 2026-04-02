@@ -478,7 +478,9 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection.items).toHaveLength(1);
     expect(projection.items[0]).toMatchObject({
       dealId: "deal-1",
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
       queue: "failed_instruction",
+      queueReason: "Сделка заблокирована на этапе исполнения",
       profitabilitySnapshot: {
         feeRevenueMinor: "100",
         spreadRevenueMinor: "250",

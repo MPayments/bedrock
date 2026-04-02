@@ -350,6 +350,7 @@ export type FinanceDealDocumentSummary = z.infer<
 export const FinanceDealQueueItemSchema = z.object({
   applicantName: z.string().nullable(),
   blockingReasons: z.array(z.string()),
+  createdAt: DealSummarySchema.shape.createdAt,
   dealId: z.uuid(),
   documentSummary: FinanceDealDocumentSummarySchema,
   executionSummary: FinanceDealExecutionSummarySchema,
