@@ -124,7 +124,7 @@ export function ExecutionPlanCard({
           <div className="space-y-3">
             {executionPlan.map((leg) => {
               const nextStates = LEG_STATE_TRANSITIONS[leg.state];
-              const legKey = `${leg.idx}:${leg.state}`;
+              const legKey = String(leg.idx);
 
               return (
                 <div
@@ -147,7 +147,13 @@ export function ExecutionPlanCard({
                       {nextStates.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger
-                            render={<Button size="sm" variant="outline" />}
+                            render={
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={isUpdatingLegKey === legKey}
+                              />
+                            }
                           >
                             Изменить
                             <ChevronDown className="ml-2 h-4 w-4" />

@@ -172,16 +172,11 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
 
 function buildPortalSubmissionCompleteness(
   workflow: DealWorkflowProjection,
-  attachmentCount: number,
 ) {
   const relevantSectionIds = new Set(PORTAL_OWNED_SECTIONS_BY_TYPE[workflow.intake.type]);
   const blockingReasons = workflow.sectionCompleteness
     .filter((section) => relevantSectionIds.has(section.sectionId))
     .flatMap((section) => section.blockingReasons);
-
-  if (attachmentCount === 0) {
-    blockingReasons.push(CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION);
-  }
 
   return {
     blockingReasons,
@@ -189,7 +184,26 @@ function buildPortalSubmissionCompleteness(
   };
 }
 
-function mapPortalNextAction(nextAction: string) {
+function requiresCustomerAttachment(nextAction: string) {
+  return (
+    nextAction === "Prepare documents" ||
+    nextAction === "Prepare closing documents"
+  );
+}
+
+function mapPortalNextAction(input: {
+  attachmentCount: number;
+  nextAction: string;
+}) {
+  if (requiresCustomerAttachment(input.nextAction)) {
+    if (input.attachmentCount === 0) {
+      return CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION;
+    }
+
+    return "Ожидайте обработки документов";
+  }
+
+  const nextAction = input.nextAction;
   switch (nextAction) {
     case "Complete intake":
       return "Заполните обязательные поля заявки";
@@ -197,16 +211,13 @@ function mapPortalNextAction(nextAction: string) {
       return "Ожидайте или примите котировку";
     case "Create calculation from accepted quote":
       return "Ожидайте расчет по принятой котировке";
-    case "Prepare documents":
-      return CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION;
-    case "Prepare closing documents":
-      return CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION;
     default:
       return nextAction;
   }
 }
 
 function buildPortalRequiredActions(input: {
+  attachmentCount: number;
   nextAction: string;
   submissionCompleteness: {
     blockingReasons: string[];
@@ -219,8 +230,18 @@ function buildPortalRequiredActions(input: {
     actions.add(blocker);
   }
 
-  if (input.nextAction.trim().length > 0) {
-    actions.add(mapPortalNextAction(input.nextAction));
+  if (
+    requiresCustomerAttachment(input.nextAction) &&
+    input.attachmentCount === 0
+  ) {
+    actions.add(CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION);
+  } else if (input.nextAction.trim().length > 0) {
+    actions.add(
+      mapPortalNextAction({
+        attachmentCount: input.attachmentCount,
+        nextAction: input.nextAction,
+      }),
+    );
   }
 
   return Array.from(actions);
@@ -252,10 +273,7 @@ function buildPortalProjection(input: {
     customerSafeTimeline,
     input.attachments,
   );
-  const submissionCompleteness = buildPortalSubmissionCompleteness(
-    input.workflow,
-    attachments.length,
-  );
+  const submissionCompleteness = buildPortalSubmissionCompleteness(input.workflow);
 
   return {
     attachments,
@@ -263,9 +281,13 @@ function buildPortalProjection(input: {
       ? { id: input.workflow.summary.calculationId }
       : null,
     customerSafeIntake: toPortalIntakeSummary(input.workflow),
-    nextAction: mapPortalNextAction(input.workflow.nextAction),
+    nextAction: mapPortalNextAction({
+      attachmentCount: attachments.length,
+      nextAction: input.workflow.nextAction,
+    }),
     quoteSummary: buildPortalQuoteSummary(input.workflow),
     requiredActions: buildPortalRequiredActions({
+      attachmentCount: attachments.length,
       nextAction: input.workflow.nextAction,
       submissionCompleteness,
     }),

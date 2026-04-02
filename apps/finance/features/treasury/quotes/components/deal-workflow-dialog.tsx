@@ -150,7 +150,7 @@ export function DealWorkflowDialog({ dealId }: DealWorkflowDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   async function loadWorkflow() {
-    if (data || isLoading) {
+    if (isLoading) {
       return;
     }
 

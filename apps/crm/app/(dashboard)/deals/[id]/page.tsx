@@ -661,7 +661,7 @@ export default function DealDetailPage() {
   const handleLegStateUpdate = useCallback(
     async (idx: number, state: DealLegState) => {
       try {
-        setIsUpdatingLegKey(`${idx}:${state}`);
+        setIsUpdatingLegKey(String(idx));
 
         const response = await fetch(
           `${API_BASE_URL}/deals/${dealId}/legs/${idx}/state`,

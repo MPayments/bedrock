@@ -350,6 +350,28 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection?.requiredActions).toContain("Ожидайте или примите котировку");
   });
 
+  it("does not mark portal submission incomplete only because attachments are missing", async () => {
+    const workflow = createWorkflow({
+      attachments: [],
+      workflow: {
+        ...createBaseWorkflow(),
+        nextAction: "Prepare documents",
+      },
+    });
+
+    const projection = await workflow.getPortalDealProjection("deal-1", "customer-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.submissionCompleteness).toEqual({
+      blockingReasons: [],
+      complete: true,
+    });
+    expect(projection?.nextAction).toBe("Загрузите подтверждающие документы");
+    expect(projection?.requiredActions).toContain(
+      "Загрузите подтверждающие документы",
+    );
+  });
+
   it("classifies blocked downstream execution into the failed instruction queue", async () => {
     const workflowState = createBaseWorkflow();
     const blockedWorkflow: DealWorkflowProjection = {

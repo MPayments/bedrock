@@ -91,7 +91,11 @@ export default function PortalDealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(
+    null,
+  );
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(
     null,
   );
@@ -173,26 +177,39 @@ export default function PortalDealDetailPage() {
       return;
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/calculations/${data.calculationSummary.id}/export?format=${format}`,
-      {
-        credentials: "include",
-      },
-    );
+    try {
+      setDownloadingFormat(format);
+      setCalculationError(null);
 
-    if (!response.ok) {
-      throw new Error("Ошибка загрузки документа");
+      const response = await fetch(
+        `${API_BASE_URL}/calculations/${data.calculationSummary.id}/export?format=${format}`,
+        {
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Ошибка загрузки документа");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `deal-calculation-${data.calculationSummary.id}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setCalculationError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Не удалось скачать расчет",
+      );
+    } finally {
+      setDownloadingFormat(null);
     }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `deal-calculation-${data.calculationSummary.id}.${format}`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.URL.revokeObjectURL(url);
   }
 
   if (loading) {
@@ -454,17 +471,30 @@ export default function PortalDealDetailPage() {
         <CardContent className="space-y-3">
           {data.calculationSummary ? (
             <>
+              {calculationError ? (
+                <p className="text-sm text-destructive">{calculationError}</p>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 Расчет привязан к сделке и доступен для выгрузки.
               </p>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => void handleDownload("pdf")}>
+                <Button
+                  variant="outline"
+                  disabled={downloadingFormat !== null}
+                  onClick={() => void handleDownload("pdf")}
+                >
                   <Download className="mr-2 h-4 w-4" />
-                  Скачать PDF
+                  {downloadingFormat === "pdf" ? "Загрузка PDF…" : "Скачать PDF"}
                 </Button>
-                <Button variant="outline" onClick={() => void handleDownload("docx")}>
+                <Button
+                  variant="outline"
+                  disabled={downloadingFormat !== null}
+                  onClick={() => void handleDownload("docx")}
+                >
                   <Download className="mr-2 h-4 w-4" />
-                  Скачать DOCX
+                  {downloadingFormat === "docx"
+                    ? "Загрузка DOCX…"
+                    : "Скачать DOCX"}
                 </Button>
               </div>
             </>
