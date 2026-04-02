@@ -331,48 +331,6 @@ export function CustomerLegalEntityPanel({
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={contractLang}
-            onValueChange={(value) =>
-              onContractLangChange((value as "ru" | "en") ?? "ru")
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ru">Русский</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            disabled={downloadingContract}
-            onClick={() => onDownloadContract("docx")}
-            type="button"
-          >
-            {downloadingContract ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Скачать DOCX
-          </Button>
-          <Button
-            variant="outline"
-            disabled={downloadingContract}
-            onClick={() => onDownloadContract("pdf")}
-            type="button"
-          >
-            {downloadingContract ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Скачать PDF
-          </Button>
-        </div>
       </div>
 
       <div
@@ -393,20 +351,64 @@ export function CustomerLegalEntityPanel({
       >
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
                 <File className="h-4 w-4" />
                 Документы
               </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onUploadDocument}
-                type="button"
-              >
-                <UploadIcon className="mr-2 h-4 w-4" />
-                Загрузить документ
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={contractLang}
+                  onValueChange={(value) =>
+                    onContractLangChange((value as "ru" | "en") ?? "ru")
+                  }
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ru">Русский</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingContract}
+                  onClick={() => onDownloadContract("docx")}
+                  type="button"
+                >
+                  {downloadingContract ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Скачать DOCX
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingContract}
+                  onClick={() => onDownloadContract("pdf")}
+                  type="button"
+                >
+                  {downloadingContract ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Скачать PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onUploadDocument}
+                  type="button"
+                >
+                  <UploadIcon className="mr-2 h-4 w-4" />
+                  Загрузить документ
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

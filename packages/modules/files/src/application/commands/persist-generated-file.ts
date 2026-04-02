@@ -116,6 +116,7 @@ export class PersistGeneratedFileCommand {
             createdBy: input.createdBy,
           });
           await tx.fileStore.createFileLink({
+            attachmentVisibility: null,
             id: linkId,
             fileAssetId,
             linkKind: input.linkKind,

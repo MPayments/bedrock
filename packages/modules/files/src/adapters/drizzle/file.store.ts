@@ -25,6 +25,7 @@ export class DrizzleFileStore implements FileStore {
 
   async createFileLink(input: CreateFileLinkStoredInput): Promise<void> {
     await this.db.insert(fileLinks).values({
+      attachmentVisibility: input.attachmentVisibility,
       id: input.id,
       fileAssetId: input.fileAssetId,
       dealId: input.dealId,

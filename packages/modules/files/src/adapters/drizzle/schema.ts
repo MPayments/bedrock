@@ -19,6 +19,7 @@ import { user } from "@bedrock/iam/schema";
 import { counterparties } from "@bedrock/parties/schema";
 
 import {
+  FILE_ATTACHMENT_VISIBILITY_VALUES,
   FILE_GENERATED_FORMAT_VALUES,
   FILE_GENERATED_LANG_VALUES,
   FILE_LINK_KIND_VALUES,
@@ -37,6 +38,10 @@ export const fileGeneratedFormatEnum = pgEnum(
 export const fileGeneratedLangEnum = pgEnum(
   "file_generated_lang",
   FILE_GENERATED_LANG_VALUES,
+);
+export const fileAttachmentVisibilityEnum = pgEnum(
+  "file_attachment_visibility",
+  FILE_ATTACHMENT_VISIBILITY_VALUES,
 );
 
 export const fileVersions = pgTable(
@@ -116,6 +121,7 @@ export const fileLinks = pgTable(
       onDelete: "cascade",
     }),
     linkKind: fileLinkKindEnum("link_kind").notNull(),
+    attachmentVisibility: fileAttachmentVisibilityEnum("attachment_visibility"),
     generatedFormat: fileGeneratedFormatEnum("generated_format"),
     generatedLang: fileGeneratedLangEnum("generated_lang"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -141,10 +147,12 @@ export const fileLinks = pgTable(
       "file_links_generated_variant_shape_chk",
       sql`(
         ${table.linkKind} in ('deal_attachment', 'legal_entity_attachment')
+        and ${table.attachmentVisibility} is not null
         and ${table.generatedFormat} is null
         and ${table.generatedLang} is null
       ) or (
         ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract')
+        and ${table.attachmentVisibility} is null
         and ${table.generatedFormat} is not null
         and ${table.generatedLang} is not null
       )`,

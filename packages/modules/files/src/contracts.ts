@@ -11,10 +11,12 @@ export {
   type FileVersion,
 } from "./application/contracts/dto";
 export {
+  FileAttachmentVisibilitySchema,
   FileGeneratedFormatSchema,
   FileGeneratedLangSchema,
   FileLinkKindSchema,
   FileOriginSchema,
+  type FileAttachmentVisibility,
   type FileGeneratedFormat,
   type FileGeneratedLang,
   type FileLinkKind,

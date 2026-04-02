@@ -148,6 +148,7 @@ export interface DealStore {
     snapshot: DealIntakeDraft;
   }): Promise<boolean>;
   setDealRoot(input: {
+    agreementId?: string;
     agentId?: string | null;
     calculationId?: string | null;
     dealId: string;

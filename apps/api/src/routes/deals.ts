@@ -4,7 +4,9 @@ import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-or
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import { currencies as currenciesTable } from "@bedrock/currencies/schema";
 import {
+  AssignDealAgentInputSchema,
   CreateDealInputSchema,
+  CreateDealDraftInputSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
   DealTraceSchema,
@@ -13,6 +15,7 @@ import {
   PaginatedDealsSchema,
   ReplaceDealIntakeInputSchema,
   TransitionDealStatusInputSchema,
+  UpdateDealAgreementInputSchema,
   UpdateDealLegStateInputSchema,
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
@@ -20,7 +23,10 @@ import {
   dealIntakeSnapshots as dealIntakeSnapshotsTable,
   deals as dealsTable,
 } from "@bedrock/deals/schema";
-import { FileAttachmentSchema } from "@bedrock/files/contracts";
+import {
+  FileAttachmentSchema,
+  FileAttachmentVisibilitySchema,
+} from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
 import {
   PreviewQuoteInputSchema,
@@ -28,6 +34,7 @@ import {
   QuoteSchema,
 } from "@bedrock/treasury/contracts";
 import {
+  CrmDealBoardProjectionSchema,
   CrmDealWorkbenchProjectionSchema,
   FinanceDealQueueFiltersSchema,
   FinanceDealQueueProjectionSchema,
@@ -88,6 +95,9 @@ export function dealsRoutes(ctx: AppContext) {
   const DealCalculationHistorySchema = z.array(DealCalculationHistoryItemSchema);
   const DealCalculationFromQuoteInputSchema = z.object({
     quoteId: z.string().uuid(),
+  });
+  const DealAttachmentVisibilityInputSchema = z.object({
+    visibility: FileAttachmentVisibilitySchema.optional(),
   });
 
   const listRoute = createRoute({
@@ -227,6 +237,24 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Finance deal queues",
+      },
+    },
+  });
+
+  const crmBoardRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/crm-board",
+    tags: ["Deals"],
+    summary: "List CRM deal board projection",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CrmDealBoardProjectionSchema,
+          },
+        },
+        description: "CRM deal board projection",
       },
     },
   });
@@ -399,6 +427,50 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const createDraftRoute = createRoute({
+    middleware: [requirePermission({ deals: ["create"] })],
+    method: "post",
+    path: "/drafts",
+    tags: ["Deals"],
+    summary: "Create typed draft deal for CRM",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateDealDraftInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Typed deal draft created",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Idempotency conflict",
+      },
+    },
+  });
+
   const updateIntakeRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
@@ -453,6 +525,56 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Deal revision conflict",
+      },
+    },
+  });
+
+  const updateAgreementRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/agreement",
+    tags: ["Deals"],
+    summary: "Change effective agreement for a draft deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateDealAgreementInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        description: "Deal agreement updated",
+      },
+    },
+  });
+
+  const assignAgentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/assignee",
+    tags: ["Deals"],
+    summary: "Assign or unassign CRM agent for a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AssignDealAgentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        description: "Deal assignee updated",
       },
     },
   });
@@ -849,6 +971,14 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(crmBoardRoute, async (c) => {
+      try {
+        const result = await ctx.dealProjectionsWorkflow.listCrmDealBoard();
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(listRoute, async (c) => {
       try {
         const query = c.req.valid("query");
@@ -1108,6 +1238,26 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(createDraftRoute, async (c) => {
+      try {
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealsModule.deals.commands.createDraft({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(updateIntakeRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
@@ -1131,6 +1281,36 @@ export function dealsRoutes(ctx: AppContext) {
           ...body,
           actorUserId: c.get("user")!.id,
           dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(updateAgreementRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.updateAgreement({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(assignAgentRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.assignAgent({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          id,
         });
 
         return jsonOk(c, result);
@@ -1351,8 +1531,23 @@ export function dealsRoutes(ctx: AppContext) {
           return c.json({ error: "File is required" }, 400 as const);
         }
 
+        const attachmentVisibilityResult =
+          DealAttachmentVisibilityInputSchema.safeParse({
+            visibility:
+              typeof body.visibility === "string" ? body.visibility : undefined,
+          });
+
+        if (!attachmentVisibilityResult.success) {
+          return c.json(
+            { error: "Attachment visibility must be customer_safe or internal" },
+            400 as const,
+          );
+        }
+
         const attachment =
           await ctx.filesModule.files.commands.uploadDealAttachment({
+            attachmentVisibility:
+              attachmentVisibilityResult.data.visibility ?? "internal",
             buffer: Buffer.from(await file.arrayBuffer()),
             description:
               typeof body.description === "string" ? body.description : null,
@@ -1372,7 +1567,10 @@ export function dealsRoutes(ctx: AppContext) {
           },
           sourceRef: `attachment:${attachment.id}:uploaded`,
           type: "attachment_uploaded",
-          visibility: "internal",
+          visibility:
+            attachment.visibility === "customer_safe"
+              ? "customer_safe"
+              : "internal",
         });
 
         return jsonOk(c, attachment, 201);
@@ -1398,6 +1596,9 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { attachmentId, id } = c.req.valid("param");
         await requireDeal(ctx, id);
+        const attachments =
+          await ctx.filesModule.files.queries.listDealAttachments(id);
+        const attachment = attachments.find((item) => item.id === attachmentId) ?? null;
         await ctx.filesModule.files.commands.deleteDealAttachment({
           fileAssetId: attachmentId,
           ownerId: id,
@@ -1411,7 +1612,10 @@ export function dealsRoutes(ctx: AppContext) {
           },
           sourceRef: `attachment:${attachmentId}:deleted`,
           type: "attachment_deleted",
-          visibility: "internal",
+          visibility:
+            attachment?.visibility === "customer_safe"
+              ? "customer_safe"
+              : "internal",
         });
 
         return jsonOk(c, { deleted: true });

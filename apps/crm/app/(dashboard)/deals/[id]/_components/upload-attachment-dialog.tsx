@@ -9,6 +9,13 @@ import {
 } from "@bedrock/sdk-ui/components/dialog";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 
 import { formatFileSize } from "./file-utils";
 
@@ -16,10 +23,12 @@ type UploadAttachmentDialogProps = {
   open: boolean;
   uploadFile: File | null;
   uploadDescription: string;
+  uploadVisibility: "customer_safe" | "internal";
   isUploading: boolean;
   onOpenChange: (open: boolean) => void;
   onFileChange: (file: File | null) => void;
   onDescriptionChange: (value: string) => void;
+  onVisibilityChange: (value: "customer_safe" | "internal") => void;
   onCancel: () => void;
   onSubmit: () => void;
 };
@@ -28,10 +37,12 @@ export function UploadAttachmentDialog({
   open,
   uploadFile,
   uploadDescription,
+  uploadVisibility,
   isUploading,
   onOpenChange,
   onFileChange,
   onDescriptionChange,
+  onVisibilityChange,
   onCancel,
   onSubmit,
 }: UploadAttachmentDialogProps) {
@@ -69,6 +80,27 @@ export function UploadAttachmentDialog({
               placeholder="Например: подписанный комплект"
               value={uploadDescription}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Видимость</Label>
+            <Select
+              value={uploadVisibility}
+              onValueChange={(value) => {
+                if (value) {
+                  onVisibilityChange(value);
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="internal">Только CRM / внутреннее</SelectItem>
+                <SelectItem value="customer_safe">
+                  Видно клиенту и CRM
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

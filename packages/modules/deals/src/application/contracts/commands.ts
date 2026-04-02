@@ -53,6 +53,29 @@ const nullableDateText = z
   .nullish()
   .transform((value) => (value ? new Date(`${value}T00:00:00.000Z`) : null));
 
+const nullablePortalCurrencyReference = z
+  .string()
+  .trim()
+  .nullish()
+  .transform((value) => {
+    const normalized = trimToNull(value) ?? null;
+
+    if (!normalized) {
+      return null;
+    }
+
+    return z.uuid().safeParse(normalized).success
+      ? normalized
+      : normalized.toUpperCase();
+  })
+  .refine(
+    (value) =>
+      value === null ||
+      z.uuid().safeParse(value).success ||
+      /^[A-Z0-9]{3,16}$/u.test(value),
+    "Must be a currency UUID or ISO code",
+  );
+
 export const CreateDealInputSchema = z
   .object({
     agentId: nullableShortText,
@@ -94,7 +117,7 @@ export const CreatePortalDealInputSchema = z.object({
       contractNumber: nullableShortText,
       expectedAmount: nullableDecimalText,
       expectedAt: z.coerce.date().nullable().optional().default(null),
-      expectedCurrencyId: z.uuid().nullable().optional().default(null),
+      expectedCurrencyId: nullablePortalCurrencyReference.optional().default(null),
       invoiceNumber: nullableShortText,
     })
     .optional()
@@ -108,8 +131,8 @@ export const CreatePortalDealInputSchema = z.object({
   moneyRequest: z.object({
     purpose: nullableText,
     sourceAmount: nullableDecimalText,
-    sourceCurrencyId: z.uuid().nullable(),
-    targetCurrencyId: z.uuid().nullable().optional().default(null),
+    sourceCurrencyId: nullablePortalCurrencyReference,
+    targetCurrencyId: nullablePortalCurrencyReference.optional().default(null),
   }),
   type: DealTypeSchema,
 });
@@ -130,6 +153,20 @@ export const ReplaceDealIntakeInputSchema = z.object({
 });
 
 export type ReplaceDealIntakeInput = z.infer<typeof ReplaceDealIntakeInputSchema>;
+
+export const UpdateDealAgreementInputSchema = z.object({
+  agreementId: z.uuid(),
+});
+
+export type UpdateDealAgreementInput = z.infer<
+  typeof UpdateDealAgreementInputSchema
+>;
+
+export const AssignDealAgentInputSchema = z.object({
+  agentId: nullableShortText,
+});
+
+export type AssignDealAgentInput = z.infer<typeof AssignDealAgentInputSchema>;
 
 export const UpdateDealIntakeInputSchema = z
   .object({

@@ -29,6 +29,7 @@ function mapStoredFile(row: {
   versionCreatedBy: string | null;
   versionCreatedAt: Date;
   versionUpdatedAt: Date;
+  attachmentVisibility: "customer_safe" | "internal" | null;
   linkId: string;
   linkKind:
     | "deal_acceptance"
@@ -63,6 +64,7 @@ function mapStoredFile(row: {
     versionCreatedBy: row.versionCreatedBy,
     versionCreatedAt: row.versionCreatedAt,
     versionUpdatedAt: row.versionUpdatedAt,
+    attachmentVisibility: row.attachmentVisibility,
     linkId: row.linkId,
     linkKind: row.linkKind,
     dealId: row.dealId,
@@ -78,6 +80,7 @@ function mapAttachment(row: StoredFileRecord): FileAttachment {
     fileName: row.fileName,
     fileSize: row.fileSize,
     mimeType: row.mimeType,
+    visibility: row.attachmentVisibility,
     uploadedBy: row.versionCreatedBy,
     description: row.description,
     createdAt: row.createdAt,
@@ -182,6 +185,7 @@ export class DrizzleFileReads implements FileReads {
         versionCreatedBy: fileVersions.createdBy,
         versionCreatedAt: fileVersions.createdAt,
         versionUpdatedAt: fileVersions.updatedAt,
+        attachmentVisibility: fileLinks.attachmentVisibility,
         linkId: fileLinks.id,
         linkKind: fileLinks.linkKind,
         dealId: fileLinks.dealId,

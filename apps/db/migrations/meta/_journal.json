@@ -22,6 +22,13 @@
       "when": 1775081621737,
       "tag": "0002_gifted_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775113679678,
+      "tag": "0003_fancy_jack_power",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,10 @@ import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type { FileAttachment } from "../contracts/dto";
-import type { FileLinkKind } from "../contracts/zod";
+import type {
+  FileAttachmentVisibility,
+  FileLinkKind,
+} from "../contracts/zod";
 import type {
   FileOwnerType,
   StoredFileRecord,
@@ -16,6 +19,7 @@ import type { ObjectStoragePort } from "../ports/object-storage.port";
 
 const UploadedAttachmentMetadataSchema = {
   parse(input: {
+    attachmentVisibility?: FileAttachmentVisibility | null;
     description?: string | null;
     fileName: string;
     fileSize: number;
@@ -39,6 +43,7 @@ const UploadedAttachmentMetadataSchema = {
 
     return {
       ...input,
+      attachmentVisibility: input.attachmentVisibility ?? "internal",
       description: trimToNull(input.description) ?? null,
       fileName,
       mimeType: input.mimeType.trim(),
@@ -80,6 +85,7 @@ function mapFileRecordToAttachment(file: StoredFileRecord): FileAttachment {
     fileName: file.fileName,
     fileSize: file.fileSize,
     mimeType: file.mimeType,
+    visibility: file.attachmentVisibility,
     uploadedBy: file.versionCreatedBy,
     description: file.description,
     createdAt: file.createdAt,
@@ -99,6 +105,7 @@ export class UploadFileAttachmentCommand {
   ) {}
 
   async execute(input: {
+    attachmentVisibility?: FileAttachmentVisibility | null;
     buffer: Buffer;
     description?: string | null;
     fileName: string;
@@ -145,6 +152,7 @@ export class UploadFileAttachmentCommand {
           createdBy: validated.uploadedBy,
         });
         await tx.fileStore.createFileLink({
+          attachmentVisibility: validated.attachmentVisibility,
           id: linkId,
           fileAssetId,
           linkKind: this.options.linkKind,

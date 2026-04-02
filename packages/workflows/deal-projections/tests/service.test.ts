@@ -175,6 +175,7 @@ function createWorkflow(overrides?: {
     mimeType: string;
     updatedAt: Date;
     uploadedBy: string | null;
+    visibility: "customer_safe" | "internal" | null;
   }>;
   calculation?: {
     createdAt: Date;
@@ -231,6 +232,7 @@ function createWorkflow(overrides?: {
       mimeType: "application/pdf",
       updatedAt: new Date("2026-04-01T10:00:00.000Z"),
       uploadedBy: "user-1",
+      visibility: "customer_safe",
     },
     {
       createdAt: new Date("2026-04-01T11:00:00.000Z"),
@@ -241,6 +243,7 @@ function createWorkflow(overrides?: {
       mimeType: "application/pdf",
       updatedAt: new Date("2026-04-01T11:00:00.000Z"),
       uploadedBy: "user-2",
+      visibility: "internal",
     },
   ];
 
@@ -253,7 +256,7 @@ function createWorkflow(overrides?: {
         findWorkflowById: vi.fn(async () => workflow),
         list: vi.fn(async () => ({
           data: [{ id: workflow.summary.id }],
-          limit: 500,
+          limit: 200,
           offset: 0,
           total: 1,
         })),
@@ -294,7 +297,7 @@ function createWorkflow(overrides?: {
           findById: vi.fn(async () => null),
           list: vi.fn(async () => ({
             data: [],
-            limit: 500,
+            limit: 200,
             offset: 0,
             total: 0,
           })),

@@ -392,7 +392,7 @@ export default function PortalDealDetailPage() {
           <CardTitle className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <Paperclip className="h-5 w-5" />
-              Вложения
+              Документы
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -417,92 +417,98 @@ export default function PortalDealDetailPage() {
           {attachmentError ? (
             <p className="text-sm text-destructive">{attachmentError}</p>
           ) : null}
-          {data.attachments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Пока нет загруженных документов клиента.
-            </p>
-          ) : (
-            data.attachments.map((attachment) => (
-              <div
-                key={attachment.id}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{attachment.fileName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateTime(attachment.createdAt)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      window.location.href = buildPortalDealAttachmentDownloadUrl({
-                        attachmentId: attachment.id,
-                        dealId,
-                      });
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={deletingAttachmentId === attachment.id}
-                    onClick={() => void handleAttachmentDelete(attachment.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+          {calculationError ? (
+            <p className="text-sm text-destructive">{calculationError}</p>
+          ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5" />
-            Расчет сделки
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.calculationSummary ? (
-            <>
-              {calculationError ? (
-                <p className="text-sm text-destructive">{calculationError}</p>
-              ) : null}
-              <p className="text-sm text-muted-foreground">
-                Расчет привязан к сделке и доступен для выгрузки.
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">
+                Загруженные файлы
               </p>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  disabled={downloadingFormat !== null}
-                  onClick={() => void handleDownload("pdf")}
+            </div>
+            {data.attachments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Пока нет загруженных документов клиента.
+              </p>
+            ) : (
+              data.attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  {downloadingFormat === "pdf" ? "Загрузка PDF…" : "Скачать PDF"}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={downloadingFormat !== null}
-                  onClick={() => void handleDownload("docx")}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {downloadingFormat === "docx"
-                    ? "Загрузка DOCX…"
-                    : "Скачать DOCX"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Расчет пока не подготовлен.
-            </p>
-          )}
+                  <div>
+                    <p className="text-sm font-medium">{attachment.fileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(attachment.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        window.location.href = buildPortalDealAttachmentDownloadUrl({
+                          attachmentId: attachment.id,
+                          dealId,
+                        });
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={deletingAttachmentId === attachment.id}
+                      onClick={() => void handleAttachmentDelete(attachment.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs uppercase text-muted-foreground">
+                Расчет сделки
+              </p>
+            </div>
+            {data.calculationSummary ? (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Расчет привязан к сделке и доступен для выгрузки.
+                </p>
+                <div className="flex gap-2 pt-3">
+                  <Button
+                    variant="outline"
+                    disabled={downloadingFormat !== null}
+                    onClick={() => void handleDownload("pdf")}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {downloadingFormat === "pdf" ? "Загрузка PDF…" : "Скачать PDF"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={downloadingFormat !== null}
+                    onClick={() => void handleDownload("docx")}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {downloadingFormat === "docx"
+                      ? "Загрузка DOCX…"
+                      : "Скачать DOCX"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Расчет пока не подготовлен.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

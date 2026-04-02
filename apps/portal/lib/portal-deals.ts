@@ -1,5 +1,52 @@
 import { API_BASE_URL } from "@/lib/constants";
 
+function readApiErrorMessage(
+  payload: unknown,
+  fallback: string,
+): string {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+
+  if ("error" in payload && typeof payload.error === "string") {
+    return payload.error;
+  }
+
+  if (
+    "details" in payload &&
+    payload.details &&
+    typeof payload.details === "object"
+  ) {
+    const details = payload.details as {
+      fieldErrors?: Record<string, string[] | undefined>;
+      formErrors?: string[];
+    };
+
+    const formError = details.formErrors?.find(Boolean);
+    if (formError) {
+      return formError;
+    }
+
+    const fieldError = Object.values(details.fieldErrors ?? {})
+      .flat()
+      .find(Boolean);
+    if (fieldError) {
+      return fieldError;
+    }
+  }
+
+  if ("error" in payload && payload.error && typeof payload.error === "object") {
+    if (
+      "message" in payload.error &&
+      typeof payload.error.message === "string"
+    ) {
+      return payload.error.message;
+    }
+  }
+
+  return fallback;
+}
+
 export type PortalDealStatus =
   | "draft"
   | "submitted"
@@ -235,10 +282,10 @@ export async function deletePortalDealAttachment(input: {
   );
 
   if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
-    throw new Error(errorPayload?.error ?? "Не удалось удалить вложение");
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(
+      readApiErrorMessage(errorPayload, "Не удалось удалить вложение"),
+    );
   }
 }
 
@@ -254,10 +301,10 @@ export async function createPortalDealDraft(input: CreatePortalDealDraftInput) {
   });
 
   if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
-    throw new Error(errorPayload?.error ?? "Не удалось создать сделку");
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(
+      readApiErrorMessage(errorPayload, "Не удалось создать сделку"),
+    );
   }
 
   return (await response.json()) as PortalDealProjectionResponse;

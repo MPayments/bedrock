@@ -11,19 +11,26 @@ import { AgreementCard } from "./_components/agreement-card";
 import { AttachmentsCard } from "./_components/attachments-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CustomerCard } from "./_components/customer-card";
+import { DealManagementCard } from "./_components/deal-management-card";
 import { DealTimelineCard } from "./_components/deal-timeline-card";
 import { DealHeader } from "./_components/deal-header";
 import { DealInfoCard } from "./_components/deal-info-card";
+import { EvidenceRequirementsCard } from "./_components/evidence-requirements-card";
 import { ErrorDialog } from "./_components/error-dialog";
 import { ExecutionPlanCard } from "./_components/execution-plan-card";
 import { FinancialCard } from "./_components/financial-card";
 import { FormalDocumentsCard } from "./_components/formal-documents-card";
+import { IntakeEditorCard } from "./_components/intake-editor-card";
 import { LegalEntityCard } from "./_components/legal-entity-card";
 import { OperationalStateCard } from "./_components/operational-state-card";
 import { OrganizationCard } from "./_components/organization-card";
 import { OrganizationRequisiteCard } from "./_components/organization-requisite-card";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import { STATUS_LABELS } from "./_components/constants";
+import type {
+  CrmApplicantRequisiteOption,
+  CrmDealIntakeDraft,
+} from "../_components/deal-intake-form";
 import {
   decimalToMinorString,
   feeBpsToPercentString,
@@ -42,7 +49,6 @@ import type {
   ApiCustomerWorkspace,
   ApiDealDetails,
   ApiDealTransitionBlocker,
-  ApiDealTransitionReadiness,
   ApiDealWorkflowProjection,
   ApiFormalDocument,
   ApiOrganization,
@@ -70,6 +76,15 @@ type DealPageData = {
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
+};
+
+type DealAgreementOption = {
+  currentVersion: {
+    contractNumber: string | null;
+    versionNumber: number;
+  };
+  id: string;
+  isActive: boolean;
 };
 
 async function parseErrorMessage(response: Response, fallback: string) {
@@ -311,6 +326,13 @@ function resolveDefaultToCurrency(
   return options.find((option) => option.code !== fromCurrencyCode)?.code ?? "";
 }
 
+function areIntakeDraftsEqual(
+  left: CrmDealIntakeDraft | null,
+  right: CrmDealIntakeDraft | null,
+) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export default function DealDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -324,9 +346,25 @@ export default function DealDetailPage() {
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [commentValue, setCommentValue] = useState("");
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [draftIntake, setDraftIntake] = useState<CrmDealIntakeDraft | null>(null);
+  const [baselineIntake, setBaselineIntake] = useState<CrmDealIntakeDraft | null>(
+    null,
+  );
+  const [applicantRequisites, setApplicantRequisites] = useState<
+    CrmApplicantRequisiteOption[]
+  >([]);
+  const [agreementOptions, setAgreementOptions] = useState<DealAgreementOption[]>(
+    [],
+  );
+  const [isSavingIntake, setIsSavingIntake] = useState(false);
+  const [isUpdatingAgreement, setIsUpdatingAgreement] = useState(false);
+  const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDescription, setUploadDescription] = useState("");
+  const [uploadVisibility, setUploadVisibility] = useState<
+    "customer_safe" | "internal"
+  >("internal");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<
     string | null
@@ -381,7 +419,21 @@ export default function DealDetailPage() {
         throw new Error("CRM workbench is missing required deal context");
       }
 
-      const [requestedCurrency, calculation, currencyOptions] = await Promise.all([
+      const customerId =
+        workbench.context.customer?.id ??
+        workbench.participants.find((participant) => participant.role === "customer")
+          ?.customerId ??
+        null;
+      const applicantCounterpartyId =
+        workbench.intake.common.applicantCounterpartyId ?? null;
+
+      const [
+        requestedCurrency,
+        calculation,
+        currencyOptions,
+        agreementsPayload,
+        applicantRequisitesPayload,
+      ] = await Promise.all([
         workbench.intake.moneyRequest.sourceCurrencyId
           ? fetchJson<ApiCurrency>(
               `${API_BASE_URL}/currencies/${workbench.intake.moneyRequest.sourceCurrencyId}`,
@@ -391,7 +443,37 @@ export default function DealDetailPage() {
           ? fetchCalculationViewFromDetails(workbench.pricing.currentCalculation)
           : Promise.resolve(null),
         fetchCurrencyOptions(),
+        customerId
+          ? fetchJson<{ data: DealAgreementOption[] }>(
+              `${API_BASE_URL}/agreements?customerId=${customerId}&limit=200&offset=0`,
+            )
+          : Promise.resolve({ data: [] }),
+        applicantCounterpartyId
+          ? fetchJson<{
+              data: Array<{
+                accountNo: string | null;
+                beneficiaryName: string | null;
+                iban: string | null;
+                id: string;
+                label: string;
+                provider: { name: string } | null;
+              }>;
+            }>(
+              `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${applicantCounterpartyId}`,
+            )
+          : Promise.resolve({ data: [] }),
       ]);
+
+      const nextApplicantRequisites = applicantRequisitesPayload.data.map(
+        (requisite) => ({
+          accountNo: requisite.accountNo,
+          beneficiaryName: requisite.beneficiaryName,
+          iban: requisite.iban,
+          id: requisite.id,
+          label: requisite.label,
+          providerLabel: requisite.provider?.name ?? null,
+        }),
+      );
 
       setData({
         agreement: workbench.context.agreement,
@@ -420,6 +502,10 @@ export default function DealDetailPage() {
         workbench,
         workflow: workbench.workflow,
       });
+      setAgreementOptions(agreementsPayload.data);
+      setApplicantRequisites(nextApplicantRequisites);
+      setDraftIntake(workbench.intake);
+      setBaselineIntake(workbench.intake);
     } catch (nextError) {
       console.error("Deal detail load error:", nextError);
       setError(
@@ -435,6 +521,60 @@ export default function DealDetailPage() {
   useEffect(() => {
     void loadDeal();
   }, [loadDeal]);
+
+  useEffect(() => {
+    const applicantCounterpartyId = draftIntake?.common.applicantCounterpartyId;
+
+    if (!applicantCounterpartyId) {
+      setApplicantRequisites([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadApplicantRequisites() {
+      try {
+        const payload = await fetchJson<{
+          data: Array<{
+            accountNo: string | null;
+            beneficiaryName: string | null;
+            iban: string | null;
+            id: string;
+            label: string;
+            provider: { name: string } | null;
+          }>;
+        }>(
+          `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${applicantCounterpartyId}`,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setApplicantRequisites(
+          payload.data.map((requisite) => ({
+            accountNo: requisite.accountNo,
+            beneficiaryName: requisite.beneficiaryName,
+            iban: requisite.iban,
+            id: requisite.id,
+            label: requisite.label,
+            providerLabel: requisite.provider?.name ?? null,
+          })),
+        );
+      } catch (fetchError) {
+        if (!cancelled) {
+          console.error("Failed to load applicant requisites", fetchError);
+          setApplicantRequisites([]);
+        }
+      }
+    }
+
+    void loadApplicantRequisites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [draftIntake?.common.applicantCounterpartyId]);
 
   useEffect(() => {
     if (!data || overrideCalculationAmount) {
@@ -595,6 +735,7 @@ export default function DealDetailPage() {
   const calculationHasRequestedAmount = Boolean(
     data?.deal.requestedAmount && data?.requestedCurrency,
   );
+  const isIntakeDirty = !areIntakeDraftsEqual(draftIntake, baselineIntake);
   const calculationDisabledReason = !data
     ? "Данные сделки еще загружаются."
     : !calculationTypeSupported
@@ -743,6 +884,137 @@ export default function DealDetailPage() {
     }
   }, [commentValue, dealId, loadDeal, showError]);
 
+  const handleSaveIntake = useCallback(async () => {
+    if (!data || !draftIntake) {
+      return;
+    }
+
+    try {
+      setIsSavingIntake(true);
+
+      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/intake`, {
+        body: JSON.stringify({
+          expectedRevision: data.workflow.revision,
+          intake: draftIntake,
+        }),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        method: "PUT",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await parseErrorMessage(
+            response,
+            `Ошибка сохранения анкеты сделки: ${response.status}`,
+          ),
+        );
+      }
+
+      await loadDeal();
+    } catch (nextError) {
+      console.error("Deal intake replace error:", nextError);
+      showError(
+        "Ошибка сохранения анкеты",
+        nextError instanceof Error
+          ? nextError.message
+          : "Не удалось сохранить анкету сделки",
+      );
+    } finally {
+      setIsSavingIntake(false);
+    }
+  }, [data, dealId, draftIntake, loadDeal, showError]);
+
+  const handleResetIntake = useCallback(() => {
+    if (!baselineIntake) {
+      return;
+    }
+
+    setDraftIntake(baselineIntake);
+  }, [baselineIntake]);
+
+  const handleAgreementChange = useCallback(
+    async (agreementId: string) => {
+      if (!data || agreementId === data.workbench.context.agreement?.id) {
+        return;
+      }
+
+      try {
+        setIsUpdatingAgreement(true);
+
+        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/agreement`, {
+          body: JSON.stringify({ agreementId }),
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH",
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка изменения договора: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Deal agreement update error:", nextError);
+        showError(
+          "Ошибка изменения договора",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось изменить договор сделки",
+        );
+      } finally {
+        setIsUpdatingAgreement(false);
+      }
+    },
+    [data, dealId, loadDeal, showError],
+  );
+
+  const handleAssigneeChange = useCallback(
+    async (agentId: string | undefined) => {
+      if (!data || agentId === (data.workbench.assignee.userId ?? undefined)) {
+        return;
+      }
+
+      try {
+        setIsUpdatingAssignee(true);
+
+        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/assignee`, {
+          body: JSON.stringify({ agentId: agentId ?? null }),
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH",
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка изменения исполнителя: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Deal assignee update error:", nextError);
+        showError(
+          "Ошибка изменения исполнителя",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось изменить исполнителя сделки",
+        );
+      } finally {
+        setIsUpdatingAssignee(false);
+      }
+    },
+    [data, dealId, loadDeal, showError],
+  );
+
   const handleAttachmentUpload = useCallback(async () => {
     if (!uploadFile) {
       showError("Файл не выбран", "Выберите файл для загрузки");
@@ -756,6 +1028,7 @@ export default function DealDetailPage() {
       if (uploadDescription.trim()) {
         formData.append("description", uploadDescription.trim());
       }
+      formData.append("visibility", uploadVisibility);
 
       const response = await fetch(`${API_BASE_URL}/deals/${dealId}/attachments`, {
         body: formData,
@@ -775,6 +1048,7 @@ export default function DealDetailPage() {
       setIsUploadDialogOpen(false);
       setUploadDescription("");
       setUploadFile(null);
+      setUploadVisibility("internal");
       await loadDeal();
     } catch (nextError) {
       console.error("Deal attachment upload error:", nextError);
@@ -787,7 +1061,14 @@ export default function DealDetailPage() {
     } finally {
       setIsUploadingAttachment(false);
     }
-  }, [dealId, loadDeal, showError, uploadDescription, uploadFile]);
+  }, [
+    dealId,
+    loadDeal,
+    showError,
+    uploadDescription,
+    uploadFile,
+    uploadVisibility,
+  ]);
 
   const handleAttachmentDelete = useCallback(
     async (attachmentId: string) => {
@@ -874,6 +1155,21 @@ export default function DealDetailPage() {
             onCommentChange={setCommentValue}
             onSaveComment={handleSaveComment}
           />
+          {draftIntake ? (
+            <IntakeEditorCard
+              applicantRequisites={applicantRequisites}
+              currencyOptions={data.currencyOptions}
+              intake={draftIntake}
+              isDirty={isIntakeDirty}
+              isSaving={isSavingIntake}
+              legalEntities={data.customer.legalEntities}
+              onChange={setDraftIntake}
+              onReset={handleResetIntake}
+              onSave={handleSaveIntake}
+              readOnly={!data.workbench.editability.intake}
+              sectionCompleteness={data.workflow.sectionCompleteness}
+            />
+          ) : null}
           <FinancialCard
             calculation={data.calculation}
             calculationHistory={data.calculationHistory}
@@ -893,11 +1189,20 @@ export default function DealDetailPage() {
           <OperationalStateCard
             operationalState={data.workflow.operationalState}
           />
-          <FormalDocumentsCard documents={data.formalDocuments} />
+          <EvidenceRequirementsCard
+            requirements={data.workbench.evidenceRequirements}
+          />
+          <FormalDocumentsCard
+            documents={data.formalDocuments}
+            requirements={data.workbench.documentRequirements}
+          />
           <AttachmentsCard
             attachments={data.attachments}
             deletingAttachmentId={deletingAttachmentId}
-            onUpload={() => setIsUploadDialogOpen(true)}
+            onUpload={() => {
+              setUploadVisibility("internal");
+              setIsUploadDialogOpen(true);
+            }}
             onDownload={(attachmentId) => {
               window.open(
                 `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/download`,
@@ -910,6 +1215,22 @@ export default function DealDetailPage() {
         </div>
 
         <div className="space-y-6">
+          <DealManagementCard
+            agreementId={data.agreement.id}
+            agreementOptions={agreementOptions.map((agreement) => ({
+              contractNumber: agreement.currentVersion.contractNumber,
+              id: agreement.id,
+              isActive: agreement.isActive,
+              versionNumber: agreement.currentVersion.versionNumber,
+            }))}
+            assigneeUserId={data.workbench.assignee.userId}
+            canChangeAgreement={data.workbench.editability.agreement}
+            canReassignAssignee={data.workbench.editability.assignee}
+            isUpdatingAgreement={isUpdatingAgreement}
+            isUpdatingAssignee={isUpdatingAssignee}
+            onAgreementChange={handleAgreementChange}
+            onAssigneeChange={handleAssigneeChange}
+          />
           <CustomerCard customer={data.customer} />
           <LegalEntityCard legalEntity={data.legalEntity} />
           <AgreementCard agreement={data.agreement} />
@@ -950,20 +1271,24 @@ export default function DealDetailPage() {
         open={isUploadDialogOpen}
         uploadFile={uploadFile}
         uploadDescription={uploadDescription}
+        uploadVisibility={uploadVisibility}
         isUploading={isUploadingAttachment}
         onOpenChange={(open) => {
           setIsUploadDialogOpen(open);
           if (!open) {
             setUploadDescription("");
             setUploadFile(null);
+            setUploadVisibility("internal");
           }
         }}
         onFileChange={setUploadFile}
         onDescriptionChange={setUploadDescription}
+        onVisibilityChange={setUploadVisibility}
         onCancel={() => {
           setIsUploadDialogOpen(false);
           setUploadDescription("");
           setUploadFile(null);
+          setUploadVisibility("internal");
         }}
         onSubmit={handleAttachmentUpload}
       />

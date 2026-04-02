@@ -33,12 +33,12 @@ function getInitials(name: string) {
 
 const actionEntityTexts: Record<string, Record<string, string>> = {
   agreement: {
-    comment: "добавил комментарий к соглашению",
-    create: "создал соглашение",
-    delete: "удалил соглашение",
-    status_change: "изменил статус соглашения",
-    update: "изменил соглашение",
-    upload_document: "загрузил документ для соглашения",
+    comment: "добавил комментарий к договору",
+    create: "создал договор",
+    delete: "удалил договор",
+    status_change: "изменил статус договора",
+    update: "изменил договор",
+    upload_document: "загрузил документ для договора",
   },
   calculation: {
     comment: "добавил комментарий к расчёту",
@@ -92,7 +92,7 @@ const fallbackActionTexts: Record<string, string> = {
 };
 
 const entityNamesNominative: Record<string, string> = {
-  agreement: "соглашение",
+  agreement: "договор",
   calculation: "расчёт",
   customer: "клиент",
   deal: "сделка",

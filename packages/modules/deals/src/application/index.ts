@@ -3,11 +3,13 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
+import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
 import { CreateDealCommand } from "./commands/create-deal";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
+import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
 import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
@@ -81,6 +83,15 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
+  const assignDealAgent = new AssignDealAgentCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const updateDealAgreement = new UpdateDealAgreementCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
   const findDealById = new FindDealByIdQuery(deps.reads);
   const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
@@ -93,6 +104,7 @@ export function createDealsService(deps: DealsServiceDeps) {
   return {
     commands: {
       acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
+      assignAgent: assignDealAgent.execute.bind(assignDealAgent),
       appendTimelineEvent: appendTimelineEvent.execute.bind(appendTimelineEvent),
       create: createDeal.execute.bind(createDeal),
       createDraft: createDealDraft.execute.bind(createDealDraft),
@@ -102,6 +114,7 @@ export function createDealsService(deps: DealsServiceDeps) {
         ),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
+      updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       upsertCapabilityState: upsertDealCapabilityState.execute.bind(
         upsertDealCapabilityState,
       ),

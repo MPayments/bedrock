@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import {
   type Column,
   VisibilityState,
@@ -10,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import {
@@ -30,6 +31,7 @@ import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
+import { API_BASE_URL } from "@/lib/constants";
 import type {
   CurrencyCode,
   DealsRow,
@@ -42,11 +44,24 @@ import {
   CURRENCY_OPTIONS,
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
+import { NewDealDialog } from "./_components/new-deal-dialog";
+
+type CrmBoardProjection = {
+  counts: {
+    active: number;
+    documents: number;
+    drafts: number;
+    execution_blocked: number;
+    pricing: number;
+  };
+};
 
 export default function DealsPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [board, setBoard] = useState<CrmBoardProjection | null>(null);
 
   // Начальные фильтры: активные статусы (все кроме "done" и "cancelled")
   const initialStatusFilter = [
@@ -73,6 +88,7 @@ export default function DealsPage() {
     setSelectedClientId,
     selectedAgentId,
     setSelectedAgentId,
+    refetch,
   } = useDealsTable({
     initialStatusFilter: [...initialStatusFilter],
     initialPageSize: 20,
@@ -85,6 +101,52 @@ export default function DealsPage() {
     ...getDefaultColumnVisibility(isAdmin),
     closedAt: true, // На странице сделок показываем дату закрытия
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBoard() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/deals/crm-board`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setBoard(null);
+          }
+
+          // The board projection is additive. Older or stale API processes can
+          // still serve the deals page without this route, so don't fail the page.
+          if (response.status === 400 || response.status === 404) {
+            console.warn(
+              "CRM board projection unavailable; continuing without board cards",
+              { status: response.status },
+            );
+            return;
+          }
+
+          throw new Error(`Не удалось загрузить CRM-доску: ${response.status}`);
+        }
+
+        const payload = (await response.json()) as CrmBoardProjection;
+        if (!cancelled) {
+          setBoard(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("CRM deal board load error:", error);
+        }
+      }
+    }
+
+    void loadBoard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const table = useReactTable({
     data,
@@ -138,8 +200,49 @@ export default function DealsPage() {
               </span>
             </div>
           </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Новая сделка
+          </Button>
         </div>
       </div>
+
+      {board ? (
+        <div className="grid gap-3 md:grid-cols-5">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Черновики</div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.drafts}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Прайсинг</div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.pricing}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Документы</div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.documents}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Активные</div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.active}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Блокеры</div>
+              <div className="mt-1 text-2xl font-semibold">
+                {board.counts.execution_blocked}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       <Card>
         <CardContent className="space-y-4">
@@ -250,6 +353,24 @@ export default function DealsPage() {
           <DataTablePagination table={table} />
         </CardContent>
       </Card>
+
+      <NewDealDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={() => {
+          void (async () => {
+            setIsCreateDialogOpen(false);
+            refetch();
+            const response = await fetch(`${API_BASE_URL}/deals/crm-board`, {
+              cache: "no-store",
+              credentials: "include",
+            });
+            if (response.ok) {
+              setBoard((await response.json()) as CrmBoardProjection);
+            }
+          })();
+        }}
+      />
     </div>
   );
 }

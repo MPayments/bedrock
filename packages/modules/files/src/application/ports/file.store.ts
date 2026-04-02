@@ -1,4 +1,5 @@
 import type {
+  FileAttachmentVisibility,
   FileGeneratedFormat,
   FileGeneratedLang,
   FileLinkKind,
@@ -25,6 +26,7 @@ export interface CreateFileVersionStoredInput {
 }
 
 export interface CreateFileLinkStoredInput {
+  attachmentVisibility: FileAttachmentVisibility | null;
   counterpartyId: string | null;
   dealId: string | null;
   fileAssetId: string;

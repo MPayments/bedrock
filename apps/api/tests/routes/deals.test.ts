@@ -91,8 +91,11 @@ function createDealsModuleStub() {
       },
       commands: {
         acceptQuote: vi.fn(),
+        assignAgent: vi.fn(),
         create: vi.fn(),
+        createDraft: vi.fn(),
         transitionStatus: vi.fn(),
+        updateAgreement: vi.fn(),
         updateLegState: vi.fn(),
       },
     },
@@ -192,6 +195,12 @@ function createWorkflowProjection() {
 
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
+  const dealProjectionsWorkflow = {
+    getCrmDealWorkbenchProjection: vi.fn(),
+    getFinanceDealWorkspaceProjection: vi.fn(),
+    listCrmDealBoard: vi.fn(),
+    listFinanceDealQueues: vi.fn(),
+  };
   const dealQuoteWorkflow = {
     createCalculationFromAcceptedQuote: vi.fn(),
   };
@@ -230,6 +239,7 @@ function createTestApp() {
   app.route(
     "/deals",
     dealsRoutes({
+      dealProjectionsWorkflow,
       dealQuoteWorkflow,
       dealsModule,
       treasuryModule,
@@ -240,6 +250,7 @@ function createTestApp() {
 
   return {
     app,
+    dealProjectionsWorkflow,
     dealQuoteWorkflow,
     dealsModule,
     treasuryModule,
@@ -319,6 +330,65 @@ describe("deals routes", () => {
       actorUserId: "user-1",
       idempotencyKey: "deal-create-1",
     });
+  });
+
+  it("creates a typed draft deal for CRM origination", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.createDraft.mockResolvedValue(projection);
+
+    const response = await app.request("http://localhost/deals/drafts", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": "deal-draft-1",
+      },
+      body: JSON.stringify({
+        agreementId: "00000000-0000-4000-8000-000000000002",
+        customerId: "00000000-0000-4000-8000-000000000001",
+        intake: {
+          ...projection.intake,
+          common: {
+            ...projection.intake.common,
+            requestedExecutionDate: "2026-03-30T00:00:00.000Z",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(dealsModule.deals.commands.createDraft).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agreementId: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      idempotencyKey: "deal-draft-1",
+      intake: {
+        ...projection.intake,
+        common: {
+          ...projection.intake.common,
+          requestedExecutionDate: new Date("2026-03-30T00:00:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("returns the CRM board projection", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listCrmDealBoard.mockResolvedValue({
+      counts: {
+        active: 1,
+        documents: 2,
+        drafts: 3,
+        execution_blocked: 4,
+        pricing: 5,
+      },
+      items: [],
+    });
+
+    const response = await app.request("http://localhost/deals/crm-board");
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listCrmDealBoard).toHaveBeenCalledOnce();
   });
 
   it("returns 404 when a deal is missing", async () => {
@@ -403,6 +473,58 @@ describe("deals routes", () => {
       actorUserId: "user-1",
       dealId: "00000000-0000-4000-8000-000000000010",
       quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("updates the draft agreement on the workbench", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.updateAgreement.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/agreement",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          agreementId: "00000000-0000-4000-8000-000000000099",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.updateAgreement).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agreementId: "00000000-0000-4000-8000-000000000099",
+      id: "00000000-0000-4000-8000-000000000010",
+    });
+  });
+
+  it("reassigns the deal assignee from CRM", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.assignAgent.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/assignee",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          agentId: "agent-42",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.assignAgent).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agentId: "agent-42",
+      id: "00000000-0000-4000-8000-000000000010",
     });
   });
 

@@ -21,6 +21,7 @@ import {
 } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import { isUuidLike } from "@bedrock/shared/core";
 
 import {
   createCustomerBankingService,
@@ -263,6 +264,24 @@ function canAccessCrm(role: string | null, banned: boolean | null): boolean {
 
 function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+async function resolvePortalCurrencyId(
+  deps: CustomerPortalWorkflowDeps,
+  value: string | null | undefined,
+): Promise<string | null> {
+  const normalized = value?.trim() ?? "";
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (isUuidLike(normalized)) {
+    return normalized;
+  }
+
+  const currency = await deps.currencies.findByCode(normalized.toUpperCase());
+  return currency.id;
 }
 
 async function buildCalculationCurrencyMetadata(
@@ -911,11 +930,36 @@ export function createCustomerPortalWorkflow(
         );
       }
 
+      const [
+        sourceCurrencyId,
+        targetCurrencyId,
+        expectedCurrencyId,
+      ] = await Promise.all([
+        resolvePortalCurrencyId(deps, input.moneyRequest.sourceCurrencyId),
+        resolvePortalCurrencyId(deps, input.moneyRequest.targetCurrencyId),
+        resolvePortalCurrencyId(deps, input.incomingReceipt?.expectedCurrencyId),
+      ]);
+
+      const normalizedInput: CreatePortalDealInput = {
+        ...input,
+        incomingReceipt: input.incomingReceipt
+          ? {
+              ...input.incomingReceipt,
+              expectedCurrencyId,
+            }
+          : input.incomingReceipt,
+        moneyRequest: {
+          ...input.moneyRequest,
+          sourceCurrencyId,
+          targetCurrencyId,
+        },
+      };
+
       const created = await deps.deals.deals.commands.createDraft({
         actorUserId: ctx.userId,
         customerId: applicant.customerId,
         idempotencyKey: options.idempotencyKey,
-        intake: buildPortalDealIntakeDraft(input),
+        intake: buildPortalDealIntakeDraft(normalizedInput),
       });
 
       deps.logger.info("Customer created typed deal draft", {

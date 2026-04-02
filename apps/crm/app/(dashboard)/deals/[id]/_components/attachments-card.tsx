@@ -1,4 +1,5 @@
 import { Download, File, Trash2, Upload } from "lucide-react";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
@@ -60,6 +61,13 @@ export function AttachmentsCard({
                         {attachment.description}
                       </div>
                     )}
+                    <div className="mt-1">
+                      <Badge variant="outline">
+                        {attachment.visibility === "customer_safe"
+                          ? "Клиент + CRM"
+                          : "Только CRM"}
+                      </Badge>
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {formatFileSize(attachment.fileSize)} ·{" "}
                       {formatDate(attachment.createdAt)}

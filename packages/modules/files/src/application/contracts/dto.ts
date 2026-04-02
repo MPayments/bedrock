@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  FileAttachmentVisibilitySchema,
   FileGeneratedFormatSchema,
   FileGeneratedLangSchema,
   FileLinkKindSchema,
@@ -35,6 +36,7 @@ export const FileVersionSchema = z.object({
 export type FileVersion = z.infer<typeof FileVersionSchema>;
 
 export const FileLinkSchema = z.object({
+  attachmentVisibility: FileAttachmentVisibilitySchema.nullable(),
   id: z.uuid(),
   linkKind: FileLinkKindSchema,
   dealId: z.uuid().nullable(),
@@ -59,6 +61,7 @@ export const FileAttachmentSchema = z.object({
   fileName: z.string(),
   fileSize: z.number().int().nonnegative(),
   mimeType: z.string(),
+  visibility: FileAttachmentVisibilitySchema.nullable(),
   uploadedBy: z.string().nullable(),
   description: z.string().nullable(),
   createdAt: z.date(),

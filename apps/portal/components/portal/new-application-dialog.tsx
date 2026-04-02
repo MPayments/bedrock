@@ -171,6 +171,10 @@ export function NewDealDialog({
     selectedLegalEntity?.agentAgreementStatus === "active";
   const requiresIncomingReceipt =
     dealType === "currency_transit" || dealType === "exporter_settlement";
+  const targetCurrencyLabel = targetCurrencyId
+    ? CURRENCIES.find((item) => item.value === targetCurrencyId)?.label ??
+      targetCurrencyId
+    : "Без конвертации";
   const hasDraftInput =
     Boolean(selectedCounterpartyId) ||
     Boolean(sourceAmount) ||
@@ -545,7 +549,7 @@ export function NewDealDialog({
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Без конвертации" />
+              <SelectValue>{targetCurrencyLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__same">Без конвертации</SelectItem>

@@ -8,9 +8,31 @@ import type { ApiFormalDocument } from "./types";
 
 type FormalDocumentsCardProps = {
   documents: ApiFormalDocument[];
+  requirements?: Array<{
+    activeDocumentId: string | null;
+    blockingReasons: string[];
+    createAllowed: boolean;
+    docType: string;
+    openAllowed: boolean;
+    stage: "opening" | "closing";
+    state: "in_progress" | "missing" | "not_required" | "ready";
+  }>;
 };
 
-export function FormalDocumentsCard({ documents }: FormalDocumentsCardProps) {
+const REQUIREMENT_STATE_LABELS: Record<
+  NonNullable<FormalDocumentsCardProps["requirements"]>[number]["state"],
+  string
+> = {
+  in_progress: "В работе",
+  missing: "Отсутствует",
+  not_required: "Не требуется",
+  ready: "Готов",
+};
+
+export function FormalDocumentsCard({
+  documents,
+  requirements = [],
+}: FormalDocumentsCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -19,7 +41,36 @@ export function FormalDocumentsCard({ documents }: FormalDocumentsCardProps) {
           Формальные документы
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {requirements.length > 0 ? (
+          <div className="space-y-3">
+            {requirements.map((requirement) => (
+              <div key={`${requirement.stage}:${requirement.docType}`} className="rounded-lg border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium">
+                      {FORMAL_DOCUMENT_LABELS[requirement.docType] ||
+                        requirement.docType}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {requirement.stage === "opening"
+                        ? "Открывающий документ"
+                        : "Закрывающий документ"}
+                    </div>
+                  </div>
+                  <Badge variant="outline">
+                    {REQUIREMENT_STATE_LABELS[requirement.state]}
+                  </Badge>
+                </div>
+                {requirement.blockingReasons.length > 0 ? (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    {requirement.blockingReasons.join(" ")}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
         {documents.length === 0 ? (
           <div className="text-sm text-muted-foreground">
             По сделке еще нет формальных документов.

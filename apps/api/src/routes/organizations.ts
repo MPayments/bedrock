@@ -348,82 +348,121 @@ export function organizationsRoutes(ctx: AppContext) {
         throw error;
       }
     })
-    .get("/:id/files", async (c) => {
-      const id = c.req.param("id");
-      const organization = await ctx.partiesModule.organizations.queries.findById(id);
-      const banksCount = await countOrganizationBankRequisites(ctx, id);
-      return c.json(
-        {
-          banksCount,
-          hasFiles: Boolean(organization.signatureKey || organization.sealKey),
-          signatureUrl: organization.signatureKey
-            ? `/v1/organizations/${id}/files/signature`
-            : null,
-          sealUrl: organization.sealKey
-            ? `/v1/organizations/${id}/files/seal`
-            : null,
-        } satisfies OrganizationFilesResponse,
-        200,
-      );
-    })
-    .get("/:id/files/:type", async (c) => {
-      const id = c.req.param("id");
-      const type = c.req.param("type") as "signature" | "seal";
-      if (type !== "signature" && type !== "seal") {
-        return c.json({ error: "Type must be signature or seal" }, 400);
-      }
+    .get(
+      "/:id/files",
+      requirePermission({ organizations: ["list"] }),
+      async (c) => {
+        const id = c.req.param("id");
 
-      const organization = await ctx.partiesModule.organizations.queries.findById(id);
-      const key =
-        type === "signature"
-          ? organization.signatureKey ?? null
-          : organization.sealKey ?? null;
+        try {
+          const organization =
+            await ctx.partiesModule.organizations.queries.findById(id);
+          const banksCount = await countOrganizationBankRequisites(ctx, id);
 
-      if (!key) {
-        return c.json({ error: "File not found" }, 404);
-      }
-      if (!ctx.objectStorage) {
-        return c.json({ error: "Storage not configured" }, 503);
-      }
+          return c.json(
+            {
+              banksCount,
+              hasFiles: Boolean(organization.signatureKey || organization.sealKey),
+              signatureUrl: organization.signatureKey
+                ? `/v1/organizations/${id}/files/signature`
+                : null,
+              sealUrl: organization.sealKey
+                ? `/v1/organizations/${id}/files/seal`
+                : null,
+            } satisfies OrganizationFilesResponse,
+            200,
+          );
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    )
+    .get(
+      "/:id/files/:type",
+      requirePermission({ organizations: ["list"] }),
+      async (c) => {
+        const id = c.req.param("id");
+        const type = c.req.param("type") as "signature" | "seal";
+        if (type !== "signature" && type !== "seal") {
+          return c.json({ error: "Type must be signature or seal" }, 400);
+        }
 
-      const buffer = await ctx.objectStorage.download(key);
-      return new Response(new Uint8Array(buffer), {
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Content-Type": "image/png",
-        },
-      });
-    })
-    .post("/:id/files", async (c) => {
-      const id = c.req.param("id");
-      const body = await c.req.parseBody();
-      const signatureFile = body.signature;
-      const sealFile = body.seal;
+        try {
+          const organization =
+            await ctx.partiesModule.organizations.queries.findById(id);
+          const key =
+            type === "signature"
+              ? organization.signatureKey ?? null
+              : organization.sealKey ?? null;
 
-      if (!ctx.objectStorage) {
-        return c.json({ error: "Storage not configured" }, 503);
-      }
+          if (!key) {
+            return c.json({ error: "File not found" }, 404);
+          }
+          if (!ctx.objectStorage) {
+            return c.json({ error: "Storage not configured" }, 503);
+          }
 
-      const patch: z.input<typeof UpdateOrganizationInputSchema> = {};
+          const buffer = await ctx.objectStorage.download(key);
+          return new Response(new Uint8Array(buffer), {
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Content-Type": "image/png",
+            },
+          });
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    )
+    .post(
+      "/:id/files",
+      requirePermission({ organizations: ["update"] }),
+      async (c) => {
+        const id = c.req.param("id");
 
-      if (signatureFile && typeof signatureFile !== "string") {
-        const key = `organizations/${id}/signature.png`;
-        const buffer = Buffer.from(await signatureFile.arrayBuffer());
-        await ctx.objectStorage.upload(key, buffer, "image/png");
-        patch.signatureKey = key;
-      }
+        try {
+          await ctx.partiesModule.organizations.queries.findById(id);
+          const body = await c.req.parseBody();
+          const signatureFile = body.signature;
+          const sealFile = body.seal;
 
-      if (sealFile && typeof sealFile !== "string") {
-        const key = `organizations/${id}/seal.png`;
-        const buffer = Buffer.from(await sealFile.arrayBuffer());
-        await ctx.objectStorage.upload(key, buffer, "image/png");
-        patch.sealKey = key;
-      }
+          if (!ctx.objectStorage) {
+            return c.json({ error: "Storage not configured" }, 503);
+          }
 
-      if (Object.keys(patch).length > 0) {
-        await ctx.partiesModule.organizations.commands.update(id, patch);
-      }
+          const patch: z.input<typeof UpdateOrganizationInputSchema> = {};
 
-      return c.json({ success: true }, 200);
-    });
+          if (signatureFile && typeof signatureFile !== "string") {
+            const key = `organizations/${id}/signature.png`;
+            const buffer = Buffer.from(await signatureFile.arrayBuffer());
+            await ctx.objectStorage.upload(key, buffer, "image/png");
+            patch.signatureKey = key;
+          }
+
+          if (sealFile && typeof sealFile !== "string") {
+            const key = `organizations/${id}/seal.png`;
+            const buffer = Buffer.from(await sealFile.arrayBuffer());
+            await ctx.objectStorage.upload(key, buffer, "image/png");
+            patch.sealKey = key;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await ctx.partiesModule.organizations.commands.update(id, patch);
+          }
+
+          return c.json({ success: true }, 200);
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    );
 }

@@ -445,6 +445,7 @@ export type ApiAttachment = {
   mimeType: string;
   updatedAt: string;
   uploadedBy: string | null;
+  visibility: "customer_safe" | "internal" | null;
 };
 
 export type ApiFormalDocument = {
@@ -520,7 +521,20 @@ export type DealPageData = {
 
 export type ApiCrmDealWorkbenchProjection = {
   acceptedQuote: ApiDealAcceptedQuote;
+  actions: {
+    canAcceptQuote: boolean;
+    canChangeAgreement: boolean;
+    canCreateCalculation: boolean;
+    canCreateFormalDocument: boolean;
+    canCreateQuote: boolean;
+    canEditIntake: boolean;
+    canReassignAssignee: boolean;
+    canUploadAttachment: boolean;
+  };
   approvals: ApiDealDetails["approvals"];
+  assignee: {
+    userId: string | null;
+  };
   context: {
     agreement: ApiAgreementDetails | null;
     applicant: ApiCustomerLegalEntity | null;
@@ -529,6 +543,26 @@ export type ApiCrmDealWorkbenchProjection = {
     internalEntityRequisite: ApiRequisite | null;
     internalEntityRequisiteProvider: ApiRequisiteProvider | null;
   };
+  documentRequirements: Array<{
+    activeDocumentId: string | null;
+    blockingReasons: string[];
+    createAllowed: boolean;
+    docType: string;
+    openAllowed: boolean;
+    stage: "opening" | "closing";
+    state: "in_progress" | "missing" | "not_required" | "ready";
+  }>;
+  editability: {
+    agreement: boolean;
+    assignee: boolean;
+    intake: boolean;
+  };
+  evidenceRequirements: Array<{
+    blockingReasons: string[];
+    code: string;
+    label: string;
+    state: "missing" | "not_required" | "provided";
+  }>;
   executionPlan: ApiDealWorkflowLeg[];
   intake: ApiDealWorkflowProjection["intake"];
   nextAction: string;
@@ -553,4 +587,35 @@ export type ApiCrmDealWorkbenchProjection = {
   timeline: ApiDealTimelineEvent[];
   transitionReadiness: ApiDealTransitionReadiness[];
   workflow: ApiDealWorkflowProjection;
+};
+
+export type ApiCrmDealBoardProjection = {
+  counts: {
+    active: number;
+    documents: number;
+    drafts: number;
+    execution_blocked: number;
+    pricing: number;
+  };
+  items: Array<{
+    applicantName: string | null;
+    assigneeUserId: string | null;
+    blockingReasons: string[];
+    customerName: string | null;
+    documentSummary: {
+      attachmentCount: number;
+      formalDocumentCount: number;
+    };
+    id: string;
+    nextAction: string;
+    quoteSummary: {
+      expiresAt: string | null;
+      quoteId: string | null;
+      status: string | null;
+    } | null;
+    stage: "active" | "documents" | "drafts" | "execution_blocked" | "pricing";
+    status: DealStatus;
+    type: DealType;
+    updatedAt: string;
+  }>;
 };

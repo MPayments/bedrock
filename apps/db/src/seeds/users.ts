@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { schema } from "../schema-registry";
@@ -48,18 +48,43 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
 
     for (const seed of USER_SEEDS) {
         const now = new Date();
-        const [existing] = await db
+        const [existingById] = await db
+            .select({ email: schema.user.email, id: schema.user.id })
+            .from(schema.user)
+            .where(eq(schema.user.id, seed.id))
+            .limit(1);
+        const [existingByEmail] = await db
             .select({ id: schema.user.id })
             .from(schema.user)
             .where(eq(schema.user.email, seed.email))
             .limit(1);
+        const [existingCredential] = await db
+            .select({ id: schema.account.id })
+            .from(schema.account)
+            .where(
+                and(
+                    eq(schema.account.providerId, "credential"),
+                    eq(schema.account.userId, seed.id),
+                ),
+            )
+            .limit(1);
+        const passwordHash = await hashPassword(seed.password);
 
-        if (existing) {
-            if (existing.id !== seed.id) {
-                throw new Error(
-                    `User id mismatch for ${seed.email}: expected ${seed.id}, got ${existing.id}`,
-                );
-            }
+        if (existingByEmail && existingByEmail.id !== seed.id && !existingById) {
+            throw new Error(
+                `User id mismatch for ${seed.email}: expected ${seed.id}, got ${existingByEmail.id}`,
+            );
+        }
+
+        if (existingById) {
+            await db.update(schema.user).set({
+                email: seed.email,
+                emailVerified: true,
+                name: seed.name,
+                role: seed.role,
+                updatedAt: now,
+            }).where(eq(schema.user.id, seed.id));
+
             await db.insert(schema.userAccessStates).values({
                 userId: seed.id,
                 banned: false,
@@ -67,7 +92,15 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
                 banExpires: null,
                 createdAt: now,
                 updatedAt: now,
-            }).onConflictDoNothing();
+            }).onConflictDoUpdate({
+                target: schema.userAccessStates.userId,
+                set: {
+                    banned: false,
+                    banReason: null,
+                    banExpires: null,
+                    updatedAt: now,
+                },
+            });
 
             if (seed.role === "admin" || seed.role === "agent") {
                 await db.insert(schema.agentProfiles).values({
@@ -79,10 +112,26 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
                 }).onConflictDoNothing();
             }
 
+            if (existingCredential) {
+                await db.update(schema.account).set({
+                    accountId: seed.id,
+                    password: passwordHash,
+                    updatedAt: now,
+                }).where(eq(schema.account.id, existingCredential.id));
+            } else {
+                await db.insert(schema.account).values({
+                    id: seed.accountId,
+                    accountId: seed.id,
+                    providerId: "credential",
+                    userId: seed.id,
+                    password: passwordHash,
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            }
+
             continue;
         }
-
-        const passwordHash = await hashPassword(seed.password);
 
         await db.insert(schema.user).values({
             id: seed.id,
@@ -111,6 +160,14 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
             banExpires: null,
             createdAt: now,
             updatedAt: now,
+        }).onConflictDoUpdate({
+            target: schema.userAccessStates.userId,
+            set: {
+                banned: false,
+                banReason: null,
+                banExpires: null,
+                updatedAt: now,
+            },
         });
 
         if (seed.role === "admin" || seed.role === "agent") {

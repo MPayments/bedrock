@@ -741,6 +741,7 @@
         "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
       },
       "devDependencies": {
         "@bedrock/typescript-config": "workspace:*",

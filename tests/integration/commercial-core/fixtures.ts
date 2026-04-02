@@ -8,7 +8,7 @@ import { fxQuoteLegs, fxQuotes } from "../../../packages/modules/treasury/src/sc
 import { createCommercialCoreRuntime } from "./runtime";
 
 export const COMMERCIAL_CORE_ACTOR_USER_ID =
-  "00000000-0000-4000-8000-000000000901";
+  "00000000-0000-4000-8000-000000009901";
 
 function uniqueLabel(prefix: string) {
   return `${prefix}-${randomUUID().slice(0, 8)}`;

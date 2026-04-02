@@ -20,6 +20,8 @@ import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { TreasuryModule } from "@bedrock/treasury";
 
 import type {
+  CrmDealBoardProjection,
+  CrmDealBoardStage,
   CrmDealWorkbenchProjection,
   CustomerLegalEntitySummary,
   CustomerWorkspaceSummary,
@@ -35,12 +37,29 @@ import type {
 
 const CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION =
   "Загрузите подтверждающие документы";
+const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
+  "Загрузите внешние подтверждающие документы по сделке";
+const MAX_QUERY_LIST_LIMIT = 200;
 
 const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
   currency_exchange: ["common", "moneyRequest"],
   currency_transit: ["common", "moneyRequest", "incomingReceipt"],
   exporter_settlement: ["common", "moneyRequest", "incomingReceipt"],
   payment: ["common", "moneyRequest"],
+};
+
+const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
+  currency_exchange: "exchange",
+  currency_transit: "invoice",
+  exporter_settlement: "invoice",
+  payment: "invoice",
+};
+
+const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
+  currency_exchange: null,
+  currency_transit: "acceptance",
+  exporter_settlement: "acceptance",
+  payment: "acceptance",
 };
 
 const DOWNSTREAM_POSITION_KINDS = new Set([
@@ -140,7 +159,10 @@ function buildCustomerSafeAttachments(
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
 
   return Array.from(uploadedIds.values())
-    .filter((attachment) => attachmentsById.has(attachment.id))
+    .filter((attachment) => {
+      const current = attachmentsById.get(attachment.id);
+      return current?.visibility === "customer_safe";
+    })
     .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 }
 
@@ -182,6 +204,207 @@ function buildPortalSubmissionCompleteness(
     blockingReasons,
     complete: blockingReasons.length === 0,
   };
+}
+
+function isDealInTerminalStatus(workflow: DealWorkflowProjection) {
+  return workflow.summary.status === "done" || workflow.summary.status === "cancelled";
+}
+
+function requiresExternalEvidence(type: DealType) {
+  return type !== "currency_exchange";
+}
+
+function hasCustomerSafeAttachment(
+  attachments: Awaited<
+    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+  >,
+) {
+  return attachments.some((attachment) => attachment.visibility === "customer_safe");
+}
+
+function isFormalDocumentReady(input: {
+  approvalStatus: string | null;
+  lifecycleStatus: string | null;
+  postingStatus: string | null;
+  submissionStatus: string | null;
+}) {
+  return (
+    input.lifecycleStatus === "active" &&
+    input.submissionStatus === "submitted" &&
+    (input.approvalStatus === "approved" ||
+      input.approvalStatus === "not_required") &&
+    (input.postingStatus === "posted" || input.postingStatus === "not_required")
+  );
+}
+
+function findRelatedFormalDocument(input: {
+  docType: string;
+  documents: DealWorkflowProjection["relatedResources"]["formalDocuments"];
+}) {
+  const matching = input.documents.filter((document) => document.docType === input.docType);
+
+  return (
+    matching.find((document) => document.lifecycleStatus === "active") ??
+    matching.sort((left, right) => {
+      const leftTime =
+        left.createdAt?.getTime() ?? left.occurredAt?.getTime() ?? 0;
+      const rightTime =
+        right.createdAt?.getTime() ?? right.occurredAt?.getTime() ?? 0;
+      return rightTime - leftTime;
+    })[0] ??
+    null
+  );
+}
+
+function buildCrmEvidenceRequirements(input: {
+  attachments: Awaited<
+    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+  >;
+  workflow: DealWorkflowProjection;
+}) {
+  if (!requiresExternalEvidence(input.workflow.summary.type)) {
+    return [
+      {
+        blockingReasons: [],
+        code: "external_evidence",
+        label: "Внешние подтверждающие документы",
+        state: "not_required" as const,
+      },
+    ];
+  }
+
+  const evidenceProvided = hasCustomerSafeAttachment(input.attachments);
+
+  return [
+    {
+      blockingReasons: evidenceProvided
+        ? []
+        : [EXTERNAL_EVIDENCE_REQUIRED_MESSAGE],
+      code: "external_evidence",
+      label: "Внешние подтверждающие документы",
+      state: evidenceProvided ? ("provided" as const) : ("missing" as const),
+    },
+  ];
+}
+
+function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
+  const requirements: Array<{
+    activeDocumentId: string | null;
+    blockingReasons: string[];
+    createAllowed: boolean;
+    docType: string;
+    openAllowed: boolean;
+    stage: "opening" | "closing";
+    state: "in_progress" | "missing" | "not_required" | "ready";
+  }> = [];
+
+  const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+  const closingDocType = CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+
+  for (const [stage, docType] of [
+    ["opening", openingDocType] as const,
+    ["closing", closingDocType] as const,
+  ]) {
+    if (!docType) {
+      continue;
+    }
+
+    const document = findRelatedFormalDocument({
+      docType,
+      documents: workflow.relatedResources.formalDocuments,
+    });
+    const ready = document
+      ? isFormalDocumentReady({
+          approvalStatus: document.approvalStatus,
+          lifecycleStatus: document.lifecycleStatus,
+          postingStatus: document.postingStatus,
+          submissionStatus: document.submissionStatus,
+        })
+      : false;
+
+    requirements.push({
+      activeDocumentId: document?.id ?? null,
+      blockingReasons: document
+        ? ready
+          ? []
+          : ["Формальный документ еще не готов к использованию"]
+        : ["Формальный документ еще не создан"],
+      createAllowed: false,
+      docType,
+      openAllowed: Boolean(document?.id),
+      stage,
+      state: !document ? "missing" : ready ? "ready" : "in_progress",
+    });
+  }
+
+  return requirements;
+}
+
+function buildCrmWorkbenchActions(workflow: DealWorkflowProjection) {
+  const hasAcceptedQuote =
+    workflow.acceptedQuote?.quoteStatus === "active" &&
+    (!workflow.acceptedQuote.expiresAt ||
+      workflow.acceptedQuote.expiresAt.getTime() > Date.now());
+
+  return {
+    canAcceptQuote: workflow.relatedResources.quotes.some(
+      (quote) => quote.status === "active",
+    ),
+    canChangeAgreement: workflow.summary.status === "draft",
+    canCreateCalculation:
+      isQuoteEligible(workflow) &&
+      hasAcceptedQuote &&
+      !workflow.summary.calculationId,
+    canCreateFormalDocument: false,
+    canCreateQuote: isQuoteEligible(workflow) && !isDealInTerminalStatus(workflow),
+    canEditIntake: !isDealInTerminalStatus(workflow),
+    canReassignAssignee: true,
+    canUploadAttachment: !isDealInTerminalStatus(workflow),
+  };
+}
+
+function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
+  return {
+    agreement: workflow.summary.status === "draft",
+    assignee: true,
+    intake: !isDealInTerminalStatus(workflow),
+  };
+}
+
+function classifyCrmBoardStage(workflow: DealWorkflowProjection): {
+  blockingReasons: string[];
+  stage: CrmDealBoardStage;
+} {
+  const blockingReasons = collectBlockingReasons(workflow);
+
+  if (workflow.summary.status === "draft") {
+    return { blockingReasons, stage: "drafts" };
+  }
+
+  if (
+    workflow.nextAction === "Accept quote" ||
+    workflow.nextAction === "Create calculation from accepted quote"
+  ) {
+    return { blockingReasons, stage: "pricing" };
+  }
+
+  if (
+    workflow.executionPlan.some((leg) => leg.state === "blocked") ||
+    workflow.operationalState.positions.some((position) => position.state === "blocked")
+  ) {
+    return { blockingReasons, stage: "execution_blocked" };
+  }
+
+  if (
+    workflow.nextAction === "Prepare documents" ||
+    workflow.nextAction === "Prepare closing documents" ||
+    workflow.summary.status === "preparing_documents" ||
+    workflow.summary.status === "closing_documents"
+  ) {
+    return { blockingReasons, stage: "documents" };
+  }
+
+  return { blockingReasons, stage: "active" };
 }
 
 function requiresCustomerAttachment(nextAction: string) {
@@ -580,7 +803,7 @@ export function createDealProjectionsWorkflow(
         customerId
           ? deps.parties.counterparties.queries.list({
               customerId,
-              limit: 500,
+              limit: MAX_QUERY_LIST_LIMIT,
               offset: 0,
               sortBy: "createdAt",
               sortOrder: "desc",
@@ -602,9 +825,21 @@ export function createDealProjectionsWorkflow(
         )
       : null;
 
+    const actions = buildCrmWorkbenchActions(workflow);
+    const editability = buildCrmWorkbenchEditability(workflow);
+    const evidenceRequirements = buildCrmEvidenceRequirements({
+      attachments,
+      workflow,
+    });
+    const documentRequirements = buildCrmDocumentRequirements(workflow);
+
     return {
       acceptedQuote: workflow.acceptedQuote,
+      actions,
       approvals: detail.approvals,
+      assignee: {
+        userId: workflow.summary.agentId,
+      },
       context: {
         agreement,
         applicant,
@@ -616,6 +851,9 @@ export function createDealProjectionsWorkflow(
         internalEntityRequisite,
         internalEntityRequisiteProvider,
       },
+      documentRequirements,
+      editability,
+      evidenceRequirements,
       executionPlan: workflow.executionPlan,
       intake: workflow.intake,
       nextAction: workflow.nextAction,
@@ -644,6 +882,72 @@ export function createDealProjectionsWorkflow(
       timeline: workflow.timeline,
       transitionReadiness: workflow.transitionReadiness,
       workflow,
+    };
+  }
+
+  async function listCrmDealBoard(): Promise<CrmDealBoardProjection> {
+    const listedDeals = await deps.deals.deals.queries.list({
+      limit: MAX_QUERY_LIST_LIMIT,
+      offset: 0,
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+    });
+
+    const items = await Promise.all(
+      listedDeals.data.map(async (deal) => {
+        const [workflow, attachments] = await Promise.all([
+          deps.deals.deals.queries.findWorkflowById(deal.id),
+          deps.files.files.queries.listDealAttachments(deal.id),
+        ]);
+
+        if (!workflow) {
+          return null;
+        }
+
+        const customerId = getCustomerParticipant(workflow)?.customerId ?? null;
+        const customer = customerId
+          ? await deps.parties.customers.queries.findById(customerId)
+          : null;
+        const stageContext = classifyCrmBoardStage(workflow);
+
+        return {
+          applicantName: getApplicantParticipant(workflow)?.displayName ?? null,
+          assigneeUserId: workflow.summary.agentId,
+          blockingReasons: stageContext.blockingReasons,
+          customerName: customer?.displayName ?? null,
+          documentSummary: {
+            attachmentCount: attachments.length,
+            formalDocumentCount: workflow.relatedResources.formalDocuments.length,
+          },
+          id: workflow.summary.id,
+          nextAction: workflow.nextAction,
+          quoteSummary: buildPortalQuoteSummary(workflow),
+          stage: stageContext.stage,
+          status: workflow.summary.status,
+          type: workflow.summary.type,
+          updatedAt: workflow.summary.updatedAt,
+        };
+      }),
+    );
+
+    const data = items.filter((item): item is NonNullable<typeof item> => item !== null);
+    const counts = data.reduce(
+      (acc, item) => {
+        acc[item.stage] += 1;
+        return acc;
+      },
+      {
+        active: 0,
+        documents: 0,
+        drafts: 0,
+        execution_blocked: 0,
+        pricing: 0,
+      },
+    );
+
+    return {
+      counts,
+      items: data,
     };
   }
 
@@ -693,7 +997,7 @@ export function createDealProjectionsWorkflow(
     filters: ListFinanceDealQueuesInput = {},
   ): Promise<FinanceDealQueueProjection> {
     const listedDeals = await deps.deals.deals.queries.list({
-      limit: 500,
+      limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
@@ -778,6 +1082,7 @@ export function createDealProjectionsWorkflow(
 
   return {
     getPortalDealProjection,
+    listCrmDealBoard,
     getCrmDealWorkbenchProjection,
     getFinanceDealWorkspaceProjection,
     listFinanceDealQueues,

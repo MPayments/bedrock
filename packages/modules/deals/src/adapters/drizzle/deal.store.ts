@@ -295,6 +295,7 @@ export class DrizzleDealStore implements DealStore {
   }
 
   async setDealRoot(input: {
+    agreementId?: string;
     agentId?: string | null;
     calculationId?: string | null;
     dealId: string;
@@ -306,6 +307,9 @@ export class DrizzleDealStore implements DealStore {
   }): Promise<void> {
     const values: Record<string, unknown> = {};
 
+    if ("agreementId" in input) {
+      values.agreementId = input.agreementId;
+    }
     if ("agentId" in input) {
       values.agentId = input.agentId ?? null;
     }

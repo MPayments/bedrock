@@ -87,9 +87,46 @@ function createWorkflow(overrides?: {
     deals: {
       commands: {
         create: vi.fn(),
+        createDraft: vi.fn(async (input) => ({
+          summary: {
+            id: "deal-1",
+          },
+          ...input,
+        })),
       },
       queries: {
         findById: vi.fn(async () => null),
+        findPortalById: vi.fn(async () => ({
+          attachments: [],
+          calculationSummary: null,
+          customerSafeIntake: {
+            contractNumber: null,
+            customerNote: null,
+            expectedAmount: null,
+            expectedCurrencyId: null,
+            invoiceNumber: null,
+            purpose: null,
+            requestedExecutionDate: null,
+            sourceAmount: "1000",
+            sourceCurrencyId: "usd-id",
+            targetCurrencyId: "eur-id",
+          },
+          nextAction: "Submit deal",
+          quoteSummary: null,
+          requiredActions: [],
+          submissionCompleteness: {
+            blockingReasons: [],
+            complete: true,
+          },
+          summary: {
+            applicantDisplayName: "Customer counterparty",
+            createdAt: "2026-02-01T00:00:00.000Z",
+            id: "deal-1",
+            status: "draft",
+            type: "currency_exchange",
+          },
+          timeline: [],
+        })),
         list: vi.fn(async () => ({
           data: [],
           total: 0,
@@ -391,6 +428,8 @@ function createWorkflow(overrides?: {
   };
 
   return {
+    currencies,
+    deals,
     iam,
     parties,
     workflow: createCustomerPortalWorkflow({
@@ -678,5 +717,50 @@ describe("customer portal workflow", () => {
         { query: "Банк", limit: 8 },
       ),
     ).resolves.toEqual([]);
+  });
+
+  it("accepts ISO currency codes for typed portal deal drafts and resolves them to ids", async () => {
+    const { currencies, deals, workflow } = createWorkflow();
+
+    const result = await workflow.createDealDraft(
+      { userId: "user-1" },
+      {
+        common: {
+          applicantCounterpartyId: "counterparty-1",
+          customerNote: null,
+          requestedExecutionDate: null,
+        },
+        incomingReceipt: {
+          contractNumber: null,
+          expectedAmount: null,
+          expectedAt: null,
+          expectedCurrencyId: null,
+          invoiceNumber: null,
+        },
+        moneyRequest: {
+          purpose: "FX exchange",
+          sourceAmount: "1000",
+          sourceCurrencyId: "USD",
+          targetCurrencyId: "EUR",
+        },
+        type: "currency_exchange",
+      },
+      { idempotencyKey: "portal-draft-1" },
+    );
+
+    expect(currencies.findByCode).toHaveBeenCalledWith("USD");
+    expect(currencies.findByCode).toHaveBeenCalledWith("EUR");
+    expect(deals.deals.commands.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "customer-1",
+        intake: expect.objectContaining({
+          moneyRequest: expect.objectContaining({
+            sourceCurrencyId: "usd-id",
+            targetCurrencyId: "eur-id",
+          }),
+        }),
+      }),
+    );
+    expect(result.summary.id).toBe("deal-1");
   });
 });

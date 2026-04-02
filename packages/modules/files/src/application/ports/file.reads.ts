@@ -1,5 +1,6 @@
 import type { FileAttachment } from "../contracts/dto";
 import type {
+  FileAttachmentVisibility,
   FileGeneratedFormat,
   FileGeneratedLang,
   FileLinkKind,
@@ -25,6 +26,7 @@ export interface StoredFileRecord {
   versionCreatedBy: string | null;
   versionCreatedAt: Date;
   versionUpdatedAt: Date;
+  attachmentVisibility: FileAttachmentVisibility | null;
   linkId: string;
   linkKind: FileLinkKind;
   dealId: string | null;

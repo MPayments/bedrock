@@ -139,9 +139,88 @@ export const DealPricingSummarySchema = z.object({
 
 export type DealPricingSummary = z.infer<typeof DealPricingSummarySchema>;
 
+export const CrmDealWorkbenchActionsSchema = z.object({
+  canAcceptQuote: z.boolean(),
+  canChangeAgreement: z.boolean(),
+  canCreateCalculation: z.boolean(),
+  canCreateFormalDocument: z.boolean(),
+  canCreateQuote: z.boolean(),
+  canEditIntake: z.boolean(),
+  canReassignAssignee: z.boolean(),
+  canUploadAttachment: z.boolean(),
+});
+
+export type CrmDealWorkbenchActions = z.infer<
+  typeof CrmDealWorkbenchActionsSchema
+>;
+
+export const CrmDealWorkbenchEditabilitySchema = z.object({
+  agreement: z.boolean(),
+  assignee: z.boolean(),
+  intake: z.boolean(),
+});
+
+export type CrmDealWorkbenchEditability = z.infer<
+  typeof CrmDealWorkbenchEditabilitySchema
+>;
+
+export const CrmDealAssigneeSchema = z.object({
+  userId: z.string().nullable(),
+});
+
+export type CrmDealAssignee = z.infer<typeof CrmDealAssigneeSchema>;
+
+export const CrmDealEvidenceRequirementStateSchema = z.enum([
+  "missing",
+  "not_required",
+  "provided",
+]);
+
+export type CrmDealEvidenceRequirementState = z.infer<
+  typeof CrmDealEvidenceRequirementStateSchema
+>;
+
+export const CrmDealEvidenceRequirementSchema = z.object({
+  blockingReasons: z.array(z.string()),
+  code: z.string(),
+  label: z.string(),
+  state: CrmDealEvidenceRequirementStateSchema,
+});
+
+export type CrmDealEvidenceRequirement = z.infer<
+  typeof CrmDealEvidenceRequirementSchema
+>;
+
+export const CrmDealDocumentRequirementStateSchema = z.enum([
+  "in_progress",
+  "missing",
+  "not_required",
+  "ready",
+]);
+
+export type CrmDealDocumentRequirementState = z.infer<
+  typeof CrmDealDocumentRequirementStateSchema
+>;
+
+export const CrmDealDocumentRequirementSchema = z.object({
+  activeDocumentId: z.uuid().nullable(),
+  blockingReasons: z.array(z.string()),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+  stage: z.enum(["opening", "closing"]),
+  state: CrmDealDocumentRequirementStateSchema,
+});
+
+export type CrmDealDocumentRequirement = z.infer<
+  typeof CrmDealDocumentRequirementSchema
+>;
+
 export const CrmDealWorkbenchProjectionSchema = z.object({
   acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
+  actions: CrmDealWorkbenchActionsSchema,
   approvals: z.array(DealApprovalSchema),
+  assignee: CrmDealAssigneeSchema,
   context: z.object({
     agreement: AgreementDetailsSchema.nullable(),
     applicant: CounterpartySchema.nullable(),
@@ -150,6 +229,9 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
     internalEntityRequisite: RequisiteSchema.nullable(),
     internalEntityRequisiteProvider: RequisiteProviderSchema.nullable(),
   }),
+  documentRequirements: z.array(CrmDealDocumentRequirementSchema),
+  editability: CrmDealWorkbenchEditabilitySchema,
+  evidenceRequirements: z.array(CrmDealEvidenceRequirementSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
   intake: DealWorkflowProjectionSchema.shape.intake,
   nextAction: z.string(),
@@ -173,6 +255,55 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
 
 export type CrmDealWorkbenchProjection = z.infer<
   typeof CrmDealWorkbenchProjectionSchema
+>;
+
+export const CrmDealBoardStageSchema = z.enum([
+  "active",
+  "documents",
+  "drafts",
+  "execution_blocked",
+  "pricing",
+]);
+
+export type CrmDealBoardStage = z.infer<typeof CrmDealBoardStageSchema>;
+
+export const CrmDealBoardCountsSchema = z.object({
+  active: z.number().int().nonnegative(),
+  documents: z.number().int().nonnegative(),
+  drafts: z.number().int().nonnegative(),
+  execution_blocked: z.number().int().nonnegative(),
+  pricing: z.number().int().nonnegative(),
+});
+
+export type CrmDealBoardCounts = z.infer<typeof CrmDealBoardCountsSchema>;
+
+export const CrmDealBoardItemSchema = z.object({
+  applicantName: z.string().nullable(),
+  assigneeUserId: z.string().nullable(),
+  blockingReasons: z.array(z.string()),
+  customerName: z.string().nullable(),
+  documentSummary: z.object({
+    attachmentCount: z.number().int().nonnegative(),
+    formalDocumentCount: z.number().int().nonnegative(),
+  }),
+  id: z.uuid(),
+  nextAction: z.string(),
+  quoteSummary: PortalDealQuoteSummarySchema,
+  stage: CrmDealBoardStageSchema,
+  status: DealSummarySchema.shape.status,
+  type: DealSummarySchema.shape.type,
+  updatedAt: z.date(),
+});
+
+export type CrmDealBoardItem = z.infer<typeof CrmDealBoardItemSchema>;
+
+export const CrmDealBoardProjectionSchema = z.object({
+  counts: CrmDealBoardCountsSchema,
+  items: z.array(CrmDealBoardItemSchema),
+});
+
+export type CrmDealBoardProjection = z.infer<
+  typeof CrmDealBoardProjectionSchema
 >;
 
 export const FinanceDealQueueSchema = z.enum([

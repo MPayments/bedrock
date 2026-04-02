@@ -2,8 +2,10 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 
 import {
-  CreatePortalDealInputSchema,
-} from "@bedrock/deals/contracts";
+  DealActiveAgreementAmbiguousError,
+  DealActiveAgreementNotFoundError,
+} from "@bedrock/deals";
+import { CreatePortalDealInputSchema } from "@bedrock/deals/contracts";
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
@@ -15,6 +17,7 @@ import {
 import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
 import { lookupCompanyByInn } from "./legal-entities";
 import { DeletedSchema } from "../common";
+import { handleRouteError } from "../common/errors";
 import { withStoredResultRouteIdempotency } from "../common/route-idempotency";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -1088,11 +1091,7 @@ const getDealProjectionRoute = createRoute({
           return result;
         }
 
-        const projection = await findAuthorizedPortalDealProjection(
-          user.id,
-          result.summary.id,
-        );
-        return c.json(projection, 201);
+        return c.json(result, 201);
       } catch (error) {
         if (
           error instanceof Error &&
@@ -1102,7 +1101,27 @@ const getDealProjectionRoute = createRoute({
           return c.json({ error: error.message }, 403);
         }
 
-        throw error;
+        if (error instanceof DealActiveAgreementNotFoundError) {
+          return c.json(
+            {
+              error:
+                "У клиента нет действующего агентского договора. Обратитесь к вашему менеджеру.",
+            },
+            400,
+          );
+        }
+
+        if (error instanceof DealActiveAgreementAmbiguousError) {
+          return c.json(
+            {
+              error:
+                "У клиента несколько действующих агентских договоров. Обратитесь к вашему менеджеру.",
+            },
+            400,
+          );
+        }
+
+        return handleRouteError(c, error);
       }
     })
     .openapi(listDealsRoute, async (c) => {
@@ -1192,6 +1211,7 @@ const getDealProjectionRoute = createRoute({
         }
 
         const uploaded = await ctx.filesModule.files.commands.uploadDealAttachment({
+          attachmentVisibility: "customer_safe",
           buffer: Buffer.from(await file.arrayBuffer()),
           description:
             typeof body.description === "string" ? body.description : null,
