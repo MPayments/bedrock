@@ -11,6 +11,7 @@ import {
   type DocumentAction,
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/model";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import * as authModule from "../auth";
 import { handleRouteError } from "../common/errors";
@@ -126,7 +127,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
 };
 
 const JournalOperationsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(20),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(["createdAt", "postingDate", "postedAt"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),

@@ -28,7 +28,7 @@ export function AttachmentsCard({
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
             <File className="h-5 w-5 text-muted-foreground" />
-            Вложения
+            Подтверждающие файлы
           </CardTitle>
           <Button onClick={onUpload} size="sm" variant="outline">
             <Upload className="mr-2 h-4 w-4" />

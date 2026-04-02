@@ -34,20 +34,28 @@ export const STATUS_COLORS: Record<DealStatus, string> = {
 };
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
-  currency_exchange: "Конверсия",
-  currency_transit: "Транзит",
-  exporter_settlement: "Расчеты экспортера",
-  payment: "Платеж",
+  currency_exchange: "Обмен валюты",
+  currency_transit: "Валютный транзит",
+  exporter_settlement: "Расчеты с экспортером",
+  payment: "Платеж поставщику",
+};
+
+export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
+  applicant: "юридическое лицо клиента",
+  customer: "клиент",
+  external_beneficiary: "получатель выплаты",
+  external_payer: "плательщик",
+  internal_entity: "наша организация",
 };
 
 export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
-  exchange: "Коммерческий документ",
-  fx_execute: "FX Execute",
-  fx_resolution: "FX Resolution",
+  exchange: "Документ по обмену валюты",
+  fx_execute: "Исполнение конвертации",
+  fx_resolution: "Сверка по конвертации",
   invoice: "Инвойс",
   transfer_intra: "Внутренний перевод",
   transfer_intercompany: "Межкомпанейский перевод",
-  transfer_resolution: "Transfer Resolution",
+  transfer_resolution: "Сверка по переводу",
 };
 
 export const DEAL_LEG_KIND_LABELS: Record<DealLegKind, string> = {
@@ -79,7 +87,7 @@ export const DEAL_LEG_STATE_COLORS: Record<DealLegState, string> = {
 export const DEAL_CAPABILITY_LABELS: Record<DealCapabilityKind, string> = {
   can_collect: "Сбор средств",
   can_exporter_settle: "Расчеты экспортера",
-  can_fx: "FX",
+  can_fx: "Конвертация",
   can_payout: "Выплата",
   can_transit: "Транзит",
 };
@@ -111,6 +119,13 @@ export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   suspense: "Суспенс",
 };
 
+export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
+  active: "Активна",
+  cancelled: "Отменена",
+  expired: "Истекла",
+  used: "Исполнена",
+};
+
 export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<
   DealOperationalPositionState,
   string
@@ -137,10 +152,53 @@ export const DEAL_OPERATIONAL_POSITION_STATE_COLORS: Record<
 
 export const DEAL_SECTION_LABELS: Record<string, string> = {
   common: "Общие данные",
-  externalBeneficiary: "Внешний получатель",
-  incomingReceipt: "Ожидаемое поступление",
-  moneyRequest: "Денежный запрос",
-  settlementDestination: "Назначение расчета",
+  externalBeneficiary: "Получатель выплаты",
+  incomingReceipt: "Входящее поступление",
+  moneyRequest: "Сумма и валюта",
+  settlementDestination: "Куда зачислить средства",
+};
+
+const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
+  "Accept quote": "Принять котировку",
+  "Complete intake": "Заполнить анкету",
+  "Continue processing": "Продолжить обработку",
+  "Create calculation from accepted quote":
+    "Создать расчет по принятой котировке",
+  "No action": "Действий не требуется",
+  "Prepare closing documents": "Подготовить закрывающие документы",
+  "Prepare documents": "Подготовить документы",
+  "Resolve approvals": "Завершить согласование",
+  "Resolve operational capability": "Настроить операционные возможности",
+  "Resolve operational state": "Разобрать операционное состояние",
+  "Submit deal": "Отправить сделку",
+  "Update execution leg state": "Обновить этап исполнения",
+};
+
+const DEAL_MESSAGE_LABELS: Record<string, string> = {
+  "A calculation derived from the accepted quote is required":
+    "Нужно создать расчет по принятой котировке.",
+  "An accepted quote is required for convert deals":
+    "Для сделки с конвертацией нужна принятая котировка.",
+  "Applicant requisite is required":
+    "Выберите реквизиты юридического лица.",
+  "Beneficiary bank instructions are required":
+    "Заполните банковские реквизиты получателя.",
+  "Expected amount is required": "Укажите ожидаемую сумму поступления.",
+  "Expected currency is required": "Укажите валюту ожидаемого поступления.",
+  "Exchange deals require a different target currency":
+    "Для обмена валюты выберите другую валюту назначения.",
+  "External beneficiary is required": "Укажите получателя выплаты.",
+  "External payer is required": "Укажите плательщика.",
+  "Invoice number is required": "Укажите номер инвойса.",
+  "Manual settlement bank instructions are required":
+    "Заполните банковские реквизиты для зачисления средств.",
+  "Purpose is required": "Укажите назначение платежа.",
+  "Required intake sections are incomplete": "Анкета заполнена не полностью.",
+  "Settlement mode is required": "Укажите, куда зачислить средства.",
+  "Source amount is required": "Укажите сумму сделки.",
+  "Source currency is required": "Укажите валюту сделки.",
+  "The accepted quote is no longer executable":
+    "Принятая котировка больше не действует.",
 };
 
 export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
@@ -150,7 +208,7 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   deal_created: "Сделка создана",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
-  intake_saved: "Интейк сохранен",
+  intake_saved: "Анкета сохранена",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
@@ -158,4 +216,159 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   quote_expired: "Котировка истекла",
   quote_used: "Котировка исполнена",
   status_changed: "Статус сделки изменен",
+};
+
+function formatFallbackLabel(value: string) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function formatDealNextAction(nextAction: string | null) {
+  if (!nextAction) {
+    return "Действие не определено";
+  }
+
+  return DEAL_NEXT_ACTION_LABELS[nextAction] ?? nextAction;
+}
+
+export function formatDealWorkflowMessage(message: string) {
+  if (DEAL_MESSAGE_LABELS[message]) {
+    return DEAL_MESSAGE_LABELS[message];
+  }
+
+  const participantMatch = message.match(
+    /^Required participant is unresolved: ([a-z_]+)$/,
+  );
+  if (participantMatch) {
+    const role = participantMatch[1] ?? "";
+    return `Не заполнен обязательный участник: ${
+      DEAL_PARTICIPANT_ROLE_LABELS[role] ?? formatFallbackLabel(role)
+    }.`;
+  }
+
+  const approvalPendingMatch = message.match(/^Approval is still pending: (.+)$/);
+  if (approvalPendingMatch) {
+    return `Согласование еще не завершено: ${approvalPendingMatch[1]}.`;
+  }
+
+  const approvalRejectedMatch = message.match(/^Approval was rejected: (.+)$/);
+  if (approvalRejectedMatch) {
+    return `Согласование отклонено: ${approvalRejectedMatch[1]}.`;
+  }
+
+  const capabilityDisabledMatch = message.match(
+    /^Operational capability is disabled: ([a-z_]+)$/,
+  );
+  if (capabilityDisabledMatch) {
+    const kind = capabilityDisabledMatch[1] ?? "";
+    return `Операционная возможность отключена: ${
+      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ?? formatFallbackLabel(kind)
+    }.`;
+  }
+
+  const capabilityPendingMatch = message.match(
+    /^Operational capability is not enabled: ([a-z_]+)$/,
+  );
+  if (capabilityPendingMatch) {
+    const kind = capabilityPendingMatch[1] ?? "";
+    return `Операционная возможность не настроена: ${
+      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ?? formatFallbackLabel(kind)
+    }.`;
+  }
+
+  const positionMatch = message.match(
+    /^Operational position is (missing|blocked|not complete|not ready): ([a-z_]+)$/,
+  );
+  if (positionMatch) {
+    const state = positionMatch[1] ?? "";
+    const kind = positionMatch[2] ?? "";
+    const positionLabel =
+      DEAL_OPERATIONAL_POSITION_LABELS[kind as DealOperationalPositionKind] ??
+      formatFallbackLabel(kind);
+
+    if (state === "missing") {
+      return `Не хватает операционной позиции: ${positionLabel}.`;
+    }
+
+    if (state === "blocked") {
+      return `Операционная позиция заблокирована: ${positionLabel}.`;
+    }
+
+    if (state === "not complete") {
+      return `Операционная позиция еще не завершена: ${positionLabel}.`;
+    }
+
+    return `Операционная позиция еще не готова: ${positionLabel}.`;
+  }
+
+  const documentMatch = message.match(
+    /^(Opening|Closing) document is (required|not ready): ([a-z_]+)$/,
+  );
+  if (documentMatch) {
+    const stage = documentMatch[1] === "Opening" ? "Открывающий" : "Закрывающий";
+    const status = documentMatch[2];
+    const docType = documentMatch[3] ?? "";
+    const documentLabel = FORMAL_DOCUMENT_LABELS[docType] ?? formatFallbackLabel(docType);
+
+    return status === "required"
+      ? `${stage} документ обязателен: ${documentLabel}.`
+      : `${stage} документ еще не готов: ${documentLabel}.`;
+  }
+
+  const executionLegMatch = message.match(
+    /^Execution leg is (blocked|not ready|not complete): ([a-z_]+)$/,
+  );
+  if (executionLegMatch) {
+    const state = executionLegMatch[1] ?? "";
+    const kind = executionLegMatch[2] ?? "";
+    const legLabel =
+      DEAL_LEG_KIND_LABELS[kind as DealLegKind] ?? formatFallbackLabel(kind);
+
+    if (state === "blocked") {
+      return `Этап исполнения заблокирован: ${legLabel}.`;
+    }
+
+    if (state === "not ready") {
+      return `Этап исполнения еще не готов: ${legLabel}.`;
+    }
+
+    return `Этап исполнения еще не завершен: ${legLabel}.`;
+  }
+
+  const transitionMatch = message.match(
+    /^Cannot transition from ([a-z_]+) to ([a-z_]+)$/,
+  );
+  if (transitionMatch) {
+    const from = transitionMatch[1] ?? "";
+    const to = transitionMatch[2] ?? "";
+
+    return `Нельзя перевести сделку из статуса "${
+      STATUS_LABELS[from as DealStatus] ?? formatFallbackLabel(from)
+    }" в статус "${
+      STATUS_LABELS[to as DealStatus] ?? formatFallbackLabel(to)
+    }".`;
+  }
+
+  return message;
+}
+
+export const DOCUMENT_SUBMISSION_STATUS_LABELS: Record<string, string> = {
+  draft: "Черновик",
+  submitted: "Отправлен",
+};
+
+export const DOCUMENT_APPROVAL_STATUS_LABELS: Record<string, string> = {
+  approved: "Согласован",
+  not_required: "Не требуется",
+  pending: "На согласовании",
+  rejected: "Отклонен",
+};
+
+export const DOCUMENT_POSTING_STATUS_LABELS: Record<string, string> = {
+  not_required: "Не требуется",
+  posted: "Проведен",
+  ready: "Готов к проведению",
+  skipped: "Пропущен",
 };

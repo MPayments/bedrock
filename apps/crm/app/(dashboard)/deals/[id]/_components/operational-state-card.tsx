@@ -31,7 +31,7 @@ export function OperationalStateCard({
       <CardContent className="space-y-6">
         <div className="space-y-3">
           <div className="text-sm font-medium text-muted-foreground">
-            Capability gate
+            Операционные возможности
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {operationalState.capabilities.map((capability) => (

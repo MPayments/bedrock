@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronLeft } from "lucide-react";
+
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -10,28 +11,34 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
-import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
-import { STATUS_COLORS, STATUS_LABELS } from "./constants";
-import type { ApiDealTransitionReadiness, DealStatus } from "./types";
+import {
+  DEAL_TYPE_LABELS,
+  formatDealWorkflowMessage,
+  STATUS_COLORS,
+  STATUS_LABELS,
+} from "./constants";
+import type { ApiDealTransitionReadiness, DealStatus, DealType } from "./types";
 
 type DealHeaderProps = {
-  dealId: string;
+  applicantDisplayName: string | null;
   isUpdatingStatus: boolean;
   onBack: () => void;
   onBlockedStatusClick: (status: DealStatus) => void;
   onStatusChange: (status: DealStatus) => void;
   status: DealStatus;
+  type: DealType;
   transitionReadiness: ApiDealTransitionReadiness[];
 };
 
 export function DealHeader({
-  dealId,
+  applicantDisplayName,
   isUpdatingStatus,
   onBack,
   onBlockedStatusClick,
   onStatusChange,
   status,
+  type,
   transitionReadiness,
 }: DealHeaderProps) {
   const hasTransitions = transitionReadiness.length > 0;
@@ -43,13 +50,18 @@ export function DealHeader({
           <ChevronLeft className="mr-2 h-4 w-4" />
           Назад
         </Button>
-        <div className="flex min-w-0 items-center gap-3">
-          <h1 className="truncate text-2xl font-bold">
-            Сделка #{getUuidPrefix(dealId)}
-          </h1>
-          <Badge className={STATUS_COLORS[status]}>
-            {STATUS_LABELS[status]}
-          </Badge>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className="truncate text-2xl font-bold">
+              {DEAL_TYPE_LABELS[type]}
+            </h1>
+            <Badge className={STATUS_COLORS[status]}>
+              {STATUS_LABELS[status]}
+            </Badge>
+          </div>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {applicantDisplayName || "Сделка клиента"}
+          </p>
         </div>
       </div>
 
@@ -78,7 +90,7 @@ export function DealHeader({
                   <span>{STATUS_LABELS[item.targetStatus]}</span>
                   {!item.allowed && item.blockers[0] && (
                     <span className="text-xs text-muted-foreground">
-                      {item.blockers[0].message}
+                      {formatDealWorkflowMessage(item.blockers[0].message)}
                     </span>
                   )}
                 </div>

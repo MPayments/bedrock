@@ -18,6 +18,7 @@ import type {
 } from "@bedrock/parties/contracts";
 import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { TreasuryModule } from "@bedrock/treasury";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import type {
   CrmDealBoardProjection,
@@ -39,8 +40,6 @@ const CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION =
   "Загрузите подтверждающие документы";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
   "Загрузите внешние подтверждающие документы по сделке";
-const MAX_QUERY_LIST_LIMIT = 200;
-
 const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
   currency_exchange: ["common", "moneyRequest"],
   currency_transit: ["common", "moneyRequest", "incomingReceipt"],

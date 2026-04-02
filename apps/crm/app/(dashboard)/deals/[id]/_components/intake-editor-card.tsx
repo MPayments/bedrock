@@ -3,6 +3,7 @@ import { Save, RotateCcw } from "lucide-react";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
+import { DEAL_SECTION_LABELS } from "./constants";
 import {
   DealIntakeForm,
   type CrmApplicantRequisiteOption,
@@ -10,21 +11,7 @@ import {
   type CrmCustomerLegalEntityOption,
   type CrmDealIntakeDraft,
 } from "../../_components/deal-intake-form";
-import type { ApiDealSectionCompleteness } from "./types";
-
-type IntakeEditorCardProps = {
-  applicantRequisites: CrmApplicantRequisiteOption[];
-  currencyOptions: CrmCurrencyOption[];
-  intake: CrmDealIntakeDraft;
-  isDirty: boolean;
-  isSaving: boolean;
-  legalEntities: CrmCustomerLegalEntityOption[];
-  onChange: (next: CrmDealIntakeDraft) => void;
-  onReset: () => void;
-  onSave: () => void;
-  readOnly: boolean;
-  sectionCompleteness: ApiDealSectionCompleteness[];
-};
+import type { IntakeEditorCardProps } from "./intake-editor-card.types";
 
 export function IntakeEditorCard({
   applicantRequisites,
@@ -45,8 +32,8 @@ export function IntakeEditorCard({
         <div>
           <CardTitle>Анкета сделки</CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">
-            CRM редактирует полный typed intake сделки и сохраняет его как
-            текущую версию анкеты.
+            Здесь заполняются все данные по сделке: сумма, валюта,
+            контрагенты, ожидающие поступления и реквизиты для выплаты.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -57,7 +44,7 @@ export function IntakeEditorCard({
                 key={section.sectionId}
                 className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800"
               >
-                {section.sectionId}
+                {DEAL_SECTION_LABELS[section.sectionId] ?? section.sectionId}
               </span>
             ))}
         </div>

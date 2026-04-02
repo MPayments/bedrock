@@ -21,7 +21,7 @@ import {
 } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import { isUuidLike } from "@bedrock/shared/core";
+import { isUuidLike, MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import {
   createCustomerBankingService,
@@ -512,7 +512,7 @@ export function createCustomerPortalWorkflow(
         const result = await deps.parties.counterparties.queries.list({
           customerId,
           relationshipKind: ["customer_owned"],
-          limit: 200,
+          limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
           sortBy: "createdAt",
           sortOrder: "desc",
@@ -624,7 +624,7 @@ export function createCustomerPortalWorkflow(
       uniqueCustomerIds.map((customerId) =>
         deps.deals.deals.queries.list({
           customerId,
-          limit: 200,
+          limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
           sortBy: "createdAt",
           sortOrder: "desc",
@@ -1037,7 +1037,7 @@ export function createCustomerPortalWorkflow(
         uniqueCustomerIds.map((customerId) =>
           deps.deals.deals.queries.listPortalDeals({
             customerId,
-            limit: 200,
+            limit: MAX_QUERY_LIST_LIMIT,
             offset: 0,
           }),
         ),

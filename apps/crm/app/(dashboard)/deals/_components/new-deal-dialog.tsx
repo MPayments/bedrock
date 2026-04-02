@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Dialog,
@@ -63,6 +64,12 @@ const DEAL_TYPE_OPTIONS: Array<{
     value: "exporter_settlement",
   },
 ];
+
+function formatAgreementLabel(agreement: AgreementOption) {
+  return `${agreement.currentVersion.contractNumber || "Договор без номера"} · версия ${
+    agreement.currentVersion.versionNumber
+  }${agreement.isActive ? "" : " · не активен"}`;
+}
 
 type CustomerDetail = {
   id: string;
@@ -136,11 +143,16 @@ export function NewDealDialog({
   const [error, setError] = useState<string | null>(null);
 
   const legalEntities = customerDetail?.legalEntities ?? [];
-
   const agreementOptions = useMemo(
     () => agreements.filter((agreement) => agreement.isActive),
     [agreements],
   );
+  const selectedApplicant =
+    legalEntities.find(
+      (legalEntity) => legalEntity.counterpartyId === selectedApplicantId,
+    ) ?? null;
+  const selectedAgreement =
+    agreementOptions.find((agreement) => agreement.id === selectedAgreementId) ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -188,7 +200,7 @@ export function NewDealDialog({
         const [customer, agreementsPayload] = await Promise.all([
           fetchJson<CustomerDetail>(`${API_BASE_URL}/customers/${selectedCustomerId}`),
           fetchJson<{ data: AgreementOption[] }>(
-            `${API_BASE_URL}/agreements?customerId=${selectedCustomerId}&limit=200&offset=0`,
+            `${API_BASE_URL}/agreements?customerId=${selectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
           ),
         ]);
 
@@ -429,7 +441,17 @@ export function NewDealDialog({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите юрлицо" />
+                    <SelectValue placeholder="Выберите юрлицо">
+                      {selectedApplicant
+                        ? `${selectedApplicant.shortName}${
+                            selectedApplicant.inn
+                              ? ` · ИНН ${selectedApplicant.inn}`
+                              : ""
+                          }`
+                        : selectedApplicantId
+                          ? "Выбранное юрлицо недоступно"
+                          : "Не выбрано"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">Не выбрано</SelectItem>
@@ -457,14 +479,19 @@ export function NewDealDialog({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите договор" />
+                    <SelectValue placeholder="Выберите договор">
+                      {selectedAgreement
+                        ? formatAgreementLabel(selectedAgreement)
+                        : selectedAgreementId
+                          ? "Выбранный договор недоступен"
+                          : "Не выбрано"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">Не выбрано</SelectItem>
                     {agreementOptions.map((agreement) => (
                       <SelectItem key={agreement.id} value={agreement.id}>
-                        {agreement.currentVersion.contractNumber || agreement.id} · v
-                        {agreement.currentVersion.versionNumber}
+                        {formatAgreementLabel(agreement)}
                       </SelectItem>
                     ))}
                   </SelectContent>

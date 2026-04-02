@@ -1,7 +1,12 @@
 import { History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
-import { DEAL_TIMELINE_EVENT_LABELS, STATUS_LABELS } from "./constants";
+import {
+  DEAL_LEG_KIND_LABELS,
+  DEAL_LEG_STATE_LABELS,
+  DEAL_TIMELINE_EVENT_LABELS,
+  STATUS_LABELS,
+} from "./constants";
 import { formatDate } from "./format";
 import type { ApiDealTimelineEvent } from "./types";
 
@@ -15,11 +20,12 @@ function renderTimelineDetails(event: ApiDealTimelineEvent) {
       typeof event.payload.kind === "string" ? event.payload.kind : "leg";
     const state =
       typeof event.payload.state === "string" ? event.payload.state : null;
-    return state ? `${kind} -> ${state}` : kind;
-  }
-
-  if (typeof event.payload.quoteId === "string") {
-    return event.payload.quoteId;
+    const legLabel =
+      DEAL_LEG_KIND_LABELS[kind as keyof typeof DEAL_LEG_KIND_LABELS] ?? "Этап";
+    const stateLabel = state
+      ? DEAL_LEG_STATE_LABELS[state as keyof typeof DEAL_LEG_STATE_LABELS] ?? state
+      : null;
+    return stateLabel ? `${legLabel} -> ${stateLabel}` : legLabel;
   }
 
   if (typeof event.payload.comment === "string" && event.payload.comment.trim()) {

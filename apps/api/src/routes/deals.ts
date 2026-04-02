@@ -28,6 +28,7 @@ import {
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -1459,7 +1460,7 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await ctx.documentsService.list(
           {
             dealId: id,
-            limit: 200,
+            limit: MAX_QUERY_LIST_LIMIT,
             offset: 0,
             sortBy: "occurredAt",
             sortOrder: "desc",

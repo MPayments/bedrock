@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 
 import { createDealProjectionsWorkflow } from "../src";
@@ -256,7 +257,7 @@ function createWorkflow(overrides?: {
         findWorkflowById: vi.fn(async () => workflow),
         list: vi.fn(async () => ({
           data: [{ id: workflow.summary.id }],
-          limit: 200,
+          limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
           total: 1,
         })),
@@ -297,7 +298,7 @@ function createWorkflow(overrides?: {
           findById: vi.fn(async () => null),
           list: vi.fn(async () => ({
             data: [],
-            limit: 200,
+            limit: MAX_QUERY_LIST_LIMIT,
             offset: 0,
             total: 0,
           })),

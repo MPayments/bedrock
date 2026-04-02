@@ -27,7 +27,10 @@ import {
   UpsertRequisiteAccountingBindingInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -424,7 +427,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
       const result = await ctx.partiesModule.requisites.queries.list({
         kind: ["bank"],
-        limit: 200,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         ownerId: query.ownerId,
         ownerType: query.ownerType,

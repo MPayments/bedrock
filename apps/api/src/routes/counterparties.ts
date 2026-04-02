@@ -16,7 +16,10 @@ import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/parties/contracts";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -224,7 +227,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.partiesModule.counterparties.queries.list({
-        limit: 200,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "shortName",
         sortOrder: "asc",

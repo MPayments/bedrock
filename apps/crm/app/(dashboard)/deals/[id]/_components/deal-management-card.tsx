@@ -31,6 +31,12 @@ type DealManagementCardProps = {
   onAssigneeChange: (assigneeUserId: string | undefined) => void;
 };
 
+function formatAgreementLabel(agreement: AgreementOption) {
+  return `${agreement.contractNumber || "Договор без номера"} · версия ${
+    agreement.versionNumber
+  }${agreement.isActive ? "" : " · не активен"}`;
+}
+
 export function DealManagementCard({
   agreementId,
   agreementOptions,
@@ -42,6 +48,9 @@ export function DealManagementCard({
   onAgreementChange,
   onAssigneeChange,
 }: DealManagementCardProps) {
+  const currentAgreement =
+    agreementOptions.find((agreement) => agreement.id === agreementId) ?? null;
+
   return (
     <Card>
       <CardHeader>
@@ -76,13 +85,16 @@ export function DealManagementCard({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Выберите договор" />
+              <SelectValue placeholder="Выберите договор">
+                {currentAgreement
+                  ? formatAgreementLabel(currentAgreement)
+                  : "Договор не найден"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {agreementOptions.map((agreement) => (
                 <SelectItem key={agreement.id} value={agreement.id}>
-                  {agreement.contractNumber || agreement.id} · v{agreement.versionNumber}
-                  {!agreement.isActive ? " · не активен" : ""}
+                  {formatAgreementLabel(agreement)}
                 </SelectItem>
               ))}
             </SelectContent>

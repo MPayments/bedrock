@@ -136,9 +136,6 @@ export function ExecutionPlanCard({
                       <div className="font-medium">
                         {leg.idx}. {DEAL_LEG_KIND_LABELS[leg.kind]}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {leg.kind}
-                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className={DEAL_LEG_STATE_COLORS[leg.state]}>

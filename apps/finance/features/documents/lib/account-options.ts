@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -37,7 +38,7 @@ export async function fetchRequisiteOptions(input: {
   currencyLabelById: Map<string, string>;
 }): Promise<RequisiteOption[]> {
   const query = new URLSearchParams({
-    limit: "200",
+    limit: String(MAX_QUERY_LIST_LIMIT),
     offset: "0",
     ownerType: input.ownerType,
     ownerId: input.ownerId,

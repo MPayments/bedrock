@@ -21,50 +21,56 @@ import {
 import type { ApiCurrency, ApiCurrencyOption } from "./types";
 
 type CalculationDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  requestedCurrency: ApiCurrency | null;
-  currencyOptions: ApiCurrencyOption[];
   amount: string;
-  overrideAmount: boolean;
-  toCurrency: string;
   asOf: string;
+  currencyOptions: ApiCurrencyOption[];
+  description?: string;
   disabledReason: string | null;
   isCreating: boolean;
-  onToggleOverride: (next: boolean) => void;
+  loadingLabel?: string;
   onAmountChange: (value: string) => void;
-  onToCurrencyChange: (value: string) => void;
   onAsOfChange: (value: string) => void;
-  onSubmit: () => void;
   onCancel: () => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+  onToCurrencyChange: (value: string) => void;
+  onToggleOverride: (next: boolean) => void;
+  open: boolean;
+  overrideAmount: boolean;
+  requestedCurrency: ApiCurrency | null;
+  submitLabel?: string;
+  title?: string;
+  toCurrency: string;
 };
 
 export function CalculationDialog({
   open,
   onOpenChange,
-  requestedCurrency,
-  currencyOptions,
   amount,
-  overrideAmount,
-  toCurrency,
   asOf,
+  currencyOptions,
   disabledReason,
   isCreating,
-  onToggleOverride,
   onAmountChange,
-  onToCurrencyChange,
   onAsOfChange,
-  onSubmit,
   onCancel,
+  onSubmit,
+  onToCurrencyChange,
+  onToggleOverride,
+  overrideAmount,
+  requestedCurrency,
+  submitLabel = "Сохранить",
+  title = "Создать расчет",
+  toCurrency,
+  description = "Создайте котировку и сохраните расчет для этой сделки.",
+  loadingLabel = "Сохраняем...",
 }: CalculationDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Создать расчет</DialogTitle>
-          <DialogDescription>
-            Создайте котировку и сохраните расчет для этой сделки.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
@@ -119,7 +125,7 @@ export function CalculationDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="deal-calculation-asof">Дата расчета</Label>
+            <Label htmlFor="deal-calculation-asof">Дата котировки</Label>
             <Input
               id="deal-calculation-asof"
               type="datetime-local"
@@ -133,7 +139,7 @@ export function CalculationDialog({
             Отмена
           </Button>
           <Button onClick={onSubmit} disabled={isCreating || Boolean(disabledReason)}>
-            {isCreating ? "Создание..." : "Создать расчет"}
+            {isCreating ? loadingLabel : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

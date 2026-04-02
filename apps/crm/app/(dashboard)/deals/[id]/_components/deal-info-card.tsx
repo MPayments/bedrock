@@ -75,7 +75,7 @@ export function DealInfoCard({
           {deal.intakeComment && (
             <div className="md:col-span-2">
               <div className="text-sm font-medium text-muted-foreground">
-                Комментарий intake
+                Комментарий к анкете
               </div>
               <div className="text-base">{deal.intakeComment}</div>
             </div>

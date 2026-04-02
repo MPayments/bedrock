@@ -14,7 +14,10 @@ import {
   UpdateOrganizationInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -31,8 +34,6 @@ interface OrganizationFilesResponse {
   sealUrl: string | null;
   signatureUrl: string | null;
 }
-const OPTIONS_LIMIT = 200;
-
 async function buildOrganizationListRow(
   ctx: AppContext,
   organization: z.infer<typeof OrganizationSchema>,
@@ -269,7 +270,7 @@ export function organizationsRoutes(ctx: AppContext) {
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.partiesModule.organizations.queries.list({
         isActive: true,
-        limit: OPTIONS_LIMIT,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "shortName",
         sortOrder: "asc",

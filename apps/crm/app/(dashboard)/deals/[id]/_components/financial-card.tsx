@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
-import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { formatCurrency, formatDate } from "./format";
 import type { CalculationHistoryView, CalculationView } from "./types";
@@ -37,7 +36,7 @@ export function FinancialCard({
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-muted-foreground" />
-          Финансовая информация
+          Расчет
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           {calculationHistory.length > 0 && (
@@ -64,8 +63,8 @@ export function FinancialCard({
                             {formatDate(item.calculationTimestamp)}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            курс {item.rate} · {getUuidPrefix(item.calculationId)}
-                            {isCurrent ? " · активный" : ""}
+                            курс {item.rate}
+                            {isCurrent ? " · текущая версия" : ""}
                           </span>
                         </div>
                       </DropdownMenuItem>

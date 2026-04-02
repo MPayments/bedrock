@@ -2,7 +2,13 @@ import { PackageOpen } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
-import { FORMAL_DOCUMENT_LABELS } from "./constants";
+import {
+  DOCUMENT_APPROVAL_STATUS_LABELS,
+  DOCUMENT_POSTING_STATUS_LABELS,
+  DOCUMENT_SUBMISSION_STATUS_LABELS,
+  formatDealWorkflowMessage,
+  FORMAL_DOCUMENT_LABELS,
+} from "./constants";
 import { formatCurrency, formatDate } from "./format";
 import type { ApiFormalDocument } from "./types";
 
@@ -29,6 +35,21 @@ const REQUIREMENT_STATE_LABELS: Record<
   ready: "Готов",
 };
 
+function renderDocumentStatusLabel(
+  kind: "submission" | "approval" | "posting",
+  value: string,
+) {
+  if (kind === "submission") {
+    return DOCUMENT_SUBMISSION_STATUS_LABELS[value] ?? value;
+  }
+
+  if (kind === "approval") {
+    return DOCUMENT_APPROVAL_STATUS_LABELS[value] ?? value;
+  }
+
+  return DOCUMENT_POSTING_STATUS_LABELS[value] ?? value;
+}
+
 export function FormalDocumentsCard({
   documents,
   requirements = [],
@@ -38,7 +59,7 @@ export function FormalDocumentsCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <PackageOpen className="h-5 w-5 text-muted-foreground" />
-          Формальные документы
+          Внутренние документы
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -64,7 +85,9 @@ export function FormalDocumentsCard({
                 </div>
                 {requirement.blockingReasons.length > 0 ? (
                   <div className="mt-2 text-sm text-muted-foreground">
-                    {requirement.blockingReasons.join(" ")}
+                    {requirement.blockingReasons
+                      .map((reason) => formatDealWorkflowMessage(reason))
+                      .join(" ")}
                   </div>
                 ) : null}
               </div>
@@ -90,7 +113,7 @@ export function FormalDocumentsCard({
                         document.docType}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {document.docType} · {formatDate(document.createdAt)}
+                      {formatDate(document.createdAt)}
                     </div>
                     {document.amount && (
                       <div className="text-sm">
@@ -100,13 +123,25 @@ export function FormalDocumentsCard({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">
-                      submission: {document.submissionStatus}
+                      Отправка:{" "}
+                      {renderDocumentStatusLabel(
+                        "submission",
+                        document.submissionStatus,
+                      )}
                     </Badge>
                     <Badge variant="outline">
-                      approval: {document.approvalStatus}
+                      Согласование:{" "}
+                      {renderDocumentStatusLabel(
+                        "approval",
+                        document.approvalStatus,
+                      )}
                     </Badge>
                     <Badge variant="outline">
-                      posting: {document.postingStatus}
+                      Проведение:{" "}
+                      {renderDocumentStatusLabel(
+                        "posting",
+                        document.postingStatus,
+                      )}
                     </Badge>
                   </div>
                 </div>

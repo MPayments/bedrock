@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+
 import { createCustomerPortalWorkflow } from "../src";
 
 function createWorkflow(overrides?: {
@@ -130,7 +132,7 @@ function createWorkflow(overrides?: {
         list: vi.fn(async () => ({
           data: [],
           total: 0,
-          limit: 200,
+          limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
         })),
       },
@@ -302,7 +304,7 @@ function createWorkflow(overrides?: {
                     item.updatedAt ?? new Date("2026-01-01T00:00:00.000Z"),
                 }))
               : [],
-          limit: 200,
+          limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
           total: customerId ? (counterpartiesByCustomerId[customerId]?.length ?? 0) : 0,
         })),

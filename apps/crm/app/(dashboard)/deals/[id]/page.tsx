@@ -1,32 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { API_BASE_URL } from "@/lib/constants";
 import { AgreementCard } from "./_components/agreement-card";
-import { AttachmentsCard } from "./_components/attachments-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CustomerCard } from "./_components/customer-card";
+import { DealDocumentsTab } from "./_components/deal-documents-tab";
 import { DealManagementCard } from "./_components/deal-management-card";
 import { DealTimelineCard } from "./_components/deal-timeline-card";
+import { DealTabs, DEFAULT_DEAL_PAGE_TAB, isDealPageTab, type DealPageTab } from "./_components/deal-tabs";
+import { DealExecutionTab } from "./_components/deal-execution-tab";
 import { DealHeader } from "./_components/deal-header";
-import { DealInfoCard } from "./_components/deal-info-card";
-import { EvidenceRequirementsCard } from "./_components/evidence-requirements-card";
+import { DealIntakeTab } from "./_components/deal-intake-tab";
+import { DealOverviewTab } from "./_components/deal-overview-tab";
+import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
-import { ExecutionPlanCard } from "./_components/execution-plan-card";
-import { FinancialCard } from "./_components/financial-card";
-import { FormalDocumentsCard } from "./_components/formal-documents-card";
-import { IntakeEditorCard } from "./_components/intake-editor-card";
 import { LegalEntityCard } from "./_components/legal-entity-card";
-import { OperationalStateCard } from "./_components/operational-state-card";
 import { OrganizationCard } from "./_components/organization-card";
 import { OrganizationRequisiteCard } from "./_components/organization-requisite-card";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
-import { STATUS_LABELS } from "./_components/constants";
+import {
+  formatDealWorkflowMessage,
+  STATUS_LABELS,
+} from "./_components/constants";
 import type {
   CrmApplicantRequisiteOption,
   CrmDealIntakeDraft,
@@ -102,7 +104,9 @@ async function parseErrorMessage(response: Response, fallback: string) {
       payload.code === "deal.transition_blocked" &&
       payload.details?.blockers?.length
     ) {
-      return payload.details.blockers.map((blocker) => blocker.message).join("\n");
+      return payload.details.blockers
+        .map((blocker) => formatDealWorkflowMessage(blocker.message))
+        .join("\n");
     }
 
     return payload.message ?? payload.error ?? fallback;
@@ -200,7 +204,9 @@ function mapRelatedDocumentsToFormalDocuments(
 }
 
 function formatBlockers(blockers: ApiDealTransitionBlocker[]) {
-  return blockers.map((blocker) => `• ${blocker.message}`).join("\n");
+  return blockers
+    .map((blocker) => `• ${formatDealWorkflowMessage(blocker.message)}`)
+    .join("\n");
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -334,7 +340,9 @@ function areIntakeDraftsEqual(
 }
 
 export default function DealDetailPage() {
+  const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const dealId = params?.id as string;
 
@@ -378,7 +386,11 @@ export default function DealDetailPage() {
     message: "",
     title: "",
   });
-  const [isCalculationDialogOpen, setIsCalculationDialogOpen] = useState(false);
+  const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+  const [isCreatingQuote, setIsCreatingQuote] = useState(false);
+  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
+    null,
+  );
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
   const [overrideCalculationAmount, setOverrideCalculationAmount] =
     useState(false);
@@ -388,6 +400,11 @@ export default function DealDetailPage() {
     formatDateTimeInput(new Date()),
   );
 
+  const activeTab = useMemo<DealPageTab>(() => {
+    const tabParam = searchParams.get("tab");
+    return isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
+  }, [searchParams]);
+
   const showError = useCallback((title: string, message: string) => {
     setErrorDialog({
       isOpen: true,
@@ -395,6 +412,26 @@ export default function DealDetailPage() {
       title,
     });
   }, []);
+
+  const handleTabChange = useCallback(
+    (tab: DealPageTab) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+      if (tab === DEFAULT_DEAL_PAGE_TAB) {
+        nextSearchParams.delete("tab");
+      } else {
+        nextSearchParams.set("tab", tab);
+      }
+
+      const nextQuery = nextSearchParams.toString();
+      const nextHref = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+      startTransition(() => {
+        router.replace(nextHref, { scroll: false });
+      });
+    },
+    [pathname, router, searchParams],
+  );
 
   const loadDeal = useCallback(async () => {
     if (!dealId) {
@@ -416,7 +453,7 @@ export default function DealDetailPage() {
         !workbench.context.internalEntity ||
         !workbench.context.internalEntityRequisite
       ) {
-        throw new Error("CRM workbench is missing required deal context");
+        throw new Error("Не удалось собрать контекст сделки для CRM.");
       }
 
       const customerId =
@@ -445,7 +482,7 @@ export default function DealDetailPage() {
         fetchCurrencyOptions(),
         customerId
           ? fetchJson<{ data: DealAgreementOption[] }>(
-              `${API_BASE_URL}/agreements?customerId=${customerId}&limit=200&offset=0`,
+              `${API_BASE_URL}/agreements?customerId=${customerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
             )
           : Promise.resolve({ data: [] }),
         applicantCounterpartyId
@@ -597,7 +634,7 @@ export default function DealDetailPage() {
     );
   }, [calculationToCurrency, data]);
 
-  const handleOpenCalculationDialog = useCallback(() => {
+  const handleOpenQuoteDialog = useCallback(() => {
     if (!data) {
       return;
     }
@@ -611,10 +648,10 @@ export default function DealDetailPage() {
       ),
     );
     setCalculationAsOf(formatDateTimeInput(new Date()));
-    setIsCalculationDialogOpen(true);
+    setIsQuoteDialogOpen(true);
   }, [data]);
 
-  const handleCreateCalculation = useCallback(async () => {
+  const handleCreateQuote = useCallback(async () => {
     if (!data) {
       return;
     }
@@ -622,7 +659,7 @@ export default function DealDetailPage() {
     if (!data.requestedCurrency || !data.deal.requestedAmount) {
       showError(
         "Недостаточно данных",
-        "Для расчета нужна запрошенная сумма и валюта сделки.",
+        "Для запроса котировки нужны сумма и валюта сделки.",
       );
       return;
     }
@@ -658,14 +695,14 @@ export default function DealDetailPage() {
       : new Date();
 
     if (Number.isNaN(asOfDate.getTime())) {
-      showError("Некорректная дата", "Выберите дату расчета.");
+      showError("Некорректная дата", "Выберите дату котировки.");
       return;
     }
 
     try {
-      setIsCreatingCalculation(true);
+      setIsCreatingQuote(true);
 
-      const quote = await fetchJson<{ id: string }>(
+      await fetchJson<{ id: string }>(
         `${API_BASE_URL}/deals/${dealId}/quotes`,
         {
           method: "POST",
@@ -683,37 +720,18 @@ export default function DealDetailPage() {
         },
       );
 
-      await fetchJson(
-        `${API_BASE_URL}/deals/${dealId}/quotes/${quote.id}/accept`,
-        {
-          method: "POST",
-        },
-      );
-
-      await fetchJson(
-        `${API_BASE_URL}/deals/${dealId}/calculations/from-quote`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": createIdempotencyKey(),
-          },
-          body: JSON.stringify({ quoteId: quote.id }),
-        },
-      );
-
-      setIsCalculationDialogOpen(false);
+      setIsQuoteDialogOpen(false);
       await loadDeal();
     } catch (nextError) {
-      console.error("Calculation creation error:", nextError);
+      console.error("Quote creation error:", nextError);
       showError(
-        "Ошибка создания расчета",
+        "Ошибка запроса котировки",
         nextError instanceof Error
           ? nextError.message
-          : "Не удалось создать расчет",
+          : "Не удалось запросить котировку",
       );
     } finally {
-      setIsCreatingCalculation(false);
+      setIsCreatingQuote(false);
     }
   }, [
     calculationAmount,
@@ -729,22 +747,96 @@ export default function DealDetailPage() {
   const calculationTypeSupported = data
     ? data.workbench.pricing.quoteEligibility
     : false;
-  const calculationStatusAllowed = data
+  const quoteStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
     : false;
-  const calculationHasRequestedAmount = Boolean(
+  const quoteHasRequestedAmount = Boolean(
     data?.deal.requestedAmount && data?.requestedCurrency,
   );
   const isIntakeDirty = !areIntakeDraftsEqual(draftIntake, baselineIntake);
-  const calculationDisabledReason = !data
+  const quoteCreationDisabledReason = !data
     ? "Данные сделки еще загружаются."
     : !calculationTypeSupported
-      ? "В этой версии расчет доступен только для платежей и конверсий."
-      : !calculationStatusAllowed
-        ? `Нельзя создать расчет для статуса "${STATUS_LABELS[data.deal.status]}".`
-        : !calculationHasRequestedAmount
+      ? "В этой версии котировка доступна только для платежей и конверсий."
+      : !quoteStatusAllowed
+        ? `Нельзя запросить котировку для статуса "${STATUS_LABELS[data.deal.status]}".`
+        : !quoteHasRequestedAmount
           ? "У сделки нет запрошенной суммы или валюты."
           : null;
+  const calculationDisabledReason = !data
+    ? "Данные сделки еще загружаются."
+    : quoteCreationDisabledReason
+      ? quoteCreationDisabledReason
+      : !data.workbench.acceptedQuote
+        ? "Сначала примите котировку."
+        : data.workbench.acceptedQuote.quoteStatus !== "active"
+          ? "Создать расчет можно только по действующей принятой котировке."
+          : null;
+
+  const handleAcceptQuote = useCallback(
+    async (quoteId: string) => {
+      try {
+        setIsAcceptingQuoteId(quoteId);
+
+        await fetchJson(`${API_BASE_URL}/deals/${dealId}/quotes/${quoteId}/accept`, {
+          method: "POST",
+        });
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Quote accept error:", nextError);
+        showError(
+          "Ошибка принятия котировки",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось принять котировку",
+        );
+      } finally {
+        setIsAcceptingQuoteId(null);
+      }
+    },
+    [dealId, loadDeal, showError],
+  );
+
+  const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
+    if (!data?.workbench.acceptedQuote) {
+      showError("Нет принятой котировки", "Сначала примите котировку.");
+      return;
+    }
+
+    if (data.workbench.acceptedQuote.quoteStatus !== "active") {
+      showError(
+        "Котировка недоступна",
+        "Создать расчет можно только по действующей принятой котировке.",
+      );
+      return;
+    }
+
+    try {
+      setIsCreatingCalculation(true);
+
+      await fetchJson(`${API_BASE_URL}/deals/${dealId}/calculations/from-quote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": createIdempotencyKey(),
+        },
+        body: JSON.stringify({ quoteId: data.workbench.acceptedQuote.quoteId }),
+      });
+
+      await loadDeal();
+    } catch (nextError) {
+      console.error("Calculation creation error:", nextError);
+      showError(
+        "Ошибка создания расчета",
+        nextError instanceof Error
+          ? nextError.message
+          : "Не удалось создать расчет",
+      );
+    } finally {
+      setIsCreatingCalculation(false);
+    }
+  }, [data, dealId, loadDeal, showError]);
 
   const handleStatusUpdate = useCallback(
     async (status: DealStatus) => {
@@ -1108,6 +1200,58 @@ export default function DealDetailPage() {
     [dealId, loadDeal, showError],
   );
 
+  const handleAttachmentDownload = useCallback(
+    (attachmentId: string) => {
+      window.open(
+        `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/download`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    },
+    [dealId],
+  );
+
+  const handleOpenAttachmentDialog = useCallback(() => {
+    setUploadVisibility("internal");
+    setIsUploadDialogOpen(true);
+  }, []);
+
+  const tabBadges = useMemo(() => {
+    if (!data) {
+      return {};
+    }
+
+    const incompleteSectionCount = data.workflow.sectionCompleteness.filter(
+      (section) => !section.complete,
+    ).length;
+    const missingEvidenceCount = data.workbench.evidenceRequirements.filter(
+      (requirement) => requirement.state === "missing",
+    ).length;
+    const missingDocumentCount = data.workbench.documentRequirements.filter(
+      (requirement) => requirement.state === "missing",
+    ).length;
+    const blockedLegCount = data.workflow.executionPlan.filter(
+      (leg) => leg.state === "blocked",
+    ).length;
+    const blockedPositionCount = data.workflow.operationalState.positions.filter(
+      (position) => position.state === "blocked",
+    ).length;
+    const capabilityIssueCount = data.workflow.operationalState.capabilities.filter(
+      (capability) => capability.status !== "enabled",
+    ).length;
+
+    return {
+      documents: missingEvidenceCount + missingDocumentCount,
+      execution: blockedLegCount + blockedPositionCount + capabilityIssueCount,
+      intake:
+        incompleteSectionCount > 0
+          ? incompleteSectionCount
+          : isIntakeDirty
+            ? "●"
+            : null,
+    } satisfies Partial<Record<DealPageTab, number | string | null>>;
+  }, [data, isIntakeDirty]);
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -1133,84 +1277,98 @@ export default function DealDetailPage() {
   return (
     <div className="space-y-6">
       <DealHeader
-        dealId={data.deal.id}
+        applicantDisplayName={data.workbench.summary.applicantDisplayName}
         isUpdatingStatus={isUpdatingStatus}
         onBack={() => router.back()}
         onBlockedStatusClick={handleBlockedTransitionClick}
         onStatusChange={handleStatusUpdate}
         status={data.deal.status}
+        type={data.deal.type}
         transitionReadiness={data.workflow.transitionReadiness}
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
-          <DealInfoCard
-            deal={data.deal}
-            requestedCurrency={data.requestedCurrency}
-            isEditingComment={isEditingComment}
-            commentValue={commentValue}
-            isSavingComment={isSavingComment}
-            onEditComment={handleEditComment}
-            onCancelEdit={handleCancelEditComment}
-            onCommentChange={setCommentValue}
-            onSaveComment={handleSaveComment}
-          />
-          {draftIntake ? (
-            <IntakeEditorCard
-              applicantRequisites={applicantRequisites}
-              currencyOptions={data.currencyOptions}
-              intake={draftIntake}
-              isDirty={isIntakeDirty}
-              isSaving={isSavingIntake}
-              legalEntities={data.customer.legalEntities}
-              onChange={setDraftIntake}
-              onReset={handleResetIntake}
-              onSave={handleSaveIntake}
-              readOnly={!data.workbench.editability.intake}
-              sectionCompleteness={data.workflow.sectionCompleteness}
-            />
-          ) : null}
-          <FinancialCard
-            calculation={data.calculation}
-            calculationHistory={data.calculationHistory}
-            activeCalculationId={data.deal.calculationId}
-            disabledReason={calculationDisabledReason}
-            isCreating={isCreatingCalculation}
-            onCreate={handleOpenCalculationDialog}
-          />
-          <ExecutionPlanCard
-            executionPlan={data.workflow.executionPlan}
-            isUpdatingLegKey={isUpdatingLegKey}
-            onBlockedTransitionClick={handleBlockedTransitionClick}
-            onUpdateLegState={handleLegStateUpdate}
-            sectionCompleteness={data.workflow.sectionCompleteness}
-            transitionReadiness={data.workflow.transitionReadiness}
-          />
-          <OperationalStateCard
-            operationalState={data.workflow.operationalState}
-          />
-          <EvidenceRequirementsCard
-            requirements={data.workbench.evidenceRequirements}
-          />
-          <FormalDocumentsCard
-            documents={data.formalDocuments}
-            requirements={data.workbench.documentRequirements}
-          />
-          <AttachmentsCard
-            attachments={data.attachments}
-            deletingAttachmentId={deletingAttachmentId}
-            onUpload={() => {
-              setUploadVisibility("internal");
-              setIsUploadDialogOpen(true);
-            }}
-            onDownload={(attachmentId) => {
-              window.open(
-                `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/download`,
-                "_blank",
-                "noopener,noreferrer",
-              );
-            }}
-            onDelete={handleAttachmentDelete}
+          <DealTabs
+            activeTab={activeTab}
+            badges={tabBadges}
+            onTabChange={handleTabChange}
+            overview={
+              <DealOverviewTab
+                attachments={data.attachments}
+                calculation={data.calculation}
+                commentValue={commentValue}
+                deal={data.deal}
+                formalDocuments={data.formalDocuments}
+                isEditingComment={isEditingComment}
+                isSavingComment={isSavingComment}
+                onCancelEdit={handleCancelEditComment}
+                onCommentChange={setCommentValue}
+                onEditComment={handleEditComment}
+                onNavigateToTab={handleTabChange}
+                onSaveComment={handleSaveComment}
+                requestedCurrency={data.requestedCurrency}
+                workbench={data.workbench}
+                workflow={data.workflow}
+              />
+            }
+            intake={
+              draftIntake ? (
+                <DealIntakeTab
+                  applicantRequisites={applicantRequisites}
+                  currencyOptions={data.currencyOptions}
+                  intake={draftIntake}
+                  isDirty={isIntakeDirty}
+                  isSaving={isSavingIntake}
+                  legalEntities={data.customer.legalEntities}
+                  onChange={setDraftIntake}
+                  onReset={handleResetIntake}
+                  onSave={handleSaveIntake}
+                  readOnly={!data.workbench.editability.intake}
+                  sectionCompleteness={data.workflow.sectionCompleteness}
+                />
+              ) : null
+            }
+            pricing={
+              <DealPricingTab
+                acceptedQuote={data.workbench.acceptedQuote}
+                activeCalculationId={data.deal.calculationId}
+                calculation={data.calculation}
+                calculationDisabledReason={calculationDisabledReason}
+                calculationHistory={data.calculationHistory}
+                isAcceptingQuoteId={isAcceptingQuoteId}
+                isCreatingCalculation={isCreatingCalculation}
+                isCreatingQuote={isCreatingQuote}
+                onAcceptQuote={handleAcceptQuote}
+                onCreateCalculation={handleCreateCalculationFromAcceptedQuote}
+                onCreateQuote={handleOpenQuoteDialog}
+                quoteCreationDisabledReason={quoteCreationDisabledReason}
+                quotes={data.workbench.pricing.quotes}
+              />
+            }
+            documents={
+              <DealDocumentsTab
+                attachments={data.attachments}
+                deletingAttachmentId={deletingAttachmentId}
+                documentRequirements={data.workbench.documentRequirements}
+                evidenceRequirements={data.workbench.evidenceRequirements}
+                formalDocuments={data.formalDocuments}
+                onAttachmentDelete={handleAttachmentDelete}
+                onAttachmentDownload={handleAttachmentDownload}
+                onAttachmentUpload={handleOpenAttachmentDialog}
+              />
+            }
+            execution={
+              <DealExecutionTab
+                executionPlan={data.workflow.executionPlan}
+                isUpdatingLegKey={isUpdatingLegKey}
+                onBlockedTransitionClick={handleBlockedTransitionClick}
+                onUpdateLegState={handleLegStateUpdate}
+                operationalState={data.workflow.operationalState}
+                sectionCompleteness={data.workflow.sectionCompleteness}
+                transitionReadiness={data.workflow.transitionReadiness}
+              />
+            }
           />
         </div>
 
@@ -1244,27 +1402,31 @@ export default function DealDetailPage() {
       </div>
 
       <CalculationDialog
-        open={isCalculationDialogOpen}
+        asOf={calculationAsOf}
+        amount={calculationAmount}
+        currencyOptions={data.currencyOptions}
+        description="Получите котировку для сделки. После этого ее можно принять и создать расчет."
+        disabledReason={quoteCreationDisabledReason}
+        isCreating={isCreatingQuote}
         onOpenChange={(open) => {
-          setIsCalculationDialogOpen(open);
+          setIsQuoteDialogOpen(open);
           if (!open) {
             setOverrideCalculationAmount(false);
           }
         }}
-        requestedCurrency={data.requestedCurrency}
-        currencyOptions={data.currencyOptions}
-        amount={calculationAmount}
-        overrideAmount={overrideCalculationAmount}
-        toCurrency={calculationToCurrency}
-        asOf={calculationAsOf}
-        disabledReason={calculationDisabledReason}
-        isCreating={isCreatingCalculation}
-        onToggleOverride={setOverrideCalculationAmount}
         onAmountChange={setCalculationAmount}
-        onToCurrencyChange={setCalculationToCurrency}
         onAsOfChange={setCalculationAsOf}
-        onSubmit={handleCreateCalculation}
-        onCancel={() => setIsCalculationDialogOpen(false)}
+        onCancel={() => setIsQuoteDialogOpen(false)}
+        onSubmit={handleCreateQuote}
+        onToCurrencyChange={setCalculationToCurrency}
+        onToggleOverride={setOverrideCalculationAmount}
+        open={isQuoteDialogOpen}
+        overrideAmount={overrideCalculationAmount}
+        requestedCurrency={data.requestedCurrency}
+        loadingLabel="Запрашиваем..."
+        submitLabel="Запросить котировку"
+        title="Запросить котировку"
+        toCurrency={calculationToCurrency}
       />
 
       <UploadAttachmentDialog

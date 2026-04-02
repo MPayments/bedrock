@@ -2,6 +2,8 @@ import { ClipboardList } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
+import { formatDealWorkflowMessage } from "./constants";
+
 type EvidenceRequirement = {
   blockingReasons: string[];
   code: string;
@@ -27,7 +29,7 @@ export function EvidenceRequirementsCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-muted-foreground" />
-          Внешние подтверждения
+          Что нужно приложить
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -43,7 +45,7 @@ export function EvidenceRequirementsCard({
               {requirement.blockingReasons.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                   {requirement.blockingReasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
+                    <li key={reason}>{formatDealWorkflowMessage(reason)}</li>
                   ))}
                 </ul>
               ) : null}

@@ -104,6 +104,29 @@ type DealIntakeFormProps = {
   readOnly?: boolean;
 };
 
+function resolveOptionLabel(input: {
+  value: string | null;
+  emptyLabel: string;
+  loadingLabel: string;
+  missingLabel: string;
+  optionsCount: number;
+  matchedLabel: string | null;
+}) {
+  if (!input.value) {
+    return input.emptyLabel;
+  }
+
+  if (input.matchedLabel) {
+    return input.matchedLabel;
+  }
+
+  if (input.optionsCount === 0) {
+    return input.loadingLabel;
+  }
+
+  return input.missingLabel;
+}
+
 function emptyCounterpartySnapshot(): CrmCounterpartySnapshot {
   return {
     country: null,
@@ -213,11 +236,83 @@ export function DealIntakeForm({
   const settlementBank =
     intake.settlementDestination.bankInstructionSnapshot ??
     emptyBankInstructionSnapshot();
-  const targetCurrencyLabel = intake.moneyRequest.targetCurrencyId
-    ? currencyOptions.find(
-        (currency) => currency.id === intake.moneyRequest.targetCurrencyId,
-      )?.label ?? intake.moneyRequest.targetCurrencyId
-    : "Без конвертации";
+  const selectedApplicant =
+    legalEntities.find(
+      (legalEntity) =>
+        legalEntity.counterpartyId === intake.common.applicantCounterpartyId,
+    ) ?? null;
+  const selectedSourceCurrency =
+    currencyOptions.find(
+      (currency) => currency.id === intake.moneyRequest.sourceCurrencyId,
+    ) ?? null;
+  const selectedTargetCurrency =
+    currencyOptions.find(
+      (currency) => currency.id === intake.moneyRequest.targetCurrencyId,
+    ) ?? null;
+  const selectedExpectedCurrency =
+    currencyOptions.find(
+      (currency) => currency.id === intake.incomingReceipt.expectedCurrencyId,
+    ) ?? null;
+  const selectedApplicantRequisite =
+    applicantRequisites.find(
+      (requisite) => requisite.id === intake.settlementDestination.requisiteId,
+    ) ?? null;
+  const selectedApplicantLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка юридических лиц...",
+    matchedLabel: selectedApplicant
+      ? `${selectedApplicant.shortName}${
+          selectedApplicant.inn ? ` · ИНН ${selectedApplicant.inn}` : ""
+        }`
+      : null,
+    missingLabel: "Выбранное юрлицо недоступно",
+    optionsCount: legalEntities.length,
+    value: intake.common.applicantCounterpartyId,
+  });
+  const sourceCurrencyLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка валют...",
+    matchedLabel: selectedSourceCurrency?.label ?? null,
+    missingLabel: "Выбранная валюта недоступна",
+    optionsCount: currencyOptions.length,
+    value: intake.moneyRequest.sourceCurrencyId,
+  });
+  const targetCurrencyLabel = resolveOptionLabel({
+    emptyLabel: "Без конвертации",
+    loadingLabel: "Загрузка валют...",
+    matchedLabel: selectedTargetCurrency?.label ?? null,
+    missingLabel: "Выбранная валюта недоступна",
+    optionsCount: currencyOptions.length,
+    value: intake.moneyRequest.targetCurrencyId,
+  });
+  const expectedCurrencyLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка валют...",
+    matchedLabel: selectedExpectedCurrency?.label ?? null,
+    missingLabel: "Выбранная валюта недоступна",
+    optionsCount: currencyOptions.length,
+    value: intake.incomingReceipt.expectedCurrencyId,
+  });
+  const settlementModeLabel =
+    intake.settlementDestination.mode === "applicant_requisite"
+      ? "На реквизиты заявителя"
+      : intake.settlementDestination.mode === "manual"
+        ? "На вручную введенные реквизиты"
+        : "Не выбрано";
+  const applicantRequisiteLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка реквизитов...",
+    matchedLabel: selectedApplicantRequisite
+      ? `${selectedApplicantRequisite.label}${
+          selectedApplicantRequisite.providerLabel
+            ? ` · ${selectedApplicantRequisite.providerLabel}`
+            : ""
+        }`
+      : null,
+    missingLabel: "Выбранные реквизиты недоступны",
+    optionsCount: applicantRequisites.length,
+    value: intake.settlementDestination.requisiteId,
+  });
 
   function update(next: Partial<CrmDealIntakeDraft>) {
     onChange({
@@ -342,7 +437,9 @@ export function DealIntakeForm({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Выберите юридическое лицо" />
+                <SelectValue placeholder="Выберите юридическое лицо">
+                  {selectedApplicantLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none">Не выбрано</SelectItem>
@@ -392,7 +489,7 @@ export function DealIntakeForm({
 
       <section className="space-y-4">
         <div>
-          <h3 className="font-medium">Параметры сделки</h3>
+          <h3 className="font-medium">Сумма и валюта сделки</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -420,7 +517,9 @@ export function DealIntakeForm({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Выберите валюту" />
+                <SelectValue placeholder="Выберите валюту">
+                  {sourceCurrencyLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none">Не выбрано</SelectItem>
@@ -475,7 +574,10 @@ export function DealIntakeForm({
       {shouldRenderIncomingReceipt(intake.type) ? (
         <section className="space-y-4">
           <div>
-            <h3 className="font-medium">Ожидаемое поступление</h3>
+            <h3 className="font-medium">Входящее поступление</h3>
+            <p className="text-sm text-muted-foreground">
+              Данные о платеже, который ожидается от покупателя или плательщика.
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -506,7 +608,9 @@ export function DealIntakeForm({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите валюту" />
+                  <SelectValue placeholder="Выберите валюту">
+                    {expectedCurrencyLabel}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Не выбрано</SelectItem>
@@ -611,7 +715,10 @@ export function DealIntakeForm({
       {shouldRenderExternalBeneficiary(intake.type) ? (
         <section className="space-y-4">
           <div>
-            <h3 className="font-medium">Внешний получатель</h3>
+            <h3 className="font-medium">Получатель выплаты</h3>
+            <p className="text-sm text-muted-foreground">
+              Кому и по каким банковским реквизитам отправляем выплату.
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -767,7 +874,11 @@ export function DealIntakeForm({
       {shouldRenderSettlementDestination(intake.type) ? (
         <section className="space-y-4">
           <div>
-            <h3 className="font-medium">Направление зачисления</h3>
+            <h3 className="font-medium">Куда зачислить средства</h3>
+            <p className="text-sm text-muted-foreground">
+              Выберите, куда отправить деньги после сделки: на реквизиты
+              заявителя или на отдельные реквизиты.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Режим зачисления</Label>
@@ -791,7 +902,9 @@ export function DealIntakeForm({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Выберите режим" />
+                <SelectValue placeholder="Выберите режим">
+                  {settlementModeLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none">Не выбрано</SelectItem>
@@ -819,7 +932,9 @@ export function DealIntakeForm({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите реквизиты" />
+                  <SelectValue placeholder="Выберите реквизиты">
+                    {applicantRequisiteLabel}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Не выбрано</SelectItem>

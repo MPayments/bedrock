@@ -1,6 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+
 const { userHasPermission } = vi.hoisted(() => ({
   userHasPermission: vi.fn(async () => ({ success: true })),
 }));
@@ -84,7 +86,7 @@ describe("options routes", () => {
     expect(response.status).toBe(200);
     expect(organizationsQueries.list).toHaveBeenCalledWith({
       isActive: true,
-      limit: 200,
+      limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
       sortBy: "shortName",
       sortOrder: "asc",
@@ -116,7 +118,7 @@ describe("options routes", () => {
 
     expect(response.status).toBe(200);
     expect(requisitesQueries.listProviders).toHaveBeenCalledWith({
-      limit: 200,
+      limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
       sortBy: "name",
       sortOrder: "asc",

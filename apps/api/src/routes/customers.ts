@@ -6,7 +6,10 @@ import {
   CustomerNotFoundError,
 } from "@bedrock/parties";
 import { NotFoundError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 import { createCustomerBankingService } from "@bedrock/workflow-customer-portal";
 
 import { DeletedSchema, ErrorSchema } from "../common";
@@ -505,7 +508,7 @@ async function listCustomerOwnedCounterpartiesByCustomerId(
       const result = await ctx.partiesModule.counterparties.queries.list({
         customerId,
         relationshipKind: ["customer_owned"],
-        limit: 200,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "createdAt",
         sortOrder: "desc",
@@ -709,7 +712,7 @@ async function getCustomerOwnedCounterparties(
   const result = await ctx.partiesModule.counterparties.queries.list({
     customerId,
     relationshipKind: ["customer_owned"],
-    limit: 200,
+    limit: MAX_QUERY_LIST_LIMIT,
     offset: 0,
     sortBy: "createdAt",
     sortOrder: "desc",
