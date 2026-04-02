@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -21,8 +22,8 @@ type DealWorkflowDialogProps = {
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
   triggerLabel?: string;
-  triggerSize?: React.ComponentProps<typeof Button>["size"];
-  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+  triggerSize?: ComponentProps<typeof Button>["size"];
+  triggerVariant?: ComponentProps<typeof Button>["variant"];
 };
 
 function formatRequestError(status: number) {
@@ -118,4 +119,3 @@ export function DealWorkflowDialog({
     </Dialog>
   );
 }
-

@@ -2,6 +2,8 @@ import {
   dealCapabilityKindEnum,
   dealCapabilityStates,
   dealCapabilityStatusEnum,
+  dealAttachmentIngestionStatusEnum,
+  dealAttachmentIngestions,
   dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
@@ -29,6 +31,8 @@ export {
   dealCapabilityKindEnum,
   dealCapabilityStates,
   dealCapabilityStatusEnum,
+  dealAttachmentIngestionStatusEnum,
+  dealAttachmentIngestions,
   dealAgentBonuses,
   dealApprovalStatusEnum,
   dealApprovalTypeEnum,
@@ -54,6 +58,7 @@ export {
 
 export const schema = {
   deals,
+  dealAttachmentIngestions,
   dealCapabilityStates,
   dealOperationalPositions,
   dealIntakeSnapshots,
@@ -71,6 +76,7 @@ export const schema = {
   dealParticipantRoleEnum,
   dealCapabilityKindEnum,
   dealCapabilityStatusEnum,
+  dealAttachmentIngestionStatusEnum,
   dealOperationalPositionKindEnum,
   dealOperationalPositionStateEnum,
   dealTimelineEventTypeEnum,

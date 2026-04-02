@@ -4,6 +4,7 @@ export { DrizzleFilesUnitOfWork } from "./drizzle/files.uow";
 export {
   fileAssetOriginEnum,
   fileAssets,
+  fileAttachmentPurposeEnum,
   fileGeneratedFormatEnum,
   fileGeneratedLangEnum,
   fileLinkKindEnum,

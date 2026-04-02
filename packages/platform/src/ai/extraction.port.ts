@@ -2,6 +2,10 @@ import type { z } from "zod";
 
 import type { ExtractedDocumentData } from "./contracts";
 
+export interface DocumentExtractionOptions {
+  instructions?: string;
+}
+
 export interface DocumentExtractionPort {
   extractFromPdf(buffer: Buffer): Promise<ExtractedDocumentData>;
   extractFromDocx(buffer: Buffer): Promise<ExtractedDocumentData>;
@@ -10,6 +14,7 @@ export interface DocumentExtractionPort {
     buffer: Buffer,
     mimeType: string,
     schema: T,
+    options?: DocumentExtractionOptions,
   ): Promise<z.infer<T>>;
   translateFields(
     data: Record<string, string>,

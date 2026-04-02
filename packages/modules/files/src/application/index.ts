@@ -6,6 +6,7 @@ import { UploadFileAttachmentCommand } from "./commands/upload-file-attachment";
 import type { FileReads } from "./ports/file.reads";
 import type { FilesCommandUnitOfWork } from "./ports/files.uow";
 import type { ObjectStoragePort } from "./ports/object-storage.port";
+import { GetFileAttachmentContentQuery } from "./queries/get-file-attachment-content";
 import { GetFileDownloadUrlQuery } from "./queries/get-file-download-url";
 import { ListFileAttachmentsQuery } from "./queries/list-file-attachments";
 
@@ -27,7 +28,17 @@ export function createFilesService(deps: FilesServiceDeps) {
     deps.objectStorage,
     "deal",
   );
+  const getDealAttachmentContent = new GetFileAttachmentContentQuery(
+    deps.reads,
+    deps.objectStorage,
+    "deal",
+  );
   const getCounterpartyDownloadUrl = new GetFileDownloadUrlQuery(
+    deps.reads,
+    deps.objectStorage,
+    "counterparty",
+  );
+  const getCounterpartyAttachmentContent = new GetFileAttachmentContentQuery(
     deps.reads,
     deps.objectStorage,
     "counterparty",
@@ -92,8 +103,14 @@ export function createFilesService(deps: FilesServiceDeps) {
     queries: {
       getCounterpartyAttachmentDownloadUrl:
         getCounterpartyDownloadUrl.execute.bind(getCounterpartyDownloadUrl),
+      getCounterpartyAttachmentContent:
+        getCounterpartyAttachmentContent.execute.bind(
+          getCounterpartyAttachmentContent,
+        ),
       getDealAttachmentDownloadUrl:
         getDealDownloadUrl.execute.bind(getDealDownloadUrl),
+      getDealAttachmentContent:
+        getDealAttachmentContent.execute.bind(getDealAttachmentContent),
       listCounterpartyAttachments:
         listCounterpartyAttachments.execute.bind(listCounterpartyAttachments),
       listDealAttachments: listDealAttachments.execute.bind(listDealAttachments),

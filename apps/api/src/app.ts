@@ -39,6 +39,7 @@ import {
   requisiteProvidersRoutes,
   requisitesRoutes,
   subAgentProfilesRoutes,
+  treasuryOrganizationBalancesRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
   usersRoutes,
@@ -218,6 +219,10 @@ function createV1Routes(ctx: AppContext) {
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
     .route("/sub-agent-profiles", subAgentProfilesRoutes(ctx))
+    .route(
+      "/treasury/organizations/balances",
+      treasuryOrganizationBalancesRoutes(ctx),
+    )
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))

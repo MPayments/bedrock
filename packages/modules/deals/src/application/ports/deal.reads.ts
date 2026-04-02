@@ -2,6 +2,7 @@ import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
   Deal,
+  DealAttachmentIngestion,
   DealCapabilityState,
   DealCalculationHistoryItem,
   DealDetails,
@@ -14,6 +15,9 @@ import type { ListDealsQuery } from "../contracts/queries";
 
 export interface DealReads {
   findById(id: string): Promise<DealDetails | null>;
+  findAttachmentIngestionByFileAssetId(
+    fileAssetId: string,
+  ): Promise<DealAttachmentIngestion | null>;
   findPortalProjectionById(id: string): Promise<PortalDealProjection | null>;
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
@@ -24,6 +28,9 @@ export interface DealReads {
     internalEntityOrganizationId?: string;
     status?: DealCapabilityState["status"];
   }): Promise<DealCapabilityState[]>;
+  listAttachmentIngestionsByDealId(
+    dealId: string,
+  ): Promise<DealAttachmentIngestion[]>;
   list(input: ListDealsQuery): Promise<PaginatedList<Deal>>;
   listCalculationHistory(dealId: string): Promise<DealCalculationHistoryItem[]>;
   listPortalDeals(input: {

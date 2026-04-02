@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 const getCounterpartyById = vi.fn();
 const getCurrencyById = vi.fn();
 const getCustomerById = vi.fn();
-const getFinanceDealWorkspaceById = vi.fn();
+const getFinanceDealBreadcrumbById = vi.fn();
 const getOrganizationById = vi.fn();
 const getRequisiteProviderById = vi.fn();
 const getRequisiteById = vi.fn();
@@ -24,7 +24,7 @@ vi.mock("@/features/entities/customers/lib/queries", () => ({
 }));
 
 vi.mock("@/features/treasury/deals/lib/queries", () => ({
-  getFinanceDealWorkspaceById,
+  getFinanceDealBreadcrumbById,
 }));
 
 vi.mock("@/features/entities/organizations/lib/queries", () => ({
@@ -59,7 +59,7 @@ describe("treasury deals breadcrumb page", () => {
       }
     ).React = React;
 
-    getFinanceDealWorkspaceById.mockResolvedValue({
+    getFinanceDealBreadcrumbById.mockResolvedValue({
       summary: {
         applicantDisplayName: "ООО Ромашка",
         id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
@@ -99,4 +99,3 @@ describe("treasury deals breadcrumb page", () => {
     ]);
   });
 });
-

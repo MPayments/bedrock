@@ -6,10 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 
 import { DEAL_QUOTE_STATUS_LABELS } from "./constants";
 import { FinancialCard } from "./financial-card";
-import { formatDate } from "./format";
+import {
+  formatCurrency,
+  formatDate,
+  minorToDecimalString,
+  rationalToDecimalString,
+} from "./format";
 import type {
   ApiDealAcceptedQuote,
-  ApiDealWorkflowProjection,
+  ApiDealPricingQuote,
   CalculationHistoryView,
   CalculationView,
 } from "./types";
@@ -27,11 +32,45 @@ type DealPricingTabProps = {
   onCreateCalculation: () => void;
   onCreateQuote: () => void;
   quoteCreationDisabledReason: string | null;
-  quotes: ApiDealWorkflowProjection["relatedResources"]["quotes"];
+  quotes: ApiDealPricingQuote[];
 };
 
 function formatQuoteStatus(status: string) {
   return DEAL_QUOTE_STATUS_LABELS[status] ?? status;
+}
+
+function formatQuotePair(quote: ApiDealPricingQuote) {
+  return `${quote.fromCurrency} → ${quote.toCurrency}`;
+}
+
+function getCurrencyPrecision(currencyCode: string) {
+  try {
+    return (
+      new Intl.NumberFormat("ru-RU", {
+      currency: currencyCode,
+      style: "currency",
+      }).resolvedOptions().maximumFractionDigits ?? 2
+    );
+  } catch {
+    return 2;
+  }
+}
+
+function formatQuoteAmounts(quote: ApiDealPricingQuote) {
+  const fromAmount = minorToDecimalString(
+    quote.fromAmountMinor,
+    getCurrencyPrecision(quote.fromCurrency),
+  );
+  const toAmount = minorToDecimalString(
+    quote.toAmountMinor,
+    getCurrencyPrecision(quote.toCurrency),
+  );
+
+  return `${formatCurrency(fromAmount, quote.fromCurrency)} → ${formatCurrency(toAmount, quote.toCurrency)}`;
+}
+
+function formatQuoteRate(quote: ApiDealPricingQuote) {
+  return `1 ${quote.fromCurrency} = ${rationalToDecimalString(quote.rateNum, quote.rateDen)} ${quote.toCurrency}`;
 }
 
 export function DealPricingTab({
@@ -49,13 +88,17 @@ export function DealPricingTab({
   quoteCreationDisabledReason,
   quotes,
 }: DealPricingTabProps) {
+  const acceptedDetailedQuote = acceptedQuote
+    ? quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null
+    : null;
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-muted-foreground" />
-            Котировка
+            Котировка и курс
           </CardTitle>
           <Button
             disabled={Boolean(quoteCreationDisabledReason) || isCreatingQuote}
@@ -76,6 +119,16 @@ export function DealPricingTab({
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <div className="font-medium">Текущая принятая котировка</div>
+                {acceptedDetailedQuote ? (
+                  <>
+                    <div className="text-sm font-medium text-foreground">
+                      {formatQuotePair(acceptedDetailedQuote)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {formatQuoteAmounts(acceptedDetailedQuote)}
+                    </div>
+                  </>
+                ) : null}
                 <div className="text-sm text-muted-foreground">
                   {acceptedQuote
                     ? `Принята ${formatDate(acceptedQuote.acceptedAt)}`
@@ -90,7 +143,15 @@ export function DealPricingTab({
             </div>
 
             {acceptedQuote ? (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {acceptedDetailedQuote ? (
+                  <div className="rounded-md bg-muted/40 px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Курс</div>
+                    <div className="text-sm font-medium">
+                      {formatQuoteRate(acceptedDetailedQuote)}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="rounded-md bg-muted/40 px-3 py-2">
                   <div className="text-xs text-muted-foreground">
                     Срок действия
@@ -123,7 +184,7 @@ export function DealPricingTab({
               </div>
             ) : (
               <div className="space-y-2">
-                {quotes.map((quote, index) => {
+                {quotes.map((quote) => {
                   const isAccepted = acceptedQuote?.quoteId === quote.id;
                   const canAccept =
                     quote.status === "active" && !isAccepted && !isCreatingQuote;
@@ -135,15 +196,19 @@ export function DealPricingTab({
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            Котировка {quotes.length - index}
-                          </span>
+                          <span className="font-medium">{formatQuotePair(quote)}</span>
                           {isAccepted ? (
                             <Badge variant="secondary">
                               <CheckCircle2 className="mr-1 h-3 w-3" />
                               Принята
                             </Badge>
                           ) : null}
+                        </div>
+                        <div className="text-sm text-foreground">
+                          {formatQuoteAmounts(quote)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatQuoteRate(quote)}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                           <span>{formatQuoteStatus(quote.status)}</span>
@@ -153,6 +218,7 @@ export function DealPricingTab({
                               ? `До ${formatDate(quote.expiresAt)}`
                               : "Без срока"}
                           </span>
+                          <span>Создана {formatDate(quote.createdAt)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

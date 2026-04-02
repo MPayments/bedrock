@@ -19,16 +19,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
+import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
   buildPortalDealAttachmentDownloadUrl,
   deletePortalDealAttachment,
+  type PortalDealCalculation,
+  type PortalDealPageData,
   type PortalDealProjectionResponse,
   type PortalDealStatus,
   type PortalDealType,
-  requestPortalDealProjection,
+  requestPortalDealPageData,
   uploadPortalDealAttachment,
 } from "@/lib/portal-deals";
 
@@ -70,6 +80,19 @@ const TIMELINE_LABELS: Record<
   document_status_changed: "Статус документа обновлен",
 };
 
+const ATTACHMENT_PURPOSE_LABELS = {
+  contract: "Договор",
+  invoice: "Инвойс",
+  other: "Другое",
+} as const;
+
+const ATTACHMENT_INGESTION_LABELS = {
+  applied: "Данные учтены",
+  failed: "Не удалось обработать",
+  processing: "Распознается",
+  unavailable: "Обработка недоступна",
+} as const;
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("ru-RU");
 }
@@ -82,30 +105,78 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleDateString("ru-RU");
 }
 
+function formatDecimal(value: string, maximumFractionDigits = 2) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits,
+  }).format(numericValue);
+}
+
+function formatCurrencyAmount(
+  value: string,
+  currencyCode: string | null | undefined,
+) {
+  const formattedValue = formatDecimal(value);
+
+  if (!currencyCode || formattedValue === "—") {
+    return formattedValue;
+  }
+
+  return `${formattedValue} ${currencyCode}`;
+}
+
+function formatCalculationRate(calculation: PortalDealCalculation) {
+  const directRate = Number(calculation.rate);
+
+  if (!Number.isFinite(directRate) || directRate <= 0) {
+    return "—";
+  }
+
+  if (
+    calculation.currencyCode === "RUB" &&
+    calculation.baseCurrencyCode !== "RUB"
+  ) {
+    const inverseRate = formatDecimal(String(1 / directRate), 6);
+    return `1 ${calculation.baseCurrencyCode} = ${inverseRate} ${calculation.currencyCode}`;
+  }
+
+  const rate = formatDecimal(calculation.rate, 6);
+  return `1 ${calculation.currencyCode} = ${rate} ${calculation.baseCurrencyCode}`;
+}
+
 export default function PortalDealDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params.id ?? "");
 
-  const [data, setData] = useState<PortalDealProjectionResponse | null>(null);
+  const [data, setData] = useState<PortalDealPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [calculationError, setCalculationError] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
-  const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(
-    null,
-  );
-  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(
-    null,
-  );
+  const [uploadPurpose, setUploadPurpose] = useState<
+    "invoice" | "contract" | "other"
+  >("invoice");
+  const [downloadingFormat, setDownloadingFormat] = useState<
+    "docx" | "pdf" | null
+  >(null);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
+    string | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function loadProjection() {
     try {
       setLoading(true);
       setError(null);
-      const result = await requestPortalDealProjection(dealId);
+      const result = await requestPortalDealPageData(dealId);
       setData(result);
     } catch (fetchError) {
       console.error("Deal fetch error:", fetchError);
@@ -125,7 +196,9 @@ export default function PortalDealDetailPage() {
     }
   }, [dealId]);
 
-  async function handleAttachmentSelection(event: ChangeEvent<HTMLInputElement>) {
+  async function handleAttachmentSelection(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -138,6 +211,7 @@ export default function PortalDealDetailPage() {
       await uploadPortalDealAttachment({
         dealId,
         file,
+        purpose: uploadPurpose,
       });
       await loadProjection();
     } catch (uploadError) {
@@ -238,6 +312,9 @@ export default function PortalDealDetailPage() {
     );
   }
 
+  const primaryAmountLabel =
+    data.summary.type === "payment" ? "Сумма платежа" : "Сумма сделки";
+
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={() => router.push("/deals")}>
@@ -256,14 +333,20 @@ export default function PortalDealDetailPage() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div>
-            <p className="text-xs uppercase text-muted-foreground">Организация</p>
+            <p className="text-xs uppercase text-muted-foreground">
+              Организация
+            </p>
             <p className="text-sm font-medium">
               {data.summary.applicantDisplayName ?? "Не указана"}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase text-muted-foreground">Тип сделки</p>
-            <p className="text-sm font-medium">{TYPE_LABELS[data.summary.type]}</p>
+            <p className="text-xs uppercase text-muted-foreground">
+              Тип сделки
+            </p>
+            <p className="text-sm font-medium">
+              {TYPE_LABELS[data.summary.type]}
+            </p>
           </div>
           <div>
             <p className="text-xs uppercase text-muted-foreground">Создана</p>
@@ -288,9 +371,7 @@ export default function PortalDealDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase text-muted-foreground">
-              Котировка
-            </p>
+            <p className="text-xs uppercase text-muted-foreground">Котировка</p>
             <p className="text-sm font-medium">
               {data.quoteSummary?.expiresAt
                 ? `Действует до ${formatDate(data.quoteSummary.expiresAt)}`
@@ -332,7 +413,7 @@ export default function PortalDealDetailPage() {
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div>
             <p className="text-xs uppercase text-muted-foreground">
-              Сумма источника
+              {primaryAmountLabel}
             </p>
             <p className="text-sm font-medium">
               {data.customerSafeIntake.sourceAmount ?? "Не указана"}
@@ -395,6 +476,32 @@ export default function PortalDealDetailPage() {
               Документы
             </span>
             <div className="flex items-center gap-2">
+              <div className="w-44">
+                <Label className="sr-only" htmlFor="portal-attachment-purpose">
+                  Тип файла
+                </Label>
+                <Select
+                  value={uploadPurpose}
+                  onValueChange={(value) => {
+                    if (
+                      value === "invoice" ||
+                      value === "contract" ||
+                      value === "other"
+                    ) {
+                      setUploadPurpose(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="portal-attachment-purpose">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="invoice">Инвойс</SelectItem>
+                    <SelectItem value="contract">Договор</SelectItem>
+                    <SelectItem value="other">Другое</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -440,6 +547,12 @@ export default function PortalDealDetailPage() {
                   <div>
                     <p className="text-sm font-medium">{attachment.fileName}</p>
                     <p className="text-xs text-muted-foreground">
+                      {ATTACHMENT_PURPOSE_LABELS[attachment.purpose ?? "other"]}
+                      {attachment.ingestionStatus
+                        ? ` · ${ATTACHMENT_INGESTION_LABELS[attachment.ingestionStatus]}`
+                        : ""}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       {formatDateTime(attachment.createdAt)}
                     </p>
                   </div>
@@ -448,10 +561,11 @@ export default function PortalDealDetailPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        window.location.href = buildPortalDealAttachmentDownloadUrl({
-                          attachmentId: attachment.id,
-                          dealId,
-                        });
+                        window.location.href =
+                          buildPortalDealAttachmentDownloadUrl({
+                            attachmentId: attachment.id,
+                            dealId,
+                          });
                       }}
                     >
                       <Download className="h-4 w-4" />
@@ -480,8 +594,71 @@ export default function PortalDealDetailPage() {
             {data.calculationSummary ? (
               <>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Расчет привязан к сделке и доступен для выгрузки.
+                  Расчет привязан к сделке, показан ниже и доступен для
+                  выгрузки.
                 </p>
+                {data.calculation ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Дата расчета
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatDateTime(data.calculation.calculationTimestamp)}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Сумма</div>
+                      <div className="text-sm font-medium">
+                        {formatCurrencyAmount(
+                          data.calculation.originalAmount,
+                          data.calculation.currencyCode,
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Комиссия
+                      </div>
+                      <div className="text-sm font-medium">
+                        {data.calculation.feePercentage}% (
+                        {formatCurrencyAmount(
+                          data.calculation.feeAmount,
+                          data.calculation.currencyCode,
+                        )}
+                        )
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Курс</div>
+                      <div className="text-sm font-medium">
+                        {formatCalculationRate(data.calculation)}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Итого без расходов
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrencyAmount(
+                          data.calculation.totalInBase,
+                          data.calculation.baseCurrencyCode,
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Итого к оплате
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrencyAmount(
+                          data.calculation.totalWithExpensesInBase,
+                          data.calculation.baseCurrencyCode,
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="flex gap-2 pt-3">
                   <Button
                     variant="outline"
@@ -489,7 +666,9 @@ export default function PortalDealDetailPage() {
                     onClick={() => void handleDownload("pdf")}
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    {downloadingFormat === "pdf" ? "Загрузка PDF…" : "Скачать PDF"}
+                    {downloadingFormat === "pdf"
+                      ? "Загрузка PDF…"
+                      : "Скачать PDF"}
                   </Button>
                   <Button
                     variant="outline"

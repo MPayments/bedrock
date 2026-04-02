@@ -37,6 +37,10 @@ import {
   type CustomerPortalWorkflow,
 } from "@bedrock/workflow-customer-portal";
 import {
+  createDealAttachmentIngestionWorkflow,
+  type DealAttachmentIngestionWorkflow,
+} from "@bedrock/workflow-deal-attachment-ingestion";
+import {
   createDealProjectionsWorkflow,
   type DealProjectionsWorkflow,
 } from "@bedrock/workflow-deal-projections";
@@ -95,6 +99,7 @@ export interface ApiApplicationServices {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -518,6 +523,13 @@ export function createApplicationServices(
   const documentExtraction = env?.OPENAI_API_KEY
     ? new OpenAIDocumentExtractionAdapter({ apiKey: env.OPENAI_API_KEY })
     : undefined;
+  const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow({
+    currencies: currenciesService,
+    deals: dealsModule,
+    documentExtraction,
+    files: filesModule,
+    logger,
+  });
 
   return {
     agreementsModule,
@@ -527,6 +539,7 @@ export function createApplicationServices(
     partiesModule,
     currenciesService,
     treasuryModule,
+    dealAttachmentIngestionWorkflow,
     dealQuoteWorkflow,
     dealProjectionsWorkflow,
     organizationBootstrapWorkflow,

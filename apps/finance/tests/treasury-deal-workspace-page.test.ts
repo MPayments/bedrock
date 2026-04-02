@@ -1,31 +1,18 @@
-import React, { createElement, type ReactNode } from "react";
+import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getFinanceDealWorkspaceById = vi.fn();
-const renderWorkspaceLayout = vi.fn<
-  (props: { children?: ReactNode; title: string }) => void
->();
-const renderWorkspaceView = vi.fn<(props: unknown) => null>(() => null);
+const getFinanceDealWorkbenchById = vi.fn();
+const renderWorkbench = vi.fn<(props: unknown) => null>(() => null);
 
 vi.mock("@/features/treasury/deals/lib/queries", () => ({
-  getFinanceDealWorkspaceById,
+  getFinanceDealWorkbenchById,
 }));
 
-vi.mock("@/features/treasury/deals/components/workspace-layout", () => ({
-  FinanceDealWorkspaceLayout: (props: {
-    children?: ReactNode;
-    title: string;
-  }) => {
-    renderWorkspaceLayout(props);
-    return createElement("section", null, props.children);
-  },
-}));
-
-vi.mock("@/features/treasury/deals/components/workspace-view", () => ({
-  FinanceDealWorkspaceView: (props: unknown) => {
-    renderWorkspaceView(props);
-    return null;
+vi.mock("@/features/treasury/deals/components/workbench", () => ({
+  FinanceDealWorkbench: (props: unknown) => {
+    renderWorkbench(props);
+    return createElement("section");
   },
 }));
 
@@ -34,16 +21,21 @@ describe("treasury deal workspace page", () => {
     vi.resetModules();
     vi.clearAllMocks();
 
-    getFinanceDealWorkspaceById.mockResolvedValue({
+    getFinanceDealWorkbenchById.mockResolvedValue({
       summary: {
         applicantDisplayName: "ООО Ромашка",
+        calculationId: null,
+        createdAt: "2026-04-02T08:07:00.000Z",
         id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        internalEntityDisplayName: "Мультиханса",
+        status: "draft",
         type: "payment",
+        updatedAt: "2026-04-02T08:07:00.000Z",
       },
     });
   });
 
-  it("loads the deal workspace and passes the localized title to the layout", async () => {
+  it("loads the treasury workbench and passes it to the workbench component", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -62,19 +54,16 @@ describe("treasury deal workspace page", () => {
       }),
     );
 
-    expect(getFinanceDealWorkspaceById).toHaveBeenCalledWith(
+    expect(getFinanceDealWorkbenchById).toHaveBeenCalledWith(
       "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
     );
-    expect(renderWorkspaceLayout).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Платеж поставщику • ООО Ромашка",
-      }),
-    );
-    expect(renderWorkspaceView).toHaveBeenCalledWith(
+    expect(renderWorkbench).toHaveBeenCalledWith(
       expect.objectContaining({
         deal: expect.objectContaining({
           summary: expect.objectContaining({
+            applicantDisplayName: "ООО Ромашка",
             id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+            type: "payment",
           }),
         }),
       }),

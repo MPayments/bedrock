@@ -1,27 +1,114 @@
-import { Download, File, Trash2, Upload } from "lucide-react";
+import { Download, File, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
+import {
+  ATTACHMENT_INGESTION_STATUS_LABELS,
+  ATTACHMENT_PURPOSE_LABELS,
+} from "./constants";
 import { formatDate } from "./format";
 import { formatFileSize, getFileIcon } from "./file-utils";
-import type { ApiAttachment } from "./types";
+import type { ApiAttachment, ApiDealAttachmentIngestion } from "./types";
 
 type AttachmentsCardProps = {
   attachments: ApiAttachment[];
+  attachmentIngestions: ApiDealAttachmentIngestion[];
   deletingAttachmentId: string | null;
+  reingestingAttachmentId: string | null;
   onUpload: () => void;
   onDownload: (attachmentId: string) => void;
   onDelete: (attachmentId: string) => void;
+  onReingest: (attachmentId: string) => void;
 };
+
+function getIngestionView(
+  ingestion: ApiDealAttachmentIngestion | null,
+): {
+  description: string | null;
+  status:
+    | "applied"
+    | "failed"
+    | "pending"
+    | "processed_without_changes"
+    | "processing"
+    | "unavailable";
+} | null {
+  if (!ingestion) {
+    return null;
+  }
+
+  if (ingestion.status === "pending") {
+    return {
+      description: null,
+      status: "pending",
+    };
+  }
+
+  if (ingestion.status === "processing") {
+    return {
+      description: null,
+      status: "processing",
+    };
+  }
+
+  if (ingestion.status === "processed") {
+    if (ingestion.appliedFields.length === 0) {
+      return {
+        description: null,
+        status: "processed_without_changes",
+      };
+    }
+
+    return {
+      description: `Заполнено полей: ${ingestion.appliedFields.length}`,
+      status: "applied",
+    };
+  }
+
+  if (
+    ingestion.errorCode === "extractor_unconfigured" ||
+    ingestion.errorCode === "storage_unconfigured"
+  ) {
+    return {
+      description: null,
+      status: "unavailable",
+    };
+  }
+
+  return {
+    description: ingestion.errorMessage,
+    status: "failed",
+  };
+}
+
+function getMissingIngestionView(input: {
+  purpose: ApiAttachment["purpose"];
+}) {
+  if (input.purpose !== "invoice" && input.purpose !== "contract") {
+    return null;
+  }
+
+  return {
+    description: "Файл еще не был отправлен на распознавание.",
+    status: "pending" as const,
+  };
+}
 
 export function AttachmentsCard({
   attachments,
+  attachmentIngestions,
   deletingAttachmentId,
+  reingestingAttachmentId,
   onUpload,
   onDownload,
   onDelete,
+  onReingest,
 }: AttachmentsCardProps) {
+  const ingestionsByAttachmentId = new Map(
+    attachmentIngestions.map((ingestion) => [ingestion.fileAssetId, ingestion]),
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -43,11 +130,21 @@ export function AttachmentsCard({
           </div>
         ) : (
           <div className="space-y-2">
-            {attachments.map((attachment) => (
-              <div
-                key={attachment.id}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3"
-              >
+            {attachments.map((attachment) => {
+              const ingestion = ingestionsByAttachmentId.get(attachment.id) ?? null;
+              const ingestionView =
+                getIngestionView(ingestion) ??
+                getMissingIngestionView({ purpose: attachment.purpose });
+              const canReingest =
+                (attachment.purpose === "invoice" ||
+                  attachment.purpose === "contract") &&
+                ingestion?.status !== "processing";
+
+              return (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="shrink-0">
                     {getFileIcon(attachment.mimeType)}
@@ -61,13 +158,30 @@ export function AttachmentsCard({
                         {attachment.description}
                       </div>
                     )}
-                    <div className="mt-1">
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Badge variant="outline">
+                        {ATTACHMENT_PURPOSE_LABELS[attachment.purpose ?? "other"]}
+                      </Badge>
                       <Badge variant="outline">
                         {attachment.visibility === "customer_safe"
                           ? "Клиент + CRM"
                           : "Только CRM"}
                       </Badge>
+                      {ingestionView ? (
+                        <Badge variant="outline">
+                          {
+                            ATTACHMENT_INGESTION_STATUS_LABELS[
+                              ingestionView.status
+                            ]
+                          }
+                        </Badge>
+                      ) : null}
                     </div>
+                    {ingestionView?.description ? (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {ingestionView.description}
+                      </div>
+                    ) : null}
                     <div className="text-xs text-muted-foreground">
                       {formatFileSize(attachment.fileSize)} ·{" "}
                       {formatDate(attachment.createdAt)}
@@ -84,6 +198,18 @@ export function AttachmentsCard({
                   >
                     <Download className="h-4 w-4" />
                   </Button>
+                  {canReingest ? (
+                    <Button
+                      className="h-8 w-8 p-0"
+                      disabled={reingestingAttachmentId === attachment.id}
+                      onClick={() => onReingest(attachment.id)}
+                      size="sm"
+                      title="Запустить распознавание повторно"
+                      variant="ghost"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  ) : null}
                   <Button
                     className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
                     disabled={deletingAttachmentId === attachment.id}
@@ -96,7 +222,8 @@ export function AttachmentsCard({
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

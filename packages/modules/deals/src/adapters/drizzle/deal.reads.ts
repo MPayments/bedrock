@@ -32,6 +32,7 @@ import {
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
+  dealAttachmentIngestions,
   dealCapabilityStates,
   dealApprovals,
   dealCalculationLinks,
@@ -44,6 +45,7 @@ import {
 } from "./schema";
 import type {
   Deal,
+  DealAttachmentIngestion,
   DealCapabilityState,
   DealApproval,
   DealCalculationHistoryItem,
@@ -103,6 +105,8 @@ function mapTimelineEvent(row: {
     | "calculation_attached"
     | "attachment_uploaded"
     | "attachment_deleted"
+    | "attachment_ingested"
+    | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
     | "leg_state_changed";
@@ -180,6 +184,41 @@ function mapCapabilityState(row: {
     status: row.status,
     updatedAt: row.updatedAt,
     updatedByUserId: row.updatedByUserId,
+  };
+}
+
+function mapAttachmentIngestion(row: {
+  appliedFields: string[] | null;
+  appliedRevision: number | null;
+  attempts: number;
+  availableAt: Date;
+  errorCode: string | null;
+  errorMessage: string | null;
+  fileAssetId: string;
+  lastProcessedAt: Date | null;
+  normalizedPayload: Record<string, unknown> | null;
+  observedRevision: number;
+  skippedFields: string[] | null;
+  status: DealAttachmentIngestion["status"];
+  updatedAt: Date;
+}): DealAttachmentIngestion {
+  return {
+    appliedFields: row.appliedFields ?? [],
+    appliedRevision:
+      row.appliedRevision === null ? null : Number(row.appliedRevision),
+    attempts: Number(row.attempts),
+    availableAt: row.availableAt,
+    errorCode: row.errorCode,
+    errorMessage: row.errorMessage,
+    fileAssetId: row.fileAssetId,
+    lastProcessedAt: row.lastProcessedAt,
+    normalizedPayload:
+      (row.normalizedPayload as DealAttachmentIngestion["normalizedPayload"]) ??
+      null,
+    observedRevision: Number(row.observedRevision),
+    skippedFields: row.skippedFields ?? [],
+    status: row.status,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -622,6 +661,32 @@ export class DrizzleDealReads implements DealReads {
       .orderBy(desc(dealCalculationLinks.createdAt));
   }
 
+  private async loadAttachmentIngestions(
+    dealId: string,
+  ): Promise<DealAttachmentIngestion[]> {
+    const rows = await this.db
+      .select({
+        appliedFields: dealAttachmentIngestions.appliedFields,
+        appliedRevision: dealAttachmentIngestions.appliedRevision,
+        attempts: dealAttachmentIngestions.attempts,
+        availableAt: dealAttachmentIngestions.availableAt,
+        errorCode: dealAttachmentIngestions.errorCode,
+        errorMessage: dealAttachmentIngestions.errorMessage,
+        fileAssetId: dealAttachmentIngestions.fileAssetId,
+        lastProcessedAt: dealAttachmentIngestions.lastProcessedAt,
+        normalizedPayload: dealAttachmentIngestions.normalizedPayload,
+        observedRevision: dealAttachmentIngestions.observedRevision,
+        skippedFields: dealAttachmentIngestions.skippedFields,
+        status: dealAttachmentIngestions.status,
+        updatedAt: dealAttachmentIngestions.updatedAt,
+      })
+      .from(dealAttachmentIngestions)
+      .where(eq(dealAttachmentIngestions.dealId, dealId))
+      .orderBy(desc(dealAttachmentIngestions.updatedAt));
+
+    return rows.map(mapAttachmentIngestion);
+  }
+
   private async buildWorkflowProjectionFromSummary(
     summary: DealSummaryRow,
   ): Promise<DealWorkflowProjection> {
@@ -634,6 +699,7 @@ export class DrizzleDealReads implements DealReads {
       calculationRefs,
       quotes,
       formalDocuments,
+      attachmentIngestions,
     ] =
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
@@ -644,6 +710,7 @@ export class DrizzleDealReads implements DealReads {
         this.loadCalculationRefs(summary.id),
         this.loadQuotes(summary.id),
         this.loadFormalDocuments(summary.id),
+        this.loadAttachmentIngestions(summary.id),
       ]);
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
@@ -705,6 +772,7 @@ export class DrizzleDealReads implements DealReads {
 
     return {
       acceptedQuote,
+      attachmentIngestions,
       executionPlan,
       intake: summary.snapshot,
       nextAction,
@@ -748,6 +816,32 @@ export class DrizzleDealReads implements DealReads {
     }
 
     return this.buildWorkflowProjectionFromSummary(summary);
+  }
+
+  async findAttachmentIngestionByFileAssetId(
+    fileAssetId: string,
+  ): Promise<DealAttachmentIngestion | null> {
+    const [row] = await this.db
+      .select({
+        appliedFields: dealAttachmentIngestions.appliedFields,
+        appliedRevision: dealAttachmentIngestions.appliedRevision,
+        attempts: dealAttachmentIngestions.attempts,
+        availableAt: dealAttachmentIngestions.availableAt,
+        errorCode: dealAttachmentIngestions.errorCode,
+        errorMessage: dealAttachmentIngestions.errorMessage,
+        fileAssetId: dealAttachmentIngestions.fileAssetId,
+        lastProcessedAt: dealAttachmentIngestions.lastProcessedAt,
+        normalizedPayload: dealAttachmentIngestions.normalizedPayload,
+        observedRevision: dealAttachmentIngestions.observedRevision,
+        skippedFields: dealAttachmentIngestions.skippedFields,
+        status: dealAttachmentIngestions.status,
+        updatedAt: dealAttachmentIngestions.updatedAt,
+      })
+      .from(dealAttachmentIngestions)
+      .where(eq(dealAttachmentIngestions.fileAssetId, fileAssetId))
+      .limit(1);
+
+    return row ? mapAttachmentIngestion(row) : null;
   }
 
   async listCapabilityStates(input: {
@@ -809,6 +903,12 @@ export class DrizzleDealReads implements DealReads {
       );
 
     return rows.map(mapCapabilityState);
+  }
+
+  async listAttachmentIngestionsByDealId(
+    dealId: string,
+  ): Promise<DealAttachmentIngestion[]> {
+    return this.loadAttachmentIngestions(dealId);
   }
 
   async findPortalProjectionById(id: string): Promise<PortalDealProjection | null> {

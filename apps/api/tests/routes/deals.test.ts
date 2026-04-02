@@ -25,10 +25,8 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import {
-  DealNotFoundError,
-  DealTransitionBlockedError,
-} from "@bedrock/deals";
+import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -214,13 +212,29 @@ function createTestApp() {
   };
   const calculationsModule = {
     calculations: {
+      queries: {
+        findById: vi.fn(),
+      },
       commands: {
         create: vi.fn(),
       },
     },
   };
+  const partiesModule = {
+    customers: {
+      queries: {
+        findById: vi.fn(),
+      },
+    },
+  };
   const currenciesService = {
     findByCode: vi.fn(),
+    findById: vi.fn(),
+  };
+  const iamService = {
+    queries: {
+      findById: vi.fn(),
+    },
   };
   const app = new OpenAPIHono();
 
@@ -242,8 +256,10 @@ function createTestApp() {
       dealProjectionsWorkflow,
       dealQuoteWorkflow,
       dealsModule,
+      iamService,
       treasuryModule,
       calculationsModule,
+      partiesModule,
       currenciesService,
     } as any),
   );
@@ -255,6 +271,8 @@ function createTestApp() {
     dealsModule,
     treasuryModule,
     calculationsModule,
+    iamService,
+    partiesModule,
     currenciesService,
   };
 }
@@ -266,8 +284,16 @@ describe("deals routes", () => {
   });
 
   it("lists, fetches, and creates canonical deals", async () => {
-    const { app, dealsModule } = createTestApp();
+    const {
+      app,
+      calculationsModule,
+      currenciesService,
+      dealsModule,
+      iamService,
+      partiesModule,
+    } = createTestApp();
     const detail = createDealDetail();
+    const now = detail.createdAt;
     dealsModule.deals.queries.list.mockResolvedValue({
       data: [
         {
@@ -278,19 +304,79 @@ describe("deals routes", () => {
           type: detail.type,
           status: detail.status,
           comment: detail.comment,
+          intakeComment: null,
+          nextAction: null,
+          reason: "Supplier payment",
+          requestedAmount: "100.00",
+          requestedCurrencyId: "00000000-0000-4000-8000-000000000006",
+          revision: 1,
           createdAt: detail.createdAt,
           updatedAt: detail.updatedAt,
+          agentId: "agent-1",
         },
       ],
       total: 1,
-      limit: 20,
+      limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
+    });
+    partiesModule.customers.queries.findById.mockResolvedValue({
+      id: detail.customerId,
+      displayName: "Customer One",
+    });
+    iamService.queries.findById.mockResolvedValue({
+      id: "agent-1",
+      name: "Agent Smith",
+    });
+    calculationsModule.calculations.queries.findById.mockResolvedValue({
+      id: detail.calculationId,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      currentSnapshot: {
+        id: "00000000-0000-4000-8000-000000000099",
+        snapshotNumber: 1,
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000006",
+        originalAmountMinor: "10000",
+        feeBps: "150",
+        feeAmountMinor: "150",
+        totalAmountMinor: "10150",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000007",
+        feeAmountInBaseMinor: "135",
+        totalInBaseMinor: "9000",
+        additionalExpensesCurrencyId: null,
+        additionalExpensesAmountMinor: "0",
+        additionalExpensesInBaseMinor: "0",
+        totalWithExpensesInBaseMinor: "9000",
+        rateSource: "manual",
+        rateNum: "90",
+        rateDen: "1",
+        additionalExpensesRateSource: null,
+        additionalExpensesRateNum: null,
+        additionalExpensesRateDen: null,
+        calculationTimestamp: now,
+        fxQuoteId: null,
+        quoteSnapshot: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      lines: [],
+    });
+    currenciesService.findById.mockImplementation(async (id: string) => {
+      if (id === "00000000-0000-4000-8000-000000000006") {
+        return { id, code: "USD", precision: 2 };
+      }
+      if (id === "00000000-0000-4000-8000-000000000007") {
+        return { id, code: "RUB", precision: 2 };
+      }
+      throw new Error(`Unknown currency ${id}`);
     });
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
     dealsModule.deals.commands.create.mockResolvedValue(detail);
 
     const listResponse = await app.request("http://localhost/deals");
-    const getResponse = await app.request(`http://localhost/deals/${detail.id}`);
+    const getResponse = await app.request(
+      `http://localhost/deals/${detail.id}`,
+    );
     const createResponse = await app.request("http://localhost/deals", {
       method: "POST",
       headers: {
@@ -311,10 +397,26 @@ describe("deals routes", () => {
     expect(createResponse.status).toBe(201);
 
     expect(dealsModule.deals.queries.list).toHaveBeenCalledWith({
-      limit: 20,
+      customerId: undefined,
+      limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
+    });
+    await expect(listResponse.json()).resolves.toMatchObject({
+      data: [
+        expect.objectContaining({
+          id: detail.id,
+          client: "Customer One",
+          currency: "USD",
+          amount: 100,
+          amountInBase: 90,
+          baseCurrencyCode: "RUB",
+          feePercentage: 1.5,
+          agentName: "Agent Smith",
+        }),
+      ],
+      total: 1,
     });
     expect(dealsModule.deals.queries.findById).toHaveBeenCalledWith(detail.id);
     expect(dealsModule.deals.commands.create).toHaveBeenCalledWith({
@@ -432,9 +534,9 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(dealsModule.deals.queries.listCalculationHistory).toHaveBeenCalledWith(
-      detail.id,
-    );
+    expect(
+      dealsModule.deals.queries.listCalculationHistory,
+    ).toHaveBeenCalledWith(detail.id);
   });
 
   it("does not expose the legacy attach calculation route", async () => {
@@ -458,7 +560,9 @@ describe("deals routes", () => {
 
   it("accepts a quote for a deal", async () => {
     const { app, dealsModule } = createTestApp();
-    const projection = { summary: { id: "00000000-0000-4000-8000-000000000010" } };
+    const projection = {
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    };
     dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
 
     const response = await app.request(
@@ -579,12 +683,16 @@ describe("deals routes", () => {
           "content-type": "application/json",
           "idempotency-key": "from-quote-1",
         },
-        body: JSON.stringify({ quoteId: "00000000-0000-4000-8000-000000000210" }),
+        body: JSON.stringify({
+          quoteId: "00000000-0000-4000-8000-000000000210",
+        }),
       },
     );
 
     expect(response.status).toBe(201);
-    expect(dealQuoteWorkflow.createCalculationFromAcceptedQuote).toHaveBeenCalledWith({
+    expect(
+      dealQuoteWorkflow.createCalculationFromAcceptedQuote,
+    ).toHaveBeenCalledWith({
       actorUserId: "user-1",
       dealId: detail.id,
       idempotencyKey: "from-quote-1",

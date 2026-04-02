@@ -80,6 +80,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   create: { label: "Создать" },
   type: { label: "Тип" },
   accounts: { label: "Реквизиты", icon: "wallet" },
+  balances: { label: "Балансы", href: "/treasury/balances", icon: "wallet" },
   operations: { label: "Операции" },
   journal: { label: "Журнал операций" },
   system: { label: "Система", icon: "cpu" },

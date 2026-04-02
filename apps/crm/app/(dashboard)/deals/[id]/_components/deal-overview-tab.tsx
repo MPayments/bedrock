@@ -1,8 +1,21 @@
-import { AlertCircle, ArrowRight, FileText, Wallet, Workflow } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  FileText,
+  Wallet,
+  Workflow,
+} from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+
+import { cn } from "@/lib/utils";
 
 import type { DealPageTab } from "./deal-tabs";
 import {
@@ -11,6 +24,7 @@ import {
   DEAL_QUOTE_STATUS_LABELS,
   formatDealNextAction,
   formatDealWorkflowMessage,
+  getDealWorkflowMessageTone,
 } from "./constants";
 import { DealInfoCard } from "./deal-info-card";
 import { formatDate } from "./format";
@@ -64,7 +78,10 @@ function collectTopBlockers(
     }
   });
   workbench.documentRequirements.forEach((requirement) => {
-    if (requirement.state === "missing" || requirement.state === "in_progress") {
+    if (
+      requirement.state === "missing" ||
+      requirement.state === "in_progress"
+    ) {
       requirement.blockingReasons.forEach((reason) => messages.add(reason));
     }
   });
@@ -135,7 +152,14 @@ export function DealOverviewTab({
               </div>
               <ul className="space-y-2 text-sm">
                 {blockers.map((blocker) => (
-                  <li key={blocker} className="rounded-md border px-3 py-2">
+                  <li
+                    key={blocker}
+                    className={cn(
+                      "rounded-md border px-3 py-2",
+                      getDealWorkflowMessageTone(blocker) === "warning" &&
+                        "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100",
+                    )}
+                  >
                     {formatDealWorkflowMessage(blocker)}
                   </li>
                 ))}
@@ -175,8 +199,9 @@ export function DealOverviewTab({
                 <span className="text-muted-foreground">Котировка</span>
                 <span className="font-medium">
                   {workflow.acceptedQuote
-                    ? DEAL_QUOTE_STATUS_LABELS[workflow.acceptedQuote.quoteStatus] ??
-                      workflow.acceptedQuote.quoteStatus
+                    ? (DEAL_QUOTE_STATUS_LABELS[
+                        workflow.acceptedQuote.quoteStatus
+                      ] ?? workflow.acceptedQuote.quoteStatus)
                     : workbench.pricing.quoteEligibility
                       ? "Не принята"
                       : "Не требуется"}
@@ -216,7 +241,9 @@ export function DealOverviewTab({
           <CardContent className="space-y-4 pt-6">
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Подтверждающие файлы</span>
+                <span className="text-muted-foreground">
+                  Подтверждающие файлы
+                </span>
                 <span className="font-medium">{attachments.length}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -224,11 +251,15 @@ export function DealOverviewTab({
                 <span className="font-medium">{missingEvidenceCount}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Внутренние документы</span>
+                <span className="text-muted-foreground">
+                  Внутренние документы
+                </span>
                 <span className="font-medium">{formalDocuments.length}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Не хватает документов</span>
+                <span className="text-muted-foreground">
+                  Не хватает документов
+                </span>
                 <span className="font-medium">{missingDocumentCount}</span>
               </div>
             </div>
@@ -257,7 +288,9 @@ export function DealOverviewTab({
                 <span className="font-medium">{activeLegCount}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Заблокированные этапы</span>
+                <span className="text-muted-foreground">
+                  Заблокированные этапы
+                </span>
                 <span className="font-medium">
                   {blockedLegCount > 0
                     ? `${blockedLegCount} · ${DEAL_LEG_STATE_LABELS.blocked}`
@@ -265,11 +298,15 @@ export function DealOverviewTab({
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Операционные ограничения</span>
+                <span className="text-muted-foreground">
+                  Операционные ограничения
+                </span>
                 <span className="font-medium">{capabilityIssueCount}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Проблемные позиции</span>
+                <span className="text-muted-foreground">
+                  Проблемные позиции
+                </span>
                 <span className="font-medium">{blockedPositionCount}</span>
               </div>
             </div>

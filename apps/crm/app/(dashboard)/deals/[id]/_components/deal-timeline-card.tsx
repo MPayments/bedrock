@@ -2,6 +2,7 @@ import { History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
 import {
+  ATTACHMENT_PURPOSE_LABELS,
   DEAL_LEG_KIND_LABELS,
   DEAL_LEG_STATE_LABELS,
   DEAL_TIMELINE_EVENT_LABELS,
@@ -26,6 +27,33 @@ function renderTimelineDetails(event: ApiDealTimelineEvent) {
       ? DEAL_LEG_STATE_LABELS[state as keyof typeof DEAL_LEG_STATE_LABELS] ?? state
       : null;
     return stateLabel ? `${legLabel} -> ${stateLabel}` : legLabel;
+  }
+
+  if (
+    event.type === "attachment_ingested" ||
+    event.type === "attachment_ingestion_failed"
+  ) {
+    const purpose =
+      typeof event.payload.purpose === "string"
+        ? ATTACHMENT_PURPOSE_LABELS[
+            event.payload.purpose as keyof typeof ATTACHMENT_PURPOSE_LABELS
+          ] ?? "файл"
+        : "файл";
+
+    if (event.type === "attachment_ingested") {
+      const appliedFields = Array.isArray(event.payload.appliedFields)
+        ? event.payload.appliedFields.length
+        : 0;
+      return appliedFields > 0
+        ? `${purpose} распознан, заполнено полей: ${appliedFields}`
+        : `${purpose} распознан без изменений`;
+    }
+
+    if (typeof event.payload.errorMessage === "string" && event.payload.errorMessage) {
+      return `${purpose}: ${event.payload.errorMessage}`;
+    }
+
+    return `${purpose}: ошибка распознавания`;
   }
 
   if (typeof event.payload.comment === "string" && event.payload.comment.trim()) {

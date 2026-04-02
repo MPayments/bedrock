@@ -7,6 +7,7 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type { FileAttachment } from "../contracts/dto";
 import type {
+  FileAttachmentPurpose,
   FileAttachmentVisibility,
   FileLinkKind,
 } from "../contracts/zod";
@@ -19,6 +20,7 @@ import type { ObjectStoragePort } from "../ports/object-storage.port";
 
 const UploadedAttachmentMetadataSchema = {
   parse(input: {
+    attachmentPurpose?: FileAttachmentPurpose | null;
     attachmentVisibility?: FileAttachmentVisibility | null;
     description?: string | null;
     fileName: string;
@@ -43,6 +45,7 @@ const UploadedAttachmentMetadataSchema = {
 
     return {
       ...input,
+      attachmentPurpose: input.attachmentPurpose ?? "other",
       attachmentVisibility: input.attachmentVisibility ?? "internal",
       description: trimToNull(input.description) ?? null,
       fileName,
@@ -85,6 +88,7 @@ function mapFileRecordToAttachment(file: StoredFileRecord): FileAttachment {
     fileName: file.fileName,
     fileSize: file.fileSize,
     mimeType: file.mimeType,
+    purpose: file.attachmentPurpose,
     visibility: file.attachmentVisibility,
     uploadedBy: file.versionCreatedBy,
     description: file.description,
@@ -105,6 +109,7 @@ export class UploadFileAttachmentCommand {
   ) {}
 
   async execute(input: {
+    attachmentPurpose?: FileAttachmentPurpose | null;
     attachmentVisibility?: FileAttachmentVisibility | null;
     buffer: Buffer;
     description?: string | null;
@@ -152,6 +157,7 @@ export class UploadFileAttachmentCommand {
           createdBy: validated.uploadedBy,
         });
         await tx.fileStore.createFileLink({
+          attachmentPurpose: validated.attachmentPurpose,
           attachmentVisibility: validated.attachmentVisibility,
           id: linkId,
           fileAssetId,

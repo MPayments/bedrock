@@ -23,11 +23,13 @@ type UploadAttachmentDialogProps = {
   open: boolean;
   uploadFile: File | null;
   uploadDescription: string;
+  uploadPurpose: "invoice" | "contract" | "other";
   uploadVisibility: "customer_safe" | "internal";
   isUploading: boolean;
   onOpenChange: (open: boolean) => void;
   onFileChange: (file: File | null) => void;
   onDescriptionChange: (value: string) => void;
+  onPurposeChange: (value: "invoice" | "contract" | "other") => void;
   onVisibilityChange: (value: "customer_safe" | "internal") => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -37,11 +39,13 @@ export function UploadAttachmentDialog({
   open,
   uploadFile,
   uploadDescription,
+  uploadPurpose,
   uploadVisibility,
   isUploading,
   onOpenChange,
   onFileChange,
   onDescriptionChange,
+  onPurposeChange,
   onVisibilityChange,
   onCancel,
   onSubmit,
@@ -80,6 +84,26 @@ export function UploadAttachmentDialog({
               placeholder="Например: подписанный комплект"
               value={uploadDescription}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Тип файла</Label>
+            <Select
+              value={uploadPurpose}
+              onValueChange={(value) => {
+                if (value === "invoice" || value === "contract" || value === "other") {
+                  onPurposeChange(value);
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="invoice">Инвойс</SelectItem>
+                <SelectItem value="contract">Договор</SelectItem>
+                <SelectItem value="other">Другое</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label>Видимость</Label>

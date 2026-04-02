@@ -30,6 +30,9 @@ export function DealInfoCard({
   onCommentChange,
   onSaveComment,
 }: DealInfoCardProps) {
+  const requestedAmountLabel =
+    deal.type === "payment" ? "Сумма платежа" : "Запрошенная сумма";
+
   return (
     <Card>
       <CardHeader>
@@ -58,7 +61,7 @@ export function DealInfoCard({
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">
-              Запрошенная сумма
+              {requestedAmountLabel}
             </div>
             <div className="text-base font-medium">
               {formatCurrency(deal.requestedAmount, requestedCurrency?.code ?? null)}

@@ -8,6 +8,8 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
 import type { FinanceDealListItem } from "@/features/treasury/deals/lib/queries";
 import {
+  formatDealNextAction,
+  formatDealWorkflowMessage,
   getFinanceDealQueueLabel,
   getFinanceDealQueueOptions,
   getFinanceDealQueueVariant,
@@ -63,7 +65,7 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
           {getFinanceDealQueueLabel(row.original.queue)}
         </Badge>
         <div className="text-xs text-muted-foreground">
-          {row.original.queueReason}
+          {formatDealWorkflowMessage(row.original.queueReason)}
         </div>
       </div>
     ),
@@ -120,7 +122,9 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
       <DataTableColumnHeader column={column} label="Следующий шаг" />
     ),
     cell: ({ row }) => (
-      <div className="max-w-72 text-sm text-foreground">{row.original.nextAction}</div>
+      <div className="max-w-72 text-sm text-foreground">
+        {formatDealNextAction(row.original.nextAction)}
+      </div>
     ),
     enableSorting: false,
   },
@@ -178,4 +182,3 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
     size: 48,
   },
 ];
-

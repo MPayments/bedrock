@@ -65,6 +65,8 @@ const DEAL_TYPE_OPTIONS: Array<{
   },
 ];
 
+const DEFAULT_PAYMENT_SOURCE_CURRENCY_CODE = "RUB";
+
 function formatAgreementLabel(agreement: AgreementOption) {
   return `${agreement.currentVersion.contractNumber || "Договор без номера"} · версия ${
     agreement.currentVersion.versionNumber
@@ -147,6 +149,10 @@ export function NewDealDialog({
     () => agreements.filter((agreement) => agreement.isActive),
     [agreements],
   );
+  const defaultPaymentSourceCurrencyId =
+    currencyOptions.find(
+      (currency) => currency.code === DEFAULT_PAYMENT_SOURCE_CURRENCY_CODE,
+    )?.id ?? null;
   const selectedApplicant =
     legalEntities.find(
       (legalEntity) => legalEntity.counterpartyId === selectedApplicantId,
@@ -318,9 +324,21 @@ export function NewDealDialog({
   useEffect(() => {
     setIntake((current) => ({
       ...current,
+      moneyRequest:
+        dealType === "payment"
+          ? {
+              ...current.moneyRequest,
+              sourceCurrencyId:
+                current.type !== "payment"
+                  ? defaultPaymentSourceCurrencyId
+                  : current.moneyRequest.sourceCurrencyId ??
+                    defaultPaymentSourceCurrencyId,
+              targetCurrencyId: null,
+            }
+          : current.moneyRequest,
       type: dealType,
     }));
-  }, [dealType]);
+  }, [dealType, defaultPaymentSourceCurrencyId]);
 
   function validateCurrentStep() {
     if (step === 1 && !selectedCustomerId) {
@@ -429,7 +447,7 @@ export function NewDealDialog({
 
           {step === 2 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Юридическое лицо заявителя</Label>
                 <Select
                   disabled={loadingContext}
@@ -440,8 +458,11 @@ export function NewDealDialog({
                     );
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите юрлицо">
+                  <SelectTrigger className="w-full min-w-0">
+                    <SelectValue
+                      className="min-w-0 truncate"
+                      placeholder="Выберите юрлицо"
+                    >
                       {selectedApplicant
                         ? `${selectedApplicant.shortName}${
                             selectedApplicant.inn
@@ -467,7 +488,7 @@ export function NewDealDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Агентский договор</Label>
                 <Select
                   disabled={loadingContext}
@@ -478,8 +499,11 @@ export function NewDealDialog({
                     );
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите договор">
+                  <SelectTrigger className="w-full min-w-0">
+                    <SelectValue
+                      className="min-w-0 truncate"
+                      placeholder="Выберите договор"
+                    >
                       {selectedAgreement
                         ? formatAgreementLabel(selectedAgreement)
                         : selectedAgreementId

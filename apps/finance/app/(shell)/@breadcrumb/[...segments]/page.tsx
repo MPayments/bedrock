@@ -5,7 +5,7 @@ import { getOrganizationById } from "@/features/entities/organizations/lib/queri
 import { getRequisiteProviderById } from "@/features/entities/requisite-providers/lib/queries";
 import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
 import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
-import { getFinanceDealWorkspaceById } from "@/features/treasury/deals/lib/queries";
+import { getFinanceDealBreadcrumbById } from "@/features/treasury/deals/lib/queries";
 import {
   getDocumentTypeLabel,
   isKnownDocumentType,
@@ -75,7 +75,7 @@ const dynamicResolvers = {
   deals: createResourceSegmentResolver({
     singularLabel: "Сделка",
     hrefPrefix: "/treasury/deals",
-    getById: getFinanceDealWorkspaceById,
+    getById: getFinanceDealBreadcrumbById,
     getLabel: (deal) =>
       getFinanceDealDisplayTitle({
         applicantDisplayName: deal.summary.applicantDisplayName,

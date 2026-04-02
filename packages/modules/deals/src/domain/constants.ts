@@ -68,6 +68,12 @@ export const DEAL_OPERATIONAL_POSITION_STATE_VALUES = [
   "done",
   "blocked",
 ] as const;
+export const DEAL_ATTACHMENT_INGESTION_STATUS_VALUES = [
+  "pending",
+  "processing",
+  "processed",
+  "failed",
+] as const;
 
 export const DEAL_PARTICIPANT_ROLE_VALUES = [
   "customer",
@@ -104,6 +110,8 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "calculation_attached",
   "attachment_uploaded",
   "attachment_deleted",
+  "attachment_ingested",
+  "attachment_ingestion_failed",
   "document_created",
   "document_status_changed",
 ] as const;

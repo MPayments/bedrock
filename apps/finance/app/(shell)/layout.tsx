@@ -45,7 +45,7 @@ export default async function ShellLayout({
           </header>
           <Separator orientation="horizontal" className="h-px w-full" />
           <div className="flex flex-1 flex-col gap-4 p-6">
-            {session.requiresTwoFactorSetup ? (
+            {/* {session.requiresTwoFactorSetup ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
                 <p className="text-sm font-medium">
                   Настройте двухфакторную аутентификацию
@@ -55,7 +55,7 @@ export default async function ShellLayout({
                   чтобы не потерять доступ после включения жесткой политики.
                 </p>
               </div>
-            ) : null}
+            ) : null} */}
             {children}
           </div>
         </EntityDraftNameProviders>

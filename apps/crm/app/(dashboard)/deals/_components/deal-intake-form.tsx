@@ -257,6 +257,14 @@ export function DealIntakeForm({
     applicantRequisites.find(
       (requisite) => requisite.id === intake.settlementDestination.requisiteId,
     ) ?? null;
+  const isPaymentDeal = intake.type === "payment";
+  const moneyRequestSectionTitle = isPaymentDeal
+    ? "Параметры платежа"
+    : "Сумма и валюта сделки";
+  const sourceAmountLabel = isPaymentDeal ? "Сумма платежа" : "Сумма";
+  const sourceCurrencyTitle = isPaymentDeal
+    ? "Валюта платежа"
+    : "Валюта списания";
   const selectedApplicantLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
     loadingLabel: "Загрузка юридических лиц...",
@@ -424,7 +432,7 @@ export function DealIntakeForm({
           <h3 className="font-medium">Общие данные</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
+          <div className="min-w-0 max-w-full space-y-2">
             <Label>Юридическое лицо заявителя</Label>
             <Select
               disabled={readOnly}
@@ -436,8 +444,11 @@ export function DealIntakeForm({
                 )
               }
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите юридическое лицо">
+              <SelectTrigger className="w-full min-w-0">
+                <SelectValue
+                  className="min-w-0 truncate"
+                  placeholder="Выберите юридическое лицо"
+                >
                   {selectedApplicantLabel}
                 </SelectValue>
               </SelectTrigger>
@@ -455,7 +466,7 @@ export function DealIntakeForm({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="deal-requested-execution-date">
               Желаемая дата исполнения
             </Label>
@@ -489,11 +500,11 @@ export function DealIntakeForm({
 
       <section className="space-y-4">
         <div>
-          <h3 className="font-medium">Сумма и валюта сделки</h3>
+          <h3 className="font-medium">{moneyRequestSectionTitle}</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="deal-source-amount">Сумма</Label>
+            <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
             <Input
               id="deal-source-amount"
               disabled={readOnly}
@@ -505,7 +516,7 @@ export function DealIntakeForm({
             />
           </div>
           <div className="space-y-2">
-            <Label>Валюта списания</Label>
+            <Label>{sourceCurrencyTitle}</Label>
             <Select
               disabled={readOnly}
               value={intake.moneyRequest.sourceCurrencyId ?? "__none"}
@@ -531,31 +542,33 @@ export function DealIntakeForm({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Целевая валюта</Label>
-            <Select
-              disabled={readOnly}
-              value={intake.moneyRequest.targetCurrencyId ?? "__same"}
-              onValueChange={(value) =>
-                updateMoneyRequest(
-                  "targetCurrencyId",
-                  value === "__same" ? null : value,
-                )
-              }
-            >
-              <SelectTrigger>
-                <SelectValue>{targetCurrencyLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__same">Без конвертации</SelectItem>
-                {currencyOptions.map((currency) => (
-                  <SelectItem key={currency.id} value={currency.id}>
-                    {currency.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isPaymentDeal ? null : (
+            <div className="space-y-2">
+              <Label>Целевая валюта</Label>
+              <Select
+                disabled={readOnly}
+                value={intake.moneyRequest.targetCurrencyId ?? "__same"}
+                onValueChange={(value) =>
+                  updateMoneyRequest(
+                    "targetCurrencyId",
+                    value === "__same" ? null : value,
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue>{targetCurrencyLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__same">Без конвертации</SelectItem>
+                  {currencyOptions.map((currency) => (
+                    <SelectItem key={currency.id} value={currency.id}>
+                      {currency.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="deal-purpose">Назначение</Label>

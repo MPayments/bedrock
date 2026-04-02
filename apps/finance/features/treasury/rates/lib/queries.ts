@@ -1,6 +1,7 @@
 import {
   CurrencyOptionsResponseSchema,
 } from "@bedrock/currencies/contracts";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   RateHistoryResponseSchema,
   RatePairsResponseSchema,
@@ -60,7 +61,7 @@ export async function getRateHistory(
   const client = await getServerApiClient();
   const response = await requestOk(
     await client.v1.treasury.rates.history.$get({
-      query: { base, quote, limit: 500, ...(from ? { from } : {}) },
+      query: { base, quote, limit: MAX_QUERY_LIST_LIMIT, ...(from ? { from } : {}) },
     }),
     "Не удалось загрузить историю курсов",
   );

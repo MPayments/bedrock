@@ -6,6 +6,7 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
+  DealAttachmentIngestionStatusSchema,
   DealApprovalStatusSchema,
   DealApprovalTypeSchema,
   DealCapabilityKindSchema,
@@ -249,6 +250,42 @@ export const DealRelatedAttachmentSchema = z.object({
 
 export type DealRelatedAttachment = z.infer<typeof DealRelatedAttachmentSchema>;
 
+export const DealAttachmentIngestionNormalizedPayloadSchema = z.object({
+  amount: z.string().nullable(),
+  beneficiarySnapshot: DealCounterpartySnapshotSchema.nullable(),
+  bankInstructionSnapshot: DealBankInstructionSnapshotSchema.nullable(),
+  contractNumber: z.string().nullable(),
+  currencyCode: z.string().nullable(),
+  currencyId: z.uuid().nullable(),
+  documentPurpose: z.enum(["invoice", "contract", "other"]).nullable(),
+  invoiceNumber: z.string().nullable(),
+  paymentPurpose: z.string().nullable(),
+});
+
+export type DealAttachmentIngestionNormalizedPayload = z.infer<
+  typeof DealAttachmentIngestionNormalizedPayloadSchema
+>;
+
+export const DealAttachmentIngestionSchema = z.object({
+  appliedFields: z.array(z.string()),
+  appliedRevision: z.number().int().positive().nullable(),
+  attempts: z.number().int().nonnegative(),
+  availableAt: z.date(),
+  errorCode: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  fileAssetId: z.uuid(),
+  lastProcessedAt: z.date().nullable(),
+  normalizedPayload: DealAttachmentIngestionNormalizedPayloadSchema.nullable(),
+  observedRevision: z.number().int().positive(),
+  skippedFields: z.array(z.string()),
+  status: DealAttachmentIngestionStatusSchema,
+  updatedAt: z.date(),
+});
+
+export type DealAttachmentIngestion = z.infer<
+  typeof DealAttachmentIngestionSchema
+>;
+
 export const DealRelatedFormalDocumentSchema = z.object({
   approvalStatus: z.string().nullable(),
   createdAt: z.date().nullable(),
@@ -341,6 +378,7 @@ export type DealOperationalState = z.infer<typeof DealOperationalStateSchema>;
 
 export const DealWorkflowProjectionSchema = z.object({
   acceptedQuote: DealQuoteAcceptanceSchema.nullable(),
+  attachmentIngestions: z.array(DealAttachmentIngestionSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
   intake: DealIntakeDraftSchema,
   nextAction: z.string(),

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCapabilityIssue,
+  formatDealNextAction,
+  formatDealWorkflowMessage,
   getDealCapabilityLabel,
   getDealTimelineEventLabel,
   getFinanceDealQueueLabel,
   getFinanceDealStatusLabel,
   getFinanceDealTypeLabel,
+  isPrimaryOperationalPositionVisible,
 } from "@/features/treasury/deals/labels";
 
 describe("treasury deal labels", () => {
@@ -32,5 +36,29 @@ describe("treasury deal labels", () => {
       "Котировка исполнена",
     );
   });
-});
 
+  it("localizes next actions and workflow messages", () => {
+    expect(formatDealNextAction("Create calculation from accepted quote")).toBe(
+      "Создать расчет по принятой котировке",
+    );
+    expect(formatDealWorkflowMessage("Required intake sections are incomplete")).toBe(
+      "Анкета заполнена не полностью.",
+    );
+    expect(
+      formatDealWorkflowMessage(
+        "Required participant is unresolved: external_beneficiary",
+      ),
+    ).toBe("Не заполнен обязательный участник: получатель выплаты.");
+  });
+
+  it("formats finance-only blockers without raw technical codes", () => {
+    expect(
+      formatCapabilityIssue({
+        kind: "can_payout",
+        status: "pending",
+      }),
+    ).toBe("Нужно настроить: выплата.");
+    expect(isPrimaryOperationalPositionVisible("provider_payable")).toBe(true);
+    expect(isPrimaryOperationalPositionVisible("spread_revenue")).toBe(false);
+  });
+});

@@ -7,6 +7,149 @@ vi.mock("next/headers", () => ({
   headers,
 }));
 
+function createFinanceWorkspacePayload() {
+  return {
+    acceptedQuote: {
+      acceptedAt: "2026-04-02T08:15:00.000Z",
+      expiresAt: "2026-04-02T09:15:00.000Z",
+      quoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+      quoteStatus: "active",
+      usedAt: null,
+    },
+    acceptedQuoteDetails: {
+      createdAt: "2026-04-02T08:10:00.000Z",
+      dealDirection: "sell",
+      dealForm: "spot",
+      dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      dealRef: null,
+      expiresAt: "2026-04-02T09:15:00.000Z",
+      fromAmount: "125000.00",
+      fromAmountMinor: "12500000",
+      fromCurrency: "USD",
+      fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+      idempotencyKey: "idem-accepted",
+      pricingMode: "spot",
+      pricingTrace: {},
+      rateDen: "1",
+      rateNum: "97.15",
+      status: "active",
+      toAmount: "12143750.00",
+      toAmountMinor: "1214375000",
+      toCurrency: "RUB",
+      toCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+      usedAt: null,
+      usedByRef: null,
+      usedDocumentId: null,
+    },
+    actions: {
+      canCreateCalculation: true,
+      canCreateQuote: true,
+      canUploadAttachment: true,
+    },
+    attachmentRequirements: [
+      {
+        blockingReasons: ["Required intake sections are incomplete"],
+        code: "invoice",
+        label: "Инвойс",
+        state: "missing",
+      },
+    ],
+    executionPlan: [
+      {
+        idx: 1,
+        kind: "collect",
+        state: "pending",
+      },
+    ],
+    formalDocumentRequirements: [
+      {
+        activeDocumentId: null,
+        blockingReasons: ["Opening document is required: invoice"],
+        createAllowed: false,
+        docType: "invoice",
+        openAllowed: false,
+        stage: "opening",
+        state: "missing",
+      },
+    ],
+    nextAction: "Create calculation from accepted quote",
+    operationalState: {
+      capabilities: [
+        {
+          kind: "can_collect",
+          note: null,
+          reasonCode: null,
+          status: "enabled",
+        },
+      ],
+      positions: [
+        {
+          amountMinor: null,
+          kind: "customer_receivable",
+          reasonCode: null,
+          state: "pending",
+        },
+      ],
+    },
+    pricing: {
+      quoteEligibility: true,
+      requestedAmount: "125000.00",
+      requestedCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+    },
+    profitabilitySnapshot: null,
+    queueContext: {
+      blockers: ["Required intake sections are incomplete"],
+      queue: "funding",
+      queueReason: "Required intake sections are incomplete",
+    },
+    relatedResources: {
+      attachments: [
+        {
+          createdAt: "2026-04-02T08:09:00.000Z",
+          description: "Счет клиента",
+          fileName: "invoice.pdf",
+          fileSize: 1024,
+          id: "a953dc34-6f54-4f77-a6e8-b9c10d718279",
+          mimeType: "application/pdf",
+          updatedAt: "2026-04-02T08:09:00.000Z",
+          uploadedBy: "alexey",
+          visibility: "internal",
+        },
+      ],
+      formalDocuments: [],
+      quotes: [
+        {
+          expiresAt: "2026-04-02T09:15:00.000Z",
+          id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+          status: "active",
+        },
+      ],
+    },
+    summary: {
+      applicantDisplayName: "ООО Тест",
+      calculationId: null,
+      createdAt: "2026-04-02T08:07:00.000Z",
+      id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      internalEntityDisplayName: "Multihansa",
+      status: "draft",
+      type: "payment",
+      updatedAt: "2026-04-02T08:09:00.000Z",
+    },
+    timeline: [
+      {
+        actor: {
+          label: "alexey",
+        },
+        id: "bb36a82b-7a9b-4a88-91d7-39818114e79d",
+        occurredAt: "2026-04-02T08:07:00.000Z",
+        type: "deal_created",
+      },
+    ],
+  };
+}
+
 describe("treasury deals queries", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -129,5 +272,311 @@ describe("treasury deals queries", () => {
     await expect(getFinanceDealWorkspaceById("not-a-uuid")).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
-});
 
+  it("loads breadcrumb summary without parsing unrelated quote fields", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...createFinanceWorkspacePayload(),
+        relatedResources: {
+          ...createFinanceWorkspacePayload().relatedResources,
+          quotes: [
+            {
+              expiresAt: "2026-04-02 09:15:00",
+              id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+              status: "active",
+            },
+          ],
+        },
+      }),
+    });
+
+    const { getFinanceDealBreadcrumbById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    await expect(
+      getFinanceDealBreadcrumbById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
+    ).resolves.toEqual({
+      summary: expect.objectContaining({
+        applicantDisplayName: "ООО Тест",
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      }),
+    });
+  });
+
+  it("normalizes non-ISO quote timestamps from finance workspace", async () => {
+    const workspacePayload = createFinanceWorkspacePayload();
+
+    workspacePayload.acceptedQuote = {
+      ...workspacePayload.acceptedQuote,
+      acceptedAt: "2026-04-02 08:15:00",
+      expiresAt: "2026-04-02 09:15:00",
+      usedAt: "2026-04-02 08:35:00",
+    };
+    workspacePayload.relatedResources.quotes = [
+      {
+        expiresAt: "2026-04-02 09:15:00",
+        id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+        status: "active",
+      },
+    ];
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => workspacePayload,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      });
+
+    const { getFinanceDealWorkbenchById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    await expect(
+      getFinanceDealWorkbenchById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        acceptedQuote: expect.objectContaining({
+          acceptedAt: "2026-04-02T08:15:00Z",
+          expiresAt: "2026-04-02T09:15:00Z",
+          usedAt: "2026-04-02T08:35:00Z",
+        }),
+        relatedResources: expect.objectContaining({
+          quotes: [
+            expect.objectContaining({
+              expiresAt: "2026-04-02T09:15:00Z",
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("merges finance workspace with quotes and calculations for the treasury workbench", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            createdAt: "2026-04-02T08:20:00.000Z",
+            dealDirection: "sell",
+            dealForm: "spot",
+            dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+            expiresAt: "2026-04-02T10:20:00.000Z",
+            fromAmount: "125000.00",
+            fromAmountMinor: "12500000",
+            fromCurrency: "USD",
+            fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            id: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
+            idempotencyKey: "idem-1",
+            pricingMode: "spot",
+            pricingTrace: {},
+            rateDen: "1",
+            rateNum: "97.15",
+            status: "active",
+            toAmount: "12143750.00",
+            toAmountMinor: "1214375000",
+            toCurrency: "RUB",
+            toCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            usedAt: null,
+            usedByRef: null,
+            usedDocumentId: null,
+          },
+          {
+            createdAt: "2026-04-02T08:10:00.000Z",
+            dealDirection: "sell",
+            dealForm: "spot",
+            dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+            expiresAt: "2026-04-02T09:10:00.000Z",
+            fromAmount: "120000.00",
+            fromAmountMinor: "12000000",
+            fromCurrency: "USD",
+            fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            id: "b21972b4-aee0-45fb-86f8-b4175b42b39c",
+            idempotencyKey: "idem-2",
+            pricingMode: "spot",
+            pricingTrace: {},
+            rateDen: "1",
+            rateNum: "96.40",
+            status: "expired",
+            toAmount: "11568000.00",
+            toAmountMinor: "1156800000",
+            toCurrency: "RUB",
+            toCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            usedAt: null,
+            usedByRef: null,
+            usedDocumentId: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            baseCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            calculationCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
+            calculationTimestamp: "2026-04-02T08:30:00.000Z",
+            createdAt: "2026-04-02T08:30:00.000Z",
+            feeAmountMinor: "0",
+            fxQuoteId: null,
+            originalAmountMinor: "12500000",
+            rateDen: "1",
+            rateNum: "97.15",
+            sourceQuoteId: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
+            totalAmountMinor: "1214375000",
+            totalInBaseMinor: "1214375000",
+            totalWithExpensesInBaseMinor: "1214375000",
+          },
+          {
+            baseCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            calculationCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+            calculationId: "df65ce76-7cb4-4eb0-b4c0-080cf2a70413",
+            calculationTimestamp: "2026-04-02T08:12:00.000Z",
+            createdAt: "2026-04-02T08:12:00.000Z",
+            feeAmountMinor: "0",
+            fxQuoteId: null,
+            originalAmountMinor: "12000000",
+            rateDen: "1",
+            rateNum: "96.40",
+            sourceQuoteId: "b21972b4-aee0-45fb-86f8-b4175b42b39c",
+            totalAmountMinor: "1156800000",
+            totalInBaseMinor: "1156800000",
+            totalWithExpensesInBaseMinor: "1156800000",
+          },
+        ],
+      });
+
+    const { getFinanceDealWorkbenchById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const result = await getFinanceDealWorkbenchById(
+      "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/finance-workspace",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/quotes",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/calculations",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        nextAction: "Create calculation from accepted quote",
+        pricing: expect.objectContaining({
+          quoteEligibility: true,
+          targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        }),
+        quoteHistory: [
+          expect.objectContaining({
+            createdAt: "2026-04-02T08:20:00.000Z",
+            id: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
+          }),
+          expect.objectContaining({
+            createdAt: "2026-04-02T08:10:00.000Z",
+            id: "b21972b4-aee0-45fb-86f8-b4175b42b39c",
+          }),
+        ],
+        calculationHistory: [
+          expect.objectContaining({
+            calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
+            createdAt: "2026-04-02T08:30:00.000Z",
+          }),
+          expect.objectContaining({
+            calculationId: "df65ce76-7cb4-4eb0-b4c0-080cf2a70413",
+            createdAt: "2026-04-02T08:12:00.000Z",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("keeps the workbench available when quote or calculation history endpoints return validation errors", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          message: "Validation error",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          message: "Validation error",
+        }),
+      });
+
+    const { getFinanceDealWorkbenchById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const result = await getFinanceDealWorkbenchById(
+      "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        calculationHistory: [],
+        quoteHistory: [],
+        summary: expect.objectContaining({
+          id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        }),
+      }),
+    );
+  });
+});

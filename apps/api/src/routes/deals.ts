@@ -1,5 +1,15 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, between, count, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
+import {
+  and,
+  between,
+  count,
+  eq,
+  gte,
+  inArray,
+  lte,
+  sql,
+  sum,
+} from "drizzle-orm";
 
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import { currencies as currenciesTable } from "@bedrock/currencies/schema";
@@ -7,12 +17,11 @@ import {
   AssignDealAgentInputSchema,
   CreateDealInputSchema,
   CreateDealDraftInputSchema,
+  DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
   DealTraceSchema,
   DealWorkflowProjectionSchema,
-  ListDealsQuerySchema,
-  PaginatedDealsSchema,
   ReplaceDealIntakeInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
@@ -24,11 +33,13 @@ import {
   deals as dealsTable,
 } from "@bedrock/deals/schema";
 import {
+  FileAttachmentPurposeSchema,
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
 import { customers as customersTable } from "@bedrock/parties/schema";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { minorToAmountString } from "@bedrock/shared/money";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -67,38 +78,153 @@ import {
   serializeQuoteListItem,
 } from "./internal/treasury-quote-dto";
 
+const CRM_DEALS_SORT_COLUMNS = [
+  "id",
+  "createdAt",
+  "client",
+  "amount",
+  "amountInBase",
+  "closedAt",
+  "agentName",
+] as const;
+
+const CrmDealsListQuerySchema = z.object({
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
+  sortBy: z.enum(CRM_DEALS_SORT_COLUMNS).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  statuses: z.string().optional(),
+  currencies: z.string().optional(),
+  customerId: z.string().uuid().optional(),
+  agentId: z.string().optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  qClient: z.string().trim().min(1).optional(),
+  qComment: z.string().trim().min(1).optional(),
+});
+
+const CrmDealListItemSchema = z.object({
+  id: z.string().uuid(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  closedAt: z.iso.datetime().nullable(),
+  client: z.string(),
+  clientId: z.string().uuid(),
+  amount: z.number(),
+  currency: z.string(),
+  amountInBase: z.number(),
+  baseCurrencyCode: z.string(),
+  status: z.string(),
+  agentName: z.string(),
+  comment: z.string().optional(),
+  feePercentage: z.number(),
+});
+
+const CrmDealsListResponseSchema = z.object({
+  data: z.array(CrmDealListItemSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+
+type CrmDealListItem = z.infer<typeof CrmDealListItemSchema>;
+
+function parseOptionalSet(value?: string): Set<string> | null {
+  if (!value) {
+    return null;
+  }
+
+  const items = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  return items.length > 0 ? new Set(items) : null;
+}
+
+function parseDecimalOrZero(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseMinorOrZero(
+  value: string | bigint | null | undefined,
+  precision: number | null | undefined,
+): number {
+  if (value == null || precision == null) {
+    return 0;
+  }
+
+  return parseDecimalOrZero(minorToAmountString(value, { precision }));
+}
+
+function compareNullableStrings(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  return (left ?? "").localeCompare(right ?? "", "ru");
+}
+
+function compareNullableDates(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  const leftValue = left ? new Date(left).getTime() : 0;
+  const rightValue = right ? new Date(right).getTime() : 0;
+  return leftValue - rightValue;
+}
+
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const DealAttachmentParamsSchema = IdParamSchema.extend({
-    attachmentId: z.string().uuid().openapi({
-      param: {
-        in: "path",
-        name: "attachmentId",
-      },
-    }),
+    attachmentId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "attachmentId",
+        },
+      }),
   });
   const DealQuoteParamsSchema = IdParamSchema.extend({
-    quoteId: z.string().uuid().openapi({
-      param: {
-        in: "path",
-        name: "quoteId",
-      },
-    }),
+    quoteId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "quoteId",
+        },
+      }),
   });
   const DealLegParamsSchema = IdParamSchema.extend({
-    idx: z.coerce.number().int().positive().openapi({
-      param: {
-        in: "path",
-        name: "idx",
-      },
-    }),
+    idx: z.coerce
+      .number()
+      .int()
+      .positive()
+      .openapi({
+        param: {
+          in: "path",
+          name: "idx",
+        },
+      }),
   });
-  const DealCalculationHistorySchema = z.array(DealCalculationHistoryItemSchema);
+  const DealCalculationHistorySchema = z.array(
+    DealCalculationHistoryItemSchema,
+  );
   const DealCalculationFromQuoteInputSchema = z.object({
     quoteId: z.string().uuid(),
   });
   const DealAttachmentVisibilityInputSchema = z.object({
     visibility: FileAttachmentVisibilitySchema.optional(),
+  });
+  const DealAttachmentPurposeInputSchema = z.object({
+    purpose: FileAttachmentPurposeSchema,
   });
 
   const listRoute = createRoute({
@@ -108,16 +234,16 @@ export function dealsRoutes(ctx: AppContext) {
     tags: ["Deals"],
     summary: "List deals",
     request: {
-      query: ListDealsQuerySchema,
+      query: CrmDealsListQuerySchema,
     },
     responses: {
       200: {
         content: {
           "application/json": {
-            schema: PaginatedDealsSchema,
+            schema: CrmDealsListResponseSchema,
           },
         },
-        description: "Paginated deals",
+        description: "Paginated CRM deals",
       },
     },
   });
@@ -206,13 +332,15 @@ export function dealsRoutes(ctx: AppContext) {
         content: {
           "application/json": {
             schema: z.array(
-              z.object({
-                date: z.string(),
-                amount: z.number(),
-                count: z.number(),
-                closedCount: z.number(),
-                closedAmount: z.number(),
-              }).passthrough(),
+              z
+                .object({
+                  date: z.string(),
+                  amount: z.number(),
+                  count: z.number(),
+                  closedCount: z.number(),
+                  closedAmount: z.number(),
+                })
+                .passthrough(),
             ),
           },
         },
@@ -516,7 +644,9 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
         description: "Deal workflow updated",
       },
       409: {
@@ -549,7 +679,9 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
         description: "Deal agreement updated",
       },
     },
@@ -574,7 +706,9 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
         description: "Deal assignee updated",
       },
     },
@@ -702,7 +836,9 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
         description: "Deal status updated",
       },
       409: {
@@ -735,7 +871,9 @@ export function dealsRoutes(ctx: AppContext) {
     },
     responses: {
       200: {
-        content: { "application/json": { schema: DealWorkflowProjectionSchema } },
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
         description: "Execution leg state updated",
       },
       409: {
@@ -941,6 +1079,27 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const reingestAttachmentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/attachments/{attachmentId}/reingest",
+    tags: ["Deals"],
+    summary: "Requeue deal attachment ingestion",
+    request: {
+      params: DealAttachmentParamsSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealAttachmentIngestionSchema,
+          },
+        },
+        description: "Attachment ingestion requeued",
+      },
+    },
+  });
+
   const traceRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -966,7 +1125,8 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(financeQueuesRoute, async (c) => {
       try {
         const query = c.req.valid("query");
-        const result = await ctx.dealProjectionsWorkflow.listFinanceDealQueues(query);
+        const result =
+          await ctx.dealProjectionsWorkflow.listFinanceDealQueues(query);
         return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
@@ -983,8 +1143,256 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(listRoute, async (c) => {
       try {
         const query = c.req.valid("query");
-        const result = await ctx.dealsModule.deals.queries.list(query);
-        return jsonOk(c, result);
+        const requestedStatuses = parseOptionalSet(query.statuses);
+        const requestedCurrencies = parseOptionalSet(query.currencies);
+        const listedDeals: Awaited<
+          ReturnType<typeof ctx.dealsModule.deals.queries.list>
+        >["data"] = [];
+
+        let offset = 0;
+        let total = 0;
+
+        do {
+          const page = await ctx.dealsModule.deals.queries.list({
+            customerId: query.customerId,
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          });
+
+          listedDeals.push(...page.data);
+          total = page.total;
+          offset += page.limit;
+        } while (offset < total);
+
+        const customerIds = [
+          ...new Set(listedDeals.map((deal) => deal.customerId)),
+        ];
+        const agentIds = [
+          ...new Set(
+            listedDeals
+              .map((deal) => deal.agentId)
+              .filter((agentId): agentId is string => Boolean(agentId)),
+          ),
+        ];
+        const calculationIds = [
+          ...new Set(
+            listedDeals
+              .map((deal) => deal.calculationId)
+              .filter((calculationId): calculationId is string =>
+                Boolean(calculationId),
+              ),
+          ),
+        ];
+        const requestedCurrencyIds = [
+          ...new Set(
+            listedDeals
+              .map((deal) => deal.requestedCurrencyId)
+              .filter((currencyId): currencyId is string =>
+                Boolean(currencyId),
+              ),
+          ),
+        ];
+
+        const [
+          customersById,
+          agentsById,
+          calculationsById,
+          requestedCurrenciesById,
+        ] = await Promise.all([
+          Promise.all(
+            customerIds.map(async (customerId) => [
+              customerId,
+              await ctx.partiesModule.customers.queries.findById(customerId),
+            ]),
+          ).then((entries) => new Map(entries)),
+          Promise.all(
+            agentIds.map(async (agentId) => [
+              agentId,
+              await ctx.iamService.queries.findById(agentId),
+            ]),
+          ).then((entries) => new Map(entries)),
+          Promise.all(
+            calculationIds.map(async (calculationId) => [
+              calculationId,
+              await ctx.calculationsModule.calculations.queries.findById(
+                calculationId,
+              ),
+            ]),
+          ).then((entries) => new Map(entries)),
+          Promise.all(
+            requestedCurrencyIds.map(async (currencyId) => [
+              currencyId,
+              await ctx.currenciesService.findById(currencyId),
+            ]),
+          ).then((entries) => new Map(entries)),
+        ]);
+
+        const baseCurrencyIds = [
+          ...new Set(
+            [...calculationsById.values()]
+              .map((calculation) => calculation?.currentSnapshot.baseCurrencyId)
+              .filter((currencyId): currencyId is string =>
+                Boolean(currencyId),
+              ),
+          ),
+        ];
+        const baseCurrenciesById = new Map(
+          await Promise.all(
+            baseCurrencyIds.map(async (currencyId) => [
+              currencyId,
+              await ctx.currenciesService.findById(currencyId),
+            ]),
+          ),
+        );
+
+        const enrichedDeals = listedDeals.map(
+          (
+            deal,
+          ): CrmDealListItem & {
+            agentId: string | null;
+            createdAtDate: number;
+          } => {
+            const customer = customersById.get(deal.customerId) ?? null;
+            const calculation = deal.calculationId
+              ? (calculationsById.get(deal.calculationId) ?? null)
+              : null;
+            const sourceCurrency = deal.requestedCurrencyId
+              ? (requestedCurrenciesById.get(deal.requestedCurrencyId) ?? null)
+              : null;
+            const baseCurrency = calculation
+              ? (baseCurrenciesById.get(
+                  calculation.currentSnapshot.baseCurrencyId,
+                ) ?? null)
+              : null;
+            const agent = deal.agentId
+              ? (agentsById.get(deal.agentId) ?? null)
+              : null;
+
+            const amount = parseDecimalOrZero(deal.requestedAmount);
+            const amountInBase = calculation
+              ? baseCurrency
+                ? parseMinorOrZero(
+                    calculation.currentSnapshot.totalInBaseMinor,
+                    baseCurrency.precision,
+                  )
+                : amount
+              : amount;
+            const feePercentage = calculation
+              ? parseMinorOrZero(calculation.currentSnapshot.feeBps, 2)
+              : 0;
+            const currencyCode = sourceCurrency?.code ?? "RUB";
+            const baseCurrencyCode = baseCurrency?.code ?? currencyCode;
+            const closedAt =
+              deal.status === "done" || deal.status === "cancelled"
+                ? deal.updatedAt.toISOString()
+                : null;
+            const comment =
+              deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
+
+            return {
+              agentId: deal.agentId,
+              agentName: agent?.name ?? "",
+              amount,
+              amountInBase,
+              baseCurrencyCode,
+              client: customer?.displayName ?? "—",
+              clientId: deal.customerId,
+              closedAt,
+              comment,
+              createdAt: deal.createdAt.toISOString(),
+              createdAtDate: deal.createdAt.getTime(),
+              currency: currencyCode,
+              feePercentage,
+              id: deal.id,
+              status: deal.status,
+              updatedAt: deal.updatedAt.toISOString(),
+            };
+          },
+        );
+
+        const filteredDeals = enrichedDeals.filter((deal) => {
+          if (requestedStatuses && !requestedStatuses.has(deal.status)) {
+            return false;
+          }
+          if (requestedCurrencies && !requestedCurrencies.has(deal.currency)) {
+            return false;
+          }
+          if (query.agentId && deal.agentId !== query.agentId) {
+            return false;
+          }
+          if (query.dateFrom && deal.createdAtDate < query.dateFrom.getTime()) {
+            return false;
+          }
+          if (query.dateTo && deal.createdAtDate > query.dateTo.getTime()) {
+            return false;
+          }
+          if (
+            query.qClient &&
+            !deal.client.toLowerCase().includes(query.qClient.toLowerCase())
+          ) {
+            return false;
+          }
+          if (
+            query.qComment &&
+            !(deal.comment ?? "")
+              .toLowerCase()
+              .includes(query.qComment.toLowerCase())
+          ) {
+            return false;
+          }
+
+          return true;
+        });
+
+        filteredDeals.sort((left, right) => {
+          let comparison = 0;
+
+          switch (query.sortBy) {
+            case "id":
+              comparison = left.id.localeCompare(right.id);
+              break;
+            case "client":
+              comparison = compareNullableStrings(left.client, right.client);
+              break;
+            case "amount":
+              comparison = left.amount - right.amount;
+              break;
+            case "amountInBase":
+              comparison = left.amountInBase - right.amountInBase;
+              break;
+            case "closedAt":
+              comparison = compareNullableDates(left.closedAt, right.closedAt);
+              break;
+            case "agentName":
+              comparison = compareNullableStrings(
+                left.agentName,
+                right.agentName,
+              );
+              break;
+            case "createdAt":
+            default:
+              comparison = left.createdAtDate - right.createdAtDate;
+              break;
+          }
+
+          return query.sortOrder === "asc" ? comparison : -comparison;
+        });
+
+        const pagedDeals = filteredDeals
+          .slice(query.offset, query.offset + query.limit)
+          .map(
+            ({ agentId: _agentId, createdAtDate: _createdAtDate, ...deal }) =>
+              deal,
+          );
+
+        return jsonOk(c, {
+          data: pagedDeals,
+          limit: query.limit,
+          offset: query.offset,
+          total: filteredDeals.length,
+        });
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1002,11 +1410,7 @@ export function dealsRoutes(ctx: AppContext) {
             total: sum(dealsTable.sourceAmountMinor),
           })
           .from(dealsTable)
-          .where(
-            and(
-              between(dealsTable.createdAt, from, to),
-            ),
-          )
+          .where(and(between(dealsTable.createdAt, from, to)))
           .groupBy(dealsTable.status);
 
         let totalCount = 0;
@@ -1033,10 +1437,19 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(byStatusRoute, async (c) => {
       try {
         const PENDING_STATUSES = ["awaiting_funds"] as const;
-        const IN_PROGRESS_STATUSES = ["draft", "submitted", "preparing_documents", "awaiting_payment"] as const;
+        const IN_PROGRESS_STATUSES = [
+          "draft",
+          "submitted",
+          "preparing_documents",
+          "awaiting_payment",
+        ] as const;
         const DONE_STATUSES = ["closing_documents", "done"] as const;
 
-        const allStatuses = [...PENDING_STATUSES, ...IN_PROGRESS_STATUSES, ...DONE_STATUSES];
+        const allStatuses = [
+          ...PENDING_STATUSES,
+          ...IN_PROGRESS_STATUSES,
+          ...DONE_STATUSES,
+        ];
 
         const rows = await db
           .select({
@@ -1055,13 +1468,21 @@ export function dealsRoutes(ctx: AppContext) {
             dealIntakeSnapshotsTable,
             eq(dealsTable.id, dealIntakeSnapshotsTable.dealId),
           )
-          .leftJoin(customersTable, eq(dealsTable.customerId, customersTable.id))
-          .leftJoin(currenciesTable, eq(dealsTable.sourceCurrencyId, currenciesTable.id))
+          .leftJoin(
+            customersTable,
+            eq(dealsTable.customerId, customersTable.id),
+          )
+          .leftJoin(
+            currenciesTable,
+            eq(dealsTable.sourceCurrencyId, currenciesTable.id),
+          )
           .where(inArray(dealsTable.status, allStatuses))
           .orderBy(dealsTable.createdAt);
 
-        function toDealItem(row: typeof rows[number]) {
-          const amountMinor = row.sourceAmountMinor ? Number(row.sourceAmountMinor) : 0;
+        function toDealItem(row: (typeof rows)[number]) {
+          const amountMinor = row.sourceAmountMinor
+            ? Number(row.sourceAmountMinor)
+            : 0;
           const amount = amountMinor / 100;
           const comment =
             row.intakeSnapshot?.common.customerNote ??
@@ -1082,13 +1503,19 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         const pending = rows
-          .filter((r) => (PENDING_STATUSES as readonly string[]).includes(r.status))
+          .filter((r) =>
+            (PENDING_STATUSES as readonly string[]).includes(r.status),
+          )
           .map(toDealItem);
         const inProgress = rows
-          .filter((r) => (IN_PROGRESS_STATUSES as readonly string[]).includes(r.status))
+          .filter((r) =>
+            (IN_PROGRESS_STATUSES as readonly string[]).includes(r.status),
+          )
           .map(toDealItem);
         const done = rows
-          .filter((r) => (DONE_STATUSES as readonly string[]).includes(r.status))
+          .filter((r) =>
+            (DONE_STATUSES as readonly string[]).includes(r.status),
+          )
           .map(toDealItem);
 
         return jsonOk(c, { pending, inProgress, done });
@@ -1114,7 +1541,9 @@ export function dealsRoutes(ctx: AppContext) {
           conditions.push(eq(dealsTable.agentId, query.agentId));
         }
         if (query.statuses) {
-          const statusList = query.statuses.split(",") as (typeof dealsTable.status.enumValues)[number][];
+          const statusList = query.statuses.split(
+            ",",
+          ) as (typeof dealsTable.status.enumValues)[number][];
           conditions.push(inArray(dealsTable.status, statusList));
         }
 
@@ -1127,7 +1556,10 @@ export function dealsRoutes(ctx: AppContext) {
             total: sum(dealsTable.sourceAmountMinor),
           })
           .from(dealsTable)
-          .leftJoin(currenciesTable, eq(dealsTable.sourceCurrencyId, currenciesTable.id))
+          .leftJoin(
+            currenciesTable,
+            eq(dealsTable.sourceCurrencyId, currenciesTable.id),
+          )
           .where(conditions.length > 0 ? and(...conditions) : undefined)
           .groupBy(
             sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`,
@@ -1136,19 +1568,28 @@ export function dealsRoutes(ctx: AppContext) {
           )
           .orderBy(sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`);
 
-        const dayMap = new Map<string, {
-          date: string;
-          amount: number;
-          count: number;
-          closedCount: number;
-          closedAmount: number;
-          [currency: string]: string | number;
-        }>();
+        const dayMap = new Map<
+          string,
+          {
+            date: string;
+            amount: number;
+            count: number;
+            closedCount: number;
+            closedAmount: number;
+            [currency: string]: string | number;
+          }
+        >();
 
         for (const row of rows) {
           const date = row.date;
           if (!dayMap.has(date)) {
-            dayMap.set(date, { date, amount: 0, count: 0, closedCount: 0, closedAmount: 0 });
+            dayMap.set(date, {
+              date,
+              amount: 0,
+              count: 0,
+              closedCount: 0,
+              closedAmount: 0,
+            });
           }
           const day = dayMap.get(date)!;
           const totalMinor = row.total ? Number(row.total) / 100 : 0;
@@ -1162,7 +1603,8 @@ export function dealsRoutes(ctx: AppContext) {
           }
 
           if (row.currencyCode) {
-            day[row.currencyCode] = ((day[row.currencyCode] as number) || 0) + totalMinor;
+            day[row.currencyCode] =
+              ((day[row.currencyCode] as number) || 0) + totalMinor;
           }
         }
 
@@ -1208,7 +1650,9 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const result =
-          await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(id);
+          await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(
+            id,
+          );
 
         if (!result) {
           return c.json({ error: `Deal ${id} not found` }, 404 as const);
@@ -1348,16 +1792,19 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await withRequiredIdempotency(c, async (idempotencyKey) => {
-          const deal = await requireDeal(ctx, id);
-          assertDealAllowsCommercialWrite(deal);
-          return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
-            actorUserId: c.get("user")!.id,
-            dealId: id,
-            idempotencyKey,
-            quoteId: body.quoteId,
-          });
-        });
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const deal = await requireDeal(ctx, id);
+            assertDealAllowsCommercialWrite(deal);
+            return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+              actorUserId: c.get("user")!.id,
+              dealId: id,
+              idempotencyKey,
+              quoteId: body.quoteId,
+            });
+          },
+        );
 
         if (result instanceof Response) {
           return result;
@@ -1468,7 +1915,10 @@ export function dealsRoutes(ctx: AppContext) {
           c.get("user")!.id,
         );
 
-        return jsonOk(c, result.data.map((document) => toDocumentDto(document)));
+        return jsonOk(
+          c,
+          result.data.map((document) => toDocumentDto(document)),
+        );
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1537,16 +1987,30 @@ export function dealsRoutes(ctx: AppContext) {
             visibility:
               typeof body.visibility === "string" ? body.visibility : undefined,
           });
+        const attachmentPurposeResult =
+          DealAttachmentPurposeInputSchema.safeParse({
+            purpose:
+              typeof body.purpose === "string" ? body.purpose : undefined,
+          });
 
         if (!attachmentVisibilityResult.success) {
           return c.json(
-            { error: "Attachment visibility must be customer_safe or internal" },
+            {
+              error: "Attachment visibility must be customer_safe or internal",
+            },
+            400 as const,
+          );
+        }
+        if (!attachmentPurposeResult.success) {
+          return c.json(
+            { error: "Attachment purpose must be invoice, contract, or other" },
             400 as const,
           );
         }
 
         const attachment =
           await ctx.filesModule.files.commands.uploadDealAttachment({
+            attachmentPurpose: attachmentPurposeResult.data.purpose,
             attachmentVisibility:
               attachmentVisibilityResult.data.visibility ?? "internal",
             buffer: Buffer.from(await file.arrayBuffer()),
@@ -1558,6 +2022,19 @@ export function dealsRoutes(ctx: AppContext) {
             ownerId: id,
             uploadedBy: c.get("user")!.id,
           });
+
+        try {
+          await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
+            dealId: id,
+            fileAssetId: attachment.id,
+          });
+        } catch (error) {
+          ctx.logger.warn("Failed to enqueue deal attachment ingestion", {
+            attachmentId: attachment.id,
+            dealId: id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
 
         await ctx.dealsModule.deals.commands.appendTimelineEvent({
           actorUserId: c.get("user")!.id,
@@ -1599,7 +2076,8 @@ export function dealsRoutes(ctx: AppContext) {
         await requireDeal(ctx, id);
         const attachments =
           await ctx.filesModule.files.queries.listDealAttachments(id);
-        const attachment = attachments.find((item) => item.id === attachmentId) ?? null;
+        const attachment =
+          attachments.find((item) => item.id === attachmentId) ?? null;
         await ctx.filesModule.files.commands.deleteDealAttachment({
           fileAssetId: attachmentId,
           ownerId: id,
@@ -1620,6 +2098,19 @@ export function dealsRoutes(ctx: AppContext) {
         });
 
         return jsonOk(c, { deleted: true });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(reingestAttachmentRoute, async (c) => {
+      try {
+        const { attachmentId, id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const result = await ctx.dealAttachmentIngestionWorkflow.reingest({
+          dealId: id,
+          fileAssetId: attachmentId,
+        });
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }

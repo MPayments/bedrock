@@ -119,6 +119,8 @@ export type ApiDealTimelineEvent = {
     | "calculation_attached"
     | "attachment_uploaded"
     | "attachment_deleted"
+    | "attachment_ingested"
+    | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
     | "leg_state_changed";
@@ -179,8 +181,55 @@ export type ApiDealOperationalState = {
   positions: ApiDealOperationalPosition[];
 };
 
+export type ApiDealCounterpartySnapshot = {
+  country: string | null;
+  displayName: string | null;
+  inn: string | null;
+  legalName: string | null;
+};
+
+export type ApiDealBankInstructionSnapshot = {
+  accountNo: string | null;
+  bankAddress: string | null;
+  bankCountry: string | null;
+  bankName: string | null;
+  beneficiaryName: string | null;
+  bic: string | null;
+  corrAccount: string | null;
+  iban: string | null;
+  label: string | null;
+  swift: string | null;
+};
+
+export type ApiDealAttachmentIngestion = {
+  appliedFields: string[];
+  appliedRevision: number | null;
+  attempts: number;
+  availableAt: string;
+  errorCode: string | null;
+  errorMessage: string | null;
+  fileAssetId: string;
+  lastProcessedAt: string | null;
+  normalizedPayload: {
+    amount: string | null;
+    bankInstructionSnapshot: ApiDealBankInstructionSnapshot | null;
+    beneficiarySnapshot: ApiDealCounterpartySnapshot | null;
+    contractNumber: string | null;
+    currencyCode: string | null;
+    currencyId: string | null;
+    documentPurpose: "invoice" | "contract" | "other" | null;
+    invoiceNumber: string | null;
+    paymentPurpose: string | null;
+  } | null;
+  observedRevision: number;
+  skippedFields: string[];
+  status: "pending" | "processing" | "processed" | "failed";
+  updatedAt: string;
+};
+
 export type ApiDealWorkflowProjection = {
   acceptedQuote: ApiDealAcceptedQuote;
+  attachmentIngestions: ApiDealAttachmentIngestion[];
   executionPlan: ApiDealWorkflowLeg[];
   intake: {
     common: {
@@ -189,25 +238,9 @@ export type ApiDealWorkflowProjection = {
       requestedExecutionDate: string | null;
     };
     externalBeneficiary: {
-      bankInstructionSnapshot: {
-        accountNo: string | null;
-        bankAddress: string | null;
-        bankCountry: string | null;
-        bankName: string | null;
-        beneficiaryName: string | null;
-        bic: string | null;
-        corrAccount: string | null;
-        iban: string | null;
-        label: string | null;
-        swift: string | null;
-      } | null;
+      bankInstructionSnapshot: ApiDealBankInstructionSnapshot | null;
       beneficiaryCounterpartyId: string | null;
-      beneficiarySnapshot: {
-        country: string | null;
-        displayName: string | null;
-        inn: string | null;
-        legalName: string | null;
-      } | null;
+      beneficiarySnapshot: ApiDealCounterpartySnapshot | null;
     };
     incomingReceipt: {
       contractNumber: string | null;
@@ -216,12 +249,7 @@ export type ApiDealWorkflowProjection = {
       expectedCurrencyId: string | null;
       invoiceNumber: string | null;
       payerCounterpartyId: string | null;
-      payerSnapshot: {
-        country: string | null;
-        displayName: string | null;
-        inn: string | null;
-        legalName: string | null;
-      } | null;
+      payerSnapshot: ApiDealCounterpartySnapshot | null;
     };
     moneyRequest: {
       purpose: string | null;
@@ -230,18 +258,7 @@ export type ApiDealWorkflowProjection = {
       targetCurrencyId: string | null;
     };
     settlementDestination: {
-      bankInstructionSnapshot: {
-        accountNo: string | null;
-        bankAddress: string | null;
-        bankCountry: string | null;
-        bankName: string | null;
-        beneficiaryName: string | null;
-        bic: string | null;
-        corrAccount: string | null;
-        iban: string | null;
-        label: string | null;
-        swift: string | null;
-      } | null;
+      bankInstructionSnapshot: ApiDealBankInstructionSnapshot | null;
       mode: "applicant_requisite" | "manual" | null;
       requisiteId: string | null;
     };
@@ -443,6 +460,7 @@ export type ApiAttachment = {
   fileSize: number;
   id: string;
   mimeType: string;
+  purpose: "invoice" | "contract" | "other" | null;
   updatedAt: string;
   uploadedBy: string | null;
   visibility: "customer_safe" | "internal" | null;
@@ -476,6 +494,30 @@ export type ApiDealCalculationHistoryItem = {
   totalAmountMinor: string;
   totalInBaseMinor: string;
   totalWithExpensesInBaseMinor: string;
+};
+
+export type ApiDealPricingQuote = {
+  createdAt: string;
+  dealDirection: string | null;
+  dealForm: string | null;
+  dealId: string | null;
+  expiresAt: string;
+  fromAmountMinor: string;
+  fromCurrency: string;
+  fromCurrencyId: string;
+  id: string;
+  idempotencyKey: string;
+  pricingMode: string;
+  pricingTrace: Record<string, unknown>;
+  rateDen: string;
+  rateNum: string;
+  status: string;
+  toAmountMinor: string;
+  toCurrency: string;
+  toCurrencyId: string;
+  usedAt: string | null;
+  usedByRef: string | null;
+  usedDocumentId: string | null;
 };
 
 export type CalculationView = {
@@ -535,6 +577,16 @@ export type ApiCrmDealWorkbenchProjection = {
   assignee: {
     userId: string | null;
   };
+  beneficiaryDraft: {
+    bankInstructionSnapshot: ApiDealBankInstructionSnapshot | null;
+    beneficiarySnapshot: ApiDealCounterpartySnapshot | null;
+    fieldPresence: {
+      bankInstructionFields: number;
+      beneficiaryFields: number;
+    };
+    purpose: "invoice" | "contract" | "other" | null;
+    sourceAttachmentId: string;
+  } | null;
   context: {
     agreement: ApiAgreementDetails | null;
     applicant: ApiCustomerLegalEntity | null;
@@ -572,7 +624,7 @@ export type ApiCrmDealWorkbenchProjection = {
     calculationHistory: ApiDealCalculationHistoryItem[];
     currentCalculation: ApiCalculationDetails | null;
     quoteEligibility: boolean;
-    quotes: ApiDealWorkflowProjection["relatedResources"]["quotes"];
+    quotes: ApiDealPricingQuote[];
   };
   relatedResources: {
     attachments: ApiAttachment[];

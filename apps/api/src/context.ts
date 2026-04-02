@@ -19,6 +19,7 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
+import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
 import type { DealProjectionsWorkflow } from "@bedrock/workflow-deal-projections";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
@@ -81,6 +82,7 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -117,6 +119,8 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    dealAttachmentIngestionWorkflow:
+      applicationServices.dealAttachmentIngestionWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     organizationBootstrapWorkflow:

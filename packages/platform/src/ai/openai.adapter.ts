@@ -5,7 +5,10 @@ import * as XLSX from "xlsx";
 import { z, toJSONSchema } from "zod";
 
 import type { ExtractedDocumentData } from "./contracts";
-import type { DocumentExtractionPort } from "./extraction.port";
+import type {
+  DocumentExtractionOptions,
+  DocumentExtractionPort,
+} from "./extraction.port";
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -71,6 +74,17 @@ function createTranslationSchema(fieldKeys: string[]) {
       },
     },
   );
+}
+
+function buildExtractionInstruction(
+  options?: DocumentExtractionOptions,
+) {
+  const instructions = options?.instructions?.trim();
+  if (!instructions) {
+    return SYSTEM_EXTRACT;
+  }
+
+  return `${SYSTEM_EXTRACT}\n${instructions}`;
 }
 
 export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
@@ -147,6 +161,7 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
     buffer: Buffer,
     mimeType: string,
     schema: T,
+    options?: DocumentExtractionOptions,
   ): Promise<z.infer<T>> {
     if (mimeType === "application/pdf") {
       const base64 = buffer.toString("base64");
@@ -155,7 +170,10 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
       const result = await generateObject({
         model: this.openai(this.model),
         messages: [
-          { role: "system", content: SYSTEM_EXTRACT },
+          {
+            role: "system",
+            content: buildExtractionInstruction(options),
+          },
           {
             role: "user",
             content: [
@@ -184,7 +202,7 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
     ) {
       const { value: text } = await mammoth.extractRawText({ buffer });
       if (!text.trim()) throw new Error("Failed to extract text from DOCX.");
-      return this.extractTextWithSchema(text, schema);
+      return this.extractTextWithSchema(text, schema, options);
     }
 
     // Excel documents
@@ -201,7 +219,7 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
       }
       const text = sheets.join("\n\n");
       if (!text.trim()) throw new Error("Failed to extract data from XLSX.");
-      return this.extractTextWithSchema(text, schema);
+      return this.extractTextWithSchema(text, schema, options);
     }
 
     throw new Error(`Unsupported mime type: ${mimeType}`);
@@ -265,11 +283,15 @@ export class OpenAIDocumentExtractionAdapter implements DocumentExtractionPort {
   private async extractTextWithSchema<T extends z.ZodTypeAny>(
     text: string,
     schema: T,
+    options?: DocumentExtractionOptions,
   ): Promise<z.infer<T>> {
     const result = await generateObject({
       model: this.openai(this.model),
       messages: [
-        { role: "system", content: SYSTEM_EXTRACT },
+        {
+          role: "system",
+          content: buildExtractionInstruction(options),
+        },
         { role: "user", content: text },
       ],
       schema: jsonSchema<z.infer<T>>(

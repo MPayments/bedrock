@@ -1,9 +1,6 @@
 import { API_BASE_URL } from "@/lib/constants";
 
-function readApiErrorMessage(
-  payload: unknown,
-  fallback: string,
-): string {
+function readApiErrorMessage(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") {
     return fallback;
   }
@@ -35,7 +32,11 @@ function readApiErrorMessage(
     }
   }
 
-  if ("error" in payload && payload.error && typeof payload.error === "object") {
+  if (
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object"
+  ) {
     if (
       "message" in payload.error &&
       typeof payload.error.message === "string"
@@ -68,10 +69,36 @@ export interface PortalDealCalculationSummary {
   id: string;
 }
 
+export interface PortalDealCalculation {
+  additionalExpenses: string;
+  additionalExpensesCurrencyCode: string | null;
+  additionalExpensesInBase: string;
+  baseCurrencyCode: string;
+  calculationTimestamp: string;
+  createdAt: string;
+  currencyCode: string;
+  dealId: string | null;
+  feeAmount: string;
+  feeAmountInBase: string;
+  feePercentage: string;
+  fxQuoteId: string | null;
+  id: string;
+  originalAmount: string;
+  rate: string;
+  rateSource: string;
+  sentToClient: number;
+  status: "active" | "archived";
+  totalAmount: string;
+  totalInBase: string;
+  totalWithExpensesInBase: string;
+}
+
 export interface PortalDealAttachment {
   createdAt: string;
   fileName: string;
   id: string;
+  ingestionStatus: "processing" | "applied" | "failed" | "unavailable" | null;
+  purpose: "invoice" | "contract" | "other" | null;
 }
 
 export interface PortalDealQuoteSummary {
@@ -159,6 +186,16 @@ export interface PortalDealProjectionResponse {
   timeline: PortalDealTimelineEvent[];
 }
 
+export interface PortalDealDetailResponse {
+  calculation: PortalDealCalculation | null;
+  deal: unknown;
+  organizationName: string | null;
+}
+
+export interface PortalDealPageData extends PortalDealProjectionResponse {
+  calculation: PortalDealCalculation | null;
+}
+
 export interface CreatePortalDealDraftInput {
   common: {
     applicantCounterpartyId: string;
@@ -205,9 +242,12 @@ export async function requestPortalDealProjections(input?: {
 }
 
 export async function requestPortalDealProjection(id: string) {
-  const response = await fetch(`${API_BASE_URL}/customer/deals/${id}/projection`, {
-    credentials: "include",
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/customer/deals/${id}/projection`,
+    {
+      credentials: "include",
+    },
+  );
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -220,10 +260,43 @@ export async function requestPortalDealProjection(id: string) {
   return (await response.json()) as PortalDealProjectionResponse;
 }
 
-export async function requestPortalDealAttachments(id: string) {
-  const response = await fetch(`${API_BASE_URL}/customer/deals/${id}/attachments`, {
+export async function requestPortalDealDetail(id: string) {
+  const response = await fetch(`${API_BASE_URL}/customer/deals/${id}`, {
     credentials: "include",
   });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Сделка не найдена");
+    }
+
+    throw new Error(`Ошибка загрузки сделки: ${response.status}`);
+  }
+
+  return (await response.json()) as PortalDealDetailResponse;
+}
+
+export async function requestPortalDealPageData(
+  id: string,
+): Promise<PortalDealPageData> {
+  const [projection, detail] = await Promise.all([
+    requestPortalDealProjection(id),
+    requestPortalDealDetail(id),
+  ]);
+
+  return {
+    ...projection,
+    calculation: detail.calculation,
+  };
+}
+
+export async function requestPortalDealAttachments(id: string) {
+  const response = await fetch(
+    `${API_BASE_URL}/customer/deals/${id}/attachments`,
+    {
+      credentials: "include",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Ошибка загрузки вложений: ${response.status}`);
@@ -236,9 +309,11 @@ export async function uploadPortalDealAttachment(input: {
   dealId: string;
   description?: string | null;
   file: File;
+  purpose: "invoice" | "contract" | "other";
 }) {
   const formData = new FormData();
   formData.set("file", input.file);
+  formData.set("purpose", input.purpose);
   if (input.description) {
     formData.set("description", input.description);
   }
@@ -253,9 +328,9 @@ export async function uploadPortalDealAttachment(input: {
   );
 
   if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
+    const errorPayload = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
     throw new Error(errorPayload?.error ?? "Не удалось загрузить вложение");
   }
 

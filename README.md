@@ -77,10 +77,16 @@ bun install
 
 ## Run
 
-Run all apps:
+Run the runtime stack (`api`, `workers`, `finance`, `crm`, `portal`):
 
 ```bash
 bun run dev
+```
+
+Run every workspace watcher, including package-level `tsc --watch` processes:
+
+```bash
+bun run dev:all
 ```
 
 Run a renamed frontend directly from the repo root:
@@ -89,6 +95,7 @@ Run a renamed frontend directly from the repo root:
 bun run dev:finance
 bun run dev:crm
 bun run dev:portal
+bun run dev:workers
 ```
 
 Run workers:

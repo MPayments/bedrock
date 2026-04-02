@@ -23,12 +23,22 @@ import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 
 const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend({
-  actorUserId: z.string().trim().min(1),
+  actorLabel: z.string().trim().max(255).nullable().optional(),
+  actorUserId: z.string().trim().min(1).nullable().optional(),
   dealId: z.uuid(),
+}).superRefine((value, ctx) => {
+  if (!value.actorUserId && !value.actorLabel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either actorUserId or actorLabel must be provided",
+      path: ["actorUserId"],
+    });
+  }
 });
 
 type ReplaceDealIntakeCommandInput = ReplaceDealIntakeInput & {
-  actorUserId: string;
+  actorLabel?: string | null;
+  actorUserId?: string | null;
   dealId: string;
 };
 
@@ -162,6 +172,7 @@ export class ReplaceDealIntakeCommand {
       const now = this.runtime.now();
       const events = [
         createTimelinePayloadEvent({
+          actorLabel: validated.actorLabel ?? null,
           actorUserId: validated.actorUserId,
           dealId: validated.dealId,
           generateUuid: () => this.runtime.generateUuid(),
@@ -178,6 +189,7 @@ export class ReplaceDealIntakeCommand {
       ) {
         events.push(
           createTimelinePayloadEvent({
+            actorLabel: validated.actorLabel ?? null,
             actorUserId: validated.actorUserId,
             dealId: validated.dealId,
             generateUuid: () => this.runtime.generateUuid(),

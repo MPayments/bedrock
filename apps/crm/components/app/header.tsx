@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus } from "lucide-react";
+import { ChevronDown, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,92 +18,129 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@bedrock/sdk-ui/components/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@bedrock/sdk-ui/components/avatar";
 import { signOut } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
 
+type CurrencyCode = "USD" | "EUR" | "CNY";
+type HeaderRateSource = "cbr" | "investing";
+type SourceRates = Partial<Record<CurrencyCode, number>>;
+
+const HEADER_CURRENCIES = ["USD", "EUR", "CNY"] as const;
+const HEADER_RATES_POLL_INTERVAL_MS = 60_000;
+
+async function fetchSourceRates(
+  source: HeaderRateSource,
+): Promise<SourceRates> {
+  const results = await Promise.all(
+    HEADER_CURRENCIES.map(async (currency) => {
+      try {
+        const res = await fetch(
+          `/v1/treasury/rates/latest?base=${currency}&quote=RUB&source=${source}`,
+          { cache: "no-store", credentials: "include" },
+        );
+        if (!res.ok) {
+          return null;
+        }
+
+        const data = await res.json();
+        const rate = Number(data.rateNum) / Number(data.rateDen || 1);
+        if (!Number.isFinite(rate)) {
+          return null;
+        }
+
+        return { currency, rate };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const rates: SourceRates = {};
+  for (const result of results) {
+    if (result) {
+      rates[result.currency] = result.rate;
+    }
+  }
+
+  return rates;
+}
+
 export function AppHeader({ session }: { session: UserSessionSnapshot }) {
   const router = useRouter();
-  const [rates, setRates] = useState<{
-    USD: number;
-    EUR: number;
-    CNY: number;
-  } | null>(null);
-  const [investingRates, setInvestingRates] = useState<{
-    USD: { rate: number; trend?: "up" | "down" | "neutral" };
-    EUR: { rate: number; trend?: "up" | "down" | "neutral" };
-    CNY: { rate: number; trend?: "up" | "down" | "neutral" };
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [cbrRates, setCbrRates] = useState<SourceRates | null>(null);
+  const [investingRates, setInvestingRates] = useState<SourceRates | null>(
+    null,
+  );
+  const [isCbrLoading, setIsCbrLoading] = useState(false);
   const [isInvestingLoading, setIsInvestingLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cbrError, setCbrError] = useState<string | null>(null);
   const [investingError, setInvestingError] = useState<string | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
+    let timeoutId: number | undefined;
+
     async function loadRates() {
       try {
-        setIsLoading(true);
+        setIsCbrLoading(true);
         setIsInvestingLoading(true);
-        setError(null);
+        setCbrError(null);
         setInvestingError(null);
 
-        const currencies = ["USD", "EUR", "CNY"] as const;
-        const results = await Promise.all(
-          currencies.map(async (currency) => {
-            try {
-              const res = await fetch(
-                `/v1/treasury/rates/latest?base=${currency}&quote=RUB`,
-                { cache: "no-store", credentials: "include" },
-              );
-              if (!res.ok) return { currency, rate: null };
-              const data = await res.json();
-              const rate = Number(data.rateNum) / Number(data.rateDen || 1);
-              return { currency, rate };
-            } catch {
-              return { currency, rate: null };
-            }
-          }),
-        );
+        const [nextCbrRates, nextInvestingRates] = await Promise.all([
+          fetchSourceRates("cbr"),
+          fetchSourceRates("investing"),
+        ]);
 
-        if (isCancelled) return;
+        if (isCancelled) {
+          return;
+        }
 
-        const hasAny = results.some((r) => r.rate !== null);
-        if (hasAny) {
-          const ratesData = {} as { USD: number; EUR: number; CNY: number };
-          const investingData = {} as {
-            USD: { rate: number; trend?: "up" | "down" | "neutral" };
-            EUR: { rate: number; trend?: "up" | "down" | "neutral" };
-            CNY: { rate: number; trend?: "up" | "down" | "neutral" };
-          };
-          for (const r of results) {
-            if (r.rate !== null) {
-              ratesData[r.currency] = r.rate;
-              investingData[r.currency] = { rate: r.rate, trend: "neutral" };
-            }
-          }
-          setRates(ratesData);
-          setInvestingRates(investingData);
+        if (Object.keys(nextCbrRates).length > 0) {
+          setCbrRates(nextCbrRates);
         } else {
-          setError("Нет данных");
+          setCbrRates(null);
+          setCbrError("Нет данных");
+        }
+
+        if (Object.keys(nextInvestingRates).length > 0) {
+          setInvestingRates(nextInvestingRates);
+        } else {
+          setInvestingRates(null);
           setInvestingError("Нет данных");
         }
       } catch {
         if (!isCancelled) {
-          setError("Ошибка загрузки");
+          setCbrRates(null);
+          setInvestingRates(null);
+          setCbrError("Ошибка загрузки");
           setInvestingError("Ошибка загрузки");
         }
       } finally {
         if (!isCancelled) {
-          setIsLoading(false);
+          setIsCbrLoading(false);
           setIsInvestingLoading(false);
+          timeoutId = window.setTimeout(
+            loadRates,
+            HEADER_RATES_POLL_INTERVAL_MS,
+          );
         }
       }
     }
-    loadRates();
+
+    void loadRates();
+
     return () => {
       isCancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
     };
   }, []);
 
@@ -244,65 +281,62 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
 
       <div className="flex justify-center border-b py-1 bg-background">
         <div className="text-sm flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <span className="font-medium">ЦБ:</span>
-            {isLoading && <span>Загрузка…</span>}
-            {error && !isLoading && (
-              <span className="text-red-500">{error}</span>
-            )}
-            {rates && !isLoading && !error && (
-              <div className="flex items-center gap-4 font-mono">
-                {(["USD", "EUR", "CNY"] as const).map((cur) =>
-                  rates[cur] != null ? (
-                    <span key={cur} className="inline-flex items-center gap-1">
-                      {cur} {rates[cur].toFixed(2)} ₽
-                      <Minus className="h-3 w-3 text-gray-400" />
-                    </span>
-                  ) : (
-                    <span key={cur} className="inline-flex items-center gap-1 text-muted-foreground">
-                      {cur} —
-                    </span>
-                  ),
-                )}
-              </div>
-            )}
-          </div>
+          <SourceRatesTicker
+            label="ЦБ:"
+            rates={cbrRates}
+            isLoading={isCbrLoading}
+            error={cbrError}
+          />
 
           <div className="h-4 w-px bg-border" />
 
-          <div className="flex items-center gap-4">
-            <span className="font-medium">Investing:</span>
-            {isInvestingLoading && <span>Загрузка…</span>}
-            {investingError && !isInvestingLoading && (
-              <span className="text-red-500">{investingError}</span>
-            )}
-            {investingRates && !isInvestingLoading && !investingError && (
-              <div className="flex items-center gap-4 font-mono">
-                {(["USD", "EUR", "CNY"] as const).map((cur) =>
-                  investingRates[cur] ? (
-                    <span key={cur} className="inline-flex items-center gap-1">
-                      {cur} {investingRates[cur].rate.toFixed(2)} ₽
-                      {investingRates[cur].trend === "up" && (
-                        <ArrowUpRight className="h-3 w-3 text-green-600" />
-                      )}
-                      {investingRates[cur].trend === "down" && (
-                        <ArrowDownRight className="h-3 w-3 text-red-600" />
-                      )}
-                      {investingRates[cur].trend === "neutral" && (
-                        <Minus className="h-3 w-3 text-gray-400" />
-                      )}
-                    </span>
-                  ) : (
-                    <span key={cur} className="inline-flex items-center gap-1 text-muted-foreground">
-                      {cur} —
-                    </span>
-                  ),
-                )}
-              </div>
-            )}
-          </div>
+          <SourceRatesTicker
+            label="Investing:"
+            rates={investingRates}
+            isLoading={isInvestingLoading}
+            error={investingError}
+          />
         </div>
       </div>
     </>
+  );
+}
+
+function SourceRatesTicker({
+  label,
+  rates,
+  isLoading,
+  error,
+}: {
+  label: string;
+  rates: SourceRates | null;
+  isLoading: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="flex items-center gap-4">
+      <span className="font-medium">{label}</span>
+      {isLoading && <span>Загрузка…</span>}
+      {error && !isLoading && <span className="text-red-500">{error}</span>}
+      {rates && !isLoading && !error && (
+        <div className="flex items-center gap-4 font-mono">
+          {HEADER_CURRENCIES.map((currency) =>
+            rates[currency] != null ? (
+              <span key={currency} className="inline-flex items-center gap-1">
+                {currency} {rates[currency]!.toFixed(2)} ₽
+                <Minus className="h-3 w-3 text-gray-400" />
+              </span>
+            ) : (
+              <span
+                key={currency}
+                className="inline-flex items-center gap-1 text-muted-foreground"
+              >
+                {currency} —
+              </span>
+            ),
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -18,7 +18,9 @@ import type {
 } from "@bedrock/parties/contracts";
 import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { TreasuryModule } from "@bedrock/treasury";
+import type { QuoteListItem } from "@bedrock/treasury/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 import type {
   CrmDealBoardProjection,
@@ -36,10 +38,10 @@ import type {
   PortalDealProjection,
 } from "./contracts";
 
-const CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION =
-  "Загрузите подтверждающие документы";
+const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
-  "Загрузите внешние подтверждающие документы по сделке";
+  "Загрузите подтверждающие документы по сделке";
+const PAYMENT_INVOICE_REQUIRED_MESSAGE = "Инвойс по сделке не загружен";
 const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
   currency_exchange: ["common", "moneyRequest"],
   currency_transit: ["common", "moneyRequest", "incomingReceipt"],
@@ -86,6 +88,9 @@ export type ListFinanceDealQueuesInput = FinanceDealQueueFilters;
 type CalculationDetailsLike = NonNullable<
   Awaited<ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>>
 >;
+type TreasuryQuoteRecord = Awaited<
+  ReturnType<TreasuryModule["quotes"]["queries"]["listQuotes"]>
+>["data"][number];
 
 function getCustomerParticipant(workflow: DealWorkflowProjection) {
   return workflow.participants.find((participant) => participant.role === "customer");
@@ -101,6 +106,41 @@ function getInternalEntityParticipant(workflow: DealWorkflowProjection) {
   );
 }
 
+function serializeCrmPricingQuote(quote: TreasuryQuoteRecord): QuoteListItem {
+  const fromCurrency = quote.fromCurrency ?? "—";
+  const toCurrency = quote.toCurrency ?? "—";
+
+  return {
+    createdAt: quote.createdAt.toISOString(),
+    dealDirection: quote.dealDirection,
+    dealForm: quote.dealForm,
+    dealId: quote.dealId,
+    expiresAt: quote.expiresAt.toISOString(),
+    fromAmount: minorToAmountString(quote.fromAmountMinor, {
+      currency: fromCurrency,
+    }),
+    fromAmountMinor: quote.fromAmountMinor.toString(),
+    fromCurrency,
+    fromCurrencyId: quote.fromCurrencyId,
+    id: quote.id,
+    idempotencyKey: quote.idempotencyKey,
+    pricingMode: quote.pricingMode,
+    pricingTrace: quote.pricingTrace ?? {},
+    rateDen: quote.rateDen.toString(),
+    rateNum: quote.rateNum.toString(),
+    status: quote.status,
+    toAmount: minorToAmountString(quote.toAmountMinor, {
+      currency: toCurrency,
+    }),
+    toAmountMinor: quote.toAmountMinor.toString(),
+    toCurrency,
+    toCurrencyId: quote.toCurrencyId,
+    usedAt: quote.usedAt?.toISOString() ?? null,
+    usedByRef: quote.usedByRef,
+    usedDocumentId: quote.usedDocumentId,
+  };
+}
+
 function getCustomerSafeTimeline(
   timeline: DealTimelineEvent[],
 ): DealTimelineEvent[] {
@@ -108,59 +148,40 @@ function getCustomerSafeTimeline(
 }
 
 function buildCustomerSafeAttachments(
-  timeline: DealTimelineEvent[],
   attachments: Awaited<
     ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
   >,
+  workflow: DealWorkflowProjection,
 ) {
-  const uploadedIds = new Map<
-    string,
-    {
-      createdAt: Date;
-      fileName: string;
-      id: string;
-    }
-  >();
+  const ingestionsByAttachmentId = new Map(
+    workflow.attachmentIngestions.map((ingestion) => [ingestion.fileAssetId, ingestion]),
+  );
 
-  for (const event of timeline) {
-    if (event.type === "attachment_uploaded") {
-      const attachmentId =
-        typeof event.payload.attachmentId === "string"
-          ? event.payload.attachmentId
-          : null;
-      const fileName =
-        typeof event.payload.fileName === "string" ? event.payload.fileName : null;
+  return attachments
+    .filter((attachment) => attachment.visibility === "customer_safe")
+    .map((attachment) => {
+      const ingestion = ingestionsByAttachmentId.get(attachment.id) ?? null;
+      const ingestionStatus =
+        !attachment.purpose || attachment.purpose === "other"
+          ? null
+          : !ingestion
+            ? null
+            : ingestion.status === "pending" || ingestion.status === "processing"
+              ? ("processing" as const)
+              : ingestion.status === "processed"
+                ? ("applied" as const)
+                : ingestion.errorCode === "extractor_unconfigured" ||
+                    ingestion.errorCode === "storage_unconfigured"
+                  ? ("unavailable" as const)
+                  : ("failed" as const);
 
-      if (!attachmentId || !fileName) {
-        continue;
-      }
-
-      uploadedIds.set(attachmentId, {
-        createdAt: event.occurredAt,
-        fileName,
-        id: attachmentId,
-      });
-      continue;
-    }
-
-    if (event.type === "attachment_deleted") {
-      const attachmentId =
-        typeof event.payload.attachmentId === "string"
-          ? event.payload.attachmentId
-          : null;
-
-      if (attachmentId) {
-        uploadedIds.delete(attachmentId);
-      }
-    }
-  }
-
-  const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
-
-  return Array.from(uploadedIds.values())
-    .filter((attachment) => {
-      const current = attachmentsById.get(attachment.id);
-      return current?.visibility === "customer_safe";
+      return {
+        createdAt: attachment.createdAt,
+        fileName: attachment.fileName,
+        id: attachment.id,
+        ingestionStatus,
+        purpose: attachment.purpose,
+      };
     })
     .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 }
@@ -191,13 +212,39 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
   };
 }
 
-function buildPortalSubmissionCompleteness(
-  workflow: DealWorkflowProjection,
+function hasAttachmentPurpose(
+  attachments: Awaited<
+    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+  >,
+  purpose: "contract" | "invoice",
+  visibility?: "customer_safe" | "internal",
 ) {
-  const relevantSectionIds = new Set(PORTAL_OWNED_SECTIONS_BY_TYPE[workflow.intake.type]);
-  const blockingReasons = workflow.sectionCompleteness
+  return attachments.some(
+    (attachment) =>
+      attachment.purpose === purpose &&
+      (visibility ? attachment.visibility === visibility : true),
+  );
+}
+
+function buildPortalSubmissionCompleteness(input: {
+  attachments: Awaited<
+    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+  >;
+  workflow: DealWorkflowProjection;
+}) {
+  const relevantSectionIds = new Set(
+    PORTAL_OWNED_SECTIONS_BY_TYPE[input.workflow.intake.type],
+  );
+  const blockingReasons = input.workflow.sectionCompleteness
     .filter((section) => relevantSectionIds.has(section.sectionId))
     .flatMap((section) => section.blockingReasons);
+
+  if (
+    input.workflow.summary.type === "payment" &&
+    !hasAttachmentPurpose(input.attachments, "invoice", "customer_safe")
+  ) {
+    blockingReasons.push(CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION);
+  }
 
   return {
     blockingReasons,
@@ -261,6 +308,26 @@ function buildCrmEvidenceRequirements(input: {
   >;
   workflow: DealWorkflowProjection;
 }) {
+  if (input.workflow.summary.type === "payment") {
+    const hasInvoice = hasAttachmentPurpose(input.attachments, "invoice");
+    const hasContract = hasAttachmentPurpose(input.attachments, "contract");
+
+    return [
+      {
+        blockingReasons: hasInvoice ? [] : [PAYMENT_INVOICE_REQUIRED_MESSAGE],
+        code: "invoice",
+        label: "Инвойс",
+        state: hasInvoice ? ("provided" as const) : ("missing" as const),
+      },
+      {
+        blockingReasons: [],
+        code: "contract",
+        label: "Договор",
+        state: hasContract ? ("provided" as const) : ("not_required" as const),
+      },
+    ];
+  }
+
   if (!requiresExternalEvidence(input.workflow.summary.type)) {
     return [
       {
@@ -339,6 +406,96 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
   return requirements;
 }
 
+function countCounterpartySnapshotFields(
+  snapshot: DealWorkflowProjection["intake"]["externalBeneficiary"]["beneficiarySnapshot"],
+) {
+  if (!snapshot) {
+    return 0;
+  }
+
+  return [
+    snapshot.country,
+    snapshot.displayName,
+    snapshot.inn,
+    snapshot.legalName,
+  ].filter((value) => Boolean(value)).length;
+}
+
+function countBankInstructionFields(
+  snapshot: DealWorkflowProjection["intake"]["externalBeneficiary"]["bankInstructionSnapshot"],
+) {
+  if (!snapshot) {
+    return 0;
+  }
+
+  return [
+    snapshot.accountNo,
+    snapshot.bankAddress,
+    snapshot.bankCountry,
+    snapshot.bankName,
+    snapshot.beneficiaryName,
+    snapshot.bic,
+    snapshot.corrAccount,
+    snapshot.iban,
+    snapshot.label,
+    snapshot.swift,
+  ].filter((value) => Boolean(value)).length;
+}
+
+function buildCrmBeneficiaryDraft(input: {
+  attachments: Awaited<
+    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+  >;
+  workflow: DealWorkflowProjection;
+}) {
+  if (input.workflow.intake.externalBeneficiary.beneficiaryCounterpartyId) {
+    return null;
+  }
+
+  const attachmentById = new Map(
+    input.attachments.map((attachment) => [attachment.id, attachment]),
+  );
+  const candidate = [...input.workflow.attachmentIngestions]
+    .filter(
+      (ingestion) =>
+        ingestion.status === "processed" &&
+        (ingestion.normalizedPayload?.beneficiarySnapshot ||
+          ingestion.normalizedPayload?.bankInstructionSnapshot),
+    )
+    .sort((left, right) => {
+      const leftAttachment = attachmentById.get(left.fileAssetId);
+      const rightAttachment = attachmentById.get(right.fileAssetId);
+      const leftRank = leftAttachment?.purpose === "invoice" ? 0 : 1;
+      const rightRank = rightAttachment?.purpose === "invoice" ? 0 : 1;
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      const leftTime = left.lastProcessedAt?.getTime() ?? 0;
+      const rightTime = right.lastProcessedAt?.getTime() ?? 0;
+      return rightTime - leftTime;
+    })[0];
+
+  if (!candidate?.normalizedPayload) {
+    return null;
+  }
+
+  return {
+    bankInstructionSnapshot: candidate.normalizedPayload.bankInstructionSnapshot,
+    beneficiarySnapshot: candidate.normalizedPayload.beneficiarySnapshot,
+    fieldPresence: {
+      bankInstructionFields: countBankInstructionFields(
+        candidate.normalizedPayload.bankInstructionSnapshot,
+      ),
+      beneficiaryFields: countCounterpartySnapshotFields(
+        candidate.normalizedPayload.beneficiarySnapshot,
+      ),
+    },
+    purpose: attachmentById.get(candidate.fileAssetId)?.purpose ?? null,
+    sourceAttachmentId: candidate.fileAssetId,
+  };
+}
+
 function buildCrmWorkbenchActions(workflow: DealWorkflowProjection) {
   const hasAcceptedQuote =
     workflow.acceptedQuote?.quoteStatus === "active" &&
@@ -414,12 +571,12 @@ function requiresCustomerAttachment(nextAction: string) {
 }
 
 function mapPortalNextAction(input: {
-  attachmentCount: number;
+  hasRequiredInvoice: boolean;
   nextAction: string;
 }) {
   if (requiresCustomerAttachment(input.nextAction)) {
-    if (input.attachmentCount === 0) {
-      return CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION;
+    if (!input.hasRequiredInvoice) {
+      return CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION;
     }
 
     return "Ожидайте обработки документов";
@@ -439,7 +596,7 @@ function mapPortalNextAction(input: {
 }
 
 function buildPortalRequiredActions(input: {
-  attachmentCount: number;
+  hasRequiredInvoice: boolean;
   nextAction: string;
   submissionCompleteness: {
     blockingReasons: string[];
@@ -454,13 +611,13 @@ function buildPortalRequiredActions(input: {
 
   if (
     requiresCustomerAttachment(input.nextAction) &&
-    input.attachmentCount === 0
+    !input.hasRequiredInvoice
   ) {
-    actions.add(CUSTOMER_SAFE_ATTACHMENT_REQUIRED_ACTION);
+    actions.add(CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION);
   } else if (input.nextAction.trim().length > 0) {
     actions.add(
       mapPortalNextAction({
-        attachmentCount: input.attachmentCount,
+        hasRequiredInvoice: input.hasRequiredInvoice,
         nextAction: input.nextAction,
       }),
     );
@@ -492,10 +649,16 @@ function buildPortalProjection(input: {
 }): PortalDealProjection {
   const customerSafeTimeline = getCustomerSafeTimeline(input.workflow.timeline);
   const attachments = buildCustomerSafeAttachments(
-    customerSafeTimeline,
     input.attachments,
+    input.workflow,
   );
-  const submissionCompleteness = buildPortalSubmissionCompleteness(input.workflow);
+  const hasRequiredInvoice =
+    input.workflow.summary.type !== "payment" ||
+    attachments.some((attachment) => attachment.purpose === "invoice");
+  const submissionCompleteness = buildPortalSubmissionCompleteness({
+    attachments: input.attachments,
+    workflow: input.workflow,
+  });
 
   return {
     attachments,
@@ -504,12 +667,12 @@ function buildPortalProjection(input: {
       : null,
     customerSafeIntake: toPortalIntakeSummary(input.workflow),
     nextAction: mapPortalNextAction({
-      attachmentCount: attachments.length,
+      hasRequiredInvoice,
       nextAction: input.workflow.nextAction,
     }),
     quoteSummary: buildPortalQuoteSummary(input.workflow),
     requiredActions: buildPortalRequiredActions({
-      attachmentCount: attachments.length,
+      hasRequiredInvoice,
       nextAction: input.workflow.nextAction,
       submissionCompleteness,
     }),
@@ -797,7 +960,7 @@ export function createDealProjectionsWorkflow(
           : Promise.resolve(null),
       ]);
 
-    const [legalEntitiesResult, currentCalculation, internalEntityRequisite] =
+    const [legalEntitiesResult, currentCalculation, internalEntityRequisite, quotesResult] =
       await Promise.all([
         customerId
           ? deps.parties.counterparties.queries.list({
@@ -816,6 +979,13 @@ export function createDealProjectionsWorkflow(
         agreement?.organizationRequisiteId
           ? deps.parties.requisites.queries.findById(agreement.organizationRequisiteId)
           : Promise.resolve(null),
+        deps.treasury.quotes.queries.listQuotes({
+          dealId,
+          limit: MAX_QUERY_LIST_LIMIT,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }),
       ]);
 
     const internalEntityRequisiteProvider = internalEntityRequisite?.providerId
@@ -830,6 +1000,10 @@ export function createDealProjectionsWorkflow(
       attachments,
       workflow,
     });
+    const beneficiaryDraft = buildCrmBeneficiaryDraft({
+      attachments,
+      workflow,
+    });
     const documentRequirements = buildCrmDocumentRequirements(workflow);
 
     return {
@@ -839,6 +1013,7 @@ export function createDealProjectionsWorkflow(
       assignee: {
         userId: workflow.summary.agentId,
       },
+      beneficiaryDraft,
       context: {
         agreement,
         applicant,
@@ -862,7 +1037,7 @@ export function createDealProjectionsWorkflow(
         calculationHistory: calculationsHistory,
         currentCalculation,
         quoteEligibility: isQuoteEligible(workflow),
-        quotes: workflow.relatedResources.quotes,
+        quotes: quotesResult.data.map(serializeCrmPricingQuote),
       },
       relatedResources: {
         attachments,
@@ -953,9 +1128,16 @@ export function createDealProjectionsWorkflow(
   async function getFinanceDealWorkspaceProjection(
     dealId: string,
   ): Promise<FinanceDealWorkspaceProjection | null> {
-    const [workflow, attachments] = await Promise.all([
+    const [workflow, attachments, quotesResult] = await Promise.all([
       deps.deals.deals.queries.findWorkflowById(dealId),
       deps.files.files.queries.listDealAttachments(dealId),
+      deps.treasury.quotes.queries.listQuotes({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
     ]);
 
     if (!workflow) {
@@ -968,12 +1150,38 @@ export function createDealProjectionsWorkflow(
         )
       : Promise.resolve(null));
 
+    const actions = buildCrmWorkbenchActions(workflow);
+    const attachmentRequirements = buildCrmEvidenceRequirements({
+      attachments,
+      workflow,
+    });
+    const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
     const queueContext = classifyFinanceQueue(workflow);
+    const acceptedQuoteDetails = workflow.acceptedQuote
+      ? quotesResult.data
+          .map(serializeCrmPricingQuote)
+          .find((quote) => quote.id === workflow.acceptedQuote?.quoteId) ?? null
+      : null;
 
     return {
       acceptedQuote: workflow.acceptedQuote,
+      acceptedQuoteDetails,
+      actions: {
+        canCreateCalculation: actions.canCreateCalculation,
+        canCreateQuote: actions.canCreateQuote,
+        canUploadAttachment: actions.canUploadAttachment,
+      },
+      attachmentRequirements,
       executionPlan: workflow.executionPlan,
+      formalDocumentRequirements,
+      nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,
+      pricing: {
+        quoteEligibility: isQuoteEligible(workflow),
+        requestedAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
+        requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+        targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
+      },
       profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
       queueContext,
       relatedResources: {

@@ -97,6 +97,13 @@ const navItems: AppNavItem[] = [
         audience: "admin",
       },
       {
+        id: "treasury-balances",
+        title: "Балансы",
+        href: "/treasury/balances",
+        icon: "wallet",
+        audience: "admin",
+      },
+      {
         id: "treasury-rates",
         title: "Курсы",
         href: "/treasury/rates",

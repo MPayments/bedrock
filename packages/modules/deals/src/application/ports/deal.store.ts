@@ -1,5 +1,6 @@
 import type { DealIntakeDraft } from "../contracts/dto";
 import type {
+  DealAttachmentIngestionStatus,
   DealApprovalStatus,
   DealApprovalType,
   DealCapabilityKind,
@@ -64,6 +65,23 @@ export interface CreateDealTimelineEventStoredInput {
   visibility: DealTimelineVisibility;
 }
 
+export interface CreateDealAttachmentIngestionStoredInput {
+  appliedFields: string[];
+  appliedRevision: number | null;
+  attempts: number;
+  availableAt: Date;
+  dealId: string;
+  errorCode: string | null;
+  errorMessage: string | null;
+  fileAssetId: string;
+  id: string;
+  lastProcessedAt: Date | null;
+  normalizedPayload: Record<string, unknown> | null;
+  observedRevision: number;
+  skippedFields: string[];
+  status: DealAttachmentIngestionStatus;
+}
+
 export interface CreateDealQuoteAcceptanceStoredInput {
   acceptedAt: Date;
   acceptedByUserId: string;
@@ -110,7 +128,24 @@ export interface ReplaceDealOperationalPositionStoredInput {
 }
 
 export interface DealStore {
+  claimAttachmentIngestions(input: {
+    batchSize: number;
+    leaseSeconds: number;
+    now: Date;
+  }): Promise<
+    Array<{
+      attempts: number;
+      availableAt: Date;
+      dealId: string;
+      fileAssetId: string;
+      observedRevision: number;
+      status: DealAttachmentIngestionStatus;
+    }>
+  >;
   createDealApprovals(input: CreateDealApprovalStoredInput[]): Promise<void>;
+  createDealAttachmentIngestion(
+    input: CreateDealAttachmentIngestionStoredInput,
+  ): Promise<void>;
   createDealCalculationLinks(
     input: {
       calculationId: string;
@@ -129,6 +164,18 @@ export interface DealStore {
   createDealTimelineEvents(
     input: CreateDealTimelineEventStoredInput[],
   ): Promise<void>;
+  setDealAttachmentIngestion(input: {
+    appliedFields?: string[];
+    appliedRevision?: number | null;
+    availableAt?: Date;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    fileAssetId: string;
+    lastProcessedAt?: Date | null;
+    normalizedPayload?: Record<string, unknown> | null;
+    skippedFields?: string[];
+    status?: DealAttachmentIngestionStatus;
+  }): Promise<void>;
   replaceDealOperationalPositions(input: {
     dealId: string;
     positions: ReplaceDealOperationalPositionStoredInput[];
@@ -162,6 +209,13 @@ export interface DealStore {
     dealId: string;
     replacedByQuoteId: string;
     revokedAt: Date;
+  }): Promise<void>;
+  upsertDealAttachmentIngestion(input: {
+    availableAt: Date;
+    dealId: string;
+    fileAssetId: string;
+    id: string;
+    observedRevision: number;
   }): Promise<void>;
   upsertDealCapabilityState(
     input: UpsertDealCapabilityStateStoredInput,

@@ -2,12 +2,13 @@ import { normalizeCurrency } from "@bedrock/currencies/contracts";
 import type { Clock } from "@bedrock/shared/core";
 
 import { RateNotFoundError } from "../../../errors";
-import type { CurrenciesPort } from "../../../shared/application/external-ports";
+import type {
+  CurrenciesPort,
+  RateSource,
+} from "../../../shared/application/external-ports";
 import { RateBook } from "../../domain/rate-book";
 import type { RateSourceSyncPort } from "../ports/rate-source-sync.port";
-import type {
-  RateRowRecord,
-} from "../ports/rates.repository";
+import type { RateRowRecord } from "../ports/rates.repository";
 
 export class GetLatestRateQuery {
   constructor(
@@ -20,14 +21,34 @@ export class GetLatestRateQuery {
     base: string,
     quote: string,
     asOf: Date,
+    source?: RateSource,
   ): Promise<RateRowRecord> {
     const normalizedBase = normalizeCurrency(base);
     const normalizedQuote = normalizeCurrency(quote);
 
-    const { id: baseCurrencyId } = await this.currencies.findByCode(normalizedBase);
-    const { id: quoteCurrencyId } = await this.currencies.findByCode(
-      normalizedQuote,
-    );
+    const { id: baseCurrencyId } =
+      await this.currencies.findByCode(normalizedBase);
+    const { id: quoteCurrencyId } =
+      await this.currencies.findByCode(normalizedQuote);
+
+    if (source) {
+      await this.rateSourceSync.ensureSourceFresh(source, this.now());
+      const rate = await this.rateSourceSync.getLatestRateBySource(
+        baseCurrencyId,
+        quoteCurrencyId,
+        asOf,
+        source,
+      );
+
+      if (rate) {
+        return rate;
+      }
+
+      throw new RateNotFoundError(
+        `Rate not found for ${normalizedBase}/${normalizedQuote} source=${source} asOf=${asOf.toISOString()}`,
+      );
+    }
+
     let rateBook = RateBook.forPair(normalizedBase, normalizedQuote);
 
     const manualRate = await this.rateSourceSync.getLatestManualRate(

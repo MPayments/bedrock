@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
   DEAL_CAPABILITY_KIND_VALUES,
@@ -36,6 +37,13 @@ export type DealCapabilityKind = z.infer<typeof DealCapabilityKindSchema>;
 
 export const DealCapabilityStatusSchema = z.enum(DEAL_CAPABILITY_STATUS_VALUES);
 export type DealCapabilityStatus = z.infer<typeof DealCapabilityStatusSchema>;
+
+export const DealAttachmentIngestionStatusSchema = z.enum(
+  DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
+);
+export type DealAttachmentIngestionStatus = z.infer<
+  typeof DealAttachmentIngestionStatusSchema
+>;
 
 export const DealOperationalPositionKindSchema = z.enum(
   DEAL_OPERATIONAL_POSITION_KIND_VALUES,

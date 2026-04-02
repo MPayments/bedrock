@@ -25,6 +25,7 @@ import {
 
 import type { DealIntakeDraft } from "../../application/contracts/dto";
 import {
+  DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
   DEAL_CAPABILITY_KIND_VALUES,
@@ -59,6 +60,10 @@ export const dealOperationalPositionKindEnum = pgEnum(
 export const dealOperationalPositionStateEnum = pgEnum(
   "deal_operational_position_state",
   DEAL_OPERATIONAL_POSITION_STATE_VALUES,
+);
+export const dealAttachmentIngestionStatusEnum = pgEnum(
+  "deal_attachment_ingestion_status",
+  DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
 );
 export const dealParticipantRoleEnum = pgEnum(
   "deal_participant_role",
@@ -441,6 +446,58 @@ export const dealApprovals = pgTable(
   ],
 );
 
+export const dealAttachmentIngestions = pgTable(
+  "deal_attachment_ingestions",
+  {
+    id: uuid("id").primaryKey(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    fileAssetId: uuid("file_asset_id").notNull(),
+    status: dealAttachmentIngestionStatusEnum("status")
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    observedRevision: integer("observed_revision").notNull(),
+    appliedRevision: integer("applied_revision"),
+    normalizedPayload: jsonb("normalized_payload")
+      .$type<Record<string, unknown> | null>()
+      .default(sql`null`),
+    appliedFields: jsonb("applied_fields")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    skippedFields: jsonb("skipped_fields")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    lastProcessedAt: timestamp("last_processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_attachment_ingestions_file_asset_uq").on(
+      table.fileAssetId,
+    ),
+    index("deal_attachment_ingestions_deal_idx").on(table.dealId),
+    index("deal_attachment_ingestions_status_idx").on(
+      table.status,
+      table.availableAt,
+    ),
+  ],
+);
+
 export const dealAgentBonuses = pgTable(
   "deal_agent_bonuses",
   {
@@ -502,6 +559,7 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
   operationalPositions: many(dealOperationalPositions),
   participants: many(dealParticipants),
   quoteAcceptances: many(dealQuoteAcceptances),
+  attachmentIngestions: many(dealAttachmentIngestions),
   timelineEvents: many(dealTimelineEvents),
 }));
 
@@ -617,6 +675,16 @@ export const dealOperationalPositionsRelations = relations(
     }),
     deal: one(deals, {
       fields: [dealOperationalPositions.dealId],
+      references: [deals.id],
+    }),
+  }),
+);
+
+export const dealAttachmentIngestionsRelations = relations(
+  dealAttachmentIngestions,
+  ({ one }) => ({
+    deal: one(deals, {
+      fields: [dealAttachmentIngestions.dealId],
       references: [deals.id],
     }),
   }),

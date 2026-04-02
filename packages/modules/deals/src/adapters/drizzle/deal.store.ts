@@ -1,9 +1,10 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
   dealCapabilityStates,
+  dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
@@ -16,6 +17,7 @@ import {
 } from "./schema";
 import type {
   CreateDealApprovalStoredInput,
+  CreateDealAttachmentIngestionStoredInput,
   CreateDealIntakeSnapshotStoredInput,
   CreateDealLegStoredInput,
   ReplaceDealOperationalPositionStoredInput,
@@ -29,6 +31,91 @@ import type {
 
 export class DrizzleDealStore implements DealStore {
   constructor(private readonly db: Queryable) {}
+
+  async claimAttachmentIngestions(input: {
+    batchSize: number;
+    leaseSeconds: number;
+    now: Date;
+  }): Promise<
+    Array<{
+      attempts: number;
+      availableAt: Date;
+      dealId: string;
+      fileAssetId: string;
+      observedRevision: number;
+      status: "pending" | "processing" | "processed" | "failed";
+    }>
+  > {
+    const claimed = await this.db.execute(sql`
+      WITH c AS (
+        SELECT id
+        FROM ${dealAttachmentIngestions}
+        WHERE (
+          (${dealAttachmentIngestions.status} = 'pending' AND ${dealAttachmentIngestions.availableAt} <= ${input.now})
+          OR
+          (${dealAttachmentIngestions.status} = 'processing'
+            AND ${dealAttachmentIngestions.lockedAt} IS NOT NULL
+            AND ${dealAttachmentIngestions.lockedAt} + (${input.leaseSeconds} * interval '1 second') <= ${input.now})
+        )
+        ORDER BY ${dealAttachmentIngestions.createdAt}
+        FOR UPDATE SKIP LOCKED
+        LIMIT ${input.batchSize}
+      )
+      UPDATE ${dealAttachmentIngestions} ingest
+        SET status = 'processing',
+            locked_at = ${input.now},
+            attempts = attempts + 1,
+            error_code = NULL,
+            error_message = NULL,
+            updated_at = ${input.now}
+      FROM c
+      WHERE ingest.id = c.id
+      RETURNING
+        ingest.deal_id as deal_id,
+        ingest.file_asset_id as file_asset_id,
+        ingest.status as status,
+        ingest.attempts as attempts,
+        ingest.available_at as available_at,
+        ingest.observed_revision as observed_revision
+    `);
+
+    return ((claimed.rows ?? []) as Array<{
+      attempts: number;
+      available_at: Date;
+      deal_id: string;
+      file_asset_id: string;
+      observed_revision: number;
+      status: "pending" | "processing" | "processed" | "failed";
+    }>).map((row) => ({
+      attempts: Number(row.attempts),
+      availableAt: new Date(row.available_at),
+      dealId: row.deal_id,
+      fileAssetId: row.file_asset_id,
+      observedRevision: Number(row.observed_revision),
+      status: row.status,
+    }));
+  }
+
+  async createDealAttachmentIngestion(
+    input: CreateDealAttachmentIngestionStoredInput,
+  ): Promise<void> {
+    await this.db.insert(dealAttachmentIngestions).values({
+      appliedFields: input.appliedFields,
+      appliedRevision: input.appliedRevision,
+      attempts: input.attempts,
+      availableAt: input.availableAt,
+      dealId: input.dealId,
+      errorCode: input.errorCode,
+      errorMessage: input.errorMessage,
+      fileAssetId: input.fileAssetId,
+      id: input.id,
+      lastProcessedAt: input.lastProcessedAt,
+      normalizedPayload: input.normalizedPayload,
+      observedRevision: input.observedRevision,
+      skippedFields: input.skippedFields,
+      status: input.status,
+    });
+  }
 
   async createDealRoot(input: CreateDealRootInput): Promise<void> {
     await this.db.insert(deals).values({
@@ -204,6 +291,57 @@ export class DrizzleDealStore implements DealStore {
       });
   }
 
+  async setDealAttachmentIngestion(input: {
+    appliedFields?: string[];
+    appliedRevision?: number | null;
+    availableAt?: Date;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    fileAssetId: string;
+    lastProcessedAt?: Date | null;
+    normalizedPayload?: Record<string, unknown> | null;
+    skippedFields?: string[];
+    status?: "pending" | "processing" | "processed" | "failed";
+  }): Promise<void> {
+    const values: Record<string, unknown> = {
+      updatedAt: sql`now()`,
+    };
+
+    if (input.appliedFields !== undefined) {
+      values.appliedFields = input.appliedFields ?? [];
+    }
+    if (input.appliedRevision !== undefined) {
+      values.appliedRevision = input.appliedRevision ?? null;
+    }
+    if (input.availableAt !== undefined) {
+      values.availableAt = input.availableAt ?? sql`now()`;
+    }
+    if (input.errorCode !== undefined) {
+      values.errorCode = input.errorCode ?? null;
+    }
+    if (input.errorMessage !== undefined) {
+      values.errorMessage = input.errorMessage ?? null;
+    }
+    if (input.lastProcessedAt !== undefined) {
+      values.lastProcessedAt = input.lastProcessedAt ?? null;
+    }
+    if (input.normalizedPayload !== undefined) {
+      values.normalizedPayload = input.normalizedPayload ?? null;
+    }
+    if (input.skippedFields !== undefined) {
+      values.skippedFields = input.skippedFields ?? [];
+    }
+    if (input.status !== undefined) {
+      values.status = input.status ?? "pending";
+      values.lockedAt = input.status === "processing" ? sql`now()` : null;
+    }
+
+    await this.db
+      .update(dealAttachmentIngestions)
+      .set(values)
+      .where(eq(dealAttachmentIngestions.fileAssetId, input.fileAssetId));
+  }
+
   async createDealQuoteAcceptance(
     input: CreateDealQuoteAcceptanceStoredInput,
   ): Promise<void> {
@@ -237,6 +375,52 @@ export class DrizzleDealStore implements DealStore {
           isNull(dealQuoteAcceptances.revokedAt),
         ),
       );
+  }
+
+  async upsertDealAttachmentIngestion(input: {
+    availableAt: Date;
+    dealId: string;
+    fileAssetId: string;
+    id: string;
+    observedRevision: number;
+  }): Promise<void> {
+    await this.db
+      .insert(dealAttachmentIngestions)
+      .values({
+        appliedFields: [],
+        appliedRevision: null,
+        attempts: 0,
+        availableAt: input.availableAt,
+        dealId: input.dealId,
+        errorCode: null,
+        errorMessage: null,
+        fileAssetId: input.fileAssetId,
+        id: input.id,
+        lastProcessedAt: null,
+        normalizedPayload: null,
+        observedRevision: input.observedRevision,
+        skippedFields: [],
+        status: "pending",
+      })
+      .onConflictDoUpdate({
+        target: [dealAttachmentIngestions.fileAssetId],
+        set: {
+          appliedFields: [],
+          appliedRevision: null,
+          attempts: 0,
+          availableAt: input.availableAt,
+          dealId: input.dealId,
+          errorCode: null,
+          errorMessage: null,
+          lastProcessedAt: null,
+          lockedAt: null,
+          normalizedPayload: null,
+          observedRevision: input.observedRevision,
+          skippedFields: [],
+          status: "pending",
+          updatedAt: sql`now()`,
+        },
+      });
   }
 
   async upsertDealCapabilityState(

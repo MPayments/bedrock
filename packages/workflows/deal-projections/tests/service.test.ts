@@ -8,6 +8,7 @@ import { createDealProjectionsWorkflow } from "../src";
 function createBaseWorkflow(): DealWorkflowProjection {
   return {
     acceptedQuote: null,
+    attachmentIngestions: [],
     executionPlan: [
       {
         idx: 1,
@@ -44,7 +45,7 @@ function createBaseWorkflow(): DealWorkflowProjection {
         purpose: "Pay supplier",
         sourceAmount: "1000",
         sourceCurrencyId: "currency-rub",
-        targetCurrencyId: null,
+        targetCurrencyId: "currency-usd",
       },
       settlementDestination: {
         bankInstructionSnapshot: null,
@@ -174,6 +175,7 @@ function createWorkflow(overrides?: {
     fileSize: number;
     id: string;
     mimeType: string;
+    purpose: "contract" | "invoice" | "other" | null;
     updatedAt: Date;
     uploadedBy: string | null;
     visibility: "customer_safe" | "internal" | null;
@@ -220,6 +222,29 @@ function createWorkflow(overrides?: {
     }>;
     updatedAt: Date;
   } | null;
+  treasuryQuotes?: Array<{
+    createdAt: Date;
+    dealDirection: string | null;
+    dealForm: string | null;
+    dealId: string | null;
+    expiresAt: Date;
+    fromAmountMinor: bigint;
+    fromCurrency: string;
+    fromCurrencyId: string;
+    id: string;
+    idempotencyKey: string;
+    pricingMode: string;
+    pricingTrace: Record<string, unknown>;
+    rateDen: bigint;
+    rateNum: bigint;
+    status: string;
+    toAmountMinor: bigint;
+    toCurrency: string;
+    toCurrencyId: string;
+    usedAt: Date | null;
+    usedByRef: string | null;
+    usedDocumentId: string | null;
+  }>;
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
   const workflow = overrides?.workflow ?? createBaseWorkflow();
@@ -231,6 +256,7 @@ function createWorkflow(overrides?: {
       fileSize: 1024,
       id: "attachment-public",
       mimeType: "application/pdf",
+      purpose: "invoice",
       updatedAt: new Date("2026-04-01T10:00:00.000Z"),
       uploadedBy: "user-1",
       visibility: "customer_safe",
@@ -242,6 +268,7 @@ function createWorkflow(overrides?: {
       fileSize: 2048,
       id: "attachment-internal",
       mimeType: "application/pdf",
+      purpose: "other",
       updatedAt: new Date("2026-04-01T11:00:00.000Z"),
       uploadedBy: "user-2",
       visibility: "internal",
@@ -328,7 +355,14 @@ function createWorkflow(overrides?: {
     } as never,
     treasury: {
       quotes: {
-        queries: {},
+        queries: {
+          listQuotes: vi.fn(async () => ({
+            data: overrides?.treasuryQuotes ?? [],
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            total: overrides?.treasuryQuotes?.length ?? 0,
+          })),
+        },
       },
     } as never,
   });
@@ -346,6 +380,8 @@ describe("createDealProjectionsWorkflow", () => {
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         fileName: "invoice.pdf",
         id: "attachment-public",
+        ingestionStatus: null,
+        purpose: "invoice",
       },
     ]);
     expect(projection?.timeline).toHaveLength(1);
@@ -354,7 +390,7 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection?.requiredActions).toContain("Ожидайте или примите котировку");
   });
 
-  it("does not mark portal submission incomplete only because attachments are missing", async () => {
+  it("marks payment portal submission incomplete when customer invoice is missing", async () => {
     const workflow = createWorkflow({
       attachments: [],
       workflow: {
@@ -367,13 +403,11 @@ describe("createDealProjectionsWorkflow", () => {
 
     expect(projection).not.toBeNull();
     expect(projection?.submissionCompleteness).toEqual({
-      blockingReasons: [],
-      complete: true,
+      blockingReasons: ["Загрузите инвойс"],
+      complete: false,
     });
-    expect(projection?.nextAction).toBe("Загрузите подтверждающие документы");
-    expect(projection?.requiredActions).toContain(
-      "Загрузите подтверждающие документы",
-    );
+    expect(projection?.nextAction).toBe("Загрузите инвойс");
+    expect(projection?.requiredActions).toContain("Загрузите инвойс");
   });
 
   it("classifies blocked downstream execution into the failed instruction queue", async () => {
@@ -490,5 +524,174 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection.items[0]?.blockingReasons).toContain(
       "Провайдерская выплата заблокирована",
     );
+  });
+
+  it("returns CRM quote history with currencies, amounts, and rate", async () => {
+    const workflow = createWorkflow({
+      treasuryQuotes: [
+        {
+          createdAt: new Date("2026-04-01T10:00:00.000Z"),
+          dealDirection: "buy",
+          dealForm: "spot",
+          dealId: "deal-1",
+          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+          fromAmountMinor: 10000000n,
+          fromCurrency: "RUB",
+          fromCurrencyId: "currency-rub",
+          id: "quote-1",
+          idempotencyKey: "idem-1",
+          pricingMode: "auto_cross",
+          pricingTrace: {},
+          rateDen: 10000n,
+          rateNum: 91n,
+          status: "active",
+          toAmountMinor: 91000n,
+          toCurrency: "USD",
+          toCurrencyId: "currency-usd",
+          usedAt: null,
+          usedByRef: null,
+          usedDocumentId: null,
+        },
+      ],
+      workflow: {
+        ...createBaseWorkflow(),
+        acceptedQuote: {
+          acceptedAt: new Date("2026-04-01T10:05:00.000Z"),
+          acceptedByUserId: "user-1",
+          agreementVersionId: null,
+          dealId: "deal-1",
+          dealRevision: 1,
+          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+          id: "acceptance-1",
+          quoteId: "quote-1",
+          quoteStatus: "active",
+          replacedByQuoteId: null,
+          revokedAt: null,
+          usedAt: null,
+          usedDocumentId: null,
+        },
+      },
+    });
+
+    const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.pricing.quotes).toEqual([
+      expect.objectContaining({
+        fromAmountMinor: "10000000",
+        fromCurrency: "RUB",
+        id: "quote-1",
+        rateDen: "10000",
+        rateNum: "91",
+        toAmountMinor: "91000",
+        toCurrency: "USD",
+      }),
+    ]);
+  });
+
+  it("returns treasury-only workspace actions and requirements for finance", async () => {
+    const workflow = createWorkflow({
+      treasuryQuotes: [
+        {
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          dealDirection: "buy",
+          dealForm: "spot",
+          dealId: "deal-1",
+          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+          fromAmountMinor: 10000000n,
+          fromCurrency: "RUB",
+          fromCurrencyId: "currency-rub",
+          id: "quote-1",
+          idempotencyKey: "idem-1",
+          pricingMode: "auto_cross",
+          pricingTrace: {},
+          rateDen: 10000n,
+          rateNum: 91n,
+          status: "active",
+          toAmountMinor: 91000n,
+          toCurrency: "USD",
+          toCurrencyId: "currency-usd",
+          usedAt: null,
+          usedByRef: null,
+          usedDocumentId: null,
+        },
+      ],
+      workflow: {
+        ...createBaseWorkflow(),
+        acceptedQuote: {
+          acceptedAt: new Date("2026-04-01T09:00:00.000Z"),
+          acceptedByUserId: "user-2",
+          agreementVersionId: null,
+          dealId: "deal-1",
+          dealRevision: 1,
+          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+          id: "quote-acceptance-1",
+          quoteId: "quote-1",
+          quoteStatus: "active",
+          replacedByQuoteId: null,
+          revokedAt: null,
+          usedAt: null,
+          usedDocumentId: null,
+        },
+        relatedResources: {
+          attachments: [],
+          calculations: [],
+          formalDocuments: [],
+          quotes: [
+            {
+              expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+              id: "quote-1",
+              status: "active",
+            },
+          ],
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection).toMatchObject({
+      acceptedQuoteDetails: {
+        fromAmount: "100000",
+        fromCurrency: "RUB",
+        id: "quote-1",
+        rateDen: "10000",
+        rateNum: "91",
+        toAmount: "910",
+        toCurrency: "USD",
+      },
+      actions: {
+        canCreateCalculation: false,
+        canCreateQuote: false,
+        canUploadAttachment: true,
+      },
+      attachmentRequirements: [
+        {
+          code: "invoice",
+          state: "provided",
+        },
+        {
+          code: "contract",
+          state: "not_required",
+        },
+      ],
+      formalDocumentRequirements: [
+        {
+          docType: "invoice",
+          state: "missing",
+        },
+        {
+          docType: "acceptance",
+          state: "missing",
+        },
+      ],
+      pricing: {
+        quoteEligibility: false,
+        requestedAmount: "1000",
+        requestedCurrencyId: "currency-rub",
+        targetCurrencyId: "currency-usd",
+      },
+    });
   });
 });

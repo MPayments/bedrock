@@ -112,6 +112,8 @@ const DEAL_TYPE_OPTIONS: {
 ] as const;
 
 const STEP_LABELS = ["Юрлицо", "Тип", "Данные"] as const;
+const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
+const DEFAULT_EXPECTED_CURRENCY = "USD";
 
 export function NewDealDialog({
   customerContexts,
@@ -128,7 +130,9 @@ export function NewDealDialog({
   >(undefined);
   const [dealType, setDealType] = useState<PortalDealType>("payment");
   const [sourceAmount, setSourceAmount] = useState("");
-  const [sourceCurrencyId, setSourceCurrencyId] = useState("USD");
+  const [sourceCurrencyId, setSourceCurrencyId] = useState(
+    DEFAULT_PAYMENT_SOURCE_CURRENCY,
+  );
   const [targetCurrencyId, setTargetCurrencyId] = useState<string | null>(null);
   const [purpose, setPurpose] = useState("");
   const [customerNote, setCustomerNote] = useState("");
@@ -136,7 +140,9 @@ export function NewDealDialog({
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [contractNumber, setContractNumber] = useState("");
   const [expectedAmount, setExpectedAmount] = useState("");
-  const [expectedCurrencyId, setExpectedCurrencyId] = useState("USD");
+  const [expectedCurrencyId, setExpectedCurrencyId] = useState(
+    DEFAULT_EXPECTED_CURRENCY,
+  );
   const [expectedAt, setExpectedAt] = useState("");
   const [step, setStep] = useState(1);
   const [creating, setCreating] = useState(false);
@@ -171,6 +177,7 @@ export function NewDealDialog({
     selectedLegalEntity?.agentAgreementStatus === "active";
   const requiresIncomingReceipt =
     dealType === "currency_transit" || dealType === "exporter_settlement";
+  const isPaymentDeal = dealType === "payment";
   const targetCurrencyLabel = targetCurrencyId
     ? CURRENCIES.find((item) => item.value === targetCurrencyId)?.label ??
       targetCurrencyId
@@ -224,6 +231,15 @@ export function NewDealDialog({
     }
   }, [selectedCounterpartyId, selectedLegalEntityEligible]);
 
+  useEffect(() => {
+    if (dealType !== "payment") {
+      return;
+    }
+
+    setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
+    setTargetCurrencyId(null);
+  }, [dealType]);
+
   async function fetchClients() {
     try {
       setLoadingClients(true);
@@ -242,7 +258,7 @@ export function NewDealDialog({
     setStep(1);
     setDealType("payment");
     setSourceAmount("");
-    setSourceCurrencyId("USD");
+    setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
     setTargetCurrencyId(null);
     setPurpose("");
     setCustomerNote("");
@@ -250,7 +266,7 @@ export function NewDealDialog({
     setInvoiceNumber("");
     setContractNumber("");
     setExpectedAmount("");
-    setExpectedCurrencyId("USD");
+    setExpectedCurrencyId(DEFAULT_EXPECTED_CURRENCY);
     setExpectedAt("");
     setSelectedCounterpartyId(undefined);
     setShowCloseConfirm(false);
@@ -510,7 +526,9 @@ export function NewDealDialog({
       <div className="space-y-4">
         <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
           <div className="space-y-2">
-            <Label htmlFor="sourceAmount">Сумма</Label>
+            <Label htmlFor="sourceAmount">
+              {isPaymentDeal ? "Сумма платежа" : "Сумма"}
+            </Label>
             <Input
               id="sourceAmount"
               value={sourceAmount}
@@ -521,7 +539,7 @@ export function NewDealDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Валюта</Label>
+            <Label>{isPaymentDeal ? "Валюта платежа" : "Валюта"}</Label>
             <Select
               value={sourceCurrencyId}
               onValueChange={(value) => setSourceCurrencyId(value ?? "USD")}
@@ -540,27 +558,29 @@ export function NewDealDialog({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Целевая валюта</Label>
-          <Select
-            value={targetCurrencyId ?? "__same"}
-            onValueChange={(value) =>
-              setTargetCurrencyId(value === "__same" ? null : value)
-            }
-          >
-            <SelectTrigger>
-              <SelectValue>{targetCurrencyLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__same">Без конвертации</SelectItem>
-              {CURRENCIES.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isPaymentDeal ? null : (
+          <div className="space-y-2">
+            <Label>Целевая валюта</Label>
+            <Select
+              value={targetCurrencyId ?? "__same"}
+              onValueChange={(value) =>
+                setTargetCurrencyId(value === "__same" ? null : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue>{targetCurrencyLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__same">Без конвертации</SelectItem>
+                {CURRENCIES.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="purpose">Цель сделки</Label>

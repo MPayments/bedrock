@@ -1,7 +1,18 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
@@ -14,7 +25,12 @@ import { CustomerCard } from "./_components/customer-card";
 import { DealDocumentsTab } from "./_components/deal-documents-tab";
 import { DealManagementCard } from "./_components/deal-management-card";
 import { DealTimelineCard } from "./_components/deal-timeline-card";
-import { DealTabs, DEFAULT_DEAL_PAGE_TAB, isDealPageTab, type DealPageTab } from "./_components/deal-tabs";
+import {
+  DealTabs,
+  DEFAULT_DEAL_PAGE_TAB,
+  isDealPageTab,
+  type DealPageTab,
+} from "./_components/deal-tabs";
 import { DealExecutionTab } from "./_components/deal-execution-tab";
 import { DealHeader } from "./_components/deal-header";
 import { DealIntakeTab } from "./_components/deal-intake-tab";
@@ -27,6 +43,7 @@ import { OrganizationRequisiteCard } from "./_components/organization-requisite-
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
   formatDealWorkflowMessage,
+  getDealWorkflowMessageTone,
   STATUS_LABELS,
 } from "./_components/constants";
 import type {
@@ -119,8 +136,9 @@ function buildDealViewFromWorkbench(
   workbench: ApiCrmDealWorkbenchProjection,
 ): ApiDealDetails {
   const customerId =
-    workbench.participants.find((participant) => participant.role === "customer")
-      ?.customerId ?? "";
+    workbench.participants.find(
+      (participant) => participant.role === "customer",
+    )?.customerId ?? "";
   const applicant = workbench.participants.find(
     (participant) => participant.role === "applicant",
   );
@@ -171,7 +189,9 @@ function buildDealViewFromWorkbench(
       .map((event) => ({
         changedBy: event.actor?.userId ?? null,
         comment:
-          typeof event.payload.comment === "string" ? event.payload.comment : null,
+          typeof event.payload.comment === "string"
+            ? event.payload.comment
+            : null,
         createdAt: event.occurredAt,
         id: event.id,
         status:
@@ -240,22 +260,27 @@ async function fetchCalculationViewFromDetails(
       fetchJson<ApiCurrency>(`${API_BASE_URL}/currencies/${id}`),
     ),
   );
-  const currenciesById = new Map(currencies.map((currency) => [currency.id, currency]));
+  const currenciesById = new Map(
+    currencies.map((currency) => [currency.id, currency]),
+  );
 
   const calculationCurrency = currenciesById.get(
     calculation.currentSnapshot.calculationCurrencyId,
   );
-  const baseCurrency = currenciesById.get(calculation.currentSnapshot.baseCurrencyId);
+  const baseCurrency = currenciesById.get(
+    calculation.currentSnapshot.baseCurrencyId,
+  );
 
   if (!calculationCurrency || !baseCurrency) {
     throw new Error("Не удалось загрузить валюты расчета");
   }
 
-  const additionalExpensesCurrency =
-    calculation.currentSnapshot.additionalExpensesCurrencyId
-      ? currenciesById.get(calculation.currentSnapshot.additionalExpensesCurrencyId) ??
-        null
-      : null;
+  const additionalExpensesCurrency = calculation.currentSnapshot
+    .additionalExpensesCurrencyId
+    ? (currenciesById.get(
+        calculation.currentSnapshot.additionalExpensesCurrencyId,
+      ) ?? null)
+    : null;
 
   return {
     additionalExpenses: minorToDecimalString(
@@ -354,26 +379,33 @@ export default function DealDetailPage() {
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [commentValue, setCommentValue] = useState("");
   const [isSavingComment, setIsSavingComment] = useState(false);
-  const [draftIntake, setDraftIntake] = useState<CrmDealIntakeDraft | null>(null);
-  const [baselineIntake, setBaselineIntake] = useState<CrmDealIntakeDraft | null>(
+  const [draftIntake, setDraftIntake] = useState<CrmDealIntakeDraft | null>(
     null,
   );
+  const [baselineIntake, setBaselineIntake] =
+    useState<CrmDealIntakeDraft | null>(null);
   const [applicantRequisites, setApplicantRequisites] = useState<
     CrmApplicantRequisiteOption[]
   >([]);
-  const [agreementOptions, setAgreementOptions] = useState<DealAgreementOption[]>(
-    [],
-  );
+  const [agreementOptions, setAgreementOptions] = useState<
+    DealAgreementOption[]
+  >([]);
   const [isSavingIntake, setIsSavingIntake] = useState(false);
   const [isUpdatingAgreement, setIsUpdatingAgreement] = useState(false);
   const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDescription, setUploadDescription] = useState("");
+  const [uploadPurpose, setUploadPurpose] = useState<
+    "invoice" | "contract" | "other"
+  >("other");
   const [uploadVisibility, setUploadVisibility] = useState<
     "customer_safe" | "internal"
   >("internal");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [reingestingAttachmentId, setReingestingAttachmentId] = useState<
+    string | null
+  >(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<
     string | null
   >(null);
@@ -381,10 +413,12 @@ export default function DealDetailPage() {
     isOpen: boolean;
     message: string;
     title: string;
+    variant: "destructive" | "warning";
   }>({
     isOpen: false,
     message: "",
     title: "",
+    variant: "destructive",
   });
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
@@ -405,13 +439,21 @@ export default function DealDetailPage() {
     return isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
   }, [searchParams]);
 
-  const showError = useCallback((title: string, message: string) => {
-    setErrorDialog({
-      isOpen: true,
-      message,
-      title,
-    });
-  }, []);
+  const showError = useCallback(
+    (
+      title: string,
+      message: string,
+      variant: "destructive" | "warning" = "destructive",
+    ) => {
+      setErrorDialog({
+        isOpen: true,
+        message,
+        title,
+        variant,
+      });
+    },
+    [],
+  );
 
   const handleTabChange = useCallback(
     (tab: DealPageTab) => {
@@ -458,8 +500,9 @@ export default function DealDetailPage() {
 
       const customerId =
         workbench.context.customer?.id ??
-        workbench.participants.find((participant) => participant.role === "customer")
-          ?.customerId ??
+        workbench.participants.find(
+          (participant) => participant.role === "customer",
+        )?.customerId ??
         null;
       const applicantCounterpartyId =
         workbench.intake.common.applicantCounterpartyId ?? null;
@@ -477,7 +520,9 @@ export default function DealDetailPage() {
             )
           : Promise.resolve(null),
         workbench.pricing.currentCalculation
-          ? fetchCalculationViewFromDetails(workbench.pricing.currentCalculation)
+          ? fetchCalculationViewFromDetails(
+              workbench.pricing.currentCalculation,
+            )
           : Promise.resolve(null),
         fetchCurrencyOptions(),
         customerId
@@ -516,13 +561,15 @@ export default function DealDetailPage() {
         agreement: workbench.context.agreement,
         attachments: workbench.relatedResources.attachments,
         calculation,
-        calculationHistory: workbench.pricing.calculationHistory.map((item) => ({
-          calculationId: item.calculationId,
-          calculationTimestamp: item.calculationTimestamp,
-          createdAt: item.createdAt,
-          fxQuoteId: item.fxQuoteId,
-          rate: rationalToDecimalString(item.rateNum, item.rateDen),
-        })),
+        calculationHistory: workbench.pricing.calculationHistory.map(
+          (item) => ({
+            calculationId: item.calculationId,
+            calculationTimestamp: item.calculationTimestamp,
+            createdAt: item.createdAt,
+            fxQuoteId: item.fxQuoteId,
+            rate: rationalToDecimalString(item.rateNum, item.rateDen),
+          }),
+        ),
         currencyOptions,
         customer: workbench.context.customer,
         deal,
@@ -690,9 +737,7 @@ export default function DealDetailPage() {
       return;
     }
 
-    const asOfDate = calculationAsOf
-      ? new Date(calculationAsOf)
-      : new Date();
+    const asOfDate = calculationAsOf ? new Date(calculationAsOf) : new Date();
 
     if (Number.isNaN(asOfDate.getTime())) {
       showError("Некорректная дата", "Выберите дату котировки.");
@@ -778,9 +823,12 @@ export default function DealDetailPage() {
       try {
         setIsAcceptingQuoteId(quoteId);
 
-        await fetchJson(`${API_BASE_URL}/deals/${dealId}/quotes/${quoteId}/accept`, {
-          method: "POST",
-        });
+        await fetchJson(
+          `${API_BASE_URL}/deals/${dealId}/quotes/${quoteId}/accept`,
+          {
+            method: "POST",
+          },
+        );
 
         await loadDeal();
       } catch (nextError) {
@@ -815,14 +863,19 @@ export default function DealDetailPage() {
     try {
       setIsCreatingCalculation(true);
 
-      await fetchJson(`${API_BASE_URL}/deals/${dealId}/calculations/from-quote`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": createIdempotencyKey(),
+      await fetchJson(
+        `${API_BASE_URL}/deals/${dealId}/calculations/from-quote`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify({
+            quoteId: data.workbench.acceptedQuote.quoteId,
+          }),
         },
-        body: JSON.stringify({ quoteId: data.workbench.acceptedQuote.quoteId }),
-      });
+      );
 
       await loadDeal();
     } catch (nextError) {
@@ -880,12 +933,20 @@ export default function DealDetailPage() {
       const readiness = data?.workflow.transitionReadiness.find(
         (item) => item.targetStatus === status,
       );
+      const blockers = readiness?.blockers ?? [];
+      const isWarning =
+        blockers.length > 0 &&
+        blockers.every(
+          (blocker) =>
+            getDealWorkflowMessageTone(blocker.message) === "warning",
+        );
 
       showError(
-        "Переход заблокирован",
-        readiness?.blockers?.length
-          ? formatBlockers(readiness.blockers)
+        isWarning ? "Нужно заполнить анкету" : "Переход заблокирован",
+        blockers.length
+          ? formatBlockers(blockers)
           : `Переход в статус "${STATUS_LABELS[status]}" сейчас недоступен.`,
+        isWarning ? "warning" : "destructive",
       );
     },
     [data?.workflow.transitionReadiness, showError],
@@ -1034,12 +1095,15 @@ export default function DealDetailPage() {
       try {
         setIsUpdatingAgreement(true);
 
-        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/agreement`, {
-          body: JSON.stringify({ agreementId }),
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          method: "PATCH",
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/agreement`,
+          {
+            body: JSON.stringify({ agreementId }),
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            method: "PATCH",
+          },
+        );
 
         if (!response.ok) {
           throw new Error(
@@ -1075,12 +1139,15 @@ export default function DealDetailPage() {
       try {
         setIsUpdatingAssignee(true);
 
-        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/assignee`, {
-          body: JSON.stringify({ agentId: agentId ?? null }),
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          method: "PATCH",
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/assignee`,
+          {
+            body: JSON.stringify({ agentId: agentId ?? null }),
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            method: "PATCH",
+          },
+        );
 
         if (!response.ok) {
           throw new Error(
@@ -1120,13 +1187,17 @@ export default function DealDetailPage() {
       if (uploadDescription.trim()) {
         formData.append("description", uploadDescription.trim());
       }
+      formData.append("purpose", uploadPurpose);
       formData.append("visibility", uploadVisibility);
 
-      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/attachments`, {
-        body: formData,
-        credentials: "include",
-        method: "POST",
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/deals/${dealId}/attachments`,
+        {
+          body: formData,
+          credentials: "include",
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -1140,6 +1211,7 @@ export default function DealDetailPage() {
       setIsUploadDialogOpen(false);
       setUploadDescription("");
       setUploadFile(null);
+      setUploadPurpose("other");
       setUploadVisibility("internal");
       await loadDeal();
     } catch (nextError) {
@@ -1159,6 +1231,7 @@ export default function DealDetailPage() {
     showError,
     uploadDescription,
     uploadFile,
+    uploadPurpose,
     uploadVisibility,
   ]);
 
@@ -1212,9 +1285,55 @@ export default function DealDetailPage() {
   );
 
   const handleOpenAttachmentDialog = useCallback(() => {
+    const hasInvoiceAttachment = data?.attachments.some(
+      (attachment) => attachment.purpose === "invoice",
+    );
+    setUploadPurpose(
+      data?.deal.type === "payment" && !hasInvoiceAttachment
+        ? "invoice"
+        : "other",
+    );
     setUploadVisibility("internal");
     setIsUploadDialogOpen(true);
-  }, []);
+  }, [data]);
+
+  const handleAttachmentReingest = useCallback(
+    async (attachmentId: string) => {
+      try {
+        setReingestingAttachmentId(attachmentId);
+
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/reingest`,
+          {
+            credentials: "include",
+            method: "POST",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка повторного распознавания: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Deal attachment reingest error:", nextError);
+        showError(
+          "Ошибка повторного распознавания",
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось повторно отправить файл на распознавание",
+        );
+      } finally {
+        setReingestingAttachmentId(null);
+      }
+    },
+    [dealId, loadDeal, showError],
+  );
 
   const tabBadges = useMemo(() => {
     if (!data) {
@@ -1233,12 +1352,14 @@ export default function DealDetailPage() {
     const blockedLegCount = data.workflow.executionPlan.filter(
       (leg) => leg.state === "blocked",
     ).length;
-    const blockedPositionCount = data.workflow.operationalState.positions.filter(
-      (position) => position.state === "blocked",
-    ).length;
-    const capabilityIssueCount = data.workflow.operationalState.capabilities.filter(
-      (capability) => capability.status !== "enabled",
-    ).length;
+    const blockedPositionCount =
+      data.workflow.operationalState.positions.filter(
+        (position) => position.state === "blocked",
+      ).length;
+    const capabilityIssueCount =
+      data.workflow.operationalState.capabilities.filter(
+        (capability) => capability.status !== "enabled",
+      ).length;
 
     return {
       documents: missingEvidenceCount + missingDocumentCount,
@@ -1349,13 +1470,17 @@ export default function DealDetailPage() {
             documents={
               <DealDocumentsTab
                 attachments={data.attachments}
+                attachmentIngestions={data.workflow.attachmentIngestions}
+                beneficiaryDraft={data.workbench.beneficiaryDraft}
                 deletingAttachmentId={deletingAttachmentId}
                 documentRequirements={data.workbench.documentRequirements}
                 evidenceRequirements={data.workbench.evidenceRequirements}
                 formalDocuments={data.formalDocuments}
                 onAttachmentDelete={handleAttachmentDelete}
                 onAttachmentDownload={handleAttachmentDownload}
+                onAttachmentReingest={handleAttachmentReingest}
                 onAttachmentUpload={handleOpenAttachmentDialog}
+                reingestingAttachmentId={reingestingAttachmentId}
               />
             }
             execution={
@@ -1433,6 +1558,7 @@ export default function DealDetailPage() {
         open={isUploadDialogOpen}
         uploadFile={uploadFile}
         uploadDescription={uploadDescription}
+        uploadPurpose={uploadPurpose}
         uploadVisibility={uploadVisibility}
         isUploading={isUploadingAttachment}
         onOpenChange={(open) => {
@@ -1440,16 +1566,19 @@ export default function DealDetailPage() {
           if (!open) {
             setUploadDescription("");
             setUploadFile(null);
+            setUploadPurpose("other");
             setUploadVisibility("internal");
           }
         }}
         onFileChange={setUploadFile}
         onDescriptionChange={setUploadDescription}
+        onPurposeChange={setUploadPurpose}
         onVisibilityChange={setUploadVisibility}
         onCancel={() => {
           setIsUploadDialogOpen(false);
           setUploadDescription("");
           setUploadFile(null);
+          setUploadPurpose("other");
           setUploadVisibility("internal");
         }}
         onSubmit={handleAttachmentUpload}
@@ -1459,6 +1588,7 @@ export default function DealDetailPage() {
         open={errorDialog.isOpen}
         title={errorDialog.title}
         message={errorDialog.message}
+        variant={errorDialog.variant}
         onOpenChange={(open) =>
           setErrorDialog((current) => ({ ...current, isOpen: open }))
         }

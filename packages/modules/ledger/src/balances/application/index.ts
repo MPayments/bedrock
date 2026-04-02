@@ -5,6 +5,7 @@ import type { LedgerBalancesReads } from "./ports/balances.reads";
 import type { BalancesCommandUnitOfWork } from "./ports/balances.uow";
 import { GetBalanceQuery } from "./queries/get-balance";
 import { ListOrganizationLiquidityRowsQuery } from "./queries/list-organization-liquidity-rows";
+import { ListOrganizationRequisiteLiquidityRowsQuery } from "./queries/list-organization-requisite-liquidity-rows";
 
 export interface BalancesServiceDeps {
   reads: LedgerBalancesReads;
@@ -18,6 +19,8 @@ export function createBalancesService(deps: BalancesServiceDeps) {
   const getBalance = new GetBalanceQuery(deps.reads);
   const listOrganizationLiquidityRows =
     new ListOrganizationLiquidityRowsQuery(deps.reads);
+  const listOrganizationRequisiteLiquidityRows =
+    new ListOrganizationRequisiteLiquidityRowsQuery(deps.reads);
 
   return {
     commands: {
@@ -30,6 +33,10 @@ export function createBalancesService(deps: BalancesServiceDeps) {
       listOrganizationLiquidityRows:
         listOrganizationLiquidityRows.execute.bind(
           listOrganizationLiquidityRows,
+        ),
+      listOrganizationRequisiteLiquidityRows:
+        listOrganizationRequisiteLiquidityRows.execute.bind(
+          listOrganizationRequisiteLiquidityRows,
         ),
     },
   };

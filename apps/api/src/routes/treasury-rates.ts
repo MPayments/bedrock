@@ -26,6 +26,7 @@ const LatestRateQuerySchema = z.object({
   base: z.string().min(2).max(16),
   quote: z.string().min(2).max(16),
   asOf: z.coerce.date().optional(),
+  source: RateSourceSchema.optional(),
 });
 
 const LatestRateResponseSchema = z.object({
@@ -269,13 +270,14 @@ export function treasuryRatesRoutes(ctx: AppContext) {
       }
     })
     .openapi(latestRateRoute, async (c) => {
-      const { base, quote, asOf } = c.req.valid("query");
+      const { base, quote, asOf, source } = c.req.valid("query");
 
       try {
         const rate = await ctx.treasuryModule.rates.queries.getLatestRate(
           base,
           quote,
           asOf ?? new Date(),
+          source,
         );
         return c.json(
           {
@@ -318,9 +320,9 @@ export function treasuryRatesRoutes(ctx: AppContext) {
       try {
         const result =
           await ctx.treasuryModule.rates.commands.syncRatesFromSource({
-          source,
-          force: force ?? false,
-        });
+            source,
+            force: force ?? false,
+          });
         return c.json(
           {
             source: result.source,

@@ -4,7 +4,9 @@ import { AgreementDetailsSchema } from "@bedrock/agreements/contracts";
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import {
   DealApprovalSchema,
+  DealBankInstructionSnapshotSchema,
   DealCalculationHistoryItemSchema,
+  DealCounterpartySnapshotSchema,
   DealRelatedFormalDocumentSchema,
   DealRelatedQuoteSchema,
   DealSummarySchema,
@@ -26,6 +28,7 @@ import {
   RequisiteProviderSchema,
   RequisiteSchema,
 } from "@bedrock/parties/contracts";
+import { QuoteListItemSchema, QuoteSchema } from "@bedrock/treasury/contracts";
 import {
   createPaginatedListSchema,
 } from "@bedrock/shared/core/pagination";
@@ -51,14 +54,26 @@ export type PortalDealQuoteSummary = z.infer<
   typeof PortalDealQuoteSummarySchema
 >;
 
+export const PortalAttachmentIngestionStatusSchema = z
+  .enum(["processing", "applied", "failed", "unavailable"])
+  .nullable();
+
+export type PortalAttachmentIngestionStatus = z.infer<
+  typeof PortalAttachmentIngestionStatusSchema
+>;
+
+export const PortalDealAttachmentSchema = z.object({
+  createdAt: z.date(),
+  fileName: z.string(),
+  id: z.uuid(),
+  ingestionStatus: PortalAttachmentIngestionStatusSchema,
+  purpose: FileAttachmentSchema.shape.purpose,
+});
+
+export type PortalDealAttachment = z.infer<typeof PortalDealAttachmentSchema>;
+
 export const PortalDealProjectionSchema = z.object({
-  attachments: z.array(
-    z.object({
-      createdAt: z.date(),
-      fileName: z.string(),
-      id: z.uuid(),
-    }),
-  ),
+  attachments: z.array(PortalDealAttachmentSchema),
   calculationSummary: PortalDealCalculationSummarySchema,
   customerSafeIntake: PortalDealIntakeSummarySchema,
   nextAction: z.string(),
@@ -134,7 +149,7 @@ export const DealPricingSummarySchema = z.object({
   calculationHistory: z.array(DealCalculationHistoryItemSchema),
   currentCalculation: CalculationDetailsSchema.nullable(),
   quoteEligibility: z.boolean(),
-  quotes: z.array(DealRelatedQuoteSchema),
+  quotes: z.array(QuoteSchema),
 });
 
 export type DealPricingSummary = z.infer<typeof DealPricingSummarySchema>;
@@ -191,6 +206,23 @@ export type CrmDealEvidenceRequirement = z.infer<
   typeof CrmDealEvidenceRequirementSchema
 >;
 
+export const CrmDealBeneficiaryDraftSchema = z
+  .object({
+    bankInstructionSnapshot: DealBankInstructionSnapshotSchema.nullable(),
+    beneficiarySnapshot: DealCounterpartySnapshotSchema.nullable(),
+    fieldPresence: z.object({
+      bankInstructionFields: z.number().int().nonnegative(),
+      beneficiaryFields: z.number().int().nonnegative(),
+    }),
+    purpose: FileAttachmentSchema.shape.purpose,
+    sourceAttachmentId: z.uuid(),
+  })
+  .nullable();
+
+export type CrmDealBeneficiaryDraft = z.infer<
+  typeof CrmDealBeneficiaryDraftSchema
+>;
+
 export const CrmDealDocumentRequirementStateSchema = z.enum([
   "in_progress",
   "missing",
@@ -221,6 +253,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   actions: CrmDealWorkbenchActionsSchema,
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
+  beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
   context: z.object({
     agreement: AgreementDetailsSchema.nullable(),
     applicant: CounterpartySchema.nullable(),
@@ -399,10 +432,85 @@ export type FinanceDealQueueProjection = z.infer<
   typeof FinanceDealQueueProjectionSchema
 >;
 
+export const FinanceDealWorkspaceActionsSchema = z.object({
+  canCreateCalculation: z.boolean(),
+  canCreateQuote: z.boolean(),
+  canUploadAttachment: z.boolean(),
+});
+
+export type FinanceDealWorkspaceActions = z.infer<
+  typeof FinanceDealWorkspaceActionsSchema
+>;
+
+export const FinanceDealAttachmentRequirementStateSchema = z.enum([
+  "missing",
+  "not_required",
+  "provided",
+]);
+
+export type FinanceDealAttachmentRequirementState = z.infer<
+  typeof FinanceDealAttachmentRequirementStateSchema
+>;
+
+export const FinanceDealAttachmentRequirementSchema = z.object({
+  blockingReasons: z.array(z.string()),
+  code: z.string(),
+  label: z.string(),
+  state: FinanceDealAttachmentRequirementStateSchema,
+});
+
+export type FinanceDealAttachmentRequirement = z.infer<
+  typeof FinanceDealAttachmentRequirementSchema
+>;
+
+export const FinanceDealFormalDocumentRequirementStateSchema = z.enum([
+  "in_progress",
+  "missing",
+  "not_required",
+  "ready",
+]);
+
+export type FinanceDealFormalDocumentRequirementState = z.infer<
+  typeof FinanceDealFormalDocumentRequirementStateSchema
+>;
+
+export const FinanceDealFormalDocumentRequirementSchema = z.object({
+  activeDocumentId: z.uuid().nullable(),
+  blockingReasons: z.array(z.string()),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+  stage: z.enum(["opening", "closing"]),
+  state: FinanceDealFormalDocumentRequirementStateSchema,
+});
+
+export type FinanceDealFormalDocumentRequirement = z.infer<
+  typeof FinanceDealFormalDocumentRequirementSchema
+>;
+
+export const FinanceDealPricingContextSchema = z.object({
+  quoteEligibility: z.boolean(),
+  requestedAmount: z.string().nullable(),
+  requestedCurrencyId: z.uuid().nullable(),
+  targetCurrencyId: z.uuid().nullable(),
+});
+
+export type FinanceDealPricingContext = z.infer<
+  typeof FinanceDealPricingContextSchema
+>;
+
 export const FinanceDealWorkspaceProjectionSchema = z.object({
   acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
+  acceptedQuoteDetails: QuoteListItemSchema.nullable(),
+  actions: FinanceDealWorkspaceActionsSchema,
+  attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
+  formalDocumentRequirements: z.array(
+    FinanceDealFormalDocumentRequirementSchema,
+  ),
+  nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
+  pricing: FinanceDealPricingContextSchema,
   profitabilitySnapshot: FinanceProfitabilitySnapshotSchema,
   queueContext: z.object({
     blockers: z.array(z.string()),

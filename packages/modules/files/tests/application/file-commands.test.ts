@@ -48,6 +48,7 @@ function createStoredFile(overrides: Partial<Record<string, unknown>> = {}) {
     versionCreatedBy: "user-1",
     versionCreatedAt: new Date("2026-03-30T12:00:00.000Z"),
     versionUpdatedAt: new Date("2026-03-30T12:00:00.000Z"),
+    attachmentPurpose: "other" as const,
     linkId: "00000000-0000-4000-8000-000000000012",
     linkKind: "deal_attachment" as const,
     dealId: "deal-1",
@@ -78,6 +79,7 @@ describe("files commands", () => {
       run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
     };
     const objectStorage = {
+      download: vi.fn(),
       upload: vi.fn(async () => "stored-key"),
       getSignedUrl: vi.fn(),
       queueForDeletion: vi.fn(),
@@ -127,6 +129,7 @@ describe("files commands", () => {
     expect(fileStore.createFileLink).toHaveBeenCalledWith({
       id: "00000000-0000-4000-8000-000000000012",
       fileAssetId: "00000000-0000-4000-8000-000000000010",
+      attachmentPurpose: "other",
       linkKind: "deal_attachment",
       dealId: "deal-1",
       counterpartyId: null,
@@ -142,6 +145,7 @@ describe("files commands", () => {
       fileName: "deal.pdf",
       fileSize: 42,
       mimeType: "application/pdf",
+      purpose: "other",
       uploadedBy: "user-1",
       description: "Uploaded attachment",
       createdAt: new Date("2026-03-30T12:00:00.000Z"),
@@ -179,6 +183,7 @@ describe("files commands", () => {
       run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
     };
     const objectStorage = {
+      download: vi.fn(),
       upload: vi.fn(),
       getSignedUrl: vi.fn(),
       queueForDeletion: vi.fn(),
@@ -230,6 +235,7 @@ describe("files commands", () => {
       run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
     };
     const objectStorage = {
+      download: vi.fn(),
       upload: vi.fn(),
       getSignedUrl: vi.fn(),
       queueForDeletion: vi.fn(async () => undefined),

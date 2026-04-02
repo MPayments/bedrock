@@ -6,7 +6,58 @@ import type { BalancesReportingRepository } from "../../application/reporting/po
 import type {
   LiquidityQueryRow,
   ListOrganizationLiquidityRowsInput,
+  ListOrganizationRequisiteLiquidityRowsInput,
+  OrganizationRequisiteLiquidityQueryRow,
 } from "../../contracts";
+
+type OrganizationRequisiteBalancePositionRow = {
+  organizationId: string;
+  requisiteId: string;
+  currency: string;
+  ledgerBalanceMinor: string;
+  availableMinor: string;
+  reservedMinor: string;
+  pendingMinor: string;
+};
+
+export function aggregateOrganizationRequisiteLiquidityRows(
+  rows: OrganizationRequisiteBalancePositionRow[],
+): OrganizationRequisiteLiquidityQueryRow[] {
+  const aggregated = new Map<string, OrganizationRequisiteLiquidityQueryRow>();
+
+  for (const row of rows) {
+    const key = [row.organizationId, row.requisiteId, row.currency].join(":");
+    const existing = aggregated.get(key);
+
+    if (existing) {
+      existing.ledgerBalanceMinor = (
+        BigInt(existing.ledgerBalanceMinor) + BigInt(row.ledgerBalanceMinor)
+      ).toString();
+      existing.availableMinor = (
+        BigInt(existing.availableMinor) + BigInt(row.availableMinor)
+      ).toString();
+      existing.reservedMinor = (
+        BigInt(existing.reservedMinor) + BigInt(row.reservedMinor)
+      ).toString();
+      existing.pendingMinor = (
+        BigInt(existing.pendingMinor) + BigInt(row.pendingMinor)
+      ).toString();
+      continue;
+    }
+
+    aggregated.set(key, {
+      organizationId: row.organizationId,
+      requisiteId: row.requisiteId,
+      currency: row.currency,
+      ledgerBalanceMinor: row.ledgerBalanceMinor,
+      availableMinor: row.availableMinor,
+      reservedMinor: row.reservedMinor,
+      pendingMinor: row.pendingMinor,
+    });
+  }
+
+  return Array.from(aggregated.values());
+}
 
 export class DrizzleBalancesReportingRepository
   implements BalancesReportingRepository
@@ -118,5 +169,70 @@ export class DrizzleBalancesReportingRepository
       reservedMinor: row.reserved_minor,
       pendingMinor: row.pending_minor,
     }));
+  }
+
+  async listOrganizationRequisiteLiquidityRows(
+    query: ListOrganizationRequisiteLiquidityRowsInput,
+  ): Promise<OrganizationRequisiteLiquidityQueryRow[]> {
+    const organizationIds = Array.from(new Set(query.organizationIds.filter(Boolean)));
+
+    if (organizationIds.length === 0) {
+      return [];
+    }
+
+    const conditions = [
+      sql`bp.subject_type = 'organization_requisite'`,
+      sql`r.owner_type = 'organization'`,
+      sql`r.organization_id IN (${sql.join(
+        organizationIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`,
+      sql`b.owner_id IN (${sql.join(
+        organizationIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`,
+    ];
+
+    if (query.currency) {
+      conditions.push(sql`bp.currency = ${query.currency}`);
+    }
+
+    const whereSql = sql.join(conditions, sql` AND `);
+    const result = await this.db.execute(sql`
+      SELECT
+        r.organization_id::text AS organization_id,
+        r.id::text AS requisite_id,
+        bp.currency,
+        bp.ledger_balance::text AS ledger_balance_minor,
+        bp.available::text AS available_minor,
+        bp.reserved::text AS reserved_minor,
+        bp.pending::text AS pending_minor
+      FROM "balance_positions" bp
+      INNER JOIN "requisites" r
+        ON r.id::text = bp.subject_id
+      INNER JOIN "books" b
+        ON b.id = bp.book_id
+      WHERE ${whereSql}
+    `);
+
+    return aggregateOrganizationRequisiteLiquidityRows(
+      ((result.rows ?? []) as {
+        organization_id: string;
+        requisite_id: string;
+        currency: string;
+        ledger_balance_minor: string;
+        available_minor: string;
+        reserved_minor: string;
+        pending_minor: string;
+      }[]).map((row) => ({
+        organizationId: row.organization_id,
+        requisiteId: row.requisite_id,
+        currency: row.currency,
+        ledgerBalanceMinor: row.ledger_balance_minor,
+        availableMinor: row.available_minor,
+        reservedMinor: row.reserved_minor,
+        pendingMinor: row.pending_minor,
+      })),
+    );
   }
 }

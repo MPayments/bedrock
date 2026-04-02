@@ -7,10 +7,7 @@ import type {
   DealStatus,
   CurrencyCode,
 } from "@/lib/hooks/useDealsTable";
-import {
-  formatCurrency,
-  formatDate,
-} from "@/lib/utils/currency";
+import { formatCurrency, formatDate } from "@/lib/utils/currency";
 
 // Re-export for backward compat
 export { formatCurrency, formatDate };
@@ -147,6 +144,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
         <DataTableColumnHeader column={column} title="Клиент" />
       ),
       enableSorting: true,
+      cell: ({ getValue }) => getValue<string>() || "—",
     },
     {
       id: "amountInCurrency",
@@ -198,9 +196,14 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
         />
       ),
       enableSorting: false,
-      cell: ({ getValue }) => (
-        <div className="text-right">{getValue<number>()}%</div>
-      ),
+      cell: ({ getValue }) => {
+        const value = getValue<number>();
+        return (
+          <div className="text-right">
+            {Number.isFinite(value) ? `${value}%` : "—"}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "currency",
@@ -245,6 +248,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
         <DataTableColumnHeader column={column} title="Агент" />
       ),
       enableSorting: true,
+      cell: ({ getValue }) => getValue<string>() || "—",
     },
     {
       accessorKey: "closedAt",

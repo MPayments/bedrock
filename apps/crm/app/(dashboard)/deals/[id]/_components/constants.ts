@@ -92,13 +92,19 @@ export const DEAL_CAPABILITY_LABELS: Record<DealCapabilityKind, string> = {
   can_transit: "Транзит",
 };
 
-export const DEAL_CAPABILITY_STATUS_LABELS: Record<DealCapabilityStatus, string> = {
+export const DEAL_CAPABILITY_STATUS_LABELS: Record<
+  DealCapabilityStatus,
+  string
+> = {
   disabled: "Выключена",
   enabled: "Включена",
   pending: "Ожидает настройки",
 };
 
-export const DEAL_CAPABILITY_STATUS_COLORS: Record<DealCapabilityStatus, string> = {
+export const DEAL_CAPABILITY_STATUS_COLORS: Record<
+  DealCapabilityStatus,
+  string
+> = {
   disabled: "bg-red-100 text-red-800",
   enabled: "bg-emerald-100 text-emerald-800",
   pending: "bg-slate-100 text-slate-800",
@@ -179,10 +185,10 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
     "Нужно создать расчет по принятой котировке.",
   "An accepted quote is required for convert deals":
     "Для сделки с конвертацией нужна принятая котировка.",
-  "Applicant requisite is required":
-    "Выберите реквизиты юридического лица.",
+  "Applicant requisite is required": "Выберите реквизиты юридического лица.",
   "Beneficiary bank instructions are required":
     "Заполните банковские реквизиты получателя.",
+  "Contract number is required": "Укажите номер договора.",
   "Expected amount is required": "Укажите ожидаемую сумму поступления.",
   "Expected currency is required": "Укажите валюту ожидаемого поступления.",
   "Exchange deals require a different target currency":
@@ -203,6 +209,8 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
 
 export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   attachment_deleted: "Вложение удалено",
+  attachment_ingested: "Файл распознан",
+  attachment_ingestion_failed: "Ошибка распознавания файла",
   attachment_uploaded: "Вложение загружено",
   calculation_attached: "Расчет привязан",
   deal_created: "Сделка создана",
@@ -218,11 +226,43 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   status_changed: "Статус сделки изменен",
 };
 
+export const ATTACHMENT_PURPOSE_LABELS: Record<
+  "contract" | "invoice" | "other",
+  string
+> = {
+  contract: "Договор",
+  invoice: "Инвойс",
+  other: "Другое",
+};
+
+export const ATTACHMENT_INGESTION_STATUS_LABELS = {
+  applied: "Данные учтены",
+  failed: "Не удалось обработать",
+  pending: "Ожидает распознавания",
+  processing: "Распознается",
+  processed_without_changes: "Распознано, без изменений",
+  unavailable: "Обработка недоступна",
+} as const;
+
+const WARNING_DEAL_WORKFLOW_MESSAGES = new Set<string>([
+  "Applicant requisite is required",
+  "Beneficiary bank instructions are required",
+  "Contract number is required",
+  "Expected amount is required",
+  "Expected currency is required",
+  "External beneficiary is required",
+  "External payer is required",
+  "Invoice number is required",
+  "Manual settlement bank instructions are required",
+  "Purpose is required",
+  "Required intake sections are incomplete",
+  "Settlement mode is required",
+  "Source amount is required",
+  "Source currency is required",
+]);
+
 function formatFallbackLabel(value: string) {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .join(" ");
+  return value.split("_").filter(Boolean).join(" ");
 }
 
 export function formatDealNextAction(nextAction: string | null) {
@@ -248,7 +288,9 @@ export function formatDealWorkflowMessage(message: string) {
     }.`;
   }
 
-  const approvalPendingMatch = message.match(/^Approval is still pending: (.+)$/);
+  const approvalPendingMatch = message.match(
+    /^Approval is still pending: (.+)$/,
+  );
   if (approvalPendingMatch) {
     return `Согласование еще не завершено: ${approvalPendingMatch[1]}.`;
   }
@@ -264,7 +306,8 @@ export function formatDealWorkflowMessage(message: string) {
   if (capabilityDisabledMatch) {
     const kind = capabilityDisabledMatch[1] ?? "";
     return `Операционная возможность отключена: ${
-      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ?? formatFallbackLabel(kind)
+      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ??
+      formatFallbackLabel(kind)
     }.`;
   }
 
@@ -274,7 +317,8 @@ export function formatDealWorkflowMessage(message: string) {
   if (capabilityPendingMatch) {
     const kind = capabilityPendingMatch[1] ?? "";
     return `Операционная возможность не настроена: ${
-      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ?? formatFallbackLabel(kind)
+      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ??
+      formatFallbackLabel(kind)
     }.`;
   }
 
@@ -307,10 +351,12 @@ export function formatDealWorkflowMessage(message: string) {
     /^(Opening|Closing) document is (required|not ready): ([a-z_]+)$/,
   );
   if (documentMatch) {
-    const stage = documentMatch[1] === "Opening" ? "Открывающий" : "Закрывающий";
+    const stage =
+      documentMatch[1] === "Opening" ? "Открывающий" : "Закрывающий";
     const status = documentMatch[2];
     const docType = documentMatch[3] ?? "";
-    const documentLabel = FORMAL_DOCUMENT_LABELS[docType] ?? formatFallbackLabel(docType);
+    const documentLabel =
+      FORMAL_DOCUMENT_LABELS[docType] ?? formatFallbackLabel(docType);
 
     return status === "required"
       ? `${stage} документ обязателен: ${documentLabel}.`
@@ -352,6 +398,20 @@ export function formatDealWorkflowMessage(message: string) {
   }
 
   return message;
+}
+
+export function getDealWorkflowMessageTone(
+  message: string,
+): "default" | "warning" {
+  if (WARNING_DEAL_WORKFLOW_MESSAGES.has(message)) {
+    return "warning";
+  }
+
+  if (/^Required participant is unresolved: ([a-z_]+)$/u.test(message)) {
+    return "warning";
+  }
+
+  return "default";
 }
 
 export const DOCUMENT_SUBMISSION_STATUS_LABELS: Record<string, string> = {

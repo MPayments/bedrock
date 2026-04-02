@@ -6,7 +6,10 @@ import {
   DealActiveAgreementNotFoundError,
 } from "@bedrock/deals";
 import { CreatePortalDealInputSchema } from "@bedrock/deals/contracts";
-import { FileAttachmentSchema } from "@bedrock/files/contracts";
+import {
+  FileAttachmentPurposeSchema,
+  FileAttachmentSchema,
+} from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";
 import {
@@ -128,6 +131,12 @@ const CUSTOMER_PORTAL_CREATE_LEGAL_ENTITY_IDEMPOTENCY_SCOPE =
 
 function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
+}
+
+function parseAttachmentPurpose(value: unknown) {
+  return FileAttachmentPurposeSchema.safeParse(
+    typeof value === "string" ? value : undefined,
+  );
 }
 
 async function withCustomerPortalCreateLegalEntityIdempotency(input: {
@@ -1209,8 +1218,16 @@ const getDealProjectionRoute = createRoute({
         if (!file || typeof file === "string") {
           return c.json({ error: "File is required" }, 400);
         }
+        const purposeResult = parseAttachmentPurpose(body.purpose);
+        if (!purposeResult.success) {
+          return c.json(
+            { error: "Purpose must be invoice, contract, or other" },
+            400,
+          );
+        }
 
         const uploaded = await ctx.filesModule.files.commands.uploadDealAttachment({
+          attachmentPurpose: purposeResult.data,
           attachmentVisibility: "customer_safe",
           buffer: Buffer.from(await file.arrayBuffer()),
           description:
@@ -1221,6 +1238,19 @@ const getDealProjectionRoute = createRoute({
           ownerId: id,
           uploadedBy: user.id,
         });
+
+        try {
+          await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
+            dealId: id,
+            fileAssetId: uploaded.id,
+          });
+        } catch (error) {
+          ctx.logger.warn("Failed to enqueue portal deal attachment ingestion", {
+            attachmentId: uploaded.id,
+            dealId: id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
 
         await ctx.dealsModule.deals.commands.appendTimelineEvent({
           actorUserId: user.id,
@@ -1244,6 +1274,8 @@ const getDealProjectionRoute = createRoute({
             createdAt: uploaded.createdAt,
             fileName: uploaded.fileName,
             id: uploaded.id,
+            ingestionStatus: null,
+            purpose: uploaded.purpose,
           },
           201,
         );

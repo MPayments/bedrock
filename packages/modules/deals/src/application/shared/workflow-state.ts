@@ -325,6 +325,8 @@ export function createTimelinePayloadEvent(input: {
     | "calculation_attached"
     | "attachment_uploaded"
     | "attachment_deleted"
+    | "attachment_ingested"
+    | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
     | "leg_state_changed";

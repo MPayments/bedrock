@@ -6,6 +6,7 @@ import type { LedgerBalancesReads } from "../../application/ports/balances.reads
 import type {
   BalanceSubjectInput,
   ListOrganizationLiquidityRowsInput,
+  ListOrganizationRequisiteLiquidityRowsInput,
 } from "../../contracts";
 
 export class DrizzleBalancesReads implements LedgerBalancesReads {
@@ -23,5 +24,11 @@ export class DrizzleBalancesReads implements LedgerBalancesReads {
 
   listOrganizationLiquidityRows(input: ListOrganizationLiquidityRowsInput) {
     return this.reporting.listOrganizationLiquidityRows(input);
+  }
+
+  listOrganizationRequisiteLiquidityRows(
+    input: ListOrganizationRequisiteLiquidityRowsInput,
+  ) {
+    return this.reporting.listOrganizationRequisiteLiquidityRows(input);
   }
 }

@@ -4,8 +4,12 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
+import { ClaimDealAttachmentIngestionsCommand } from "./commands/claim-deal-attachment-ingestions";
+import { CompleteDealAttachmentIngestionCommand } from "./commands/complete-deal-attachment-ingestion";
 import { CreateDealCommand } from "./commands/create-deal";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
+import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
+import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
@@ -16,12 +20,14 @@ import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
+import { FindDealAttachmentIngestionByFileAssetIdQuery } from "./queries/find-deal-attachment-ingestion-by-file-asset-id";
 import { FindDealByIdQuery } from "./queries/find-deal-by-id";
 import { FindDealTraceByIdQuery } from "./queries/find-deal-trace-by-id";
 import { FindDealWorkflowByIdQuery } from "./queries/find-deal-workflow-by-id";
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
+import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -39,6 +45,22 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
     deps.idempotency,
     deps.references,
+  );
+  const enqueueAttachmentIngestion = new EnqueueDealAttachmentIngestionCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const claimAttachmentIngestions = new ClaimDealAttachmentIngestionsCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const completeAttachmentIngestion = new CompleteDealAttachmentIngestionCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const failAttachmentIngestion = new FailDealAttachmentIngestionCommand(
+    deps.runtime,
+    deps.commandUow,
   );
   const createDeal = new CreateDealCommand(
     deps.runtime,
@@ -93,10 +115,15 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.references,
   );
   const findDealById = new FindDealByIdQuery(deps.reads);
+  const findAttachmentIngestionByFileAssetId =
+    new FindDealAttachmentIngestionByFileAssetIdQuery(deps.reads);
   const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
   const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
   const listCapabilityStates = new ListDealCapabilityStatesQuery(deps.reads);
+  const listAttachmentIngestions = new ListDealAttachmentIngestionsQuery(
+    deps.reads,
+  );
   const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
   const listPortalDeals = new ListPortalDealsQuery(deps.reads);
@@ -106,8 +133,16 @@ export function createDealsService(deps: DealsServiceDeps) {
       acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
       assignAgent: assignDealAgent.execute.bind(assignDealAgent),
       appendTimelineEvent: appendTimelineEvent.execute.bind(appendTimelineEvent),
+      claimAttachmentIngestions:
+        claimAttachmentIngestions.execute.bind(claimAttachmentIngestions),
+      completeAttachmentIngestion:
+        completeAttachmentIngestion.execute.bind(completeAttachmentIngestion),
       create: createDeal.execute.bind(createDeal),
       createDraft: createDealDraft.execute.bind(createDealDraft),
+      enqueueAttachmentIngestion:
+        enqueueAttachmentIngestion.execute.bind(enqueueAttachmentIngestion),
+      failAttachmentIngestion:
+        failAttachmentIngestion.execute.bind(failAttachmentIngestion),
       linkCalculationFromAcceptedQuote:
         linkCalculationFromAcceptedQuote.execute.bind(
           linkCalculationFromAcceptedQuote,
@@ -122,10 +157,16 @@ export function createDealsService(deps: DealsServiceDeps) {
       updateIntake: updateDealIntake.execute.bind(updateDealIntake),
     },
     queries: {
+      findAttachmentIngestionByFileAssetId:
+        findAttachmentIngestionByFileAssetId.execute.bind(
+          findAttachmentIngestionByFileAssetId,
+        ),
       findById: findDealById.execute.bind(findDealById),
       findPortalById: findPortalDealById.execute.bind(findPortalDealById),
       findTraceById: findDealTraceById.execute.bind(findDealTraceById),
       findWorkflowById: findDealWorkflowById.execute.bind(findDealWorkflowById),
+      listAttachmentIngestions:
+        listAttachmentIngestions.execute.bind(listAttachmentIngestions),
       listCapabilityStates: listCapabilityStates.execute.bind(
         listCapabilityStates,
       ),

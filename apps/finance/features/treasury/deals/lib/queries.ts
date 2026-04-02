@@ -8,8 +8,8 @@ import {
   type SortInput,
 } from "@bedrock/shared/core/pagination";
 
-import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import type { EntityListResult } from "@/components/entities/entity-table-shell";
+import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import {
   FINANCE_DEAL_QUEUE_VALUES,
   FINANCE_DEAL_STATUS_VALUES,
@@ -30,6 +30,113 @@ const FinanceDealQueueSchema = z.enum(FINANCE_DEAL_QUEUE_VALUES);
 const FinanceDealStatusSchema = z.enum(FINANCE_DEAL_STATUS_VALUES);
 const FinanceDealTypeSchema = z.enum(FINANCE_DEAL_TYPE_VALUES);
 const DealIdSchema = z.uuid({ version: "v4" });
+const FileAttachmentVisibilitySchema = z.enum(["customer_safe", "internal"]);
+const ISO_DATE_TIME_WITHOUT_TIMEZONE_PATTERN =
+  /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/;
+const ISO_DATE_TIME_WITH_TIMEZONE_PATTERN =
+  /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:\d{2})$/;
+
+function normalizeApiDateTimeString(value: string) {
+  const normalized = value.trim();
+
+  if (z.iso.datetime().safeParse(normalized).success) {
+    return normalized;
+  }
+
+  const withoutTimezoneMatch =
+    ISO_DATE_TIME_WITHOUT_TIMEZONE_PATTERN.exec(normalized);
+
+  if (withoutTimezoneMatch?.[1] && withoutTimezoneMatch[2]) {
+    return `${withoutTimezoneMatch[1]}T${withoutTimezoneMatch[2]}Z`;
+  }
+
+  const withTimezoneMatch =
+    ISO_DATE_TIME_WITH_TIMEZONE_PATTERN.exec(normalized);
+
+  if (withTimezoneMatch?.[1] && withTimezoneMatch[2] && withTimezoneMatch[3]) {
+    const timestamp = Date.parse(
+      `${withTimezoneMatch[1]}T${withTimezoneMatch[2]}${withTimezoneMatch[3]}`,
+    );
+
+    if (!Number.isNaN(timestamp)) {
+      return new Date(timestamp).toISOString();
+    }
+  }
+
+  return normalized;
+}
+
+function parseApiDateTimeValue(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+
+  if (typeof value === "number") {
+    const normalizedDate = new Date(value);
+    return Number.isNaN(normalizedDate.getTime())
+      ? null
+      : normalizedDate.toISOString();
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    for (const key of ["$date", "date", "dateTime", "datetime", "value"]) {
+      if (key in record) {
+        return parseApiDateTimeValue(record[key]);
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = normalizeApiDateTimeString(value);
+
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  const isoCandidate = z.iso.datetime().safeParse(normalized);
+
+  if (isoCandidate.success) {
+    return isoCandidate.data;
+  }
+
+  const parsedTimestamp = Date.parse(normalized);
+
+  if (!Number.isNaN(parsedTimestamp)) {
+    return new Date(parsedTimestamp).toISOString();
+  }
+
+  return null;
+}
+
+const ApiDateTimeStringSchema = z.unknown().transform((value, context) => {
+  const parsed = parseApiDateTimeValue(value);
+
+  if (!parsed) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Invalid datetime",
+    });
+
+    return z.NEVER;
+  }
+
+  return parsed;
+});
+
+const NullableApiDateTimeStringSchema = z
+  .unknown()
+  .transform((value) => parseApiDateTimeValue(value));
 
 const FinanceDealQueueFiltersSchema = z.object({
   applicant: z.string().trim().min(1).optional(),
@@ -68,7 +175,7 @@ const FinanceDealListItemSchema = z.object({
   queueReason: z.string(),
   quoteSummary: z
     .object({
-      expiresAt: z.iso.datetime().nullable(),
+      expiresAt: NullableApiDateTimeStringSchema,
       quoteId: z.string().uuid().nullable(),
       status: z.string().nullable(),
     })
@@ -87,16 +194,141 @@ const FinanceDealsResponseSchema = z.object({
   items: z.array(FinanceDealListItemSchema),
 });
 
+const FinanceDealWorkspaceActionsSchema = z.object({
+  canCreateCalculation: z.boolean(),
+  canCreateQuote: z.boolean(),
+  canUploadAttachment: z.boolean(),
+});
+
+const FinanceDealAttachmentRequirementSchema = z.object({
+  blockingReasons: z.array(z.string()),
+  code: z.string(),
+  label: z.string(),
+  state: z.enum(["missing", "not_required", "provided"]),
+});
+
+const FinanceDealFormalDocumentRequirementSchema = z.object({
+  activeDocumentId: z.string().uuid().nullable(),
+  blockingReasons: z.array(z.string()),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+  stage: z.enum(["opening", "closing"]),
+  state: z.enum(["in_progress", "missing", "not_required", "ready"]),
+});
+
+const FinanceDealPricingContextSchema = z.object({
+  quoteEligibility: z.boolean(),
+  requestedAmount: z.string().nullable(),
+  requestedCurrencyId: z.string().uuid().nullable(),
+  targetCurrencyId: z.string().uuid().nullable(),
+});
+
+const FinanceDealAttachmentSchema = z.object({
+  createdAt: z.iso.datetime(),
+  description: z.string().nullable(),
+  fileName: z.string(),
+  fileSize: z.number().int().nonnegative(),
+  id: z.string().uuid(),
+  mimeType: z.string(),
+  updatedAt: z.iso.datetime(),
+  uploadedBy: z.string().nullable(),
+  visibility: FileAttachmentVisibilitySchema.nullable(),
+});
+
+const FinanceDealFormalDocumentSchema = z.object({
+  approvalStatus: z.string().nullable(),
+  createdAt: z.iso.datetime().nullable(),
+  docType: z.string(),
+  id: z.string().uuid(),
+  lifecycleStatus: z.string().nullable(),
+  occurredAt: z.iso.datetime().nullable(),
+  postingStatus: z.string().nullable(),
+  submissionStatus: z.string().nullable(),
+});
+
+const FinanceDealWorkspaceQuoteSchema = z.object({
+  expiresAt: NullableApiDateTimeStringSchema,
+  id: z.string().uuid(),
+  status: z.string(),
+});
+
+const FinanceDealQuoteItemSchema = z.object({
+  createdAt: z.iso.datetime(),
+  dealDirection: z.string().nullable(),
+  dealForm: z.string().nullable(),
+  dealId: z.string().uuid().nullable(),
+  dealRef: z
+    .object({
+      applicantName: z.string().nullable(),
+      dealId: z.string().uuid(),
+      status: z.string(),
+      type: FinanceDealTypeSchema,
+    })
+    .nullable()
+    .optional(),
+  expiresAt: ApiDateTimeStringSchema,
+  fromAmount: z.string(),
+  fromAmountMinor: z.string(),
+  fromCurrency: z.string(),
+  fromCurrencyId: z.string().uuid(),
+  id: z.string().uuid(),
+  idempotencyKey: z.string(),
+  pricingMode: z.string(),
+  pricingTrace: z.record(z.string(), z.unknown()),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  status: z.string(),
+  toAmount: z.string(),
+  toAmountMinor: z.string(),
+  toCurrency: z.string(),
+  toCurrencyId: z.string().uuid(),
+  usedAt: z.iso.datetime().nullable(),
+  usedByRef: z.string().nullable(),
+  usedDocumentId: z.string().uuid().nullable(),
+});
+
+const FinanceDealCalculationHistoryItemSchema = z.object({
+  baseCurrencyId: z.string().uuid(),
+  calculationCurrencyId: z.string().uuid(),
+  calculationId: z.string().uuid(),
+  calculationTimestamp: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
+  feeAmountMinor: z.string(),
+  fxQuoteId: z.string().uuid().nullable(),
+  originalAmountMinor: z.string(),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  sourceQuoteId: z.string().uuid().nullable(),
+  totalAmountMinor: z.string(),
+  totalInBaseMinor: z.string(),
+  totalWithExpensesInBaseMinor: z.string(),
+});
+
+const FinanceDealSummarySchema = z.object({
+  applicantDisplayName: z.string().nullable(),
+  calculationId: z.string().uuid().nullable(),
+  createdAt: z.iso.datetime(),
+  id: z.string().uuid(),
+  internalEntityDisplayName: z.string().nullable(),
+  status: FinanceDealStatusSchema,
+  type: FinanceDealTypeSchema,
+  updatedAt: z.iso.datetime(),
+});
+
 const FinanceDealWorkspaceSchema = z.object({
   acceptedQuote: z
     .object({
-      acceptedAt: z.iso.datetime(),
-      expiresAt: z.iso.datetime().nullable(),
+      acceptedAt: ApiDateTimeStringSchema,
+      expiresAt: NullableApiDateTimeStringSchema,
       quoteId: z.string().uuid(),
       quoteStatus: z.string(),
-      usedAt: z.iso.datetime().nullable(),
+      usedAt: NullableApiDateTimeStringSchema,
     })
     .nullable(),
+  acceptedQuoteDetails: FinanceDealQuoteItemSchema.nullable(),
+  actions: FinanceDealWorkspaceActionsSchema,
+  attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   executionPlan: z.array(
     z.object({
       idx: z.number().int().positive(),
@@ -104,13 +336,27 @@ const FinanceDealWorkspaceSchema = z.object({
       state: z.string(),
     }),
   ),
+  formalDocumentRequirements: z.array(
+    FinanceDealFormalDocumentRequirementSchema,
+  ),
+  nextAction: z.string(),
   operationalState: z.object({
     capabilities: z.array(
       z.object({
+        applicantCounterpartyId: z.string().uuid().nullable().optional().default(null),
+        dealType: FinanceDealTypeSchema.optional(),
+        internalEntityOrganizationId: z
+          .string()
+          .uuid()
+          .nullable()
+          .optional()
+          .default(null),
         kind: z.string(),
         note: z.string().nullable(),
         reasonCode: z.string().nullable(),
         status: z.string(),
+        updatedAt: NullableApiDateTimeStringSchema.optional().default(null),
+        updatedByUserId: z.string().nullable().optional().default(null),
       }),
     ),
     positions: z.array(
@@ -122,6 +368,7 @@ const FinanceDealWorkspaceSchema = z.object({
       }),
     ),
   }),
+  pricing: FinanceDealPricingContextSchema,
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
@@ -136,33 +383,11 @@ const FinanceDealWorkspaceSchema = z.object({
     queueReason: z.string(),
   }),
   relatedResources: z.object({
-    attachments: z.array(
-      z.object({
-        id: z.string().uuid(),
-      }),
-    ),
-    formalDocuments: z.array(
-      z.object({
-        docType: z.string(),
-        id: z.string().uuid(),
-      }),
-    ),
-    quotes: z.array(
-      z.object({
-        id: z.string().uuid(),
-        status: z.string(),
-      }),
-    ),
+    attachments: z.array(FinanceDealAttachmentSchema),
+    formalDocuments: z.array(FinanceDealFormalDocumentSchema),
+    quotes: z.array(FinanceDealWorkspaceQuoteSchema),
   }),
-  summary: z.object({
-    applicantDisplayName: z.string().nullable(),
-    createdAt: z.iso.datetime(),
-    id: z.string().uuid(),
-    internalEntityDisplayName: z.string().nullable(),
-    status: FinanceDealStatusSchema,
-    type: FinanceDealTypeSchema,
-    updatedAt: z.iso.datetime(),
-  }),
+  summary: FinanceDealSummarySchema,
   timeline: z.array(
     z.object({
       actor: z
@@ -175,6 +400,10 @@ const FinanceDealWorkspaceSchema = z.object({
       type: z.string(),
     }),
   ),
+});
+
+const FinanceDealBreadcrumbSchema = z.object({
+  summary: FinanceDealSummarySchema,
 });
 
 type FinanceDealFilters = z.infer<typeof FinanceDealQueueFiltersSchema>;
@@ -276,9 +505,24 @@ const FINANCE_DEAL_SORT_MAP: Record<
   type: (item) => getFinanceDealTypeLabel(item.type),
 };
 
+export type FinanceDealAttachmentRequirement = z.infer<
+  typeof FinanceDealAttachmentRequirementSchema
+>;
+export type FinanceDealCalculationHistoryItem = z.infer<
+  typeof FinanceDealCalculationHistoryItemSchema
+>;
+export type FinanceDealFormalDocumentRequirement = z.infer<
+  typeof FinanceDealFormalDocumentRequirementSchema
+>;
 export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema>;
+export type FinanceDealQuoteItem = z.infer<typeof FinanceDealQuoteItemSchema>;
 export type FinanceDealsListResult = EntityListResult<FinanceDealListItem>;
+export type FinanceDealBreadcrumb = z.infer<typeof FinanceDealBreadcrumbSchema>;
 export type FinanceDealWorkspace = z.infer<typeof FinanceDealWorkspaceSchema>;
+export type FinanceDealWorkbench = FinanceDealWorkspace & {
+  calculationHistory: FinanceDealCalculationHistoryItem[];
+  quoteHistory: FinanceDealQuoteItem[];
+};
 
 export async function getFinanceDeals(
   search: FinanceDealsSearchParams = {},
@@ -317,6 +561,81 @@ const getFinanceDealWorkspaceByIdUncached = async (
   await requestOk(response, "Не удалось загрузить рабочий стол сделки");
   return readJsonWithSchema(response, FinanceDealWorkspaceSchema);
 };
+
+const getFinanceDealBreadcrumbByIdUncached = async (
+  id: string,
+): Promise<FinanceDealBreadcrumb | null> => {
+  if (!DealIdSchema.safeParse(id).success) {
+    return null;
+  }
+
+  const response = await fetchApi(
+    `/v1/deals/${encodeURIComponent(id)}/finance-workspace`,
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  await requestOk(response, "Не удалось загрузить сделку");
+  return readJsonWithSchema(response, FinanceDealBreadcrumbSchema);
+};
+
+const getFinanceDealWorkbenchByIdUncached = async (
+  id: string,
+): Promise<FinanceDealWorkbench | null> => {
+  const workspace = await getFinanceDealWorkspaceByIdUncached(id);
+
+  if (!workspace) {
+    return null;
+  }
+
+  const [quoteHistory, calculationHistory] = await Promise.all([
+    readOptionalSupplementalResource(
+      `/v1/deals/${encodeURIComponent(id)}/quotes`,
+      z.array(FinanceDealQuoteItemSchema),
+    ),
+    readOptionalSupplementalResource(
+      `/v1/deals/${encodeURIComponent(id)}/calculations`,
+      z.array(FinanceDealCalculationHistoryItemSchema),
+    ),
+  ]);
+
+  return {
+    ...workspace,
+    calculationHistory: [...calculationHistory].sort((left, right) =>
+      right.createdAt.localeCompare(left.createdAt),
+    ),
+    quoteHistory: [...quoteHistory].sort((left, right) =>
+      right.createdAt.localeCompare(left.createdAt),
+    ),
+  };
+};
+
+async function readOptionalSupplementalResource<TSchema extends z.ZodTypeAny>(
+  path: string,
+  schema: TSchema,
+): Promise<z.infer<TSchema>> {
+  try {
+    const response = await fetchApi(path);
+
+    if (!response.ok) {
+      return schema.parse([]);
+    }
+
+    return await readJsonWithSchema(response, schema);
+  } catch {
+    return schema.parse([]);
+  }
+}
+
+export const getFinanceDealWorkbenchById = cache(
+  getFinanceDealWorkbenchByIdUncached,
+);
+
+export const getFinanceDealBreadcrumbById = cache(
+  getFinanceDealBreadcrumbByIdUncached,
+);
 
 export const getFinanceDealWorkspaceById = cache(
   getFinanceDealWorkspaceByIdUncached,

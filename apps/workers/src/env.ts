@@ -15,6 +15,12 @@ const workerIntervals = Object.fromEntries(
 ) satisfies Record<string, number>;
 
 export const env = {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
+  S3_BUCKET: process.env.S3_BUCKET ?? "bedrock-documents",
+  S3_ENDPOINT: process.env.S3_ENDPOINT,
+  S3_REGION: process.env.S3_REGION ?? "us-east-1",
+  S3_SECRET_KEY: process.env.S3_SECRET_KEY,
   TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3555",
   TB_CLUSTER_ID: BigInt(process.env.TB_CLUSTER_ID ?? "0"),
   WORKERS_MONITORING_HOST: process.env.WORKERS_MONITORING_HOST ?? "0.0.0.0",

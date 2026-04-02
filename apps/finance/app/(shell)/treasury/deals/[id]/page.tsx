@@ -1,7 +1,5 @@
-import { FinanceDealWorkspaceLayout } from "@/features/treasury/deals/components/workspace-layout";
-import { FinanceDealWorkspaceView } from "@/features/treasury/deals/components/workspace-view";
-import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
-import { getFinanceDealWorkspaceById } from "@/features/treasury/deals/lib/queries";
+import { FinanceDealWorkbench } from "@/features/treasury/deals/components/workbench";
+import { getFinanceDealWorkbenchById } from "@/features/treasury/deals/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface TreasuryDealWorkspacePageProps {
@@ -13,19 +11,8 @@ export default async function TreasuryDealWorkspacePage({
 }: TreasuryDealWorkspacePageProps) {
   const { entity: deal } = await loadResourceByIdParamOrNotFound({
     params,
-    getById: getFinanceDealWorkspaceById,
+    getById: getFinanceDealWorkbenchById,
   });
 
-  return (
-    <FinanceDealWorkspaceLayout
-      title={getFinanceDealDisplayTitle({
-        applicantDisplayName: deal.summary.applicantDisplayName,
-        id: deal.summary.id,
-        type: deal.summary.type,
-      })}
-    >
-      <FinanceDealWorkspaceView deal={deal} />
-    </FinanceDealWorkspaceLayout>
-  );
+  return <FinanceDealWorkbench deal={deal} />;
 }
-

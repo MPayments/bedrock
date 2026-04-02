@@ -3,10 +3,12 @@ import { z } from "zod";
 import { trimToNull } from "@bedrock/shared/core";
 
 import {
+  DealAttachmentIngestionNormalizedPayloadSchema,
   DealIntakeDraftSchema,
   DealSettlementDestinationModeSchema,
 } from "./dto";
 import {
+  DealAttachmentIngestionStatusSchema,
   DealCapabilityKindSchema,
   DealCapabilityStatusSchema,
   DealLegStateSchema,
@@ -219,6 +221,8 @@ export const AppendDealTimelineEventInputSchema = z.object({
     "quote_used",
     "attachment_uploaded",
     "attachment_deleted",
+    "attachment_ingested",
+    "attachment_ingestion_failed",
     "document_created",
     "document_status_changed",
   ]),
@@ -271,6 +275,49 @@ export const UpsertDealCapabilityStateInputSchema = z.object({
 
 export type UpsertDealCapabilityStateInput = z.infer<
   typeof UpsertDealCapabilityStateInputSchema
+>;
+
+export const EnqueueDealAttachmentIngestionInputSchema = z.object({
+  dealId: z.uuid(),
+  fileAssetId: z.uuid(),
+});
+
+export type EnqueueDealAttachmentIngestionInput = z.infer<
+  typeof EnqueueDealAttachmentIngestionInputSchema
+>;
+
+export const ClaimDealAttachmentIngestionsInputSchema = z.object({
+  batchSize: z.number().int().positive().max(100).default(25),
+  leaseSeconds: z.number().int().positive().max(3600).default(600),
+});
+
+export type ClaimDealAttachmentIngestionsInput = z.infer<
+  typeof ClaimDealAttachmentIngestionsInputSchema
+>;
+
+export const CompleteDealAttachmentIngestionInputSchema = z.object({
+  appliedFields: z.array(z.string()).default([]),
+  appliedRevision: z.number().int().positive().nullable(),
+  dealId: z.uuid(),
+  fileAssetId: z.uuid(),
+  normalizedPayload: DealAttachmentIngestionNormalizedPayloadSchema.nullable(),
+  skippedFields: z.array(z.string()).default([]),
+});
+
+export type CompleteDealAttachmentIngestionInput = z.infer<
+  typeof CompleteDealAttachmentIngestionInputSchema
+>;
+
+export const FailDealAttachmentIngestionInputSchema = z.object({
+  errorCode: nullableShortText,
+  errorMessage: nullableText,
+  fileAssetId: z.uuid(),
+  retryAt: z.coerce.date().nullable().optional().default(null),
+  status: DealAttachmentIngestionStatusSchema.optional(),
+});
+
+export type FailDealAttachmentIngestionInput = z.infer<
+  typeof FailDealAttachmentIngestionInputSchema
 >;
 
 export const LegacyPortalCreateDealInputSchema = z.object({

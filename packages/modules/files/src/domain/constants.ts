@@ -13,6 +13,11 @@ export const FILE_ATTACHMENT_VISIBILITY_VALUES = [
   "customer_safe",
   "internal",
 ] as const;
+export const FILE_ATTACHMENT_PURPOSE_VALUES = [
+  "invoice",
+  "contract",
+  "other",
+] as const;
 
 export const GENERATED_FILE_LINK_KINDS = new Set<
   (typeof FILE_LINK_KIND_VALUES)[number]
