@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+
 import "@bedrock/sdk-ui/globals.css";
 import { Providers } from "@/components/providers";
-import { Geist_Mono, Geist } from "next/font/google";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -13,6 +15,11 @@ const geistMono = Geist_Mono({
   weight: ["400", "500", "600", "700"],
   variable: "--font-geist-mono",
 });
+
+export const metadata: Metadata = {
+  title: "Multihansa Finance",
+  description: "Multihansa Finance",
+};
 
 export default function RootLayout({
   children,

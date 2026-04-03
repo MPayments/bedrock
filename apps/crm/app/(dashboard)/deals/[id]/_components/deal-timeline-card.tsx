@@ -1,4 +1,6 @@
 import { History } from "lucide-react";
+import { isUuidLike } from "@bedrock/shared/core/uuid";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
 import {
@@ -10,6 +12,24 @@ import {
 } from "./constants";
 import { formatDate } from "./format";
 import type { ApiDealTimelineEvent } from "./types";
+
+function isVisibleTimelineEvent(event: ApiDealTimelineEvent) {
+  return event.type !== "attachment_ingestion_failed";
+}
+
+function getTimelineActorLabel(event: ApiDealTimelineEvent) {
+  const actorLabel = event.actor?.label?.trim();
+  if (actorLabel) {
+    return actorLabel;
+  }
+
+  const actorUserId = event.actor?.userId?.trim();
+  if (!actorUserId || isUuidLike(actorUserId)) {
+    return null;
+  }
+
+  return actorUserId;
+}
 
 function renderTimelineDetails(event: ApiDealTimelineEvent) {
   if (event.type === "status_changed" && typeof event.payload.status === "string") {
@@ -68,6 +88,8 @@ type DealTimelineCardProps = {
 };
 
 export function DealTimelineCard({ timeline }: DealTimelineCardProps) {
+  const visibleTimeline = timeline.filter(isVisibleTimelineEvent);
+
   return (
     <Card>
       <CardHeader>
@@ -77,14 +99,15 @@ export function DealTimelineCard({ timeline }: DealTimelineCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {timeline.length === 0 ? (
+        {visibleTimeline.length === 0 ? (
           <div className="text-sm text-muted-foreground">
             По сделке еще нет событий.
           </div>
         ) : (
           <div className="space-y-4">
-            {timeline.map((event) => {
+            {visibleTimeline.map((event) => {
               const details = renderTimelineDetails(event);
+              const actorLabel = getTimelineActorLabel(event);
 
               return (
                 <div key={event.id} className="border-l-2 pl-3">
@@ -96,9 +119,9 @@ export function DealTimelineCard({ timeline }: DealTimelineCardProps) {
                       {formatDate(event.occurredAt)}
                     </div>
                   </div>
-                  {(details || event.actor?.label || event.actor?.userId) && (
+                  {(details || actorLabel) && (
                     <div className="mt-1 text-sm text-muted-foreground">
-                      {[details, event.actor?.label, event.actor?.userId]
+                      {[details, actorLabel]
                         .filter(Boolean)
                         .join(" · ")}
                     </div>

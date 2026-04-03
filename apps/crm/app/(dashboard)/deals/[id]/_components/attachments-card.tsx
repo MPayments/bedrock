@@ -22,6 +22,22 @@ type AttachmentsCardProps = {
   onReingest: (attachmentId: string) => void;
 };
 
+function getIngestionFailureDescription(ingestion: ApiDealAttachmentIngestion) {
+  switch (ingestion.errorCode) {
+    case "unsupported_mime_type":
+      return "Этот тип файла пока не поддерживается для автораспознавания.";
+    case "attachment_ineligible":
+      return "Этот файл не подходит для автораспознавания.";
+    case "revision_conflict":
+      return "Данные сделки изменились во время обработки. Попробуйте повторить распознавание.";
+    case "extractor_unconfigured":
+    case "storage_unconfigured":
+      return "Автораспознавание временно недоступно.";
+    default:
+      return "Не удалось распознать файл. Попробуйте повторить позже.";
+  }
+}
+
 function getIngestionView(
   ingestion: ApiDealAttachmentIngestion | null,
 ): {
@@ -77,7 +93,7 @@ function getIngestionView(
   }
 
   return {
-    description: ingestion.errorMessage,
+    description: getIngestionFailureDescription(ingestion),
     status: "failed",
   };
 }

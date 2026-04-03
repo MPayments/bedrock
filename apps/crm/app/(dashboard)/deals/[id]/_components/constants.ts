@@ -198,7 +198,6 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
   "Invoice number is required": "Укажите номер инвойса.",
   "Manual settlement bank instructions are required":
     "Заполните банковские реквизиты для зачисления средств.",
-  "Purpose is required": "Укажите назначение платежа.",
   "Required intake sections are incomplete": "Анкета заполнена не полностью.",
   "Settlement mode is required": "Укажите, куда зачислить средства.",
   "Source amount is required": "Укажите сумму сделки.",
@@ -254,7 +253,6 @@ const WARNING_DEAL_WORKFLOW_MESSAGES = new Set<string>([
   "External payer is required",
   "Invoice number is required",
   "Manual settlement bank instructions are required",
-  "Purpose is required",
   "Required intake sections are incomplete",
   "Settlement mode is required",
   "Source amount is required",

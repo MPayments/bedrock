@@ -14,7 +14,7 @@ type ErrorDialogProps = {
   title: string;
   message: string;
   onOpenChange: (open: boolean) => void;
-  variant?: "destructive" | "warning";
+  variant?: "default" | "destructive";
 };
 
 export function ErrorDialog({
@@ -22,21 +22,21 @@ export function ErrorDialog({
   title,
   message,
   onOpenChange,
-  variant = "destructive",
+  variant = "default",
 }: ErrorDialogProps) {
-  const isWarning = variant === "warning";
+  const isDestructive = variant === "destructive";
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
         className={cn(
-          isWarning &&
-            "border-amber-200 bg-amber-50/95 dark:border-amber-900/70 dark:bg-amber-950/30",
+          isDestructive &&
+            "border-destructive/50 bg-destructive/5 dark:border-destructive/40 dark:bg-destructive/10",
         )}
       >
         <AlertDialogHeader>
           <AlertDialogTitle
-            className={cn(isWarning && "text-amber-900 dark:text-amber-100")}
+            className={cn(isDestructive && "text-destructive")}
           >
             {title}
           </AlertDialogTitle>
@@ -45,8 +45,8 @@ export function ErrorDialog({
         <AlertDialogFooter>
           <AlertDialogAction
             className={cn(
-              isWarning &&
-                "bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500 dark:bg-amber-500 dark:text-black dark:hover:bg-amber-400",
+              isDestructive &&
+                "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive",
             )}
           >
             Понятно

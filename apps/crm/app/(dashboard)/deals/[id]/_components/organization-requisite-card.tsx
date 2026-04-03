@@ -1,5 +1,10 @@
 import { Landmark } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import type { ApiRequisite, ApiRequisiteProvider } from "./types";
 
@@ -17,7 +22,7 @@ export function OrganizationRequisiteCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Landmark className="h-5 w-5 text-muted-foreground" />
-          Банковский реквизит организации
+          Реквизиты организации
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

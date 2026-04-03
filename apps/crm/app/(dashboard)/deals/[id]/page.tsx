@@ -21,7 +21,6 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { API_BASE_URL } from "@/lib/constants";
 import { AgreementCard } from "./_components/agreement-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
-import { CustomerCard } from "./_components/customer-card";
 import { DealDocumentsTab } from "./_components/deal-documents-tab";
 import { DealManagementCard } from "./_components/deal-management-card";
 import { DealTimelineCard } from "./_components/deal-timeline-card";
@@ -37,9 +36,6 @@ import { DealIntakeTab } from "./_components/deal-intake-tab";
 import { DealOverviewTab } from "./_components/deal-overview-tab";
 import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
-import { LegalEntityCard } from "./_components/legal-entity-card";
-import { OrganizationCard } from "./_components/organization-card";
-import { OrganizationRequisiteCard } from "./_components/organization-requisite-card";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
   formatDealWorkflowMessage,
@@ -413,12 +409,12 @@ export default function DealDetailPage() {
     isOpen: boolean;
     message: string;
     title: string;
-    variant: "destructive" | "warning";
+    variant: "default" | "destructive";
   }>({
     isOpen: false,
     message: "",
     title: "",
-    variant: "destructive",
+    variant: "default",
   });
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
@@ -443,7 +439,7 @@ export default function DealDetailPage() {
     (
       title: string,
       message: string,
-      variant: "destructive" | "warning" = "destructive",
+      variant: "default" | "destructive" = "destructive",
     ) => {
       setErrorDialog({
         isOpen: true,
@@ -946,7 +942,7 @@ export default function DealDetailPage() {
         blockers.length
           ? formatBlockers(blockers)
           : `Переход в статус "${STATUS_LABELS[status]}" сейчас недоступен.`,
-        isWarning ? "warning" : "destructive",
+        isWarning ? "default" : "destructive",
       );
     },
     [data?.workflow.transitionReadiness, showError],
@@ -1408,7 +1404,7 @@ export default function DealDetailPage() {
         transitionReadiness={data.workflow.transitionReadiness}
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_1px_minmax(320px,1fr)]">
         <div className="space-y-6">
           <DealTabs
             activeTab={activeTab}
@@ -1416,18 +1412,19 @@ export default function DealDetailPage() {
             onTabChange={handleTabChange}
             overview={
               <DealOverviewTab
-                attachments={data.attachments}
                 calculation={data.calculation}
                 commentValue={commentValue}
                 deal={data.deal}
-                formalDocuments={data.formalDocuments}
                 isEditingComment={isEditingComment}
                 isSavingComment={isSavingComment}
+                legalEntity={data.legalEntity}
                 onCancelEdit={handleCancelEditComment}
                 onCommentChange={setCommentValue}
                 onEditComment={handleEditComment}
-                onNavigateToTab={handleTabChange}
                 onSaveComment={handleSaveComment}
+                organization={data.organization}
+                organizationRequisite={data.organizationRequisite}
+                organizationRequisiteProvider={data.organizationRequisiteProvider}
                 requestedCurrency={data.requestedCurrency}
                 workbench={data.workbench}
                 workflow={data.workflow}
@@ -1497,6 +1494,8 @@ export default function DealDetailPage() {
           />
         </div>
 
+        <div aria-hidden className="hidden self-stretch bg-border xl:block" />
+
         <div className="space-y-6">
           <DealManagementCard
             agreementId={data.agreement.id}
@@ -1514,14 +1513,8 @@ export default function DealDetailPage() {
             onAgreementChange={handleAgreementChange}
             onAssigneeChange={handleAssigneeChange}
           />
-          <LegalEntityCard legalEntity={data.legalEntity} />
-          <AgreementCard agreement={data.agreement} />
-          <OrganizationCard organization={data.organization} />
-          <OrganizationRequisiteCard
-            requisite={data.organizationRequisite}
-            provider={data.organizationRequisiteProvider}
-          />
           <DealTimelineCard timeline={data.workflow.timeline} />
+          <AgreementCard agreement={data.agreement} />
         </div>
       </div>
 

@@ -1,3 +1,7 @@
+import {
+  DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
+  type DEAL_LEG_KIND_VALUES,
+} from "./constants";
 import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
@@ -9,10 +13,6 @@ import type {
   DealWorkflowParticipant,
 } from "../application/contracts/dto";
 import type { DealSectionId, DealType } from "../application/contracts/zod";
-import {
-  DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
-  type DEAL_LEG_KIND_VALUES,
-} from "./constants";
 
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
@@ -105,9 +105,6 @@ export function evaluateDealSectionCompleteness(
   }
   if (!intake.moneyRequest.sourceCurrencyId) {
     moneyRequestBlockingReasons.push("Source currency is required");
-  }
-  if (!hasText(intake.moneyRequest.purpose)) {
-    moneyRequestBlockingReasons.push("Purpose is required");
   }
   if (
     intake.type === "currency_exchange" &&
