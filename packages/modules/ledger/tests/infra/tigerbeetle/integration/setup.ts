@@ -19,7 +19,7 @@ const testDbConfig = {
 
 const tbConfig = {
   cluster_id: BigInt(process.env.TB_CLUSTER_ID || "1"),
-  replica_addresses: [process.env.TB_ADDRESS || "3000"]
+  replica_addresses: [process.env.TB_ADDRESS || "127.0.0.1:3555"]
 };
 
 // Initialize connections immediately at module load time

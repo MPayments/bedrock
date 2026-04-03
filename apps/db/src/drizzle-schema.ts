@@ -1,3 +1,58 @@
+export { crmTasks } from "crm/schema";
+
+export {
+  agreementFeeRules,
+  agreementFeeRuleKindEnum,
+  agreementFeeRuleUnitEnum,
+  agreementParties,
+  agreementPartyRoleEnum,
+  agreements,
+  agreementVersions,
+} from "@bedrock/agreements/schema";
+export {
+  calculationLineKindEnum,
+  calculationLines,
+  calculations,
+  calculationRateSourceEnum,
+  calculationSnapshots,
+} from "@bedrock/calculations/schema";
+export {
+  dealCapabilityKindEnum,
+  dealCapabilityStates,
+  dealCapabilityStatusEnum,
+  dealAgentBonuses,
+  dealApprovalStatusEnum,
+  dealApprovalTypeEnum,
+  dealApprovals,
+  dealCalculationLinks,
+  dealIntakeSnapshots,
+  dealLegKindEnum,
+  dealLegOperationKindEnum,
+  dealLegOperationLinks,
+  dealLegStateEnum,
+  dealLegs,
+  dealParticipantRoleEnum,
+  dealParticipants,
+  dealOperationalPositionKindEnum,
+  dealOperationalPositions,
+  dealOperationalPositionStateEnum,
+  deals,
+  dealQuoteAcceptances,
+  dealStatusEnum,
+  dealTimelineEventTypeEnum,
+  dealTimelineEvents,
+  dealTimelineVisibilityEnum,
+  dealTypeEnum,
+} from "@bedrock/deals/schema";
+export {
+  fileAssetOriginEnum,
+  fileAssets,
+  fileGeneratedFormatEnum,
+  fileGeneratedLangEnum,
+  fileLinkKindEnum,
+  fileLinks,
+  fileVersions,
+} from "@bedrock/files/schema";
 export {
   accountingClosePackages,
   accountingPackAssignments,
@@ -15,6 +70,7 @@ export {
 } from "@bedrock/accounting/schema";
 export { currencies } from "@bedrock/currencies/schema";
 export {
+  documentBusinessLinks,
   documentEvents,
   documentLinks,
   documentOperations,
@@ -29,6 +85,8 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
+  treasuryInstructions,
+  treasuryOperations,
 } from "@bedrock/treasury/schema";
 export {
   balanceEvents,
@@ -48,21 +106,31 @@ export {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterpartyKindEnum,
+  counterpartyRelationshipKindEnum,
   customers,
+  customerCounterpartyAssignments,
   organizations,
   organizationRequisiteBindings,
+  partyCountryCodeEnum,
+  partyKindEnum,
   requisiteKindEnum,
   requisiteOwnerTypeEnum,
   requisiteProviders,
   requisites,
+  subAgentProfiles,
 } from "@bedrock/parties/schema";
 export {
   account,
+  agentProfiles,
+  customerBootstrapClaims,
+  customerMemberships,
+  portalAccessGrants,
   session,
   twoFactor,
   user,
+  userAccessStates,
   verification,
-} from "@bedrock/platform/auth-model/schema";
+} from "@bedrock/iam/schema";
 export { actionReceipts } from "@bedrock/platform/idempotency-postgres/schema";
 export {
   reconciliationExceptions,

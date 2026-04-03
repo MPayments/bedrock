@@ -29,6 +29,7 @@ const SORT_COLUMN_MAP = {
   fullName: organizations.fullName,
   country: organizations.country,
   kind: organizations.kind,
+  isActive: organizations.isActive,
   createdAt: organizations.createdAt,
   updatedAt: organizations.updatedAt,
 } as const;
@@ -55,6 +56,10 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
 
   if (input.kind?.length) {
     conditions.push(inArray(organizations.kind, input.kind as PartyKind[]));
+  }
+
+  if (input.isActive !== undefined) {
+    conditions.push(eq(organizations.isActive, input.isActive));
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;

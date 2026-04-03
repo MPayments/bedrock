@@ -45,6 +45,7 @@ interface DocumentsFilters {
   currency: { kind: "string"; cardinality: "multi" };
   counterpartyId: { kind: "string"; cardinality: "multi" };
   customerId: { kind: "string"; cardinality: "multi" };
+  dealId: { kind: "string"; cardinality: "single" };
   organizationRequisiteId: { kind: "string"; cardinality: "multi" };
   occurredAtFrom: { kind: "string"; cardinality: "single" };
   occurredAtTo: { kind: "string"; cardinality: "single" };
@@ -82,6 +83,7 @@ export const DOCUMENTS_LIST_CONTRACT: ListQueryContract<
     currency: { kind: "string", cardinality: "multi" },
     counterpartyId: { kind: "string", cardinality: "multi" },
     customerId: { kind: "string", cardinality: "multi" },
+    dealId: { kind: "string", cardinality: "single" },
     organizationRequisiteId: { kind: "string", cardinality: "multi" },
     occurredAtFrom: { kind: "string", cardinality: "single" },
     occurredAtTo: { kind: "string", cardinality: "single" },

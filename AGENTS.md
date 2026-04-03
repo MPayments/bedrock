@@ -5,7 +5,7 @@
 Bedrock is a financial platform (ledger, treasury, fees, FX, transfers) built as a **Turborepo monorepo**.
 
 ```
-apps/        — applications (api: Hono, web: Next.js)
+apps/        — applications (api: Hono, crm/finance: Next.js)
 packages/    — shared domain and infrastructure packages
 ops/         — infra entrypoints
 ```
@@ -46,21 +46,21 @@ Bedrock uses bounded-context packages with explicit internal layers.
 
 References:
 
-- `plan.md`
+- `scripts/check-architecture.mjs`
+- `scripts/check-manifests.mjs`
 - [Herberto Graca, "DDD, Hexagonal, Onion, Clean, CQRS, … How I put it all together"](https://herbertograca.com/2017/11/16/explicit-architecture-01-ddd-hexagonal-onion-clean-cqrs-how-i-put-it-all-together/)
-- [docs/adr/0001-bounded-context-explicit-architecture.md](/Users/alexey.eramasov/dev/ledger/docs/adr/0001-bounded-context-explicit-architecture.md)
+- [docs/adr/0001-bounded-context-explicit-architecture.md](docs/adr/0001-bounded-context-explicit-architecture.md)
 
 Repo-wide rules:
 
 - Top-level packaging is by bounded context and package kind, not by technical layer.
-- Runtime packages must prefer this internal split:
-  - `contracts/`
-  - `application/`
-  - `domain/`
-  - `infra/`
+- Runtime packages must keep explicit layer boundaries, but the repo currently uses two approved shapes:
+  - root-layered: `contracts/`, `application/`, `domain/`, `infra/`
+  - slice-first: `<slice>/application`, `<slice>/domain`, `<slice>/adapters`, optional `<slice>/contracts`
+- Preserve the package's existing shape unless the change is explicitly migrating the package.
 - `domain` contains pure business rules and must not depend on Drizzle, database clients, transport code, or concrete adapters.
 - `application` owns use cases and ports; it coordinates domain logic and should not own tool-specific implementations.
-- `infra` owns repositories, DB schema, SQL helpers, and external adapters; it implements application ports.
+- `infra` or slice-local `adapters` own repositories, DB schema, SQL helpers, and external adapters; they implement application ports.
 - Concrete adapter creation belongs in module-root composition, apps, or workflows. Do not instantiate adapters deep inside domain logic.
 - Do not create new generic `internal/` folders in runtime packages.
 - Use `package.json#exports` to define all supported runtime entrypoints. Non-exported deep imports are forbidden.
@@ -105,7 +105,7 @@ export type XxxService = ReturnType<typeof createXxxService>;
 
 ### Context and dependency injection
 
-Dependencies are declared as a `Deps` type. A context factory in `application/shared/context.ts` transforms them into an internal `Context`:
+Dependencies are declared as a `Deps` type. In root-layered packages, a context factory in `application/shared/context.ts` transforms them into an internal `Context`; slice-first packages keep that context alongside the owning slice:
 
 ```typescript
 // src/application/shared/context.ts
@@ -136,18 +136,21 @@ When a service grows large, split it by use-case and by layer, not into a generi
 ```
 packages/modules/xxx/src/
   index.ts
-  service.ts                 — thin public facade when the package exposes one
+  service.ts | module.ts     — thin public facade when the package exposes one
+  [slice]/
+    application/
+    domain/
+    adapters/
+    contracts/               — optional when the slice exports its own DTOs
+
+packages/modules/xxx/src/    — root-layered variant used by some packages
+  index.ts
+  service.ts
   contracts/
   application/
-    commands/
-    queries/
-    ports/
     shared/context.ts
   domain/
   infra/
-    drizzle/
-      schema/
-      repositories/
 ```
 
 ### Command handler pattern
@@ -191,27 +194,27 @@ Runtime domain code lives under consolidated folders:
 - `packages/sdk/<sdk>/src/**`
 - package-local `tests/**`
 
-Within each package, this is the common default layout:
+Within each package, the repo currently uses one of these common layouts:
 
 | File / Directory | Purpose |
 |---|---|
 | `index.ts` | Public exports for the package root |
-| `contracts/` | Public DTOs and Zod schemas |
-| `application/` | Use cases, handlers, ports, application context |
-| `domain/` | Pure business rules and domain types |
-| `infra/` | Drizzle schema, repositories, and external adapters |
-| `service.ts` | Thin closure-factory facade when the package exposes one |
+| `<slice>/contracts/`, `contracts/` | Public DTOs and Zod schemas |
+| `<slice>/application/`, `application/` | Use cases, handlers, ports, application context |
+| `<slice>/domain/`, `domain/` | Pure business rules and domain types |
+| `<slice>/adapters/`, `infra/` | Drizzle schema, repositories, query helpers, and external adapters |
+| `service.ts`, `module.ts`, `worker.ts` | Thin composition entrypoints when the package exposes them |
 | `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/shared/core/errors` |
 | `validation.ts` | Optional package-local validation helpers when not part of public contracts |
 
 Additional rules:
 
 - New and refactored packages must not introduce `internal/`.
-- DB tables belong under `infra/drizzle/schema.ts` or `infra/drizzle/schema/**`.
-- Repository interfaces belong in `application/ports.ts` or `application/<slice>/ports.ts`.
-- Repository implementations belong in `infra/drizzle/repositories/**`.
-- Query-support SQL helpers belong in `infra/**`, not in `domain/`.
-- Root facades may stay in `service.ts`, `reports.ts`, or `periods.ts`, but they should delegate rather than accumulate business logic.
+- DB tables belong under exported `src/schema.ts`, `<slice>/adapters/drizzle/schema.ts`, or `infra/drizzle/schema.ts`.
+- Repository interfaces belong in `application/ports.ts`, `application/ports/**`, or `<slice>/application/ports/**`.
+- Repository implementations belong in `<slice>/adapters/drizzle/**` or `infra/drizzle/**`.
+- Query-support SQL helpers belong with adapter code, not in `domain/`.
+- Root facades may stay in `service.ts`, `module.ts`, `reports.ts`, `worker.ts`, or `periods.ts`, but they should delegate rather than accumulate business logic.
 
 ## Domain Modeling
 
@@ -228,9 +231,9 @@ Model the domain the way the repo already does, not as an anemic DTO mirror of t
   - `toSnapshot()` for persistence handoff
   - optional `sameState(other)` when application code wants to skip no-op writes
 - Examples:
-  - `packages/modules/organizations/src/domain/organization.ts`
   - `packages/modules/documents/src/domain/document.ts`
-  - `packages/modules/parties/src/domain/counterparty.ts`
+  - `packages/modules/iam/src/domain/user-account.ts`
+  - `packages/modules/parties/src/counterparties/domain/counterparty.ts`
 
 ```typescript
 export class Organization extends Entity<string> {
@@ -263,27 +266,21 @@ export class Organization extends Entity<string> {
 - Pass IDs, `now`, configs, and already-loaded related state in from application.
 - Examples:
   - `packages/modules/documents/src/domain/document.ts`
-  - `packages/modules/users/src/domain/user-email.ts`
-  - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
+  - `packages/modules/iam/src/domain/user-email.ts`
+  - `packages/modules/accounting/src/periods/domain/calendar-month.ts`
 
 ### Model cross-entity rules as set or planning objects
 
 - When a rule depends on a loaded collection, model it as a domain set/policy/planner instead of burying the logic in application handlers.
 - These objects should compute decisions such as demotions, promotions, transfer plans, or validation results.
 - Examples:
-  - `packages/modules/organizations/src/domain/organization-requisite-set.ts`
-  - `packages/modules/parties/src/domain/counterparty-requisite-set.ts`
-  - `packages/modules/accounting/src/domain/chart/posting-matrix-policy.ts`
+  - `packages/modules/parties/src/requisites/domain/requisite-set.ts`
+  - `packages/modules/accounting/src/chart/domain/posting-matrix-policy.ts`
 
 ```typescript
-const plan = sourceSet.planUpdate({
-    requisiteId: id,
-    nextIsDefault,
-});
-
-if (plan.promotedId) {
-    // application persists the domain decision
-}
+const { requisite, set } = sourceSet.updateRequisite(requisiteId, input, now);
+const nextSnapshots = set.toSnapshots();
+// application persists `nextSnapshots` and returns `requisite`
 ```
 
 ### Use pure functions for deterministic domain calculations
@@ -291,17 +288,17 @@ if (plan.promotedId) {
 - Not all domain logic needs a class.
 - Use pure functions for calculations, normalization, policy resolution, compilation, and trace building when no identity/lifecycle is needed.
 - Examples:
-  - `packages/modules/fx/src/domain/routes.ts`
-  - `packages/modules/accounting/src/domain/packs/compile-pack.ts`
+  - `packages/modules/accounting/src/packs/domain/compile-pack.ts`
   - `packages/modules/documents/src/domain/document-summary.ts`
-  - `packages/modules/fees/src/domain/normalization.ts`
+  - `packages/modules/treasury/src/fees/domain/normalization.ts`
+  - `packages/modules/accounting/src/reports/domain/report-currency.ts`
 
 ### Use value objects for constrained primitives
 
 - Wrap validated, normalized primitives in `ValueObject` when the concept has its own rules and behavior.
 - Examples:
-  - `packages/modules/users/src/domain/user-email.ts`
-  - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
+  - `packages/modules/iam/src/domain/user-email.ts`
+  - `packages/modules/accounting/src/periods/domain/calendar-month.ts`
 
 ## Code Conventions
 
@@ -321,7 +318,7 @@ if (plan.promotedId) {
 
 - Workspace linting uses ESLint flat config.
 - Backend apps and packages that run `eslint` from their own cwd must provide a local `eslint.config.js` that re-exports `@bedrock/eslint-config/backend`.
-- `apps/web` must keep its local `eslint.config.js` based on `@bedrock/eslint-config/next-js`.
+- `apps/finance` must keep its local `eslint.config.js` based on `@bedrock/eslint-config/next-js`.
 - Any workspace package that imports `@bedrock/eslint-config/*` from a local ESLint config must declare `@bedrock/eslint-config` in `devDependencies`.
 
 ### Import order
@@ -390,7 +387,7 @@ export class OrderNotFoundError extends ServiceError {
 
 ## Build Requirements
 
-- After modifying any files in `apps/api/`, you **must** rebuild the API package so that the generated type definitions (`dist/`) stay up to date (the web app imports the client types from the built output):
+- After modifying any files in `apps/api/`, you **must** rebuild the API package so that the generated type definitions (`dist/`) stay up to date (the finance app imports the client types from the built output):
 
 ```bash
 bun run build --filter=api

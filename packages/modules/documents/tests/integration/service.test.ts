@@ -257,6 +257,42 @@ describe("documents integration", () => {
     expect(details.extra).toEqual({ parentDocumentId: parent.document.id });
   });
 
+  it("lists documents by linked deal id without breaking total count", async () => {
+    await ensureActorUser();
+    const service = createDocumentsRuntime();
+    const dealId = randomUUID();
+
+    const linked = await service.createDraft({
+      docType: DOC_TYPE,
+      createIdempotencyKey: `linked-${randomUUID()}`,
+      payload: { memo: "linked to deal" },
+      actorUserId: ACTOR_ID,
+    });
+
+    const unrelated = await service.createDraft({
+      docType: DOC_TYPE,
+      createIdempotencyKey: `unrelated-${randomUUID()}`,
+      payload: { memo: "not linked to deal" },
+      actorUserId: ACTOR_ID,
+    });
+
+    await pool.query(
+      `
+        INSERT INTO document_business_links (document_id, deal_id, link_kind)
+        VALUES ($1, $2, $3)
+      `,
+      [linked.document.id, dealId, "deal"],
+    );
+
+    const listed = await service.list({ dealId, limit: 20, offset: 0 });
+
+    expect(listed.total).toBe(1);
+    expect(listed.data.map((item) => item.document.id)).toEqual([
+      linked.document.id,
+    ]);
+    expect(listed.data.find((item) => item.document.id === unrelated.document.id)).toBeUndefined();
+  });
+
   it("submits drafts and returns submitted rows from the query surface", async () => {
     await ensureActorUser();
     const service = createDocumentsRuntime();

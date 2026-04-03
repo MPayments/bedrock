@@ -34,6 +34,7 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
     const result = buildDocumentWithOperationId({
       registry,
       document: row.document,
+      dealId: row.dealId,
       postingOperationId: row.postingOperationId,
     });
 

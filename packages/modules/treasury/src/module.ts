@@ -7,6 +7,10 @@ import {
 
 import { createFeesService } from "./fees/application";
 import type { FeeRuleRepository } from "./fees/application/ports";
+import { createTreasuryInstructionsService } from "./instructions/application";
+import type { TreasuryInstructionsRepository } from "./instructions/application/ports/instructions.repository";
+import { createTreasuryOperationsService } from "./operations/application";
+import type { TreasuryOperationsRepository } from "./operations/application/ports/operations.repository";
 import { createQuotesService } from "./quotes/application";
 import type {
   QuoteFeeComponentsRepository,
@@ -29,6 +33,8 @@ export interface TreasuryModuleDeps {
   now: Clock;
   generateUuid: UuidGenerator;
   currencies: CurrenciesPort;
+  instructionsRepository: TreasuryInstructionsRepository;
+  operationsRepository: TreasuryOperationsRepository;
   ratesRepository: RatesRepository;
   quotesRepository: QuotesRepository;
   quoteFeeComponentsRepository: QuoteFeeComponentsRepository;
@@ -63,6 +69,15 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
   });
 
   return {
+    instructions: createTreasuryInstructionsService({
+      instructionsRepository: deps.instructionsRepository,
+      operationsRepository: deps.operationsRepository,
+      runtime: createRuntime("treasury.instructions"),
+    }),
+    operations: createTreasuryOperationsService({
+      operationsRepository: deps.operationsRepository,
+      runtime: createRuntime("treasury.operations"),
+    }),
     rates,
     quotes: createQuotesService({
       runtime: createRuntime("treasury.quotes"),

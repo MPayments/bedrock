@@ -1,0 +1,1244 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { userHasPermission } = vi.hoisted(() => ({
+  userHasPermission: vi.fn(async () => ({ success: true })),
+}));
+
+vi.mock("../../src/auth", () => ({
+  authByAudience: {
+    crm: {
+      api: {
+        userHasPermission,
+      },
+    },
+    finance: {
+      api: {
+        userHasPermission,
+      },
+    },
+    portal: {
+      api: {
+        userHasPermission,
+      },
+    },
+  },
+}));
+
+import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
+
+import { dealsRoutes } from "../../src/routes/deals";
+
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "convert" | "payout" | "transit_hold" | "settle_exporter",
+  state: "pending" | "ready" | "in_progress" | "done" | "blocked",
+) {
+  return {
+    id: `00000000-0000-4000-8000-0000000001${idx.toString().padStart(2, "0")}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
+function createDealDetail() {
+  const now = new Date("2026-03-30T00:00:00.000Z");
+
+  return {
+    id: "00000000-0000-4000-8000-000000000010",
+    customerId: "00000000-0000-4000-8000-000000000001",
+    agreementId: "00000000-0000-4000-8000-000000000002",
+    calculationId: "00000000-0000-4000-8000-000000000003",
+    type: "payment" as const,
+    status: "draft" as const,
+    comment: "Draft payment deal",
+    createdAt: now,
+    updatedAt: now,
+    legs: [
+      {
+        id: "00000000-0000-4000-8000-000000000011",
+        idx: 1,
+        kind: "payment" as const,
+        status: "draft" as const,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    participants: [
+      {
+        id: "00000000-0000-4000-8000-000000000012",
+        role: "customer" as const,
+        partyId: "00000000-0000-4000-8000-000000000001",
+        customerId: "00000000-0000-4000-8000-000000000001",
+        organizationId: null,
+        counterpartyId: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    statusHistory: [
+      {
+        id: "00000000-0000-4000-8000-000000000013",
+        status: "draft" as const,
+        changedBy: "user-1",
+        comment: "Draft payment deal",
+        createdAt: now,
+      },
+    ],
+    approvals: [],
+  };
+}
+
+function createDealsModuleStub() {
+  return {
+    deals: {
+      queries: {
+        findWorkflowById: vi.fn(),
+        list: vi.fn(),
+        findById: vi.fn(),
+        listCalculationHistory: vi.fn(),
+      },
+      commands: {
+        acceptQuote: vi.fn(),
+        assignAgent: vi.fn(),
+        create: vi.fn(),
+        createDraft: vi.fn(),
+        transitionStatus: vi.fn(),
+        updateAgreement: vi.fn(),
+        updateLegState: vi.fn(),
+      },
+    },
+  };
+}
+
+function createWorkflowProjection() {
+  const now = new Date("2026-03-30T00:00:00.000Z");
+
+  return {
+    acceptedQuote: null,
+    attachmentIngestions: [],
+    executionPlan: [
+      createExecutionLeg(1, "collect", "ready"),
+      createExecutionLeg(2, "payout", "pending"),
+    ],
+    intake: {
+      common: {
+        applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
+        customerNote: "Draft payment deal",
+        requestedExecutionDate: now,
+      },
+      externalBeneficiary: {
+        bankInstructionSnapshot: null,
+        beneficiaryCounterpartyId: "00000000-0000-4000-8000-000000000005",
+        beneficiarySnapshot: null,
+      },
+      incomingReceipt: {
+        contractNumber: null,
+        expectedAmount: null,
+        expectedAt: null,
+        expectedCurrencyId: null,
+        invoiceNumber: null,
+        payerCounterpartyId: null,
+        payerSnapshot: null,
+      },
+      moneyRequest: {
+        purpose: "Supplier payment",
+        sourceAmount: "100.00",
+        sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
+        targetCurrencyId: null,
+      },
+      settlementDestination: {
+        bankInstructionSnapshot: null,
+        mode: null,
+        requisiteId: null,
+      },
+      type: "payment" as const,
+    },
+    nextAction: "Update execution leg state",
+    operationalState: {
+      capabilities: [],
+      positions: [],
+    },
+    participants: [
+      {
+        counterpartyId: null,
+        customerId: "00000000-0000-4000-8000-000000000001",
+        displayName: "Customer",
+        id: "00000000-0000-4000-8000-000000000021",
+        organizationId: null,
+        role: "customer" as const,
+      },
+    ],
+    relatedResources: {
+      attachments: [],
+      calculations: [],
+      formalDocuments: [],
+      quotes: [],
+    },
+    revision: 1,
+    sectionCompleteness: [],
+    summary: {
+      agreementId: "00000000-0000-4000-8000-000000000002",
+      agentId: null,
+      calculationId: null,
+      createdAt: now,
+      id: "00000000-0000-4000-8000-000000000010",
+      status: "draft" as const,
+      type: "payment" as const,
+      updatedAt: now,
+    },
+    timeline: [],
+    transitionReadiness: [
+      {
+        allowed: false,
+        blockers: [
+          {
+            code: "intake_incomplete",
+            message: "Required intake sections are incomplete",
+          },
+        ],
+        targetStatus: "submitted" as const,
+      },
+    ],
+  };
+}
+
+function createFinanceQueueProjection() {
+  return {
+    counts: {
+      execution: 1,
+      failed_instruction: 0,
+      funding: 0,
+    },
+    filters: {
+      queue: "execution",
+      stage: "awaiting_reconciliation",
+    },
+    items: [
+      {
+        applicantName: "ООО Ромашка",
+        blockingReasons: [],
+        createdAt: new Date("2026-04-03T09:00:00.000Z"),
+        dealId: "00000000-0000-4000-8000-000000000010",
+        documentSummary: {
+          attachmentCount: 1,
+          formalDocumentCount: 1,
+        },
+        executionSummary: {
+          blockedLegCount: 0,
+          doneLegCount: 2,
+          totalLegCount: 2,
+        },
+        internalEntityName: "Multihansa",
+        nextAction: "Close deal",
+        operationalState: {
+          capabilities: [],
+          positions: [],
+        },
+        profitabilitySnapshot: {
+          calculationId: "calc-1",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+          feeRevenueMinor: "1000",
+          providerFeeExpenseMinor: "250",
+          spreadRevenueMinor: "500",
+          totalRevenueMinor: "1500",
+        },
+        queue: "execution",
+        queueReason: "Сделка ожидает исполнения",
+        quoteSummary: null,
+        stage: "awaiting_reconciliation",
+        stageReason: "Ожидаем завершение сверки",
+        status: "closing_documents",
+        type: "payment",
+      },
+    ],
+  } as const;
+}
+
+function createFinanceWorkspaceProjection() {
+  return {
+    acceptedQuote: null,
+    acceptedQuoteDetails: null,
+    actions: {
+      canCloseDeal: false,
+      canCreateCalculation: false,
+      canCreateQuote: false,
+      canRequestExecution: false,
+      canResolveExecutionBlocker: false,
+      canUploadAttachment: true,
+    },
+    attachmentRequirements: [],
+    closeReadiness: {
+      blockers: ["Сверка еще не завершена по всем операциям"],
+      criteria: [
+        {
+          code: "reconciliation_clear",
+          label: "Сверка завершена без открытых исключений",
+          satisfied: false,
+        },
+      ],
+      ready: false,
+    },
+    executionPlan: [
+      {
+        actions: {
+          canCreateLegOperation: false,
+        },
+        id: "leg-1",
+        idx: 1,
+        kind: "payout",
+        operationRefs: [
+          {
+            kind: "payout",
+            operationId: "operation-1",
+            sourceRef: "deal:deal-1:leg:1:payout:1",
+          },
+        ],
+        state: "done",
+      },
+    ],
+    formalDocumentRequirements: [],
+    instructionSummary: {
+      failed: 0,
+      planned: 0,
+      prepared: 0,
+      returnRequested: 0,
+      returned: 0,
+      settled: 1,
+      submitted: 0,
+      terminalOperations: 1,
+      totalOperations: 1,
+      voided: 0,
+    },
+    nextAction: "Close deal",
+    operationalState: {
+      capabilities: [],
+      positions: [],
+    },
+    pricing: {
+      quoteEligibility: false,
+      requestedAmount: "100.00",
+      requestedCurrencyId: "00000000-0000-4000-8000-000000000006",
+      targetCurrencyId: null,
+    },
+    profitabilitySnapshot: {
+      calculationId: "calc-1",
+      currencyId: "00000000-0000-4000-8000-000000000006",
+      feeRevenueMinor: "1000",
+      providerFeeExpenseMinor: "250",
+      spreadRevenueMinor: "500",
+      totalRevenueMinor: "1500",
+    },
+    queueContext: {
+      blockers: [],
+      queue: "execution",
+      queueReason: "Сделка ожидает исполнения",
+    },
+    reconciliationSummary: {
+      ignoredExceptionCount: 0,
+      lastActivityAt: new Date("2026-04-03T11:00:00.000Z"),
+      openExceptionCount: 0,
+      pendingOperationCount: 1,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 1,
+      resolvedExceptionCount: 0,
+      state: "pending",
+    },
+    relatedResources: {
+      attachments: [],
+      formalDocuments: [],
+      operations: [],
+      quotes: [],
+      reconciliationExceptions: [
+        {
+          blocking: true,
+          createdAt: new Date("2026-04-03T11:00:00.000Z"),
+          externalRecordId: "external-1",
+          id: "exception-1",
+          operationId: "operation-1",
+          reasonCode: "no_match",
+          resolvedAt: null,
+          source: "bank_statement",
+          state: "open",
+        },
+      ],
+    },
+    summary: {
+      applicantDisplayName: "ООО Ромашка",
+      calculationId: "calc-1",
+      createdAt: new Date("2026-04-03T09:00:00.000Z"),
+      id: "00000000-0000-4000-8000-000000000010",
+      internalEntityDisplayName: "Multihansa",
+      status: "closing_documents",
+      type: "payment",
+      updatedAt: new Date("2026-04-03T11:00:00.000Z"),
+    },
+    timeline: [],
+    workflow: createWorkflowProjection(),
+  } as const;
+}
+
+function createTestApp() {
+  const dealsModule = createDealsModuleStub();
+  const dealProjectionsWorkflow = {
+    getCrmDealsStats: vi.fn(),
+    getCrmDealWorkbenchProjection: vi.fn(),
+    getFinanceDealWorkspaceProjection: vi.fn(),
+    listCrmDeals: vi.fn(),
+    listCrmDealBoard: vi.fn(),
+    listCrmDealsByDay: vi.fn(),
+    listCrmDealsByStatus: vi.fn(),
+    listFinanceDealQueues: vi.fn(),
+  };
+  const dealQuoteWorkflow = {
+    createCalculationFromAcceptedQuote: vi.fn(),
+  };
+  const dealExecutionWorkflow = {
+    closeDeal: vi.fn(),
+    createLegOperation: vi.fn(),
+    requestExecution: vi.fn(),
+    resolveExecutionBlocker: vi.fn(),
+  };
+  const treasuryModule = {
+    quotes: {
+      queries: {
+        listQuotes: vi.fn(),
+        getQuoteDetails: vi.fn(),
+      },
+    },
+  };
+  const calculationsModule = {
+    calculations: {
+      queries: {
+        findById: vi.fn(),
+      },
+      commands: {
+        create: vi.fn(),
+      },
+    },
+  };
+  const partiesModule = {
+    customers: {
+      queries: {
+        findById: vi.fn(),
+      },
+    },
+  };
+  const currenciesService = {
+    findByCode: vi.fn(),
+    findById: vi.fn(),
+  };
+  const iamService = {
+    queries: {
+      findById: vi.fn(),
+    },
+  };
+  const app = new OpenAPIHono();
+
+  app.use("*", async (c, next) => {
+    c.set("user", { id: "user-1" } as any);
+    c.set("requestContext", {
+      requestId: "req-1",
+      correlationId: "corr-1",
+      traceId: null,
+      causationId: null,
+      idempotencyKey: c.req.header("idempotency-key") ?? null,
+    });
+    await next();
+  });
+
+  app.route(
+    "/deals",
+    dealsRoutes({
+      dealProjectionsWorkflow,
+      dealExecutionWorkflow,
+      dealQuoteWorkflow,
+      dealsModule,
+      iamService,
+      treasuryModule,
+      calculationsModule,
+      partiesModule,
+      currenciesService,
+    } as any),
+  );
+
+  return {
+    app,
+    dealProjectionsWorkflow,
+    dealExecutionWorkflow,
+    dealQuoteWorkflow,
+    dealsModule,
+    treasuryModule,
+    calculationsModule,
+    iamService,
+    partiesModule,
+    currenciesService,
+  };
+}
+
+describe("deals routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    userHasPermission.mockResolvedValue({ success: true });
+  });
+
+  it("lists, fetches, and creates canonical deals", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+    } = createTestApp();
+    const detail = createDealDetail();
+    dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
+      data: [
+        {
+          agentName: "Agent Smith",
+          amount: 100,
+          amountInBase: 90,
+          baseCurrencyCode: "RUB",
+          client: "Customer One",
+          clientId: detail.customerId,
+          closedAt: null,
+          comment: detail.comment,
+          createdAt: detail.createdAt.toISOString(),
+          currency: "USD",
+          feePercentage: 1.5,
+          id: detail.id,
+          status: detail.status,
+          updatedAt: detail.updatedAt.toISOString(),
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.commands.create.mockResolvedValue(detail);
+
+    const listResponse = await app.request("http://localhost/deals");
+    const getResponse = await app.request(
+      `http://localhost/deals/${detail.id}`,
+    );
+    const createResponse = await app.request("http://localhost/deals", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": "deal-create-1",
+      },
+      body: JSON.stringify({
+        customerId: detail.customerId,
+        agreementId: detail.agreementId,
+        calculationId: detail.calculationId,
+        type: "payment",
+        comment: detail.comment,
+      }),
+    });
+
+    expect(listResponse.status).toBe(200);
+    expect(getResponse.status).toBe(200);
+    expect(createResponse.status).toBe(201);
+
+    expect(dealProjectionsWorkflow.listCrmDeals).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+    await expect(listResponse.json()).resolves.toMatchObject({
+      data: [
+        expect.objectContaining({
+          id: detail.id,
+          client: "Customer One",
+          currency: "USD",
+          amount: 100,
+          amountInBase: 90,
+          baseCurrencyCode: "RUB",
+          feePercentage: 1.5,
+          agentName: "Agent Smith",
+        }),
+      ],
+      total: 1,
+    });
+    expect(dealsModule.deals.queries.findById).toHaveBeenCalledWith(detail.id);
+    expect(dealsModule.deals.commands.create).toHaveBeenCalledWith({
+      customerId: detail.customerId,
+      agreementId: detail.agreementId,
+      calculationId: detail.calculationId,
+      type: "payment",
+      agentId: null,
+      comment: detail.comment,
+      intakeComment: null,
+      reason: null,
+      requestedAmount: null,
+      actorUserId: "user-1",
+      idempotencyKey: "deal-create-1",
+    });
+  });
+
+  it("creates a typed draft deal for CRM origination", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.createDraft.mockResolvedValue(projection);
+
+    const response = await app.request("http://localhost/deals/drafts", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": "deal-draft-1",
+      },
+      body: JSON.stringify({
+        agreementId: "00000000-0000-4000-8000-000000000002",
+        customerId: "00000000-0000-4000-8000-000000000001",
+        intake: {
+          ...projection.intake,
+          common: {
+            ...projection.intake.common,
+            requestedExecutionDate: "2026-03-30T00:00:00.000Z",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(dealsModule.deals.commands.createDraft).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agreementId: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      idempotencyKey: "deal-draft-1",
+      intake: {
+        ...projection.intake,
+        common: {
+          ...projection.intake.common,
+          requestedExecutionDate: new Date("2026-03-30T00:00:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("returns the CRM board projection", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listCrmDealBoard.mockResolvedValue({
+      counts: {
+        active: 1,
+        documents: 2,
+        drafts: 3,
+        execution_blocked: 4,
+        pricing: 5,
+      },
+      items: [],
+    });
+
+    const response = await app.request("http://localhost/deals/crm-board");
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listCrmDealBoard).toHaveBeenCalledOnce();
+  });
+
+  it("delegates CRM deals list projections to the workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
+      data: [],
+      limit: 20,
+      offset: 0,
+      total: 0,
+    });
+
+    const response = await app.request(
+      "http://localhost/deals?sortBy=createdAt&sortOrder=desc&limit=20&offset=0",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listCrmDeals).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+  });
+
+  it("delegates CRM stats and bucketed projections to the workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.getCrmDealsStats.mockResolvedValue({
+      byStatus: { draft: 1 },
+      totalAmount: "10000",
+      totalCount: 1,
+    });
+    dealProjectionsWorkflow.listCrmDealsByStatus.mockResolvedValue({
+      done: [],
+      inProgress: [],
+      pending: [],
+    });
+    dealProjectionsWorkflow.listCrmDealsByDay.mockResolvedValue([
+      {
+        amount: 100,
+        closedAmount: 0,
+        closedCount: 0,
+        count: 1,
+        date: "2026-03-30",
+        RUB: 100,
+      },
+    ]);
+
+    const [statsResponse, byStatusResponse, byDayResponse] = await Promise.all([
+      app.request("http://localhost/deals/stats?dateFrom=2026-03-01&dateTo=2026-03-31"),
+      app.request("http://localhost/deals/by-status"),
+      app.request("http://localhost/deals/by-day?dateFrom=2026-03-01"),
+    ]);
+
+    expect(statsResponse.status).toBe(200);
+    expect(byStatusResponse.status).toBe(200);
+    expect(byDayResponse.status).toBe(200);
+    expect(dealProjectionsWorkflow.getCrmDealsStats).toHaveBeenCalledWith({
+      dateFrom: "2026-03-01",
+      dateTo: "2026-03-31",
+    });
+    expect(dealProjectionsWorkflow.listCrmDealsByStatus).toHaveBeenCalledOnce();
+    expect(dealProjectionsWorkflow.listCrmDealsByDay).toHaveBeenCalledWith({
+      dateFrom: "2026-03-01",
+    });
+  });
+
+  it("returns 404 when a deal is missing", async () => {
+    const { app, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockRejectedValue(
+      new DealNotFoundError("00000000-0000-4000-8000-000000000099"),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000099",
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("lists calculation history for a deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.queries.listCalculationHistory.mockResolvedValue([
+      {
+        calculationId: detail.calculationId,
+        calculationTimestamp: detail.createdAt,
+        createdAt: detail.createdAt,
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000101",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000102",
+        originalAmountMinor: "10000",
+        feeAmountMinor: "100",
+        totalAmountMinor: "10100",
+        totalInBaseMinor: "9000",
+        totalWithExpensesInBaseMinor: "9100",
+        rateNum: "9",
+        rateDen: "10",
+        fxQuoteId: "00000000-0000-4000-8000-000000000201",
+        sourceQuoteId: "00000000-0000-4000-8000-000000000201",
+      },
+    ]);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      dealsModule.deals.queries.listCalculationHistory,
+    ).toHaveBeenCalledWith(detail.id);
+  });
+
+  it("does not expose the legacy attach calculation route", async () => {
+    const { app } = createTestApp();
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/calculation",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          calculationId: "00000000-0000-4000-8000-000000000011",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("accepts a quote for a deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = {
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    };
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("updates the draft agreement on the workbench", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.updateAgreement.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/agreement",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          agreementId: "00000000-0000-4000-8000-000000000099",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.updateAgreement).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agreementId: "00000000-0000-4000-8000-000000000099",
+      id: "00000000-0000-4000-8000-000000000010",
+    });
+  });
+
+  it("reassigns the deal assignee from CRM", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.assignAgent.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/assignee",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          agentId: "agent-42",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.assignAgent).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agentId: "agent-42",
+      id: "00000000-0000-4000-8000-000000000010",
+    });
+  });
+
+  it("creates a calculation from the accepted quote via the workflow", async () => {
+    const { app, dealQuoteWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+      calculationId: null,
+    };
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000501",
+      isActive: true,
+      currentSnapshot: {
+        id: "00000000-0000-4000-8000-000000000502",
+        snapshotNumber: 1,
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+        originalAmountMinor: "10000",
+        feeBps: "10000",
+        feeAmountMinor: "100",
+        totalAmountMinor: "10100",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+        feeAmountInBaseMinor: "90",
+        totalInBaseMinor: "9000",
+        additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000302",
+        additionalExpensesAmountMinor: "50",
+        additionalExpensesInBaseMinor: "50",
+        totalWithExpensesInBaseMinor: "9140",
+        rateSource: "fx_quote",
+        rateNum: "9",
+        rateDen: "10",
+        additionalExpensesRateSource: null,
+        additionalExpensesRateNum: null,
+        additionalExpensesRateDen: null,
+        calculationTimestamp: new Date("2026-04-01T00:00:00.000Z"),
+        fxQuoteId: "00000000-0000-4000-8000-000000000210",
+        quoteSnapshot: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      lines: [],
+    });
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/from-quote`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "from-quote-1",
+        },
+        body: JSON.stringify({
+          quoteId: "00000000-0000-4000-8000-000000000210",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      dealQuoteWorkflow.createCalculationFromAcceptedQuote,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: detail.id,
+      idempotencyKey: "from-quote-1",
+      quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("returns structured blockers when a status transition is blocked", async () => {
+    const { app, dealsModule } = createTestApp();
+    dealsModule.deals.commands.transitionStatus.mockRejectedValue(
+      new DealTransitionBlockedError("submitted", [
+        {
+          code: "intake_incomplete",
+          message: "Required intake sections are incomplete",
+        },
+      ] as any),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/status",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ status: "submitted" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "deal.transition_blocked",
+      details: {
+        targetStatus: "submitted",
+      },
+      error: "Deal transition to submitted is blocked",
+    });
+  });
+
+  it("requests deal execution materialization", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-1",
+        },
+        body: JSON.stringify({
+          comment: "Materialize execution legs",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Materialize execution legs",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-1",
+    });
+  });
+
+  it("returns structured blockers when execution request is blocked", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted" as const,
+    });
+    dealExecutionWorkflow.requestExecution.mockRejectedValue(
+      new DealTransitionBlockedError("awaiting_funds", [
+        {
+          code: "execution_leg_not_done",
+          message: "Execution is blocked",
+        },
+      ] as any),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-2",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "deal.transition_blocked",
+      details: {
+        targetStatus: "awaiting_funds",
+      },
+      error: "Deal transition to awaiting_funds is blocked",
+    });
+  });
+
+  it("forwards the same idempotency key on repeated execution requests", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "awaiting_funds" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
+
+    const first = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-replay",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+    const second = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-replay",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenNthCalledWith(1, {
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-replay",
+    });
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenNthCalledWith(2, {
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-replay",
+    });
+  });
+
+  it("creates a missing leg operation through the execution workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "awaiting_funds" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.createLegOperation.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/legs/00000000-0000-4000-8000-000000000101/operation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-leg-operation-1",
+        },
+        body: JSON.stringify({
+          comment: "Repair missing operation",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.createLegOperation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Repair missing operation",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-leg-operation-1",
+      legId: "00000000-0000-4000-8000-000000000101",
+    });
+  });
+
+  it("resolves a supported execution blocker through the workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "awaiting_payment" as const,
+    });
+    dealExecutionWorkflow.resolveExecutionBlocker.mockResolvedValue(
+      createWorkflowProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/blockers/resolve",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-blocker-resolve-1",
+        },
+        body: JSON.stringify({
+          capabilityKind: "can_payout",
+          target: "capability",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.resolveExecutionBlocker).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      capabilityKind: "can_payout",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-blocker-resolve-1",
+      legId: undefined,
+      target: "capability",
+    });
+  });
+
+  it("closes a fully executed deal through the workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "closing_documents" as const,
+    });
+    dealExecutionWorkflow.closeDeal.mockResolvedValue(createWorkflowProjection());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/close",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "deal-close-1",
+        },
+        body: JSON.stringify({
+          comment: "Execution complete",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.closeDeal).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Execution complete",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "deal-close-1",
+    });
+  });
+
+  it("passes the finance queue stage filter through to the projection workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listFinanceDealQueues.mockResolvedValue(
+      createFinanceQueueProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/finance/queues?queue=execution&stage=awaiting_reconciliation",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listFinanceDealQueues).toHaveBeenCalledWith({
+      queue: "execution",
+      stage: "awaiting_reconciliation",
+    });
+
+    const body = await response.json();
+    expect(body.items[0]).toMatchObject({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      stage: "awaiting_reconciliation",
+      stageReason: "Ожидаем завершение сверки",
+    });
+  });
+
+  it("returns reconciliation-aware finance workspace fields", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/finance-workspace",
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.closeReadiness).toMatchObject({
+      ready: false,
+    });
+    expect(body.instructionSummary).toMatchObject({
+      settled: 1,
+      totalOperations: 1,
+    });
+    expect(body.reconciliationSummary).toMatchObject({
+      pendingOperationCount: 1,
+      state: "pending",
+    });
+    expect(body.relatedResources.reconciliationExceptions).toEqual([
+      expect.objectContaining({
+        id: "exception-1",
+        source: "bank_statement",
+      }),
+    ]);
+  });
+
+  it("updates a deal execution leg state", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.updateLegState.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/state",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ state: "in_progress" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.updateLegState).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idx: 1,
+      state: "in_progress",
+    });
+  });
+});

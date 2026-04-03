@@ -125,3 +125,8 @@ export const ListOrganizationLiquidityRowsInputSchema = z.object({
   internalLedgerOrganizationIds: z.array(z.string().min(1)),
   currency: z.string().min(1).optional(),
 });
+
+export const ListOrganizationRequisiteLiquidityRowsInputSchema = z.object({
+  organizationIds: z.array(z.string().min(1)),
+  currency: z.string().min(1).optional(),
+});

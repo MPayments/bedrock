@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import {
@@ -123,7 +124,7 @@ export const OperationIntentSchema = z
   }));
 
 export const ListLedgerOperationsInputSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(20),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: SortableLedgerOperationColumnSchema.default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),

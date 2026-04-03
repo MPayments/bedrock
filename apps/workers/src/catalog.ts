@@ -32,6 +32,13 @@ export const WORKER_CATALOG = [
     defaultIntervalMs: 60_000,
     description: "Refreshes stale treasury rate sources.",
   },
+  {
+    id: "deal-attachment-ingestion",
+    envKey: "DEAL_ATTACHMENT_INGESTION_WORKER_INTERVAL_MS",
+    defaultIntervalMs: 15_000,
+    description: "Распознает загруженные инвойсы и договоры по сделкам.",
+  },
+  // TODO: Phase 3 — add ops-s3-cleanup and ops-activity-log-cleanup once adapters are wired
 ] as const satisfies readonly WorkerCatalogEntry[];
 
 export type WorkerId = (typeof WORKER_CATALOG)[number]["id"];

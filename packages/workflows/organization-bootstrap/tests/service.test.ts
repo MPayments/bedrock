@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 const create = vi.fn(async () => ({ id: "org-1", shortName: "Acme" }));
-
 vi.mock("@bedrock/parties", () => ({
   createPartiesModule: vi.fn(() => ({
     organizations: {
@@ -21,6 +20,7 @@ vi.mock("@bedrock/parties/adapters/drizzle", () => ({
   DrizzleRequisiteBindingReads: vi.fn(),
   DrizzleRequisiteProviderReads: vi.fn(),
   DrizzleRequisiteReads: vi.fn(),
+  DrizzleSubAgentProfileReads: vi.fn(),
 }));
 
 vi.mock("@bedrock/platform/persistence", async () => {

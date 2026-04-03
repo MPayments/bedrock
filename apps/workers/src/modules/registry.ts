@@ -1,12 +1,32 @@
 import { randomUUID } from "node:crypto";
 
+import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { createCurrenciesService } from "@bedrock/currencies";
+import { createCurrenciesQueries } from "@bedrock/currencies/queries";
+import { createDealsModule } from "@bedrock/deals";
+import {
+  DrizzleDealReads,
+  DrizzleDealsUnitOfWork,
+} from "@bedrock/deals/adapters/drizzle";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
+import { createFilesModule } from "@bedrock/files";
+import {
+  DrizzleFileReads,
+  DrizzleFilesUnitOfWork,
+} from "@bedrock/files/adapters/drizzle";
 import {
   createBalancesProjectorWorkerDefinition,
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/ledger/worker";
+import {
+  DrizzleCounterpartyReads,
+  DrizzleCustomerReads,
+} from "@bedrock/parties/adapters/drizzle";
+import { createPartiesQueries } from "@bedrock/parties/queries";
+import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
+import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { createPersistenceContext } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
@@ -14,11 +34,11 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/platform/worker-runtime";
-import {
-  createTreasuryModule,
-} from "@bedrock/treasury";
+import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryInstructionsRepository,
+  DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -27,6 +47,7 @@ import {
 } from "@bedrock/treasury/adapters/drizzle";
 import { createDefaultRateSourceProviders } from "@bedrock/treasury/providers";
 import { createTreasuryRatesWorkerDefinition } from "@bedrock/treasury/worker";
+import { createDealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
@@ -97,11 +118,136 @@ export function createWorkerImplementations(
     db: deps.db,
     logger: deps.logger,
   });
+  const currenciesQueries = createCurrenciesQueries({ db: deps.db });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
+  const agreementReads = new DrizzleAgreementReads(deps.db, currenciesQueries);
+  const counterpartyReads = new DrizzleCounterpartyReads(deps.db);
+  const customerReads = new DrizzleCustomerReads(deps.db);
+  const objectStorage =
+    deps.env.S3_ENDPOINT &&
+    deps.env.S3_ACCESS_KEY &&
+    deps.env.S3_SECRET_KEY
+      ? new S3ObjectStorageAdapter(
+          {
+            accessKeyId: deps.env.S3_ACCESS_KEY,
+            bucket: deps.env.S3_BUCKET,
+            endpoint: deps.env.S3_ENDPOINT,
+            forcePathStyle: true,
+            region: deps.env.S3_REGION,
+            secretAccessKey: deps.env.S3_SECRET_KEY,
+          },
+          deps.logger,
+        )
+      : undefined;
+  const filesModule = createFilesModule({
+    commandUow: new DrizzleFilesUnitOfWork({
+      persistence: createPersistenceContext(deps.db),
+    }),
+    generateUuid: randomUUID,
+    logger: deps.logger,
+    now: () => new Date(),
+    objectStorage,
+    reads: new DrizzleFileReads(deps.db),
+  });
+  const partiesQueries = createPartiesQueries({ db: deps.db });
+  const dealsModule = createDealsModule({
+    commandUow: new DrizzleDealsUnitOfWork({
+      bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
+      persistence: createPersistenceContext(deps.db),
+    }),
+    generateUuid: randomUUID,
+    idempotency: {
+      withIdempotencyTx: async ({ handler }) => handler(),
+    },
+    logger: deps.logger,
+    now: () => new Date(),
+    reads: new DrizzleDealReads(
+      deps.db,
+      currenciesQueries,
+      partiesQueries,
+      documentsReadModel,
+    ),
+    references: {
+      async findAgreementById(id: string) {
+        const agreement = await agreementReads.findById(id);
+        if (!agreement) {
+          return null;
+        }
+
+        return {
+          currentVersionId: agreement.currentVersion.id,
+          customerId: agreement.customerId,
+          id: agreement.id,
+          isActive: agreement.isActive,
+          organizationId: agreement.organizationId,
+        };
+      },
+      async findCalculationById() {
+        return null;
+      },
+      async findCounterpartyById(id: string) {
+        return counterpartyReads.findById(id);
+      },
+      async findCurrencyById(id: string) {
+        return currenciesService.findById(id);
+      },
+      async findCustomerById(id: string) {
+        return customerReads.findById(id);
+      },
+      async findQuoteById() {
+        return null;
+      },
+      async listActiveAgreementsByCustomerId(customerId: string) {
+        const result = await agreementReads.list({
+          customerId,
+          isActive: true,
+          limit: 10,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+
+        return result.data.map((agreement) => ({
+          currentVersionId: agreement.currentVersion.id,
+          customerId: agreement.customerId,
+          id: agreement.id,
+          isActive: agreement.isActive,
+          organizationId: agreement.organizationId,
+        }));
+      },
+      validateSupportedCreateType(type) {
+        if (
+          ![
+            "payment",
+            "currency_exchange",
+            "currency_transit",
+            "exporter_settlement",
+          ].includes(type)
+        ) {
+          throw new Error(`Unsupported deal type: ${type}`);
+        }
+      },
+    },
+  });
+  const documentExtraction = deps.env.OPENAI_API_KEY
+    ? new OpenAIDocumentExtractionAdapter({
+        apiKey: deps.env.OPENAI_API_KEY,
+      })
+    : undefined;
+  const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow({
+    currencies: currenciesService,
+    deals: dealsModule,
+    documentExtraction,
+    files: filesModule,
+    logger: deps.logger,
+  });
   const treasuryModule = createTreasuryModule({
     logger: deps.logger,
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
+    instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
+    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
     quoteFinancialLinesRepository:
@@ -119,6 +265,12 @@ export function createWorkerImplementations(
     treasuryModule,
     logger: deps.logger,
   });
+  const dealAttachmentIngestion = {
+    ...createWorkerMetadata("deal-attachment-ingestion", deps.env),
+    async runOnce(ctx) {
+      return dealAttachmentIngestionWorkflow.runOnce({ now: ctx.now });
+    },
+  } satisfies BedrockWorker;
 
   return {
     [ledger.id]: ledger,
@@ -126,5 +278,6 @@ export function createWorkerImplementations(
     [documentsPeriodClose.id]: documentsPeriodClose,
     [balances.id]: balances,
     [treasuryRates.id]: treasuryRates,
+    [dealAttachmentIngestion.id]: dealAttachmentIngestion,
   };
 }

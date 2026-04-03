@@ -6,6 +6,7 @@ import type {
 } from "@bedrock/platform/persistence";
 
 import {
+  createDrizzleDocumentBusinessLinksRepository,
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
   createDrizzleDocumentOperationsRepository,
@@ -72,6 +73,7 @@ export function createDocumentsTransactionContext(input: {
     moduleRuntime: createDocumentsModuleRuntime(input.tx),
     idempotency: createDocumentsIdempotencyPort(input),
     documentsCommand: createDrizzleDocumentsCommandRepository(input.tx),
+    documentBusinessLinks: createDrizzleDocumentBusinessLinksRepository(input.tx),
     documentEvents: createDrizzleDocumentEventsRepository(input.tx),
     documentLinks: createDrizzleDocumentLinksRepository(input.tx),
     documentOperations: createDrizzleDocumentOperationsRepository(input.tx),

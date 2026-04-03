@@ -117,6 +117,7 @@ describe("counterparty command handlers", () => {
     const existing = Counterparty.fromSnapshot({
       id: "cp-1",
       externalId: null,
+      relationshipKind: "customer_owned",
       customerId: "cust-1",
       shortName: "Acme",
       fullName: "Acme Incorporated",

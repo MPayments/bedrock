@@ -5,20 +5,14 @@ import {
 } from "@bedrock/shared/core/domain";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { normalizeCountryCode } from "./country-code";
 import type { RequisiteKind } from "./requisite-kind";
 
 export interface RequisiteFieldsInput {
   kind: RequisiteKind;
   beneficiaryName?: string | null;
-  institutionName?: string | null;
-  institutionCountry?: string | null;
   accountNo?: string | null;
   corrAccount?: string | null;
   iban?: string | null;
-  bic?: string | null;
-  swift?: string | null;
-  bankAddress?: string | null;
   network?: string | null;
   assetCode?: string | null;
   address?: string | null;
@@ -33,14 +27,9 @@ export interface RequisiteDetailsFields {
   kind: RequisiteKind;
   description: string | null;
   beneficiaryName: string | null;
-  institutionName: string | null;
-  institutionCountry: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   iban: string | null;
-  bic: string | null;
-  swift: string | null;
-  bankAddress: string | null;
   network: string | null;
   assetCode: string | null;
   address: string | null;
@@ -65,12 +54,6 @@ export function collectRequisiteFieldIssues(
       if (!hasText(input.beneficiaryName)) {
         issues.push("beneficiaryName is required for bank requisites");
       }
-      if (!hasText(input.institutionName)) {
-        issues.push("institutionName is required for bank requisites");
-      }
-      if (!hasText(input.institutionCountry)) {
-        issues.push("institutionCountry is required for bank requisites");
-      }
       if (!hasText(input.accountNo)) {
         issues.push("accountNo is required for bank requisites");
       }
@@ -88,14 +71,6 @@ export function collectRequisiteFieldIssues(
       break;
     case "exchange":
     case "custodian":
-      if (!hasText(input.institutionName)) {
-        issues.push(`institutionName is required for ${input.kind} requisites`);
-      }
-      if (!hasText(input.institutionCountry)) {
-        issues.push(
-          `institutionCountry is required for ${input.kind} requisites`,
-        );
-      }
       if (!hasText(input.accountRef)) {
         issues.push(`accountRef is required for ${input.kind} requisites`);
       }
@@ -120,14 +95,9 @@ function normalizeRequisiteDetails(
     kind: input.kind,
     description: normalizeOptionalText(input.description),
     beneficiaryName: normalizeOptionalText(input.beneficiaryName),
-    institutionName: normalizeOptionalText(input.institutionName),
-    institutionCountry: normalizeOptionalText(input.institutionCountry),
     accountNo: normalizeOptionalText(input.accountNo),
     corrAccount: normalizeOptionalText(input.corrAccount),
     iban: normalizeOptionalText(input.iban),
-    bic: normalizeOptionalText(input.bic),
-    swift: normalizeOptionalText(input.swift),
-    bankAddress: normalizeOptionalText(input.bankAddress),
     network: normalizeOptionalText(input.network),
     assetCode: normalizeOptionalText(input.assetCode),
     address: normalizeOptionalText(input.address),
@@ -137,12 +107,6 @@ function normalizeRequisiteDetails(
     contact: normalizeOptionalText(input.contact),
     notes: normalizeOptionalText(input.notes),
   };
-
-  if (normalized.institutionCountry !== null) {
-    normalized.institutionCountry = normalizeCountryCode(
-      normalized.institutionCountry,
-    );
-  }
 
   try {
     validateRequisiteFields(normalized);
@@ -176,23 +140,12 @@ export class RequisiteDetails extends ValueObject<RequisiteDetailsFields> {
 export function resolveRequisiteIdentity(input: RequisiteFieldsInput): string {
   switch (input.kind) {
     case "bank":
-      return (
-        input.accountNo?.trim() ||
-        input.iban?.trim() ||
-        input.swift?.trim() ||
-        input.bic?.trim() ||
-        ""
-      );
+      return input.accountNo?.trim() || input.iban?.trim() || "";
     case "blockchain":
       return input.address?.trim() || "";
     case "exchange":
     case "custodian":
-      return (
-        input.accountRef?.trim() ||
-        input.subaccountRef?.trim() ||
-        input.institutionName?.trim() ||
-        ""
-      );
+      return input.accountRef?.trim() || input.subaccountRef?.trim() || "";
   }
 }
 

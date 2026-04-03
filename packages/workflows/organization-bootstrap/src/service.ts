@@ -14,6 +14,7 @@ import {
   DrizzleRequisiteBindingReads,
   DrizzleRequisiteProviderReads,
   DrizzleRequisiteReads,
+  DrizzleSubAgentProfileReads,
 } from "@bedrock/parties/adapters/drizzle";
 import type {
   CreateOrganizationInput,
@@ -66,6 +67,7 @@ function createWorkflowPartiesModule(input: {
     requisiteReads: new DrizzleRequisiteReads(input.tx),
     requisiteProviderReads: new DrizzleRequisiteProviderReads(input.tx),
     requisiteBindingReads: new DrizzleRequisiteBindingReads(input.tx),
+    subAgentProfileReads: new DrizzleSubAgentProfileReads(input.tx),
     unitOfWork: new DrizzlePartyRegistryUnitOfWork({
       persistence: bindPersistenceSession(input.tx),
     }),

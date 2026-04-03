@@ -12,6 +12,7 @@ export function createGetDocumentDetailsQuery(
 ) {
   const {
     accountingPeriods,
+    documentBusinessLinks,
     documentEvents,
     documentLinks,
     documentOperations,
@@ -92,7 +93,8 @@ export function createGetDocumentDetailsQuery(
     const relatedIds = Array.from(
       new Set([...parentIds, ...dependsOnIds, ...compensatesIds, ...childIds]),
     );
-    const [relatedDocs, operations, events, snapshot] = await Promise.all([
+    const [dealId, relatedDocs, operations, events, snapshot] = await Promise.all([
+      documentBusinessLinks.findDealIdByDocumentId(document.id),
       documentsQuery.listDocumentsByIds(relatedIds),
       documentOperations.listDocumentOperations(document.id),
       documentEvents.listDocumentEvents(document.id),
@@ -139,6 +141,7 @@ export function createGetDocumentDetailsQuery(
 
     return {
       document,
+      dealId,
       postingOperationId,
       allowedActions,
       links,

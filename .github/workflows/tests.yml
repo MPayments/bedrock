@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,6 +39,12 @@ jobs:
 
       - name: Check workspace graph
         run: bun run check:graph
+
+      - name: Check types
+        run: bun run check-types
+
+      - name: Build API package
+        run: bun run build --filter=api
 
       - name: Run lint
         run: bun run lint

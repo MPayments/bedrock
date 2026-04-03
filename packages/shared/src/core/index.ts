@@ -1,6 +1,7 @@
 export type { CorrelationContext } from "./correlation";
 export { sha256Hex } from "./crypto";
 export { isUuidLike } from "./uuid";
+export { hasOnlyAsciiDigits, isDecimalString } from "./utils";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {
   createModuleRuntime,
@@ -34,6 +35,7 @@ export {
   ServiceError,
 } from "./errors";
 export {
+  MAX_QUERY_LIST_LIMIT,
   PaginationInputSchema,
   resolveSortOrder,
   resolveSortValue,

@@ -7,6 +7,7 @@ import { uuidSchema } from "../../../fees/application/contracts/zod";
 
 
 export const CreateQuoteInputSchema = z.object({
+  dealId: uuidSchema.optional(),
   idempotencyKey: z.string().min(1).max(255),
 }).and(QuotePricingInputSchema);
 
@@ -16,8 +17,10 @@ const markQuoteUsedDateInputSchema = z.union([
 ]);
 
 export const MarkQuoteUsedInputSchema = z.object({
+  dealId: uuidSchema.nullish(),
   quoteId: uuidSchema,
   usedByRef: z.string().min(1).max(255),
+  usedDocumentId: uuidSchema.nullish(),
   at: markQuoteUsedDateInputSchema,
 });
 

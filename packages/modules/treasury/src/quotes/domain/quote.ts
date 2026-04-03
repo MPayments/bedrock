@@ -20,7 +20,9 @@ export interface QuoteSnapshot {
   rateNum: bigint;
   rateDen: bigint;
   status: QuoteStatus;
+  dealId: string | null;
   usedByRef: string | null;
+  usedDocumentId: string | null;
   usedAt: Date | null;
   expiresAt: Date;
   idempotencyKey: string;
@@ -38,6 +40,7 @@ export class Quote extends AggregateRoot<string> {
     fromCurrencyId: string;
     toCurrencyId: string;
     createdAt: Date;
+    dealId?: string | null;
     pricingPlan: QuotePricingPlanSnapshot;
   }): Quote {
     invariant(input.id.trim().length > 0, "Quote id is required", {
@@ -64,7 +67,9 @@ export class Quote extends AggregateRoot<string> {
       rateNum: input.pricingPlan.rateNum,
       rateDen: input.pricingPlan.rateDen,
       status: "active",
+      dealId: input.dealId ?? null,
       usedByRef: null,
+      usedDocumentId: null,
       usedAt: null,
       expiresAt: input.pricingPlan.expiresAt,
       idempotencyKey: input.idempotencyKey,
@@ -95,7 +100,9 @@ export class Quote extends AggregateRoot<string> {
   }
 
   markUsed(input: {
+    dealId?: string | null;
     usedByRef: string;
+    usedDocumentId?: string | null;
     at: Date;
   }): { kind: "noop" } | { kind: "mark-used"; quote: Quote } {
     if (this.snapshot.status !== "active") {
@@ -109,23 +116,42 @@ export class Quote extends AggregateRoot<string> {
       });
     }
 
+    invariant(
+      input.dealId == null ||
+        this.snapshot.dealId == null ||
+        input.dealId === this.snapshot.dealId,
+      "quote deal linkage mismatch",
+      {
+        code: "treasury.quote.deal_mismatch",
+        meta: {
+          inputDealId: input.dealId,
+          quoteDealId: this.snapshot.dealId,
+          quoteId: this.snapshot.id,
+        },
+      },
+    );
+
     return {
       kind: "mark-used",
       quote: new Quote({
         ...this.snapshot,
         status: "used",
+        dealId: input.dealId ?? this.snapshot.dealId,
         usedByRef: input.usedByRef,
+        usedDocumentId: input.usedDocumentId ?? this.snapshot.usedDocumentId,
         usedAt: input.at,
       }),
     };
   }
 
   sameRequestAs(input: {
+    dealId?: string | null;
     idempotencyKey: string;
     pricingPlan: QuotePricingPlanSnapshot;
   }): boolean {
     return (
       this.snapshot.idempotencyKey === input.idempotencyKey &&
+      this.snapshot.dealId === (input.dealId ?? null) &&
       this.snapshot.fromAmountMinor === input.pricingPlan.fromAmountMinor &&
       this.snapshot.toAmountMinor === input.pricingPlan.toAmountMinor &&
       this.snapshot.pricingMode === input.pricingPlan.pricingMode &&

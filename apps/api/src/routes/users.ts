@@ -1,17 +1,17 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import {
   UserEmailConflictError,
   UserNotFoundError,
-} from "@bedrock/users";
+} from "@bedrock/iam";
 import {
   BanUserInputSchema,
   ChangePasswordInputSchema,
   CreateUserInputSchema,
   ListUsersQuerySchema,
   UpdateUserInputSchema,
-} from "@bedrock/users/contracts";
+} from "@bedrock/iam/contracts";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -284,7 +284,7 @@ export function usersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.usersService.list(query);
+      const result = await ctx.iamService.queries.list(query);
 
       return c.json(
         { ...result, data: result.data.map(serializeUser) },
@@ -295,7 +295,7 @@ export function usersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const user = await ctx.usersService.findById(id);
+        const user = await ctx.iamService.queries.findById(id);
         return c.json(serializeUserWithSession(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -309,7 +309,7 @@ export function usersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const user = await ctx.usersService.create(input);
+        const user = await ctx.iamService.commands.create(input);
         return c.json(serializeUser(user), 201);
       } catch (error) {
         if (error instanceof UserEmailConflictError) {
@@ -324,7 +324,7 @@ export function usersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const user = await ctx.usersService.update(id, input);
+        const user = await ctx.iamService.commands.update(id, input);
         return c.json(serializeUser(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -343,7 +343,7 @@ export function usersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        await ctx.usersService.changePassword(id, input);
+        await ctx.iamService.commands.changePassword(id, input);
         return c.json({ success: true }, 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -358,7 +358,7 @@ export function usersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const user = await ctx.usersService.ban(id, input);
+        const user = await ctx.iamService.commands.ban(id, input);
         return c.json(serializeUser(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {
@@ -372,7 +372,7 @@ export function usersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const user = await ctx.usersService.unban(id);
+        const user = await ctx.iamService.commands.unban(id);
         return c.json(serializeUser(user), 200);
       } catch (error) {
         if (error instanceof UserNotFoundError) {

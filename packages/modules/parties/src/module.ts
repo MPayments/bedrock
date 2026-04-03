@@ -22,11 +22,15 @@ import type { RequisiteProviderReads } from "./requisites/application/ports/requ
 import type { RequisiteReads } from "./requisites/application/ports/requisite.reads";
 import type { RequisitesCommandUnitOfWork } from "./requisites/application/ports/requisites.uow";
 import type { PartyRegistryDocumentsReadPort } from "./shared/application/documents-read.port";
+import { createSubAgentProfilesService } from "./sub-agent-profiles/application";
+import type { SubAgentProfileReads } from "./sub-agent-profiles/application/ports/sub-agent-profile.reads";
+import type { SubAgentProfilesCommandUnitOfWork } from "./sub-agent-profiles/application/ports/sub-agent-profiles.uow";
 
 export type PartiesModuleUnitOfWork = CounterpartiesCommandUnitOfWork &
   CustomersCommandUnitOfWork &
   OrganizationsCommandUnitOfWork &
-  RequisitesCommandUnitOfWork;
+  RequisitesCommandUnitOfWork &
+  SubAgentProfilesCommandUnitOfWork;
 
 export interface PartiesModuleDeps {
   logger: Logger;
@@ -41,6 +45,7 @@ export interface PartiesModuleDeps {
   requisiteReads: RequisiteReads;
   requisiteProviderReads: RequisiteProviderReads;
   requisiteBindingReads: RequisiteBindingReads;
+  subAgentProfileReads: SubAgentProfileReads;
   unitOfWork: PartiesModuleUnitOfWork;
 }
 
@@ -82,6 +87,11 @@ export function createPartiesModule(deps: PartiesModuleDeps) {
       reads: deps.requisiteReads,
       providerReads: deps.requisiteProviderReads,
       bindingReads: deps.requisiteBindingReads,
+    }),
+    subAgentProfiles: createSubAgentProfilesService({
+      commandUow: deps.unitOfWork,
+      runtime: createRuntime("parties.sub-agent-profiles"),
+      reads: deps.subAgentProfileReads,
     }),
   };
 }

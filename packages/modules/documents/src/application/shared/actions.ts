@@ -23,6 +23,7 @@ import type {
   DocumentRegistry,
 } from "../../plugins";
 import type {
+  DocumentBusinessLinksRepository,
   DocumentOperationsRepository,
   DocumentsCommandRepository,
   DocumentsQueryRepository,
@@ -56,10 +57,12 @@ export function resolveDocumentAllowedActionsForDocument(input: {
 export function buildDocumentWithOperationId(input: {
   registry?: DocumentRegistry;
   document: Document;
+  dealId?: string | null;
   postingOperationId: string | null;
 }): DocumentWithOperationId {
   return {
     document: input.document,
+    dealId: input.dealId ?? null,
     postingOperationId: input.postingOperationId,
     allowedActions: resolveDocumentAllowedActionsForDocument({
       registry: input.registry,
@@ -394,6 +397,10 @@ export async function loadDocumentOrThrow(
 
 export async function loadDocumentWithOperationId(
   repositories: {
+    documentBusinessLinks?: Pick<
+      DocumentBusinessLinksRepository,
+      "findDealIdByDocumentId"
+    >;
     documents:
       | Pick<DocumentsQueryRepository, "findDocumentByType">
       | Pick<DocumentsCommandRepository, "findDocumentByType">;
@@ -402,6 +409,7 @@ export async function loadDocumentWithOperationId(
   input: {
     docType: string;
     documentId: string;
+    dealId?: string | null;
     postingOperationId?: string | null;
     registry?: DocumentRegistry;
   },
@@ -414,6 +422,13 @@ export async function loadDocumentWithOperationId(
   return buildDocumentWithOperationId({
     registry: input.registry,
     document,
+    dealId:
+      input.dealId ??
+      (repositories.documentBusinessLinks
+        ? await repositories.documentBusinessLinks.findDealIdByDocumentId(
+            document.id,
+          )
+        : null),
     postingOperationId:
       input.postingOperationId ??
       (await repositories.documentOperations.findPostingOperationId({

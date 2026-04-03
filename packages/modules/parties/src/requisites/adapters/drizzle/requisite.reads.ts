@@ -52,14 +52,9 @@ function mapRowToSnapshot(row: RequisiteRow): RequisiteSnapshot {
     label: row.label,
     description: row.description,
     beneficiaryName: row.beneficiaryName,
-    institutionName: row.institutionName,
-    institutionCountry: row.institutionCountry,
     accountNo: row.accountNo,
     corrAccount: row.corrAccount,
     iban: row.iban,
-    bic: row.bic,
-    swift: row.swift,
-    bankAddress: row.bankAddress,
     network: row.network,
     assetCode: row.assetCode,
     address: row.address,
@@ -110,6 +105,25 @@ export class DrizzleRequisiteReads implements RequisiteReads {
     if (!row) return null;
 
     return toPublicRequisite(mapRowToSnapshot(row));
+  }
+
+  async listActiveBankByCounterpartyId(
+    counterpartyId: string,
+  ): Promise<Requisite[]> {
+    const rows = await this.db
+      .select()
+      .from(requisites)
+      .where(
+        and(
+          eq(requisites.ownerType, "counterparty"),
+          eq(requisites.counterpartyId, counterpartyId),
+          eq(requisites.kind, "bank"),
+          isNull(requisites.archivedAt),
+        ),
+      )
+      .orderBy(desc(requisites.createdAt));
+
+    return rows.map((row) => toPublicRequisite(mapRowToSnapshot(row)));
   }
 
   async list(input: {
@@ -214,14 +228,9 @@ export class DrizzleRequisiteReads implements RequisiteReads {
         kind: requisites.kind,
         label: requisites.label,
         beneficiaryName: requisites.beneficiaryName,
-        institutionName: requisites.institutionName,
-        institutionCountry: requisites.institutionCountry,
         accountNo: requisites.accountNo,
         corrAccount: requisites.corrAccount,
         iban: requisites.iban,
-        bic: requisites.bic,
-        swift: requisites.swift,
-        bankAddress: requisites.bankAddress,
         network: requisites.network,
         assetCode: requisites.assetCode,
         address: requisites.address,

@@ -21,15 +21,12 @@ describe("requisites contracts", () => {
       label: "  Main bank  ",
       description: "   ",
       beneficiaryName: "  Acme Ltd  ",
-      institutionName: "  JPM  ",
-      institutionCountry: "us",
       accountNo: "  12345  ",
     });
 
     expect(parsed.label).toBe("Main bank");
     expect(parsed.description).toBeNull();
     expect(parsed.beneficiaryName).toBe("Acme Ltd");
-    expect(parsed.institutionCountry).toBe("US");
     expect(parsed.isDefault).toBe(false);
   });
 
@@ -66,11 +63,15 @@ describe("requisites contracts", () => {
       kind: "bank,exchange",
     });
     const providers = ListRequisiteProvidersQuerySchema.parse({
+      bic: "044525225, 044525974",
       country: "US, DE",
+      swift: "BOFAUS3N, CHASUS33",
     });
 
     expect(requisites.kind).toEqual(["bank", "exchange"]);
+    expect(providers.bic).toEqual(["044525225", "044525974"]);
     expect(providers.country).toEqual(["US", "DE"]);
+    expect(providers.swift).toEqual(["BOFAUS3N", "CHASUS33"]);
   });
 
   it("requires ownerType when ownerId is set in options query", () => {

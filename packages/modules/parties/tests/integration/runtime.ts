@@ -18,6 +18,7 @@ import {
   DrizzleRequisiteProviderReads,
   DrizzleRequisiteReads,
   DrizzleRequisitesQueries,
+  DrizzleSubAgentProfileReads,
 } from "../../src/adapters/drizzle";
 
 export function createIntegrationRuntime(options?: {
@@ -38,9 +39,10 @@ export function createIntegrationRuntime(options?: {
       },
       currencies: {
         async assertCurrencyExists(id) {
-          const result = await pool.query("select 1 from currencies where id = $1", [
-            id,
-          ]);
+          const result = await pool.query(
+            "select 1 from currencies where id = $1",
+            [id],
+          );
 
           if (result.rowCount === 0) {
             throw new Error(`Currency not found: ${id}`);
@@ -70,6 +72,7 @@ export function createIntegrationRuntime(options?: {
       requisiteReads: new DrizzleRequisiteReads(db),
       requisiteProviderReads: new DrizzleRequisiteProviderReads(db),
       requisiteBindingReads: new DrizzleRequisiteBindingReads(db),
+      subAgentProfileReads: new DrizzleSubAgentProfileReads(db),
       unitOfWork: new DrizzlePartyRegistryUnitOfWork({
         persistence: createPersistenceContext(db),
       }),

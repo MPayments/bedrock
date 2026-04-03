@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
@@ -29,6 +29,9 @@ interface DrizzleReconciliationExceptionsRepository {
     limit: number;
     offset: number;
   }) => Promise<ReconciliationExceptionListRow[]>;
+  listLinkedToOperationIds: (
+    operationIds: string[],
+  ) => Promise<ReconciliationExceptionListRow[]>;
   markResolvedTx: (
     tx: Transaction,
     input: {
@@ -44,6 +47,13 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
     ...run,
     resultSummary: ReconciliationRunSummarySchema.parse(run.resultSummary),
   };
+}
+
+function getOperationIdsArraySql(operationIds: string[]) {
+  return sql`ARRAY[${sql.join(
+    operationIds.map((operationId) => sql`${operationId}`),
+    sql`, `,
+  )}]::text[]`;
 }
 
 export function createDrizzleReconciliationExceptionsRepository(
@@ -102,6 +112,55 @@ export function createDrizzleReconciliationExceptionsRepository(
         .orderBy(desc(schema.reconciliationExceptions.createdAt))
         .limit(input.limit)
         .offset(input.offset)
+        .then((rows) =>
+          rows.map((row) => ({
+            ...row,
+            run: toRunRecord(row.run),
+          })),
+        );
+    },
+
+    async listLinkedToOperationIds(operationIds) {
+      if (operationIds.length === 0) {
+        return [];
+      }
+
+      const operationIdsSql = getOperationIdsArraySql(operationIds);
+
+      return db
+        .select({
+          exception: schema.reconciliationExceptions,
+          run: schema.reconciliationRuns,
+          externalRecord: schema.reconciliationExternalRecords,
+        })
+        .from(schema.reconciliationExceptions)
+        .innerJoin(
+          schema.reconciliationRuns,
+          eq(schema.reconciliationExceptions.runId, schema.reconciliationRuns.id),
+        )
+        .innerJoin(
+          schema.reconciliationExternalRecords,
+          eq(
+            schema.reconciliationExceptions.externalRecordId,
+            schema.reconciliationExternalRecords.id,
+          ),
+        )
+        .where(
+          sql`(
+              ${schema.reconciliationExternalRecords.normalizedPayload} ->> 'operationId'
+            ) = ANY(${operationIdsSql})
+            OR EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(
+                COALESCE(
+                  ${schema.reconciliationExternalRecords.normalizedPayload} -> 'candidateOperationIds',
+                  '[]'::jsonb
+                )
+              ) AS candidate(value)
+              WHERE candidate.value = ANY(${operationIdsSql})
+            )`,
+        )
+        .orderBy(desc(schema.reconciliationExceptions.createdAt))
         .then((rows) =>
           rows.map((row) => ({
             ...row,

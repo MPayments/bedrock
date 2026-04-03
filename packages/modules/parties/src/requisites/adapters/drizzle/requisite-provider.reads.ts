@@ -59,9 +59,11 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
     offset: number;
     sortBy?: "name" | "kind" | "country" | "createdAt" | "updatedAt";
     sortOrder?: "asc" | "desc";
+    bic?: string[];
     kind?: string[];
     country?: string[];
     name?: string;
+    swift?: string[];
   }): Promise<PaginatedList<RequisiteProvider>> {
     const conditions: SQL[] = [isNull(requisiteProviders.archivedAt)];
 
@@ -77,6 +79,14 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
 
     if (input.country?.length) {
       conditions.push(inArray(requisiteProviders.country, input.country));
+    }
+
+    if (input.bic?.length) {
+      conditions.push(inArray(requisiteProviders.bic, input.bic));
+    }
+
+    if (input.swift?.length) {
+      conditions.push(inArray(requisiteProviders.swift, input.swift));
     }
 
     const where = and(...conditions);

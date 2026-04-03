@@ -3,7 +3,7 @@ import {
 } from "@bedrock/documents/contracts";
 import { stableStringify } from "@bedrock/shared/core/canon";
 import { invariant } from "@bedrock/shared/core/domain";
-import { effectiveRateFromAmounts } from "@bedrock/shared/money/math";
+import { DAY_IN_SECONDS, effectiveRateFromAmounts } from "@bedrock/shared/money/math";
 
 import {
   financialLinesFromFeeComponents,
@@ -14,7 +14,7 @@ import { QuoteRoute } from "./quote-route";
 import type { QuotePricingMode } from "./quote-types";
 import type { FeeComponent } from "../../fees/domain/fee-types";
 
-const DEFAULT_QUOTE_TTL_SECONDS = 600;
+const DEFAULT_QUOTE_TTL_SECONDS = DAY_IN_SECONDS;
 
 export interface QuotePricingPlanSnapshot {
   fromCurrency: string;

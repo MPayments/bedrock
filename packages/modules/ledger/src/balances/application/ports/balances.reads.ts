@@ -3,6 +3,8 @@ import type {
   BalanceSubjectInput,
   LiquidityQueryRow,
   ListOrganizationLiquidityRowsInput,
+  ListOrganizationRequisiteLiquidityRowsInput,
+  OrganizationRequisiteLiquidityQueryRow,
 } from "../../contracts";
 
 export interface LedgerBalancesReads {
@@ -12,4 +14,7 @@ export interface LedgerBalancesReads {
   listOrganizationLiquidityRows(
     input: ListOrganizationLiquidityRowsInput,
   ): Promise<LiquidityQueryRow[]>;
+  listOrganizationRequisiteLiquidityRows(
+    input: ListOrganizationRequisiteLiquidityRowsInput,
+  ): Promise<OrganizationRequisiteLiquidityQueryRow[]>;
 }

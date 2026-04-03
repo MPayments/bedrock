@@ -60,6 +60,6 @@ RUN node -e "const {ModuleClient}=require('tlsclientwrapper');const m=new Module
 
 USER bedrock
 
-EXPOSE 3002
+EXPOSE 3000
 
 CMD ["node", "server.mjs"]

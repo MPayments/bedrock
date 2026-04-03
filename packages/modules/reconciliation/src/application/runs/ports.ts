@@ -37,6 +37,7 @@ export interface ReconciliationRunsTxRepository {
 
 export interface ReconciliationMatchesQueryRepository {
   findById(id: string): Promise<ReconciliationMatchRecord | null>;
+  listByMatchedOperationIds(operationIds: string[]): Promise<ReconciliationMatchRecord[]>;
 }
 
 export interface ReconciliationMatchesTxRepository {

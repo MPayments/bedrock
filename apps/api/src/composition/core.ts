@@ -1,17 +1,36 @@
 import type { AccountingModule } from "@bedrock/accounting";
+import {
+  createCustomerMembershipsService,
+  createIamService,
+  createPortalAccessGrantsService,
+  type CustomerMembershipsService,
+  type IamService,
+  type PortalAccessGrantsService,
+} from "@bedrock/iam";
+import {
+  createBetterAuthPasswordHasher,
+} from "@bedrock/iam/adapters/better-auth";
+import {
+  DrizzleCustomerMembershipReads,
+  DrizzleCustomerMembershipsUnitOfWork,
+  DrizzleIamUsersReads,
+  DrizzleIamUsersUnitOfWork,
+  DrizzlePortalAccessGrantReads,
+  DrizzlePortalAccessGrantsUnitOfWork,
+} from "@bedrock/iam/adapters/drizzle";
 import type { LedgerModule } from "@bedrock/ledger";
-import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
-import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
 import {
   createIdempotencyService,
-  type IdempotencyPort,
+  type IdempotencyService,
 } from "@bedrock/platform/idempotency-postgres";
 import {
   createConsoleLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
-import { createUsersService, type UsersService } from "@bedrock/users";
+import {
+  createPersistenceContext,
+  type PersistenceContext,
+} from "@bedrock/platform/persistence";
 
 import { createApiAccountingModule } from "./accounting-module";
 import { createApiLedgerModule } from "./ledger-module";
@@ -19,16 +38,23 @@ import { db } from "../db/client";
 
 export interface ApiCoreServices {
   logger: Logger;
+  persistence: PersistenceContext;
   accountingModule: AccountingModule;
-  idempotency: IdempotencyPort;
+  idempotency: IdempotencyService;
   ledgerModule: LedgerModule;
-  usersService: UsersService;
+  iamService: IamService;
+  customerMembershipsService: CustomerMembershipsService;
+  portalAccessGrantsService: PortalAccessGrantsService;
 }
 
 export function createCoreServices(): ApiCoreServices {
   const logger = createConsoleLogger({ app: "bedrock-api" });
   const idempotency = createIdempotencyService({ logger });
-  const authStore = createDrizzleAuthIdentityStore({ db });
+  const persistence = createPersistenceContext(db);
+  const iamReads = new DrizzleIamUsersReads(db);
+  const iamCommandUow = new DrizzleIamUsersUnitOfWork({
+    persistence,
+  });
   const passwordHasher = createBetterAuthPasswordHasher();
   const ledgerModule = createApiLedgerModule({
     db,
@@ -37,20 +63,36 @@ export function createCoreServices(): ApiCoreServices {
   });
   const accountingModule = createApiAccountingModule({
     db,
-    persistence: createPersistenceContext(db),
+    persistence,
     logger,
   });
-  const usersService = createUsersService({
-    identityStore: authStore,
+  const iamService = createIamService({
+    reads: iamReads,
+    commandUow: iamCommandUow,
     passwordHasher,
     logger,
+  });
+  const customerMembershipsService = createCustomerMembershipsService({
+    commandUow: new DrizzleCustomerMembershipsUnitOfWork({
+      persistence,
+    }),
+    reads: new DrizzleCustomerMembershipReads(db),
+  });
+  const portalAccessGrantsService = createPortalAccessGrantsService({
+    commandUow: new DrizzlePortalAccessGrantsUnitOfWork({
+      persistence,
+    }),
+    reads: new DrizzlePortalAccessGrantReads(db),
   });
 
   return {
     logger,
+    persistence,
     accountingModule,
     idempotency,
     ledgerModule,
-    usersService,
+    iamService,
+    customerMembershipsService,
+    portalAccessGrantsService,
   };
 }

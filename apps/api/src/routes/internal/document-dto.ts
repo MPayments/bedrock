@@ -31,6 +31,7 @@ export function toDocumentDto(input: DocumentWithOperationId) {
           }),
     currency: document.currency,
     memo: document.memo,
+    dealId: input.dealId,
     counterpartyId: document.counterpartyId,
     customerId: document.customerId,
     organizationRequisiteId: document.organizationRequisiteId,
@@ -77,6 +78,7 @@ export function toDocumentDetailsDto(
     normalizeMoneyFields({
       document: toDocumentDto({
         document: details.document,
+        dealId: details.dealId,
         postingOperationId: details.postingOperationId,
         allowedActions: details.allowedActions,
       }),
@@ -91,6 +93,7 @@ export function toDocumentDetailsDto(
       parent: details.parent
         ? toDocumentDto({
             document: details.parent,
+            dealId: null,
             postingOperationId: null,
             allowedActions: [],
           })
@@ -98,6 +101,7 @@ export function toDocumentDetailsDto(
       children: details.children.map((document) =>
         toDocumentDto({
           document,
+          dealId: null,
           postingOperationId: null,
           allowedActions: [],
         }),
@@ -105,6 +109,7 @@ export function toDocumentDetailsDto(
       dependsOn: details.dependsOn.map((document) =>
         toDocumentDto({
           document,
+          dealId: null,
           postingOperationId: null,
           allowedActions: [],
         }),
@@ -112,6 +117,7 @@ export function toDocumentDetailsDto(
       compensates: details.compensates.map((document) =>
         toDocumentDto({
           document,
+          dealId: null,
           postingOperationId: null,
           allowedActions: [],
         }),

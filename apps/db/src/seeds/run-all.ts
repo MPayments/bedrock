@@ -1,18 +1,15 @@
 import { hashPassword } from "better-auth/crypto";
 
-import { loadSeedEnv } from "./load-env";
-
-loadSeedEnv();
-
-const { db } = await import("../client");
-
 const { seedCurrencies } = await import("./currencies");
 const { seedAccounting } = await import("./accounting");
 const { seedCounterparties } = await import("./counterparties");
 const { seedOrganizations } = await import("./organizations");
 const { seedRequisiteProviders } = await import("./requisite-providers");
 const { seedRequisites } = await import("./requisites");
+const { loadSeedDatabase } = await import("./runtime");
 const { seedUsers } = await import("./users");
+
+const db = await loadSeedDatabase();
 
 console.log("[seed] Starting full database seed...\n");
 

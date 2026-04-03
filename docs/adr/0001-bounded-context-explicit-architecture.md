@@ -3,7 +3,9 @@
 - Status: Accepted
 - Date: 2026-03-14
 - References:
-  - [plan.md](/Users/alexey.eramasov/dev/ledger/plan.md)
+  - [ADR 0002: Party Registry Consolidation](./0002-requisites-topology.md)
+  - [`scripts/check-architecture.mjs`](../../scripts/check-architecture.mjs)
+  - [`scripts/check-manifests.mjs`](../../scripts/check-manifests.mjs)
   - [Herberto Graca, "DDD, Hexagonal, Onion, Clean, CQRS, … How I put it all together"](https://herbertograca.com/2017/11/16/explicit-architecture-01-ddd-hexagonal-onion-clean-cqrs-how-i-put-it-all-together/)
 
 ## Context
@@ -18,9 +20,7 @@ The repo is being reshaped into a modular monolith with extractable bounded-cont
 - `packages/sdk/*`
 - `packages/tooling/*`
 
-This ADR codifies the next level of architecture inside those packages.
-
-The local reference is [plan.md](/Users/alexey.eramasov/dev/ledger/plan.md), which argues for bounded-context ownership, schema ownership by the owning package, and strict public-package boundaries.
+This ADR codifies the next level of architecture inside those packages. The repo's executable reference now lives in the architecture and manifest guardrails, which enforce package boundaries and export discipline directly in CI.
 
 The architectural reference is Herberto Graca's Explicit Architecture article, which separates:
 
@@ -58,41 +58,46 @@ The top-level packaging axis must remain business ownership, not technical layer
 
 ## Runtime Package Shape
 
-New and refactored runtime packages should follow this internal structure:
+Current Bedrock packages use two approved shapes.
+
+Slice-first layout, which is the dominant current shape across modules such as accounting, parties, treasury, and ledger:
 
 ```text
 src/
   index.ts
-  [capability].ts   # optional public facade entrypoints such as reports.ts or ledger.ts
-  contracts/
-    commands.ts
-    queries.ts
-    events.ts
-    zod.ts
-    dto.ts
-
-  application/
-    shared/
-      context.ts   # dependency/context normalization used by the module facade and handlers
-    [capability]/ # or plain setup in application if no separable capabilities
+  module.ts | service.ts | worker.ts
+  [slice]/
+    application/
       commands/
       queries/
-      ports.ts
-  domain/
-    [capability]/   # preferred when the module is organized by capability
-    [concept].ts    # also acceptable when the module stays flat by domain concept
-    errors.ts
-  infra/
-    drizzle/
-      schema/
-      repos/
-    integrations/
-    workers/
+      ports/
+      contracts/   # optional when the slice exports DTOs directly
+    domain/
+    adapters/
+      drizzle/
+        schema.ts
 ```
 
-This is a shape guideline, not a requirement to introduce taxonomy-only folders. Bedrock modules are usually organized by capability or flat domain concepts first, and only introduce subfolders when they make the package clearer.
+Root-layered layout, which is used by packages such as documents:
 
-`application/shared/context.ts` is the default place for package-local dependency normalization and logger/context setup. `service.ts` or another root facade composes handlers from that context and remains thin.
+```text
+src/
+  index.ts
+  service.ts
+  contracts/
+  application/
+    shared/
+      context.ts
+  domain/
+  infra/
+    drizzle/
+      schema.ts
+      repos/
+```
+
+Both shapes are valid. The rules in this ADR are about dependency direction and ownership, not about forcing taxonomy-only renames. Preserve a package's existing shape unless the change is explicitly migrating that package.
+
+In root-layered packages, `application/shared/context.ts` is the default place for package-local dependency normalization and logger/context setup. In slice-first packages, keep context, contracts, ports, and adapters inside the owning slice.
 
 Additional package-local folders are allowed when they are part of the public model or package assets, for example `packs/` in accounting.
 
@@ -114,7 +119,7 @@ Additional package-local folders are allowed when they are part of the public mo
   - pure business rules
   - domain services
   - domain-only types
-- `infra/`
+- `infra/` or slice-local `adapters/`
   - Drizzle tables and repositories
   - external integration adapters
   - query-support SQL
@@ -215,7 +220,7 @@ Deep imports into non-exported files are forbidden.
 - `apps/db` is the schema aggregator for migrations, reset, and seed/bootstrap orchestration; it composes schema exported by owning packages and must not become the owner of domain tables.
 - Cross-context reads are allowed only through exported query contracts, projections/read models,
 or narrowly scoped infra-level migration queries documented by the owning package.
-- `infra/drizzle/schema` may import another package's exported `./schema` surface when needed for foreign keys, references, or relational integrity.
+- `infra/drizzle/schema` or `<slice>/adapters/drizzle/schema` may import another package's exported `./schema` surface when needed for foreign keys, references, or relational integrity.
 - Cross-context schema references are an infra concern only. They must not leak into `application/` or `domain/`.
 - Domain code must not read foreign-owned data directly.
 - Application write paths must not join or mutate foreign-owned tables.
@@ -233,27 +238,27 @@ No single module captures every approved pattern. Use this reference set instead
 
 Examples:
 
-- context/service composition:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/service.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/application/shared/context.ts`
-- small service facade using shared application context:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/service.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/application/shared/context.ts`
-- rich domain and package-local assets:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/compile-pack.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/resolve-posting-plan.ts`
+- root-layered context/service composition:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/service.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/application/shared/context.ts`
+- thin service facade exported from the application root:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/iam/src/service.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/iam/src/application/index.ts`
+- slice-first domain and package-local assets:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/packs/domain/compile-pack.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/packs/domain/resolve-posting-plan.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/packs/schema.ts`
-- application ports:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/chart/ports.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/packs/ports.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/periods/ports.ts`
+- slice-local application ports:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/chart/application/ports/chart.store.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/packs/application/ports/pack.repository.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/periods/application/ports/period.repository.ts`
 - host module surfaces and intentional extra exports:
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/package.json`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/index.ts`
-- infra adapters and schema cross-context references:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/infra/drizzle/repos/chart-repository.ts`
+- adapter implementations and schema cross-context references:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/chart/adapters/drizzle/chart.store.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/infra/drizzle/schema.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/organizations/src/infra/drizzle/schema/requisites.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/parties/src/organizations/adapters/drizzle/schema.ts`
 
 Together these show the intended target architecture. New and refactored packages should align with these patterns without forcing every module into the exact same folder taxonomy.
 
@@ -268,4 +273,4 @@ Immediate consequences:
 - future boundary checks should validate layer-level imports, not only package-level imports
 - module generators should produce this structure by default
 
-This ADR does not require all existing packages to be compliant immediately. It defines the target architecture for migrations and new work.
+This ADR defines the allowed current shapes and the target dependency rules for migrations and new work. Existing slice-first `adapters/` packages are valid; migration to root-layered `infra/` should be deliberate rather than churn for its own sake.

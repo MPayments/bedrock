@@ -29,7 +29,9 @@ export interface QuoteRecord {
   rateNum: bigint;
   rateDen: bigint;
   status: QuoteStatus;
+  dealId: string | null;
   usedByRef: string | null;
+  usedDocumentId: string | null;
   usedAt: Date | null;
   expiresAt: Date;
   idempotencyKey: string;
@@ -96,6 +98,7 @@ export interface QuoteWriteModel {
   rateDen: bigint;
   expiresAt: Date;
   status: QuoteStatus;
+  dealId: string | null;
   idempotencyKey: string;
   createdAt: Date;
 }
@@ -116,6 +119,7 @@ export interface QuoteLegWriteModel {
 }
 
 export interface QuotesListQuery {
+  dealId?: string;
   limit: number;
   offset: number;
   sortBy: string;
@@ -126,8 +130,10 @@ export interface QuotesListQuery {
 }
 
 export interface MarkQuoteUsedInput {
+  dealId?: string | null;
   quoteId: string;
   usedByRef: string;
+  usedDocumentId?: string | null;
   at: Date;
 }
 
@@ -154,5 +160,5 @@ export interface QuotesRepository {
     tx?: PersistenceSession,
   ): Promise<QuoteLegRecord[]>;
   markQuoteUsedIfActive(input: MarkQuoteUsedInput): Promise<QuoteRecord | undefined>;
-  expireOldQuotes(now: Date): Promise<void>;
+  expireOldQuotes(now: Date): Promise<QuoteRecord[]>;
 }

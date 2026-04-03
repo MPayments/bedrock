@@ -67,6 +67,16 @@ describe("parties organizations integration", () => {
       .select()
       .from(partiesSchema.organizations)
       .where(eq(partiesSchema.organizations.id, created.id));
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.isActive).toBe(false);
+
+    const activeOnly = await module.organizations.queries.list({
+      isActive: true,
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+    expect(activeOnly.data.some((item) => item.id === created.id)).toBe(false);
   });
 });

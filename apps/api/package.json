@@ -5,31 +5,42 @@
   "type": "module",
   "exports": {
     "./types": {
-      "types": "./dist/types.d.ts",
+      "types": "./src/types.ts",
       "default": "./dist/types.js"
     }
   },
   "scripts": {
-    "build": "tsgo --project tsconfig.json",
+    "build": "node ./build.mjs",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "check-types": "tsgo --noEmit --project tsconfig.json",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/parties": "workspace:*",
+    "@bedrock/agreements": "workspace:*",
+    "@bedrock/calculations": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/currencies": "workspace:*",
+    "@bedrock/deals": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/files": "workspace:*",
+    "@bedrock/iam": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/platform": "workspace:*",
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
+    "@bedrock/shared": "workspace:*",
     "@bedrock/treasury": "workspace:*",
-    "@bedrock/users": "workspace:*",
+    "@bedrock/workflow-customer-portal": "workspace:*",
+    "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
+    "@bedrock/workflow-deal-execution": "workspace:*",
+    "@bedrock/workflow-deal-projections": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",
+    "@bedrock/workflow-document-generation": "workspace:*",
     "@bedrock/workflow-document-posting": "workspace:*",
-    "@bedrock/workflow-integration-mpayments": "workspace:*",
     "@bedrock/workflow-organization-bootstrap": "workspace:*",
     "@bedrock/workflow-requisite-accounting": "workspace:*",
     "@hono/node-server": "^1.19.9",
@@ -39,9 +50,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.12.2",
-    "zod": "^4.3.6",
-    "@bedrock/platform": "workspace:*",
-    "@bedrock/shared": "workspace:*"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

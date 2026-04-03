@@ -2,6 +2,7 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { toJsonSafe } from "@bedrock/shared/core/json";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core/pagination";
 
 import type { AccountingReportQueries } from "../../reports/application/queries/reports";
 import type {
@@ -89,7 +90,7 @@ export function createAccountingClosePackageSnapshotPort(input: {
             status: ["posted"],
             from: snapshotInput.periodStart.toISOString(),
             to: snapshotInput.periodEnd.toISOString(),
-            limit: 200,
+            limit: MAX_QUERY_LIST_LIMIT,
             offset: 0,
             sortBy: "accountNo",
             sortOrder: "asc",

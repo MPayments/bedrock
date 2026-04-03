@@ -4,9 +4,15 @@ const REQUIRED_TABLES = [
   { schemaName: "drizzle", tableName: "__drizzle_migrations" },
   { schemaName: "public", tableName: "books" },
   { schemaName: "public", tableName: "organizations" },
+  { schemaName: "public", tableName: "customer_memberships" },
   { schemaName: "public", tableName: "requisite_providers" },
   { schemaName: "public", tableName: "requisites" },
   { schemaName: "public", tableName: "organization_requisite_bindings" },
+  { schemaName: "public", tableName: "deal_intake_snapshots" },
+  { schemaName: "public", tableName: "deal_capability_states" },
+  { schemaName: "public", tableName: "deal_operational_positions" },
+  { schemaName: "public", tableName: "deal_timeline_events" },
+  { schemaName: "public", tableName: "deal_quote_acceptances" },
   { schemaName: "public", tableName: "accounting_report_line_mappings" },
   { schemaName: "public", tableName: "accounting_close_packages" },
 ] as const;
@@ -24,9 +30,35 @@ const REQUIRED_COLUMNS = [
     tableName: "documents",
     columnName: "organization_requisite_id",
   },
+  {
+    tableName: "counterparties",
+    columnName: "customer_id",
+  },
+  {
+    tableName: "deals",
+    columnName: "next_action",
+  },
+  {
+    tableName: "deal_legs",
+    columnName: "state",
+  },
+  {
+    tableName: "deal_calculation_links",
+    columnName: "source_quote_id",
+  },
+  {
+    tableName: "calculation_snapshots",
+    columnName: "quote_snapshot",
+  },
 ] as const;
 
 const REQUIRED_INDEXES = ["books_default_owner_uq"] as const;
+const REQUIRED_ENUM_VALUES = [
+  {
+    enumName: "deal_timeline_event_type",
+    values: ["quote_accepted", "leg_state_changed"],
+  },
+] as const;
 
 function formatMissing(values: string[]) {
   return values.length === 0 ? "none" : values.join(", ");
@@ -99,11 +131,36 @@ export async function assertIntegrationDbSchemaState(
   const missingIndexes = REQUIRED_INDEXES.filter(
     (name) => !existingIndexes.has(name),
   );
+  const existingEnumValuesResult = await pool.query<{
+    enum_name: string;
+    enum_value: string;
+  }>(
+    `
+      SELECT
+        t.typname AS enum_name,
+        e.enumlabel AS enum_value
+      FROM pg_type t
+      JOIN pg_enum e ON e.enumtypid = t.oid
+      WHERE t.typname = ANY($1::text[])
+    `,
+    [REQUIRED_ENUM_VALUES.map((entry) => entry.enumName)],
+  );
+  const existingEnumValues = new Set(
+    existingEnumValuesResult.rows.map(
+      (row) => `${row.enum_name}.${row.enum_value}`,
+    ),
+  );
+  const missingEnumValues = REQUIRED_ENUM_VALUES.flatMap((entry) =>
+    entry.values
+      .filter((value) => !existingEnumValues.has(`${entry.enumName}.${value}`))
+      .map((value) => `${entry.enumName}.${value}`),
+  );
 
   if (
     missingTables.length > 0 ||
     missingColumns.length > 0 ||
-    missingIndexes.length > 0
+    missingIndexes.length > 0 ||
+    missingEnumValues.length > 0
   ) {
     throw new Error(
       [
@@ -113,6 +170,7 @@ export async function assertIntegrationDbSchemaState(
         )}`,
         `Missing columns: ${formatMissing(missingColumns)}`,
         `Missing indexes: ${formatMissing([...missingIndexes])}`,
+        `Missing enum values: ${formatMissing(missingEnumValues)}`,
         "Run the hard-cutover path: db:nuke -> db:migrate -> db:seed.",
       ].join("\n"),
     );

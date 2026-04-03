@@ -17,4 +17,6 @@ export { DrizzleRequisiteProviderStore } from "../requisites/adapters/drizzle/re
 export { DrizzleRequisiteReads } from "../requisites/adapters/drizzle/requisite.reads";
 export { DrizzleRequisiteRepository } from "../requisites/adapters/drizzle/requisite.repository";
 export { DrizzleRequisitesQueries } from "../requisites/adapters/drizzle/requisites.queries";
+export { DrizzleSubAgentProfileReads } from "../sub-agent-profiles/adapters/drizzle/sub-agent-profile.reads";
+export { DrizzleSubAgentProfileStore } from "../sub-agent-profiles/adapters/drizzle/sub-agent-profile.store";
 export { DrizzlePartyRegistryUnitOfWork } from "../shared/adapters/drizzle/party-registry.uow";

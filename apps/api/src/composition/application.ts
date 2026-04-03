@@ -1,8 +1,12 @@
 import type { AccountingModule } from "@bedrock/accounting";
+import type { AgreementsModule } from "@bedrock/agreements";
+import type { CalculationsModule } from "@bedrock/calculations";
 import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
+import type { DealsModule } from "@bedrock/deals";
+import { DrizzleDealStore } from "@bedrock/deals/adapters/drizzle";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -10,8 +14,15 @@ import {
   type DocumentsService,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import {
+  createDrizzleDocumentsReadModel,
+  type DocumentsReadModel,
+} from "@bedrock/documents/read-model";
+import type { FilesModule } from "@bedrock/files";
+import { UserNotFoundError } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
+import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
+import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import {
   bindPersistenceSession,
   createPersistenceContext,
@@ -20,20 +31,42 @@ import {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import {
+  createReconciliationService,
+  type ReconciliationService,
+} from "@bedrock/reconciliation";
+import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { TreasuryModule } from "@bedrock/treasury";
-import { UserNotFoundError } from "@bedrock/users";
+import {
+  createCustomerPortalWorkflow,
+  type CustomerPortalWorkflow,
+} from "@bedrock/workflow-customer-portal";
+import {
+  createDealAttachmentIngestionWorkflow,
+  type DealAttachmentIngestionWorkflow,
+} from "@bedrock/workflow-deal-attachment-ingestion";
+import {
+  createDealExecutionWorkflow,
+  type DealExecutionWorkflow,
+} from "@bedrock/workflow-deal-execution";
+import {
+  createDealProjectionsWorkflow,
+  type DealProjectionsWorkflow,
+} from "@bedrock/workflow-deal-projections";
 import {
   createDocumentDraftWorkflow,
   type DocumentDraftWorkflow,
 } from "@bedrock/workflow-document-drafts";
 import {
+  createDocumentGenerationWorkflow,
+  createEasyTemplateXAdapter,
+  createLibreOfficeConvertAdapter,
+  type DocumentGenerationWorkflow,
+} from "@bedrock/workflow-document-generation";
+import {
   createDocumentPostingWorkflow,
   type DocumentPostingWorkflow,
 } from "@bedrock/workflow-document-posting";
-import {
-  createIntegrationEventHandler,
-  type IntegrationEventHandler,
-} from "@bedrock/workflow-integration-mpayments";
 import {
   createOrganizationBootstrapWorkflow,
   type OrganizationBootstrapWorkflow,
@@ -44,26 +77,53 @@ import {
 } from "@bedrock/workflow-requisite-accounting";
 
 import { createApiAccountingModule } from "./accounting-module";
+import { createApiAgreementsModule } from "./agreements-module";
+import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
+import {
+  createDealQuoteWorkflow,
+  type DealQuoteWorkflow,
+} from "./deal-quote-workflow";
+import { createApiDealsModule } from "./deals-module";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import { createApiFilesModule } from "./files-module";
 import { createApiLedgerModule } from "./ledger-module";
-import { createApiPartiesModule } from "./parties-module";
+import {
+  createApiPartiesModule,
+  createApiPartiesReadRuntime,
+  type ApiPartiesReadRuntime,
+} from "./parties-module";
 import { createApiTreasuryModule } from "./treasury-module";
+import type { Env } from "../context";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
+  agreementsModule: AgreementsModule;
+  calculationsModule: CalculationsModule;
+  dealsModule: DealsModule;
+  reconciliationService: ReconciliationService;
+  filesModule: FilesModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealExecutionWorkflow: DealExecutionWorkflow;
+  dealQuoteWorkflow: DealQuoteWorkflow;
+  dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  integrationEventHandler: IntegrationEventHandler;
+  customerPortalWorkflow: CustomerPortalWorkflow;
+  documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentsReadModel: DocumentsReadModel;
+  partiesReadRuntime: ApiPartiesReadRuntime;
+  documentExtraction?: OpenAIDocumentExtractionAdapter;
+  objectStorage?: S3ObjectStorageAdapter;
 }
 
 const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
@@ -88,13 +148,16 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
 
 export function createApplicationServices(
   platform: ApiCoreServices,
+  env?: Env,
 ): ApiApplicationServices {
   const {
     accountingModule,
+    customerMembershipsService,
     idempotency,
+    iamService,
     ledgerModule,
     logger,
-    usersService,
+    portalAccessGrantsService,
   } =
     platform;
   const ledgerReadPort = {
@@ -108,9 +171,26 @@ export function createApplicationServices(
       logger,
       persistence: bindPersistenceSession(tx),
     });
+  const createTreasuryModuleForTransaction = (tx: Transaction) =>
+    createApiTreasuryModule({
+      db: tx,
+      logger,
+      currencies: treasuryCurrenciesPort,
+      persistence: bindPersistenceSession(tx),
+    });
+  const createDealsModuleForTransaction = (tx: Transaction) =>
+    createApiDealsModule({
+      currencies: currenciesService,
+      db: tx,
+      quoteReads: createTreasuryModuleForTransaction(tx).quotes.queries,
+      logger,
+      idempotency,
+      persistence: bindPersistenceSession(tx),
+    });
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesService = createCurrenciesService({ db, logger });
+  const partiesReadRuntime = createApiPartiesReadRuntime(db);
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
       await currenciesService.findById(id);
@@ -145,6 +225,80 @@ export function createApplicationServices(
     },
     currencies: currenciesPort,
     logger,
+  });
+  const agreementsModule = createApiAgreementsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+  });
+  const calculationsModule = createApiCalculationsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+    treasuryQuotes: treasuryModule.quotes.queries,
+  });
+  const dealsModule = createApiDealsModule({
+    currencies: currenciesService,
+    db,
+    quoteReads: treasuryModule.quotes.queries,
+    logger,
+    idempotency,
+    persistence: createPersistenceContext(db),
+  });
+  const dealQuoteWorkflow = createDealQuoteWorkflow({
+    calculations: calculationsModule,
+    currencies: currenciesService,
+    deals: dealsModule,
+    treasury: treasuryModule,
+  });
+  const createReconciliationServiceForTransaction = (tx: Transaction) =>
+    createReconciliationService({
+      persistence: bindPersistenceSession(tx),
+      idempotency,
+      documents: {
+        async existsById() {
+          return false;
+        },
+      },
+      ledgerLookup: {
+        async operationExists(operationId: string) {
+          return (
+            (await createLedgerModuleForTransaction(tx).operations.queries.getDetails(
+              operationId,
+            )) !== null
+          );
+        },
+      },
+      logger,
+    });
+  const reconciliationService = createReconciliationService({
+    persistence: createPersistenceContext(db),
+    idempotency,
+    documents: {
+      async existsById() {
+        return false;
+      },
+    },
+    ledgerLookup: {
+      async operationExists(operationId: string) {
+        return (await ledgerModule.operations.queries.getDetails(operationId)) !== null;
+      },
+    },
+    logger,
+  });
+  const dealExecutionWorkflow = createDealExecutionWorkflow({
+    agreements: agreementsModule,
+    currencies: currenciesService,
+    db,
+    idempotency,
+    createDealStore: (tx) => new DrizzleDealStore(tx),
+    createDealsModule: createDealsModuleForTransaction,
+    createReconciliationService: createReconciliationServiceForTransaction,
+    createTreasuryModule: createTreasuryModuleForTransaction,
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
@@ -253,8 +407,51 @@ export function createApplicationServices(
   };
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
+    expireQuotes: dealQuoteWorkflow.expireQuotes,
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
-    markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
+    markQuoteUsed: async (
+      input: Parameters<typeof treasuryModule.quotes.commands.markQuoteUsed>[0],
+    ) => {
+      let usedDocumentId = input.usedDocumentId ?? null;
+      let dealId = input.dealId ?? null;
+
+      if (!usedDocumentId) {
+        const matched = input.usedByRef.match(
+          /^(invoice|fx_execute):([0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[1-8][0-9a-fA-F-]{3}-[89abAB][0-9a-fA-F-]{3}-[0-9a-fA-F-]{12})$/,
+        );
+        if (matched) {
+          usedDocumentId = matched[2]!;
+        }
+      }
+
+      if (usedDocumentId) {
+        const linkedDocument = await documentsReadModel.findBusinessLinkByDocumentId(
+          usedDocumentId,
+        );
+
+        if (!linkedDocument) {
+          throw new NotFoundError("Document", usedDocumentId);
+        }
+
+        if (
+          dealId &&
+          linkedDocument.dealId &&
+          dealId !== linkedDocument.dealId
+        ) {
+          throw new ValidationError(
+            `Quote document ${usedDocumentId} belongs to deal ${linkedDocument.dealId}, not ${dealId}`,
+          );
+        }
+
+        dealId = dealId ?? linkedDocument.dealId ?? null;
+      }
+
+      return dealQuoteWorkflow.markQuoteUsed({
+        ...input,
+        dealId,
+        usedDocumentId,
+      });
+    },
   };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
@@ -280,7 +477,7 @@ export function createApplicationServices(
     rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
     async isActorExemptFromApproval({ actorUserId }) {
       try {
-        return (await usersService.findById(actorUserId)).role === "admin";
+        return (await iamService.queries.findById(actorUserId)).role === "admin";
       } catch (error) {
         if (error instanceof UserNotFoundError) {
           return false;
@@ -329,27 +526,110 @@ export function createApplicationServices(
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
-  const integrationEventHandler = createIntegrationEventHandler({
-    createCustomer: partiesModule.customers.commands.create,
-    listCustomers: partiesModule.customers.queries.list,
-    createCounterparty: partiesModule.counterparties.commands.create,
-    listCounterparties: partiesModule.counterparties.queries.list,
-    createRequisite: partiesModule.requisites.commands.create,
-    listProviders: partiesModule.requisites.queries.listProviders,
-    createProvider: partiesModule.requisites.commands.createProvider,
-    findCurrencyByCode: currenciesService.findByCode,
+  const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
+    ? new S3ObjectStorageAdapter({
+        endpoint: env.S3_ENDPOINT,
+        region: env.S3_REGION ?? "us-east-1",
+        accessKeyId: env.S3_ACCESS_KEY,
+        secretAccessKey: env.S3_SECRET_KEY,
+        bucket: env.S3_BUCKET ?? "bedrock-documents",
+        forcePathStyle: true,
+      }, logger)
+    : undefined;
+  const filesModule = createApiFilesModule({
+    db,
+    logger,
+    objectStorage,
+    persistence: createPersistenceContext(db),
+  });
+  const dealProjectionsWorkflow = createDealProjectionsWorkflow({
+    agreements: agreementsModule,
+    calculations: calculationsModule,
+    currencies: currenciesService,
+    deals: dealsModule,
+    documentsReadModel,
+    files: filesModule,
+    iam: iamService,
+    parties: partiesModule,
+    reconciliation: reconciliationService,
+    treasury: treasuryModule,
+  });
+
+  // Customer portal workflow
+  const customerPortalWorkflow = createCustomerPortalWorkflow({
+    calculations: calculationsModule,
+    currencies: currenciesService,
+    deals: dealsModule,
+    iam: {
+      customerMemberships: customerMembershipsService,
+      portalAccessGrants: portalAccessGrantsService,
+      users: iamService,
+    },
+    parties: {
+      counterparties: partiesModule.counterparties,
+      customers: partiesModule.customers,
+      requisites: partiesModule.requisites,
+    },
+    logger,
+  });
+
+  // Document generation workflow
+  const templatesDir = new URL(
+    "../../../../packages/workflows/document-generation/templates",
+    import.meta.url,
+  ).pathname;
+
+  const templateAdapter = createEasyTemplateXAdapter({
+    templatesDir,
+    logger,
+  });
+
+  const documentGenerationWorkflow = createDocumentGenerationWorkflow({
+    agreements: agreementsModule,
+    currencies: currenciesService,
+    parties: partiesModule,
+    templateRenderer: templateAdapter,
+    pdfConverter: createLibreOfficeConvertAdapter(),
+    templateManager: templateAdapter,
+    objectStorage,
+    logger,
+  });
+
+  // AI document extraction (optional)
+  const documentExtraction = env?.OPENAI_API_KEY
+    ? new OpenAIDocumentExtractionAdapter({ apiKey: env.OPENAI_API_KEY })
+    : undefined;
+  const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow({
+    currencies: currenciesService,
+    deals: dealsModule,
+    documentExtraction,
+    files: filesModule,
     logger,
   });
 
   return {
+    agreementsModule,
+    calculationsModule,
+    dealsModule,
+    reconciliationService,
+    filesModule,
     partiesModule,
     currenciesService,
     treasuryModule,
+    dealAttachmentIngestionWorkflow,
+    dealExecutionWorkflow,
+    dealQuoteWorkflow,
+    dealProjectionsWorkflow,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,
     documentDraftWorkflow,
     documentPostingWorkflow,
-    integrationEventHandler,
+    customerPortalWorkflow,
+    documentGenerationWorkflow,
+    documentsReadModel,
+    partiesReadRuntime,
+    documentExtraction,
+    objectStorage,
   };
 }

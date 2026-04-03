@@ -29,12 +29,18 @@ import type {
   RequisitesCommandTx,
   RequisitesCommandUnitOfWork,
 } from "../../../requisites/application/ports/requisites.uow";
+import { DrizzleSubAgentProfileStore } from "../../../sub-agent-profiles/adapters/drizzle/sub-agent-profile.store";
+import type {
+  SubAgentProfilesCommandTx,
+  SubAgentProfilesCommandUnitOfWork,
+} from "../../../sub-agent-profiles/application/ports/sub-agent-profiles.uow";
 
 type PartyRegistryTx =
   & CounterpartiesCommandTx
   & CustomersCommandTx
   & OrganizationsCommandTx
-  & RequisitesCommandTx;
+  & RequisitesCommandTx
+  & SubAgentProfilesCommandTx;
 
 function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
   const counterpartyGroups = new DrizzleCounterpartyGroupRepository(tx);
@@ -48,6 +54,7 @@ function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
     requisites: new DrizzleRequisiteRepository(tx),
     requisiteProviderStore: new DrizzleRequisiteProviderStore(tx),
     requisiteBindingStore: new DrizzleRequisiteBindingStore(tx),
+    subAgentProfiles: new DrizzleSubAgentProfileStore(tx),
   };
 }
 
@@ -56,7 +63,8 @@ export class DrizzlePartyRegistryUnitOfWork
     CounterpartiesCommandUnitOfWork,
     CustomersCommandUnitOfWork,
     OrganizationsCommandUnitOfWork,
-    RequisitesCommandUnitOfWork
+    RequisitesCommandUnitOfWork,
+    SubAgentProfilesCommandUnitOfWork
 {
   private readonly transactional: TransactionalPort<PartyRegistryTx>;
 

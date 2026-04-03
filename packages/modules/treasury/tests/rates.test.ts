@@ -350,6 +350,13 @@ describe("Treasury rates priority + TTL", () => {
 
     it("expires old active quotes", async () => {
         const db = {
+            update: vi.fn(() => ({
+                set: vi.fn(() => ({
+                    where: vi.fn(() => ({
+                        returning: vi.fn(async () => []),
+                    })),
+                })),
+            })),
             select: vi.fn(),
             insert: vi.fn(),
             execute: vi.fn(async () => undefined),
@@ -367,6 +374,6 @@ describe("Treasury rates priority + TTL", () => {
 
         await service.quotes.expireOldQuotes(new Date("2026-02-19T10:00:00Z"));
 
-        expect(db.execute).toHaveBeenCalledTimes(1);
+        expect(db.update).toHaveBeenCalledTimes(1);
     });
 });

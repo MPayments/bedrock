@@ -12,6 +12,8 @@ import type { RequisiteBindingReads } from "./ports/requisite-binding.reads";
 import type { RequisiteProviderReads } from "./ports/requisite-provider.reads";
 import type { RequisiteReads } from "./ports/requisite.reads";
 import type { RequisitesCommandUnitOfWork } from "./ports/requisites.uow";
+import { FindOrganizationBankByIdQuery } from "./queries/find-organization-bank-by-id";
+import { FindPreferredCounterpartyBankByCounterpartyIdQuery } from "./queries/find-preferred-counterparty-bank-by-counterparty-id";
 import { FindRequisiteByIdQuery } from "./queries/find-requisite-by-id";
 import { FindRequisiteProviderByIdQuery } from "./queries/find-requisite-provider-by-id";
 import { GetRequisiteBindingQuery } from "./queries/get-requisite-binding";
@@ -71,6 +73,11 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
   );
   const listRequisites = new ListRequisitesQuery(deps.reads);
   const findRequisiteById = new FindRequisiteByIdQuery(deps.reads);
+  const findOrganizationBankById = new FindOrganizationBankByIdQuery(
+    deps.reads,
+  );
+  const findPreferredCounterpartyBankByCounterpartyId =
+    new FindPreferredCounterpartyBankByCounterpartyIdQuery(deps.reads);
   const listRequisiteOptions = new ListRequisiteOptionsQuery(deps.reads);
   const listRequisiteProviders = new ListRequisiteProvidersQuery(
     deps.providerReads,
@@ -101,6 +108,12 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
     queries: {
       list: listRequisites.execute.bind(listRequisites),
       findById: findRequisiteById.execute.bind(findRequisiteById),
+      findOrganizationBankById:
+        findOrganizationBankById.execute.bind(findOrganizationBankById),
+      findPreferredCounterpartyBankByCounterpartyId:
+        findPreferredCounterpartyBankByCounterpartyId.execute.bind(
+          findPreferredCounterpartyBankByCounterpartyId,
+        ),
       listOptions: listRequisiteOptions.execute.bind(listRequisiteOptions),
       listProviders: listRequisiteProviders.execute.bind(listRequisiteProviders),
       findProviderById: findRequisiteProviderById.execute.bind(

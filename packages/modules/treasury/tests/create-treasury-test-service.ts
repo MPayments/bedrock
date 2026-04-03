@@ -5,6 +5,8 @@ import type {
 } from "@bedrock/platform/persistence";
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { DrizzleTreasuryOperationsRepository } from "../src/operations/adapters/drizzle/operations.repository";
+import { createTreasuryOperationsService } from "../src/operations/application";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../src/quotes/adapters/drizzle/quote-fee-components.repository";
 import { DrizzleTreasuryQuoteFinancialLinesRepository } from "../src/quotes/adapters/drizzle/quote-financial-lines.repository";
 import { DrizzleTreasuryQuotesRepository } from "../src/quotes/adapters/drizzle/quotes.repository";
@@ -39,7 +41,13 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     now: () => new Date(),
     service: "treasury.quotes",
   });
+  const operationsRuntime = createModuleRuntime({
+    logger: deps.logger,
+    now: () => new Date(),
+    service: "treasury.operations",
+  });
   const ratesRepository = new DrizzleTreasuryRatesRepository(db);
+  const operationsRepository = new DrizzleTreasuryOperationsRepository(db);
   const quotesRepository = new DrizzleTreasuryQuotesRepository(db);
   const quoteFeeComponentsRepository =
     new DrizzleTreasuryQuoteFeeComponentsRepository(db);
@@ -64,8 +72,13 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     },
     commandUow: new DrizzleTreasuryUnitOfWork({ persistence: deps.persistence }),
   });
+  const operations = createTreasuryOperationsService({
+    operationsRepository,
+    runtime: operationsRuntime,
+  });
 
   const treasuryModule = {
+    operations,
     rates,
     quotes,
   };
@@ -90,6 +103,12 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
         getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
         markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
         expireOldQuotes: treasuryModule.quotes.commands.expireQuotes,
+      },
+      operations: {
+        createOrGetPlanned:
+          treasuryModule.operations.commands.createOrGetPlanned,
+        findById: treasuryModule.operations.queries.findById,
+        list: treasuryModule.operations.queries.list,
       },
     },
   };

@@ -7,7 +7,6 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
-  RequisiteCountryCodeSchema,
   RequisiteKindSchema,
   RequisiteOwnerTypeSchema,
 } from "./zod";
@@ -23,14 +22,9 @@ export const RequisiteSchema = z.object({
   label: z.string(),
   description: z.string().nullable(),
   beneficiaryName: z.string().nullable(),
-  institutionName: z.string().nullable(),
-  institutionCountry: z.string().nullable(),
   accountNo: z.string().nullable(),
   corrAccount: z.string().nullable(),
   iban: z.string().nullable(),
-  bic: z.string().nullable(),
-  swift: z.string().nullable(),
-  bankAddress: z.string().nullable(),
   network: z.string().nullable(),
   assetCode: z.string().nullable(),
   address: z.string().nullable(),
@@ -112,9 +106,6 @@ const nullableShortText = z
   .max(255)
   .nullish()
   .transform((value) => trimToNull(value) ?? null);
-const nullableCountry = RequisiteCountryCodeSchema.nullish().transform(
-  (value) => value ?? null,
-);
 const nullableTextPatch = z
   .string()
   .trim()
@@ -129,8 +120,6 @@ const nullableShortTextPatch = z
   .nullable()
   .transform((value) => trimToNull(value))
   .exactOptional();
-const nullableCountryPatch = RequisiteCountryCodeSchema.nullable().exactOptional();
-
 export const CreateRequisiteInputSchema = z.object({
   ownerType: RequisiteOwnerTypeSchema,
   ownerId: z.uuid(),
@@ -140,14 +129,9 @@ export const CreateRequisiteInputSchema = z.object({
   label: z.string().trim().min(1).max(255),
   description: nullableText,
   beneficiaryName: nullableShortText,
-  institutionName: nullableShortText,
-  institutionCountry: nullableCountry,
   accountNo: nullableShortText,
   corrAccount: nullableShortText,
   iban: nullableShortText,
-  bic: nullableShortText,
-  swift: nullableShortText,
-  bankAddress: nullableText,
   network: nullableShortText,
   assetCode: nullableShortText,
   address: nullableText,
@@ -167,14 +151,9 @@ export const UpdateRequisiteInputSchema = z.object({
   label: z.string().trim().min(1).max(255).exactOptional(),
   description: nullableTextPatch,
   beneficiaryName: nullableShortTextPatch,
-  institutionName: nullableShortTextPatch,
-  institutionCountry: nullableCountryPatch,
   accountNo: nullableShortTextPatch,
   corrAccount: nullableShortTextPatch,
   iban: nullableShortTextPatch,
-  bic: nullableShortTextPatch,
-  swift: nullableShortTextPatch,
-  bankAddress: nullableTextPatch,
   network: nullableShortTextPatch,
   assetCode: nullableShortTextPatch,
   address: nullableTextPatch,

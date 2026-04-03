@@ -45,6 +45,20 @@ export function createDrizzleCurrenciesQueryRepository(input: {
       return row ?? null;
     },
 
+    async listByIds(ids) {
+      const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+      if (uniqueIds.length === 0) {
+        return new Map();
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.currencies)
+        .where(inArray(schema.currencies.id, uniqueIds));
+
+      return new Map(rows.map((row) => [row.id, row]));
+    },
+
     async listPrecisionsByCode(codes) {
       const rows = await db
         .select({

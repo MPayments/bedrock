@@ -15,19 +15,19 @@ const workerIntervals = Object.fromEntries(
 ) satisfies Record<string, number>;
 
 export const env = {
-  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
+  S3_BUCKET: process.env.S3_BUCKET ?? "bedrock-documents",
+  S3_ENDPOINT: process.env.S3_ENDPOINT,
+  S3_REGION: process.env.S3_REGION ?? "us-east-1",
+  S3_SECRET_KEY: process.env.S3_SECRET_KEY,
+  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3555",
   TB_CLUSTER_ID: BigInt(process.env.TB_CLUSTER_ID ?? "0"),
   WORKERS_MONITORING_HOST: process.env.WORKERS_MONITORING_HOST ?? "0.0.0.0",
   WORKERS_MONITORING_PORT: Number(
     process.env.WORKERS_MONITORING_PORT ?? 8081,
   ),
   WORKER_INTERVALS: workerIntervals,
-  MPAYMENTS_INTEGRATION_ENABLED:
-    process.env.MPAYMENTS_INTEGRATION_ENABLED === "true",
-  REDIS_HOST: process.env.REDIS_HOST ?? "127.0.0.1",
-  REDIS_PORT: Number(process.env.REDIS_PORT ?? 6379),
-  REDIS_USER: process.env.REDIS_USER,
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
 } as const;
 
 export type WorkerEnv = typeof env;

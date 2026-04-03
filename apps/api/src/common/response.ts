@@ -7,7 +7,7 @@ interface ApiJsonOptions {
 }
 
 interface JsonContextLike {
-  json: (body: unknown, status?: number) => Response;
+  json: (body: unknown, status?: number) => any;
 }
 
 export function toApiJson(value: unknown, options?: ApiJsonOptions): unknown {
@@ -21,6 +21,6 @@ export function jsonOk(
   value: unknown,
   status = 200,
   options?: ApiJsonOptions,
-): Response {
+): any {
   return c.json(toApiJson(value, options), status);
 }

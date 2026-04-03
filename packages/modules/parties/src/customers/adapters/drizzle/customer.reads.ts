@@ -32,6 +32,17 @@ export class DrizzleCustomerReads implements CustomerReads {
     return row ?? null;
   }
 
+  async findByExternalRef(externalRef: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.externalRef, externalRef))
+      .orderBy(desc(schema.customers.createdAt))
+      .limit(1);
+
+    return row ?? null;
+  }
+
   async list(input: {
     limit: number;
     offset: number;
@@ -99,5 +110,17 @@ export class DrizzleCustomerReads implements CustomerReads {
       .where(inArray(schema.customers.id, uniqueIds));
 
     return new Map(rows.map((row) => [row.id, row.displayName]));
+  }
+
+  async listByIds(ids: string[]) {
+    const uniqueIds = dedupeIds(ids);
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    return this.db
+      .select()
+      .from(schema.customers)
+      .where(inArray(schema.customers.id, uniqueIds));
   }
 }

@@ -1,53 +1,92 @@
 import { z } from "zod";
 
 import type { AccountingModule } from "@bedrock/accounting";
+import type { AgreementsModule } from "@bedrock/agreements";
+import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { DealsModule } from "@bedrock/deals";
 import type { DocumentsService } from "@bedrock/documents";
+import type { DocumentsReadModel } from "@bedrock/documents/read-model";
+import type { FilesModule } from "@bedrock/files";
+import type { IamService } from "@bedrock/iam";
+import type { PortalAccessGrantsService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
+import type { DocumentExtractionPort } from "@bedrock/platform/ai";
+import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
+import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type { UsersService } from "@bedrock/users";
+import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
+import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
+import type { DealExecutionWorkflow } from "@bedrock/workflow-deal-execution";
+import type { DealProjectionsWorkflow } from "@bedrock/workflow-deal-projections";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
+import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
-import type { IntegrationEventHandler } from "@bedrock/workflow-integration-mpayments";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
+import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import { createCoreServices } from "./composition/core";
+import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   TB_ADDRESS: z.string().min(1, "TB_ADDRESS is required"),
   TB_CLUSTER_ID: z.coerce.number().int().nonnegative(),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
-  BETTER_AUTH_URL: z.url("BETTER_AUTH_URL must be a valid URL"),
+  BETTER_AUTH_URL: z
+    .url("BETTER_AUTH_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_CRM_URL: z
+    .url("BETTER_AUTH_CRM_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_FINANCE_URL: z
+    .url("BETTER_AUTH_FINANCE_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_PORTAL_URL: z
+    .url("BETTER_AUTH_PORTAL_URL must be a valid URL")
+    .optional(),
   BETTER_AUTH_TRUSTED_ORIGINS: z
     .string()
     .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
-  MPAYMENTS_INTEGRATION_ENABLED: z
-    .string()
-    .default("false")
-    .transform((v) => v === "true"),
-  MPAYMENTS_INTEGRATION_USERNAME: z.string().optional(),
-  MPAYMENTS_INTEGRATION_PASSWORD: z.string().optional(),
+
+  // Operations adapters (all optional — graceful degradation)
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_BUCKET: z.string().default("bedrock-documents"),
+  OPENAI_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().default("noreply@bedrock.app"),
+  DADATA_API_URL: z.string().default("https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest"),
+}).superRefine((env, ctx) => {
+  const hasSharedBaseUrl = typeof env.BETTER_AUTH_URL === "string";
+  const hasAudienceBaseUrls =
+    typeof env.BETTER_AUTH_CRM_URL === "string" &&
+    typeof env.BETTER_AUTH_FINANCE_URL === "string" &&
+    typeof env.BETTER_AUTH_PORTAL_URL === "string";
+
+  if (hasSharedBaseUrl || hasAudienceBaseUrls) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message:
+      "Set BETTER_AUTH_URL or all of BETTER_AUTH_CRM_URL, BETTER_AUTH_FINANCE_URL, BETTER_AUTH_PORTAL_URL.",
+    path: ["BETTER_AUTH_URL"],
+  });
 });
 
 export type Env = z.infer<typeof EnvSchema>;
 
 export function parseEnv(): Env {
-  const result = EnvSchema.safeParse({
-    DATABASE_URL: process.env.DATABASE_URL,
-    TB_ADDRESS: process.env.TB_ADDRESS,
-    TB_CLUSTER_ID: process.env.TB_CLUSTER_ID,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-    BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
-    MPAYMENTS_INTEGRATION_ENABLED: process.env.MPAYMENTS_INTEGRATION_ENABLED,
-    MPAYMENTS_INTEGRATION_USERNAME: process.env.MPAYMENTS_INTEGRATION_USERNAME,
-    MPAYMENTS_INTEGRATION_PASSWORD: process.env.MPAYMENTS_INTEGRATION_PASSWORD,
-  });
+  const result = EnvSchema.safeParse(process.env);
 
   if (!result.success) {
     const errors = result.error.issues
@@ -62,44 +101,73 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
+  idempotency: IdempotencyService;
+  persistence: PersistenceContext;
   accountingModule: AccountingModule;
+  agreementsModule: AgreementsModule;
+  calculationsModule: CalculationsModule;
+  dealsModule: DealsModule;
+  filesModule: FilesModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealExecutionWorkflow: DealExecutionWorkflow;
+  dealQuoteWorkflow: DealQuoteWorkflow;
+  dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
-  usersService: UsersService;
+  iamService: IamService;
+  portalAccessGrantsService: PortalAccessGrantsService;
   ledgerModule: LedgerModule;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  integrationEventHandler: IntegrationEventHandler | null;
+  customerPortalWorkflow: CustomerPortalWorkflow;
+  documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentsReadModel: DocumentsReadModel;
+  partiesReadRuntime: ApiPartiesReadRuntime;
+  documentExtraction?: DocumentExtractionPort;
+  objectStorage?: S3ObjectStorageAdapter;
 }
 
 export function createAppContext(env: Env): AppContext {
   const core = createCoreServices();
-  const applicationServices = createApplicationServices(core);
-
-  const integrationEventHandler = env.MPAYMENTS_INTEGRATION_ENABLED
-    ? applicationServices.integrationEventHandler
-    : null;
+  const applicationServices = createApplicationServices(core, env);
 
   return {
     env,
     logger: core.logger,
+    idempotency: core.idempotency,
+    persistence: core.persistence,
     accountingModule: core.accountingModule,
+    agreementsModule: applicationServices.agreementsModule,
+    calculationsModule: applicationServices.calculationsModule,
+    dealsModule: applicationServices.dealsModule,
+    filesModule: applicationServices.filesModule,
     ledgerModule: core.ledgerModule,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    dealAttachmentIngestionWorkflow:
+      applicationServices.dealAttachmentIngestionWorkflow,
+    dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
+    dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
+    dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     organizationBootstrapWorkflow:
       applicationServices.organizationBootstrapWorkflow,
     requisiteAccountingWorkflow:
       applicationServices.requisiteAccountingWorkflow,
-    usersService: core.usersService,
+    iamService: core.iamService,
+    portalAccessGrantsService: core.portalAccessGrantsService,
     documentsService: applicationServices.documentsService,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
-    integrationEventHandler,
+    customerPortalWorkflow: applicationServices.customerPortalWorkflow,
+    documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
+    documentsReadModel: applicationServices.documentsReadModel,
+    partiesReadRuntime: applicationServices.partiesReadRuntime,
+    documentExtraction: applicationServices.documentExtraction,
+    objectStorage: applicationServices.objectStorage,
   };
 }

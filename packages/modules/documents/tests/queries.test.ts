@@ -37,6 +37,8 @@ function createRepositoryStub(overrides: Record<string, unknown> = {}) {
     listDocumentEvents: vi.fn(async () => []),
     findDocumentSnapshot: vi.fn(async () => null),
     getLatestPostingArtifacts: vi.fn(async () => null),
+    insertDealLink: vi.fn(async () => undefined),
+    findDealIdByDocumentId: vi.fn(async () => null),
     ...overrides,
   };
 }
@@ -52,6 +54,7 @@ function createAccountingPeriodsStub(overrides: Record<string, unknown> = {}) {
 function createQueryContext(repository: ReturnType<typeof createRepositoryStub>) {
   return {
     accountingPeriods: createAccountingPeriodsStub(),
+    documentBusinessLinks: repository,
     documentEvents: repository,
     documentLinks: repository,
     documentOperations: repository,
@@ -68,6 +71,7 @@ describe("documents queries", () => {
     const document = makeDocument();
     const repository = createRepositoryStub({
       findDocumentWithPostingOperation: vi.fn(async () => ({
+        dealId: null,
         document,
         postingOperationId: "op-1",
       })),
@@ -79,6 +83,7 @@ describe("documents queries", () => {
       getDocument(document.docType, document.id),
     ).resolves.toEqual({
       document,
+      dealId: null,
       postingOperationId: "op-1",
       allowedActions: [],
     });
@@ -113,6 +118,7 @@ describe("documents queries", () => {
     };
     const repository = createRepositoryStub({
       findDocumentWithPostingOperation: vi.fn(async () => ({
+        dealId: null,
         document,
         postingOperationId: null,
       })),
@@ -165,7 +171,7 @@ describe("documents queries", () => {
     const document = makeDocument();
     const repository = createRepositoryStub({
       listDocuments: vi.fn(async () => ({
-        rows: [{ document, postingOperationId: null }],
+        rows: [{ document, dealId: null, postingOperationId: null }],
         total: 1,
       })),
     });
@@ -182,7 +188,7 @@ describe("documents queries", () => {
     });
 
     expect(result).toEqual({
-      data: [{ document, postingOperationId: null, allowedActions: [] }],
+      data: [{ document, dealId: null, postingOperationId: null, allowedActions: [] }],
       total: 1,
       limit: 5,
       offset: 10,
@@ -395,8 +401,8 @@ describe("documents queries", () => {
     const repository = createRepositoryStub({
       listDocuments: vi.fn(async () => ({
         rows: [
-          { document: first, postingOperationId: null },
-          { document: second, postingOperationId: null },
+          { document: first, dealId: null, postingOperationId: null },
+          { document: second, dealId: null, postingOperationId: null },
         ],
         total: 2,
       })),

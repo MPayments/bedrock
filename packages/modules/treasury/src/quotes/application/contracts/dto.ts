@@ -13,6 +13,20 @@ import {
   quoteStatusSchema,
 } from "./zod";
 
+export const QuoteDealRefSchema = z
+  .object({
+    applicantName: z.string().nullable(),
+    dealId: z.uuid(),
+    status: z.string(),
+    type: z.enum([
+      "payment",
+      "currency_exchange",
+      "currency_transit",
+      "exporter_settlement",
+    ]),
+  })
+  .nullable();
+
 export const QuoteSchema = z.object({
   id: z.uuid(),
   fromCurrencyId: z.uuid(),
@@ -28,11 +42,14 @@ export const QuoteSchema = z.object({
   rateNum: z.string(),
   rateDen: z.string(),
   status: quoteStatusSchema,
+  dealId: z.uuid().nullable(),
   usedByRef: z.string().nullable(),
+  usedDocumentId: z.uuid().nullable(),
   usedAt: z.iso.datetime().nullable(),
   expiresAt: z.iso.datetime(),
   idempotencyKey: z.string(),
   createdAt: z.iso.datetime(),
+  dealRef: QuoteDealRefSchema.optional(),
 });
 
 export const QuoteListItemSchema = QuoteSchema.extend({

@@ -207,6 +207,8 @@ export function createDocumentsServiceDeps(
     listDocumentEvents: vi.fn(async () => []),
     findDocumentSnapshot: vi.fn(async () => null),
     getLatestPostingArtifacts: vi.fn(async () => null),
+    insertDealLink: vi.fn(async () => undefined),
+    findDealIdByDocumentId: vi.fn(async () => null),
   };
   const ledger = {
     commit: vi.fn(),
@@ -231,6 +233,7 @@ export function createDocumentsServiceDeps(
       reopenPeriod: vi.fn(async () => undefined),
     },
     documentEvents: repository,
+    documentBusinessLinks: repository,
     documentLinks: repository,
     documentOperations: repository,
     documentSnapshots: repository,
@@ -248,6 +251,7 @@ export function createDocumentsServiceDeps(
         run({
           transaction: moduleDb,
           documentEvents: repository,
+          documentBusinessLinks: repository,
           documentLinks: repository,
           documentOperations: repository,
           documentsCommand: repository,

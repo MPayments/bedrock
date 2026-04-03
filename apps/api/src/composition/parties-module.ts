@@ -18,6 +18,7 @@ import {
   DrizzleRequisiteProviderReads,
   DrizzleRequisiteReads,
   DrizzleRequisitesQueries,
+  DrizzleSubAgentProfileReads,
 } from "@bedrock/parties/adapters/drizzle";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
@@ -51,6 +52,7 @@ export function createApiPartiesModule(input: {
     requisiteReads: new DrizzleRequisiteReads(input.db),
     requisiteProviderReads: new DrizzleRequisiteProviderReads(input.db),
     requisiteBindingReads: new DrizzleRequisiteBindingReads(input.db),
+    subAgentProfileReads: new DrizzleSubAgentProfileReads(input.db),
     unitOfWork: new DrizzlePartyRegistryUnitOfWork({ persistence }),
   });
 }
@@ -63,3 +65,5 @@ export function createApiPartiesReadRuntime(database: Database | Transaction) {
     requisitesQueries: new DrizzleRequisitesQueries(database),
   };
 }
+
+export type ApiPartiesReadRuntime = ReturnType<typeof createApiPartiesReadRuntime>;

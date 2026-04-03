@@ -57,6 +57,7 @@ export class CreateQuoteCommand {
 
       const quote = Quote.create({
         id: this.runtime.generateUuid(),
+        dealId: validated.dealId ?? null,
         idempotencyKey: validated.idempotencyKey,
         fromCurrencyId: currencyIdByCode.get(pricingSnapshot.fromCurrency)!,
         toCurrencyId: currencyIdByCode.get(pricingSnapshot.toCurrency)!,
@@ -149,11 +150,12 @@ export class CreateQuoteCommand {
         );
       }
 
-      await this.assertIdempotentReplayMatches(
-        validated.idempotencyKey,
-        pricingPlan,
-        racedExisting,
-        tx,
+        await this.assertIdempotentReplayMatches(
+          validated.idempotencyKey,
+          validated.dealId ?? null,
+          pricingPlan,
+          racedExisting,
+          tx,
       );
 
       return enrichPairCurrencyRecord(this.currencies, racedExisting);
@@ -194,12 +196,14 @@ export class CreateQuoteCommand {
 
   private async assertIdempotentReplayMatches(
     idempotencyKey: string,
+    dealId: string | null,
     pricingPlan: QuotePricingPlan,
     existingQuote: QuoteRecord,
     tx: QuotesCommandTx,
   ): Promise<void> {
     if (
       !Quote.fromSnapshot(existingQuote).sameRequestAs({
+        dealId,
         idempotencyKey,
         pricingPlan: pricingPlan.toSnapshot(),
       })

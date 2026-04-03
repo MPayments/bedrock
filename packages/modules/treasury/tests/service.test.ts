@@ -78,9 +78,11 @@ function makeQuote(overrides: Record<string, unknown> = {}) {
         dealForm: "conversion",
         rateNum: 7n,
         rateDen: 200n,
-        expiresAt: new Date("2026-02-14T00:02:00Z"),
+        expiresAt: new Date("2026-02-15T00:00:00Z"),
         status: "active",
+        dealId: null,
         usedByRef: null,
+        usedDocumentId: null,
         usedAt: null,
         idempotencyKey: "idem-route-1",
         createdAt: new Date("2026-02-14T00:00:00Z"),
@@ -370,7 +372,7 @@ describe("createTreasuryTestService", () => {
             idempotencyKey: "idem-race-1",
             dealDirection: null,
             dealForm: null,
-            expiresAt: new Date("2026-02-14T00:10:00Z"),
+            expiresAt: new Date("2026-02-15T00:00:00Z"),
         });
         const insertLegs = vi.fn();
         const txSelect = vi
@@ -448,7 +450,7 @@ describe("createTreasuryTestService", () => {
             idempotencyKey: "idem-race-conflict-1",
             dealDirection: null,
             dealForm: null,
-            expiresAt: new Date("2026-02-14T00:10:00Z"),
+            expiresAt: new Date("2026-02-15T00:00:00Z"),
         });
         const txSelect = vi
             .fn()

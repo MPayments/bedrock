@@ -10,7 +10,10 @@ import {
   UpdateRequisiteProviderInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -21,8 +24,6 @@ import { requirePermission } from "../middleware/permission";
 const PaginatedRequisiteProvidersSchema = createPaginatedListSchema(
   RequisiteProviderSchema,
 );
-const OPTIONS_LIMIT = 200;
-
 export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -214,7 +215,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.partiesModule.requisites.queries.listProviders({
-        limit: OPTIONS_LIMIT,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "name",
         sortOrder: "asc",

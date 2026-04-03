@@ -1,1 +1,0 @@
-export { createBetterAuthPasswordHasher } from "./password";

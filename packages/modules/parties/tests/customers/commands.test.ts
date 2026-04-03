@@ -184,6 +184,7 @@ describe("customer command handlers", () => {
                 Counterparty.fromSnapshot({
                   id: "cp-1",
                   externalId: null,
+                  relationshipKind: "customer_owned",
                   customerId: "cust-1",
                   shortName: "Acme CP",
                   fullName: "Acme Counterparty",
