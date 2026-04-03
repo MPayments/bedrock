@@ -9,7 +9,12 @@ import {
   Workflow,
 } from "lucide-react";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@bedrock/sdk-ui/components/tabs";
 
 export type DealPageTab =
   | "overview"
@@ -108,14 +113,14 @@ export function DealTabs({
       }}
     >
       <div className="space-y-4">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-xl bg-muted/60 p-1">
+        <TabsList>
           {DEAL_TAB_META.map((tab) => {
             const Icon = tab.icon;
 
             return (
               <TabsTrigger
                 key={tab.value}
-                className="h-auto min-w-fit gap-2 px-3 py-2"
+                className="h-auto min-w-fit"
                 value={tab.value}
               >
                 <Icon className="h-4 w-4" />

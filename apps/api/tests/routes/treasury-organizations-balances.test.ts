@@ -61,6 +61,9 @@ function createTestApp() {
         : [],
   );
   const findById = vi.fn().mockResolvedValue(null);
+  const ensureDefaultOrganizationBook = vi.fn().mockResolvedValue({
+    bookId: "book-1",
+  });
   const listOrganizationRequisiteLiquidityRows = vi.fn().mockResolvedValue([
     {
       organizationId: "11111111-1111-4111-8111-111111111111",
@@ -88,6 +91,11 @@ function createTestApp() {
             listOrganizationRequisiteLiquidityRows,
           },
         },
+        books: {
+          commands: {
+            ensureDefaultOrganizationBook,
+          },
+        },
       },
       partiesReadRuntime: {
         organizationsQueries: {
@@ -103,6 +111,7 @@ function createTestApp() {
 
   return {
     app,
+    ensureDefaultOrganizationBook,
     findById,
     listInternalLedgerOrganizations,
     listOptions,
@@ -119,6 +128,7 @@ describe("treasury organization balances route", () => {
   it("returns an enriched current balance snapshot for internal treasury organizations", async () => {
     const {
       app,
+      ensureDefaultOrganizationBook,
       findById,
       listInternalLedgerOrganizations,
       listOptions,
@@ -163,6 +173,46 @@ describe("treasury organization balances route", () => {
       ownerId: "22222222-2222-4222-8222-222222222222",
       ownerType: "organization",
     });
+    expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
+      organizationId: "11111111-1111-4111-8111-111111111111",
+    });
     expect(findById).not.toHaveBeenCalled();
+  });
+
+  it("returns zero-balance rows for organization requisites before the first posting", async () => {
+    const {
+      app,
+      ensureDefaultOrganizationBook,
+      listOrganizationRequisiteLiquidityRows,
+    } = createTestApp();
+
+    listOrganizationRequisiteLiquidityRows.mockResolvedValueOnce([]);
+
+    const response = await app.request(
+      "http://localhost/treasury/organizations/balances",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      asOf: expect.any(String),
+      data: [
+        {
+          organizationId: "11111111-1111-4111-8111-111111111111",
+          organizationName: "Multihansa",
+          requisiteId: "33333333-3333-4333-8333-333333333333",
+          requisiteLabel: "USD settlement",
+          requisiteIdentity: "40702810900000000001",
+          currency: "USD",
+          ledgerBalance: "0",
+          available: "0",
+          reserved: "0",
+          pending: "0",
+        },
+      ],
+    });
+
+    expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
+      organizationId: "11111111-1111-4111-8111-111111111111",
+    });
   });
 });

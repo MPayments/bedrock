@@ -1,4 +1,7 @@
-import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+import {
+  minorToAmountString,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 import {
   Card,
   CardContent,
@@ -44,7 +47,7 @@ const BALANCE_METRICS = [
   },
   {
     key: "pending",
-    label: "Pending",
+    label: "В обработке",
   },
 ] as const;
 
@@ -143,15 +146,6 @@ export function TreasuryOrganizationBalancesView({
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Текущий срез</CardTitle>
-          <CardDescription>
-            Снимок балансов treasury-реквизитов на {formatDate(snapshot.asOf)}.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
       {organizations.map((organization) => (
         <Card key={organization.organizationId} className="rounded-sm">
           <CardHeader className="border-b">
@@ -176,7 +170,9 @@ export function TreasuryOrganizationBalancesView({
                         key={metric.key}
                         className="flex items-center justify-between gap-3"
                       >
-                        <span className="text-muted-foreground">{metric.label}</span>
+                        <span className="text-muted-foreground">
+                          {metric.label}
+                        </span>
                         <span className="font-medium">
                           {total[metric.key]} {total.currency}
                         </span>
@@ -211,7 +207,9 @@ export function TreasuryOrganizationBalancesView({
                         key={metric.key}
                         className="flex items-center justify-between gap-3"
                       >
-                        <span className="text-muted-foreground">{metric.label}</span>
+                        <span className="text-muted-foreground">
+                          {metric.label}
+                        </span>
                         <span className="font-medium">
                           {row[metric.key]} {row.currency}
                         </span>

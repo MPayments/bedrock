@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
   ChevronDown,
   Clock3,
   Download,
   File,
   FileText,
+  Info,
   ListChecks,
   ShieldCheck,
   Trash2,
@@ -30,9 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
+import {
+  EntityWorkspaceTabs,
+  type EntityWorkspaceTab,
+} from "@/components/entities/workspace-layout";
 import {
   getApprovalStatusLabel,
   getPostingStatusLabel,
@@ -93,8 +96,8 @@ const DEAL_PAGE_TAB_META: Array<{
   value: DealPageTab;
 }> = [
   {
-    icon: Wallet,
-    label: "Обзор",
+    icon: Info,
+    label: "Информация",
     value: "overview",
   },
   {
@@ -121,6 +124,23 @@ function isDealPageTab(value: string | null): value is DealPageTab {
     value === "documents" ||
     value === "execution"
   );
+}
+
+function getDealTabHref(
+  pathname: string,
+  searchParams: { toString(): string },
+  tab: DealPageTab,
+) {
+  const params = new URLSearchParams(searchParams.toString());
+
+  if (tab === DEFAULT_DEAL_PAGE_TAB) {
+    params.delete("tab");
+  } else {
+    params.set("tab", tab);
+  }
+
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }
 
 function createIdempotencyKey() {
@@ -279,181 +299,101 @@ function collectTopBlockers(deal: FinanceDealWorkbench) {
   return Array.from(messages).slice(0, 4);
 }
 
-function getDocumentIssuesCount(deal: FinanceDealWorkbench) {
+type OverviewSectionProps = {
+  children: ReactNode;
+  description: string;
+  title: string;
+};
+
+function OverviewSection({
+  children,
+  description,
+  title,
+}: OverviewSectionProps) {
   return (
-    deal.attachmentRequirements.filter((item) => item.state === "missing").length +
-    deal.formalDocumentRequirements.filter(
-      (item) => item.state === "missing" || item.state === "in_progress",
-    ).length
+    <section className="rounded-3xl border border-border/60 bg-background/90 p-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+      <div className="mt-5">{children}</div>
+    </section>
   );
 }
 
-function getExecutionIssuesCount(deal: FinanceDealWorkbench) {
-  return (
-    deal.executionPlan.filter((item) => item.state === "blocked").length +
-    deal.operationalState.capabilities.filter((item) => item.status !== "enabled")
-      .length +
-    deal.operationalState.positions.filter(
-      (item) =>
-        isPrimaryOperationalPositionVisible(item.kind) && item.state === "blocked",
-    ).length
-  );
-}
-
-type DealHeroProps = {
+type CurrentActionSectionProps = {
   calculationDisabledReason: string | null;
   deal: FinanceDealWorkbench;
-  onNavigateToTab: (tab: DealPageTab) => void;
   quoteCreationDisabledReason: string | null;
 };
 
-function DealHero({
+function CurrentActionSection({
   calculationDisabledReason,
   deal,
-  onNavigateToTab,
   quoteCreationDisabledReason,
-}: DealHeroProps) {
-  const blockers = collectTopBlockers(deal).slice(0, 2);
-  const quoteItems = getQuoteItemsForDisplay(deal);
+}: CurrentActionSectionProps) {
+  const blockers = collectTopBlockers(deal).slice(0, 3);
   const actionNotes = [
     quoteCreationDisabledReason,
     calculationDisabledReason,
   ].filter((value): value is string => Boolean(value));
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-      <Card className="border-muted-foreground/10 bg-gradient-to-br from-background via-background to-muted/30">
-        <CardContent className="space-y-5 pt-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
-              {getFinanceDealStatusLabel(deal.summary.status)}
-            </Badge>
-            <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
-              {getFinanceDealQueueLabel(deal.queueContext.queue)}
-            </Badge>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border bg-background/80 px-4 py-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Заявитель
-              </div>
-              <div className="mt-1 font-medium">
-                {deal.summary.applicantDisplayName ?? "Не указан"}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-background/80 px-4 py-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Внутренняя организация
-              </div>
-              <div className="mt-1 font-medium">
-                {deal.summary.internalEntityDisplayName ?? "Не указана"}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-background/80 px-4 py-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Создана
-              </div>
-              <div className="mt-1 font-medium">{formatDate(deal.summary.createdAt)}</div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <button
-              className="rounded-xl border bg-background/80 px-4 py-3 text-left transition-colors hover:bg-accent/40"
-              onClick={() => onNavigateToTab("pricing")}
-              type="button"
-            >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Котировки и расчет
-              </div>
-              <div className="mt-1 text-sm font-medium">
-                {quoteItems.length} котировок
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {deal.summary.calculationId ? "Есть актуальный расчет" : "Расчет еще не создан"}
-              </div>
-            </button>
-            <button
-              className="rounded-xl border bg-background/80 px-4 py-3 text-left transition-colors hover:bg-accent/40"
-              onClick={() => onNavigateToTab("documents")}
-              type="button"
-            >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Документы
-              </div>
-              <div className="mt-1 text-sm font-medium">
-                {deal.relatedResources.attachments.length} вложений
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {getDocumentIssuesCount(deal)} вопросов требуют внимания
-              </div>
-            </button>
-            <button
-              className="rounded-xl border bg-background/80 px-4 py-3 text-left transition-colors hover:bg-accent/40"
-              onClick={() => onNavigateToTab("execution")}
-              type="button"
-            >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Исполнение
-              </div>
-              <div className="mt-1 text-sm font-medium">
-                {deal.executionPlan.length} этапов
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {getExecutionIssuesCount(deal)} операционных вопросов
-              </div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            Что нужно сделать сейчас
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
+    <OverviewSection
+      description="Следующий шаг по сделке и основные причины, которые сейчас мешают движению."
+      title="Что нужно сделать сейчас"
+    >
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-4">
           <div className="rounded-lg bg-muted/40 px-4 py-3">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               Следующий шаг
             </div>
-            <div className="mt-1 text-base font-medium">
+            <div className="mt-2 text-xl font-semibold leading-tight">
               {formatDealNextAction(deal.nextAction)}
             </div>
           </div>
+        </div>
 
+        <div className="space-y-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Что мешает двигаться
+          </div>
           {blockers.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {blockers.map((blocker) => (
-                <li key={blocker} className="rounded-md border px-3 py-2">
+                <li
+                  key={blocker}
+                  className="rounded-2xl border border-border/60 px-4 py-3 leading-6"
+                >
                   {blocker}
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
               Критичных блокировок сейчас нет.
             </div>
           )}
+        </div>
 
-          {actionNotes.length > 0 ? (
-            <div className="space-y-2">
-              {actionNotes.slice(0, 2).map((note) => (
-                <div
-                  key={note}
-                  className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
-                >
-                  {note}
-                </div>
-              ))}
+        {actionNotes.length > 0 ? (
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Ограничения действий
             </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    </div>
+            {actionNotes.slice(0, 2).map((note) => (
+              <div
+                key={note}
+                className="rounded-2xl border border-dashed border-muted-foreground/40 bg-muted/20 px-4 py-3 text-sm text-muted-foreground"
+              >
+                {note}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </OverviewSection>
   );
 }
 
@@ -461,163 +401,99 @@ function refreshPage(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
 
+type DealContextContentProps = {
+  deal: FinanceDealWorkbench;
+};
+
+function DealContextContent({ deal }: DealContextContentProps) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl bg-muted/30 px-4 py-3">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Тип сделки
+        </div>
+        <div className="mt-2 font-medium">
+          {getFinanceDealTypeLabel(deal.summary.type)}
+        </div>
+      </div>
+      <div className="rounded-2xl bg-muted/30 px-4 py-3">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Создана
+        </div>
+        <div className="mt-2 font-medium">{formatDate(deal.summary.createdAt)}</div>
+      </div>
+      <div className="rounded-2xl bg-muted/30 px-4 py-3">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Статус
+        </div>
+        <div className="mt-2">
+          <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
+            {getFinanceDealStatusLabel(deal.summary.status)}
+          </Badge>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-muted/30 px-4 py-3">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Очередь
+        </div>
+        <div className="mt-2">
+          <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
+            {getFinanceDealQueueLabel(deal.queueContext.queue)}
+          </Badge>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-muted/30 px-4 py-3 sm:col-span-2">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Заявитель
+        </div>
+        <div className="mt-2 font-medium">
+          {deal.summary.applicantDisplayName ?? "Не указан"}
+        </div>
+      </div>
+      <div className="rounded-2xl bg-muted/30 px-4 py-3 sm:col-span-2">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Внутренняя организация
+        </div>
+        <div className="mt-2 font-medium">
+          {deal.summary.internalEntityDisplayName ?? "Не указана"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DealContextSection({ deal }: DealContextContentProps) {
+  return (
+    <OverviewSection
+      description="Кто участвует в сделке и в каком статусе она сейчас находится."
+      title="Контекст сделки"
+    >
+      <DealContextContent deal={deal} />
+    </OverviewSection>
+  );
+}
+
 type OverviewTabProps = {
   calculationDisabledReason: string | null;
   deal: FinanceDealWorkbench;
-  onNavigateToTab: (tab: DealPageTab) => void;
   quoteCreationDisabledReason: string | null;
 };
 
 function OverviewTab({
   calculationDisabledReason,
   deal,
-  onNavigateToTab,
   quoteCreationDisabledReason,
 }: OverviewTabProps) {
-  const blockedLegCount = deal.executionPlan.filter((item) => item.state === "blocked").length;
-  const quoteItems = getQuoteItemsForDisplay(deal);
-
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              Котировки и расчет
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Котировок</span>
-                <span className="font-medium">{quoteItems.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Принятая котировка</span>
-                <span className="font-medium">
-                  {deal.acceptedQuote
-                    ? getDealQuoteStatusLabel(deal.acceptedQuote.quoteStatus)
-                    : "Не принята"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Расчет</span>
-                <span className="font-medium">
-                  {deal.summary.calculationId ? "Есть актуальная версия" : "Не создан"}
-                </span>
-              </div>
-            </div>
-            {quoteCreationDisabledReason ? (
-              <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                {quoteCreationDisabledReason}
-              </div>
-            ) : calculationDisabledReason ? (
-              <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                {calculationDisabledReason}
-              </div>
-            ) : null}
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => onNavigateToTab("pricing")}
-            >
-              Открыть вкладку
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Документы
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Подтверждающие файлы</span>
-                <span className="font-medium">
-                  {deal.relatedResources.attachments.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Не хватает файлов</span>
-                <span className="font-medium">
-                  {
-                    deal.attachmentRequirements.filter((item) => item.state === "missing")
-                      .length
-                  }
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Внутренние документы</span>
-                <span className="font-medium">
-                  {deal.relatedResources.formalDocuments.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Нужно проверить</span>
-                <span className="font-medium">{getDocumentIssuesCount(deal)}</span>
-              </div>
-            </div>
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => onNavigateToTab("documents")}
-            >
-              Открыть вкладку
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Workflow className="h-4 w-4 text-muted-foreground" />
-              Исполнение
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Этапы исполнения</span>
-                <span className="font-medium">{deal.executionPlan.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Заблокированные этапы</span>
-                <span className="font-medium">
-                  {blockedLegCount > 0 ? blockedLegCount : "Нет"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">
-                  Операционные ограничения
-                </span>
-                <span className="font-medium">
-                  {deal.operationalState.capabilities.filter(
-                    (item) => item.status !== "enabled",
-                  ).length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Проблемные этапы</span>
-                <span className="font-medium">{getExecutionIssuesCount(deal)}</span>
-              </div>
-            </div>
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => onNavigateToTab("execution")}
-            >
-              Открыть вкладку
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
+        <CurrentActionSection
+          calculationDisabledReason={calculationDisabledReason}
+          deal={deal}
+          quoteCreationDisabledReason={quoteCreationDisabledReason}
+        />
+        <DealContextSection deal={deal} />
       </div>
     </div>
   );
@@ -1375,26 +1251,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     : DEFAULT_DEAL_PAGE_TAB;
   const quoteCreationDisabledReason = getQuoteCreationDisabledReason(deal);
   const calculationDisabledReason = getCalculationDisabledReason(deal);
+  const workspaceTabs: EntityWorkspaceTab[] = DEAL_PAGE_TAB_META.map((tab) => ({
+    id: tab.value,
+    label: tab.label,
+    icon: tab.icon,
+    href: getDealTabHref(pathname, searchParams, tab.value),
+  }));
   const title = getFinanceDealDisplayTitle({
     applicantDisplayName: deal.summary.applicantDisplayName,
     id: deal.summary.id,
     type: deal.summary.type,
   });
-
-  function handleTabChange(nextTab: DealPageTab) {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (nextTab === DEFAULT_DEAL_PAGE_TAB) {
-      params.delete("tab");
-    } else {
-      params.set("tab", nextTab);
-    }
-
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }
 
   async function handleAcceptQuote(quoteId: string) {
     setIsAcceptingQuoteId(quoteId);
@@ -1614,144 +1481,62 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
           </div>
         }
         controls={
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => {
-              if (isDealPageTab(value)) {
-                handleTabChange(value);
-              }
-            }}
-          >
-            <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-xl bg-muted/60 p-1">
-              {DEAL_PAGE_TAB_META.map((tab) => {
-                const Icon = tab.icon;
-                const badgeValue =
-                  tab.value === "documents"
-                    ? getDocumentIssuesCount(deal)
-                    : tab.value === "execution"
-                      ? getExecutionIssuesCount(deal)
-                      : null;
-
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    className="h-auto min-w-fit gap-2 px-3 py-2"
-                    value={tab.value}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
-                    {badgeValue ? (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                        {badgeValue}
-                      </span>
-                    ) : null}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </Tabs>
+          <EntityWorkspaceTabs value={activeTab} tabs={workspaceTabs} />
         }
       >
         <div className="space-y-6">
-          <DealHero
-            calculationDisabledReason={calculationDisabledReason}
-            deal={deal}
-            onNavigateToTab={handleTabChange}
-            quoteCreationDisabledReason={quoteCreationDisabledReason}
-          />
-
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <Tabs value={activeTab} className="w-full">
-            <TabsContent value="overview" className="space-y-6">
-              <OverviewTab
-                calculationDisabledReason={calculationDisabledReason}
-                deal={deal}
-                onNavigateToTab={handleTabChange}
-                quoteCreationDisabledReason={quoteCreationDisabledReason}
-              />
-            </TabsContent>
-            <TabsContent value="pricing" className="space-y-6">
-              <PricingTab
-                calculationDisabledReason={calculationDisabledReason}
-                deal={deal}
-                isAcceptingQuoteId={isAcceptingQuoteId}
-                isCreatingCalculation={isCreatingCalculation}
-                onAcceptQuote={handleAcceptQuote}
-                onCreateCalculation={handleCreateCalculation}
-                onOpenQuoteDialog={() => setIsQuoteDialogOpen(true)}
-                quoteCreationDisabledReason={quoteCreationDisabledReason}
-              />
-            </TabsContent>
-            <TabsContent value="documents" className="space-y-6">
-              <DocumentsTab
-                deal={deal}
-                deletingAttachmentId={deletingAttachmentId}
-                onAttachmentDelete={handleDeleteAttachment}
-                onAttachmentDownload={handleDownloadAttachment}
-                onAttachmentUpload={() => setIsUploadDialogOpen(true)}
-              />
-            </TabsContent>
-            <TabsContent value="execution" className="space-y-6">
-              <ExecutionTab
-                deal={deal}
-                isUpdatingCapabilityKind={isUpdatingCapabilityKind}
-                isUpdatingLegKey={isUpdatingLegKey}
-                onUpdateCapabilityStatus={handleUpdateCapabilityStatus}
-                onUpdateLegState={handleUpdateLegState}
-              />
-            </TabsContent>
-          </Tabs>
+            <div className="space-y-6">
+              {activeTab === "overview" ? (
+                <OverviewTab
+                  calculationDisabledReason={calculationDisabledReason}
+                  deal={deal}
+                  quoteCreationDisabledReason={quoteCreationDisabledReason}
+                />
+              ) : null}
+              {activeTab === "pricing" ? (
+                <PricingTab
+                  calculationDisabledReason={calculationDisabledReason}
+                  deal={deal}
+                  isAcceptingQuoteId={isAcceptingQuoteId}
+                  isCreatingCalculation={isCreatingCalculation}
+                  onAcceptQuote={handleAcceptQuote}
+                  onCreateCalculation={handleCreateCalculation}
+                  onOpenQuoteDialog={() => setIsQuoteDialogOpen(true)}
+                  quoteCreationDisabledReason={quoteCreationDisabledReason}
+                />
+              ) : null}
+              {activeTab === "documents" ? (
+                <DocumentsTab
+                  deal={deal}
+                  deletingAttachmentId={deletingAttachmentId}
+                  onAttachmentDelete={handleDeleteAttachment}
+                  onAttachmentDownload={handleDownloadAttachment}
+                  onAttachmentUpload={() => setIsUploadDialogOpen(true)}
+                />
+              ) : null}
+              {activeTab === "execution" ? (
+                <ExecutionTab
+                  deal={deal}
+                  isUpdatingCapabilityKind={isUpdatingCapabilityKind}
+                  isUpdatingLegKey={isUpdatingLegKey}
+                  onUpdateCapabilityStatus={handleUpdateCapabilityStatus}
+                  onUpdateLegState={handleUpdateLegState}
+                />
+              ) : null}
+            </div>
 
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Контекст сделки</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Тип сделки</span>
-                    <span className="font-medium">
-                      {getFinanceDealTypeLabel(deal.summary.type)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Статус</span>
-                    <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
-                      {getFinanceDealStatusLabel(deal.summary.status)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Очередь</span>
-                    <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
-                      {getFinanceDealQueueLabel(deal.queueContext.queue)}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1 rounded-lg bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Следующий шаг</div>
-                    <div className="font-medium">
-                      {formatDealNextAction(deal.nextAction)}
-                    </div>
-                  </div>
-                  <div className="space-y-1 rounded-lg bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Заявитель</div>
-                    <div className="font-medium">
-                      {deal.summary.applicantDisplayName ?? "Не указан"}
-                    </div>
-                  </div>
-                  <div className="space-y-1 rounded-lg bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">
-                      Внутренняя организация
-                    </div>
-                    <div className="font-medium">
-                      {deal.summary.internalEntityDisplayName ?? "Не указана"}
-                    </div>
-                  </div>
-                  <div className="space-y-1 rounded-lg bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Создана</div>
-                    <div className="font-medium">{formatDate(deal.summary.createdAt)}</div>
-                  </div>
-                </CardContent>
-              </Card>
+              {activeTab !== "overview" ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Контекст сделки</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <DealContextContent deal={deal} />
+                  </CardContent>
+                </Card>
+              ) : null}
 
               <Card>
                 <CardHeader>

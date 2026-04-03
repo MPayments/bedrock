@@ -7,10 +7,7 @@ import {
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
 import { getRootCauseMessage, RateSourceSyncError } from "./errors";
-import {
-  type RateSourceFetchResult,
-  type RateSourceProvider,
-} from "./types";
+import { type RateSourceFetchResult, type RateSourceProvider } from "./types";
 
 type Interval = "PT1M";
 
@@ -88,6 +85,7 @@ const DEFAULT_PAIR_MAPPINGS: PairMapping[] = [
   { pairId: "2111", base: "USD", quote: "CNY" },
   { pairId: "18", base: "USD", quote: "TRY" },
   { pairId: "9298", base: "AED", quote: "RUB" },
+  { pairId: "9530", base: "CNY", quote: "RUB" },
 ];
 
 export function createInvestingRateSourceProvider(
@@ -104,9 +102,7 @@ export function createInvestingRateSourceProvider(
     ...deps.headers,
   };
 
-  async function fetchLatest(
-    now = new Date(),
-  ): Promise<RateSourceFetchResult> {
+  async function fetchLatest(now = new Date()): Promise<RateSourceFetchResult> {
     let scope: SessionScope;
     if (deps.session !== undefined) {
       scope = createExternalSessionScope(deps.session);

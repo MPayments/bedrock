@@ -76,6 +76,28 @@ type SubAgent = {
   name: string;
 };
 
+type SubAgentProfileResponse = {
+  commissionRate: number;
+  counterpartyId: string;
+  isActive: boolean;
+  kind: "individual" | "legal_entity";
+  shortName: string;
+};
+
+function mapSubAgentProfileToOption(
+  profile: SubAgentProfileResponse,
+): SubAgent {
+  return {
+    commission: profile.commissionRate,
+    id: profile.counterpartyId,
+    isActive: profile.isActive,
+    kind: profile.kind,
+    name: profile.shortName,
+  };
+}
+
+const SUB_AGENT_PAGE_LIMIT = 200;
+
 function getNestedError(errors: Record<string, unknown>, path: string) {
   const segments = path.split(".");
   let current: unknown = errors;
@@ -236,16 +258,40 @@ export default function NewCustomerPage() {
     setLoadingSubAgents(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
-        credentials: "include",
-      });
+      const loadedSubAgents: SubAgent[] = [];
+      let offset = 0;
+      let total = 0;
 
-      if (!response.ok) {
-        throw new Error(`Ошибка загрузки субагентов: ${response.status}`);
-      }
+      do {
+        const params = new URLSearchParams({
+          limit: String(SUB_AGENT_PAGE_LIMIT),
+          offset: String(offset),
+          sortBy: "shortName",
+          sortOrder: "asc",
+        });
+        const response = await fetch(
+          `${API_BASE_URL}/sub-agent-profiles?${params.toString()}`,
+          {
+            credentials: "include",
+          },
+        );
 
-      const raw = await response.json();
-      setSubAgents(Array.isArray(raw) ? raw : (raw.data ?? []));
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки субагентов: ${response.status}`);
+        }
+
+        const raw = (await response.json()) as {
+          data?: SubAgentProfileResponse[];
+          total?: number;
+        };
+        const page = (raw.data ?? []).map(mapSubAgentProfileToOption);
+
+        loadedSubAgents.push(...page);
+        total = raw.total ?? loadedSubAgents.length;
+        offset += SUB_AGENT_PAGE_LIMIT;
+      } while (offset < total);
+
+      setSubAgents(loadedSubAgents);
     } catch (loadError) {
       console.error("Error loading sub-agents:", loadError);
       setError(
@@ -565,11 +611,13 @@ export default function NewCustomerPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/agents/sub-agents`, {
+      const response = await fetch(`${API_BASE_URL}/sub-agent-profiles`, {
         body: JSON.stringify({
-          commission: Number.parseFloat(newSubAgentCommission),
+          commissionRate: Number.parseFloat(newSubAgentCommission),
+          fullName: newSubAgentName.trim(),
+          isActive: true,
           kind: newSubAgentKind,
-          name: newSubAgentName.trim(),
+          shortName: newSubAgentName.trim(),
         }),
         credentials: "include",
         headers: {
@@ -583,7 +631,9 @@ export default function NewCustomerPage() {
         throw new Error(errorData.message || "Ошибка создания субагента");
       }
 
-      const newSubAgent = (await response.json()) as SubAgent;
+      const newSubAgent = mapSubAgentProfileToOption(
+        (await response.json()) as SubAgentProfileResponse,
+      );
       setSubAgents((current) => [...current, newSubAgent]);
       form.setValue("selectedSubAgentId", newSubAgent.id, {
         shouldDirty: true,

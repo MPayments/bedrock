@@ -14,7 +14,10 @@ import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
-import type { CustomerFormData, CustomerWorkspaceDetail } from "../_lib/customer-detail";
+import type {
+  CustomerFormData,
+  CustomerWorkspaceDetail,
+} from "../_lib/customer-detail";
 import { customerToFormValues } from "../_lib/customer-detail";
 
 type CustomerSummaryCardProps = {
@@ -69,7 +72,7 @@ export function CustomerSummaryCard({
       <CardContent>
         <form
           id="customer-summary-form"
-          className="grid gap-4 lg:grid-cols-3"
+          className="grid gap-4 lg:grid-cols-2"
           onSubmit={form.handleSubmit(onSave)}
         >
           <div className="space-y-2">
@@ -86,21 +89,7 @@ export function CustomerSummaryCard({
             />
             <FieldError message={form.formState.errors.displayName?.message} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="customer-external-ref">Внешний ID</Label>
-            <Input
-              id="customer-external-ref"
-              value={form.watch("externalRef")}
-              onChange={(event) =>
-                form.setValue("externalRef", event.target.value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              placeholder="Например: crm-0001"
-            />
-            <FieldError message={form.formState.errors.externalRef?.message} />
-          </div>
+
           <div className="space-y-2">
             <Label>Создан</Label>
             <Input
@@ -109,7 +98,7 @@ export function CustomerSummaryCard({
               value={new Date(createdAt).toLocaleString("ru-RU")}
             />
           </div>
-          <div className="space-y-2 lg:col-span-3">
+          <div className="space-y-2">
             <Label htmlFor="customer-description">Описание</Label>
             <Textarea
               id="customer-description"
@@ -124,6 +113,21 @@ export function CustomerSummaryCard({
               rows={3}
             />
             <FieldError message={form.formState.errors.description?.message} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer-external-ref">Внешний ID</Label>
+            <Input
+              id="customer-external-ref"
+              value={form.watch("externalRef")}
+              onChange={(event) =>
+                form.setValue("externalRef", event.target.value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              placeholder="Например: crm-0001"
+            />
+            <FieldError message={form.formState.errors.externalRef?.message} />
           </div>
         </form>
       </CardContent>

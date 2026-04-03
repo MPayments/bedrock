@@ -26,10 +26,11 @@ const TreasuryOrganizationBalancesResponseSchema = z.object({
   data: z.array(TreasuryOrganizationBalanceRowSchema),
 });
 
-type RequisiteMeta = {
+interface RequisiteMeta {
+  currency: string;
   identity: string;
   label: string;
-};
+}
 
 function createRequisiteMeta(input: {
   accountNo?: string | null;
@@ -39,8 +40,10 @@ function createRequisiteMeta(input: {
   kind: "bank" | "blockchain" | "exchange" | "custodian";
   label: string;
   subaccountRef?: string | null;
+  currency: string;
 }): RequisiteMeta {
   return {
+    currency: input.currency,
     label: input.label,
     identity:
       resolveRequisiteIdentity({
@@ -66,62 +69,74 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
     );
     const uniqueRequisiteIds = Array.from(new Set(requisiteIds.filter(Boolean)));
     const metaById = new Map<string, RequisiteMeta>();
+    const optionsByOrganizationId = new Map<string, Awaited<
+      ReturnType<typeof ctx.partiesReadRuntime.requisitesQueries.listOptions>
+    >>();
 
     const optionsByOrganization = await Promise.all(
       uniqueOrganizationIds.map((organizationId) =>
-        ctx.partiesReadRuntime.requisitesQueries.listOptions({
-          ownerId: organizationId,
-          ownerType: "organization",
-        }),
+        ctx.partiesReadRuntime.requisitesQueries
+          .listOptions({
+            ownerId: organizationId,
+            ownerType: "organization",
+          })
+          .then((options) => [organizationId, options] as const),
       ),
     );
 
-    for (const option of optionsByOrganization.flat()) {
-      metaById.set(
-        option.id,
-        createRequisiteMeta({
-          accountNo: option.accountNo,
-          accountRef: option.accountRef,
-          address: option.address,
-          iban: option.iban,
-          kind: option.kind,
-          label: option.label,
-          subaccountRef: option.subaccountRef,
-        }),
-      );
+    for (const [organizationId, options] of optionsByOrganization) {
+      optionsByOrganizationId.set(organizationId, options);
+
+      for (const option of options) {
+        metaById.set(
+          option.id,
+          createRequisiteMeta({
+            accountNo: option.accountNo,
+            accountRef: option.accountRef,
+            address: option.address,
+            currency: option.currencyCode,
+            iban: option.iban,
+            kind: option.kind,
+            label: option.label,
+            subaccountRef: option.subaccountRef,
+          }),
+        );
+      }
     }
 
     const missingRequisiteIds = uniqueRequisiteIds.filter((id) => !metaById.has(id));
-    if (missingRequisiteIds.length === 0) {
-      return metaById;
-    }
-
-    const missingRequisites = await Promise.all(
-      missingRequisiteIds.map((requisiteId) =>
-        ctx.partiesReadRuntime.requisitesQueries.findById(requisiteId),
-      ),
-    );
-
-    for (const requisite of missingRequisites) {
-      if (!requisite) {
-        continue;
-      }
-
-      metaById.set(
-        requisite.id,
-        createRequisiteMeta({
-          accountNo: requisite.accountNo,
-          accountRef: requisite.accountRef,
-          address: requisite.address,
-          iban: requisite.iban,
-          kind: requisite.kind,
-          label: requisite.label,
-          subaccountRef: requisite.subaccountRef,
-        }),
+    if (missingRequisiteIds.length > 0) {
+      const missingRequisites = await Promise.all(
+        missingRequisiteIds.map((requisiteId) =>
+          ctx.partiesReadRuntime.requisitesQueries.findById(requisiteId),
+        ),
       );
+
+      for (const requisite of missingRequisites) {
+        if (!requisite) {
+          continue;
+        }
+
+        metaById.set(
+          requisite.id,
+          createRequisiteMeta({
+            accountNo: requisite.accountNo,
+            accountRef: requisite.accountRef,
+            address: requisite.address,
+            currency: "",
+            iban: requisite.iban,
+            kind: requisite.kind,
+            label: requisite.label,
+            subaccountRef: requisite.subaccountRef,
+          }),
+        );
+      }
     }
 
-    return metaById;
+    return {
+      metaById,
+      optionsByOrganizationId,
+    };
   }
 
   const listRoute = createRoute({
@@ -158,21 +173,91 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
       });
     }
 
+    const { metaById: requisiteMetaById, optionsByOrganizationId } =
+      await buildRequisiteMetaById(organizationIds, []);
+    const organizationIdsWithRequisites = Array.from(
+      optionsByOrganizationId.entries()
+        .filter(([, options]) => options.length > 0)
+        .map(([organizationId]) => organizationId),
+    );
+
+    await Promise.all(
+      organizationIdsWithRequisites.map((organizationId) =>
+        ctx.ledgerModule.books.commands.ensureDefaultOrganizationBook({
+          organizationId,
+        }),
+      ),
+    );
+
     const rows =
       await ctx.ledgerModule.balances.queries.listOrganizationRequisiteLiquidityRows({
         organizationIds,
       });
+    const missingRequisiteIds = Array.from(
+      new Set(
+        rows
+          .map((row) => row.requisiteId)
+          .filter((requisiteId) => !requisiteMetaById.has(requisiteId)),
+      ),
+    );
 
-    if (rows.length === 0) {
+    if (missingRequisiteIds.length > 0) {
+      const missingRequisites = await Promise.all(
+        missingRequisiteIds.map((requisiteId) =>
+          ctx.partiesReadRuntime.requisitesQueries.findById(requisiteId),
+        ),
+      );
+
+      for (const requisite of missingRequisites) {
+        if (!requisite) {
+          continue;
+        }
+
+        requisiteMetaById.set(
+          requisite.id,
+          createRequisiteMeta({
+            accountNo: requisite.accountNo,
+            accountRef: requisite.accountRef,
+            address: requisite.address,
+            currency: "",
+            iban: requisite.iban,
+            kind: requisite.kind,
+            label: requisite.label,
+            subaccountRef: requisite.subaccountRef,
+          }),
+        );
+      }
+    }
+
+    const zeroRows = Array.from(optionsByOrganizationId.entries()).flatMap(
+      ([organizationId, options]) =>
+        options
+          .filter(
+            (option) =>
+              !rows.some(
+                (row) =>
+                  row.organizationId === organizationId &&
+                  row.requisiteId === option.id &&
+                  row.currency === option.currencyCode,
+              ),
+          )
+          .map((option) => ({
+            organizationId,
+            requisiteId: option.id,
+            currency: option.currencyCode,
+            ledgerBalanceMinor: "0",
+            availableMinor: "0",
+            reservedMinor: "0",
+            pendingMinor: "0",
+          })),
+    );
+    const allRows = [...rows, ...zeroRows];
+
+    if (allRows.length === 0) {
       return jsonOk(c, { asOf, data: [] });
     }
 
-    const requisiteMetaById = await buildRequisiteMetaById(
-      organizationIds,
-      rows.map((row) => row.requisiteId),
-    );
-
-    const data = rows
+    const data = allRows
       .map((row) => {
         const requisiteMeta = requisiteMetaById.get(row.requisiteId);
 
