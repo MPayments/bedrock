@@ -3,11 +3,11 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { createClient, type Client } from "@bedrock/sdk-api-client";
+import { createClient } from "@bedrock/sdk-api-client";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
-const createServerApiClient = async (): Promise<Client> => {
+const createServerApiClient = async () => {
   const requestHeaders = await headers();
 
   return createClient(API_URL, {

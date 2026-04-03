@@ -1,3 +1,3 @@
-import { createClient, type Client } from "@bedrock/sdk-api-client";
+import { createClient } from "@bedrock/sdk-api-client";
 
-export const apiClient: Client = createClient("");
+export const apiClient = createClient("");
