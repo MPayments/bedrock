@@ -1,7 +1,9 @@
 import {
   AlertCircle,
+  CheckCircle2,
   Clock3,
   FileText,
+  ShieldCheck,
   Wallet,
 } from "lucide-react";
 
@@ -26,7 +28,7 @@ import {
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
 } from "@/features/treasury/deals/labels";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMajorAmount } from "@/lib/format";
 
 type FinanceDealWorkspaceViewProps = {
   deal: FinanceDealWorkspace;
@@ -37,6 +39,26 @@ export function FinanceDealWorkspaceView({
 }: FinanceDealWorkspaceViewProps) {
   const blockers = collectFinanceDealTopBlockers(deal);
   const executionProgress = getFinanceDealExecutionProgress(deal);
+  const closeReadinessBlockers = deal.closeReadiness.blockers.map((blocker) =>
+    formatDealWorkflowMessage(blocker),
+  );
+
+  const reconciliationStateLabel =
+    deal.reconciliationSummary.state === "blocked"
+      ? "Есть исключения"
+      : deal.reconciliationSummary.state === "clear"
+        ? "Сверка завершена"
+        : deal.reconciliationSummary.state === "pending"
+          ? "Сверка ожидается"
+          : "Сверка не требуется";
+  const reconciliationVariant =
+    deal.reconciliationSummary.state === "blocked"
+      ? "destructive"
+      : deal.reconciliationSummary.state === "clear"
+        ? "default"
+        : deal.reconciliationSummary.state === "pending"
+          ? "secondary"
+          : "outline";
 
   return (
     <div className="space-y-6">
@@ -107,6 +129,102 @@ export function FinanceDealWorkspaceView({
       </Card>
 
       <ExecutionSummaryRail deal={deal} />
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              Закрытие и результат
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-6 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Комиссионный доход</span>
+              <span className="font-medium">
+                {deal.profitabilitySnapshot
+                  ? formatMajorAmount(deal.profitabilitySnapshot.feeRevenueMinor)
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Доход от спреда</span>
+              <span className="font-medium">
+                {deal.profitabilitySnapshot
+                  ? formatMajorAmount(deal.profitabilitySnapshot.spreadRevenueMinor)
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Расходы провайдера</span>
+              <span className="font-medium">
+                {deal.profitabilitySnapshot
+                  ? formatMajorAmount(
+                      deal.profitabilitySnapshot.providerFeeExpenseMinor,
+                    )
+                  : "—"}
+              </span>
+            </div>
+            <div className="rounded-lg border px-3 py-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Критерии закрытия
+              </div>
+              <div className="mt-2 space-y-2">
+                {deal.closeReadiness.criteria.map((criterion) => (
+                  <div key={criterion.code} className="flex items-start gap-2">
+                    {criterion.satisfied ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
+                    )}
+                    <span>{criterion.label}</span>
+                  </div>
+                ))}
+              </div>
+              {closeReadinessBlockers.length > 0 ? (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {closeReadinessBlockers.join(" ")}
+                </div>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              Сверка
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-6 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Статус</span>
+              <Badge variant={reconciliationVariant}>
+                {reconciliationStateLabel}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Требуют сверки</span>
+              <span className="font-medium">
+                {deal.reconciliationSummary.requiredOperationCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Исключений</span>
+              <span className="font-medium">
+                {deal.reconciliationSummary.openExceptionCount}
+              </span>
+            </div>
+            {deal.relatedResources.reconciliationExceptions.length > 0 ? (
+              <div className="rounded-lg border px-3 py-3 text-xs text-muted-foreground">
+                Последнее исключение:{" "}
+                {deal.relatedResources.reconciliationExceptions[0]?.reasonCode ?? "—"}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader className="border-b">

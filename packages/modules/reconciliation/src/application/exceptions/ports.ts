@@ -34,6 +34,9 @@ export interface ReconciliationExceptionsQueryRepository {
     limit: number;
     offset: number;
   }): Promise<ReconciliationExceptionListRow[]>;
+  listLinkedToOperationIds(
+    operationIds: string[],
+  ): Promise<ReconciliationExceptionListRow[]>;
 }
 
 export interface ReconciliationExceptionsTxRepository {

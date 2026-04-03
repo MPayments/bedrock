@@ -28,6 +28,7 @@ import {
   RequisiteProviderSchema,
   RequisiteSchema,
 } from "@bedrock/parties/contracts";
+import { ReconciliationExceptionStateSchema } from "@bedrock/reconciliation/contracts";
 import {
   QuoteListItemSchema,
   QuoteSchema,
@@ -475,11 +476,24 @@ export const FinanceDealQueueSchema = z.enum([
 
 export type FinanceDealQueue = z.infer<typeof FinanceDealQueueSchema>;
 
+export const FinanceDealStageSchema = z.enum([
+  "awaiting_collection",
+  "awaiting_fx",
+  "awaiting_intracompany_transfer",
+  "awaiting_intercompany_funding",
+  "awaiting_payout",
+  "awaiting_reconciliation",
+  "ready_to_close",
+]);
+
+export type FinanceDealStage = z.infer<typeof FinanceDealStageSchema>;
+
 export const FinanceProfitabilitySnapshotSchema = z
   .object({
     calculationId: z.uuid(),
     currencyId: z.uuid(),
     feeRevenueMinor: z.string(),
+    providerFeeExpenseMinor: z.string(),
     spreadRevenueMinor: z.string(),
     totalRevenueMinor: z.string(),
   })
@@ -521,6 +535,8 @@ export const FinanceDealQueueItemSchema = z.object({
   profitabilitySnapshot: FinanceProfitabilitySnapshotSchema,
   queue: FinanceDealQueueSchema,
   queueReason: z.string(),
+  stage: FinanceDealStageSchema,
+  stageReason: z.string(),
   quoteSummary: PortalDealQuoteSummarySchema,
   status: DealSummarySchema.shape.status,
   type: DealSummarySchema.shape.type,
@@ -542,6 +558,7 @@ export const FinanceDealQueueFiltersSchema = z.object({
   applicant: z.string().trim().min(1).optional(),
   internalEntity: z.string().trim().min(1).optional(),
   queue: FinanceDealQueueSchema.optional(),
+  stage: FinanceDealStageSchema.optional(),
   status: DealSummarySchema.shape.status.optional(),
   type: DealSummarySchema.shape.type.optional(),
 });
@@ -599,6 +616,104 @@ export const FinanceDealOperationSchema = z.object({
 });
 
 export type FinanceDealOperation = z.infer<typeof FinanceDealOperationSchema>;
+
+export const FinanceDealInstructionSummarySchema = z.object({
+  failed: z.number().int().nonnegative(),
+  planned: z.number().int().nonnegative(),
+  prepared: z.number().int().nonnegative(),
+  returnRequested: z.number().int().nonnegative(),
+  returned: z.number().int().nonnegative(),
+  settled: z.number().int().nonnegative(),
+  submitted: z.number().int().nonnegative(),
+  terminalOperations: z.number().int().nonnegative(),
+  totalOperations: z.number().int().nonnegative(),
+  voided: z.number().int().nonnegative(),
+});
+
+export type FinanceDealInstructionSummary = z.infer<
+  typeof FinanceDealInstructionSummarySchema
+>;
+
+export const FinanceDealReconciliationStateSchema = z.enum([
+  "not_started",
+  "pending",
+  "clear",
+  "blocked",
+]);
+
+export type FinanceDealReconciliationState = z.infer<
+  typeof FinanceDealReconciliationStateSchema
+>;
+
+export const FinanceDealReconciliationExceptionSchema = z.object({
+  blocking: z.boolean(),
+  createdAt: z.date(),
+  externalRecordId: z.string(),
+  id: z.string(),
+  operationId: z.string(),
+  reasonCode: z.string(),
+  resolvedAt: z.date().nullable(),
+  source: z.string(),
+  state: ReconciliationExceptionStateSchema,
+});
+
+export type FinanceDealReconciliationException = z.infer<
+  typeof FinanceDealReconciliationExceptionSchema
+>;
+
+export const FinanceDealReconciliationSummarySchema = z.object({
+  ignoredExceptionCount: z.number().int().nonnegative(),
+  lastActivityAt: z.date().nullable(),
+  openExceptionCount: z.number().int().nonnegative(),
+  pendingOperationCount: z.number().int().nonnegative(),
+  reconciledOperationCount: z.number().int().nonnegative(),
+  requiredOperationCount: z.number().int().nonnegative(),
+  resolvedExceptionCount: z.number().int().nonnegative(),
+  state: FinanceDealReconciliationStateSchema,
+});
+
+export type FinanceDealReconciliationSummary = z.infer<
+  typeof FinanceDealReconciliationSummarySchema
+>;
+
+export const FinanceDealCloseCriterionCodeSchema = z.enum([
+  "operations_materialized",
+  "execution_unblocked",
+  "reconciliation_clear",
+  "payment_payout_settled",
+  "payment_documents_ready",
+  "currency_exchange_conversion_settled",
+  "currency_exchange_payout_or_returned",
+  "currency_transit_collect_settled",
+  "currency_transit_payout_settled",
+  "currency_transit_in_transit_resolved",
+  "exporter_settlement_payout_settled",
+  "exporter_settlement_receivable_resolved",
+]);
+
+export type FinanceDealCloseCriterionCode = z.infer<
+  typeof FinanceDealCloseCriterionCodeSchema
+>;
+
+export const FinanceDealCloseReadinessCriterionSchema = z.object({
+  code: FinanceDealCloseCriterionCodeSchema,
+  label: z.string(),
+  satisfied: z.boolean(),
+});
+
+export type FinanceDealCloseReadinessCriterion = z.infer<
+  typeof FinanceDealCloseReadinessCriterionSchema
+>;
+
+export const FinanceDealCloseReadinessSchema = z.object({
+  blockers: z.array(z.string()),
+  criteria: z.array(FinanceDealCloseReadinessCriterionSchema),
+  ready: z.boolean(),
+});
+
+export type FinanceDealCloseReadiness = z.infer<
+  typeof FinanceDealCloseReadinessSchema
+>;
 
 export const FinanceDealAttachmentRequirementStateSchema = z.enum([
   "missing",
@@ -662,10 +777,12 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   acceptedQuoteDetails: QuoteListItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
+  closeReadiness: FinanceDealCloseReadinessSchema,
   executionPlan: z.array(FinanceDealExecutionLegSchema),
   formalDocumentRequirements: z.array(
     FinanceDealFormalDocumentRequirementSchema,
   ),
+  instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   pricing: FinanceDealPricingContextSchema,
@@ -675,11 +792,15 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     queue: FinanceDealQueueSchema,
     queueReason: z.string(),
   }),
+  reconciliationSummary: FinanceDealReconciliationSummarySchema,
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
     operations: z.array(FinanceDealOperationSchema),
     quotes: z.array(DealRelatedQuoteSchema),
+    reconciliationExceptions: z.array(
+      FinanceDealReconciliationExceptionSchema,
+    ),
   }),
   summary: DealSummarySchema.extend({
     applicantDisplayName: z.string().nullable(),

@@ -28,7 +28,7 @@ export function extractCandidateReferences(
   return {
     candidateOperationIds,
     candidateDocumentIds,
-    operationId: candidateOperationIds[0] ?? readString(normalizedPayload.operationId),
-    documentId: candidateDocumentIds[0] ?? readString(normalizedPayload.documentId),
+    operationId: readString(normalizedPayload.operationId),
+    documentId: readString(normalizedPayload.documentId),
   };
 }

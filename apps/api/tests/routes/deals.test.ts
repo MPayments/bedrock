@@ -205,6 +205,181 @@ function createWorkflowProjection() {
   };
 }
 
+function createFinanceQueueProjection() {
+  return {
+    counts: {
+      execution: 1,
+      failed_instruction: 0,
+      funding: 0,
+    },
+    filters: {
+      queue: "execution",
+      stage: "awaiting_reconciliation",
+    },
+    items: [
+      {
+        applicantName: "ООО Ромашка",
+        blockingReasons: [],
+        createdAt: new Date("2026-04-03T09:00:00.000Z"),
+        dealId: "00000000-0000-4000-8000-000000000010",
+        documentSummary: {
+          attachmentCount: 1,
+          formalDocumentCount: 1,
+        },
+        executionSummary: {
+          blockedLegCount: 0,
+          doneLegCount: 2,
+          totalLegCount: 2,
+        },
+        internalEntityName: "Multihansa",
+        nextAction: "Close deal",
+        operationalState: {
+          capabilities: [],
+          positions: [],
+        },
+        profitabilitySnapshot: {
+          calculationId: "calc-1",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+          feeRevenueMinor: "1000",
+          providerFeeExpenseMinor: "250",
+          spreadRevenueMinor: "500",
+          totalRevenueMinor: "1500",
+        },
+        queue: "execution",
+        queueReason: "Сделка ожидает исполнения",
+        quoteSummary: null,
+        stage: "awaiting_reconciliation",
+        stageReason: "Ожидаем завершение сверки",
+        status: "closing_documents",
+        type: "payment",
+      },
+    ],
+  } as const;
+}
+
+function createFinanceWorkspaceProjection() {
+  return {
+    acceptedQuote: null,
+    acceptedQuoteDetails: null,
+    actions: {
+      canCloseDeal: false,
+      canCreateCalculation: false,
+      canCreateQuote: false,
+      canRequestExecution: false,
+      canResolveExecutionBlocker: false,
+      canUploadAttachment: true,
+    },
+    attachmentRequirements: [],
+    closeReadiness: {
+      blockers: ["Сверка еще не завершена по всем операциям"],
+      criteria: [
+        {
+          code: "reconciliation_clear",
+          label: "Сверка завершена без открытых исключений",
+          satisfied: false,
+        },
+      ],
+      ready: false,
+    },
+    executionPlan: [
+      {
+        actions: {
+          canCreateLegOperation: false,
+        },
+        id: "leg-1",
+        idx: 1,
+        kind: "payout",
+        operationRefs: [
+          {
+            kind: "payout",
+            operationId: "operation-1",
+            sourceRef: "deal:deal-1:leg:1:payout:1",
+          },
+        ],
+        state: "done",
+      },
+    ],
+    formalDocumentRequirements: [],
+    instructionSummary: {
+      failed: 0,
+      planned: 0,
+      prepared: 0,
+      returnRequested: 0,
+      returned: 0,
+      settled: 1,
+      submitted: 0,
+      terminalOperations: 1,
+      totalOperations: 1,
+      voided: 0,
+    },
+    nextAction: "Close deal",
+    operationalState: {
+      capabilities: [],
+      positions: [],
+    },
+    pricing: {
+      quoteEligibility: false,
+      requestedAmount: "100.00",
+      requestedCurrencyId: "00000000-0000-4000-8000-000000000006",
+      targetCurrencyId: null,
+    },
+    profitabilitySnapshot: {
+      calculationId: "calc-1",
+      currencyId: "00000000-0000-4000-8000-000000000006",
+      feeRevenueMinor: "1000",
+      providerFeeExpenseMinor: "250",
+      spreadRevenueMinor: "500",
+      totalRevenueMinor: "1500",
+    },
+    queueContext: {
+      blockers: [],
+      queue: "execution",
+      queueReason: "Сделка ожидает исполнения",
+    },
+    reconciliationSummary: {
+      ignoredExceptionCount: 0,
+      lastActivityAt: new Date("2026-04-03T11:00:00.000Z"),
+      openExceptionCount: 0,
+      pendingOperationCount: 1,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 1,
+      resolvedExceptionCount: 0,
+      state: "pending",
+    },
+    relatedResources: {
+      attachments: [],
+      formalDocuments: [],
+      operations: [],
+      quotes: [],
+      reconciliationExceptions: [
+        {
+          blocking: true,
+          createdAt: new Date("2026-04-03T11:00:00.000Z"),
+          externalRecordId: "external-1",
+          id: "exception-1",
+          operationId: "operation-1",
+          reasonCode: "no_match",
+          resolvedAt: null,
+          source: "bank_statement",
+          state: "open",
+        },
+      ],
+    },
+    summary: {
+      applicantDisplayName: "ООО Ромашка",
+      calculationId: "calc-1",
+      createdAt: new Date("2026-04-03T09:00:00.000Z"),
+      id: "00000000-0000-4000-8000-000000000010",
+      internalEntityDisplayName: "Multihansa",
+      status: "closing_documents",
+      type: "payment",
+      updatedAt: new Date("2026-04-03T11:00:00.000Z"),
+    },
+    timeline: [],
+    workflow: createWorkflowProjection(),
+  } as const;
+}
+
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
   const dealProjectionsWorkflow = {
@@ -983,6 +1158,62 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       idempotencyKey: "deal-close-1",
     });
+  });
+
+  it("passes the finance queue stage filter through to the projection workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listFinanceDealQueues.mockResolvedValue(
+      createFinanceQueueProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/finance/queues?queue=execution&stage=awaiting_reconciliation",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listFinanceDealQueues).toHaveBeenCalledWith({
+      queue: "execution",
+      stage: "awaiting_reconciliation",
+    });
+
+    const body = await response.json();
+    expect(body.items[0]).toMatchObject({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      stage: "awaiting_reconciliation",
+      stageReason: "Ожидаем завершение сверки",
+    });
+  });
+
+  it("returns reconciliation-aware finance workspace fields", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/finance-workspace",
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.closeReadiness).toMatchObject({
+      ready: false,
+    });
+    expect(body.instructionSummary).toMatchObject({
+      settled: 1,
+      totalOperations: 1,
+    });
+    expect(body.reconciliationSummary).toMatchObject({
+      pendingOperationCount: 1,
+      state: "pending",
+    });
+    expect(body.relatedResources.reconciliationExceptions).toEqual([
+      expect.objectContaining({
+        id: "exception-1",
+        source: "bank_statement",
+      }),
+    ]);
   });
 
   it("updates a deal execution leg state", async () => {

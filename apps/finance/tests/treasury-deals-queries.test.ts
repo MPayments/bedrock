@@ -60,6 +60,17 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    closeReadiness: {
+      blockers: ["Required intake sections are incomplete"],
+      criteria: [
+        {
+          code: "operations_materialized",
+          label: "Казначейские операции созданы для всех этапов",
+          satisfied: false,
+        },
+      ],
+      ready: false,
+    },
     executionPlan: [
       {
         actions: {
@@ -83,6 +94,18 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    instructionSummary: {
+      failed: 0,
+      planned: 0,
+      prepared: 0,
+      returnRequested: 0,
+      returned: 0,
+      settled: 0,
+      submitted: 0,
+      terminalOperations: 0,
+      totalOperations: 0,
+      voided: 0,
+    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       capabilities: [
@@ -118,6 +141,16 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       queue: "funding",
       queueReason: "Required intake sections are incomplete",
     },
+    reconciliationSummary: {
+      ignoredExceptionCount: 0,
+      lastActivityAt: null,
+      openExceptionCount: 0,
+      pendingOperationCount: 0,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 0,
+      resolvedExceptionCount: 0,
+      state: "not_started",
+    },
     relatedResources: {
       attachments: [
         {
@@ -141,6 +174,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
           status: "active",
         },
       ],
+      reconciliationExceptions: [],
     },
     summary: {
       applicantDisplayName: "ООО Тест",
@@ -213,6 +247,8 @@ describe("treasury deals queries", () => {
             profitabilitySnapshot: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
+            stage: "awaiting_payout",
+            stageReason: "Ожидаем выплату",
             quoteSummary: null,
             status: "awaiting_payment",
             type: "payment",
@@ -236,6 +272,8 @@ describe("treasury deals queries", () => {
             profitabilitySnapshot: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
+            stage: "awaiting_fx",
+            stageReason: "Ожидаем конвертацию",
             quoteSummary: null,
             status: "submitted",
             type: "currency_exchange",
@@ -312,6 +350,8 @@ describe("treasury deals queries", () => {
             profitabilitySnapshot: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
+            stage: "awaiting_payout",
+            stageReason: "Ожидаем выплату",
             quoteSummary: null,
             status: "awaiting_payment",
             type: "payment",
@@ -335,6 +375,8 @@ describe("treasury deals queries", () => {
             profitabilitySnapshot: null,
             queue: "failed_instruction",
             queueReason: "Сделка заблокирована на этапе исполнения",
+            stage: "awaiting_fx",
+            stageReason: "Ожидаем конвертацию",
             quoteSummary: null,
             status: "submitted",
             type: "currency_exchange",
@@ -358,6 +400,8 @@ describe("treasury deals queries", () => {
             profitabilitySnapshot: null,
             queue: "funding",
             queueReason: "Сделка находится на этапе фондирования",
+            stage: "awaiting_collection",
+            stageReason: "Ожидаем поступление средств",
             quoteSummary: null,
             status: "draft",
             type: "payment",

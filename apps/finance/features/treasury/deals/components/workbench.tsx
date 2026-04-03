@@ -932,6 +932,44 @@ function DocumentsTab({
   );
 }
 
+function getReconciliationStateLabel(value: string) {
+  switch (value) {
+    case "blocked":
+      return "Есть исключения";
+    case "clear":
+      return "Сверка завершена";
+    case "not_started":
+      return "Сверка не требуется";
+    case "pending":
+      return "Сверка ожидается";
+    default:
+      return value;
+  }
+}
+
+function getReconciliationStateVariant(value: string) {
+  switch (value) {
+    case "blocked":
+      return "destructive" as const;
+    case "clear":
+      return "default" as const;
+    case "pending":
+      return "secondary" as const;
+    case "not_started":
+      return "outline" as const;
+    default:
+      return "outline" as const;
+  }
+}
+
+function formatMinorSnapshotAmount(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  return formatMajorAmount(value);
+}
+
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
   isClosingDeal: boolean;
@@ -971,6 +1009,10 @@ function ExecutionTab({
   const operationsById = new Map(
     deal.relatedResources.operations.map((operation) => [operation.id, operation] as const),
   );
+  const closeReadinessBlockers = deal.closeReadiness.blockers.map((blocker) =>
+    formatDealWorkflowMessage(blocker),
+  );
+  const closeCriteria = deal.closeReadiness.criteria;
 
   return (
     <div className="space-y-6">
@@ -991,21 +1033,175 @@ function ExecutionTab({
               {isRequestingExecution ? "Материализуем..." : "Запросить исполнение"}
             </Button>
           ) : null}
-          {deal.actions.canCloseDeal ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isClosingDeal}
-              onClick={onCloseDeal}
-            >
-              {isClosingDeal ? "Закрываем..." : "Закрыть сделку"}
-            </Button>
-          ) : null}
-          {!deal.actions.canRequestExecution && !deal.actions.canCloseDeal ? (
+          {!deal.actions.canRequestExecution ? (
             <div className="text-sm text-muted-foreground">
-              Для этой сделки сейчас нет доступных команд исполнения.
+              Дополнительные действия по инструкции доступны в карточках этапов и операций.
             </div>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+            Финансовый результат и закрытие
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border px-4 py-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Комиссионный доход
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatMinorSnapshotAmount(
+                  deal.profitabilitySnapshot?.feeRevenueMinor,
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Доход от спреда
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatMinorSnapshotAmount(
+                  deal.profitabilitySnapshot?.spreadRevenueMinor,
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Расходы провайдера
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatMinorSnapshotAmount(
+                  deal.profitabilitySnapshot?.providerFeeExpenseMinor,
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Итог по инструкциям
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {deal.instructionSummary.terminalOperations}/
+                {deal.instructionSummary.totalOperations}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="rounded-lg border px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-medium">Результат сверки</div>
+                <Badge
+                  variant={getReconciliationStateVariant(
+                    deal.reconciliationSummary.state,
+                  )}
+                >
+                  {getReconciliationStateLabel(deal.reconciliationSummary.state)}
+                </Badge>
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Требуют сверки</span>
+                  <span className="font-medium text-foreground">
+                    {deal.reconciliationSummary.requiredOperationCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Связаны со сверкой</span>
+                  <span className="font-medium text-foreground">
+                    {deal.reconciliationSummary.reconciledOperationCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Открытых исключений</span>
+                  <span className="font-medium text-foreground">
+                    {deal.reconciliationSummary.openExceptionCount}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-medium">Закрытие сделки</div>
+                {deal.actions.canCloseDeal ? (
+                  <Button
+                    size="sm"
+                    disabled={isClosingDeal}
+                    onClick={onCloseDeal}
+                  >
+                    {isClosingDeal ? "Закрываем..." : "Закрыть сделку"}
+                  </Button>
+                ) : (
+                  <Badge variant="outline">Еще не готова</Badge>
+                )}
+              </div>
+              <div className="mt-3 space-y-2">
+                {closeCriteria.map((criterion) => (
+                  <div
+                    key={criterion.code}
+                    className="flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
+                  >
+                    {criterion.satisfied ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
+                    )}
+                    <span>{criterion.label}</span>
+                  </div>
+                ))}
+              </div>
+              {!deal.actions.canCloseDeal && closeReadinessBlockers.length > 0 ? (
+                <div className="mt-3 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                  {closeReadinessBlockers.join(" ")}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-muted-foreground" />
+            Исключения сверки
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-6">
+          {deal.relatedResources.reconciliationExceptions.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              По связанным операциям исключений сверки пока нет.
+            </div>
+          ) : (
+            deal.relatedResources.reconciliationExceptions.map((exception) => (
+              <div key={`${exception.id}:${exception.operationId}`} className="rounded-lg border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={exception.blocking ? "destructive" : "outline"}
+                  >
+                    {exception.state === "open" ? "Открыто" : exception.state === "resolved" ? "Разрешено" : "Игнорируется"}
+                  </Badge>
+                  <span className="text-sm font-medium">
+                    {exception.reasonCode}
+                  </span>
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Источник: {exception.source} · Операция: {exception.operationId}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Создано: {formatDate(exception.createdAt)}
+                  {exception.resolvedAt
+                    ? ` · Закрыто: ${formatDate(exception.resolvedAt)}`
+                    : ""}
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

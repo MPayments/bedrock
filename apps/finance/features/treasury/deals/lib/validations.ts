@@ -6,6 +6,7 @@ import type { ResourceSearchParams } from "@/lib/resources/search-params";
 import {
   FINANCE_DEAL_BLOCKER_STATE_VALUES,
   FINANCE_DEAL_QUEUE_VALUES,
+  FINANCE_DEAL_STAGE_VALUES,
   FINANCE_DEAL_STATUS_VALUES,
   FINANCE_DEAL_TYPE_VALUES,
 } from "../labels";
@@ -31,6 +32,11 @@ interface FinanceDealsListFilters {
     kind: "string";
     cardinality: "single";
     enumValues: typeof FINANCE_DEAL_QUEUE_VALUES;
+  };
+  stage: {
+    kind: "string";
+    cardinality: "single";
+    enumValues: typeof FINANCE_DEAL_STAGE_VALUES;
   };
   status: {
     kind: "string";
@@ -63,6 +69,11 @@ export const FINANCE_DEALS_LIST_CONTRACT: ListQueryContract<
       cardinality: "single",
       enumValues: FINANCE_DEAL_QUEUE_VALUES,
     },
+    stage: {
+      kind: "string",
+      cardinality: "single",
+      enumValues: FINANCE_DEAL_STAGE_VALUES,
+    },
     status: {
       kind: "string",
       cardinality: "single",
@@ -86,6 +97,7 @@ export type FinanceDealsSearchParams = ResourceSearchParams & {
   createdAt?: string | null;
   internalEntity?: string | null;
   queue?: string | null;
+  stage?: string | null;
   status?: string | null;
   type?: string | null;
 };

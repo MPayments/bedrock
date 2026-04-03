@@ -50,6 +50,22 @@ function createDeal(): FinanceDealWorkbenchData {
       canUploadAttachment: true,
     },
     attachmentRequirements: [],
+    closeReadiness: {
+      blockers: ["Required intake sections are incomplete"],
+      criteria: [
+        {
+          code: "operations_materialized",
+          label: "Казначейские операции созданы для всех этапов",
+          satisfied: false,
+        },
+        {
+          code: "reconciliation_clear",
+          label: "Сверка завершена без открытых исключений",
+          satisfied: true,
+        },
+      ],
+      ready: false,
+    },
     calculationHistory: [],
     executionPlan: [
       {
@@ -74,6 +90,18 @@ function createDeal(): FinanceDealWorkbenchData {
         state: "missing",
       },
     ],
+    instructionSummary: {
+      failed: 0,
+      planned: 0,
+      prepared: 0,
+      returnRequested: 0,
+      returned: 0,
+      settled: 0,
+      submitted: 0,
+      terminalOperations: 0,
+      totalOperations: 0,
+      voided: 0,
+    },
     nextAction: "Complete intake form",
     operationalState: {
       capabilities: [],
@@ -95,11 +123,22 @@ function createDeal(): FinanceDealWorkbenchData {
       queue: "funding",
       queueReason: "Required intake sections are incomplete",
     },
+    reconciliationSummary: {
+      ignoredExceptionCount: 0,
+      lastActivityAt: null,
+      openExceptionCount: 0,
+      pendingOperationCount: 0,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 0,
+      resolvedExceptionCount: 0,
+      state: "not_started",
+    },
     relatedResources: {
       attachments: [],
       formalDocuments: [],
       operations: [],
       quotes: [],
+      reconciliationExceptions: [],
     },
     summary: {
       applicantDisplayName: "ООО Тест",
@@ -209,5 +248,63 @@ describe("treasury deal workbench", () => {
 
     expect(markup.match(/Запросить котировку/g)).toHaveLength(1);
     expect(markup.match(/Создать расчет/g)).toHaveLength(1);
+  });
+
+  it("renders profitability, reconciliation, and close-readiness details from the backend projection", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+    const deal = createDeal();
+    deal.profitabilitySnapshot = {
+      calculationId: "calc-1",
+      currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      feeRevenueMinor: "1000",
+      providerFeeExpenseMinor: "250",
+      spreadRevenueMinor: "500",
+      totalRevenueMinor: "1500",
+    };
+    deal.reconciliationSummary = {
+      ignoredExceptionCount: 0,
+      lastActivityAt: "2026-04-02T10:00:00.000Z",
+      openExceptionCount: 1,
+      pendingOperationCount: 1,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 1,
+      resolvedExceptionCount: 0,
+      state: "blocked",
+    };
+    deal.relatedResources.reconciliationExceptions = [
+      {
+        blocking: true,
+        createdAt: "2026-04-02T10:00:00.000Z",
+        externalRecordId: "external-record-1",
+        id: "exception-1",
+        operationId: "operation-1",
+        reasonCode: "no_match",
+        resolvedAt: null,
+        source: "bank_statement",
+        state: "open",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal,
+      }),
+    );
+
+    expect(markup).toContain("Финансовый результат и закрытие");
+    expect(markup).toContain("Расходы провайдера");
+    expect(markup).toContain("Результат сверки");
+    expect(markup).toContain("Открытых исключений");
+    expect(markup).toContain("Исключения сверки");
+    expect(markup).toContain("bank_statement");
+    expect(markup).not.toContain("Закрыть сделку");
   });
 });

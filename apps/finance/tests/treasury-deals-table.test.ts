@@ -55,6 +55,7 @@ describe("finance deals table", () => {
       "applicantName",
       "internalEntityName",
       "queue",
+      "stage",
       "type",
       "status",
       "blockerState",

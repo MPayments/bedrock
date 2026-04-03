@@ -19,6 +19,8 @@ import type {
   RequisiteProvider,
 } from "@bedrock/parties/contracts";
 import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
+import type { ReconciliationService } from "@bedrock/reconciliation";
+import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteListItem,
@@ -55,6 +57,10 @@ import type {
   PortalDealProjection,
 } from "./contracts";
 import { CrmDealsListQuerySchema } from "./contracts";
+import {
+  deriveFinanceDealReadiness,
+  deriveFinanceDealStage,
+} from "./close-readiness";
 
 const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
@@ -107,6 +113,7 @@ export interface DealProjectionsWorkflowDeps {
     PartiesModuleRoot,
     "counterparties" | "customers" | "organizations" | "requisites"
   >;
+  reconciliation: Pick<ReconciliationService, "links">;
   treasury: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
 }
 
@@ -977,6 +984,10 @@ function buildProfitabilitySnapshot(
     calculation.lines,
     "fee_revenue",
   );
+  const providerFeeExpenseMinor = sumCalculationLineAmounts(
+    calculation.lines,
+    "provider_fee_expense",
+  );
   const spreadRevenueMinor = sumCalculationLineAmounts(
     calculation.lines,
     "spread_revenue",
@@ -986,6 +997,7 @@ function buildProfitabilitySnapshot(
     calculationId: calculation.id,
     currencyId: calculation.currentSnapshot.baseCurrencyId,
     feeRevenueMinor: feeRevenueMinor.toString(),
+    providerFeeExpenseMinor: providerFeeExpenseMinor.toString(),
     spreadRevenueMinor: spreadRevenueMinor.toString(),
     totalRevenueMinor: (feeRevenueMinor + spreadRevenueMinor).toString(),
   };
@@ -1074,53 +1086,6 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
     queue: "funding",
     queueReason: "Сделка ожидает следующий шаг на этапе фондирования",
   };
-}
-
-function canCloseDeal(input: {
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  workflow: DealWorkflowProjection;
-}) {
-  if (
-    isDealInTerminalStatus(input.workflow) ||
-    input.workflow.summary.status === "done"
-  ) {
-    return false;
-  }
-
-  const readiness = input.workflow.transitionReadiness.find(
-    (item) => item.targetStatus === "done",
-  );
-
-  if (readiness && !readiness.allowed) {
-    return false;
-  }
-
-  const hasExecutionBlockers =
-    input.workflow.executionPlan.some((leg) => leg.state === "blocked") ||
-    collectBlockingReasons(input.workflow).length > 0;
-
-  if (hasExecutionBlockers) {
-    return false;
-  }
-
-  if (
-    input.workflow.executionPlan.some((leg) => leg.operationRefs.length === 0)
-  ) {
-    return false;
-  }
-
-  return input.workflow.executionPlan.every((leg) =>
-    leg.operationRefs.every((ref) => {
-      const latest = input.latestInstructionByOperationId.get(ref.operationId);
-
-      return Boolean(
-        latest &&
-          (latest.state === "settled" ||
-            latest.state === "returned" ||
-            latest.state === "voided"),
-      );
-    }),
-  );
 }
 
 function buildFinanceDealOperation(input: {
@@ -1910,9 +1875,24 @@ export function createDealProjectionsWorkflow(
   async function getFinanceDealWorkspaceProjection(
     dealId: string,
   ): Promise<FinanceDealWorkspaceProjection | null> {
-    const [workflow, attachments, operationsResult, quotesResult] = await Promise.all([
-      deps.deals.deals.queries.findWorkflowById(dealId),
+    const workflow = await deps.deals.deals.queries.findWorkflowById(dealId);
+
+    if (!workflow) {
+      return null;
+    }
+
+    const [
+      attachments,
+      currentCalculation,
+      operationsResult,
+      quotesResult,
+    ] = await Promise.all([
       deps.files.files.queries.listDealAttachments(dealId),
+      workflow.summary.calculationId
+        ? deps.calculations.calculations.queries.findById(
+            workflow.summary.calculationId,
+          )
+        : Promise.resolve(null),
       deps.treasury.operations.queries.list({
         dealId,
         limit: MAX_QUERY_LIST_LIMIT,
@@ -1928,16 +1908,6 @@ export function createDealProjectionsWorkflow(
         sortOrder: "desc",
       }),
     ]);
-
-    if (!workflow) {
-      return null;
-    }
-
-    const currentCalculation = await (workflow.summary.calculationId
-      ? deps.calculations.calculations.queries.findById(
-          workflow.summary.calculationId,
-        )
-      : Promise.resolve(null));
 
     const actions = buildCrmWorkbenchActions(workflow);
     const attachmentRequirements = buildCrmEvidenceRequirements({
@@ -1956,6 +1926,28 @@ export function createDealProjectionsWorkflow(
         instruction,
       ] as const),
     );
+    const reconciliationLinks =
+      await deps.reconciliation.links.listOperationLinks({
+        operationIds: operationsResult.data.map((operation) => operation.id),
+      });
+    const reconciliationLinksByOperationId = new Map(
+      reconciliationLinks.map(
+        (link): readonly [string, ReconciliationOperationLinkDto] => [
+          link.operationId,
+          link,
+        ],
+      ),
+    );
+    const {
+      closeReadiness,
+      instructionSummary,
+      reconciliationExceptions,
+      reconciliationSummary,
+    } = deriveFinanceDealReadiness({
+      latestInstructionByOperationId,
+      reconciliationLinksByOperationId,
+      workflow,
+    });
     const queueBlocked =
       queueContext.blockers.length > 0 ||
       workflow.executionPlan.some((leg) => leg.state === "blocked");
@@ -1973,10 +1965,7 @@ export function createDealProjectionsWorkflow(
       acceptedQuote: workflow.acceptedQuote,
       acceptedQuoteDetails,
       actions: {
-        canCloseDeal: canCloseDeal({
-          latestInstructionByOperationId,
-          workflow,
-        }),
+        canCloseDeal: closeReadiness.ready,
         canCreateCalculation: actions.canCreateCalculation,
         canCreateQuote: actions.canCreateQuote,
         canRequestExecution:
@@ -1989,6 +1978,7 @@ export function createDealProjectionsWorkflow(
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,
+      closeReadiness,
       executionPlan: workflow.executionPlan.map((leg) => ({
         ...leg,
         actions: {
@@ -2001,6 +1991,7 @@ export function createDealProjectionsWorkflow(
         },
       })),
       formalDocumentRequirements,
+      instructionSummary,
       nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,
       pricing: {
@@ -2012,6 +2003,7 @@ export function createDealProjectionsWorkflow(
       },
       profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
       queueContext,
+      reconciliationSummary,
       relatedResources: {
         attachments,
         formalDocuments: workflow.relatedResources.formalDocuments,
@@ -2024,6 +2016,7 @@ export function createDealProjectionsWorkflow(
           }),
         ),
         quotes: workflow.relatedResources.quotes,
+        reconciliationExceptions,
       },
       summary: {
         ...workflow.summary,
@@ -2072,15 +2065,63 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
-          const currentCalculation = workflow.summary.calculationId
-            ? await deps.calculations.calculations.queries.findById(
-                workflow.summary.calculationId,
-              )
-            : null;
-
-          const attachments =
-            await deps.files.files.queries.listDealAttachments(deal.id);
+          const [agreement, operationsResult] = await Promise.all([
+            deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+            deps.treasury.operations.queries.list({
+              dealId: deal.id,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            }),
+          ]);
           const queueContext = classifyFinanceQueue(workflow);
+          const latestInstructions =
+            await deps.treasury.instructions.queries.listLatestByOperationIds(
+              operationsResult.data.map((operation) => operation.id),
+            );
+          const latestInstructionByOperationId = new Map(
+            latestInstructions.map((instruction) => [
+              instruction.operationId,
+              instruction,
+            ] as const),
+          );
+          const reconciliationLinks =
+            await deps.reconciliation.links.listOperationLinks({
+              operationIds: operationsResult.data.map((operation) => operation.id),
+            });
+          const reconciliationLinksByOperationId = new Map(
+            reconciliationLinks.map(
+              (link): readonly [string, ReconciliationOperationLinkDto] => [
+                link.operationId,
+                link,
+              ],
+            ),
+          );
+          const { closeReadiness, reconciliationSummary } =
+            deriveFinanceDealReadiness({
+              latestInstructionByOperationId,
+              reconciliationLinksByOperationId,
+              workflow,
+            });
+          const { stage, stageReason } = deriveFinanceDealStage({
+            agreementOrganizationId: agreement?.organizationId ?? null,
+            closeReadiness,
+            internalEntityOrganizationId:
+              getInternalEntityParticipant(workflow)?.organizationId ?? null,
+            latestInstructionByOperationId,
+            reconciliationSummary,
+            workflow,
+          });
+
+          const [attachments, currentCalculation] = await Promise.all([
+            deps.files.files.queries.listDealAttachments(deal.id),
+            workflow.summary.calculationId
+              ? deps.calculations.calculations.queries.findById(
+                  workflow.summary.calculationId,
+                )
+              : Promise.resolve(null),
+          ]);
 
           return {
             applicantName,
@@ -2100,6 +2141,8 @@ export function createDealProjectionsWorkflow(
               buildProfitabilitySnapshot(currentCalculation),
             queue: queueContext.queue,
             queueReason: queueContext.queueReason,
+            stage,
+            stageReason,
             quoteSummary: buildPortalQuoteSummary(workflow),
             status: workflow.summary.status,
             type: workflow.summary.type,
@@ -2127,9 +2170,17 @@ export function createDealProjectionsWorkflow(
     return {
       counts,
       filters,
-      items: filters.queue
-        ? filteredItems.filter((item) => item.queue === filters.queue)
-        : filteredItems,
+      items: filteredItems.filter((item) => {
+        if (filters.queue && item.queue !== filters.queue) {
+          return false;
+        }
+
+        if (filters.stage && item.stage !== filters.stage) {
+          return false;
+        }
+
+        return true;
+      }),
     };
   }
 

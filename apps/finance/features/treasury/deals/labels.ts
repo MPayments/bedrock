@@ -12,6 +12,18 @@ export const FINANCE_DEAL_QUEUE_VALUES = [
 
 export type FinanceDealQueue = (typeof FINANCE_DEAL_QUEUE_VALUES)[number];
 
+export const FINANCE_DEAL_STAGE_VALUES = [
+  "awaiting_collection",
+  "awaiting_fx",
+  "awaiting_intracompany_transfer",
+  "awaiting_intercompany_funding",
+  "awaiting_payout",
+  "awaiting_reconciliation",
+  "ready_to_close",
+] as const;
+
+export type FinanceDealStage = (typeof FINANCE_DEAL_STAGE_VALUES)[number];
+
 export const FINANCE_DEAL_BLOCKER_STATE_VALUES = [
   "blocked",
   "clear",
@@ -47,6 +59,16 @@ export const FINANCE_DEAL_QUEUE_LABELS: Record<FinanceDealQueue, string> = {
   execution: "Исполнение",
   failed_instruction: "Блокеры исполнения",
   funding: "Фондирование",
+};
+
+export const FINANCE_DEAL_STAGE_LABELS: Record<FinanceDealStage, string> = {
+  awaiting_collection: "Ожидание поступления",
+  awaiting_fx: "Ожидание FX",
+  awaiting_intercompany_funding: "Ожидание межкомпанейского фондирования",
+  awaiting_intracompany_transfer: "Ожидание внутреннего перевода",
+  awaiting_payout: "Ожидание выплаты",
+  awaiting_reconciliation: "Ожидание сверки",
+  ready_to_close: "Готова к закрытию",
 };
 
 export const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
@@ -279,6 +301,14 @@ export function getFinanceDealQueueLabel(value: string | null | undefined) {
   }
 
   return FINANCE_DEAL_QUEUE_LABELS[value as FinanceDealQueue] ?? value;
+}
+
+export function getFinanceDealStageLabel(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  return FINANCE_DEAL_STAGE_LABELS[value as FinanceDealStage] ?? value;
 }
 
 export function getFinanceDealBlockerStateLabel(
@@ -594,6 +624,13 @@ export function getFinanceDealQueueOptions(): Option[] {
   return FINANCE_DEAL_QUEUE_VALUES.map((value) => ({
     value,
     label: FINANCE_DEAL_QUEUE_LABELS[value],
+  }));
+}
+
+export function getFinanceDealStageOptions(): Option[] {
+  return FINANCE_DEAL_STAGE_VALUES.map((value) => ({
+    value,
+    label: FINANCE_DEAL_STAGE_LABELS[value],
   }));
 }
 

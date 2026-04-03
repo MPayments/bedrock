@@ -68,6 +68,24 @@ export const ReconciliationExceptionListItemDtoSchema = z.object({
   externalRecord: ReconciliationExternalRecordDtoSchema,
 });
 
+export const ReconciliationOperationLinkExceptionDtoSchema = z.object({
+  createdAt: z.date(),
+  externalRecordId: StringIdSchema,
+  id: StringIdSchema,
+  operationId: StringIdSchema,
+  reasonCode: z.string().min(1),
+  resolvedAt: z.date().nullable(),
+  source: z.string().min(1),
+  state: ReconciliationExceptionStateSchema,
+});
+
+export const ReconciliationOperationLinkDtoSchema = z.object({
+  exceptions: z.array(ReconciliationOperationLinkExceptionDtoSchema),
+  lastActivityAt: z.date().nullable(),
+  matchCount: z.number().int().nonnegative(),
+  operationId: StringIdSchema,
+});
+
 export const CreateAdjustmentDocumentResultSchema = z.object({
   exceptionId: StringIdSchema,
   documentId: z.string().min(1),
@@ -94,6 +112,12 @@ export type ReconciliationExceptionDto = z.infer<
 >;
 export type ReconciliationExceptionListItemDto = z.infer<
   typeof ReconciliationExceptionListItemDtoSchema
+>;
+export type ReconciliationOperationLinkExceptionDto = z.infer<
+  typeof ReconciliationOperationLinkExceptionDtoSchema
+>;
+export type ReconciliationOperationLinkDto = z.infer<
+  typeof ReconciliationOperationLinkDtoSchema
 >;
 export type CreateAdjustmentDocumentResult = z.infer<
   typeof CreateAdjustmentDocumentResultSchema

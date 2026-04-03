@@ -15,6 +15,7 @@ import {
   createExplainMatchHandler,
   createListExceptionsHandler,
 } from "./application/exceptions/queries";
+import { createListOperationLinksHandler } from "./application/links/queries";
 import { createIngestExternalRecordHandler } from "./application/records/commands";
 import type { ReconciliationExternalRecordsTxRepository } from "./application/records/ports";
 import { createRunReconciliationHandler } from "./application/runs/commands";
@@ -228,6 +229,9 @@ function createReconciliationServiceFromContext(input: Parameters<
       explainMatch: createExplainMatchHandler(context),
       getAdjustmentResolution: createGetAdjustmentResolutionHandler(context),
       resolveWithAdjustment: createResolveAdjustmentHandler(context),
+    },
+    links: {
+      listOperationLinks: createListOperationLinksHandler(context),
     },
   };
 }

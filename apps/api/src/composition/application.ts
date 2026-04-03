@@ -31,6 +31,10 @@ import {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import {
+  createReconciliationService,
+  type ReconciliationService,
+} from "@bedrock/reconciliation";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
@@ -100,6 +104,7 @@ export interface ApiApplicationServices {
   agreementsModule: AgreementsModule;
   calculationsModule: CalculationsModule;
   dealsModule: DealsModule;
+  reconciliationService: ReconciliationService;
   filesModule: FilesModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
@@ -250,6 +255,41 @@ export function createApplicationServices(
     deals: dealsModule,
     treasury: treasuryModule,
   });
+  const createReconciliationServiceForTransaction = (tx: Transaction) =>
+    createReconciliationService({
+      persistence: bindPersistenceSession(tx),
+      idempotency,
+      documents: {
+        async existsById() {
+          return false;
+        },
+      },
+      ledgerLookup: {
+        async operationExists(operationId: string) {
+          return (
+            (await createLedgerModuleForTransaction(tx).operations.queries.getDetails(
+              operationId,
+            )) !== null
+          );
+        },
+      },
+      logger,
+    });
+  const reconciliationService = createReconciliationService({
+    persistence: createPersistenceContext(db),
+    idempotency,
+    documents: {
+      async existsById() {
+        return false;
+      },
+    },
+    ledgerLookup: {
+      async operationExists(operationId: string) {
+        return (await ledgerModule.operations.queries.getDetails(operationId)) !== null;
+      },
+    },
+    logger,
+  });
   const dealExecutionWorkflow = createDealExecutionWorkflow({
     agreements: agreementsModule,
     currencies: currenciesService,
@@ -257,6 +297,7 @@ export function createApplicationServices(
     idempotency,
     createDealStore: (tx) => new DrizzleDealStore(tx),
     createDealsModule: createDealsModuleForTransaction,
+    createReconciliationService: createReconciliationServiceForTransaction,
     createTreasuryModule: createTreasuryModuleForTransaction,
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
@@ -510,6 +551,7 @@ export function createApplicationServices(
     files: filesModule,
     iam: iamService,
     parties: partiesModule,
+    reconciliation: reconciliationService,
     treasury: treasuryModule,
   });
 
@@ -569,6 +611,7 @@ export function createApplicationServices(
     agreementsModule,
     calculationsModule,
     dealsModule,
+    reconciliationService,
     filesModule,
     partiesModule,
     currenciesService,

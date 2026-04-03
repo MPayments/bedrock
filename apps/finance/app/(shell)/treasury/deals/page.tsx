@@ -21,10 +21,9 @@ export default async function TreasuryDealsPage({
       icon={Handshake}
       title="Сделки"
       description="Журнал сделок казначейства с фильтрами, очередями и встроенными действиями."
-      fallback={<DataTableSkeleton columnCount={10} rowCount={10} filterCount={5} />}
+      fallback={<DataTableSkeleton columnCount={11} rowCount={10} filterCount={6} />}
     >
       <FinanceDealsTable promise={promise} />
     </EntityListPageShell>
   );
 }
-

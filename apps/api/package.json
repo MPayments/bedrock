@@ -31,6 +31,7 @@
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
     "@bedrock/shared": "workspace:*",
     "@bedrock/treasury": "workspace:*",
     "@bedrock/workflow-customer-portal": "workspace:*",

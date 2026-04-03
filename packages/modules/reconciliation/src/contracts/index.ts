@@ -11,15 +11,21 @@ export {
 export {
   ExplainReconciliationMatchInputSchema,
   ListReconciliationExceptionsInputSchema,
+  ListReconciliationOperationLinksInputSchema,
   type ExplainReconciliationMatchInput,
   type ListReconciliationExceptionsInput,
+  type ListReconciliationOperationLinksInput,
 } from "./queries";
 export {
   CreateAdjustmentDocumentResultSchema,
   ReconciliationExceptionDtoSchema,
   ReconciliationExceptionListItemDtoSchema,
+  ReconciliationExceptionStateSchema,
   ReconciliationExternalRecordDtoSchema,
+  ReconciliationMatchStatusSchema,
   ReconciliationMatchExplanationSchema,
+  ReconciliationOperationLinkDtoSchema,
+  ReconciliationOperationLinkExceptionDtoSchema,
   ReconciliationRunDtoSchema,
   ReconciliationRunSummarySchema,
   type CreateAdjustmentDocumentResult,
@@ -29,6 +35,8 @@ export {
   type ReconciliationExternalRecordDto,
   type ReconciliationMatchExplanation,
   type ReconciliationMatchStatus,
+  type ReconciliationOperationLinkDto,
+  type ReconciliationOperationLinkExceptionDto,
   type ReconciliationRunDto,
   type ReconciliationRunSummary,
 } from "./dto";

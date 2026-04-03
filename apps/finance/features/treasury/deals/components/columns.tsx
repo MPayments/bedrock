@@ -14,6 +14,8 @@ import {
   getFinanceDealQueueLabel,
   getFinanceDealQueueOptions,
   getFinanceDealQueueVariant,
+  getFinanceDealStageLabel,
+  getFinanceDealStageOptions,
   getFinanceDealStatusLabel,
   getFinanceDealStatusOptions,
   getFinanceDealStatusVariant,
@@ -77,6 +79,27 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
     },
     enableColumnFilter: true,
     enableSorting: true,
+  },
+  {
+    accessorKey: "stage",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Этап" />
+    ),
+    cell: ({ row }) => (
+      <div className="space-y-1">
+        <div className="font-medium">{getFinanceDealStageLabel(row.original.stage)}</div>
+        <div className="text-xs text-muted-foreground">
+          {row.original.stageReason}
+        </div>
+      </div>
+    ),
+    meta: {
+      label: "Этап",
+      options: getFinanceDealStageOptions(),
+      variant: "select",
+    },
+    enableColumnFilter: true,
+    enableSorting: false,
   },
   {
     accessorKey: "type",

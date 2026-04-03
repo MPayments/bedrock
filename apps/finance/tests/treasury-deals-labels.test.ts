@@ -8,6 +8,7 @@ import {
   getDealTimelineEventLabel,
   getFinanceDealDisplayTitle,
   getFinanceDealQueueLabel,
+  getFinanceDealStageLabel,
   getFinanceDealStatusLabel,
   getFinanceDealTypeLabel,
   isPrimaryOperationalPositionVisible,
@@ -31,6 +32,9 @@ describe("treasury deal labels", () => {
     expect(getFinanceDealQueueLabel("funding")).toBe("Фондирование");
     expect(getFinanceDealQueueLabel("failed_instruction")).toBe(
       "Блокеры исполнения",
+    );
+    expect(getFinanceDealStageLabel("awaiting_reconciliation")).toBe(
+      "Ожидание сверки",
     );
     expect(getDealCapabilityLabel("can_fx")).toBe("Конвертация");
     expect(getDealTimelineEventLabel("quote_used")).toBe(

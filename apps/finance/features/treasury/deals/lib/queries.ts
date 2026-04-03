@@ -22,6 +22,7 @@ import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import {
   FINANCE_DEAL_BLOCKER_STATE_VALUES,
   FINANCE_DEAL_QUEUE_VALUES,
+  FINANCE_DEAL_STAGE_VALUES,
   FINANCE_DEAL_STATUS_VALUES,
   FINANCE_DEAL_TYPE_VALUES,
   type FinanceDealBlockerState,
@@ -29,6 +30,7 @@ import {
   getFinanceDealStatusLabel,
   getFinanceDealTypeLabel,
   type FinanceDealQueue,
+  type FinanceDealStage,
   type FinanceDealStatus,
   type FinanceDealType,
 } from "../labels";
@@ -39,6 +41,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 const FinanceDealBlockerStateSchema = z.enum(FINANCE_DEAL_BLOCKER_STATE_VALUES);
 const FinanceDealQueueSchema = z.enum(FINANCE_DEAL_QUEUE_VALUES);
+const FinanceDealStageSchema = z.enum(FINANCE_DEAL_STAGE_VALUES);
 const FinanceDealStatusSchema = z.enum(FINANCE_DEAL_STATUS_VALUES);
 const FinanceDealTypeSchema = z.enum(FINANCE_DEAL_TYPE_VALUES);
 const DealIdSchema = z.uuid({ version: "v4" });
@@ -154,6 +157,7 @@ const FinanceDealQueueFiltersSchema = z.object({
   applicant: z.string().trim().min(1).optional(),
   internalEntity: z.string().trim().min(1).optional(),
   queue: FinanceDealQueueSchema.optional(),
+  stage: FinanceDealStageSchema.optional(),
   status: FinanceDealStatusSchema.optional(),
   type: FinanceDealTypeSchema.optional(),
 });
@@ -179,12 +183,15 @@ const FinanceDealListItemSchema = z.object({
       calculationId: z.string().uuid(),
       currencyId: z.string().uuid(),
       feeRevenueMinor: z.string(),
+      providerFeeExpenseMinor: z.string(),
       spreadRevenueMinor: z.string(),
       totalRevenueMinor: z.string(),
     })
     .nullable(),
   queue: FinanceDealQueueSchema,
   queueReason: z.string(),
+  stage: FinanceDealStageSchema,
+  stageReason: z.string(),
   quoteSummary: z
     .object({
       expiresAt: NullableApiDateTimeStringSchema,
@@ -350,6 +357,54 @@ const FinanceDealOperationSchema = z.object({
   state: TreasuryOperationStateSchema,
 });
 
+const FinanceDealInstructionSummarySchema = z.object({
+  failed: z.number().int().nonnegative(),
+  planned: z.number().int().nonnegative(),
+  prepared: z.number().int().nonnegative(),
+  returnRequested: z.number().int().nonnegative(),
+  returned: z.number().int().nonnegative(),
+  settled: z.number().int().nonnegative(),
+  submitted: z.number().int().nonnegative(),
+  terminalOperations: z.number().int().nonnegative(),
+  totalOperations: z.number().int().nonnegative(),
+  voided: z.number().int().nonnegative(),
+});
+
+const FinanceDealReconciliationExceptionSchema = z.object({
+  blocking: z.boolean(),
+  createdAt: ApiDateTimeStringSchema,
+  externalRecordId: z.string(),
+  id: z.string(),
+  operationId: z.string(),
+  reasonCode: z.string(),
+  resolvedAt: NullableApiDateTimeStringSchema,
+  source: z.string(),
+  state: z.enum(["open", "resolved", "ignored"]),
+});
+
+const FinanceDealReconciliationSummarySchema = z.object({
+  ignoredExceptionCount: z.number().int().nonnegative(),
+  lastActivityAt: NullableApiDateTimeStringSchema,
+  openExceptionCount: z.number().int().nonnegative(),
+  pendingOperationCount: z.number().int().nonnegative(),
+  reconciledOperationCount: z.number().int().nonnegative(),
+  requiredOperationCount: z.number().int().nonnegative(),
+  resolvedExceptionCount: z.number().int().nonnegative(),
+  state: z.enum(["not_started", "pending", "clear", "blocked"]),
+});
+
+const FinanceDealCloseReadinessSchema = z.object({
+  blockers: z.array(z.string()),
+  criteria: z.array(
+    z.object({
+      code: z.string(),
+      label: z.string(),
+      satisfied: z.boolean(),
+    }),
+  ),
+  ready: z.boolean(),
+});
+
 const FinanceDealWorkspaceSchema = z.object({
   acceptedQuote: z
     .object({
@@ -363,6 +418,7 @@ const FinanceDealWorkspaceSchema = z.object({
   acceptedQuoteDetails: FinanceDealQuoteItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
+  closeReadiness: FinanceDealCloseReadinessSchema,
   executionPlan: z.array(
     z.object({
       actions: z.object({
@@ -378,6 +434,7 @@ const FinanceDealWorkspaceSchema = z.object({
   formalDocumentRequirements: z.array(
     FinanceDealFormalDocumentRequirementSchema,
   ),
+  instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: z.object({
     capabilities: z.array(
@@ -411,7 +468,9 @@ const FinanceDealWorkspaceSchema = z.object({
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
+      currencyId: z.string().uuid(),
       feeRevenueMinor: z.string(),
+      providerFeeExpenseMinor: z.string(),
       spreadRevenueMinor: z.string(),
       totalRevenueMinor: z.string(),
     })
@@ -421,11 +480,13 @@ const FinanceDealWorkspaceSchema = z.object({
     queue: FinanceDealQueueSchema,
     queueReason: z.string(),
   }),
+  reconciliationSummary: FinanceDealReconciliationSummarySchema,
   relatedResources: z.object({
     attachments: z.array(FinanceDealAttachmentSchema),
     formalDocuments: z.array(FinanceDealFormalDocumentSchema),
     operations: z.array(FinanceDealOperationSchema),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
+    reconciliationExceptions: z.array(FinanceDealReconciliationExceptionSchema),
   }),
   summary: FinanceDealSummarySchema,
   timeline: z.array(
@@ -507,6 +568,7 @@ function createFinanceDealFilters(
 ): FinanceDealFilters {
   const blockerState = getStringValue(search.blockerState);
   const queue = getStringValue(search.queue);
+  const stage = getStringValue(search.stage);
   const status = getStringValue(search.status);
   const type = getStringValue(search.type);
 
@@ -518,6 +580,9 @@ function createFinanceDealFilters(
     internalEntity: getStringValue(search.internalEntity),
     queue: FINANCE_DEAL_QUEUE_VALUES.includes(queue as FinanceDealQueue)
       ? (queue as FinanceDealQueue)
+      : undefined,
+    stage: FINANCE_DEAL_STAGE_VALUES.includes(stage as FinanceDealStage)
+      ? (stage as FinanceDealStage)
       : undefined,
     status: FINANCE_DEAL_STATUS_VALUES.includes(status as FinanceDealStatus)
       ? (status as FinanceDealStatus)

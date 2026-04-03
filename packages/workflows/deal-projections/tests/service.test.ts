@@ -251,6 +251,55 @@ function createWorkflow(overrides?: {
     usedByRef: string | null;
     usedDocumentId: string | null;
   }>;
+  treasuryOperations?: Array<{
+    amountMinor: bigint | null;
+    counterAmountMinor: bigint | null;
+    counterCurrencyId: string | null;
+    createdAt: Date;
+    currencyId: string | null;
+    customerId: string | null;
+    dealId: string | null;
+    id: string;
+    internalEntityOrganizationId: string | null;
+    kind: "payin" | "payout" | "fx_conversion" | "intracompany_transfer" | "intercompany_funding";
+    quoteId: string | null;
+    sourceRef: string;
+    state: "planned";
+    updatedAt: Date;
+  }>;
+  latestInstructions?: Array<{
+    attempt: number;
+    createdAt: Date;
+    id: string;
+    operationId: string;
+    providerRef: string | null;
+    providerSnapshot: Record<string, unknown> | null;
+    sourceRef: string;
+    state:
+      | "prepared"
+      | "submitted"
+      | "settled"
+      | "failed"
+      | "voided"
+      | "return_requested"
+      | "returned";
+    updatedAt: Date;
+  }>;
+  reconciliationLinks?: Array<{
+    exceptions: Array<{
+      createdAt: Date;
+      externalRecordId: string;
+      id: string;
+      operationId: string;
+      reasonCode: string;
+      resolvedAt: Date | null;
+      source: string;
+      state: "open" | "resolved" | "ignored";
+    }>;
+    lastActivityAt: Date | null;
+    matchCount: number;
+    operationId: string;
+  }>;
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
   const workflow = overrides?.workflow ?? createBaseWorkflow();
@@ -403,7 +452,31 @@ function createWorkflow(overrides?: {
         },
       },
     } as never,
+    reconciliation: {
+      links: {
+        listOperationLinks: vi.fn(
+          async () => overrides?.reconciliationLinks ?? [],
+        ),
+      },
+    } as never,
     treasury: {
+      instructions: {
+        queries: {
+          listLatestByOperationIds: vi.fn(
+            async () => overrides?.latestInstructions ?? [],
+          ),
+        },
+      },
+      operations: {
+        queries: {
+          list: vi.fn(async () => ({
+            data: overrides?.treasuryOperations ?? [],
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            total: overrides?.treasuryOperations?.length ?? 0,
+          })),
+        },
+      },
       quotes: {
         queries: {
           listQuotes: vi.fn(async () => ({
@@ -719,6 +792,118 @@ describe("createDealProjectionsWorkflow", () => {
 
   it("returns treasury-only workspace actions and requirements for finance", async () => {
     const workflow = createWorkflow({
+      calculation: {
+        createdAt: new Date("2026-04-01T09:00:00.000Z"),
+        currentSnapshot: {
+          additionalExpensesAmountMinor: "0",
+          additionalExpensesCurrencyId: null,
+          additionalExpensesInBaseMinor: "0",
+          additionalExpensesRateDen: null,
+          additionalExpensesRateNum: null,
+          additionalExpensesRateSource: null,
+          baseCurrencyId: "currency-rub",
+          calculationCurrencyId: "currency-rub",
+          calculationTimestamp: new Date("2026-04-01T09:00:00.000Z"),
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          feeAmountInBaseMinor: "100",
+          feeAmountMinor: "100",
+          feeBps: "100",
+          fxQuoteId: null,
+          id: "snapshot-1",
+          originalAmountMinor: "100000",
+          quoteSnapshot: null,
+          rateDen: "1",
+          rateNum: "1",
+          rateSource: "manual",
+          snapshotNumber: 1,
+          totalAmountMinor: "600",
+          totalInBaseMinor: "600",
+          totalWithExpensesInBaseMinor: "600",
+          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+        },
+        id: "calculation-1",
+        isActive: true,
+        lines: [
+          {
+            amountMinor: "100",
+            createdAt: new Date("2026-04-01T09:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-1",
+            idx: 0,
+            kind: "fee_revenue",
+            updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+          },
+          {
+            amountMinor: "250",
+            createdAt: new Date("2026-04-01T09:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-2",
+            idx: 1,
+            kind: "provider_fee_expense",
+            updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+          },
+          {
+            amountMinor: "500",
+            createdAt: new Date("2026-04-01T09:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-3",
+            idx: 2,
+            kind: "spread_revenue",
+            updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+          },
+        ],
+        updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+      },
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-01T10:00:00.000Z"),
+          id: "instruction-1",
+          operationId: "operation-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-1",
+          state: "settled",
+          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+        },
+      ],
+      reconciliationLinks: [
+        {
+          exceptions: [
+            {
+              createdAt: new Date("2026-04-01T11:00:00.000Z"),
+              externalRecordId: "external-record-1",
+              id: "exception-1",
+              operationId: "operation-1",
+              reasonCode: "no_match",
+              resolvedAt: null,
+              source: "bank_statement",
+              state: "open",
+            },
+          ],
+          lastActivityAt: new Date("2026-04-01T11:00:00.000Z"),
+          matchCount: 0,
+          operationId: "operation-1",
+        },
+      ],
+      treasuryOperations: [
+        {
+          amountMinor: 10000000n,
+          counterAmountMinor: null,
+          counterCurrencyId: null,
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          currencyId: "currency-rub",
+          customerId: "customer-1",
+          dealId: "deal-1",
+          id: "operation-1",
+          internalEntityOrganizationId: "organization-1",
+          kind: "payout",
+          quoteId: null,
+          sourceRef: "deal:deal-1:leg:1:payout:1",
+          state: "planned",
+          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+        },
+      ],
       treasuryQuotes: [
         {
           createdAt: new Date("2026-04-01T09:00:00.000Z"),
@@ -746,6 +931,21 @@ describe("createDealProjectionsWorkflow", () => {
       ],
       workflow: {
         ...createBaseWorkflow(),
+        executionPlan: [
+          {
+            id: "leg-1",
+            idx: 1,
+            kind: "payout",
+            operationRefs: [
+              {
+                kind: "payout",
+                operationId: "operation-1",
+                sourceRef: "deal:deal-1:leg:1:payout:1",
+              },
+            ],
+            state: "ready",
+          },
+        ],
         acceptedQuote: {
           acceptedAt: new Date("2026-04-01T09:00:00.000Z"),
           acceptedByUserId: "user-2",
@@ -764,7 +964,18 @@ describe("createDealProjectionsWorkflow", () => {
         relatedResources: {
           attachments: [],
           calculations: [],
-          formalDocuments: [],
+          formalDocuments: [
+            {
+              approvalStatus: "approved",
+              createdAt: new Date("2026-04-01T10:00:00.000Z"),
+              docType: "acceptance",
+              id: "document-1",
+              lifecycleStatus: "active",
+              occurredAt: new Date("2026-04-01T10:00:00.000Z"),
+              postingStatus: "posted",
+              submissionStatus: "submitted",
+            },
+          ],
           quotes: [
             {
               expiresAt: new Date("2026-04-01T12:00:00.000Z"),
@@ -772,6 +983,10 @@ describe("createDealProjectionsWorkflow", () => {
               status: "active",
             },
           ],
+        },
+        summary: {
+          ...createBaseWorkflow().summary,
+          calculationId: "calculation-1",
         },
       },
     });
@@ -811,7 +1026,7 @@ describe("createDealProjectionsWorkflow", () => {
         },
         {
           docType: "acceptance",
-          state: "missing",
+          state: "ready",
         },
       ],
       pricing: {
@@ -819,6 +1034,60 @@ describe("createDealProjectionsWorkflow", () => {
         requestedAmount: "1000",
         requestedCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
+      },
+      profitabilitySnapshot: {
+        calculationId: "calculation-1",
+        currencyId: "currency-rub",
+        feeRevenueMinor: "100",
+        providerFeeExpenseMinor: "250",
+        spreadRevenueMinor: "500",
+        totalRevenueMinor: "600",
+      },
+      instructionSummary: {
+        failed: 0,
+        planned: 0,
+        prepared: 0,
+        returnRequested: 0,
+        returned: 0,
+        settled: 1,
+        submitted: 0,
+        terminalOperations: 1,
+        totalOperations: 1,
+        voided: 0,
+      },
+      reconciliationSummary: {
+        ignoredExceptionCount: 0,
+        lastActivityAt: new Date("2026-04-01T11:00:00.000Z"),
+        openExceptionCount: 1,
+        pendingOperationCount: 0,
+        reconciledOperationCount: 1,
+        requiredOperationCount: 1,
+        resolvedExceptionCount: 0,
+        state: "blocked",
+      },
+      closeReadiness: {
+        blockers: expect.arrayContaining([
+          "Есть открытые исключения сверки",
+        ]),
+        criteria: expect.arrayContaining([
+          expect.objectContaining({
+            code: "reconciliation_clear",
+            satisfied: false,
+          }),
+          expect.objectContaining({
+            code: "payment_payout_settled",
+            satisfied: true,
+          }),
+        ]),
+        ready: false,
+      },
+      relatedResources: {
+        reconciliationExceptions: [
+          expect.objectContaining({
+            id: "exception-1",
+            operationId: "operation-1",
+          }),
+        ],
       },
     });
   });

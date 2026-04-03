@@ -56,6 +56,25 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    closeReadiness: {
+      blockers: [
+        "Required intake sections are incomplete",
+        "Required participant is unresolved: external_beneficiary",
+      ],
+      criteria: [
+        {
+          code: "operations_materialized",
+          label: "Казначейские операции созданы для всех этапов",
+          satisfied: false,
+        },
+        {
+          code: "reconciliation_clear",
+          label: "Сверка завершена без открытых исключений",
+          satisfied: false,
+        },
+      ],
+      ready: false,
+    },
     executionPlan: [
       {
         actions: {
@@ -79,6 +98,18 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    instructionSummary: {
+      failed: 0,
+      planned: 1,
+      prepared: 0,
+      returnRequested: 0,
+      returned: 0,
+      settled: 0,
+      submitted: 0,
+      terminalOperations: 0,
+      totalOperations: 1,
+      voided: 0,
+    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       capabilities: [
@@ -117,6 +148,16 @@ function createDeal(): FinanceDealWorkspace {
       queue: "funding",
       queueReason: "Required intake sections are incomplete",
     },
+    reconciliationSummary: {
+      ignoredExceptionCount: 0,
+      lastActivityAt: null,
+      openExceptionCount: 1,
+      pendingOperationCount: 1,
+      reconciledOperationCount: 0,
+      requiredOperationCount: 1,
+      resolvedExceptionCount: 0,
+      state: "blocked",
+    },
     relatedResources: {
       attachments: [
         {
@@ -138,6 +179,19 @@ function createDeal(): FinanceDealWorkspace {
           expiresAt: "2026-04-02T09:15:00.000Z",
           id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
           status: "active",
+        },
+      ],
+      reconciliationExceptions: [
+        {
+          blocking: true,
+          createdAt: "2026-04-02T10:00:00.000Z",
+          externalRecordId: "external-record-1",
+          id: "exception-1",
+          operationId: "operation-1",
+          reasonCode: "no_match",
+          resolvedAt: null,
+          source: "bank_statement",
+          state: "open",
         },
       ],
     },
@@ -190,5 +244,9 @@ describe("treasury deal workspace view", () => {
     expect(markup).not.toContain("capability_missing");
     expect(markup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
     expect(markup).not.toContain("Запросить котировку");
+    expect(markup).toContain("Расходы провайдера");
+    expect(markup).toContain("Критерии закрытия");
+    expect(markup).toContain("Сверка");
+    expect(markup).toContain("Последнее исключение");
   });
 });

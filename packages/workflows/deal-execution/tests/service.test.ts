@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { DealTransitionBlockedError } from "@bedrock/deals";
+
 import {
   compileDealExecutionRecipe,
   createDealExecutionWorkflow,
@@ -7,6 +9,16 @@ import {
 
 function createWorkflowProjection(input?: {
   acceptedQuoteId?: string | null;
+  formalDocuments?: Array<{
+    approvalStatus: string | null;
+    createdAt: Date;
+    docType: string;
+    id: string;
+    lifecycleStatus: string | null;
+    occurredAt: Date | null;
+    postingStatus: string | null;
+    submissionStatus: string | null;
+  }>;
   operationRefs?: {
     kind: string;
     operationId: string;
@@ -154,7 +166,7 @@ function createWorkflowProjection(input?: {
     relatedResources: {
       attachments: [],
       calculations: [],
-      formalDocuments: [],
+      formalDocuments: input?.formalDocuments ?? [],
       quotes: [],
     },
     revision: 1,
@@ -217,6 +229,146 @@ function createAcceptedQuoteDetails() {
       usedDocumentId: null,
     },
   } as any;
+}
+
+function createAcceptanceDocument() {
+  return {
+    approvalStatus: "approved",
+    createdAt: new Date("2026-04-03T12:00:00.000Z"),
+    docType: "acceptance",
+    id: "document-1",
+    lifecycleStatus: "active",
+    occurredAt: new Date("2026-04-03T12:00:00.000Z"),
+    postingStatus: "posted",
+    submissionStatus: "submitted",
+  };
+}
+
+function createCloseDealHarness(input?: {
+  latestInstructions?: Array<{
+    attempt: number;
+    createdAt: Date;
+    id: string;
+    operationId: string;
+    providerRef: string | null;
+    providerSnapshot: Record<string, unknown> | null;
+    sourceRef: string;
+    state:
+      | "prepared"
+      | "submitted"
+      | "settled"
+      | "failed"
+      | "voided"
+      | "return_requested"
+      | "returned";
+    updatedAt: Date;
+  }>;
+  reconciliationLinks?: Array<{
+    exceptions: Array<{
+      createdAt: Date;
+      externalRecordId: string;
+      id: string;
+      operationId: string;
+      reasonCode: string;
+      resolvedAt: Date | null;
+      source: string;
+      state: "open" | "resolved" | "ignored";
+    }>;
+    lastActivityAt: Date | null;
+    matchCount: number;
+    operationId: string;
+  }>;
+  workflow?: ReturnType<typeof createWorkflowProjection>;
+}) {
+  const workflow =
+    input?.workflow ??
+    createWorkflowProjection({
+      formalDocuments: [createAcceptanceDocument()],
+      operationRefs: [
+        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
+        [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:payout:1" }],
+      ],
+      status: "closing_documents",
+      type: "payment",
+      withConvert: false,
+    });
+  const transitionStatus = vi.fn(async () => ({
+    ...workflow,
+    summary: {
+      ...workflow.summary,
+      status: "done",
+    },
+  }));
+  const createDealTimelineEvents = vi.fn(async () => undefined);
+  const workflowService = createDealExecutionWorkflow({
+    agreements: {
+      agreements: {
+        queries: {
+          findById: vi.fn(async () => ({ id: "agreement-1", organizationId: "org-1" })),
+        },
+      },
+    } as any,
+    currencies: {
+      findById: vi.fn(async (id: string) => ({
+        code: id === "cur-usd" ? "USD" : "EUR",
+        id,
+      })),
+    } as any,
+    db: {
+      transaction: vi.fn(async (handler: (tx: any) => Promise<unknown>) =>
+        handler({}),
+      ),
+    } as any,
+    idempotency: {
+      withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
+    } as any,
+    createDealStore: () => ({
+      createDealLegOperationLinks: vi.fn(async () => undefined),
+      createDealTimelineEvents,
+    }),
+    createDealsModule: () => ({
+      deals: {
+        commands: {
+          transitionStatus,
+        },
+        queries: {
+          findWorkflowById: vi.fn(async () => workflow),
+        },
+      },
+    } as any),
+    createReconciliationService: () => ({
+      links: {
+        listOperationLinks: vi.fn(
+          async () => input?.reconciliationLinks ?? [],
+        ),
+      },
+    } as any),
+    createTreasuryModule: () => ({
+      instructions: {
+        queries: {
+          listLatestByOperationIds: vi.fn(
+            async () => input?.latestInstructions ?? [],
+          ),
+        },
+      },
+      operations: {
+        commands: {
+          createOrGetPlanned: vi.fn(),
+        },
+      },
+      quotes: {
+        queries: {
+          getQuoteDetails: vi.fn(async () => null),
+        },
+      },
+    } as any),
+  });
+
+  return {
+    createDealTimelineEvents,
+    transitionStatus,
+    workflow: workflowService,
+  };
 }
 
 describe("deal execution workflow", () => {
@@ -374,6 +526,11 @@ describe("deal execution workflow", () => {
           },
         },
       } as any),
+      createReconciliationService: () => ({
+        links: {
+          listOperationLinks: vi.fn(async () => []),
+        },
+      } as any),
       createTreasuryModule: () => ({
         operations: {
           commands: {
@@ -402,5 +559,158 @@ describe("deal execution workflow", () => {
     expect(createOrGetPlanned).toHaveBeenCalledTimes(3);
     expect(createDealLegOperationLinks).toHaveBeenCalledTimes(3);
     expect(createDealTimelineEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects closeDeal while reconciliation is still pending", async () => {
+    const harness = createCloseDealHarness({
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          id: "instruction-1",
+          operationId: "op-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-1",
+          state: "voided",
+          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+        },
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:05:00.000Z"),
+          id: "instruction-2",
+          operationId: "op-2",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-2",
+          state: "settled",
+          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
+        },
+      ],
+      reconciliationLinks: [],
+    });
+
+    await expect(
+      harness.workflow.closeDeal({
+        actorUserId: "user-1",
+        comment: "Close ready deal",
+        dealId: "deal-1",
+        idempotencyKey: "close-1",
+      }),
+    ).rejects.toBeInstanceOf(DealTransitionBlockedError);
+
+    expect(harness.transitionStatus).not.toHaveBeenCalled();
+  });
+
+  it("rejects closeDeal when reconciliation has open exceptions", async () => {
+    const harness = createCloseDealHarness({
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          id: "instruction-1",
+          operationId: "op-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-1",
+          state: "voided",
+          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+        },
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:05:00.000Z"),
+          id: "instruction-2",
+          operationId: "op-2",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-2",
+          state: "settled",
+          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
+        },
+      ],
+      reconciliationLinks: [
+        {
+          exceptions: [
+            {
+              createdAt: new Date("2026-04-03T11:00:00.000Z"),
+              externalRecordId: "external-1",
+              id: "exception-1",
+              operationId: "op-2",
+              reasonCode: "no_match",
+              resolvedAt: null,
+              source: "bank_statement",
+              state: "open",
+            },
+          ],
+          lastActivityAt: new Date("2026-04-03T11:00:00.000Z"),
+          matchCount: 0,
+          operationId: "op-2",
+        },
+      ],
+    });
+
+    await expect(
+      harness.workflow.closeDeal({
+        actorUserId: "user-1",
+        comment: "Close blocked deal",
+        dealId: "deal-1",
+        idempotencyKey: "close-2",
+      }),
+    ).rejects.toBeInstanceOf(DealTransitionBlockedError);
+
+    expect(harness.transitionStatus).not.toHaveBeenCalled();
+  });
+
+  it("closes the deal once reconciliation-aware readiness is satisfied", async () => {
+    const harness = createCloseDealHarness({
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          id: "instruction-1",
+          operationId: "op-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-1",
+          state: "voided",
+          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+        },
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-03T10:05:00.000Z"),
+          id: "instruction-2",
+          operationId: "op-2",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-2",
+          state: "settled",
+          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
+        },
+      ],
+      reconciliationLinks: [
+        {
+          exceptions: [],
+          lastActivityAt: new Date("2026-04-03T11:00:00.000Z"),
+          matchCount: 1,
+          operationId: "op-2",
+        },
+      ],
+    });
+
+    const result = await harness.workflow.closeDeal({
+      actorUserId: "user-1",
+      comment: "Close ready deal",
+      dealId: "deal-1",
+      idempotencyKey: "close-3",
+    });
+
+    expect(result.summary.status).toBe("done");
+    expect(harness.transitionStatus).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Close ready deal",
+      dealId: "deal-1",
+      status: "done",
+    });
+    expect(harness.createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 });

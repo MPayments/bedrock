@@ -9,11 +9,12 @@ import {
 } from "@bedrock/deals";
 import type {
   DealCapabilityKind,
-  DealTransitionBlocker,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { ReconciliationService } from "@bedrock/reconciliation";
+import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { toMinorAmountString } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
@@ -23,6 +24,7 @@ import type {
   TreasuryInstructionOutcome,
   TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
+import { deriveFinanceDealReadiness } from "@bedrock/workflow-deal-projections";
 
 const DEAL_EXECUTION_REQUEST_SCOPE = "workflow-deal-execution.request";
 const DEAL_EXECUTION_CREATE_LEG_OPERATION_SCOPE =
@@ -48,12 +50,6 @@ const EXECUTION_REQUESTABLE_STATUSES = new Set([
   "awaiting_payment",
   "closing_documents",
 ]);
-const CLOSE_TERMINAL_INSTRUCTION_STATES = new Set([
-  "returned",
-  "settled",
-  "voided",
-]);
-
 type ExecutionLifecycleEventType =
   | "deal_closed"
   | "execution_blocker_resolved"
@@ -115,6 +111,7 @@ interface OperationMutationResult {
 interface DealExecutionTxDeps {
   dealStore: DealExecutionStore;
   dealsModule: Pick<DealsModule, "deals">;
+  reconciliation: Pick<ReconciliationService, "links">;
   treasuryModule: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
 }
 
@@ -125,6 +122,9 @@ export interface DealExecutionWorkflowDeps {
   idempotency: IdempotencyPort;
   createDealStore(tx: Transaction): DealExecutionStore;
   createDealsModule(tx: Transaction): Pick<DealsModule, "deals">;
+  createReconciliationService(
+    tx: Transaction,
+  ): Pick<ReconciliationService, "links">;
   createTreasuryModule(tx: Transaction): Pick<
     TreasuryModule,
     "instructions" | "operations" | "quotes"
@@ -522,44 +522,6 @@ async function materializeCompiledOperation(input: {
   return created;
 }
 
-function buildCloseBlockers(input: {
-  instructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  workflow: DealWorkflowProjection;
-}): DealTransitionBlocker[] {
-  const blockers: DealTransitionBlocker[] = [];
-
-  for (const leg of input.workflow.executionPlan) {
-    if (leg.operationRefs.length === 0) {
-      blockers.push({
-        code: "execution_leg_not_done",
-        message: `Execution leg ${leg.idx} does not have a linked treasury operation`,
-      });
-      continue;
-    }
-
-    for (const operationRef of leg.operationRefs) {
-      const latestInstruction =
-        input.instructionByOperationId.get(operationRef.operationId) ?? null;
-      if (!latestInstruction) {
-        blockers.push({
-          code: "execution_leg_not_done",
-          message: `Treasury instruction for leg ${leg.idx} is not prepared`,
-        });
-        continue;
-      }
-
-      if (!CLOSE_TERMINAL_INSTRUCTION_STATES.has(latestInstruction.state)) {
-        blockers.push({
-          code: "execution_leg_not_done",
-          message: `Treasury instruction for leg ${leg.idx} is not in a terminal state`,
-        });
-      }
-    }
-  }
-
-  return blockers;
-}
-
 function buildInstructionPrepareSourceRef(operationId: string) {
   return `operation:${operationId}:instruction:1`;
 }
@@ -584,6 +546,7 @@ async function runIdempotent<TResult, TStoredResult extends Record<string, unkno
     const txDeps: DealExecutionTxDeps = {
       dealStore: deps.createDealStore(tx),
       dealsModule: deps.createDealsModule(tx),
+      reconciliation: deps.createReconciliationService(tx),
       treasuryModule: deps.createTreasuryModule(tx),
     };
 
@@ -1362,7 +1325,12 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<DealWorkflowProjection> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          reconciliation,
+          treasuryModule,
+        }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
 
           if (workflow.summary.status === "done") {
@@ -1380,20 +1348,32 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
               instruction,
             ] as const),
           );
-          const lifecycleBlockers = buildCloseBlockers({
-            instructionByOperationId,
+          const reconciliationLinks =
+            await reconciliation.links.listOperationLinks({
+              operationIds: linkedOperationIds,
+            });
+          const reconciliationLinksByOperationId = new Map(
+            reconciliationLinks.map(
+              (link): readonly [string, ReconciliationOperationLinkDto] => [
+                link.operationId,
+                link,
+              ],
+            ),
+          );
+          const { closeReadiness } = deriveFinanceDealReadiness({
+            latestInstructionByOperationId: instructionByOperationId,
+            reconciliationLinksByOperationId,
             workflow,
           });
 
-          if (lifecycleBlockers.length > 0) {
-            throw new DealTransitionBlockedError("done", lifecycleBlockers);
-          }
-
-          const readiness = workflow.transitionReadiness.find(
-            (item) => item.targetStatus === "done",
-          );
-          if (readiness && !readiness.allowed) {
-            throw new DealTransitionBlockedError("done", readiness.blockers);
+          if (!closeReadiness.ready) {
+            throw new DealTransitionBlockedError(
+              "done",
+              closeReadiness.blockers.map((message: string) => ({
+                code: "execution_leg_not_done",
+                message,
+              })),
+            );
           }
 
           const updated = await dealsModule.deals.commands.transitionStatus({
