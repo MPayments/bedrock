@@ -1,0 +1,44 @@
+{
+  "name": "@bedrock/workflow-document-generation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.test.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/agreements": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*",
+    "easy-template-x": "^7.1.1",
+    "libreoffice-convert": "^1.6.1",
+    "lvovich": "^2.0.0",
+    "number-to-words-ru": "^2.1.0",
+    "russian-nouns-js": "^2.1.0",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "workflow",
+    "tags": [
+      "workflow",
+      "document-generation"
+    ]
+  }
+}

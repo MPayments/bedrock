@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createListOperationDetailsWithLabelsQuery } from "../src/application/reports/queries/list-operation-details-with-labels";
+import { ListOperationDetailsWithLabelsReadQuery } from "../src/reports/application/queries/list-operation-details-with-labels";
 
 describe("accounting report book labels", () => {
   it("uses resolved book labels for operation details postings", async () => {
@@ -55,7 +55,7 @@ describe("accounting report book labels", () => {
         ],
       ]),
     );
-    const query = createListOperationDetailsWithLabelsQuery({
+    const query = new ListOperationDetailsWithLabelsReadQuery({
       ledgerReadPort: {
         listOperationDetails,
       },
@@ -64,7 +64,7 @@ describe("accounting report book labels", () => {
       resolveDimensionLabelsFromRecords: vi.fn(async () => ({})),
     });
 
-    const result = await query(["op-1"]);
+    const result = await query.execute(["op-1"]);
 
     expect(result.get("op-1")?.postings[0]?.bookName).toBe(
       "Organization Bedrock default book",

@@ -4,6 +4,7 @@ import type {
   DocumentRegistry,
 } from "../../plugins";
 import type {
+  DocumentBusinessLinksRepository,
   DocumentEventsRepository,
   DocumentLinksRepository,
   DocumentOperationsRepository,
@@ -30,6 +31,7 @@ export interface DocumentsTransactionContext {
   moduleRuntime: DocumentModuleRuntime;
   idempotency: DocumentsIdempotencyPort;
   documentsCommand: DocumentsCommandRepository;
+  documentBusinessLinks: DocumentBusinessLinksRepository;
   documentEvents: DocumentEventsRepository;
   documentLinks: DocumentLinksRepository;
   documentOperations: DocumentOperationsRepository;

@@ -3,3 +3,14 @@ export function isUuidLike(value: string): boolean {
     value,
   );
 }
+
+export function formatCompactId(value: string): string {
+  const normalized = value.trim();
+  const [prefix = ""] = normalized.split("-", 1);
+
+  return prefix.toUpperCase();
+}
+
+export function getUuidPrefix(value: string): string {
+  return isUuidLike(value) ? value.slice(0, 8) : value;
+}

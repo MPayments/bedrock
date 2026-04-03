@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { z } from "zod";
 
 import {
   DocumentGraphError,
@@ -23,17 +24,29 @@ function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function isZodErrorLike(
-  error: unknown,
-): error is { flatten: () => unknown; issues: unknown[] } {
-  return Boolean(
+function buildErrorBody(error: unknown) {
+  const payload: {
+    code?: string;
+    details?: unknown;
+    error: string;
+  } = {
+    error: resolveErrorMessage(error),
+  };
+
+  if (
     error &&
     typeof error === "object" &&
-    "issues" in error &&
-    Array.isArray((error as { issues?: unknown[] }).issues) &&
-    "flatten" in error &&
-    typeof (error as { flatten?: unknown }).flatten === "function",
-  );
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    payload.code = error.code;
+  }
+
+  if (error && typeof error === "object" && "details" in error) {
+    payload.details = error.details;
+  }
+
+  return payload;
 }
 
 /**
@@ -43,23 +56,26 @@ function isZodErrorLike(
  * **Rethrows** unknown errors so the global handler in app.ts
  * returns 500 without leaking internal details.
  */
-export function handleRouteError(c: Context, error: unknown): Response {
-  if (isZodErrorLike(error)) {
-    return c.json({ error: "Validation error", details: error.flatten() }, 400);
+export function handleRouteError(c: Context, error: unknown): any {
+  if (error instanceof z.ZodError) {
+    return c.json(
+      { error: "Validation error", details: z.treeifyError(error) },
+      400,
+    );
   }
 
   if (
     error instanceof DocumentNotFoundError ||
     error instanceof NotFoundError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 404);
+    return c.json(buildErrorBody(error), 404);
   }
 
   if (
     error instanceof PermissionError ||
     error instanceof DocumentPolicyDeniedError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 403);
+    return c.json(buildErrorBody(error), 403);
   }
 
   if (
@@ -67,7 +83,7 @@ export function handleRouteError(c: Context, error: unknown): Response {
     error instanceof DocumentGraphError ||
     error instanceof ValidationError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 400);
+    return c.json(buildErrorBody(error), 400);
   }
 
   if (
@@ -77,7 +93,7 @@ export function handleRouteError(c: Context, error: unknown): Response {
     error instanceof ActionReceiptConflictError ||
     error instanceof ActionReceiptStoredError
   ) {
-    return c.json({ error: resolveErrorMessage(error) }, 409);
+    return c.json(buildErrorBody(error), 409);
   }
 
   // Unknown error -- rethrow to let global handler return 500

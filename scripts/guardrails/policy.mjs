@@ -6,11 +6,27 @@ export const ARCHITECTURE_CRUISE_TARGETS = [
 ];
 
 export const ARCHITECTURE_LINT_GLOBS = [
-  "apps/**/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
-  "apps/**/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
-  "packages/**/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
-  "packages/**/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
-  "packages/**/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "apps/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "apps/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/shared/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/shared/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/platform/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/platform/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/modules/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/modules/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/modules/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/workflows/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/workflows/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/workflows/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/plugins/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/plugins/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/plugins/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/sdk/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/sdk/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/sdk/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/tooling/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/tooling/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/tooling/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
 ];
@@ -41,7 +57,6 @@ const COMMON_SCHEMA_ALLOW_PATTERNS = [
 ];
 
 export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
-  "@bedrock/balances": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/currencies": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
     "^apps/api/src/composition/",
@@ -49,22 +64,16 @@ export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
     "^packages/modules/parties/src/infra/",
   ],
   "@bedrock/documents": [...COMMON_SCHEMA_ALLOW_PATTERNS],
-  "@bedrock/fees": [...COMMON_SCHEMA_ALLOW_PATTERNS],
-  "@bedrock/fx": [
-    ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^packages/plugins/[^/]+/src/infra/",
-  ],
   "@bedrock/ledger": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^packages/modules/balances/src/infra/",
     "^packages/plugins/[^/]+/src/infra/",
-  ],
-  "@bedrock/organizations": [
-    ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^apps/api/src/composition/",
   ],
   "@bedrock/parties": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/reconciliation": [...COMMON_SCHEMA_ALLOW_PATTERNS],
+  "@bedrock/treasury": [
+    ...COMMON_SCHEMA_ALLOW_PATTERNS,
+    "^packages/plugins/[^/]+/src/infra/",
+  ],
 };
 
 export const DB_IMPORT_ALLOW_PATTERNS = [

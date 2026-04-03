@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { DomainError } from "@bedrock/shared/core/domain";
 
+import { rawPackDefinition } from "../../src/packs/bedrock-core-default";
 import {
   AccountingPackVersion,
   CompiledPack,
   compilePack,
   hydrateCompiledPack,
   serializeCompiledPack,
-} from "../../src/domain/packs";
-import { rawPackDefinition } from "../../src/packs/bedrock-core-default";
+} from "../../src/packs/domain";
 
 describe("accounting packs domain", () => {
   it("compiles and hydrates into a compiled pack entity", () => {

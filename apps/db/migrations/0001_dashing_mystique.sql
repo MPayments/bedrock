@@ -1,0 +1,1 @@
+ALTER TYPE "public"."deal_timeline_event_type" ADD VALUE 'leg_state_changed' BEFORE 'quote_created';

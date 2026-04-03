@@ -97,6 +97,7 @@ export const reconciliationMatches = pgTable(
   (table) => [
     index("recon_matches_run_idx").on(table.runId),
     index("recon_matches_external_record_idx").on(table.externalRecordId),
+    index("recon_matches_matched_operation_idx").on(table.matchedOperationId),
   ],
 );
 

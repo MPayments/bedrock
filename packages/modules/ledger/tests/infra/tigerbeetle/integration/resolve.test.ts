@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { getBookAccount, getTbAccount, randomOrgId, tb, db } from "./helpers";
 import {
-  computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/ledger/ids";
-
-import { getBookAccount, getTbAccount, randomOrgId, tb, db } from "./helpers";
+} from "../../../../src/shared/adapters/tigerbeetle/identity-policy";
+import { computeDimensionsHash as computeBookAccountDimensionsHash } from "../../../../src/shared/domain/dimensions-hash";
 import { resolveTbBookAccountInstanceId } from "../test-resolve";
 
 describe("Resolve Integration Tests", () => {
@@ -24,20 +23,20 @@ describe("Resolve Integration Tests", () => {
       currency,
       dimensions: {},
     });
-    const dimensionsHash = computeDimensionsHash({});
+    const dimensionsHash = computeBookAccountDimensionsHash({});
 
     expect(accountId).toBe(
-      tbBookAccountInstanceIdFor(
-        orgId,
+      tbBookAccountInstanceIdFor({
+        bookId: orgId,
         accountNo,
         currency,
-        dimensionsHash,
-        tbLedger,
-      ),
+        dimensions: {},
+      }),
     );
 
     const dbAccount = await getBookAccount(orgId, accountNo, tbLedger);
     expect(dbAccount).toBeDefined();
+    expect(dbAccount!.dimensionsHash).toBe(dimensionsHash);
     expect(dbAccount!.tbAccountId).toBe(accountId);
 
     const tbAccount = await getTbAccount(accountId);

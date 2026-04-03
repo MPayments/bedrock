@@ -4,6 +4,7 @@ import type { PersistenceContext } from "@bedrock/platform/persistence";
 import { createDocumentsHandlers } from "./application";
 import type { DocumentsServiceDeps as DocumentsHandlersDeps } from "./application/service-deps";
 import {
+  createDrizzleDocumentBusinessLinksRepository,
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
   createDrizzleDocumentOperationsRepository,
@@ -17,6 +18,7 @@ import {
 export interface DocumentsServiceDeps
   extends Omit<
     DocumentsHandlersDeps,
+    | "documentBusinessLinks"
     | "documentEvents"
     | "documentLinks"
     | "documentOperations"
@@ -35,6 +37,9 @@ function createDocumentsHandlerDeps(
   return {
     accounting: deps.accounting,
     accountingPeriods: deps.accountingPeriods,
+    documentBusinessLinks: createDrizzleDocumentBusinessLinksRepository(
+      deps.persistence.db,
+    ),
     documentEvents: createDrizzleDocumentEventsRepository(deps.persistence.db),
     documentLinks: createDrizzleDocumentLinksRepository(deps.persistence.db),
     documentOperations: createDrizzleDocumentOperationsRepository(

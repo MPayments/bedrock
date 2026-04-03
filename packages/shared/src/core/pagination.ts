@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+export const MAX_QUERY_LIST_LIMIT = 200;
+
 export const PaginationInputSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(20),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 

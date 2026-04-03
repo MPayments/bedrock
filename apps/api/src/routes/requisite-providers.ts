@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { RequisiteProviderNotFoundError } from "@bedrock/requisites";
+import { RequisiteProviderNotFoundError } from "@bedrock/parties";
 import {
   CreateRequisiteProviderInputSchema,
   ListRequisiteProvidersQuerySchema,
@@ -8,9 +8,12 @@ import {
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@bedrock/requisites/contracts";
+} from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -21,8 +24,6 @@ import { requirePermission } from "../middleware/permission";
 const PaginatedRequisiteProvidersSchema = createPaginatedListSchema(
   RequisiteProviderSchema,
 );
-const OPTIONS_LIMIT = 200;
-
 export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -207,12 +208,14 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.providers.list(query);
+      const result = await ctx.partiesModule.requisites.queries.listProviders(
+        query,
+      );
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const result = await ctx.requisitesService.providers.list({
-        limit: OPTIONS_LIMIT,
+      const result = await ctx.partiesModule.requisites.queries.listProviders({
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "name",
         sortOrder: "asc",
@@ -234,7 +237,9 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const provider = await ctx.requisitesService.providers.create(input);
+        const provider = await ctx.partiesModule.requisites.commands.createProvider(
+          input,
+        );
         return c.json(provider, 201);
       } catch (error) {
         if (error instanceof ValidationError) {
@@ -247,7 +252,9 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const provider = await ctx.requisitesService.providers.findById(id);
+        const provider = await ctx.partiesModule.requisites.queries.findProviderById(
+          id,
+        );
         return c.json(provider, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {
@@ -261,7 +268,10 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const provider = await ctx.requisitesService.providers.update(id, input);
+        const provider = await ctx.partiesModule.requisites.commands.updateProvider(
+          id,
+          input,
+        );
         return c.json(provider, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {
@@ -277,7 +287,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisitesService.providers.remove(id);
+        await ctx.partiesModule.requisites.commands.removeProvider(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {

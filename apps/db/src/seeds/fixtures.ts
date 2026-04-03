@@ -175,7 +175,6 @@ export interface SeedRequisiteFixture {
   description?: string | null;
   beneficiaryName?: string | null;
   institutionName?: string | null;
-  institutionCountry?: string | null;
   accountNo?: string | null;
   corrAccount?: string | null;
   iban?: string | null;
@@ -205,7 +204,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Multihansa USD",
     beneficiaryName: "Multihansa Financial Services Ltd",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "AE000001",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -220,7 +218,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Multihansa EUR",
     beneficiaryName: "Multihansa Financial Services Ltd",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "AE000002",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -234,7 +231,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     kind: "exchange",
     label: "Multihansa USDT",
     institutionName: "Crypto Exchange",
-    institutionCountry: "US",
     accountRef: "multihansa-usdt-main",
     notes: "Primary digital asset omnibus account",
     isDefault: true,
@@ -249,7 +245,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Multihansa CNY",
     beneficiaryName: "Multihansa Financial Services Ltd",
     institutionName: "Alternative Settlement Bank",
-    institutionCountry: "GB",
     accountNo: "CN000001",
     swift: "ALTBGB2LXXX",
     isDefault: true,
@@ -264,7 +259,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Multihansa JPY",
     beneficiaryName: "Multihansa Financial Services Ltd",
     institutionName: "Alternative Settlement Bank",
-    institutionCountry: "GB",
     accountNo: "JP000001",
     swift: "ALTBGB2LXXX",
     isDefault: true,
@@ -279,7 +273,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Acme USD",
     beneficiaryName: "Acme Limited Liability Company",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "US000001",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -294,7 +287,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Acme EUR",
     beneficiaryName: "Acme Limited Liability Company",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "EU000001",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -309,7 +301,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Globex USD",
     beneficiaryName: "Globex Corporation",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "GB000001",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -324,7 +315,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Initech GBP",
     beneficiaryName: "Initech Limited",
     institutionName: "Alternative Settlement Bank",
-    institutionCountry: "GB",
     accountNo: "GB000101",
     swift: "ALTBGB2LXXX",
     isDefault: true,
@@ -339,7 +329,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     label: "Umbrella AED",
     beneficiaryName: "Umbrella Holdings Group",
     institutionName: "Main Settlement Bank",
-    institutionCountry: "AE",
     accountNo: "AE000101",
     swift: "BEDRAEADXXX",
     isDefault: true,
@@ -353,7 +342,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     kind: "exchange",
     label: "Umbrella USDT",
     institutionName: "Global Payment Gateway",
-    institutionCountry: "AE",
     accountRef: "umbrella-usdt-gateway",
     notes: "Gateway settlement balance",
     isDefault: true,

@@ -12,7 +12,7 @@ Bedrock is a financial platform (ledger, balances, FX, fees, reconciliation) bui
 
 ```bash
 bun run build                          # Build all packages (dependency order via Turbo)
-bun run build --filter=api             # Build API only (required after apps/api changes — web imports API types from dist/)
+bun run build --filter=api             # Build API only (required after apps/api changes — finance imports API types from dist/)
 bun run dev                            # Watch mode for all apps
 ```
 
@@ -46,7 +46,7 @@ bun run knip                           # Unused dependency detection
 ### Database
 
 ```bash
-docker compose -f ops/infra/docker-compose.yml up -d   # Start Postgres + TigerBeetle
+docker compose -f infra/docker-compose.dev.yml up -d   # Start Postgres + TigerBeetle
 bun run db:nuke                        # Drop all tables
 bun run db:migrate                     # Apply migrations
 bun run db:seed                        # Run all seed scripts
@@ -61,13 +61,15 @@ Migration policy is **baseline-only hard cutover**: `db:nuke -> db:migrate -> db
 ### Workspace Topology
 
 ```
-apps/api          — Hono API server (port 3002)
-apps/web          — Next.js frontend (port 3001, imports types from api/dist)
+apps/api          — Hono API server (port 3000)
+apps/crm          — Next.js CRM frontend (port 3002)
+apps/finance      — Next.js finance frontend (port 3001, imports types from api/dist)
+apps/portal       — Next.js customer portal (port 3003)
 apps/workers      — Background job runners
 apps/db           — Schema aggregation, migrations, seeds (never owns domain tables)
 packages/shared   — Stable primitives (@bedrock/shared/core, /money, /reference-data, /parties, /requisites)
 packages/modules/ — 13 bounded-context business packages (@bedrock/ledger, @bedrock/accounting, etc.)
-packages/platform — Runtime infrastructure via subpaths (@bedrock/platform/persistence, /auth-model, /observability, etc.)
+packages/platform — Runtime infrastructure via subpaths (@bedrock/platform/persistence, /observability, etc.)
 packages/workflows/  — Cross-module orchestration
 packages/plugins/    — Document plugin extensions
 packages/sdk/        — API client and UI components
@@ -77,6 +79,25 @@ packages/tooling/    — ESLint config, TS config, test utils
 ### Dependency Direction
 
 `shared -> modules/workflows/plugins/sdk -> apps/*`. Platform subpaths provide shared infrastructure to all layers. Apps and workflows do composition; they don't own business logic.
+
+### CRM Domain (ex-MPayments)
+
+The CRM/operations domain (merged from the MPayments app) is split across 4 bounded-context modules:
+
+| Module | Package | Owns |
+|---|---|---|
+| **Parties** | `@bedrock/parties` | customers, counterparties, organizations, requisites, sub-agent profiles |
+| **Deals** | `@bedrock/deals` | deal lifecycle, legs, participants, approvals, bonuses, extensions |
+| **Calculations** | `@bedrock/calculations` | FX/fee calculations with versioned snapshots and line items |
+| **Agreements** | `@bedrock/agreements` | service agreements with versioned terms and fee rules |
+
+Supporting: `apps/crm` (Next.js frontend + `crm_tasks` table), `@bedrock/iam` (agent profiles, auth).
+Workflows: `customer-portal`, `deal-commission`, `document-generation`.
+
+Dependency order: Parties/Calculations (no CRM deps) -> Agreements (refs parties) -> Deals (refs all three).
+Cross-module reads use **references ports** (dependency inversion), not direct imports.
+
+See `CRM_ARCHITECTURE.md` for detailed entity mappings, business flows, and composition wiring.
 
 ### Internal Package Layers (DDD / Explicit Architecture)
 
@@ -132,4 +153,6 @@ Hono with `@hono/zod-openapi`. Each route module is a function receiving app con
 
 - `README.md` — Setup and topology overview
 - `AGENTS.md` — Detailed coding conventions and patterns
+- `CRM_ARCHITECTURE.md` — CRM domain: module map, entity transformation, business flows, composition
+- `MERGE.md` — MPayments merge phases and status
 - `docs/adr/**` — Architecture Decision Records (especially ADR 0001)

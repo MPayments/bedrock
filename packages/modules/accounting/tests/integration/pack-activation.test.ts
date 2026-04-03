@@ -4,12 +4,16 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import {
-  createAccountingPacksService,
-} from "@bedrock/accounting";
+
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { noopLogger } from "@bedrock/platform/observability/logger";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
+
+import { DrizzlePackReads } from "../../src/packs/adapters/drizzle/pack.reads";
+import { createPacksService } from "../../src/packs/application";
+import { DrizzleAccountingUnitOfWork } from "../../src/shared/adapters/drizzle/accounting.uow";
 
 const schema = {
   ...accountingSchema,
@@ -60,6 +64,22 @@ async function cleanupCreatedBooks() {
 }
 
 describe("accounting pack activation integration", () => {
+  function createTestPacksService() {
+    return createPacksService({
+      runtime: {
+        log: noopLogger,
+        now: () => new Date(),
+        generateUuid: randomUUID,
+        service: "accounting.packs.integration",
+      },
+      commandUow: new DrizzleAccountingUnitOfWork({
+        persistence: createPersistenceContext(db),
+      }),
+      defaultPackDefinition: rawPackDefinition,
+      reads: new DrizzlePackReads(db),
+    });
+  }
+
   beforeAll(async () => {
     await pool.query("SELECT 1");
   });
@@ -74,10 +94,7 @@ describe("accounting pack activation integration", () => {
   });
 
   it("stores, activates, and loads a compiled pack for a book scope", async () => {
-    const packsService = createAccountingPacksService({
-      db,
-      defaultPackDefinition: rawPackDefinition,
-    });
+    const packsService = createTestPacksService();
     const bookId = randomUUID();
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();
     createdBookIds.add(bookId);
@@ -90,18 +107,18 @@ describe("accounting pack activation integration", () => {
       isDefault: false,
     });
 
-    const compiled = await packsService.storeCompiledPackVersion({
+    const compiled = await packsService.commands.storePackVersion({
       definition: rawPackDefinition,
     });
     const effectiveAt = new Date("2026-02-28T09:00:00.000Z");
 
-    await packsService.activatePackForScope({
+    await packsService.commands.activatePackForScope({
       scopeId: bookId,
       packChecksum: compiled.checksum,
       effectiveAt,
     });
 
-    const loaded = await packsService.loadActiveCompiledPackForBook({
+    const loaded = await packsService.queries.loadActivePackForBook({
       bookId,
       at: new Date("2026-02-28T10:00:00.000Z"),
     });
@@ -124,10 +141,7 @@ describe("accounting pack activation integration", () => {
   });
 
   it("resolves the active pack by effective date", async () => {
-    const packsService = createAccountingPacksService({
-      db,
-      defaultPackDefinition: rawPackDefinition,
-    });
+    const packsService = createTestPacksService();
     const bookId = randomUUID();
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();
     createdBookIds.add(bookId);
@@ -140,30 +154,30 @@ describe("accounting pack activation integration", () => {
       isDefault: false,
     });
 
-    const futureCompiled = await packsService.storeCompiledPackVersion({
+    const futureCompiled = await packsService.commands.storePackVersion({
       definition: {
         ...rawPackDefinition,
         version: rawPackDefinition.version + 1,
       },
     });
 
-    await packsService.activatePackForScope({
+    await packsService.commands.activatePackForScope({
       scopeId: bookId,
       packChecksum: futureCompiled.checksum,
       effectiveAt: new Date("2026-03-01T09:00:00.000Z"),
     });
 
-    const beforeEffective = await packsService.loadActiveCompiledPackForBook({
+    const beforeEffective = await packsService.queries.loadActivePackForBook({
       bookId,
       at: new Date("2026-03-01T08:59:59.000Z"),
     });
-    const afterEffective = await packsService.loadActiveCompiledPackForBook({
+    const afterEffective = await packsService.queries.loadActivePackForBook({
       bookId,
       at: new Date("2026-03-01T09:00:01.000Z"),
     });
 
     expect(beforeEffective.checksum).toBe(
-      packsService.getDefaultCompiledPack().checksum,
+      packsService.queries.getDefaultCompiledPack().checksum,
     );
     expect(afterEffective.checksum).toBe(futureCompiled.checksum);
   });

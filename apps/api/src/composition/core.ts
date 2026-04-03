@@ -1,93 +1,98 @@
+import type { AccountingModule } from "@bedrock/accounting";
 import {
-  createAccountingService,
-  createAccountingChartService,
-  createAccountingPacksService,
-  createInMemoryAccountingCompiledPackCache,
-  type AccountingService,
-} from "@bedrock/accounting";
-import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { createBalancesService, type BalancesService } from "@bedrock/balances";
+  createCustomerMembershipsService,
+  createIamService,
+  createPortalAccessGrantsService,
+  type CustomerMembershipsService,
+  type IamService,
+  type PortalAccessGrantsService,
+} from "@bedrock/iam";
 import {
-  createLedgerService,
-  createLedgerReadService,
-  type LedgerService,
-  type LedgerReadService,
-} from "@bedrock/ledger";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
-import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
+  createBetterAuthPasswordHasher,
+} from "@bedrock/iam/adapters/better-auth";
+import {
+  DrizzleCustomerMembershipReads,
+  DrizzleCustomerMembershipsUnitOfWork,
+  DrizzleIamUsersReads,
+  DrizzleIamUsersUnitOfWork,
+  DrizzlePortalAccessGrantReads,
+  DrizzlePortalAccessGrantsUnitOfWork,
+} from "@bedrock/iam/adapters/drizzle";
+import type { LedgerModule } from "@bedrock/ledger";
 import {
   createIdempotencyService,
-  type IdempotencyPort,
+  type IdempotencyService,
 } from "@bedrock/platform/idempotency-postgres";
 import {
   createConsoleLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
-import { createUsersService, type UsersService } from "@bedrock/users";
+import {
+  createPersistenceContext,
+  type PersistenceContext,
+} from "@bedrock/platform/persistence";
 
+import { createApiAccountingModule } from "./accounting-module";
+import { createApiLedgerModule } from "./ledger-module";
 import { db } from "../db/client";
 
 export interface ApiCoreServices {
   logger: Logger;
-  accountingService: AccountingService;
-  balancesService: BalancesService;
-  idempotency: IdempotencyPort;
-  ledger: LedgerService;
-  ledgerReadService: LedgerReadService;
-  usersService: UsersService;
-}
-
-function createApiAccountingService(): AccountingService {
-  const organizationsQueries = createOrganizationsQueries({ db });
-  const packsService = createAccountingPacksService({
-    db,
-    defaultPackDefinition: rawPackDefinition,
-    cache: createInMemoryAccountingCompiledPackCache(),
-    assertBooksBelongToInternalLedgerOrganizations:
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
-  });
-
-  return createAccountingService({
-    chart: createAccountingChartService({ db }),
-    packs: packsService,
-  });
+  persistence: PersistenceContext;
+  accountingModule: AccountingModule;
+  idempotency: IdempotencyService;
+  ledgerModule: LedgerModule;
+  iamService: IamService;
+  customerMembershipsService: CustomerMembershipsService;
+  portalAccessGrantsService: PortalAccessGrantsService;
 }
 
 export function createCoreServices(): ApiCoreServices {
   const logger = createConsoleLogger({ app: "bedrock-api" });
   const idempotency = createIdempotencyService({ logger });
-  const authStore = createDrizzleAuthIdentityStore({ db });
-  const passwordHasher = createBetterAuthPasswordHasher();
-  const accountingService = createApiAccountingService();
-  const organizationsQueries = createOrganizationsQueries({ db });
-  const ledger = createLedgerService({
-    db,
-    assertInternalLedgerBooks: async ({ bookIds }) =>
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations(
-        bookIds,
-      ),
+  const persistence = createPersistenceContext(db);
+  const iamReads = new DrizzleIamUsersReads(db);
+  const iamCommandUow = new DrizzleIamUsersUnitOfWork({
+    persistence,
   });
-  const ledgerReadService = createLedgerReadService({ db });
-  const balancesService = createBalancesService({
-    persistence: createPersistenceContext(db),
+  const passwordHasher = createBetterAuthPasswordHasher();
+  const ledgerModule = createApiLedgerModule({
+    db,
     idempotency,
     logger,
   });
-  const usersService = createUsersService({
-    identityStore: authStore,
+  const accountingModule = createApiAccountingModule({
+    db,
+    persistence,
+    logger,
+  });
+  const iamService = createIamService({
+    reads: iamReads,
+    commandUow: iamCommandUow,
     passwordHasher,
     logger,
+  });
+  const customerMembershipsService = createCustomerMembershipsService({
+    commandUow: new DrizzleCustomerMembershipsUnitOfWork({
+      persistence,
+    }),
+    reads: new DrizzleCustomerMembershipReads(db),
+  });
+  const portalAccessGrantsService = createPortalAccessGrantsService({
+    commandUow: new DrizzlePortalAccessGrantsUnitOfWork({
+      persistence,
+    }),
+    reads: new DrizzlePortalAccessGrantReads(db),
   });
 
   return {
     logger,
-    accountingService,
-    balancesService,
+    persistence,
+    accountingModule,
     idempotency,
-    ledger,
-    ledgerReadService,
-    usersService,
+    ledgerModule,
+    iamService,
+    customerMembershipsService,
+    portalAccessGrantsService,
   };
 }

@@ -1,12 +1,9 @@
-import { and, eq } from "drizzle-orm";
-
 import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import {
-  computeDimensionsHash,
-  tbBookAccountInstanceIdFor,
-  tbLedgerForCurrency,
-} from "@bedrock/ledger/ids";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
+  DrizzleBookAccountStore,
+  DrizzleBooksStore,
+} from "@bedrock/ledger/adapters/drizzle";
+import { schema as requisitesSchema } from "@bedrock/parties/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
@@ -19,14 +16,6 @@ import { seedRequisiteProviders } from "./requisite-providers";
 export { REQUISITE_IDS } from "./fixtures";
 
 type DbLike = Database | Transaction;
-
-function organizationDefaultBookCode(organizationId: string) {
-  return `organization-default:${organizationId}`;
-}
-
-function organizationDefaultBookName(organizationId: string) {
-  return `Organization ${organizationId} default book`;
-}
 
 async function currencyIdByCodeMap(db: DbLike) {
   const out = new Map<string, string>();
@@ -43,54 +32,13 @@ async function currencyIdByCodeMap(db: DbLike) {
 
 async function ensureDefaultBooks(db: DbLike): Promise<Map<string, string>> {
   const out = new Map<string, string>();
+  const books = new DrizzleBooksStore(db);
 
   for (const organizationId of Object.values(ORGANIZATION_IDS)) {
-    const [existing] = await db
-      .select({ id: schema.books.id })
-      .from(schema.books)
-      .where(
-        and(
-          eq(schema.books.ownerId, organizationId),
-          eq(schema.books.isDefault, true),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      out.set(organizationId, existing.id);
-      continue;
-    }
-
-    const code = organizationDefaultBookCode(organizationId);
-    const [created] = await db
-      .insert(schema.books)
-      .values({
-        ownerId: organizationId,
-        code,
-        name: organizationDefaultBookName(organizationId),
-        isDefault: true,
-      })
-      .onConflictDoNothing({ target: schema.books.code })
-      .returning({ id: schema.books.id });
-
-    if (created) {
-      out.set(organizationId, created.id);
-      continue;
-    }
-
-    const [byCode] = await db
-      .select({ id: schema.books.id })
-      .from(schema.books)
-      .where(eq(schema.books.code, code))
-      .limit(1);
-
-    if (!byCode) {
-      throw new Error(
-        `Failed to create or fetch default book for organization ${organizationId}`,
-      );
-    }
-
-    out.set(organizationId, byCode.id);
+    const { bookId } = await books.ensureDefaultOrganizationBook({
+      organizationId,
+    });
+    out.set(organizationId, bookId);
   }
 
   return out;
@@ -121,14 +69,9 @@ async function upsertRequisites(
         label: requisite.label,
         description: requisite.description ?? null,
         beneficiaryName: requisite.beneficiaryName ?? null,
-        institutionName: requisite.institutionName ?? null,
-        institutionCountry: requisite.institutionCountry ?? null,
         accountNo: requisite.accountNo ?? null,
         corrAccount: requisite.corrAccount ?? null,
         iban: requisite.iban ?? null,
-        bic: requisite.bic ?? null,
-        swift: requisite.swift ?? null,
-        bankAddress: requisite.bankAddress ?? null,
         network: requisite.network ?? null,
         assetCode: requisite.assetCode ?? null,
         address: requisite.address ?? null,
@@ -153,14 +96,9 @@ async function upsertRequisites(
           label: requisite.label,
           description: requisite.description ?? null,
           beneficiaryName: requisite.beneficiaryName ?? null,
-          institutionName: requisite.institutionName ?? null,
-          institutionCountry: requisite.institutionCountry ?? null,
           accountNo: requisite.accountNo ?? null,
           corrAccount: requisite.corrAccount ?? null,
           iban: requisite.iban ?? null,
-          bic: requisite.bic ?? null,
-          swift: requisite.swift ?? null,
-          bankAddress: requisite.bankAddress ?? null,
           network: requisite.network ?? null,
           assetCode: requisite.assetCode ?? null,
           address: requisite.address ?? null,
@@ -180,6 +118,7 @@ async function upsertOrganizationBindings(
   db: DbLike,
   defaultBookIdByOrganizationId: ReadonlyMap<string, string>,
 ) {
+  const bookAccounts = new DrizzleBookAccountStore(db);
   const organizationRequisites = REQUISITES.filter(
     (
       requisite,
@@ -194,47 +133,12 @@ async function upsertOrganizationBindings(
     }
 
     const dimensions = { organizationRequisiteId: requisite.id };
-    const dimensionsHash = computeDimensionsHash(dimensions);
-    const tbLedger = tbLedgerForCurrency(requisite.currencyCode);
-    const tbAccountId = tbBookAccountInstanceIdFor(
+    const instance = await bookAccounts.ensureBookAccountInstance({
       bookId,
-      ACCOUNT_NO.BANK,
-      requisite.currencyCode,
-      dimensionsHash,
-      tbLedger,
-    );
-
-    const [instance] = await db
-      .insert(schema.bookAccountInstances)
-      .values({
-        bookId,
-        accountNo: ACCOUNT_NO.BANK,
-        currency: requisite.currencyCode,
-        dimensions,
-        dimensionsHash,
-        tbLedger,
-        tbAccountId,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.bookAccountInstances.bookId,
-          schema.bookAccountInstances.accountNo,
-          schema.bookAccountInstances.currency,
-          schema.bookAccountInstances.dimensionsHash,
-        ],
-        set: {
-          tbLedger,
-          tbAccountId,
-          dimensions,
-        },
-      })
-      .returning({ id: schema.bookAccountInstances.id });
-
-    if (!instance) {
-      throw new Error(
-        `Failed to upsert organization binding instance for requisite ${requisite.id}`,
-      );
-    }
+      accountNo: ACCOUNT_NO.BANK,
+      currency: requisite.currencyCode,
+      dimensions,
+    });
 
     await db
       .insert(requisitesSchema.organizationRequisiteBindings)

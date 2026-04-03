@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { BalanceSubjectSchema } from "@bedrock/balances/contracts";
+import { BalanceSubjectSchema } from "@bedrock/ledger/contracts";
 
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
@@ -44,7 +44,9 @@ export function balancesRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const subject = BalanceSubjectParamsSchema.parse(c.req.param());
-        const result = await ctx.balancesService.getBalance(subject);
+        const result = await ctx.ledgerModule.balances.queries.getBalance(
+          subject,
+        );
         return jsonOk(c, toBalanceSnapshotDto(result));
       } catch (error) {
         return handleBalancesError(c, error);
@@ -58,7 +60,7 @@ export function balancesRoutes(ctx: AppContext) {
     permission: { balances: ["reserve"] },
     parseBody: async (c) => ReserveBalanceBodySchema.parse(await c.req.json()),
     handle: async ({ body, actorUserId, idempotencyKey, requestContext }) =>
-      ctx.balancesService.reserve({
+      ctx.ledgerModule.balances.commands.reserve({
         subject: body.subject,
         amount: body.amount,
         holdRef: body.holdRef,
@@ -77,7 +79,7 @@ export function balancesRoutes(ctx: AppContext) {
     permission: { balances: ["release"] },
     parseBody: async (c) => HoldActionBodySchema.parse(await c.req.json()),
     handle: async ({ body, actorUserId, idempotencyKey, requestContext }) =>
-      ctx.balancesService.release({
+      ctx.ledgerModule.balances.commands.release({
         subject: body.subject,
         holdRef: body.holdRef,
         reason: body.reason,
@@ -95,7 +97,7 @@ export function balancesRoutes(ctx: AppContext) {
     permission: { balances: ["consume"] },
     parseBody: async (c) => HoldActionBodySchema.parse(await c.req.json()),
     handle: async ({ body, actorUserId, idempotencyKey, requestContext }) =>
-      ctx.balancesService.consume({
+      ctx.ledgerModule.balances.commands.consume({
         subject: body.subject,
         holdRef: body.holdRef,
         reason: body.reason,

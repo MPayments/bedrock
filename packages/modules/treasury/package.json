@@ -1,0 +1,51 @@
+{
+  "name": "@bedrock/treasury",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapters/drizzle": "./src/adapters/drizzle.ts",
+    "./contracts": "./src/contracts.ts",
+    "./schema": "./src/schema.ts",
+    "./worker": "./src/worker.ts",
+    "./providers": "./src/providers.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "soap": "^1.6.0",
+    "tlsclientwrapper": "^4.1.2",
+    "zod": "^4.1.11",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/test-utils": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "@types/pg": "^8.16.0",
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "treasury"
+    ]
+  }
+}

@@ -4,8 +4,8 @@ import {
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
   DEFAULT_REPORT_LINE_MAPPINGS,
-  validatePackDefinition,
-} from "../src";
+} from "../src/constants";
+import { validatePackDefinition } from "../src/packs/application";
 import { rawPackDefinition } from "../src/packs/raw-pack";
 
 describe("accounting reference data", () => {

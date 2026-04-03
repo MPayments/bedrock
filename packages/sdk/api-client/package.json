@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsgo",
+    "build": "node -e \"console.log('sdk-api-client exports source files; no build output')\"",
     "dev": "tsc --watch",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --ignore-pattern \"src/**/*.d.ts\" --max-warnings 0"

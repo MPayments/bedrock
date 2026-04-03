@@ -5,7 +5,11 @@ import { dedupeIds } from "@bedrock/shared/core/domain";
 
 import type { DocumentsQueryRepository } from "../../../application/documents/ports";
 import type { ListDocumentsQuery } from "../../../contracts/queries";
-import { buildDocumentSearchCondition, inArraySafe, resolveDocumentsSort } from "../query-helpers";
+import {
+  buildDocumentSearchCondition,
+  inArraySafe,
+  resolveDocumentsSort,
+} from "../query-helpers";
 import { schema } from "../schema";
 
 export function createDrizzleDocumentsQueryRepository(
@@ -30,9 +34,14 @@ export function createDrizzleDocumentsQueryRepository(
       const [row] = await db
         .select({
           document: schema.documents,
+          dealId: schema.documentBusinessLinks.dealId,
           postingOperationId: schema.documentOperations.operationId,
         })
         .from(schema.documents)
+        .leftJoin(
+          schema.documentBusinessLinks,
+          eq(schema.documentBusinessLinks.documentId, schema.documents.id),
+        )
         .leftJoin(
           schema.documentOperations,
           and(
@@ -51,6 +60,7 @@ export function createDrizzleDocumentsQueryRepository(
       return row
         ? {
             document: row.document,
+            dealId: row.dealId ?? null,
             postingOperationId: row.postingOperationId ?? null,
           }
         : null;
@@ -66,6 +76,9 @@ export function createDrizzleDocumentsQueryRepository(
         inArraySafe(schema.documents.currency, input.currency),
         inArraySafe(schema.documents.counterpartyId, input.counterpartyId),
         inArraySafe(schema.documents.customerId, input.customerId),
+        input.dealId
+          ? eq(schema.documentBusinessLinks.dealId, input.dealId)
+          : undefined,
         inArraySafe(
           schema.documents.organizationRequisiteId,
           input.organizationRequisiteId,
@@ -82,9 +95,14 @@ export function createDrizzleDocumentsQueryRepository(
       const rows = await db
         .select({
           document: schema.documents,
+          dealId: schema.documentBusinessLinks.dealId,
           postingOperationId: schema.documentOperations.operationId,
         })
         .from(schema.documents)
+        .leftJoin(
+          schema.documentBusinessLinks,
+          eq(schema.documentBusinessLinks.documentId, schema.documents.id),
+        )
         .leftJoin(
           schema.documentOperations,
           and(
@@ -100,11 +118,16 @@ export function createDrizzleDocumentsQueryRepository(
       const [totalRow] = await db
         .select({ value: count() })
         .from(schema.documents)
+        .leftJoin(
+          schema.documentBusinessLinks,
+          eq(schema.documentBusinessLinks.documentId, schema.documents.id),
+        )
         .where(where);
 
       return {
         rows: rows.map((row) => ({
           document: row.document,
+          dealId: row.dealId ?? null,
           postingOperationId: row.postingOperationId ?? null,
         })),
         total: totalRow?.value ?? 0,

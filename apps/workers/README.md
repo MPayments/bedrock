@@ -7,7 +7,7 @@ Per-item guard outcomes are intentionally worker-specific:
 | Worker ID | Policy |
 | --- | --- |
 | `ledger` | `release` |
-| `fx-rates` | `skip` |
+| `treasury-rates` | `skip` |
 | `documents` | `skip` |
 | `balances` | `stop_batch` |
 

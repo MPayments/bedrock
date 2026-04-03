@@ -8,7 +8,7 @@ export function getRequestContext(c: {
 
 function requireIdempotencyKey(c: {
   get: (key: "requestContext") => RequestContext | undefined;
-  json: (body: unknown, status?: number) => Response;
+  json: (body: unknown, status?: number) => any;
 }) {
   const key = getRequestContext(c)?.idempotencyKey;
   if (!key) {
@@ -27,10 +27,10 @@ function requireIdempotencyKey(c: {
 export async function withRequiredIdempotency<TResult>(
   c: {
     get: (key: "requestContext") => RequestContext | undefined;
-    json: (body: unknown, status?: number) => Response;
+    json: (body: unknown, status?: number) => any;
   },
   run: (idempotencyKey: string) => Promise<TResult>,
-): Promise<TResult | Response> {
+): Promise<TResult | any> {
   const idem = requireIdempotencyKey(c);
   if (!idem.ok) {
     return idem.response;

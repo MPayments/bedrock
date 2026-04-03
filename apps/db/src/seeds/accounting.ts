@@ -5,7 +5,7 @@ import {
   DEFAULT_POSTING_CODE_DIMENSION_POLICIES,
   DEFAULT_REPORT_LINE_MAPPINGS,
   DEFAULT_REPORT_LINE_MAPPINGS_EFFECTIVE_FROM,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/constants";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";

@@ -11,8 +11,9 @@ import {
   type DocumentAction,
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/model";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
-import auth from "../auth";
+import * as authModule from "../auth";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
@@ -71,13 +72,70 @@ const OperationParamSchema = z.object({
   operationId: z.uuid(),
 });
 
+const FIELD_METADATA: Record<string, { label: string; category: string }> = {
+  acceptanceNumber: { label: "Номер акта", category: "Документ" },
+  account: { label: "Расчётный счёт", category: "Клиент" },
+  address: { label: "Адрес", category: "Клиент" },
+  agentAddress: { label: "Адрес агента", category: "Агент" },
+  agentBankAccount: { label: "Счёт банка агента", category: "Агент" },
+  agentBankBic: { label: "БИК банка агента", category: "Агент" },
+  agentBankSwiftCode: { label: "SWIFT банка агента", category: "Агент" },
+  agentDirectorName: { label: "ФИО директора агента", category: "Агент" },
+  agentFee: { label: "Комиссия агента (%)", category: "Договор" },
+  agentName: { label: "Название организации агента", category: "Агент" },
+  agentTaxId: { label: "Tax ID агента", category: "Агент" },
+  applicationNumber: { label: "Номер заявки", category: "Документ" },
+  bankName: { label: "Название банка", category: "Клиент" },
+  baseCurrencyCode: { label: "Базовая валюта", category: "Расчёт" },
+  bic: { label: "БИК", category: "Клиент" },
+  calculationDate: { label: "Дата расчёта", category: "Документ" },
+  calculationNumber: { label: "Номер расчёта", category: "Документ" },
+  companyName: { label: "Компания-получатель", category: "Сделка" },
+  contractDate: { label: "Дата договора", category: "Договор" },
+  contractNumber: { label: "Номер договора", category: "Договор" },
+  corrAccount: { label: "Корр. счёт", category: "Клиент" },
+  createdAt: { label: "Дата создания", category: "Документ" },
+  currencyCode: { label: "Валюта перевода", category: "Расчёт" },
+  date: { label: "Дата", category: "Документ" },
+  directorBasis: { label: "Основание действий директора", category: "Клиент" },
+  directorInitials: { label: "Инициалы директора", category: "Клиент" },
+  directorName: { label: "ФИО директора", category: "Клиент" },
+  feeAmountInBase: { label: "Комиссия (в базовой валюте)", category: "Расчёт" },
+  fixedFee: { label: "Фикс. комиссия", category: "Договор" },
+  inn: { label: "ИНН", category: "Клиент" },
+  invoiceNumber: { label: "Номер счёта", category: "Документ" },
+  kpp: { label: "КПП", category: "Клиент" },
+  ogrn: { label: "ОГРН", category: "Клиент" },
+  orgName: { label: "Название организации", category: "Клиент" },
+  orgType: { label: "Тип организации", category: "Клиент" },
+  originalAmount: { label: "Сумма в валюте", category: "Расчёт" },
+  rate: { label: "Курс", category: "Расчёт" },
+  swiftCode: { label: "SWIFT-код получателя", category: "Сделка" },
+  totalAmount: { label: "Итого с комиссией", category: "Расчёт" },
+  totalWithExpensesInBase: {
+    label: "Итого с расходами (в базовой валюте)",
+    category: "Расчёт",
+  },
+};
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  "acceptance.docx": "Акт оказанных услуг",
+  "application.docx": "Заявка на перевод",
+  "calculation.docx": "Расчёт",
+  "contract.docx": "Агентский договор",
+  "invoice.docx": "Счёт на оплату",
+};
+
 const JournalOperationsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(20),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(["createdAt", "postingDate", "postedAt"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   query: z.string().trim().min(1).optional(),
-  status: z.array(z.enum(["pending", "posted", "failed"])).min(1).optional(),
+  status: z
+    .array(z.enum(["pending", "posted", "failed"]))
+    .min(1)
+    .optional(),
   operationCode: z.array(z.string().trim().min(1)).min(1).optional(),
   sourceType: z.array(z.string().trim().min(1)).min(1).optional(),
   sourceId: z.string().trim().min(1).optional(),
@@ -93,15 +151,6 @@ function parseJournalOperationsQuery(requestUrl: string) {
   const status = params.getAll("status");
   const operationCode = params.getAll("operationCode");
   const sourceType = params.getAll("sourceType");
-  const query = {
-    limit: params.get("limit") ?? undefined,
-    offset: params.get("offset") ?? undefined,
-    sortBy: params.get("sortBy") ?? undefined,
-    sortOrder: params.get("sortOrder") ?? undefined,
-  } satisfies Record<string, string | string[] | undefined>;
-  const queryText = params.get("query");
-  const sourceId = params.get("sourceId");
-  const bookId = params.get("bookId");
 
   for (const [key, value] of params.entries()) {
     if (!key.startsWith("dimension.")) {
@@ -120,17 +169,55 @@ function parseJournalOperationsQuery(requestUrl: string) {
   }
 
   return JournalOperationsQuerySchema.parse({
-    ...query,
-    ...(queryText ? { query: queryText } : {}),
-    ...(status.length > 0 ? { status } : {}),
-    ...(operationCode.length > 0 ? { operationCode } : {}),
-    ...(sourceType.length > 0 ? { sourceType } : {}),
-    ...(sourceId ? { sourceId } : {}),
-    ...(bookId ? { bookId } : {}),
-    ...(dimensionFilters.size > 0
-      ? { dimensionFilters: Object.fromEntries(dimensionFilters) }
-      : {}),
+    limit: params.get("limit") ?? undefined,
+    offset: params.get("offset") ?? undefined,
+    sortBy: params.get("sortBy") ?? undefined,
+    sortOrder: params.get("sortOrder") ?? undefined,
+    query: params.get("query") ?? undefined,
+    status: status.length > 0 ? status : undefined,
+    operationCode: operationCode.length > 0 ? operationCode : undefined,
+    sourceType: sourceType.length > 0 ? sourceType : undefined,
+    sourceId: params.get("sourceId") ?? undefined,
+    bookId: params.get("bookId") ?? undefined,
+    dimensionFilters:
+      dimensionFilters.size > 0
+        ? Object.fromEntries(dimensionFilters)
+        : undefined,
   });
+}
+
+interface DocumentPermissionAuthSurface {
+  api: {
+    userHasPermission: (input: {
+      body: {
+        permissions: {
+          documents: DocumentPermissionAction[];
+        };
+        userId: string;
+      };
+    }) => Promise<{ success: boolean }>;
+  };
+}
+
+function resolveAuthSurface(
+  audience: AuthVariables["audience"],
+): DocumentPermissionAuthSurface {
+  if (Reflect.has(authModule, "authByAudience")) {
+    const byAudience = Reflect.get(authModule, "authByAudience") as Record<
+      string,
+      DocumentPermissionAuthSurface
+    >;
+    const surface = byAudience[audience ?? "crm"] ?? byAudience.crm;
+    if (surface) {
+      return surface;
+    }
+  }
+
+  if (Reflect.has(authModule, "default")) {
+    return Reflect.get(authModule, "default") as DocumentPermissionAuthSurface;
+  }
+
+  throw new Error("Auth surface not configured");
 }
 
 export function documentsRoutes(ctx: AppContext) {
@@ -155,10 +242,7 @@ export function documentsRoutes(ctx: AppContext) {
     role: string | null | undefined;
   }) {
     const allowedAdminActions = adminSystemOnlyActionsByDocType[input.docType];
-    if (
-      input.role === "admin" &&
-      allowedAdminActions?.has(input.action)
-    ) {
+    if (input.role === "admin" && allowedAdminActions?.has(input.action)) {
       return;
     }
 
@@ -169,7 +253,9 @@ export function documentsRoutes(ctx: AppContext) {
 
   async function resolveDocumentActionPermissions(
     userId: string,
+    audience: AuthVariables["audience"],
   ): Promise<Map<DocumentPermissionAction, boolean>> {
+    const auth = resolveAuthSurface(audience);
     const uniquePermissions = Array.from(
       new Set<DocumentPermissionAction>(
         Object.values(DOCUMENT_ACTION_TO_PERMISSION),
@@ -279,29 +365,35 @@ export function documentsRoutes(ctx: AppContext) {
     });
   }
 
-  app.get("/journal", requirePermission({ accounting: ["list"] }), async (c) => {
-    try {
-      const query = parseJournalOperationsQuery(c.req.url);
-      const result =
-        await ctx.accountingReportsService.listOperationsWithLabels(query);
+  app.get(
+    "/journal",
+    requirePermission({ accounting: ["list"] }),
+    async (c) => {
+      try {
+        const query = parseJournalOperationsQuery(c.req.url);
+        const result =
+          await ctx.accountingModule.reports.queries.listOperationsWithLabels(
+            query,
+          );
 
-      return c.json(
-        {
-          ...result,
-          data: result.data.map((row) => ({
-            ...row,
-            postingDate: row.postingDate.toISOString(),
-            postedAt: row.postedAt?.toISOString() ?? null,
-            lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
-            createdAt: row.createdAt.toISOString(),
-          })),
-        },
-        200,
-      );
-    } catch (error) {
-      return handleRouteError(c, error);
-    }
-  });
+        return c.json(
+          {
+            ...result,
+            data: result.data.map((row) => ({
+              ...row,
+              postingDate: row.postingDate.toISOString(),
+              postedAt: row.postedAt?.toISOString() ?? null,
+              lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
+              createdAt: row.createdAt.toISOString(),
+            })),
+          },
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
 
   app.get(
     "/journal/:operationId",
@@ -310,7 +402,7 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const { operationId } = OperationParamSchema.parse(c.req.param());
         const details =
-          await ctx.accountingReportsService.getOperationDetailsWithLabels(
+          await ctx.accountingModule.reports.queries.getOperationDetailsWithLabels(
             operationId,
           );
 
@@ -331,7 +423,10 @@ export function documentsRoutes(ctx: AppContext) {
       const query = ListDocumentsQuerySchema.parse(
         queryObjectFromUrl(c.req.url),
       );
-      const actionPermissions = await resolveDocumentActionPermissions(user.id);
+      const actionPermissions = await resolveDocumentActionPermissions(
+        user.id,
+        c.get("audience"),
+      );
       const result = await ctx.documentsService.list(query, user.id);
 
       return c.json({
@@ -366,6 +461,7 @@ export function documentsRoutes(ctx: AppContext) {
         const result = await ctx.documentDraftWorkflow.createDraft({
           docType,
           createIdempotencyKey: body.createIdempotencyKey,
+          dealId: body.dealId,
           payload: body.input,
           actorUserId: c.get("user")!.id,
           requestContext: getRequestContext(c),
@@ -421,6 +517,7 @@ export function documentsRoutes(ctx: AppContext) {
         const { docType, id } = c.req.param();
         const actionPermissions = await resolveDocumentActionPermissions(
           user.id,
+          c.get("audience"),
         );
         const result = await ctx.documentsService.get(docType, id, user.id);
 
@@ -455,18 +552,23 @@ export function documentsRoutes(ctx: AppContext) {
           id,
           user.id,
         );
-        const [actionPermissions, ledgerOperationDetailsById] = await Promise.all([
-          resolveDocumentActionPermissions(user.id),
-          ctx.accountingReportsService.listOperationDetailsWithLabels(
-            details.documentOperations.map((operation) => operation.operationId),
-          ),
-        ]);
+        const [actionPermissions, ledgerOperationDetailsById] =
+          await Promise.all([
+            resolveDocumentActionPermissions(user.id, c.get("audience")),
+            ctx.accountingModule.reports.queries.listOperationDetailsWithLabels(
+              details.documentOperations.map(
+                (operation) => operation.operationId,
+              ),
+            ),
+          ]);
         const ledgerOperations = details.documentOperations.map((operation) => {
           const operationDetails = ledgerOperationDetailsById.get(
             operation.operationId,
           );
 
-          return operationDetails ? mapOperationDetailsDto(operationDetails) : null;
+          return operationDetails
+            ? mapOperationDetailsDto(operationDetails)
+            : null;
         });
 
         return c.json(
@@ -517,6 +619,81 @@ export function documentsRoutes(ctx: AppContext) {
     permission: "post",
     action: "repost",
   });
+
+  app.get(
+    "/templates",
+    requirePermission({ documents: ["list"] }),
+    async (c): Promise<any> => {
+      const { organizationId } = z
+        .object({
+          organizationId: z.string().uuid().optional(),
+        })
+        .parse(queryObjectFromUrl(c.req.url));
+      const templates =
+        await ctx.documentGenerationWorkflow.listTemplates(organizationId);
+
+      return c.json(
+        templates.map((name) => ({
+          label: TEMPLATE_LABELS[name] ?? null,
+          name,
+        })),
+        200,
+      );
+    },
+  );
+
+  app.get(
+    "/templates/:name/fields",
+    requirePermission({ documents: ["list"] }),
+    async (c): Promise<any> => {
+      const { organizationId } = z
+        .object({
+          organizationId: z.string().uuid().optional(),
+        })
+        .parse(queryObjectFromUrl(c.req.url));
+      const { name } = c.req.param();
+      const fields = await ctx.documentGenerationWorkflow.getTemplateFields(
+        name,
+        organizationId,
+      );
+
+      return c.json(
+        fields.map((fieldName) => {
+          const meta = FIELD_METADATA[fieldName];
+          return {
+            category: meta?.category ?? "Другое",
+            label: meta?.label ?? fieldName,
+            name: fieldName,
+          };
+        }),
+        200,
+      );
+    },
+  );
+
+  app.post(
+    "/generate",
+    requirePermission({ documents: ["create"] }),
+    async (c): Promise<any> => {
+      const input = z
+        .object({
+          data: z.record(z.string(), z.string()),
+          format: z.enum(["docx", "pdf"]).default("docx"),
+          organizationId: z.string().uuid().optional(),
+          templateName: z.string().min(1),
+        })
+        .parse(await c.req.json());
+      const result =
+        await ctx.documentGenerationWorkflow.generateFromRawData(input);
+
+      c.header("Content-Type", result.mimeType);
+      c.header(
+        "Content-Disposition",
+        `attachment; filename="${result.fileName}"`,
+      );
+      return c.body(result.buffer as unknown as ArrayBuffer);
+    },
+  );
 
   return app;
 }

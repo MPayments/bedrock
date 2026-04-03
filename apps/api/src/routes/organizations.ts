@@ -1,9 +1,10 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import type { z } from "@hono/zod-openapi";
 
 import {
   OrganizationDeleteConflictError,
   OrganizationNotFoundError,
-} from "@bedrock/organizations";
+} from "@bedrock/parties";
 import {
   CreateOrganizationInputSchema,
   ListOrganizationsQuerySchema,
@@ -11,18 +12,59 @@ import {
   OrganizationOptionsResponseSchema,
   OrganizationSchema,
   UpdateOrganizationInputSchema,
-} from "@bedrock/organizations/contracts";
+} from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
+import { countOrganizationBankRequisites } from "./organization-requisites";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
-const OPTIONS_LIMIT = 200;
+const PaginatedOrganizationsSchema =
+  createPaginatedListSchema(OrganizationSchema);
+interface OrganizationFilesResponse {
+  banksCount: number;
+  hasFiles: boolean;
+  sealUrl: string | null;
+  signatureUrl: string | null;
+}
+async function buildOrganizationListRow(
+  ctx: AppContext,
+  organization: z.infer<typeof OrganizationSchema>,
+) {
+  const banksCount = await countOrganizationBankRequisites(ctx, organization.id);
+
+  return {
+    ...organization,
+    banksCount,
+    hasFiles: Boolean(organization.signatureKey || organization.sealKey),
+  };
+}
+
+async function buildOrganizationDetail(
+  ctx: AppContext,
+  organization: z.infer<typeof OrganizationSchema>,
+) {
+  const banksCount = await countOrganizationBankRequisites(ctx, organization.id);
+
+  return {
+    ...organization,
+    banksCount,
+    hasFiles: Boolean(organization.signatureKey || organization.sealKey),
+    sealUrl: organization.sealKey
+      ? `/v1/organizations/${organization.id}/files/seal`
+      : null,
+    signatureUrl: organization.signatureKey
+      ? `/v1/organizations/${organization.id}/files/signature`
+      : null,
+  };
+}
 
 export function organizationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -181,7 +223,7 @@ export function organizationsRoutes(ctx: AppContext) {
     method: "delete",
     path: "/{id}",
     tags: ["Organizations"],
-    summary: "Delete organization",
+    summary: "Archive organization",
     request: {
       params: IdParamSchema,
     },
@@ -192,7 +234,7 @@ export function organizationsRoutes(ctx: AppContext) {
             schema: DeletedSchema,
           },
         },
-        description: "Organization deleted",
+        description: "Organization archived",
       },
       400: {
         content: {
@@ -216,12 +258,19 @@ export function organizationsRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.organizationsService.list(query);
-      return c.json(result, 200);
+      const result = await ctx.partiesModule.organizations.queries.list({
+        ...query,
+        isActive: query.isActive ?? true,
+      });
+      const data = await Promise.all(
+        result.data.map((organization) => buildOrganizationListRow(ctx, organization)),
+      );
+      return c.json({ ...result, data }, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const result = await ctx.organizationsService.list({
-        limit: OPTIONS_LIMIT,
+      const result = await ctx.partiesModule.organizations.queries.list({
+        isActive: true,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "shortName",
         sortOrder: "asc",
@@ -256,8 +305,9 @@ export function organizationsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const organization = await ctx.organizationsService.findById(id);
-        return c.json(organization, 200);
+        const organization =
+          await ctx.partiesModule.organizations.queries.findById(id);
+        return c.json(await buildOrganizationDetail(ctx, organization), 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
           return c.json({ error: error.message }, 404);
@@ -270,7 +320,8 @@ export function organizationsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const organization = await ctx.organizationsService.update(id, input);
+        const organization =
+          await ctx.partiesModule.organizations.commands.update(id, input);
         return c.json(organization, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -286,7 +337,7 @@ export function organizationsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.organizationsService.remove(id);
+        await ctx.partiesModule.organizations.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -297,5 +348,122 @@ export function organizationsRoutes(ctx: AppContext) {
         }
         throw error;
       }
-    });
+    })
+    .get(
+      "/:id/files",
+      requirePermission({ organizations: ["list"] }),
+      async (c) => {
+        const id = c.req.param("id");
+
+        try {
+          const organization =
+            await ctx.partiesModule.organizations.queries.findById(id);
+          const banksCount = await countOrganizationBankRequisites(ctx, id);
+
+          return c.json(
+            {
+              banksCount,
+              hasFiles: Boolean(organization.signatureKey || organization.sealKey),
+              signatureUrl: organization.signatureKey
+                ? `/v1/organizations/${id}/files/signature`
+                : null,
+              sealUrl: organization.sealKey
+                ? `/v1/organizations/${id}/files/seal`
+                : null,
+            } satisfies OrganizationFilesResponse,
+            200,
+          );
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    )
+    .get(
+      "/:id/files/:type",
+      requirePermission({ organizations: ["list"] }),
+      async (c) => {
+        const id = c.req.param("id");
+        const type = c.req.param("type") as "signature" | "seal";
+        if (type !== "signature" && type !== "seal") {
+          return c.json({ error: "Type must be signature or seal" }, 400);
+        }
+
+        try {
+          const organization =
+            await ctx.partiesModule.organizations.queries.findById(id);
+          const key =
+            type === "signature"
+              ? organization.signatureKey ?? null
+              : organization.sealKey ?? null;
+
+          if (!key) {
+            return c.json({ error: "File not found" }, 404);
+          }
+          if (!ctx.objectStorage) {
+            return c.json({ error: "Storage not configured" }, 503);
+          }
+
+          const buffer = await ctx.objectStorage.download(key);
+          return new Response(new Uint8Array(buffer), {
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Content-Type": "image/png",
+            },
+          });
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    )
+    .post(
+      "/:id/files",
+      requirePermission({ organizations: ["update"] }),
+      async (c) => {
+        const id = c.req.param("id");
+
+        try {
+          await ctx.partiesModule.organizations.queries.findById(id);
+          const body = await c.req.parseBody();
+          const signatureFile = body.signature;
+          const sealFile = body.seal;
+
+          if (!ctx.objectStorage) {
+            return c.json({ error: "Storage not configured" }, 503);
+          }
+
+          const patch: z.input<typeof UpdateOrganizationInputSchema> = {};
+
+          if (signatureFile && typeof signatureFile !== "string") {
+            const key = `organizations/${id}/signature.png`;
+            const buffer = Buffer.from(await signatureFile.arrayBuffer());
+            await ctx.objectStorage.upload(key, buffer, "image/png");
+            patch.signatureKey = key;
+          }
+
+          if (sealFile && typeof sealFile !== "string") {
+            const key = `organizations/${id}/seal.png`;
+            const buffer = Buffer.from(await sealFile.arrayBuffer());
+            await ctx.objectStorage.upload(key, buffer, "image/png");
+            patch.sealKey = key;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await ctx.partiesModule.organizations.commands.update(id, patch);
+          }
+
+          return c.json({ success: true }, 200);
+        } catch (error) {
+          if (error instanceof OrganizationNotFoundError) {
+            return c.json({ error: error.message }, 404);
+          }
+          throw error;
+        }
+      },
+    );
 }

@@ -19,8 +19,8 @@ async function main() {
   const { packRef, definition } = await loadRawPackDefinition();
   const packsService = createPacksService(definition);
   const compiled = compilePack(definition);
-  await packsService.storeCompiledPackVersion({ pack: compiled });
-  const assignment = await packsService.activatePackForScope({
+  await packsService.commands.storePackVersion({ pack: compiled });
+  const assignment = await packsService.commands.activatePackForScope({
     scopeId,
     scopeType,
     packChecksum: compiled.checksum,

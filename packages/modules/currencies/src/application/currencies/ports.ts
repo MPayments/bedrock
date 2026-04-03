@@ -10,6 +10,7 @@ export interface CurrenciesQueryRepository {
   listAll(): Promise<Currency[]>;
   findById(id: string): Promise<Currency | null>;
   findByCode(code: string): Promise<Currency | null>;
+  listByIds(ids: string[]): Promise<Map<string, Currency>>;
   listPrecisionsByCode(codes: string[]): Promise<Map<string, number>>;
 }
 

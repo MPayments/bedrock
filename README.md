@@ -10,13 +10,13 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 - `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/persistence`, `@bedrock/platform/worker-runtime`, and related subpaths
 - `packages/plugins/*` - document plugins and plugin SDK packages
 - `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
-- `apps/*` - API/Web/Workers/DB composition
+- `apps/*` - API/CRM/Finance/Workers/DB composition
 - `ops/*` - infra entrypoints
 
 Runtime import contract:
 
-- Runtime packages publish flat imports such as `@bedrock/ledger` and `@bedrock/counterparties`, plus merged package subpaths such as `@bedrock/platform/auth-model` and `@bedrock/platform/worker-runtime`.
-- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema`, `@bedrock/organizations/schema`, or `@bedrock/requisite-providers/schema`.
+- Runtime packages publish flat imports such as `@bedrock/ledger` and `@bedrock/iam`, plus package subpaths such as `@bedrock/iam/schema` and `@bedrock/platform/worker-runtime`.
+- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/schema`.
 - `apps/db` owns schema aggregation, migrations, DB reset, and seed/bootstrap scripts.
 - Use DB connection types from `@bedrock/platform/persistence` or `@bedrock/platform/persistence/drizzle`.
 
@@ -44,9 +44,11 @@ The short version:
 
 ## Apps
 
-- `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/api` - API adapter (`http://localhost:3000`)
 - `apps/db` - DB tooling and seed runners
-- `apps/web` - Web app (`http://localhost:3001`)
+- `apps/crm` - CRM app (`http://localhost:3002`)
+- `apps/finance` - Finance app (`http://localhost:3001`)
+- `apps/portal` - Customer portal (`http://localhost:3003`)
 - `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
 
 ## Local Setup
@@ -54,8 +56,18 @@ The short version:
 Start infrastructure:
 
 ```bash
-docker compose -f ops/infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.dev.yml up -d
 ```
+
+Port contract:
+
+- API: `http://localhost:3000`
+- Postgres on the host: `127.0.0.1:5432`
+- Finance: `http://localhost:3001`
+- CRM: `http://localhost:3002`
+- Portal: `http://localhost:3003`
+- TigerBeetle on the host: `127.0.0.1:3555`
+- TigerBeetle inside Docker Compose: `bedrock-tigerbeetle:3000`
 
 Install dependencies:
 
@@ -65,10 +77,25 @@ bun install
 
 ## Run
 
-Run all apps:
+Run the runtime stack (`api`, `workers`, `finance`, `crm`, `portal`):
 
 ```bash
 bun run dev
+```
+
+Run every workspace watcher, including package-level `tsc --watch` processes:
+
+```bash
+bun run dev:all
+```
+
+Run a renamed frontend directly from the repo root:
+
+```bash
+bun run dev:finance
+bun run dev:crm
+bun run dev:portal
+bun run dev:workers
 ```
 
 Run workers:
@@ -78,7 +105,7 @@ bun run --cwd apps/workers worker:all
 bun run --cwd apps/workers worker:ledger
 bun run --cwd apps/workers worker:documents
 bun run --cwd apps/workers worker:balances
-bun run --cwd apps/workers worker:fx-rates
+bun run --cwd apps/workers worker:treasury-rates
 bun run --cwd apps/workers worker:reconciliation
 ```
 

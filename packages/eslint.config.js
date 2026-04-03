@@ -159,12 +159,6 @@ export default [
               name: "@bedrock/platform/persistence/drizzle",
               message: "Accounting application code must not depend on persistence types.",
             },
-            {
-              name: "@bedrock/ledger",
-              importNames: ["LedgerReadService"],
-              message:
-                "Accounting application code must depend on local ledger ports, not LedgerReadService.",
-            },
           ],
           patterns: [
             {

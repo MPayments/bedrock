@@ -18,12 +18,19 @@ export const ListReconciliationExceptionsInputSchema = z.object({
   offset: z.number().int().min(0).default(0),
 });
 
+export const ListReconciliationOperationLinksInputSchema = z.object({
+  operationIds: z.array(z.string().min(1)).max(500).default([]),
+});
+
 export const ExplainReconciliationMatchInputSchema = z.object({
   matchId: z.string().min(1),
 });
 
 export type ListReconciliationExceptionsInput = z.infer<
   typeof ListReconciliationExceptionsInputSchema
+>;
+export type ListReconciliationOperationLinksInput = z.infer<
+  typeof ListReconciliationOperationLinksInputSchema
 >;
 export type ExplainReconciliationMatchInput = z.infer<
   typeof ExplainReconciliationMatchInputSchema

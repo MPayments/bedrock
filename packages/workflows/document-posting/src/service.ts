@@ -3,7 +3,7 @@ import {
   type DocumentsService,
 } from "@bedrock/documents";
 import type { DocumentTransitionInput } from "@bedrock/documents/contracts";
-import type { LedgerCommitService } from "@bedrock/ledger";
+import type { LedgerModule } from "@bedrock/ledger";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
@@ -19,7 +19,9 @@ export type DocumentPostingWorkflowInput = Omit<
 export interface DocumentPostingWorkflowDeps {
   db: Database;
   idempotency: IdempotencyPort;
-  ledgerCommit: LedgerCommitService;
+  createLedgerModule(
+    tx: Transaction,
+  ): Pick<LedgerModule, "operations">;
   createDocumentsService: CreateDocumentPostingService;
 }
 
@@ -30,6 +32,7 @@ export function createDocumentPostingWorkflow(
     async post(input: DocumentPostingWorkflowInput) {
       return deps.db.transaction(async (tx) => {
         const documents = deps.createDocumentsService(tx);
+        const ledgerModule = deps.createLedgerModule(tx);
         const idempotencyKey = await documents.actions.resolveIdempotencyKey({
           action: "post",
           docType: input.docType,
@@ -65,8 +68,7 @@ export function createDocumentPostingWorkflow(
               ...input,
               action: "post",
             });
-            const ledgerResult = await deps.ledgerCommit.commit(
-              tx,
+            const ledgerResult = await ledgerModule.operations.commands.commit(
               prepared.resolved!.intent,
             );
 

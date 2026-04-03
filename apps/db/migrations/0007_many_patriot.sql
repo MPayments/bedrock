@@ -1,0 +1,1 @@
+CREATE INDEX "recon_matches_matched_operation_idx" ON "reconciliation_matches" USING btree ("matched_operation_id");

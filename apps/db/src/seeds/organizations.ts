@@ -16,6 +16,7 @@ export async function seedOrganizations(db: Database | Transaction) {
         description: organization.description,
         kind: organization.kind,
         country: organization.country,
+        isActive: true,
       })
       .onConflictDoUpdate({
         target: schema.organizations.id,
@@ -26,6 +27,7 @@ export async function seedOrganizations(db: Database | Transaction) {
           description: organization.description,
           kind: organization.kind,
           country: organization.country,
+          isActive: true,
         },
       });
   }

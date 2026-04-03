@@ -28,7 +28,7 @@ export function accountingTemplateRoutes(ctx: AppContext) {
   });
 
   return app.openapi(listTemplateAccountsRoute, async (c) => {
-    const rows = await ctx.accountingService.chart.listTemplateAccounts();
+    const rows = await ctx.accountingModule.chart.queries.listTemplateAccounts();
     return c.json(
       rows.map((row: (typeof rows)[number]) => ({
         accountNo: row.accountNo,

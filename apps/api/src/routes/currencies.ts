@@ -12,7 +12,10 @@ import {
   ListCurrenciesQuerySchema,
   UpdateCurrencyInputSchema,
 } from "@bedrock/currencies/contracts";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -211,7 +214,7 @@ export function currenciesRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.currenciesService.list({
-        limit: 200,
+        limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "code",
         sortOrder: "asc",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PostingMatrix } from "../../src/domain/chart";
+import { PostingMatrix } from "../../src/chart/domain";
 
 describe("accounting chart domain", () => {
   it("detects duplicate active correspondence rules", () => {

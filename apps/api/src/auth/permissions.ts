@@ -8,9 +8,12 @@ import {
 const statements = {
   ...defaultStatements,
   customers: ["create", "list", "update", "delete"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
-  fx_rates: ["list", "sync"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
     "create",
@@ -48,9 +51,12 @@ export const ac = createAccessControl(statements);
 export const admin = ac.newRole({
   ...adminAc.statements,
   customers: ["create", "list", "update", "delete"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
-  fx_rates: ["list", "sync"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
   documents: [
     "create",
@@ -82,12 +88,53 @@ export const admin = ac.newRole({
 export const user = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update"],
   currencies: ["list"],
-  fx_rates: ["list"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list"],
   organizations: ["list"],
   documents: ["create", "list", "get", "update", "submit"],
   accounting: ["list"],
   balances: ["get"],
   requisites: ["list", "providers_list"],
+});
+
+export const finance = ac.newRole({
+  ...userAc.statements,
+  customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
+  counterparties: ["create", "list", "update"],
+  currencies: ["list"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list"],
+  organizations: ["list"],
+  documents: ["create", "list", "get", "update", "submit"],
+  accounting: ["list"],
+  balances: ["get"],
+  requisites: ["list", "providers_list"],
+});
+
+// Agent role: same as user on the final canonical API surface
+export const agent = ac.newRole({
+  ...userAc.statements,
+  customers: ["create", "list", "update"],
+  agreements: ["create", "list", "update", "delete"],
+  calculations: ["create", "list", "update", "delete"],
+  counterparties: ["create", "list", "update"],
+  currencies: ["list"],
+  deals: ["create", "list", "update", "delete"],
+  treasury_rates: ["list"],
+  organizations: ["list"],
+  documents: ["create", "list", "get", "update", "submit"],
+  accounting: ["list"],
+  balances: ["get"],
+  requisites: ["list", "providers_list"],
+});
+
+// Customer role: portal-oriented access; endpoint-level ownership checks apply
+export const customer = ac.newRole({
+  ...userAc.statements,
 });

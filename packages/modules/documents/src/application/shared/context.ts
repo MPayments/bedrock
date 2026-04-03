@@ -7,6 +7,7 @@ import { createNoopDocumentTransitionEffectsService } from "./transition-effects
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
   accountingPeriods: DocumentsServiceDeps["accountingPeriods"];
+  documentBusinessLinks: DocumentsServiceDeps["documentBusinessLinks"];
   documentEvents: DocumentsServiceDeps["documentEvents"];
   documentLinks: DocumentsServiceDeps["documentLinks"];
   documentOperations: DocumentsServiceDeps["documentOperations"];
@@ -28,6 +29,7 @@ export function createDocumentsServiceContext(
   return {
     accounting: deps.accounting,
     accountingPeriods: deps.accountingPeriods,
+    documentBusinessLinks: deps.documentBusinessLinks,
     documentEvents: deps.documentEvents,
     documentLinks: deps.documentLinks,
     documentOperations: deps.documentOperations,

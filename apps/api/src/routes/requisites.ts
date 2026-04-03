@@ -1,26 +1,36 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { OrganizationNotFoundError } from "@bedrock/organizations";
-import { CounterpartyNotFoundError } from "@bedrock/parties";
+import { CurrencyNotFoundError } from "@bedrock/currencies";
+import {
+  CounterpartyNotFoundError,
+  OrganizationNotFoundError,
+} from "@bedrock/parties";
 import {
   RequisiteAccountingBindingNotFoundError,
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
+  RequisiteProviderNotFoundError,
   RequisiteProviderNotActiveError,
-} from "@bedrock/requisites";
+} from "@bedrock/parties";
 import {
+  BankRequisiteWorkspaceResponseSchema,
   CreateRequisiteInputSchema,
+  ListBankRequisiteWorkspaceQuerySchema,
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
   RequisiteOptionsResponseSchema,
   RequisiteOptionSchema,
+  RequisiteProviderSchema,
   RequisiteSchema,
   UpdateRequisiteInputSchema,
   UpsertRequisiteAccountingBindingInputSchema,
-} from "@bedrock/requisites/contracts";
+} from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
@@ -29,6 +39,38 @@ import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
 const PaginatedRequisitesSchema = createPaginatedListSchema(RequisiteSchema);
+
+async function findBankWorkspaceProvider(
+  ctx: AppContext,
+  providerId: string,
+) {
+  try {
+    return await ctx.partiesModule.requisites.queries.findProviderById(
+      providerId,
+    );
+  } catch (error) {
+    if (error instanceof RequisiteProviderNotFoundError) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function findBankWorkspaceCurrency(
+  ctx: AppContext,
+  currencyId: string,
+) {
+  try {
+    return await ctx.currenciesService.findById(currencyId);
+  } catch (error) {
+    if (error instanceof CurrencyNotFoundError) {
+      return null;
+    }
+
+    throw error;
+  }
+}
 
 export function requisitesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -71,6 +113,28 @@ export function requisitesRoutes(ctx: AppContext) {
           },
         },
         description: "Requisite option list",
+      },
+    },
+  });
+
+  const bankWorkspaceRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["list"] })],
+    method: "get",
+    path: "/bank-workspace",
+    tags: ["Requisites"],
+    summary:
+      "List active bank requisites for an owner with resolved provider and currency metadata",
+    request: {
+      query: ListBankRequisiteWorkspaceQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: BankRequisiteWorkspaceResponseSchema,
+          },
+        },
+        description: "Bank requisites workspace data",
       },
     },
   });
@@ -136,6 +200,35 @@ export function requisitesRoutes(ctx: AppContext) {
           },
         },
         description: "Requisite found",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Requisite not found",
+      },
+    },
+  });
+
+  const getProviderRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["list"] })],
+    method: "get",
+    path: "/{id}/provider",
+    tags: ["Requisites"],
+    summary: "Get resolved provider for a requisite",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderSchema.nullable(),
+          },
+        },
+        description: "Resolved requisite provider or null when the relation is dangling",
       },
       404: {
         content: {
@@ -327,12 +420,92 @@ export function requisitesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.list(query);
+      const result = await ctx.partiesModule.requisites.queries.list(query);
       return c.json(result, 200);
+    })
+    .openapi(bankWorkspaceRoute, async (c) => {
+      const query = c.req.valid("query");
+      const result = await ctx.partiesModule.requisites.queries.list({
+        kind: ["bank"],
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        ownerId: query.ownerId,
+        ownerType: query.ownerType,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+      const activeRows = result.data.filter((row) => row.archivedAt === null);
+      const providerIds = [...new Set(activeRows.map((row) => row.providerId))];
+      const currencyIds = [...new Set(activeRows.map((row) => row.currencyId))];
+      const [providerEntries, currencyEntries] = await Promise.all([
+        Promise.all(
+          providerIds.map(async (providerId) => [
+            providerId,
+            await findBankWorkspaceProvider(ctx, providerId),
+          ] as const),
+        ),
+        Promise.all(
+          currencyIds.map(async (currencyId) => [
+            currencyId,
+            await findBankWorkspaceCurrency(ctx, currencyId),
+          ] as const),
+        ),
+      ]);
+      const providerById = new Map(providerEntries);
+      const currencyById = new Map(currencyEntries);
+
+      return c.json(
+        {
+          data: activeRows.map((row) => {
+            const provider = providerById.get(row.providerId) ?? null;
+            const currency = currencyById.get(row.currencyId);
+
+            return {
+              accountNo: row.accountNo,
+              beneficiaryName: row.beneficiaryName,
+              contact: row.contact,
+              corrAccount: row.corrAccount,
+              createdAt: row.createdAt.toISOString(),
+              currency: {
+                code: currency?.code ?? row.currencyId,
+                id: row.currencyId,
+                label: currency
+                  ? `${currency.code} · ${currency.name}`
+                  : row.currencyId,
+                name: currency?.name ?? row.currencyId,
+              },
+              description: row.description,
+              iban: row.iban,
+              id: row.id,
+              isDefault: row.isDefault,
+              kind: "bank" as const,
+              label: row.label,
+              notes: row.notes,
+              ownerId: row.ownerId,
+              ownerType: row.ownerType,
+              provider: provider
+                ? {
+                    address: provider.address,
+                    bic: provider.bic,
+                    country: provider.country,
+                    id: provider.id,
+                    name: provider.name,
+                    swift: provider.swift,
+                  }
+                : null,
+              providerId: row.providerId,
+              updatedAt: row.updatedAt.toISOString(),
+            };
+          }),
+        },
+        200,
+      );
     })
     .openapi(optionsRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.listOptions(query);
+      const result = await ctx.partiesModule.requisites.queries.listOptions(
+        query,
+      );
 
       return c.json(
         buildOptionsResponse(result, (item) =>
@@ -359,8 +532,34 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const requisite = await ctx.requisitesService.findById(id);
+        const requisite = await ctx.partiesModule.requisites.queries.findById(
+          id,
+        );
         return c.json(requisite, 200);
+      } catch (error) {
+        if (error instanceof RequisiteNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(getProviderRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        const requisite = await ctx.partiesModule.requisites.queries.findById(id);
+        try {
+          const provider =
+            await ctx.partiesModule.requisites.queries.findProviderById(
+              requisite.providerId,
+            );
+          return c.json(provider, 200);
+        } catch (error) {
+          if (error instanceof RequisiteProviderNotFoundError) {
+            return c.json(null, 200);
+          }
+          throw error;
+        }
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
           return c.json({ error: error.message }, 404);
@@ -390,7 +589,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisitesService.remove(id);
+        await ctx.partiesModule.requisites.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -403,7 +602,9 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const binding = await ctx.requisitesService.bindings.get(id);
+        const binding = await ctx.partiesModule.requisites.queries.getBinding(
+          id,
+        );
         return c.json(binding, 200);
       } catch (error) {
         if (

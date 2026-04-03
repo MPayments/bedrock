@@ -1,4 +1,3 @@
-import { getPreviousCalendarMonthRange } from "@bedrock/accounting";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import type {
   WorkerRunContext,
@@ -7,6 +6,23 @@ import type {
 
 function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);
+}
+
+function getPreviousCalendarMonthRange(now: Date): {
+  periodStart: Date;
+  periodEnd: Date;
+} {
+  const currentMonthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+  );
+  const previousMonthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0),
+  );
+
+  return {
+    periodStart: previousMonthStart,
+    periodEnd: currentMonthStart,
+  };
 }
 
 export interface PeriodCloseWorkerOrganizationContext {

@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:17
     ports: 
-      - "5433:5432"
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -22,3 +22,21 @@ services:
       - seccomp=unconfined
     cap_add:
       - IPC_LOCK
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: mpayments-rustfs
+    environment:
+      RUSTFS_ROOT_USER: ${S3_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_ROOT_PASSWORD: ${S3_SECRET_KEY:-rustfsadmin}
+    # volumes:
+    #   - rustfs-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

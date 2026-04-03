@@ -35,6 +35,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
   return async function createDraft(input: {
     docType: string;
     createIdempotencyKey: string;
+    dealId?: string;
     payload: unknown;
     actorUserId: string;
     requestContext?: DocumentRequestContext;
@@ -50,6 +51,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
       return await transactions.withTransaction(
         async ({
           documentEvents,
+          documentBusinessLinks,
           documentLinks,
           documentOperations,
           documentsCommand,
@@ -73,6 +75,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             request: {
               docType: input.docType,
               createIdempotencyKey: input.createIdempotencyKey,
+              dealId: input.dealId ?? null,
               actorUserId: input.actorUserId,
               payload: validatedCreateInput,
             },
@@ -93,6 +96,9 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               return buildDocumentWithOperationId({
                 registry,
                 document: replay,
+                dealId:
+                  input.dealId ??
+                  (await documentBusinessLinks.findDealIdByDocumentId(replay.id)),
                 postingOperationId: null,
               });
             },
@@ -105,12 +111,18 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               if (replay) {
                 return loadDocumentWithOperationId(
                   {
+                    documentBusinessLinks,
                     documents: documentsCommand,
                     documentOperations,
                   },
                   {
                     docType: input.docType,
                     documentId: replay.id,
+                    dealId:
+                      input.dealId ??
+                      (await documentBusinessLinks.findDealIdByDocumentId(
+                        replay.id,
+                      )),
                     postingOperationId: null,
                     registry,
                   },
@@ -247,6 +259,14 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 await documentLinks.insertInitialLinks({ document, links });
               }
 
+              if (input.dealId) {
+                await documentBusinessLinks.insertDealLink({
+                  dealId: input.dealId,
+                  documentId: document.id,
+                  linkKind: input.docType,
+                });
+              }
+
               await documentEvents.insertDocumentEvent({
                 documentId: document.id,
                 eventType: "create",
@@ -262,6 +282,11 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               return buildDocumentWithOperationId({
                 registry,
                 document,
+                dealId:
+                  input.dealId ??
+                  (await documentBusinessLinks.findDealIdByDocumentId(
+                    document.id,
+                  )),
                 postingOperationId: null,
               });
             },
