@@ -29,8 +29,10 @@ RUN bun install --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
+ARG NEXT_BUILD_MAX_OLD_SPACE_SIZE=4096
 WORKDIR /repo
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS=--max-old-space-size=${NEXT_BUILD_MAX_OLD_SPACE_SIZE}
 
 COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
