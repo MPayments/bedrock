@@ -12,7 +12,7 @@ import type {
   UserSessionSnapshot,
 } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const FeatureFlagsSchema = z.record(z.string(), z.boolean());
 

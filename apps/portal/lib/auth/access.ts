@@ -21,7 +21,9 @@ export async function fetchSessionSnapshot(input: {
   cookie: string;
 }): Promise<UserSessionSnapshot> {
   const apiUrl =
-    input.apiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+    input.apiUrl ??
+    process.env.API_INTERNAL_URL ??
+    "http://localhost:3000";
   let sessionResponse: Response;
 
   try {

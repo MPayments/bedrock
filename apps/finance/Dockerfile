@@ -3,6 +3,8 @@
 # Build from repo root: docker build -f apps/finance/Dockerfile .
 # -----------------------------------------------------------
 
+ARG API_INTERNAL_URL
+
 FROM node:24-slim AS base
 ENV TURBO_TELEMETRY_DISABLED=1
 WORKDIR /repo
@@ -37,8 +39,8 @@ COPY --from=pruner /repo/out/full/ ./
 RUN npx tsgo --project apps/api/tsconfig.json
 
 # Build Next.js (produces .next/standalone)
-ARG NEXT_PUBLIC_API_URL=http://localhost:3000
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG API_INTERNAL_URL=http://localhost:3000
+ENV API_INTERNAL_URL=${API_INTERNAL_URL}
 RUN node apps/finance/node_modules/.bin/next build apps/finance
 
 # --- Runner ---

@@ -19,7 +19,10 @@ export async function fetchSessionSnapshot(input: {
   apiUrl?: string;
   cookie: string;
 }): Promise<UserSessionSnapshot> {
-  const apiUrl = input.apiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+  const apiUrl =
+    input.apiUrl ??
+    process.env.API_INTERNAL_URL ??
+    "http://localhost:3000";
   let sessionResponse: Response;
 
   try {

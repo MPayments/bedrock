@@ -80,7 +80,7 @@ const OperationsListResponseSchema = createPaginatedResponseSchema(
 export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
 export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 const OPERATIONS_SORTABLE_COLUMNS = new Set(["createdAt", "postingDate", "postedAt"]);
 
 async function fetchApi(path: string) {

@@ -3,8 +3,6 @@ import { z } from "zod";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
 const RequisiteListItemSchema = z.object({
   id: z.uuid(),
   ownerType: z.enum(["organization", "counterparty"]),
@@ -47,7 +45,7 @@ export async function fetchRequisiteOptions(input: {
   });
 
   const response = await fetch(
-    `${API_URL}/v1/requisites?${query.toString()}`,
+    `/v1/requisites?${query.toString()}`,
     {
       credentials: "include",
       cache: "no-store",

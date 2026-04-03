@@ -19,7 +19,7 @@ import {
 } from "./schemas";
 import type { OperationsSearchParams } from "./validations";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 export type {
   DocumentDetailsDto,

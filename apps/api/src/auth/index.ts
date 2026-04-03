@@ -86,6 +86,20 @@ function getTrustedOrigins(audience: AuthAudience) {
   );
 }
 
+function getBaseUrl(audience: AuthAudience) {
+  const envMap: Record<AuthAudience, string | undefined> = {
+    crm: process.env.BETTER_AUTH_CRM_URL,
+    finance: process.env.BETTER_AUTH_FINANCE_URL,
+    portal: process.env.BETTER_AUTH_PORTAL_URL,
+  };
+
+  return (
+    envMap[audience] ??
+    process.env.BETTER_AUTH_URL ??
+    AUTH_SURFACE_CONFIG[audience].defaultTrustedOrigins[0]!
+  );
+}
+
 function isAuthAudience(value: string | null | undefined): value is AuthAudience {
   return (
     typeof value === "string" &&
@@ -204,7 +218,7 @@ function createAuthSurface(audience: AuthAudience) {
   return betterAuth({
     appName: config.appName,
     secret: resolveBetterAuthSecret(),
-    baseURL: process.env.BETTER_AUTH_URL!,
+    baseURL: getBaseUrl(audience),
     basePath: config.basePath,
     trustedOrigins: getTrustedOrigins(audience),
     trustedHeaders: ["cookie", AUTH_AUDIENCE_HEADER],

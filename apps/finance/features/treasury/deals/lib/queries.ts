@@ -37,7 +37,7 @@ import {
 
 import type { FinanceDealsSearchParams, FinanceDealsSortId } from "./validations";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const FinanceDealBlockerStateSchema = z.enum(FINANCE_DEAL_BLOCKER_STATE_VALUES);
 const FinanceDealQueueSchema = z.enum(FINANCE_DEAL_QUEUE_VALUES);

@@ -4,7 +4,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { FinanceAuthSessionSnapshotSchema } from "@bedrock/iam/contracts";
 
 const PUBLIC_PATHS = new Set(["/login", "/two-factor"]);
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -38,7 +38,18 @@ const EnvSchema = z.object({
   TB_ADDRESS: z.string().min(1, "TB_ADDRESS is required"),
   TB_CLUSTER_ID: z.coerce.number().int().nonnegative(),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
-  BETTER_AUTH_URL: z.url("BETTER_AUTH_URL must be a valid URL"),
+  BETTER_AUTH_URL: z
+    .url("BETTER_AUTH_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_CRM_URL: z
+    .url("BETTER_AUTH_CRM_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_FINANCE_URL: z
+    .url("BETTER_AUTH_FINANCE_URL must be a valid URL")
+    .optional(),
+  BETTER_AUTH_PORTAL_URL: z
+    .url("BETTER_AUTH_PORTAL_URL must be a valid URL")
+    .optional(),
   BETTER_AUTH_TRUSTED_ORIGINS: z
     .string()
     .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
@@ -53,6 +64,23 @@ const EnvSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default("noreply@bedrock.app"),
   DADATA_API_URL: z.string().default("https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest"),
+}).superRefine((env, ctx) => {
+  const hasSharedBaseUrl = typeof env.BETTER_AUTH_URL === "string";
+  const hasAudienceBaseUrls =
+    typeof env.BETTER_AUTH_CRM_URL === "string" &&
+    typeof env.BETTER_AUTH_FINANCE_URL === "string" &&
+    typeof env.BETTER_AUTH_PORTAL_URL === "string";
+
+  if (hasSharedBaseUrl || hasAudienceBaseUrls) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message:
+      "Set BETTER_AUTH_URL or all of BETTER_AUTH_CRM_URL, BETTER_AUTH_FINANCE_URL, BETTER_AUTH_PORTAL_URL.",
+    path: ["BETTER_AUTH_URL"],
+  });
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -8,8 +8,6 @@ import {
 } from "@bedrock/treasury/contracts";
 import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
 const financialLineBucketLabelByValue = new Map<string, string>(
   FINANCIAL_LINE_BUCKET_OPTIONS.map((option) => [option.value, option.label] as const),
 );
@@ -69,7 +67,7 @@ export async function fetchFxQuotePreview(input: {
     asOf: new Date(),
   });
 
-  const response = await fetch(`${API_URL}/v1/treasury/quotes/preview`, {
+  const response = await fetch(`/v1/treasury/quotes/preview`, {
     method: "POST",
     credentials: "include",
     cache: "no-store",

@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 
 import { createClient, type Client } from "@bedrock/sdk-api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const createServerApiClient = async (): Promise<Client> => {
   const requestHeaders = await headers();

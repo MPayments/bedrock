@@ -28,10 +28,6 @@ export const env = {
     process.env.WORKERS_MONITORING_PORT ?? 8081,
   ),
   WORKER_INTERVALS: workerIntervals,
-  REDIS_HOST: process.env.REDIS_HOST ?? "127.0.0.1",
-  REDIS_PORT: Number(process.env.REDIS_PORT ?? 6379),
-  REDIS_USER: process.env.REDIS_USER,
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
 } as const;
 
 export type WorkerEnv = typeof env;
