@@ -10,7 +10,6 @@ import type { TreasuryOperationsListResult } from "../lib/queries";
 import type { TreasuryOperationWorkspaceItem } from "@bedrock/treasury/contracts";
 
 import { columns } from "./columns";
-import { TreasuryOperationsViewSwitcher } from "./view-switcher";
 
 type TreasuryOperationsTableProps = {
   promise: Promise<TreasuryOperationsListResult>;
@@ -30,17 +29,14 @@ export function TreasuryOperationsTable({
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <TreasuryOperationsViewSwitcher viewCounts={result.viewCounts} />
-      <EntityTableShell
-        promise={Promise.resolve(result)}
-        columns={columns}
-        getRowId={(row) => row.id}
-        initialState={{
-          sorting: [{ id: "createdAt", desc: true }],
-        }}
-        onRowDoubleClick={handleRowDoubleClick}
-      />
-    </div>
+    <EntityTableShell
+      promise={Promise.resolve(result)}
+      columns={columns}
+      getRowId={(row) => row.id}
+      initialState={{
+        sorting: [{ id: "createdAt", desc: true }],
+      }}
+      onRowDoubleClick={handleRowDoubleClick}
+    />
   );
 }

@@ -20,7 +20,7 @@ export default async function TreasuryOperationsPage({
     <EntityListPageShell
       icon={Workflow}
       title="Операции"
-      description="Очередь materialized treasury-операций с привязкой к workflow сделки и блокерам исполнения."
+      description="Очередь материализованных казначейских операций, связанных с процессом исполнения сделки и блокирующими факторами исполнения."
       fallback={<DataTableSkeleton columnCount={8} rowCount={10} filterCount={1} />}
     >
       <TreasuryOperationsTable promise={promise} />

@@ -296,7 +296,7 @@ function DealContextContent({ deal }: DealContextContentProps) {
         </div>
       </div>
       <div className="space-y-1 text-sm sm:col-span-2">
-        <div className="text-muted-foreground">Внутренняя организация</div>
+        <div className="text-muted-foreground">Организация</div>
         <div className="font-medium">
           {deal.summary.internalEntityDisplayName ?? "Не указана"}
         </div>

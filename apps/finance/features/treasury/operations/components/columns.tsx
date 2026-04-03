@@ -62,7 +62,7 @@ export const columns: ColumnDef<TreasuryOperationWorkspaceItem>[] = [
   {
     id: "internalEntity",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Внутренняя организация" />
+      <DataTableColumnHeader column={column} label="Организация" />
     ),
     cell: ({ row }) => row.original.internalEntity.name ?? "—",
     enableSorting: false,

@@ -45,12 +45,12 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        label="Внутренняя организация"
+        label="Организация"
       />
     ),
     cell: ({ row }) => row.original.internalEntityName ?? "—",
     meta: {
-      label: "Внутренняя организация",
+      label: "Организация",
       placeholder: "Поиск по организации...",
       variant: "text",
     },
