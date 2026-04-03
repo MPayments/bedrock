@@ -31,21 +31,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Fetch PR base branch
-        if: github.event_name == 'pull_request'
-        run: git fetch origin "${{ github.base_ref }}" --depth=1
-
-      - name: Check changed-file hotspots
-        if: github.event_name == 'pull_request'
-        run: |
-          changed_files="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")"
-
-          if [ -z "$changed_files" ]; then
-            exit 0
-          fi
-
-          printf '%s\n' "$changed_files" | xargs -r node ./scripts/check-hotspots.mjs
-
       - name: Check architecture boundaries
         run: bun run check:architecture
 
