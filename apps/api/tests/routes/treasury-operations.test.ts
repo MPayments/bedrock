@@ -25,7 +25,10 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import { treasuryOperationsRoutes } from "../../src/routes/treasury-operations";
+import {
+  treasuryInstructionRoutes,
+  treasuryOperationsRoutes,
+} from "../../src/routes/treasury-operations";
 
 function uuid(value: number) {
   return `00000000-0000-4000-8000-${value.toString().padStart(12, "0")}`;
@@ -90,6 +93,40 @@ function createOperation(input: {
     sourceRef: `deal:${input.dealId}:leg:1:${input.kind}:1`,
     state: "planned",
     updatedAt: new Date(input.createdAt),
+  };
+}
+
+function createInstruction(input: {
+  attempt: number;
+  id: string;
+  operationId: string;
+  state:
+    | "prepared"
+    | "submitted"
+    | "settled"
+    | "failed"
+    | "voided"
+    | "return_requested"
+    | "returned";
+}) {
+  const createdAt = new Date("2026-04-03T10:30:00.000Z");
+
+  return {
+    attempt: input.attempt,
+    createdAt,
+    failedAt: input.state === "failed" ? createdAt : null,
+    id: input.id,
+    operationId: input.operationId,
+    providerRef: null,
+    providerSnapshot: null,
+    returnRequestedAt: input.state === "return_requested" ? createdAt : null,
+    returnedAt: input.state === "returned" ? createdAt : null,
+    settledAt: input.state === "settled" ? createdAt : null,
+    sourceRef: `instruction:${input.operationId}:${input.attempt}`,
+    state: input.state,
+    submittedAt: input.state === "submitted" ? createdAt : null,
+    updatedAt: createdAt,
+    voidedAt: input.state === "voided" ? createdAt : null,
   };
 }
 
@@ -538,6 +575,15 @@ function createTestApp() {
   });
 
   const app = new OpenAPIHono();
+  const latestInstructionByOperationId = new Map<string, ReturnType<typeof createInstruction>>();
+  const dealExecutionWorkflow = {
+    prepareInstruction: vi.fn(),
+    recordInstructionOutcome: vi.fn(),
+    requestReturn: vi.fn(),
+    retryInstruction: vi.fn(),
+    submitInstruction: vi.fn(),
+    voidInstruction: vi.fn(),
+  };
 
   app.use("*", async (c, next) => {
     c.set("user", { id: "user-1", role: "admin" } as any);
@@ -546,7 +592,7 @@ function createTestApp() {
       correlationId: "corr-1",
       traceId: null,
       causationId: null,
-      idempotencyKey: null,
+      idempotencyKey: c.req.header("idempotency-key") ?? null,
     });
     await next();
   });
@@ -583,6 +629,91 @@ function createTestApp() {
         requisitesQueries,
       },
       treasuryModule: {
+        instructions: {
+          queries: {
+            listLatestByOperationIds: vi.fn(async (operationIds: string[]) =>
+              operationIds
+                .map(
+                  (operationId) =>
+                    latestInstructionByOperationId.get(operationId) ?? null,
+                )
+                .filter(
+                  (
+                    instruction,
+                  ): instruction is ReturnType<typeof createInstruction> =>
+                    instruction !== null,
+                ),
+            ),
+          },
+        },
+        operations: {
+          queries: {
+            findById,
+            list,
+          },
+        },
+        quotes: {
+          queries: {
+            getQuoteDetails: vi.fn(
+              async (input: { quoteRef: string }) =>
+                quoteDetailsById.get(input.quoteRef) ?? null,
+            ),
+          },
+        },
+      },
+      dealExecutionWorkflow,
+    } as any),
+  );
+  app.route(
+    "/treasury/instructions",
+    treasuryInstructionRoutes({
+      agreementsModule: {
+        agreements: {
+          queries: {
+            findById: vi.fn(async (id: string) => agreementById.get(id) ?? null),
+          },
+        },
+      },
+      currenciesService: {
+        findById: vi.fn(async (id: string) => ({
+          code: id === uuid(202) ? "RUB" : "USD",
+          id,
+        })),
+      },
+      dealExecutionWorkflow,
+      dealsModule: {
+        deals: {
+          queries: {
+            findWorkflowsByIds: vi.fn(async (ids: string[]) =>
+              ids
+                .map((id) => workflowByDealId.get(id) ?? null)
+                .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null),
+            ),
+          },
+        },
+      },
+      partiesReadRuntime: {
+        organizationsQueries,
+        requisitesQueries,
+      },
+      treasuryModule: {
+        instructions: {
+          queries: {
+            listLatestByOperationIds: vi.fn(async (operationIds: string[]) =>
+              operationIds
+                .map(
+                  (operationId) =>
+                    latestInstructionByOperationId.get(operationId) ?? null,
+                )
+                .filter(
+                  (
+                    instruction,
+                  ): instruction is ReturnType<typeof createInstruction> =>
+                    instruction !== null,
+                ),
+            ),
+          },
+        },
         operations: {
           queries: {
             findById,
@@ -603,8 +734,10 @@ function createTestApp() {
 
   return {
     app,
+    dealExecutionWorkflow,
     list,
     findById,
+    latestInstructionByOperationId,
   };
 }
 
@@ -710,5 +843,103 @@ describe("treasury operations routes", () => {
       error: "Treasury operation not found",
     });
     expect(findById).toHaveBeenCalledWith(uuid(999));
+  });
+
+  it("prepares an instruction from the operation route and returns refreshed details", async () => {
+    const { app, dealExecutionWorkflow, latestInstructionByOperationId } = createTestApp();
+    latestInstructionByOperationId.set(
+      uuid(101),
+      createInstruction({
+        attempt: 1,
+        id: uuid(901),
+        operationId: uuid(101),
+        state: "prepared",
+      }),
+    );
+    dealExecutionWorkflow.prepareInstruction.mockResolvedValue({
+      dealId: uuid(501),
+      instructionId: uuid(901),
+      operationId: uuid(101),
+    });
+
+    const response = await app.request(
+      `http://localhost/treasury/operations/${uuid(101)}/instructions/prepare`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "instruction-prepare-1",
+        },
+        body: JSON.stringify({
+          providerRef: "provider-1",
+          providerSnapshot: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.prepareInstruction).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      idempotencyKey: "instruction-prepare-1",
+      operationId: uuid(101),
+      providerRef: "provider-1",
+      providerSnapshot: {},
+    });
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        id: uuid(101),
+        instructionStatus: "prepared",
+      }),
+    );
+  });
+
+  it("records instruction outcome from the instruction route and returns refreshed details", async () => {
+    const { app, dealExecutionWorkflow, latestInstructionByOperationId } = createTestApp();
+    latestInstructionByOperationId.set(
+      uuid(102),
+      createInstruction({
+        attempt: 1,
+        id: uuid(902),
+        operationId: uuid(102),
+        state: "settled",
+      }),
+    );
+    dealExecutionWorkflow.recordInstructionOutcome.mockResolvedValue({
+      dealId: uuid(502),
+      instructionId: uuid(902),
+      operationId: uuid(102),
+    });
+
+    const response = await app.request(
+      `http://localhost/treasury/instructions/${uuid(902)}/outcome`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "instruction-outcome-1",
+        },
+        body: JSON.stringify({
+          outcome: "settled",
+          providerRef: "provider-1",
+          providerSnapshot: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.recordInstructionOutcome).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      idempotencyKey: "instruction-outcome-1",
+      instructionId: uuid(902),
+      outcome: "settled",
+      providerRef: "provider-1",
+      providerSnapshot: {},
+    });
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        id: uuid(102),
+        instructionStatus: "settled",
+      }),
+    );
   });
 });

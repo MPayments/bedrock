@@ -6,7 +6,6 @@ import { useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Download,
   File,
@@ -24,12 +23,6 @@ import {
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@bedrock/sdk-ui/components/dropdown-menu";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -76,13 +69,18 @@ import {
   getFinanceDealStatusLabel,
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
-  getFinanceLegStateTransitions,
   getFinancePrimaryOperationalPositionLabel,
   getDealTimelineEventLabel,
   getFormalDocumentLabel,
   getFormalDocumentStageLabel,
   isPrimaryOperationalPositionVisible,
 } from "@/features/treasury/deals/labels";
+import {
+  getTreasuryOperationInstructionStatusLabel,
+  getTreasuryOperationInstructionStatusVariant,
+  getTreasuryOperationKindLabel,
+  getTreasuryOperationKindVariant,
+} from "@/features/treasury/operations/lib/labels";
 import { executeMutation } from "@/lib/resources/http";
 import { formatDate, formatMajorAmount } from "@/lib/format";
 
@@ -936,18 +934,30 @@ function DocumentsTab({
 
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
-  isUpdatingCapabilityKind: string | null;
-  isUpdatingLegKey: string | null;
-  onUpdateCapabilityStatus: (kind: string, status: "disabled" | "enabled") => void;
-  onUpdateLegState: (idx: number, state: string) => void;
+  isClosingDeal: boolean;
+  isCreatingLegOperationId: string | null;
+  isRequestingExecution: boolean;
+  isResolvingCapabilityKind: string | null;
+  isResolvingLegId: string | null;
+  onCloseDeal: () => void;
+  onCreateLegOperation: (legId: string) => void;
+  onRequestExecution: () => void;
+  onResolveCapability: (kind: string) => void;
+  onResolveLeg: (legId: string) => void;
 };
 
 function ExecutionTab({
   deal,
-  isUpdatingCapabilityKind,
-  isUpdatingLegKey,
-  onUpdateCapabilityStatus,
-  onUpdateLegState,
+  isClosingDeal,
+  isCreatingLegOperationId,
+  isRequestingExecution,
+  isResolvingCapabilityKind,
+  isResolvingLegId,
+  onCloseDeal,
+  onCreateLegOperation,
+  onRequestExecution,
+  onResolveCapability,
+  onResolveLeg,
 }: ExecutionTabProps) {
   const capabilityIssues = deal.operationalState.capabilities.filter(
     (item) => item.status !== "enabled",
@@ -958,9 +968,47 @@ function ExecutionTab({
       item.state !== "not_applicable",
   );
   const blockedPositions = visiblePositions.filter((item) => item.state === "blocked");
+  const operationsById = new Map(
+    deal.relatedResources.operations.map((operation) => [operation.id, operation] as const),
+  );
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Workflow className="h-5 w-5 text-muted-foreground" />
+            Команды исполнения
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {deal.actions.canRequestExecution ? (
+            <Button
+              size="sm"
+              disabled={isRequestingExecution}
+              onClick={onRequestExecution}
+            >
+              {isRequestingExecution ? "Материализуем..." : "Запросить исполнение"}
+            </Button>
+          ) : null}
+          {deal.actions.canCloseDeal ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isClosingDeal}
+              onClick={onCloseDeal}
+            >
+              {isClosingDeal ? "Закрываем..." : "Закрыть сделку"}
+            </Button>
+          ) : null}
+          {!deal.actions.canRequestExecution && !deal.actions.canCloseDeal ? (
+            <div className="text-sm text-muted-foreground">
+              Для этой сделки сейчас нет доступных команд исполнения.
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -970,12 +1018,19 @@ function ExecutionTab({
         </CardHeader>
         <CardContent className="space-y-3">
           {deal.executionPlan.map((leg) => {
-            const nextStates = getFinanceLegStateTransitions(leg.state);
-            const legKey = String(leg.idx);
+            const linkedOperations = leg.operationRefs
+              .map((ref) => operationsById.get(ref.operationId) ?? null)
+              .filter((operation) => operation !== null);
+            const canResolveLegBlocker =
+              deal.actions.canResolveExecutionBlocker &&
+              leg.state === "blocked" &&
+              Boolean(leg.id);
+            const canCreateLegOperation =
+              leg.actions.canCreateLegOperation && Boolean(leg.id);
 
             return (
               <div
-                key={`${leg.idx}:${leg.kind}`}
+                key={leg.id ?? `${leg.idx}:${leg.kind}`}
                 className="rounded-lg border p-4 transition-colors hover:bg-accent/30"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -989,35 +1044,77 @@ function ExecutionTab({
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{getDealLegStateLabel(leg.state)}</Badge>
-                    {nextStates.length > 0 ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={isUpdatingLegKey === legKey}
-                            />
-                          }
-                        >
-                          Изменить
-                          <ChevronDown className="ml-2 h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {nextStates.map((state) => (
-                            <DropdownMenuItem
-                              key={state}
-                              disabled={isUpdatingLegKey === legKey}
-                              onClick={() => onUpdateLegState(leg.idx, state)}
-                            >
-                              {getDealLegStateLabel(state)}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    {canResolveLegBlocker && leg.id ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isResolvingLegId === leg.id}
+                        onClick={() => onResolveLeg(leg.id!)}
+                      >
+                        {isResolvingLegId === leg.id ? "Устраняем..." : "Устранить блокер"}
+                      </Button>
+                    ) : null}
+                    {canCreateLegOperation && leg.id ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isCreatingLegOperationId === leg.id}
+                        onClick={() => onCreateLegOperation(leg.id!)}
+                      >
+                        {isCreatingLegOperationId === leg.id
+                          ? "Создаем..."
+                          : "Создать операцию"}
+                      </Button>
                     ) : null}
                   </div>
                 </div>
+
+                {linkedOperations.length > 0 ? (
+                  <div className="mt-4 grid gap-3">
+                    {linkedOperations.map((operation) => (
+                      <div
+                        key={operation.id}
+                        className="rounded-lg border bg-muted/20 px-3 py-3"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant={getTreasuryOperationKindVariant(operation.kind)}
+                              >
+                                {getTreasuryOperationKindLabel(operation.kind)}
+                              </Badge>
+                              <Badge
+                                variant={getTreasuryOperationInstructionStatusVariant(
+                                  operation.instructionStatus,
+                                )}
+                              >
+                                {getTreasuryOperationInstructionStatusLabel(
+                                  operation.instructionStatus,
+                                )}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Source ref: {operation.sourceRef}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            nativeButton={false}
+                            render={<Link href={operation.operationHref} />}
+                          >
+                            Открыть операцию
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : leg.operationRefs.length > 0 ? (
+                  <div className="mt-4 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                    Операция привязана к этапу, но карточка операции сейчас недоступна.
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -1041,10 +1138,28 @@ function ExecutionTab({
               <div className="space-y-2">
                 {capabilityIssues.map((capability) => (
                   <div key={capability.kind} className="rounded-lg border px-3 py-2 text-sm">
-                    {formatCapabilityIssue({
-                      kind: capability.kind,
-                      status: capability.status,
-                    })}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span>
+                        {formatCapabilityIssue({
+                          kind: capability.kind,
+                          status: capability.status,
+                        })}
+                      </span>
+                      {deal.actions.canResolveExecutionBlocker &&
+                      capability.applicantCounterpartyId &&
+                      capability.internalEntityOrganizationId ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isResolvingCapabilityKind === capability.kind}
+                          onClick={() => onResolveCapability(capability.kind)}
+                        >
+                          {isResolvingCapabilityKind === capability.kind
+                            ? "Устраняем..."
+                            : "Разрешить"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
                 {blockedPositions.map((position) => (
@@ -1105,43 +1220,23 @@ function ExecutionTab({
                         {getDealCapabilityStatusLabel(capability.status)}
                       </Badge>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {capability.status !== "enabled" ? (
+                    {capability.status !== "enabled" &&
+                    deal.actions.canResolveExecutionBlocker &&
+                    capability.applicantCounterpartyId &&
+                    capability.internalEntityOrganizationId ? (
+                      <div className="mt-3">
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={
-                            isUpdatingCapabilityKind === capability.kind ||
-                            !capability.applicantCounterpartyId ||
-                            !capability.internalEntityOrganizationId
-                          }
-                          onClick={() =>
-                            onUpdateCapabilityStatus(capability.kind, "enabled")
-                          }
+                          disabled={isResolvingCapabilityKind === capability.kind}
+                          onClick={() => onResolveCapability(capability.kind)}
                         >
-                          {isUpdatingCapabilityKind === capability.kind
-                            ? "Сохраняем..."
-                            : "Включить"}
+                          {isResolvingCapabilityKind === capability.kind
+                            ? "Устраняем..."
+                            : "Разрешить блокер"}
                         </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={
-                            isUpdatingCapabilityKind === capability.kind ||
-                            !capability.applicantCounterpartyId ||
-                            !capability.internalEntityOrganizationId
-                          }
-                          onClick={() =>
-                            onUpdateCapabilityStatus(capability.kind, "disabled")
-                          }
-                        >
-                          {isUpdatingCapabilityKind === capability.kind
-                            ? "Сохраняем..."
-                            : "Отключить"}
-                        </Button>
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1165,9 +1260,12 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
   const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(null);
-  const [isUpdatingCapabilityKind, setIsUpdatingCapabilityKind] = useState<string | null>(null);
-  const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
+  const [isClosingDeal, setIsClosingDeal] = useState(false);
+  const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [isRequestingExecution, setIsRequestingExecution] = useState(false);
+  const [isResolvingCapabilityKind, setIsResolvingCapabilityKind] = useState<string | null>(null);
+  const [isResolvingLegId, setIsResolvingLegId] = useState<string | null>(null);
 
   const tabParam = searchParams.get("tab");
   const activeTab = isDealPageTab(tabParam)
@@ -1285,88 +1383,158 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     );
   }
 
-  async function handleUpdateLegState(idx: number, state: string) {
-    const legKey = String(idx);
-    setIsUpdatingLegKey(legKey);
+  async function handleRequestExecution() {
+    setIsRequestingExecution(true);
 
     const result = await executeMutation({
-      fallbackMessage: "Не удалось обновить этап исполнения",
+      fallbackMessage: "Не удалось запросить исполнение",
+      request: () =>
+        fetch(`/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify({}),
+        }),
+    });
+
+    setIsRequestingExecution(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Исполнение запрошено");
+    refreshPage(router);
+  }
+
+  async function handleCreateLegOperation(legId: string) {
+    setIsCreatingLegOperationId(legId);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось создать операцию по этапу",
       request: () =>
         fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/legs/${idx}/state`,
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/legs/${encodeURIComponent(legId)}/operation`,
           {
             method: "POST",
             credentials: "include",
             headers: {
               "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({}),
+          },
+        ),
+    });
+
+    setIsCreatingLegOperationId(null);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Операция по этапу создана");
+    refreshPage(router);
+  }
+
+  async function handleResolveLeg(legId: string) {
+    setIsResolvingLegId(legId);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось устранить блокер этапа",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/blockers/resolve`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
             },
             body: JSON.stringify({
-              state,
+              legId,
+              target: "leg",
             }),
           },
         ),
     });
 
-    setIsUpdatingLegKey(null);
+    setIsResolvingLegId(null);
 
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
 
-    toast.success("Этап исполнения обновлен");
+    toast.success("Блокер этапа устранен");
     refreshPage(router);
   }
 
-  async function handleUpdateCapabilityStatus(
-    capabilityKind: string,
-    status: "disabled" | "enabled",
-  ) {
-    const capability = deal.operationalState.capabilities.find(
-      (item) => item.kind === capabilityKind,
-    );
-
-    if (!capability?.applicantCounterpartyId || !capability.internalEntityOrganizationId) {
-      toast.error("Для этой сделки не определен заявитель или наша организация");
-      return;
-    }
-
-    setIsUpdatingCapabilityKind(capabilityKind);
+  async function handleResolveCapability(capabilityKind: string) {
+    setIsResolvingCapabilityKind(capabilityKind);
 
     const result = await executeMutation({
-      fallbackMessage: "Не удалось обновить операционную возможность",
+      fallbackMessage: "Не удалось устранить операционный блокер",
       request: () =>
-        fetch("/v1/internal/deal-capabilities", {
-          method: "PUT",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/blockers/resolve`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({
+              capabilityKind,
+              target: "capability",
+            }),
           },
-          body: JSON.stringify({
-            applicantCounterpartyId: capability.applicantCounterpartyId,
-            capabilityKind,
-            dealType: capability.dealType ?? deal.summary.type,
-            internalEntityOrganizationId:
-              capability.internalEntityOrganizationId,
-            note: capability.note ?? null,
-            reasonCode: null,
-            status,
-          }),
-        }),
+        ),
     });
 
-    setIsUpdatingCapabilityKind(null);
+    setIsResolvingCapabilityKind(null);
 
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
 
-    toast.success(
-      status === "enabled"
-        ? "Операционная возможность включена"
-        : "Операционная возможность отключена",
-    );
+    toast.success("Операционный блокер устранен");
+    refreshPage(router);
+  }
+
+  async function handleCloseDeal() {
+    setIsClosingDeal(true);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось закрыть сделку",
+      request: () =>
+        fetch(`/v1/deals/${encodeURIComponent(deal.summary.id)}/close`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify({}),
+        }),
+    });
+
+    setIsClosingDeal(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Сделка закрыта");
     refreshPage(router);
   }
 
@@ -1410,10 +1578,16 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
               {activeTab === "execution" ? (
                 <ExecutionTab
                   deal={deal}
-                  isUpdatingCapabilityKind={isUpdatingCapabilityKind}
-                  isUpdatingLegKey={isUpdatingLegKey}
-                  onUpdateCapabilityStatus={handleUpdateCapabilityStatus}
-                  onUpdateLegState={handleUpdateLegState}
+                  isClosingDeal={isClosingDeal}
+                  isCreatingLegOperationId={isCreatingLegOperationId}
+                  isRequestingExecution={isRequestingExecution}
+                  isResolvingCapabilityKind={isResolvingCapabilityKind}
+                  isResolvingLegId={isResolvingLegId}
+                  onCloseDeal={handleCloseDeal}
+                  onCreateLegOperation={handleCreateLegOperation}
+                  onRequestExecution={handleRequestExecution}
+                  onResolveCapability={handleResolveCapability}
+                  onResolveLeg={handleResolveLeg}
                 />
               ) : null}
             </div>

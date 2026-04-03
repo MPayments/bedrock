@@ -17,6 +17,12 @@ export const TREASURY_OPERATION_INSTRUCTION_STATUS_LABELS = {
   blocked: "Заблокирована",
   failed: "Ошибка исполнения",
   planned: "Запланирована",
+  prepared: "Подготовлена",
+  return_requested: "Возврат запрошен",
+  returned: "Возвращена",
+  settled: "Исполнена",
+  submitted: "Отправлена",
+  voided: "Отменена",
 } as const;
 
 export const TREASURY_OPERATION_STATE_LABELS = {
@@ -120,8 +126,16 @@ export function getTreasuryOperationInstructionStatusVariant(
     case "failed":
     case "blocked":
       return "destructive";
+    case "settled":
+      return "default";
     case "planned":
+    case "prepared":
+    case "return_requested":
       return "secondary";
+    case "submitted":
+    case "voided":
+    case "returned":
+      return "outline";
     default:
       return "outline";
   }

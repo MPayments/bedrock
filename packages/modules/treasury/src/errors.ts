@@ -35,3 +35,39 @@ export class RateSourceStaleError extends TreasuryError {
     super(`Rate source is stale and refresh failed: ${source}`, cause);
   }
 }
+
+export class TreasuryOperationNotFoundError extends TreasuryError {
+  name = "TreasuryOperationNotFoundError";
+
+  constructor(operationId: string) {
+    super(`Treasury operation not found: ${operationId}`);
+  }
+}
+
+export class TreasuryInstructionNotFoundError extends TreasuryError {
+  name = "TreasuryInstructionNotFoundError";
+
+  constructor(ref: string) {
+    super(`Treasury instruction not found: ${ref}`);
+  }
+}
+
+export class TreasuryInstructionStateError extends TreasuryError {
+  name = "TreasuryInstructionStateError";
+
+  constructor(instructionId: string, state: string, action: string) {
+    super(
+      `Treasury instruction ${instructionId} in state ${state} cannot ${action}`,
+    );
+  }
+}
+
+export class TreasuryInstructionNotActionableError extends TreasuryError {
+  name = "TreasuryInstructionNotActionableError";
+
+  constructor(instructionId: string, state: string) {
+    super(
+      `Treasury instruction ${instructionId} in state ${state} is not the latest actionable attempt`,
+    );
+  }
+}

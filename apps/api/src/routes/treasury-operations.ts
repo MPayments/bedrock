@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
@@ -9,23 +10,45 @@ import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 import {
   ListTreasuryOperationsQuerySchema,
+  RecordTreasuryInstructionOutcomeInputSchema,
+  RequestTreasuryReturnInputSchema,
+  RetryTreasuryInstructionInputSchema,
+  SubmitTreasuryInstructionInputSchema,
   TreasuryOperationKindSchema,
   TreasuryOperationViewSchema,
   TreasuryOperationWorkspaceDetailSchema,
   TreasuryOperationWorkspaceListResponseSchema,
+  type TreasuryInstruction,
   type TreasuryOperationView,
   type TreasuryOperationWorkspaceDetail,
-  type TreasuryOperationWorkspaceItem,
+  type TreasuryOperationWorkspaceDetail as TreasuryOperationListRow,
 } from "@bedrock/treasury/contracts";
 
 import { ErrorSchema } from "../common";
+import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
 const OperationIdParamsSchema = z.object({
   operationId: z.uuid(),
 });
+const InstructionIdParamsSchema = z.object({
+  instructionId: z.uuid(),
+});
+const TreasuryInstructionMutationBodySchema = SubmitTreasuryInstructionInputSchema.pick(
+  {
+    providerRef: true,
+    providerSnapshot: true,
+  },
+);
+const TreasuryInstructionOutcomeBodySchema =
+  RecordTreasuryInstructionOutcomeInputSchema.pick({
+    outcome: true,
+    providerRef: true,
+    providerSnapshot: true,
+  });
 
 const DOWNSTREAM_POSITION_KINDS = new Set([
   "exporter_expected_receivable",
@@ -46,7 +69,6 @@ type TreasuryOperationDetailRecord = NonNullable<
   Awaited<ReturnType<AppContext["treasuryModule"]["operations"]["queries"]["findById"]>>
 >;
 type TreasuryOperationProjection = TreasuryOperationWorkspaceDetail;
-type TreasuryOperationListRow = TreasuryOperationWorkspaceItem;
 type DealWorkflowRecord = Awaited<
   ReturnType<AppContext["dealsModule"]["deals"]["queries"]["findWorkflowsByIds"]>
 >[number];
@@ -66,6 +88,7 @@ type RequisiteProviderRecord = Awaited<
 interface ProjectionContext {
   agreementById: Map<string, AgreementRecord>;
   currencyCodeById: Map<string, string>;
+  latestInstructionByOperationId: Map<string, TreasuryInstruction>;
   organizationNameById: Map<string, string>;
   providerById: Map<string, RequisiteProviderRecord>;
   quoteDetailsById: Map<string, QuoteDetailsRecord>;
@@ -494,22 +517,77 @@ function buildAccounts(input: {
   }
 }
 
-function getInstructionStatus(workflow: DealWorkflowRecord | null) {
-  if (!workflow) {
+function getInstructionStatus(input: {
+  latestInstruction: TreasuryInstruction | null;
+  workflow: DealWorkflowRecord | null;
+}) {
+  if (input.latestInstruction) {
+    return input.latestInstruction.state;
+  }
+
+  if (!input.workflow) {
     return "planned" as const;
   }
 
-  const queueContext = classifyFinanceQueue(workflow);
-  if (queueContext.queue === "failed_instruction") {
-    return "failed" as const;
-  }
-
-  const executionSummary = summarizeExecutionPlan(workflow);
+  const queueContext = classifyFinanceQueue(input.workflow);
+  const executionSummary = summarizeExecutionPlan(input.workflow);
   if (queueContext.blockers.length > 0 || executionSummary.blockedLegCount > 0) {
     return "blocked" as const;
   }
 
   return "planned" as const;
+}
+
+function getInstructionActions(input: {
+  latestInstruction: TreasuryInstruction | null;
+  workflow: DealWorkflowRecord | null;
+}) {
+  const latestInstruction = input.latestInstruction;
+  const blockedWithoutInstruction =
+    !latestInstruction &&
+    Boolean(
+      input.workflow &&
+        (classifyFinanceQueue(input.workflow).blockers.length > 0 ||
+          summarizeExecutionPlan(input.workflow).blockedLegCount > 0),
+    );
+
+  return {
+    canPrepareInstruction: !latestInstruction && !blockedWithoutInstruction,
+    canRequestReturn: latestInstruction?.state === "settled",
+    canRetryInstruction:
+      latestInstruction?.state === "failed" ||
+      latestInstruction?.state === "returned",
+    canSubmitInstruction: latestInstruction?.state === "prepared",
+    canVoidInstruction:
+      latestInstruction?.state === "prepared" ||
+      latestInstruction?.state === "submitted",
+  };
+}
+
+function getAvailableOutcomeTransitions(
+  latestInstruction: TreasuryInstruction | null,
+): ("failed" | "returned" | "settled")[] {
+  const submitTransitions: ("failed" | "returned" | "settled")[] = [
+    "settled",
+    "failed",
+  ];
+  const returnTransitions: ("failed" | "returned" | "settled")[] = [
+    "returned",
+  ];
+
+  if (!latestInstruction) {
+    return [];
+  }
+
+  if (latestInstruction.state === "submitted") {
+    return submitTransitions;
+  }
+
+  if (latestInstruction.state === "return_requested") {
+    return returnTransitions;
+  }
+
+  return [];
 }
 
 function matchesView(
@@ -533,6 +611,8 @@ function matchesView(
       return item.kind === "fx_conversion";
     case "exceptions":
       return (
+        item.queueContext?.queue === "failed_instruction" ||
+        (item.queueContext?.blockers.length ?? 0) > 0 ||
         item.instructionStatus === "failed" ||
         item.instructionStatus === "blocked"
       );
@@ -619,6 +699,13 @@ async function buildProjectionContext(
       }
     },
   });
+  const latestInstructionByOperationId = new Map(
+    (
+      await ctx.treasuryModule.instructions.queries.listLatestByOperationIds(
+        operations.map((operation) => operation.id),
+      )
+    ).map((instruction) => [instruction.operationId, instruction] as const),
+  );
 
   const currencyCodeById = await loadMapById({
     ids: [
@@ -652,6 +739,7 @@ async function buildProjectionContext(
   return {
     agreementById,
     currencyCodeById,
+    latestInstructionByOperationId,
     organizationNameById,
     providerById,
     quoteDetailsById,
@@ -702,9 +790,18 @@ function buildOperationProjection(input: {
   });
   const leg = workflow ? findOperationLeg(workflow, input.operation) : null;
   const queueContext = workflow ? classifyFinanceQueue(workflow) : null;
-  const instructionStatus = getInstructionStatus(workflow);
+  const latestInstruction =
+    input.context.latestInstructionByOperationId.get(input.operation.id) ?? null;
+  const instructionStatus = getInstructionStatus({
+    latestInstruction,
+    workflow,
+  });
 
   return {
+    actions: getInstructionActions({
+      latestInstruction,
+      workflow,
+    }),
     amount: buildMoneySummary({
       amountMinor: input.operation.amountMinor,
       currencyCode: input.operation.currencyId
@@ -712,6 +809,7 @@ function buildOperationProjection(input: {
         : null,
       currencyId: input.operation.currencyId,
     }),
+    availableOutcomeTransitions: getAvailableOutcomeTransitions(latestInstruction),
     counterAmount: input.operation.counterAmountMinor
       ? buildMoneySummary({
           amountMinor: input.operation.counterAmountMinor,
@@ -749,6 +847,7 @@ function buildOperationProjection(input: {
           legId: leg.id,
         }
       : null,
+    latestInstruction,
     nextAction: workflow?.nextAction ?? "—",
     providerRoute: resolveProviderRoute({
       agreementRequisite,
@@ -762,6 +861,24 @@ function buildOperationProjection(input: {
     sourceRef: input.operation.sourceRef,
     state: input.operation.state,
   };
+}
+
+async function loadOperationProjection(
+  ctx: AppContext,
+  operationId: string,
+): Promise<TreasuryOperationProjection | null> {
+  const operation = await ctx.treasuryModule.operations.queries.findById(operationId);
+
+  if (!operation) {
+    return null;
+  }
+
+  const context = await buildProjectionContext(ctx, [operation]);
+
+  return buildOperationProjection({
+    context,
+    operation,
+  });
 }
 
 export function treasuryOperationsRoutes(ctx: AppContext) {
@@ -817,62 +934,421 @@ export function treasuryOperationsRoutes(ctx: AppContext) {
     },
   });
 
+  const prepareInstructionRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{operationId}/instructions/prepare",
+    tags: ["Treasury"],
+    summary: "Prepare treasury instruction for a materialized operation",
+    request: {
+      params: OperationIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: TreasuryInstructionMutationBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+      400: {
+        description: "Validation or idempotency header error",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      404: {
+        description: "Operation not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
-      const query = c.req.valid("query");
-      const baseOperations = await ctx.treasuryModule.operations.queries.list({
-        dealId: query.dealId,
-        internalEntityOrganizationId: query.internalEntityOrganizationId,
-        kind: query.kind?.map((value) => TreasuryOperationKindSchema.parse(value)),
-        limit: MAX_QUERY_LIST_LIMIT,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-      const context = await buildProjectionContext(ctx, baseOperations.data);
-      const projected = baseOperations.data.map((operation) =>
-        buildOperationProjection({
-          context,
-          operation,
-        }),
-      );
-      const view = query.view
-        ? TreasuryOperationViewSchema.parse(query.view)
-        : undefined;
-      const filteredByView = view
-        ? projected.filter((item) => matchesView(item, view))
-        : projected;
-      const sorted = resolveOperationListSort(filteredByView, query);
-      const paginated = paginateInMemory(sorted, {
-        limit: query.limit,
-        offset: query.offset,
-      });
+      try {
+        const query = c.req.valid("query");
+        const baseOperations = await ctx.treasuryModule.operations.queries.list({
+          dealId: query.dealId,
+          internalEntityOrganizationId: query.internalEntityOrganizationId,
+          kind: query.kind?.map((value) => TreasuryOperationKindSchema.parse(value)),
+          limit: MAX_QUERY_LIST_LIMIT,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+        const context = await buildProjectionContext(ctx, baseOperations.data);
+        const projected = baseOperations.data.map((operation) =>
+          buildOperationProjection({
+            context,
+            operation,
+          }),
+        );
+        const view = query.view
+          ? TreasuryOperationViewSchema.parse(query.view)
+          : undefined;
+        const filteredByView = view
+          ? projected.filter((item) => matchesView(item, view))
+          : projected;
+        const sorted = resolveOperationListSort(filteredByView, query);
+        const paginated = paginateInMemory(sorted, {
+          limit: query.limit,
+          offset: query.offset,
+        });
 
-      return c.json(
-        {
-          ...paginated,
-          viewCounts: buildViewCounts(projected),
-        },
-        200,
-      );
+        return c.json(
+          {
+            ...paginated,
+            viewCounts: buildViewCounts(projected),
+          },
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     })
     .openapi(getRoute, async (c) => {
-      const { operationId } = c.req.valid("param");
-      const operation =
-        await ctx.treasuryModule.operations.queries.findById(operationId);
+      try {
+        const { operationId } = c.req.valid("param");
+        const projection = await loadOperationProjection(ctx, operationId);
 
-      if (!operation) {
-        return c.json({ error: "Treasury operation not found" }, 404);
+        if (!projection) {
+          return c.json({ error: "Treasury operation not found" }, 404);
+        }
+
+        return c.json(projection, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
       }
+    })
+    .openapi(prepareInstructionRoute, async (c) => {
+      try {
+        const { operationId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.prepareInstruction({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            operationId,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
 
-      const context = await buildProjectionContext(ctx, [operation]);
+        if (result instanceof Response) {
+          return result;
+        }
 
-      return c.json(
-        buildOperationProjection({
-          context,
-          operation,
-        }),
-        200,
-      );
+        const projection = await loadOperationProjection(ctx, result.operationId);
+
+        if (!projection) {
+          return c.json({ error: "Treasury operation not found" }, 404);
+        }
+
+        return c.json(projection, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    });
+}
+
+export function treasuryInstructionRoutes(ctx: AppContext) {
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  const submitRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/submit",
+    tags: ["Treasury"],
+    summary: "Submit treasury instruction",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: TreasuryInstructionMutationBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const retryRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/retry",
+    tags: ["Treasury"],
+    summary: "Retry treasury instruction",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RetryTreasuryInstructionInputSchema.pick({
+              providerRef: true,
+              providerSnapshot: true,
+            }),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const voidRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/void",
+    tags: ["Treasury"],
+    summary: "Void treasury instruction",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: TreasuryInstructionMutationBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const requestReturnRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/return",
+    tags: ["Treasury"],
+    summary: "Request treasury instruction return",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RequestTreasuryReturnInputSchema.pick({
+              providerRef: true,
+              providerSnapshot: true,
+            }),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const outcomeRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/outcome",
+    tags: ["Treasury"],
+    summary: "Record treasury instruction outcome",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: TreasuryInstructionOutcomeBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Treasury operation workspace details",
+        content: {
+          "application/json": {
+            schema: TreasuryOperationWorkspaceDetailSchema,
+          },
+        },
+      },
+    },
+  });
+
+  async function respondWithProjection(input: {
+    c: Context<{ Variables: AuthVariables }>;
+    operationId: string;
+  }) {
+    const projection = await loadOperationProjection(ctx, input.operationId);
+
+    if (!projection) {
+      return input.c.json({ error: "Treasury operation not found" }, 404);
+    }
+
+    return input.c.json(projection, 200);
+  }
+
+  return app
+    .openapi(submitRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.submitInstruction({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            instructionId,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(retryRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.retryInstruction({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            instructionId,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(voidRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.voidInstruction({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            instructionId,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(requestReturnRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.requestReturn({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            instructionId,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(outcomeRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealExecutionWorkflow.recordInstructionOutcome({
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            instructionId,
+            outcome: body.outcome,
+            providerRef: body.providerRef ?? null,
+            providerSnapshot: body.providerSnapshot ?? null,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
     });
 }

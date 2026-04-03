@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  TreasuryInstructionActionsSchema,
+  TreasuryInstructionAvailableOutcomeTransitionsSchema,
+  TreasuryInstructionSchema,
+} from "../../../instructions/application/contracts/dto";
+import {
   TreasuryOperationKindSchema,
   TreasuryOperationStateSchema,
 } from "./zod";
@@ -47,8 +52,14 @@ export type TreasuryOperation = z.infer<typeof TreasuryOperationSchema>;
 
 export const TreasuryOperationInstructionStatusSchema = z.enum([
   "planned",
+  "prepared",
+  "submitted",
+  "settled",
   "blocked",
   "failed",
+  "voided",
+  "return_requested",
+  "returned",
 ]);
 
 export const TreasuryOperationMoneySummarySchema = z.object({
@@ -94,7 +105,10 @@ export const TreasuryOperationQueueContextSchema = z
   .nullable();
 
 export const TreasuryOperationWorkspaceItemSchema = z.object({
+  actions: TreasuryInstructionActionsSchema,
   amount: TreasuryOperationMoneySummarySchema,
+  availableOutcomeTransitions:
+    TreasuryInstructionAvailableOutcomeTransitionsSchema,
   counterAmount: TreasuryOperationMoneySummarySchema.nullable(),
   createdAt: z.iso.datetime(),
   dealRef: TreasuryOperationDealRefSchema,
@@ -104,6 +118,7 @@ export const TreasuryOperationWorkspaceItemSchema = z.object({
   internalEntity: TreasuryOperationInternalEntitySchema,
   kind: TreasuryOperationKindSchema,
   legRef: TreasuryOperationLegRefSchema,
+  latestInstruction: TreasuryInstructionSchema.nullable(),
   nextAction: z.string(),
   providerRoute: z.string(),
   sourceAccount: TreasuryOperationAccountSummarySchema,

@@ -28,7 +28,16 @@ import {
   RequisiteProviderSchema,
   RequisiteSchema,
 } from "@bedrock/parties/contracts";
-import { QuoteListItemSchema, QuoteSchema } from "@bedrock/treasury/contracts";
+import {
+  QuoteListItemSchema,
+  QuoteSchema,
+  TreasuryInstructionActionsSchema,
+  TreasuryInstructionAvailableOutcomeTransitionsSchema,
+  TreasuryInstructionSchema,
+  TreasuryOperationInstructionStatusSchema,
+  TreasuryOperationKindSchema,
+  TreasuryOperationStateSchema,
+} from "@bedrock/treasury/contracts";
 import {
   createPaginatedListSchema,
   MAX_QUERY_LIST_LIMIT,
@@ -552,14 +561,44 @@ export type FinanceDealQueueProjection = z.infer<
 >;
 
 export const FinanceDealWorkspaceActionsSchema = z.object({
+  canCloseDeal: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
+  canRequestExecution: z.boolean(),
+  canResolveExecutionBlocker: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
 
 export type FinanceDealWorkspaceActions = z.infer<
   typeof FinanceDealWorkspaceActionsSchema
 >;
+
+export const FinanceDealExecutionLegActionsSchema = z.object({
+  canCreateLegOperation: z.boolean(),
+});
+
+export const FinanceDealExecutionLegSchema = DealWorkflowLegSchema.extend({
+  actions: FinanceDealExecutionLegActionsSchema,
+});
+
+export type FinanceDealExecutionLeg = z.infer<
+  typeof FinanceDealExecutionLegSchema
+>;
+
+export const FinanceDealOperationSchema = z.object({
+  actions: TreasuryInstructionActionsSchema,
+  availableOutcomeTransitions:
+    TreasuryInstructionAvailableOutcomeTransitionsSchema,
+  id: z.uuid(),
+  instructionStatus: TreasuryOperationInstructionStatusSchema,
+  kind: TreasuryOperationKindSchema,
+  latestInstruction: TreasuryInstructionSchema.nullable(),
+  operationHref: z.string(),
+  sourceRef: z.string(),
+  state: TreasuryOperationStateSchema,
+});
+
+export type FinanceDealOperation = z.infer<typeof FinanceDealOperationSchema>;
 
 export const FinanceDealAttachmentRequirementStateSchema = z.enum([
   "missing",
@@ -623,7 +662,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   acceptedQuoteDetails: QuoteListItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
-  executionPlan: z.array(DealWorkflowLegSchema),
+  executionPlan: z.array(FinanceDealExecutionLegSchema),
   formalDocumentRequirements: z.array(
     FinanceDealFormalDocumentRequirementSchema,
   ),
@@ -639,6 +678,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
+    operations: z.array(FinanceDealOperationSchema),
     quotes: z.array(DealRelatedQuoteSchema),
   }),
   summary: DealSummarySchema.extend({

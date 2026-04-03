@@ -42,16 +42,24 @@ function createDeal(): FinanceDealWorkbenchData {
     acceptedQuote: null,
     acceptedQuoteDetails: null,
     actions: {
+      canCloseDeal: false,
       canCreateCalculation: false,
       canCreateQuote: true,
+      canRequestExecution: true,
+      canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [],
     calculationHistory: [],
     executionPlan: [
       {
+        actions: {
+          canCreateLegOperation: false,
+        },
+        id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
+        operationRefs: [],
         state: "pending",
       },
     ],
@@ -90,6 +98,7 @@ function createDeal(): FinanceDealWorkbenchData {
     relatedResources: {
       attachments: [],
       formalDocuments: [],
+      operations: [],
       quotes: [],
     },
     summary: {

@@ -43,6 +43,13 @@
       "when": 1775210183654,
       "tag": "0005_reflective_doctor_strange",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775219272550,
+      "tag": "0006_narrow_proteus",
+      "breakpoints": true
     }
   ]
 }

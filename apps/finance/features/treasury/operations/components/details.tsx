@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ArrowRightLeft, Workflow } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
@@ -10,9 +14,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
-import { formatDate } from "@/lib/format";
 import {
   formatDealNextAction,
   formatDealWorkflowMessage,
@@ -22,6 +26,8 @@ import {
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
 } from "@/features/treasury/deals/labels";
+import { formatDate } from "@/lib/format";
+import { executeMutation } from "@/lib/resources/http";
 
 import type { TreasuryOperationDetails } from "../lib/queries";
 import {
@@ -36,6 +42,25 @@ import {
 type TreasuryOperationDetailsProps = {
   operation: TreasuryOperationDetails;
 };
+
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getOutcomeActionLabel(outcome: "failed" | "returned" | "settled") {
+  switch (outcome) {
+    case "settled":
+      return "Отметить исполненной";
+    case "failed":
+      return "Отметить с ошибкой";
+    case "returned":
+      return "Подтвердить возврат";
+  }
+}
 
 function DetailValue({
   label,
@@ -78,6 +103,192 @@ function AccountCard({
   );
 }
 
+function InstructionActions({
+  operation,
+}: {
+  operation: TreasuryOperationDetails;
+}) {
+  const router = useRouter();
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const instructionId = operation.latestInstruction?.id ?? null;
+
+  async function runAction(input: {
+    actionKey: string;
+    body: Record<string, unknown>;
+    successMessage: string;
+    url: string;
+  }) {
+    setActiveAction(input.actionKey);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось выполнить команду исполнения",
+      request: () =>
+        fetch(input.url, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          body: JSON.stringify(input.body),
+        }),
+    });
+
+    setActiveAction(null);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(input.successMessage);
+    router.refresh();
+  }
+
+  return (
+    <Card className="rounded-sm">
+      <CardHeader className="border-b">
+        <CardTitle>Команды исполнения</CardTitle>
+        <CardDescription>
+          Подготовка и движение treasury-инструкции по этой операции.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-4">
+        <div className="flex flex-wrap gap-2">
+          {operation.actions.canPrepareInstruction ? (
+            <Button
+              size="sm"
+              disabled={activeAction === "prepare"}
+              onClick={() =>
+                runAction({
+                  actionKey: "prepare",
+                  body: {},
+                  successMessage: "Инструкция подготовлена",
+                  url: `/v1/treasury/operations/${encodeURIComponent(operation.id)}/instructions/prepare`,
+                })
+              }
+            >
+              {activeAction === "prepare" ? "Подготавливаем..." : "Подготовить"}
+            </Button>
+          ) : null}
+
+          {operation.actions.canSubmitInstruction && instructionId ? (
+            <Button
+              size="sm"
+              disabled={activeAction === "submit"}
+              onClick={() =>
+                runAction({
+                  actionKey: "submit",
+                  body: {},
+                  successMessage: "Инструкция отправлена",
+                  url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/submit`,
+                })
+              }
+            >
+              {activeAction === "submit" ? "Отправляем..." : "Отправить"}
+            </Button>
+          ) : null}
+
+          {operation.actions.canRetryInstruction && instructionId ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={activeAction === "retry"}
+              onClick={() =>
+                runAction({
+                  actionKey: "retry",
+                  body: {},
+                  successMessage: "Повторная инструкция создана",
+                  url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/retry`,
+                })
+              }
+            >
+              {activeAction === "retry" ? "Создаем..." : "Повторить"}
+            </Button>
+          ) : null}
+
+          {operation.actions.canVoidInstruction && instructionId ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={activeAction === "void"}
+              onClick={() =>
+                runAction({
+                  actionKey: "void",
+                  body: {},
+                  successMessage: "Инструкция отменена",
+                  url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/void`,
+                })
+              }
+            >
+              {activeAction === "void" ? "Отменяем..." : "Отменить"}
+            </Button>
+          ) : null}
+
+          {operation.actions.canRequestReturn && instructionId ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={activeAction === "return"}
+              onClick={() =>
+                runAction({
+                  actionKey: "return",
+                  body: {},
+                  successMessage: "Возврат запрошен",
+                  url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/return`,
+                })
+              }
+            >
+              {activeAction === "return" ? "Запрашиваем..." : "Запросить возврат"}
+            </Button>
+          ) : null}
+        </div>
+
+        {operation.availableOutcomeTransitions.length > 0 && instructionId ? (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-muted-foreground">
+              Зафиксировать результат
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {operation.availableOutcomeTransitions.map((outcome) => (
+                <Button
+                  key={outcome}
+                  size="sm"
+                  variant="outline"
+                  disabled={activeAction === `outcome:${outcome}`}
+                  onClick={() =>
+                    runAction({
+                      actionKey: `outcome:${outcome}`,
+                      body: { outcome },
+                      successMessage: "Результат инструкции сохранен",
+                      url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/outcome`,
+                    })
+                  }
+                >
+                  {activeAction === `outcome:${outcome}`
+                    ? "Сохраняем..."
+                    : getOutcomeActionLabel(outcome)}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {!operation.actions.canPrepareInstruction &&
+        !operation.actions.canSubmitInstruction &&
+        !operation.actions.canRetryInstruction &&
+        !operation.actions.canVoidInstruction &&
+        !operation.actions.canRequestReturn &&
+        operation.availableOutcomeTransitions.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            Для текущего состояния инструкции доступных команд нет.
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TreasuryOperationDetailsView({
   operation,
 }: TreasuryOperationDetailsProps) {
@@ -96,7 +307,7 @@ export function TreasuryOperationDetailsView({
     <EntityWorkspaceLayout
       icon={Workflow}
       title={title}
-      subtitle="Панель materialized treasury-операции и связанного контекста сделки."
+      subtitle="Панель treasury-операции, инструкции и связанного контекста сделки."
       controls={
         operation.dealWorkbenchHref ? (
           <Button
@@ -112,6 +323,8 @@ export function TreasuryOperationDetailsView({
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <div className="grid gap-4">
+          <InstructionActions operation={operation} />
+
           <Card className="rounded-sm">
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
@@ -119,7 +332,7 @@ export function TreasuryOperationDetailsView({
                 Сводка операции
               </CardTitle>
               <CardDescription>
-                Основные реквизиты операции и текущий read-only статус.
+                Основные реквизиты операции и текущий статус инструкции.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
@@ -145,7 +358,10 @@ export function TreasuryOperationDetailsView({
                   </Badge>
                 }
               />
-              <DetailValue label="Состояние" value={getTreasuryOperationStateLabel(operation.state)} />
+              <DetailValue
+                label="Состояние"
+                value={getTreasuryOperationStateLabel(operation.state)}
+              />
               <DetailValue label="Создана" value={formatDate(operation.createdAt)} />
               <DetailValue label="Сумма" value={operation.amount.formatted} />
               <DetailValue
@@ -233,6 +449,81 @@ export function TreasuryOperationDetailsView({
         </div>
 
         <div className="grid gap-4">
+          <Card className="rounded-sm">
+            <CardHeader className="border-b">
+              <CardTitle>Инструкция</CardTitle>
+              <CardDescription>
+                Последняя попытка исполнения materialized операции.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {operation.latestInstruction ? (
+                <>
+                  <DetailValue
+                    label="Instruction ID"
+                    value={operation.latestInstruction.id}
+                  />
+                  <DetailValue
+                    label="Attempt"
+                    value={String(operation.latestInstruction.attempt)}
+                  />
+                  <DetailValue
+                    label="State"
+                    value={getTreasuryOperationInstructionStatusLabel(
+                      operation.latestInstruction.state,
+                    )}
+                  />
+                  <DetailValue
+                    label="Provider ref"
+                    value={operation.latestInstruction.providerRef ?? "—"}
+                  />
+                  <DetailValue
+                    label="Подготовлена"
+                    value={formatDate(operation.latestInstruction.createdAt)}
+                  />
+                  <DetailValue
+                    label="Отправлена"
+                    value={
+                      operation.latestInstruction.submittedAt
+                        ? formatDate(operation.latestInstruction.submittedAt)
+                        : "—"
+                    }
+                  />
+                  <DetailValue
+                    label="Исполнена"
+                    value={
+                      operation.latestInstruction.settledAt
+                        ? formatDate(operation.latestInstruction.settledAt)
+                        : "—"
+                    }
+                  />
+                  <DetailValue
+                    label="Ошибка"
+                    value={
+                      operation.latestInstruction.failedAt
+                        ? formatDate(operation.latestInstruction.failedAt)
+                        : "—"
+                    }
+                  />
+                  <DetailValue
+                    label="Возврат"
+                    value={
+                      operation.latestInstruction.returnRequestedAt
+                        ? formatDate(operation.latestInstruction.returnRequestedAt)
+                        : operation.latestInstruction.returnedAt
+                          ? formatDate(operation.latestInstruction.returnedAt)
+                          : "—"
+                    }
+                  />
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Инструкция по операции еще не подготовлена.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="rounded-sm">
             <CardHeader className="border-b">
               <CardTitle>Сделка</CardTitle>

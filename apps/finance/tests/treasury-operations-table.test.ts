@@ -61,7 +61,7 @@ describe("treasury operations table", () => {
           then() {
             return this;
           },
-        } as Promise<typeof result>,
+        } as unknown as Promise<typeof result>,
       }),
     );
 

@@ -219,15 +219,69 @@ export type RequestDealExecutionInput = z.infer<
   typeof RequestDealExecutionInputSchema
 >;
 
+export const CreateDealLegOperationInputSchema = z.object({
+  comment: nullableText.optional(),
+});
+
+export type CreateDealLegOperationInput = z.infer<
+  typeof CreateDealLegOperationInputSchema
+>;
+
+export const ResolveDealExecutionBlockerInputSchema = z
+  .object({
+    capabilityKind: DealCapabilityKindSchema.optional(),
+    comment: nullableText.optional(),
+    legId: z.uuid().optional(),
+    target: z.enum(["capability", "leg"]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.target === "capability" && !value.capabilityKind) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "capabilityKind is required when resolving a capability blocker",
+        path: ["capabilityKind"],
+      });
+    }
+
+    if (value.target === "leg" && !value.legId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "legId is required when resolving a leg blocker",
+        path: ["legId"],
+      });
+    }
+  });
+
+export type ResolveDealExecutionBlockerInput = z.infer<
+  typeof ResolveDealExecutionBlockerInputSchema
+>;
+
+export const CloseDealInputSchema = z.object({
+  comment: nullableText.optional(),
+});
+
+export type CloseDealInput = z.infer<typeof CloseDealInputSchema>;
+
 export const AppendDealTimelineEventInputSchema = z.object({
   payload: z.record(z.string(), z.unknown()).optional().default({}),
   sourceRef: nullableShortText,
   type: z.enum([
+    "deal_closed",
     "quote_created",
     "quote_accepted",
     "quote_expired",
     "quote_used",
     "execution_requested",
+    "leg_operation_created",
+    "instruction_prepared",
+    "instruction_submitted",
+    "instruction_settled",
+    "instruction_failed",
+    "instruction_retried",
+    "instruction_voided",
+    "return_requested",
+    "instruction_returned",
+    "execution_blocker_resolved",
     "attachment_uploaded",
     "attachment_deleted",
     "attachment_ingested",

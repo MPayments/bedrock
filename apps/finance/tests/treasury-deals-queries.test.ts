@@ -45,8 +45,11 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       usedDocumentId: null,
     },
     actions: {
+      canCloseDeal: false,
       canCreateCalculation: true,
       canCreateQuote: true,
+      canRequestExecution: false,
+      canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [
@@ -59,8 +62,13 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
     ],
     executionPlan: [
       {
+        actions: {
+          canCreateLegOperation: false,
+        },
+        id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
+        operationRefs: [],
         state: "pending",
       },
     ],
@@ -125,6 +133,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
         },
       ],
       formalDocuments: [],
+      operations: [],
       quotes: [
         {
           expiresAt: "2026-04-02T09:15:00.000Z",

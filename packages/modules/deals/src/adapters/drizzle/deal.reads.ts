@@ -76,24 +76,7 @@ function mapTimelineEvent(row: {
   id: string;
   occurredAt: Date;
   payload: Record<string, unknown> | null;
-  type:
-    | "deal_created"
-    | "intake_saved"
-    | "participant_changed"
-    | "status_changed"
-    | "execution_requested"
-    | "quote_created"
-    | "quote_accepted"
-    | "quote_expired"
-    | "quote_used"
-    | "calculation_attached"
-    | "attachment_uploaded"
-    | "attachment_deleted"
-    | "attachment_ingested"
-    | "attachment_ingestion_failed"
-    | "document_created"
-    | "document_status_changed"
-    | "leg_state_changed";
+  type: DealTimelineEvent["type"];
   visibility: "customer_safe" | "internal";
 }): DealTimelineEvent {
   return {

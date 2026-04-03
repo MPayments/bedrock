@@ -400,7 +400,7 @@ describe("deal execution workflow", () => {
     });
 
     expect(createOrGetPlanned).toHaveBeenCalledTimes(3);
-    expect(createDealLegOperationLinks).toHaveBeenCalledTimes(1);
+    expect(createDealLegOperationLinks).toHaveBeenCalledTimes(3);
     expect(createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 });

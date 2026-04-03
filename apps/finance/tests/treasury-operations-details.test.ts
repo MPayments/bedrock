@@ -1,8 +1,14 @@
 import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TreasuryOperationDetailsView } from "@/features/treasury/operations/components/details";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+  }),
+}));
 
 describe("treasury operations details", () => {
   it("renders an operation panel with localized blocker text and a deal back-link", () => {
@@ -15,12 +21,20 @@ describe("treasury operations details", () => {
     const markup = renderToStaticMarkup(
       createElement(TreasuryOperationDetailsView, {
         operation: {
+          actions: {
+            canPrepareInstruction: false,
+            canRequestReturn: false,
+            canRetryInstruction: false,
+            canSubmitInstruction: false,
+            canVoidInstruction: false,
+          },
           amount: {
             amountMinor: "12500000",
             currency: "USD",
             currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
             formatted: "125 000 USD",
           },
+          availableOutcomeTransitions: [],
           counterAmount: null,
           createdAt: "2026-04-03T10:00:00.000Z",
           dealRef: {
@@ -46,6 +60,7 @@ describe("treasury operations details", () => {
             kind: "payout",
             legId: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
           },
+          latestInstruction: null,
           nextAction: "Prepare documents",
           providerRoute: "Route A -> B",
           queueContext: {

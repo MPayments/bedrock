@@ -20,7 +20,10 @@ import type {
 } from "@bedrock/parties/contracts";
 import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type { QuoteListItem } from "@bedrock/treasury/contracts";
+import type {
+  QuoteListItem,
+  TreasuryInstruction,
+} from "@bedrock/treasury/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   minorToAmountString,
@@ -104,7 +107,7 @@ export interface DealProjectionsWorkflowDeps {
     PartiesModuleRoot,
     "counterparties" | "customers" | "organizations" | "requisites"
   >;
-  treasury: Pick<TreasuryModule, "quotes">;
+  treasury: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
 }
 
 export type ListFinanceDealQueuesInput = FinanceDealQueueFilters;
@@ -122,6 +125,9 @@ type CustomerListItemLike = Awaited<
 >[number];
 type TreasuryQuoteRecord = Awaited<
   ReturnType<TreasuryModule["quotes"]["queries"]["listQuotes"]>
+>["data"][number];
+type TreasuryOperationRecord = Awaited<
+  ReturnType<TreasuryModule["operations"]["queries"]["list"]>
 >["data"][number];
 type UserDetailsLike = Awaited<
   ReturnType<DealProjectionsWorkflowDeps["iam"]["queries"]["findById"]>
@@ -630,6 +636,83 @@ function buildCrmWorkbenchActions(workflow: DealWorkflowProjection) {
   };
 }
 
+function isExecutionRequestAllowed(workflow: DealWorkflowProjection) {
+  if (
+    workflow.summary.status === "awaiting_funds" ||
+    workflow.summary.status === "awaiting_payment" ||
+    workflow.summary.status === "closing_documents"
+  ) {
+    return true;
+  }
+
+  const readiness = workflow.transitionReadiness.find(
+    (item) => item.targetStatus === "awaiting_funds",
+  );
+
+  return readiness?.allowed ?? false;
+}
+
+function getInstructionActions(input: {
+  isBlockedWithoutInstruction: boolean;
+  latestInstruction: TreasuryInstruction | null;
+}) {
+  const latestInstruction = input.latestInstruction;
+
+  return {
+    canPrepareInstruction:
+      !latestInstruction && !input.isBlockedWithoutInstruction,
+    canRequestReturn: latestInstruction?.state === "settled",
+    canRetryInstruction:
+      latestInstruction?.state === "failed" ||
+      latestInstruction?.state === "returned",
+    canSubmitInstruction: latestInstruction?.state === "prepared",
+    canVoidInstruction:
+      latestInstruction?.state === "prepared" ||
+      latestInstruction?.state === "submitted",
+  };
+}
+
+function getInstructionStatus(input: {
+  isBlockedWithoutInstruction: boolean;
+  latestInstruction: TreasuryInstruction | null;
+}) {
+  if (input.latestInstruction) {
+    return input.latestInstruction.state;
+  }
+
+  if (input.isBlockedWithoutInstruction) {
+    return "blocked" as const;
+  }
+
+  return "planned" as const;
+}
+
+function getAvailableOutcomeTransitions(
+  latestInstruction: TreasuryInstruction | null,
+): ("failed" | "returned" | "settled")[] {
+  const submitTransitions: ("failed" | "returned" | "settled")[] = [
+    "settled",
+    "failed",
+  ];
+  const returnTransitions: ("failed" | "returned" | "settled")[] = [
+    "returned",
+  ];
+
+  if (!latestInstruction) {
+    return [];
+  }
+
+  if (latestInstruction.state === "submitted") {
+    return submitTransitions;
+  }
+
+  if (latestInstruction.state === "return_requested") {
+    return returnTransitions;
+  }
+
+  return [];
+}
+
 function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
   return {
     agreement: workflow.summary.status === "draft",
@@ -990,6 +1073,79 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
     blockers: collectBlockingReasons(workflow),
     queue: "funding",
     queueReason: "Сделка ожидает следующий шаг на этапе фондирования",
+  };
+}
+
+function canCloseDeal(input: {
+  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+  workflow: DealWorkflowProjection;
+}) {
+  if (
+    isDealInTerminalStatus(input.workflow) ||
+    input.workflow.summary.status === "done"
+  ) {
+    return false;
+  }
+
+  const readiness = input.workflow.transitionReadiness.find(
+    (item) => item.targetStatus === "done",
+  );
+
+  if (readiness && !readiness.allowed) {
+    return false;
+  }
+
+  const hasExecutionBlockers =
+    input.workflow.executionPlan.some((leg) => leg.state === "blocked") ||
+    collectBlockingReasons(input.workflow).length > 0;
+
+  if (hasExecutionBlockers) {
+    return false;
+  }
+
+  if (
+    input.workflow.executionPlan.some((leg) => leg.operationRefs.length === 0)
+  ) {
+    return false;
+  }
+
+  return input.workflow.executionPlan.every((leg) =>
+    leg.operationRefs.every((ref) => {
+      const latest = input.latestInstructionByOperationId.get(ref.operationId);
+
+      return Boolean(
+        latest &&
+          (latest.state === "settled" ||
+            latest.state === "returned" ||
+            latest.state === "voided"),
+      );
+    }),
+  );
+}
+
+function buildFinanceDealOperation(input: {
+  latestInstruction: TreasuryInstruction | null;
+  operation: TreasuryOperationRecord;
+  queueBlocked: boolean;
+}) {
+  return {
+    actions: getInstructionActions({
+      isBlockedWithoutInstruction: input.queueBlocked,
+      latestInstruction: input.latestInstruction,
+    }),
+    availableOutcomeTransitions: getAvailableOutcomeTransitions(
+      input.latestInstruction,
+    ),
+    id: input.operation.id,
+    instructionStatus: getInstructionStatus({
+      isBlockedWithoutInstruction: input.queueBlocked,
+      latestInstruction: input.latestInstruction,
+    }),
+    kind: input.operation.kind,
+    latestInstruction: input.latestInstruction,
+    operationHref: `/treasury/operations/${input.operation.id}`,
+    sourceRef: input.operation.sourceRef,
+    state: input.operation.state,
   };
 }
 
@@ -1754,9 +1910,16 @@ export function createDealProjectionsWorkflow(
   async function getFinanceDealWorkspaceProjection(
     dealId: string,
   ): Promise<FinanceDealWorkspaceProjection | null> {
-    const [workflow, attachments, quotesResult] = await Promise.all([
+    const [workflow, attachments, operationsResult, quotesResult] = await Promise.all([
       deps.deals.deals.queries.findWorkflowById(dealId),
       deps.files.files.queries.listDealAttachments(dealId),
+      deps.treasury.operations.queries.list({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
       deps.treasury.quotes.queries.listQuotes({
         dealId,
         limit: MAX_QUERY_LIST_LIMIT,
@@ -1783,6 +1946,22 @@ export function createDealProjectionsWorkflow(
     });
     const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
     const queueContext = classifyFinanceQueue(workflow);
+    const latestInstructions =
+      await deps.treasury.instructions.queries.listLatestByOperationIds(
+        operationsResult.data.map((operation) => operation.id),
+      );
+    const latestInstructionByOperationId = new Map(
+      latestInstructions.map((instruction) => [
+        instruction.operationId,
+        instruction,
+      ] as const),
+    );
+    const queueBlocked =
+      queueContext.blockers.length > 0 ||
+      workflow.executionPlan.some((leg) => leg.state === "blocked");
+    const hasAnyMaterializedOperations = workflow.executionPlan.some(
+      (leg) => leg.operationRefs.length > 0,
+    );
     const acceptedQuoteDetails = workflow.acceptedQuote
       ? (quotesResult.data
           .map(serializeCrmPricingQuote)
@@ -1794,12 +1973,33 @@ export function createDealProjectionsWorkflow(
       acceptedQuote: workflow.acceptedQuote,
       acceptedQuoteDetails,
       actions: {
+        canCloseDeal: canCloseDeal({
+          latestInstructionByOperationId,
+          workflow,
+        }),
         canCreateCalculation: actions.canCreateCalculation,
         canCreateQuote: actions.canCreateQuote,
+        canRequestExecution:
+          !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
+        canResolveExecutionBlocker:
+          workflow.executionPlan.some((leg) => leg.state === "blocked") ||
+          workflow.operationalState.capabilities.some(
+            (capability) => capability.status !== "enabled",
+          ),
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,
-      executionPlan: workflow.executionPlan,
+      executionPlan: workflow.executionPlan.map((leg) => ({
+        ...leg,
+        actions: {
+          canCreateLegOperation:
+            hasAnyMaterializedOperations &&
+            leg.operationRefs.length === 0 &&
+            leg.state !== "blocked" &&
+            leg.state !== "skipped" &&
+            !isDealInTerminalStatus(workflow),
+        },
+      })),
       formalDocumentRequirements,
       nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,
@@ -1815,6 +2015,14 @@ export function createDealProjectionsWorkflow(
       relatedResources: {
         attachments,
         formalDocuments: workflow.relatedResources.formalDocuments,
+        operations: operationsResult.data.map((operation) =>
+          buildFinanceDealOperation({
+            latestInstruction:
+              latestInstructionByOperationId.get(operation.id) ?? null,
+            operation,
+            queueBlocked,
+          }),
+        ),
         quotes: workflow.relatedResources.quotes,
       },
       summary: {

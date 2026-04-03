@@ -3,6 +3,14 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import {
+  TreasuryInstructionActionsSchema,
+  TreasuryInstructionAvailableOutcomeTransitionsSchema,
+  TreasuryInstructionSchema,
+  TreasuryOperationInstructionStatusSchema,
+  TreasuryOperationKindSchema,
+  TreasuryOperationStateSchema,
+} from "@bedrock/treasury/contracts";
+import {
   paginateInMemory,
   sortInMemory,
   type SortInput,
@@ -199,8 +207,11 @@ const FinanceDealsResponseSchema = z.object({
 });
 
 const FinanceDealWorkspaceActionsSchema = z.object({
+  canCloseDeal: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
+  canRequestExecution: z.boolean(),
+  canResolveExecutionBlocker: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
 
@@ -320,6 +331,25 @@ const FinanceDealSummarySchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+const FinanceDealLegOperationRefSchema = z.object({
+  kind: z.string(),
+  operationId: z.string().uuid(),
+  sourceRef: z.string(),
+});
+
+const FinanceDealOperationSchema = z.object({
+  actions: TreasuryInstructionActionsSchema,
+  availableOutcomeTransitions:
+    TreasuryInstructionAvailableOutcomeTransitionsSchema,
+  id: z.string().uuid(),
+  instructionStatus: TreasuryOperationInstructionStatusSchema,
+  kind: TreasuryOperationKindSchema,
+  latestInstruction: TreasuryInstructionSchema.nullable(),
+  operationHref: z.string(),
+  sourceRef: z.string(),
+  state: TreasuryOperationStateSchema,
+});
+
 const FinanceDealWorkspaceSchema = z.object({
   acceptedQuote: z
     .object({
@@ -335,8 +365,13 @@ const FinanceDealWorkspaceSchema = z.object({
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   executionPlan: z.array(
     z.object({
+      actions: z.object({
+        canCreateLegOperation: z.boolean(),
+      }),
+      id: z.string().uuid().nullable(),
       idx: z.number().int().positive(),
       kind: z.string(),
+      operationRefs: z.array(FinanceDealLegOperationRefSchema),
       state: z.string(),
     }),
   ),
@@ -389,6 +424,7 @@ const FinanceDealWorkspaceSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FinanceDealAttachmentSchema),
     formalDocuments: z.array(FinanceDealFormalDocumentSchema),
+    operations: z.array(FinanceDealOperationSchema),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
   }),
   summary: FinanceDealSummarySchema,

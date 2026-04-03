@@ -3,6 +3,8 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import {
   AssignDealAgentInputSchema,
+  CloseDealInputSchema,
+  CreateDealLegOperationInputSchema,
   CreateDealInputSchema,
   CreateDealDraftInputSchema,
   DealAttachmentIngestionSchema,
@@ -12,6 +14,7 @@ import {
   RequestDealExecutionInputSchema,
   DealTraceSchema,
   ReplaceDealIntakeInputSchema,
+  ResolveDealExecutionBlockerInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
   UpdateDealLegStateInputSchema,
@@ -100,6 +103,17 @@ export function dealsRoutes(ctx: AppContext) {
         param: {
           in: "path",
           name: "idx",
+        },
+      }),
+  });
+  const DealExecutionLegParamsSchema = IdParamSchema.extend({
+    legId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "legId",
         },
       }),
   });
@@ -710,6 +724,165 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const createLegOperationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/execution/legs/{legId}/operation",
+    tags: ["Deals"],
+    summary: "Create a missing treasury operation for an execution leg",
+    request: {
+      params: DealExecutionLegParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateDealLegOperationInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Execution leg operation created",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or execution leg not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Execution leg operation creation blocked",
+      },
+    },
+  });
+
+  const resolveExecutionBlockerRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/execution/blockers/resolve",
+    tags: ["Deals"],
+    summary: "Resolve a supported execution blocker for a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: ResolveDealExecutionBlockerInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Execution blocker resolved",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or blocker target not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Execution blocker cannot be resolved",
+      },
+    },
+  });
+
+  const closeDealRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/close",
+    tags: ["Deals"],
+    summary: "Close a fully executed deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CloseDealInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Deal closed",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal cannot be closed",
+      },
+    },
+  });
+
   const transitionStatusRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
@@ -1283,6 +1456,94 @@ export function dealsRoutes(ctx: AppContext) {
             assertDealAllowsCommercialWrite(deal);
 
             return ctx.dealExecutionWorkflow.requestExecution({
+              actorUserId: c.get("user")!.id,
+              comment: body.comment ?? null,
+              dealId: id,
+              idempotencyKey,
+            });
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createLegOperationRoute, async (c) => {
+      try {
+        const { id, legId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const deal = await requireDeal(ctx, id);
+            assertDealAllowsCommercialWrite(deal);
+
+            return ctx.dealExecutionWorkflow.createLegOperation({
+              actorUserId: c.get("user")!.id,
+              comment: body.comment ?? null,
+              dealId: id,
+              idempotencyKey,
+              legId,
+            });
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(resolveExecutionBlockerRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const deal = await requireDeal(ctx, id);
+            assertDealAllowsCommercialWrite(deal);
+
+            return ctx.dealExecutionWorkflow.resolveExecutionBlocker({
+              actorUserId: c.get("user")!.id,
+              capabilityKind: body.capabilityKind,
+              comment: body.comment ?? null,
+              dealId: id,
+              idempotencyKey,
+              legId: body.legId,
+              target: body.target,
+            });
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(closeDealRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const deal = await requireDeal(ctx, id);
+            assertDealAllowsCommercialWrite(deal);
+
+            return ctx.dealExecutionWorkflow.closeDeal({
               actorUserId: c.get("user")!.id,
               comment: body.comment ?? null,
               dealId: id,

@@ -221,7 +221,10 @@ function createTestApp() {
     createCalculationFromAcceptedQuote: vi.fn(),
   };
   const dealExecutionWorkflow = {
+    closeDeal: vi.fn(),
+    createLegOperation: vi.fn(),
     requestExecution: vi.fn(),
+    resolveExecutionBlocker: vi.fn(),
   };
   const treasuryModule = {
     quotes: {
@@ -877,6 +880,108 @@ describe("deals routes", () => {
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idempotencyKey: "execution-request-replay",
+    });
+  });
+
+  it("creates a missing leg operation through the execution workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "awaiting_funds" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.createLegOperation.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/legs/00000000-0000-4000-8000-000000000101/operation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-leg-operation-1",
+        },
+        body: JSON.stringify({
+          comment: "Repair missing operation",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.createLegOperation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Repair missing operation",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-leg-operation-1",
+      legId: "00000000-0000-4000-8000-000000000101",
+    });
+  });
+
+  it("resolves a supported execution blocker through the workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "awaiting_payment" as const,
+    });
+    dealExecutionWorkflow.resolveExecutionBlocker.mockResolvedValue(
+      createWorkflowProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/blockers/resolve",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-blocker-resolve-1",
+        },
+        body: JSON.stringify({
+          capabilityKind: "can_payout",
+          target: "capability",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.resolveExecutionBlocker).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      capabilityKind: "can_payout",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-blocker-resolve-1",
+      legId: undefined,
+      target: "capability",
+    });
+  });
+
+  it("closes a fully executed deal through the workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "closing_documents" as const,
+    });
+    dealExecutionWorkflow.closeDeal.mockResolvedValue(createWorkflowProjection());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/close",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "deal-close-1",
+        },
+        body: JSON.stringify({
+          comment: "Execution complete",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.closeDeal).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Execution complete",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "deal-close-1",
     });
   });
 
