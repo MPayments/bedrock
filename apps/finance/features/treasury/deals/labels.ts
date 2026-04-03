@@ -12,6 +12,14 @@ export const FINANCE_DEAL_QUEUE_VALUES = [
 
 export type FinanceDealQueue = (typeof FINANCE_DEAL_QUEUE_VALUES)[number];
 
+export const FINANCE_DEAL_BLOCKER_STATE_VALUES = [
+  "blocked",
+  "clear",
+] as const;
+
+export type FinanceDealBlockerState =
+  (typeof FINANCE_DEAL_BLOCKER_STATE_VALUES)[number];
+
 export const FINANCE_DEAL_STATUS_VALUES = [
   "draft",
   "submitted",
@@ -39,6 +47,14 @@ export const FINANCE_DEAL_QUEUE_LABELS: Record<FinanceDealQueue, string> = {
   execution: "Исполнение",
   failed_instruction: "Блокеры исполнения",
   funding: "Фондирование",
+};
+
+export const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
+  FinanceDealBlockerState,
+  string
+> = {
+  blocked: "С блокерами",
+  clear: "Без блокеров",
 };
 
 export const FINANCE_DEAL_STATUS_LABELS: Record<FinanceDealStatus, string> = {
@@ -252,6 +268,16 @@ export function getFinanceDealQueueLabel(value: string | null | undefined) {
   }
 
   return FINANCE_DEAL_QUEUE_LABELS[value as FinanceDealQueue] ?? value;
+}
+
+export function getFinanceDealBlockerStateLabel(
+  value: string | null | undefined,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  return FINANCE_DEAL_BLOCKER_STATE_LABELS[value as FinanceDealBlockerState] ?? value;
 }
 
 export function getFinanceDealStatusLabel(value: string | null | undefined) {
@@ -557,6 +583,13 @@ export function getFinanceDealQueueOptions(): Option[] {
   return FINANCE_DEAL_QUEUE_VALUES.map((value) => ({
     value,
     label: FINANCE_DEAL_QUEUE_LABELS[value],
+  }));
+}
+
+export function getFinanceDealBlockerStateOptions(): Option[] {
+  return FINANCE_DEAL_BLOCKER_STATE_VALUES.map((value) => ({
+    value,
+    label: FINANCE_DEAL_BLOCKER_STATE_LABELS[value],
   }));
 }
 

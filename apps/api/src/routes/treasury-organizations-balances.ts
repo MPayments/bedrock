@@ -176,7 +176,7 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
     const { metaById: requisiteMetaById, optionsByOrganizationId } =
       await buildRequisiteMetaById(organizationIds, []);
     const organizationIdsWithRequisites = Array.from(
-      optionsByOrganizationId.entries()
+      Array.from(optionsByOrganizationId.entries())
         .filter(([, options]) => options.length > 0)
         .map(([organizationId]) => organizationId),
     );

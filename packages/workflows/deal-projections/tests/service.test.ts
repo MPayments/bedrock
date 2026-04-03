@@ -283,7 +283,28 @@ function createWorkflow(overrides?: {
         })),
         findWorkflowById: vi.fn(async () => workflow),
         list: vi.fn(async () => ({
-          data: [{ id: workflow.summary.id }],
+          data: [
+            {
+              agreementId: workflow.summary.agreementId,
+              agentId: workflow.summary.agentId,
+              calculationId: workflow.summary.calculationId,
+              comment: workflow.intake.common.customerNote,
+              createdAt: workflow.summary.createdAt,
+              customerId:
+                workflow.participants.find((participant) => participant.role === "customer")
+                  ?.customerId ?? "customer-1",
+              id: workflow.summary.id,
+              intakeComment: workflow.intake.common.customerNote,
+              nextAction: workflow.nextAction,
+              reason: workflow.intake.moneyRequest.purpose,
+              requestedAmount: workflow.intake.moneyRequest.sourceAmount,
+              requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
+              revision: workflow.revision,
+              status: workflow.summary.status,
+              type: workflow.summary.type,
+              updatedAt: workflow.summary.updatedAt,
+            },
+          ],
           limit: MAX_QUERY_LIST_LIMIT,
           offset: 0,
           total: 1,
@@ -308,6 +329,13 @@ function createWorkflow(overrides?: {
         },
       },
     } as never,
+    currencies: {
+      findById: vi.fn(async (id: string) => ({
+        code: id === "currency-usd" ? "USD" : "RUB",
+        id,
+        precision: 2,
+      })),
+    } as never,
     deals: deals as never,
     documentsReadModel: {
       listDealTraceRowsByDealId: vi.fn(async () => []),
@@ -317,6 +345,14 @@ function createWorkflow(overrides?: {
         queries: {
           listDealAttachments: vi.fn(async () => attachments),
         },
+      },
+    } as never,
+    iam: {
+      queries: {
+        findById: vi.fn(async () => ({
+          id: "user-1",
+          name: "Operator One",
+        })),
       },
     } as never,
     parties: {
@@ -339,6 +375,14 @@ function createWorkflow(overrides?: {
             externalRef: "cust-001",
             id: "customer-1",
           })),
+          listByIds: vi.fn(async () => [
+            {
+              description: "Customer description",
+              displayName: "Customer One",
+              externalRef: "cust-001",
+              id: "customer-1",
+            },
+          ]),
         },
       },
       organizations: {
@@ -585,6 +629,84 @@ describe("createDealProjectionsWorkflow", () => {
         rateNum: "91",
         toAmountMinor: "91000",
         toCurrency: "USD",
+      }),
+    ]);
+  });
+
+  it("builds CRM list projections without route-owned SQL", async () => {
+    const workflow = createWorkflow();
+
+    const projection = await workflow.listCrmDeals({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+
+    expect(projection).toEqual({
+      data: [
+        expect.objectContaining({
+          agentName: "",
+          amount: 1000,
+          amountInBase: 1000,
+          baseCurrencyCode: "RUB",
+          client: "Customer One",
+          clientId: "customer-1",
+          currency: "RUB",
+          feePercentage: 0,
+          id: "deal-1",
+          status: "submitted",
+        }),
+      ],
+      limit: 20,
+      offset: 0,
+      total: 1,
+    });
+  });
+
+  it("builds CRM stats, buckets, and daily aggregates from workflow dependencies", async () => {
+    const workflow = createWorkflow({
+      workflow: {
+        ...createBaseWorkflow(),
+        summary: {
+          ...createBaseWorkflow().summary,
+          status: "done",
+        },
+      },
+    });
+
+    const [stats, buckets, byDay] = await Promise.all([
+      workflow.getCrmDealsStats({
+        dateFrom: "2026-04-01",
+        dateTo: "2026-04-30",
+      }),
+      workflow.listCrmDealsByStatus(),
+      workflow.listCrmDealsByDay({
+        dateFrom: "2026-04-01",
+      }),
+    ]);
+
+    expect(stats).toEqual({
+      byStatus: { done: 1 },
+      totalAmount: "100000",
+      totalCount: 1,
+    });
+    expect(buckets.done).toEqual([
+      expect.objectContaining({
+        amount: 1000,
+        client: "Customer One",
+        currency: "RUB",
+        id: "deal-1",
+      }),
+    ]);
+    expect(byDay).toEqual([
+      expect.objectContaining({
+        RUB: 1000,
+        amount: 1000,
+        closedAmount: 1000,
+        closedCount: 1,
+        count: 1,
+        date: "2026-04-01",
       }),
     ]);
   });

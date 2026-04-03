@@ -15,13 +15,13 @@ import {
   calculations,
 } from "@bedrock/calculations/schema";
 import type { CurrenciesQueries } from "@bedrock/currencies/queries";
+import type { PartiesQueries } from "@bedrock/parties/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
-import { counterparties, customers, organizations } from "@bedrock/parties/schema";
 
 import {
   buildEffectiveDealExecutionPlan,
@@ -69,23 +69,6 @@ const DEALS_SORT_COLUMN_MAP = {
   type: deals.type,
   updatedAt: deals.updatedAt,
 } as const;
-
-function toDisplayName(input: {
-  counterpartyFullName: string | null;
-  counterpartyShortName: string | null;
-  customerDisplayName: string | null;
-  organizationFullName: string | null;
-  organizationShortName: string | null;
-}): string | null {
-  return (
-    input.customerDisplayName ??
-    input.organizationShortName ??
-    input.organizationFullName ??
-    input.counterpartyShortName ??
-    input.counterpartyFullName ??
-    null
-  );
-}
 
 function mapTimelineEvent(row: {
   actorLabel: string | null;
@@ -376,6 +359,10 @@ export class DrizzleDealReads implements DealReads {
   constructor(
     private readonly db: Queryable,
     private readonly currenciesQueries: Pick<CurrenciesQueries, "listByIds">,
+    private readonly partiesQueries: Pick<
+      PartiesQueries,
+      "counterparties" | "customers" | "organizations"
+    >,
     private readonly documentsReadModel?: DealDocumentsReadModel,
   ) {}
 
@@ -411,31 +398,50 @@ export class DrizzleDealReads implements DealReads {
   ): Promise<DealWorkflowParticipant[]> {
     const rows = await this.db
       .select({
-        counterpartyFullName: counterparties.fullName,
         counterpartyId: dealParticipants.counterpartyId,
-        counterpartyShortName: counterparties.shortName,
-        customerDisplayName: customers.displayName,
         customerId: dealParticipants.customerId,
         id: dealParticipants.id,
-        organizationFullName: organizations.fullName,
         organizationId: dealParticipants.organizationId,
-        organizationShortName: organizations.shortName,
         role: dealParticipants.role,
       })
       .from(dealParticipants)
-      .leftJoin(customers, eq(dealParticipants.customerId, customers.id))
-      .leftJoin(
-        counterparties,
-        eq(dealParticipants.counterpartyId, counterparties.id),
-      )
-      .leftJoin(organizations, eq(dealParticipants.organizationId, organizations.id))
       .where(eq(dealParticipants.dealId, dealId))
       .orderBy(asc(dealParticipants.createdAt));
+
+    const customerIds = rows
+      .map((row) => row.customerId)
+      .filter((customerId): customerId is string => customerId !== null);
+    const counterpartyIds = rows
+      .map((row) => row.counterpartyId)
+      .filter((counterpartyId): counterpartyId is string => counterpartyId !== null);
+    const organizationIds = rows
+      .map((row) => row.organizationId)
+      .filter((organizationId): organizationId is string => organizationId !== null);
+
+    const [
+      customerDisplayNames,
+      counterpartyShortNames,
+      organizationShortNames,
+    ] = await Promise.all([
+      this.partiesQueries.customers.listDisplayNamesById(customerIds),
+      this.partiesQueries.counterparties.listShortNamesById(counterpartyIds),
+      this.partiesQueries.organizations.listShortNamesById(organizationIds),
+    ]);
 
     return rows.map((row) => ({
       counterpartyId: row.counterpartyId,
       customerId: row.customerId,
-      displayName: toDisplayName(row),
+      displayName:
+        (row.customerId
+          ? customerDisplayNames.get(row.customerId)
+          : undefined) ??
+        (row.organizationId
+          ? organizationShortNames.get(row.organizationId)
+          : undefined) ??
+        (row.counterpartyId
+          ? counterpartyShortNames.get(row.counterpartyId)
+          : undefined) ??
+        null,
       id: row.id,
       organizationId: row.organizationId,
       role: row.role,

@@ -217,6 +217,7 @@ export function createApplicationServices(
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
+    quoteReads: treasuryModule.quotes.queries,
     logger,
     idempotency,
     persistence: createPersistenceContext(db),
@@ -472,9 +473,11 @@ export function createApplicationServices(
   const dealProjectionsWorkflow = createDealProjectionsWorkflow({
     agreements: agreementsModule,
     calculations: calculationsModule,
+    currencies: currenciesService,
     deals: dealsModule,
     documentsReadModel,
     files: filesModule,
+    iam: iamService,
     parties: partiesModule,
     treasury: treasuryModule,
   });

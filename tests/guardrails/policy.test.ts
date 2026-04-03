@@ -29,6 +29,15 @@ describe("guardrail policy", () => {
         "packages/modules/treasury/src/module.ts",
       ),
     ).toBe(false);
+    expect(
+      isSchemaImportAllowed("@bedrock/parties", "apps/api/src/routes/deals.ts"),
+    ).toBe(false);
+    expect(
+      isSchemaImportAllowed(
+        "@bedrock/treasury",
+        "apps/api/src/composition/deals-module.ts",
+      ),
+    ).toBe(false);
   });
 
   it("limits postgres client construction to apps, scripts, and integration tests", () => {

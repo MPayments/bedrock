@@ -32,10 +32,12 @@ export function FinanceDealsTable({ promise }: FinanceDealsTableProps) {
       columns={columns}
       getRowId={(row) => row.dealId}
       initialState={{
+        columnVisibility: {
+          blockerState: false,
+        },
         sorting: [{ id: "createdAt", desc: true }],
       }}
       onRowDoubleClick={handleRowDoubleClick}
     />
   );
 }
-

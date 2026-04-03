@@ -31,6 +31,7 @@ import {
 import { QuoteListItemSchema, QuoteSchema } from "@bedrock/treasury/contracts";
 import {
   createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
 
 export const PortalSubmissionCompletenessSchema = z.object({
@@ -338,6 +339,124 @@ export const CrmDealBoardProjectionSchema = z.object({
 export type CrmDealBoardProjection = z.infer<
   typeof CrmDealBoardProjectionSchema
 >;
+
+export const CRM_DEALS_SORT_COLUMNS = [
+  "id",
+  "createdAt",
+  "client",
+  "amount",
+  "amountInBase",
+  "closedAt",
+  "agentName",
+] as const;
+
+export const CrmDealsListQuerySchema = z.object({
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
+  sortBy: z.enum(CRM_DEALS_SORT_COLUMNS).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  statuses: z.string().optional(),
+  currencies: z.string().optional(),
+  customerId: z.string().uuid().optional(),
+  agentId: z.string().optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  qClient: z.string().trim().min(1).optional(),
+  qComment: z.string().trim().min(1).optional(),
+});
+
+export type CrmDealsListQuery = z.infer<typeof CrmDealsListQuerySchema>;
+
+export const CrmDealListItemSchema = z.object({
+  id: z.string().uuid(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  closedAt: z.iso.datetime().nullable(),
+  client: z.string(),
+  clientId: z.string().uuid(),
+  amount: z.number(),
+  currency: z.string(),
+  amountInBase: z.number(),
+  baseCurrencyCode: z.string(),
+  status: z.string(),
+  agentName: z.string(),
+  comment: z.string().optional(),
+  feePercentage: z.number(),
+});
+
+export type CrmDealListItem = z.infer<typeof CrmDealListItemSchema>;
+
+export const CrmDealsListProjectionSchema = z.object({
+  data: z.array(CrmDealListItemSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+
+export type CrmDealsListProjection = z.infer<
+  typeof CrmDealsListProjectionSchema
+>;
+
+export const CrmDealsStatsQuerySchema = z.object({
+  dateFrom: z.string().date(),
+  dateTo: z.string().date(),
+});
+
+export type CrmDealsStatsQuery = z.infer<typeof CrmDealsStatsQuerySchema>;
+
+export const CrmDealsStatsSchema = z.object({
+  totalCount: z.number().int(),
+  byStatus: z.record(z.string(), z.number().int()),
+  totalAmount: z.string(),
+});
+
+export type CrmDealsStats = z.infer<typeof CrmDealsStatsSchema>;
+
+export const CrmDealByStatusItemSchema = z.object({
+  id: z.string().uuid(),
+  client: z.string(),
+  amount: z.number(),
+  currency: z.string(),
+  amountInBase: z.number(),
+  baseCurrencyCode: z.string(),
+  status: z.string(),
+  createdAt: z.string(),
+  comment: z.string().optional(),
+});
+
+export type CrmDealByStatusItem = z.infer<typeof CrmDealByStatusItemSchema>;
+
+export const CrmDealsByStatusSchema = z.object({
+  pending: z.array(CrmDealByStatusItemSchema),
+  inProgress: z.array(CrmDealByStatusItemSchema),
+  done: z.array(CrmDealByStatusItemSchema),
+});
+
+export type CrmDealsByStatus = z.infer<typeof CrmDealsByStatusSchema>;
+
+export const CrmDealsByDayQuerySchema = z.object({
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  statuses: z.string().optional(),
+  currencies: z.string().optional(),
+  customerId: z.string().uuid().optional(),
+  agentId: z.string().optional(),
+  reportCurrencyCode: z.string().optional(),
+});
+
+export type CrmDealsByDayQuery = z.infer<typeof CrmDealsByDayQuerySchema>;
+
+export const CrmDealsByDayItemSchema = z
+  .object({
+    date: z.string(),
+    amount: z.number(),
+    count: z.number(),
+    closedCount: z.number(),
+    closedAmount: z.number(),
+  })
+  .passthrough();
+
+export type CrmDealsByDayItem = z.infer<typeof CrmDealsByDayItemSchema>;
 
 export const FinanceDealQueueSchema = z.enum([
   "funding",

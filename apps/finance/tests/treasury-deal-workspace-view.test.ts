@@ -75,10 +75,14 @@ function createDeal(): FinanceDealWorkspace {
     operationalState: {
       capabilities: [
         {
+          applicantCounterpartyId: null,
+          internalEntityOrganizationId: null,
           kind: "can_payout",
           note: null,
           reasonCode: "capability_missing",
           status: "pending",
+          updatedAt: null,
+          updatedByUserId: null,
         },
       ],
       positions: [
@@ -152,7 +156,7 @@ function createDeal(): FinanceDealWorkspace {
 }
 
 describe("treasury deal workspace view", () => {
-  it("renders a localized compact preview without raw technical details or action buttons", () => {
+  it("renders an execution-first localized preview without raw technical details or action buttons", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -166,9 +170,13 @@ describe("treasury deal workspace view", () => {
     );
 
     expect(markup).toContain("Платеж поставщику");
+    expect(markup).toContain("Контур исполнения");
     expect(markup).toContain("Создать расчет по принятой котировке");
     expect(markup).toContain("Анкета заполнена не полностью.");
     expect(markup).toContain("Не заполнен обязательный участник: получатель выплаты.");
+    expect(markup.indexOf("Контур исполнения")).toBeLessThan(
+      markup.indexOf("Котировки и расчет"),
+    );
     expect(markup).not.toContain("Required intake sections are incomplete");
     expect(markup).not.toContain("capability_missing");
     expect(markup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");

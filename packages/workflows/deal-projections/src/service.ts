@@ -1,5 +1,6 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
+import type { CurrenciesService } from "@bedrock/currencies";
 import type {
   DealOperationalPosition,
   DealTimelineEvent,
@@ -9,6 +10,7 @@ import type {
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
+import type { IamService } from "@bedrock/iam";
 import type {
   Counterparty,
   Customer,
@@ -20,12 +22,24 @@ import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { QuoteListItem } from "@bedrock/treasury/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { minorToAmountString } from "@bedrock/shared/money";
+import {
+  minorToAmountString,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 
 import type {
+  CrmDealByStatusItem,
   CrmDealBoardProjection,
   CrmDealBoardStage,
+  CrmDealListItem,
   CrmDealWorkbenchProjection,
+  CrmDealsByDayItem,
+  CrmDealsByDayQuery,
+  CrmDealsByStatus,
+  CrmDealsListProjection,
+  CrmDealsListQuery,
+  CrmDealsStats,
+  CrmDealsStatsQuery,
   CustomerLegalEntitySummary,
   CustomerWorkspaceSummary,
   FinanceDealQueue,
@@ -37,6 +51,7 @@ import type {
   PortalDealListProjection,
   PortalDealProjection,
 } from "./contracts";
+import { CrmDealsListQuerySchema } from "./contracts";
 
 const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
@@ -69,14 +84,22 @@ const DOWNSTREAM_POSITION_KINDS = new Set([
   "provider_payable",
 ]);
 
-const DOWNSTREAM_LEG_KINDS = new Set(["payout", "settle_exporter", "transit_hold"]);
+const DOWNSTREAM_LEG_KINDS = new Set([
+  "payout",
+  "settle_exporter",
+  "transit_hold",
+]);
 
 export interface DealProjectionsWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
   calculations: Pick<CalculationsModule, "calculations">;
+  currencies: Pick<CurrenciesService, "findById">;
   deals: Pick<DealsModuleRoot, "deals">;
   documentsReadModel: Pick<DocumentsReadModel, "listDealTraceRowsByDealId">;
   files: Pick<FilesModule, "files">;
+  iam: {
+    queries: Pick<IamService["queries"], "findById">;
+  };
   parties: Pick<
     PartiesModuleRoot,
     "counterparties" | "customers" | "organizations" | "requisites"
@@ -88,16 +111,85 @@ export type ListFinanceDealQueuesInput = FinanceDealQueueFilters;
 type CalculationDetailsLike = NonNullable<
   Awaited<ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>>
 >;
+type CurrencyDetailsLike = Awaited<
+  ReturnType<DealProjectionsWorkflowDeps["currencies"]["findById"]>
+>;
+type DealListRecord = Awaited<
+  ReturnType<DealsModuleRoot["deals"]["queries"]["list"]>
+>["data"][number];
+type CustomerListItemLike = Awaited<
+  ReturnType<PartiesModuleRoot["customers"]["queries"]["listByIds"]>
+>[number];
 type TreasuryQuoteRecord = Awaited<
   ReturnType<TreasuryModule["quotes"]["queries"]["listQuotes"]>
 >["data"][number];
+type UserDetailsLike = Awaited<
+  ReturnType<DealProjectionsWorkflowDeps["iam"]["queries"]["findById"]>
+>;
+
+function parseOptionalSet(value?: string): Set<string> | null {
+  if (!value) {
+    return null;
+  }
+
+  const items = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  return items.length > 0 ? new Set(items) : null;
+}
+
+function parseDecimalOrZero(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseMinorOrZero(
+  value: string | bigint | null | undefined,
+  precision: number | null | undefined,
+): number {
+  if (value == null || precision == null) {
+    return 0;
+  }
+
+  return parseDecimalOrZero(minorToAmountString(value, { precision }));
+}
+
+function compareNullableStrings(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  return (left ?? "").localeCompare(right ?? "", "ru");
+}
+
+function compareNullableDates(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  const leftValue = left ? new Date(left).getTime() : 0;
+  const rightValue = right ? new Date(right).getTime() : 0;
+  return leftValue - rightValue;
+}
+
+function toMap<K, V>(entries: readonly (readonly [K, V])[]): Map<K, V> {
+  return new Map(entries);
+}
 
 function getCustomerParticipant(workflow: DealWorkflowProjection) {
-  return workflow.participants.find((participant) => participant.role === "customer");
+  return workflow.participants.find(
+    (participant) => participant.role === "customer",
+  );
 }
 
 function getApplicantParticipant(workflow: DealWorkflowProjection) {
-  return workflow.participants.find((participant) => participant.role === "applicant");
+  return workflow.participants.find(
+    (participant) => participant.role === "applicant",
+  );
 }
 
 function getInternalEntityParticipant(workflow: DealWorkflowProjection) {
@@ -154,7 +246,10 @@ function buildCustomerSafeAttachments(
   workflow: DealWorkflowProjection,
 ) {
   const ingestionsByAttachmentId = new Map(
-    workflow.attachmentIngestions.map((ingestion) => [ingestion.fileAssetId, ingestion]),
+    workflow.attachmentIngestions.map((ingestion) => [
+      ingestion.fileAssetId,
+      ingestion,
+    ]),
   );
 
   return attachments
@@ -166,7 +261,8 @@ function buildCustomerSafeAttachments(
           ? null
           : !ingestion
             ? null
-            : ingestion.status === "pending" || ingestion.status === "processing"
+            : ingestion.status === "pending" ||
+                ingestion.status === "processing"
               ? ("processing" as const)
               : ingestion.status === "processed"
                 ? ("applied" as const)
@@ -183,7 +279,9 @@ function buildCustomerSafeAttachments(
         purpose: attachment.purpose,
       };
     })
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+    .sort(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+    );
 }
 
 function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
@@ -195,11 +293,13 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
     };
   }
 
-  const activeOrLatestQuote = [...workflow.relatedResources.quotes].sort((left, right) => {
-    const leftTime = left.expiresAt?.getTime() ?? 0;
-    const rightTime = right.expiresAt?.getTime() ?? 0;
-    return rightTime - leftTime;
-  })[0];
+  const activeOrLatestQuote = [...workflow.relatedResources.quotes].sort(
+    (left, right) => {
+      const leftTime = left.expiresAt?.getTime() ?? 0;
+      const rightTime = right.expiresAt?.getTime() ?? 0;
+      return rightTime - leftTime;
+    },
+  )[0];
 
   if (!activeOrLatestQuote) {
     return null;
@@ -253,7 +353,10 @@ function buildPortalSubmissionCompleteness(input: {
 }
 
 function isDealInTerminalStatus(workflow: DealWorkflowProjection) {
-  return workflow.summary.status === "done" || workflow.summary.status === "cancelled";
+  return (
+    workflow.summary.status === "done" ||
+    workflow.summary.status === "cancelled"
+  );
 }
 
 function requiresExternalEvidence(type: DealType) {
@@ -265,7 +368,9 @@ function hasCustomerSafeAttachment(
     ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
   >,
 ) {
-  return attachments.some((attachment) => attachment.visibility === "customer_safe");
+  return attachments.some(
+    (attachment) => attachment.visibility === "customer_safe",
+  );
 }
 
 function isFormalDocumentReady(input: {
@@ -287,7 +392,9 @@ function findRelatedFormalDocument(input: {
   docType: string;
   documents: DealWorkflowProjection["relatedResources"]["formalDocuments"];
 }) {
-  const matching = input.documents.filter((document) => document.docType === input.docType);
+  const matching = input.documents.filter(
+    (document) => document.docType === input.docType,
+  );
 
   return (
     matching.find((document) => document.lifecycleStatus === "active") ??
@@ -364,8 +471,10 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     state: "in_progress" | "missing" | "not_required" | "ready";
   }> = [];
 
-  const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
-  const closingDocType = CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+  const openingDocType =
+    OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+  const closingDocType =
+    CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
 
   for (const [stage, docType] of [
     ["opening", openingDocType] as const,
@@ -481,7 +590,8 @@ function buildCrmBeneficiaryDraft(input: {
   }
 
   return {
-    bankInstructionSnapshot: candidate.normalizedPayload.bankInstructionSnapshot,
+    bankInstructionSnapshot:
+      candidate.normalizedPayload.bankInstructionSnapshot,
     beneficiarySnapshot: candidate.normalizedPayload.beneficiarySnapshot,
     fieldPresence: {
       bankInstructionFields: countBankInstructionFields(
@@ -512,7 +622,8 @@ function buildCrmWorkbenchActions(workflow: DealWorkflowProjection) {
       hasAcceptedQuote &&
       !workflow.summary.calculationId,
     canCreateFormalDocument: false,
-    canCreateQuote: isQuoteEligible(workflow) && !isDealInTerminalStatus(workflow),
+    canCreateQuote:
+      isQuoteEligible(workflow) && !isDealInTerminalStatus(workflow),
     canEditIntake: !isDealInTerminalStatus(workflow),
     canReassignAssignee: true,
     canUploadAttachment: !isDealInTerminalStatus(workflow),
@@ -546,7 +657,9 @@ function classifyCrmBoardStage(workflow: DealWorkflowProjection): {
 
   if (
     workflow.executionPlan.some((leg) => leg.state === "blocked") ||
-    workflow.operationalState.positions.some((position) => position.state === "blocked")
+    workflow.operationalState.positions.some(
+      (position) => position.state === "blocked",
+    )
   ) {
     return { blockingReasons, stage: "execution_blocked" };
   }
@@ -749,8 +862,9 @@ function getPositionByKind(
   kind: string,
 ): DealOperationalPosition | null {
   return (
-    workflow.operationalState.positions.find((position) => position.kind === kind) ??
-    null
+    workflow.operationalState.positions.find(
+      (position) => position.kind === kind,
+    ) ?? null
   );
 }
 
@@ -768,15 +882,18 @@ function sumCalculationLineAmounts(
 }
 
 function buildProfitabilitySnapshot(
-  calculation:
-    | Awaited<ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>>
-    | null,
+  calculation: Awaited<
+    ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
+  > | null,
 ): FinanceProfitabilitySnapshot {
   if (!calculation) {
     return null;
   }
 
-  const feeRevenueMinor = sumCalculationLineAmounts(calculation.lines, "fee_revenue");
+  const feeRevenueMinor = sumCalculationLineAmounts(
+    calculation.lines,
+    "fee_revenue",
+  );
   const spreadRevenueMinor = sumCalculationLineAmounts(
     calculation.lines,
     "spread_revenue",
@@ -793,8 +910,9 @@ function buildProfitabilitySnapshot(
 
 function summarizeExecutionPlan(workflow: DealWorkflowProjection) {
   return {
-    blockedLegCount: workflow.executionPlan.filter((leg) => leg.state === "blocked")
-      .length,
+    blockedLegCount: workflow.executionPlan.filter(
+      (leg) => leg.state === "blocked",
+    ).length,
     doneLegCount: workflow.executionPlan.filter((leg) => leg.state === "done")
       .length,
     totalLegCount: workflow.executionPlan.length,
@@ -824,7 +942,8 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
     ) ||
     workflow.operationalState.positions.some(
       (position) =>
-        DOWNSTREAM_POSITION_KINDS.has(position.kind) && position.state === "blocked",
+        DOWNSTREAM_POSITION_KINDS.has(position.kind) &&
+        position.state === "blocked",
     );
 
   if (downstreamBlocked) {
@@ -874,7 +993,10 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
   };
 }
 
-function matchesTextFilter(value: string | null | undefined, filter: string | undefined) {
+function matchesTextFilter(
+  value: string | null | undefined,
+  filter: string | undefined,
+) {
   if (!filter) {
     return true;
   }
@@ -894,7 +1016,8 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
-    const attachments = await deps.files.files.queries.listDealAttachments(dealId);
+    const attachments =
+      await deps.files.files.queries.listDealAttachments(dealId);
     return buildPortalProjection({ attachments, workflow });
   }
 
@@ -917,12 +1040,498 @@ export function createDealProjectionsWorkflow(
 
     return {
       data: projections
-        .filter((projection): projection is PortalDealProjection => projection !== null)
+        .filter(
+          (projection): projection is PortalDealProjection =>
+            projection !== null,
+        )
         .map(toPortalListItem),
       limit: deals.limit,
       offset: deals.offset,
       total: deals.total,
     };
+  }
+
+  async function listAllDeals(input?: {
+    customerId?: string;
+  }): Promise<DealListRecord[]> {
+    const deals: DealListRecord[] = [];
+    let offset = 0;
+    let total = 0;
+
+    do {
+      const page = await deps.deals.deals.queries.list({
+        customerId: input?.customerId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+
+      deals.push(...page.data);
+      total = page.total;
+      offset += page.limit;
+    } while (offset < total);
+
+    return deals;
+  }
+
+  async function listCrmDeals(
+    query: Partial<CrmDealsListQuery> = {},
+  ): Promise<CrmDealsListProjection> {
+    const normalizedQuery = CrmDealsListQuerySchema.parse(query);
+    const requestedStatuses = parseOptionalSet(normalizedQuery.statuses);
+    const requestedCurrencies = parseOptionalSet(normalizedQuery.currencies);
+    const listedDeals = await listAllDeals({
+      customerId: normalizedQuery.customerId,
+    });
+
+    const customerIds = [
+      ...new Set(listedDeals.map((deal) => deal.customerId)),
+    ];
+    const agentIds = [
+      ...new Set(
+        listedDeals
+          .map((deal) => deal.agentId)
+          .filter((agentId): agentId is string => Boolean(agentId)),
+      ),
+    ];
+    const calculationIds = [
+      ...new Set(
+        listedDeals
+          .map((deal) => deal.calculationId)
+          .filter((calculationId): calculationId is string =>
+            Boolean(calculationId),
+          ),
+      ),
+    ];
+    const requestedCurrencyIds = [
+      ...new Set(
+        listedDeals
+          .map((deal) => deal.requestedCurrencyId)
+          .filter((currencyId): currencyId is string => Boolean(currencyId)),
+      ),
+    ];
+
+    const [
+      customers,
+      agentEntries,
+      calculationEntries,
+      requestedCurrencyEntries,
+    ] = await Promise.all([
+      deps.parties.customers.queries.listByIds(customerIds),
+      Promise.all(
+        agentIds.map(
+          async (agentId): Promise<readonly [string, UserDetailsLike]> =>
+            [agentId, await deps.iam.queries.findById(agentId)] as const,
+        ),
+      ),
+      Promise.all(
+        calculationIds.map(
+          async (
+            calculationId,
+          ): Promise<readonly [string, CalculationDetailsLike | null]> =>
+            [
+              calculationId,
+              await deps.calculations.calculations.queries.findById(
+                calculationId,
+              ),
+            ] as const,
+        ),
+      ),
+      Promise.all(
+        requestedCurrencyIds.map(
+          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+            [currencyId, await deps.currencies.findById(currencyId)] as const,
+        ),
+      ),
+    ]);
+
+    const agentsById = toMap(agentEntries);
+    const calculationsById = toMap(calculationEntries);
+    const requestedCurrenciesById = toMap(requestedCurrencyEntries);
+    const customersById = toMap(
+      customers.map(
+        (customer): readonly [string, CustomerListItemLike] =>
+          [customer.id, customer] as const,
+      ),
+    );
+    const baseCurrencyIds = [
+      ...new Set(
+        [...calculationsById.values()]
+          .map((calculation) => calculation?.currentSnapshot.baseCurrencyId)
+          .filter((currencyId): currencyId is string => Boolean(currencyId)),
+      ),
+    ];
+    const baseCurrenciesById = toMap(
+      await Promise.all(
+        baseCurrencyIds.map(
+          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+            [currencyId, await deps.currencies.findById(currencyId)] as const,
+        ),
+      ),
+    );
+
+    const enrichedDeals = listedDeals.map(
+      (
+        deal,
+      ): CrmDealListItem & {
+        agentId: string | null;
+        createdAtDate: number;
+      } => {
+        const customer = customersById.get(deal.customerId) ?? null;
+        const calculation = deal.calculationId
+          ? (calculationsById.get(deal.calculationId) ?? null)
+          : null;
+        const sourceCurrency = deal.requestedCurrencyId
+          ? (requestedCurrenciesById.get(deal.requestedCurrencyId) ?? null)
+          : null;
+        const baseCurrency = calculation
+          ? (baseCurrenciesById.get(
+              calculation.currentSnapshot.baseCurrencyId,
+            ) ?? null)
+          : null;
+        const agent = deal.agentId
+          ? (agentsById.get(deal.agentId) ?? null)
+          : null;
+
+        const amount = parseDecimalOrZero(deal.requestedAmount);
+        const amountInBase = calculation
+          ? baseCurrency
+            ? parseMinorOrZero(
+                calculation.currentSnapshot.totalInBaseMinor,
+                baseCurrency.precision,
+              )
+            : amount
+          : amount;
+        const feePercentage = calculation
+          ? parseMinorOrZero(calculation.currentSnapshot.feeBps, 2)
+          : 0;
+        const currencyCode = sourceCurrency?.code ?? "RUB";
+        const baseCurrencyCode = baseCurrency?.code ?? currencyCode;
+        const closedAt =
+          deal.status === "done" || deal.status === "cancelled"
+            ? deal.updatedAt.toISOString()
+            : null;
+        const comment =
+          deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
+
+        return {
+          agentId: deal.agentId,
+          agentName: agent?.name ?? "",
+          amount,
+          amountInBase,
+          baseCurrencyCode,
+          client: customer?.displayName ?? "—",
+          clientId: deal.customerId,
+          closedAt,
+          comment,
+          createdAt: deal.createdAt.toISOString(),
+          createdAtDate: deal.createdAt.getTime(),
+          currency: currencyCode,
+          feePercentage,
+          id: deal.id,
+          status: deal.status,
+          updatedAt: deal.updatedAt.toISOString(),
+        };
+      },
+    );
+
+    const filteredDeals = enrichedDeals.filter((deal) => {
+      if (requestedStatuses && !requestedStatuses.has(deal.status)) {
+        return false;
+      }
+      if (requestedCurrencies && !requestedCurrencies.has(deal.currency)) {
+        return false;
+      }
+      if (normalizedQuery.agentId && deal.agentId !== normalizedQuery.agentId) {
+        return false;
+      }
+      if (
+        normalizedQuery.dateFrom &&
+        deal.createdAtDate < normalizedQuery.dateFrom.getTime()
+      ) {
+        return false;
+      }
+      if (
+        normalizedQuery.dateTo &&
+        deal.createdAtDate > normalizedQuery.dateTo.getTime()
+      ) {
+        return false;
+      }
+      if (
+        normalizedQuery.qClient &&
+        !deal.client
+          .toLowerCase()
+          .includes(normalizedQuery.qClient.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        normalizedQuery.qComment &&
+        !(deal.comment ?? "")
+          .toLowerCase()
+          .includes(normalizedQuery.qComment.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    filteredDeals.sort((left, right) => {
+      let comparison = 0;
+
+      switch (normalizedQuery.sortBy) {
+        case "id":
+          comparison = left.id.localeCompare(right.id);
+          break;
+        case "client":
+          comparison = compareNullableStrings(left.client, right.client);
+          break;
+        case "amount":
+          comparison = left.amount - right.amount;
+          break;
+        case "amountInBase":
+          comparison = left.amountInBase - right.amountInBase;
+          break;
+        case "closedAt":
+          comparison = compareNullableDates(left.closedAt, right.closedAt);
+          break;
+        case "agentName":
+          comparison = compareNullableStrings(left.agentName, right.agentName);
+          break;
+        case "createdAt":
+        default:
+          comparison = left.createdAtDate - right.createdAtDate;
+          break;
+      }
+
+      return normalizedQuery.sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    const pagedDeals = filteredDeals
+      .slice(
+        normalizedQuery.offset,
+        normalizedQuery.offset + normalizedQuery.limit,
+      )
+      .map(
+        ({ agentId: _agentId, createdAtDate: _createdAtDate, ...deal }) => deal,
+      );
+
+    return {
+      data: pagedDeals,
+      limit: normalizedQuery.limit,
+      offset: normalizedQuery.offset,
+      total: filteredDeals.length,
+    };
+  }
+
+  async function getCrmDealsStats(
+    input: CrmDealsStatsQuery,
+  ): Promise<CrmDealsStats> {
+    const listedDeals = await listAllDeals();
+    const currenciesById = toMap(
+      await Promise.all(
+        [
+          ...new Set(
+            listedDeals
+              .map((deal) => deal.requestedCurrencyId)
+              .filter((currencyId): currencyId is string =>
+                Boolean(currencyId),
+              ),
+          ),
+        ].map(
+          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+            [currencyId, await deps.currencies.findById(currencyId)] as const,
+        ),
+      ),
+    );
+
+    const from = new Date(`${input.dateFrom}T00:00:00Z`);
+    const to = new Date(`${input.dateTo}T23:59:59.999Z`);
+    let totalCount = 0;
+    let totalAmount = 0n;
+    const byStatus: Record<string, number> = {};
+
+    for (const deal of listedDeals) {
+      if (deal.createdAt < from || deal.createdAt > to) {
+        continue;
+      }
+
+      totalCount += 1;
+      byStatus[deal.status] = (byStatus[deal.status] ?? 0) + 1;
+
+      const currencyCode =
+        (deal.requestedCurrencyId
+          ? currenciesById.get(deal.requestedCurrencyId)?.code
+          : undefined) ?? "RUB";
+      totalAmount += BigInt(
+        toMinorAmountString(deal.requestedAmount ?? "0", currencyCode),
+      );
+    }
+
+    return {
+      byStatus,
+      totalAmount: totalAmount.toString(),
+      totalCount,
+    };
+  }
+
+  async function listCrmDealsByStatus(): Promise<CrmDealsByStatus> {
+    const PENDING_STATUSES = ["awaiting_funds"] as const;
+    const IN_PROGRESS_STATUSES = [
+      "draft",
+      "submitted",
+      "preparing_documents",
+      "awaiting_payment",
+    ] as const;
+    const DONE_STATUSES = ["closing_documents", "done"] as const;
+
+    const listedDeals = await listAllDeals();
+    const customerIds = [
+      ...new Set(listedDeals.map((deal) => deal.customerId)),
+    ];
+    const currencyIds = [
+      ...new Set(
+        listedDeals
+          .map((deal) => deal.requestedCurrencyId)
+          .filter((currencyId): currencyId is string => Boolean(currencyId)),
+      ),
+    ];
+
+    const [customers, currenciesById] = await Promise.all([
+      deps.parties.customers.queries.listByIds(customerIds),
+      Promise.all(
+        currencyIds.map(
+          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+            [currencyId, await deps.currencies.findById(currencyId)] as const,
+        ),
+      ).then(toMap),
+    ]);
+
+    const customersById = toMap(
+      customers.map(
+        (customer): readonly [string, CustomerListItemLike] =>
+          [customer.id, customer] as const,
+      ),
+    );
+
+    function toDealItem(deal: DealListRecord): CrmDealByStatusItem {
+      const comment =
+        deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
+
+      return {
+        amount: parseDecimalOrZero(deal.requestedAmount),
+        amountInBase: parseDecimalOrZero(deal.requestedAmount),
+        baseCurrencyCode: "RUB",
+        client: customersById.get(deal.customerId)?.displayName ?? "—",
+        createdAt: deal.createdAt.toISOString(),
+        currency:
+          (deal.requestedCurrencyId
+            ? currenciesById.get(deal.requestedCurrencyId)?.code
+            : undefined) ?? "RUB",
+        id: deal.id,
+        status: deal.status,
+        ...(comment ? { comment } : {}),
+      };
+    }
+
+    return {
+      done: listedDeals
+        .filter((deal) =>
+          (DONE_STATUSES as readonly string[]).includes(deal.status),
+        )
+        .map(toDealItem),
+      inProgress: listedDeals
+        .filter((deal) =>
+          (IN_PROGRESS_STATUSES as readonly string[]).includes(deal.status),
+        )
+        .map(toDealItem),
+      pending: listedDeals
+        .filter((deal) =>
+          (PENDING_STATUSES as readonly string[]).includes(deal.status),
+        )
+        .map(toDealItem),
+    };
+  }
+
+  async function listCrmDealsByDay(
+    query: CrmDealsByDayQuery = {},
+  ): Promise<CrmDealsByDayItem[]> {
+    const listedDeals = await listAllDeals({ customerId: query.customerId });
+    const requestedStatuses = parseOptionalSet(query.statuses);
+    const requestedCurrencies = parseOptionalSet(query.currencies);
+    const currenciesById = toMap(
+      await Promise.all(
+        [
+          ...new Set(
+            listedDeals
+              .map((deal) => deal.requestedCurrencyId)
+              .filter((currencyId): currencyId is string =>
+                Boolean(currencyId),
+              ),
+          ),
+        ].map(
+          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+            [currencyId, await deps.currencies.findById(currencyId)] as const,
+        ),
+      ),
+    );
+
+    const dayMap = new Map<
+      string,
+      CrmDealsByDayItem & Record<string, number | string>
+    >();
+
+    for (const deal of listedDeals) {
+      if (query.dateFrom && deal.createdAt < new Date(query.dateFrom)) {
+        continue;
+      }
+      if (query.dateTo && deal.createdAt > new Date(query.dateTo)) {
+        continue;
+      }
+      if (query.agentId && deal.agentId !== query.agentId) {
+        continue;
+      }
+      if (requestedStatuses && !requestedStatuses.has(deal.status)) {
+        continue;
+      }
+
+      const currencyCode =
+        (deal.requestedCurrencyId
+          ? currenciesById.get(deal.requestedCurrencyId)?.code
+          : undefined) ?? "RUB";
+
+      if (requestedCurrencies && !requestedCurrencies.has(currencyCode)) {
+        continue;
+      }
+
+      const date = deal.createdAt.toISOString().slice(0, 10);
+      const total = parseDecimalOrZero(deal.requestedAmount);
+
+      if (!dayMap.has(date)) {
+        dayMap.set(date, {
+          amount: 0,
+          closedAmount: 0,
+          closedCount: 0,
+          count: 0,
+          date,
+        });
+      }
+
+      const day = dayMap.get(date)!;
+      day.count += 1;
+      day.amount += total;
+
+      if (deal.status === "done") {
+        day.closedCount += 1;
+        day.closedAmount += total;
+      }
+
+      day[currencyCode] = ((day[currencyCode] as number) || 0) + total;
+    }
+
+    return Array.from(dayMap.values());
   }
 
   async function getCrmDealWorkbenchProjection(
@@ -945,48 +1554,61 @@ export function createDealProjectionsWorkflow(
     const internalEntityOrganizationId =
       getInternalEntityParticipant(workflow)?.organizationId ?? null;
 
-    const [agreement, applicant, calculationsHistory, customer, internalEntity] =
-      await Promise.all([
-        deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
-        applicantCounterpartyId
-          ? deps.parties.counterparties.queries.findById(applicantCounterpartyId)
-          : Promise.resolve(null),
-        deps.deals.deals.queries.listCalculationHistory(dealId),
-        customerId
-          ? deps.parties.customers.queries.findById(customerId)
-          : Promise.resolve(null),
-        internalEntityOrganizationId
-          ? deps.parties.organizations.queries.findById(internalEntityOrganizationId)
-          : Promise.resolve(null),
-      ]);
+    const [
+      agreement,
+      applicant,
+      calculationsHistory,
+      customer,
+      internalEntity,
+    ] = await Promise.all([
+      deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+      applicantCounterpartyId
+        ? deps.parties.counterparties.queries.findById(applicantCounterpartyId)
+        : Promise.resolve(null),
+      deps.deals.deals.queries.listCalculationHistory(dealId),
+      customerId
+        ? deps.parties.customers.queries.findById(customerId)
+        : Promise.resolve(null),
+      internalEntityOrganizationId
+        ? deps.parties.organizations.queries.findById(
+            internalEntityOrganizationId,
+          )
+        : Promise.resolve(null),
+    ]);
 
-    const [legalEntitiesResult, currentCalculation, internalEntityRequisite, quotesResult] =
-      await Promise.all([
-        customerId
-          ? deps.parties.counterparties.queries.list({
-              customerId,
-              limit: MAX_QUERY_LIST_LIMIT,
-              offset: 0,
-              sortBy: "createdAt",
-              sortOrder: "desc",
-            })
-          : Promise.resolve(null),
-        workflow.summary.calculationId
-          ? deps.calculations.calculations.queries.findById(
-              workflow.summary.calculationId,
-            )
-          : Promise.resolve(null),
-        agreement?.organizationRequisiteId
-          ? deps.parties.requisites.queries.findById(agreement.organizationRequisiteId)
-          : Promise.resolve(null),
-        deps.treasury.quotes.queries.listQuotes({
-          dealId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-      ]);
+    const [
+      legalEntitiesResult,
+      currentCalculation,
+      internalEntityRequisite,
+      quotesResult,
+    ] = await Promise.all([
+      customerId
+        ? deps.parties.counterparties.queries.list({
+            customerId,
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          })
+        : Promise.resolve(null),
+      workflow.summary.calculationId
+        ? deps.calculations.calculations.queries.findById(
+            workflow.summary.calculationId,
+          )
+        : Promise.resolve(null),
+      agreement?.organizationRequisiteId
+        ? deps.parties.requisites.queries.findById(
+            agreement.organizationRequisiteId,
+          )
+        : Promise.resolve(null),
+      deps.treasury.quotes.queries.listQuotes({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+    ]);
 
     const internalEntityRequisiteProvider = internalEntityRequisite?.providerId
       ? await deps.parties.requisites.queries.findProviderById(
@@ -1046,7 +1668,8 @@ export function createDealProjectionsWorkflow(
       sectionCompleteness: workflow.sectionCompleteness,
       summary: {
         ...workflow.summary,
-        applicantDisplayName: getApplicantParticipant(workflow)?.displayName ?? null,
+        applicantDisplayName:
+          getApplicantParticipant(workflow)?.displayName ?? null,
         customerDisplayName: customer?.displayName ?? null,
         internalEntityDisplayName:
           getInternalEntityParticipant(workflow)?.displayName ??
@@ -1091,7 +1714,8 @@ export function createDealProjectionsWorkflow(
           customerName: customer?.displayName ?? null,
           documentSummary: {
             attachmentCount: attachments.length,
-            formalDocumentCount: workflow.relatedResources.formalDocuments.length,
+            formalDocumentCount:
+              workflow.relatedResources.formalDocuments.length,
           },
           id: workflow.summary.id,
           nextAction: workflow.nextAction,
@@ -1104,7 +1728,9 @@ export function createDealProjectionsWorkflow(
       }),
     );
 
-    const data = items.filter((item): item is NonNullable<typeof item> => item !== null);
+    const data = items.filter(
+      (item): item is NonNullable<typeof item> => item !== null,
+    );
     const counts = data.reduce(
       (acc, item) => {
         acc[item.stage] += 1;
@@ -1158,9 +1784,10 @@ export function createDealProjectionsWorkflow(
     const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
     const queueContext = classifyFinanceQueue(workflow);
     const acceptedQuoteDetails = workflow.acceptedQuote
-      ? quotesResult.data
+      ? (quotesResult.data
           .map(serializeCrmPricingQuote)
-          .find((quote) => quote.id === workflow.acceptedQuote?.quoteId) ?? null
+          .find((quote) => quote.id === workflow.acceptedQuote?.quoteId) ??
+        null)
       : null;
 
     return {
@@ -1179,7 +1806,8 @@ export function createDealProjectionsWorkflow(
       pricing: {
         quoteEligibility: isQuoteEligible(workflow),
         requestedAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
-        requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+        requestedCurrencyId:
+          workflow.intake.moneyRequest.sourceCurrencyId ?? null,
         targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
       },
       profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
@@ -1191,7 +1819,8 @@ export function createDealProjectionsWorkflow(
       },
       summary: {
         ...workflow.summary,
-        applicantDisplayName: getApplicantParticipant(workflow)?.displayName ?? null,
+        applicantDisplayName:
+          getApplicantParticipant(workflow)?.displayName ?? null,
         internalEntityDisplayName:
           getInternalEntityParticipant(workflow)?.displayName ?? null,
       },
@@ -1213,54 +1842,62 @@ export function createDealProjectionsWorkflow(
     });
 
     const queueItems = await Promise.all(
-      listedDeals.data.map(async (deal): Promise<FinanceDealQueueItem | null> => {
-        const workflow = await deps.deals.deals.queries.findWorkflowById(deal.id);
+      listedDeals.data.map(
+        async (deal): Promise<FinanceDealQueueItem | null> => {
+          const workflow = await deps.deals.deals.queries.findWorkflowById(
+            deal.id,
+          );
 
-        if (!workflow) {
-          return null;
-        }
+          if (!workflow) {
+            return null;
+          }
 
-        const applicantName = getApplicantParticipant(workflow)?.displayName ?? null;
-        const internalEntityName =
-          getInternalEntityParticipant(workflow)?.displayName ?? null;
+          const applicantName =
+            getApplicantParticipant(workflow)?.displayName ?? null;
+          const internalEntityName =
+            getInternalEntityParticipant(workflow)?.displayName ?? null;
 
-        if (
-          !matchesTextFilter(applicantName, filters.applicant) ||
-          !matchesTextFilter(internalEntityName, filters.internalEntity)
-        ) {
-          return null;
-        }
+          if (
+            !matchesTextFilter(applicantName, filters.applicant) ||
+            !matchesTextFilter(internalEntityName, filters.internalEntity)
+          ) {
+            return null;
+          }
 
-        const currentCalculation = workflow.summary.calculationId
-          ? await deps.calculations.calculations.queries.findById(
-              workflow.summary.calculationId,
-            )
-          : null;
+          const currentCalculation = workflow.summary.calculationId
+            ? await deps.calculations.calculations.queries.findById(
+                workflow.summary.calculationId,
+              )
+            : null;
 
-        const attachments = await deps.files.files.queries.listDealAttachments(deal.id);
-        const queueContext = classifyFinanceQueue(workflow);
+          const attachments =
+            await deps.files.files.queries.listDealAttachments(deal.id);
+          const queueContext = classifyFinanceQueue(workflow);
 
-        return {
-          applicantName,
-          blockingReasons: queueContext.blockers,
-          createdAt: workflow.summary.createdAt,
-          dealId: workflow.summary.id,
-          documentSummary: {
-            attachmentCount: attachments.length,
-            formalDocumentCount: workflow.relatedResources.formalDocuments.length,
-          },
-          executionSummary: summarizeExecutionPlan(workflow),
-          internalEntityName,
-          nextAction: workflow.nextAction,
-          operationalState: workflow.operationalState,
-          profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
-          queue: queueContext.queue,
-          queueReason: queueContext.queueReason,
-          quoteSummary: buildPortalQuoteSummary(workflow),
-          status: workflow.summary.status,
-          type: workflow.summary.type,
-        };
-      }),
+          return {
+            applicantName,
+            blockingReasons: queueContext.blockers,
+            createdAt: workflow.summary.createdAt,
+            dealId: workflow.summary.id,
+            documentSummary: {
+              attachmentCount: attachments.length,
+              formalDocumentCount:
+                workflow.relatedResources.formalDocuments.length,
+            },
+            executionSummary: summarizeExecutionPlan(workflow),
+            internalEntityName,
+            nextAction: workflow.nextAction,
+            operationalState: workflow.operationalState,
+            profitabilitySnapshot:
+              buildProfitabilitySnapshot(currentCalculation),
+            queue: queueContext.queue,
+            queueReason: queueContext.queueReason,
+            quoteSummary: buildPortalQuoteSummary(workflow),
+            status: workflow.summary.status,
+            type: workflow.summary.type,
+          };
+        },
+      ),
     );
 
     const filteredItems = queueItems.filter(
@@ -1289,8 +1926,12 @@ export function createDealProjectionsWorkflow(
   }
 
   return {
+    getCrmDealsStats,
     getPortalDealProjection,
+    listCrmDeals,
     listCrmDealBoard,
+    listCrmDealsByDay,
+    listCrmDealsByStatus,
     getCrmDealWorkbenchProjection,
     getFinanceDealWorkspaceProjection,
     listFinanceDealQueues,

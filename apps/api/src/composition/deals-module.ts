@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
-
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { DrizzleCalculationReads } from "@bedrock/calculations/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
@@ -17,6 +15,7 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -25,7 +24,6 @@ import {
   type Database,
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
-import { fxQuotes } from "@bedrock/treasury/schema";
 
 export function createApiDealsModule(input: {
   currencies: Pick<CurrenciesService, "findById">;
@@ -35,12 +33,23 @@ export function createApiDealsModule(input: {
   logger: Logger;
   now?: DealsModuleDeps["now"];
   persistence?: PersistenceContext;
+  quoteReads: {
+    findById(id: string): Promise<{
+      dealId: string | null;
+      expiresAt: Date | null;
+      id: string;
+      status: string;
+      usedAt: Date | null;
+      usedDocumentId: string | null;
+    } | null>;
+  };
 }): DealsModule {
   const customerReads = new DrizzleCustomerReads(input.db);
   const counterpartyReads = new DrizzleCounterpartyReads(input.db);
   const calculationReads = new DrizzleCalculationReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
   const currenciesQueries = createCurrenciesQueries({ db: input.db });
+  const partiesQueries = createPartiesQueries({ db: input.db });
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
   const agreementReadsWithCurrencies = new DrizzleAgreementReads(
     input.db,
@@ -55,6 +64,7 @@ export function createApiDealsModule(input: {
     reads: new DrizzleDealReads(
       input.db,
       currenciesQueries,
+      partiesQueries,
       documentsReadModel,
     ),
     references: {
@@ -93,18 +103,7 @@ export function createApiDealsModule(input: {
         return customerReads.findById(id);
       },
       async findQuoteById(id: string) {
-        const [quote] = await input.db
-          .select({
-            dealId: fxQuotes.dealId,
-            expiresAt: fxQuotes.expiresAt,
-            id: fxQuotes.id,
-            status: fxQuotes.status,
-            usedAt: fxQuotes.usedAt,
-            usedDocumentId: fxQuotes.usedDocumentId,
-          })
-          .from(fxQuotes)
-          .where(eq(fxQuotes.id, id))
-          .limit(1);
+        const quote = await input.quoteReads.findById(id);
 
         if (!quote) {
           return null;

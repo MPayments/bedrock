@@ -4,6 +4,7 @@ import { createResourceSearchParamsCache } from "@/lib/resources/search-params";
 import type { ResourceSearchParams } from "@/lib/resources/search-params";
 
 import {
+  FINANCE_DEAL_BLOCKER_STATE_VALUES,
   FINANCE_DEAL_QUEUE_VALUES,
   FINANCE_DEAL_STATUS_VALUES,
   FINANCE_DEAL_TYPE_VALUES,
@@ -20,6 +21,11 @@ const FINANCE_DEALS_SORTABLE_COLUMNS = [
 
 interface FinanceDealsListFilters {
   applicant: { kind: "string"; cardinality: "single" };
+  blockerState: {
+    kind: "string";
+    cardinality: "single";
+    enumValues: typeof FINANCE_DEAL_BLOCKER_STATE_VALUES;
+  };
   internalEntity: { kind: "string"; cardinality: "single" };
   queue: {
     kind: "string";
@@ -46,6 +52,11 @@ export const FINANCE_DEALS_LIST_CONTRACT: ListQueryContract<
   defaultSort: { id: "createdAt", desc: true },
   filters: {
     applicant: { kind: "string", cardinality: "single" },
+    blockerState: {
+      kind: "string",
+      cardinality: "single",
+      enumValues: FINANCE_DEAL_BLOCKER_STATE_VALUES,
+    },
     internalEntity: { kind: "string", cardinality: "single" },
     queue: {
       kind: "string",
@@ -71,6 +82,7 @@ export const searchParamsCache = createResourceSearchParamsCache(
 
 export type FinanceDealsSearchParams = ResourceSearchParams & {
   applicant?: string | null;
+  blockerState?: string | null;
   createdAt?: string | null;
   internalEntity?: string | null;
   queue?: string | null;
@@ -80,4 +92,3 @@ export type FinanceDealsSearchParams = ResourceSearchParams & {
 
 export type FinanceDealsSortId =
   (typeof FINANCE_DEALS_SORTABLE_COLUMNS)[number];
-

@@ -57,6 +57,7 @@ describe("finance deals table", () => {
       "queue",
       "type",
       "status",
+      "blockerState",
       "nextAction",
       "executionSummary",
       "documentSummary",
@@ -64,6 +65,9 @@ describe("finance deals table", () => {
       "actions",
     ]);
     expect(props.initialState).toEqual({
+      columnVisibility: {
+        blockerState: false,
+      },
       sorting: [{ id: "createdAt", desc: true }],
     });
     expect(props.getRowId({ dealId: "deal-1" })).toBe("deal-1");

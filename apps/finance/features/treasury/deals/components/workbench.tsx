@@ -50,6 +50,10 @@ import type {
   FinanceDealWorkbench,
 } from "@/features/treasury/deals/lib/queries";
 import {
+  collectFinanceDealTopBlockers,
+  getFinanceDealExecutionProgress,
+} from "@/features/treasury/deals/lib/execution-summary";
+import {
   formatCapabilityIssue,
   formatDealNextAction,
   formatDealWorkflowMessage,
@@ -82,6 +86,7 @@ import {
 import { executeMutation } from "@/lib/resources/http";
 import { formatDate, formatMajorAmount } from "@/lib/format";
 
+import { ExecutionSummaryRail } from "./execution-summary-rail";
 import { formatFileSize, getFileIcon } from "./file-utils";
 import { QuoteRequestDialog } from "./quote-request-dialog";
 import { UploadAttachmentDialog } from "./upload-attachment-dialog";
@@ -89,21 +94,21 @@ import { FinanceDealWorkspaceLayout } from "./workspace-layout";
 
 type DealPageTab = "overview" | "pricing" | "documents" | "execution";
 
-const DEFAULT_DEAL_PAGE_TAB: DealPageTab = "overview";
+const DEFAULT_DEAL_PAGE_TAB: DealPageTab = "execution";
 const DEAL_PAGE_TAB_META: Array<{
   icon: typeof Wallet;
   label: string;
   value: DealPageTab;
 }> = [
   {
+    icon: Workflow,
+    label: "Исполнение",
+    value: "execution",
+  },
+  {
     icon: Info,
     label: "Информация",
     value: "overview",
-  },
-  {
-    icon: Wallet,
-    label: "Котировки и расчет",
-    value: "pricing",
   },
   {
     icon: FileText,
@@ -111,9 +116,9 @@ const DEAL_PAGE_TAB_META: Array<{
     value: "documents",
   },
   {
-    icon: Workflow,
-    label: "Исполнение",
-    value: "execution",
+    icon: Wallet,
+    label: "Котировки и расчет",
+    value: "pricing",
   },
 ];
 
@@ -249,56 +254,6 @@ function findQuoteDetailsById(
   return deal.quoteHistory.find((quote) => quote.id === quoteId) ?? null;
 }
 
-function collectTopBlockers(deal: FinanceDealWorkbench) {
-  const messages = new Set<string>();
-
-  deal.queueContext.blockers.forEach((blocker) =>
-    messages.add(formatDealWorkflowMessage(blocker)),
-  );
-
-  deal.attachmentRequirements
-    .filter((item) => item.state === "missing")
-    .forEach((item) => {
-      item.blockingReasons.forEach((reason) =>
-        messages.add(formatDealWorkflowMessage(reason)),
-      );
-    });
-
-  deal.formalDocumentRequirements
-    .filter((item) => item.state === "missing" || item.state === "in_progress")
-    .forEach((item) => {
-      item.blockingReasons.forEach((reason) =>
-        messages.add(formatDealWorkflowMessage(reason)),
-      );
-    });
-
-  deal.operationalState.capabilities
-    .filter((item) => item.status !== "enabled")
-    .forEach((item) =>
-      messages.add(
-        formatCapabilityIssue({
-          kind: item.kind,
-          status: item.status,
-        }),
-      ),
-    );
-
-  deal.operationalState.positions
-    .filter(
-      (item) =>
-        isPrimaryOperationalPositionVisible(item.kind) && item.state === "blocked",
-    )
-    .forEach((item) =>
-      messages.add(
-        formatOperationalPositionIssue({
-          kind: item.kind,
-        }),
-      ),
-    );
-
-  return Array.from(messages).slice(0, 4);
-}
-
 function refreshPage(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
@@ -353,22 +308,10 @@ function DealContextContent({ deal }: DealContextContentProps) {
 }
 
 type OverviewTabProps = {
-  calculationDisabledReason: string | null;
   deal: FinanceDealWorkbench;
-  quoteCreationDisabledReason: string | null;
 };
 
-function OverviewTab({
-  calculationDisabledReason,
-  deal,
-  quoteCreationDisabledReason,
-}: OverviewTabProps) {
-  const blockers = collectTopBlockers(deal).slice(0, 3);
-  const actionNotes = [
-    quoteCreationDisabledReason,
-    calculationDisabledReason,
-  ].filter((value): value is string => Boolean(value));
-
+function OverviewTab({ deal }: OverviewTabProps) {
   return (
     <Card>
       <CardHeader className="border-b">
@@ -390,11 +333,71 @@ function OverviewTab({
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <div className="space-y-2">
-          <div className="text-sm font-medium">Что нужно сделать сейчас</div>
-          <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-            <div className="text-muted-foreground">Следующий шаг</div>
-            <div className="mt-1">{formatDealNextAction(deal.nextAction)}</div>
+        <div className="space-y-3">
+          <div className="text-sm font-medium">Контекст сделки</div>
+          <DealContextContent deal={deal} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DealExecutionHeaderSummary({ deal }: { deal: FinanceDealWorkbench }) {
+  const blockers = collectFinanceDealTopBlockers(deal);
+  const executionProgress = getFinanceDealExecutionProgress(deal);
+
+  return (
+    <Card className="border-muted-foreground/10 bg-gradient-to-br from-background via-background to-muted/30">
+      <CardContent className="space-y-5 pt-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
+            {getFinanceDealStatusLabel(deal.summary.status)}
+          </Badge>
+          <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
+            {getFinanceDealQueueLabel(deal.queueContext.queue)}
+          </Badge>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(3,minmax(0,180px))]">
+          <div className="rounded-lg border bg-background/70 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Причина очереди
+            </div>
+            <div className="mt-1 text-sm font-medium">
+              {formatDealWorkflowMessage(deal.queueContext.queueReason)}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-background/70 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Следующий шаг
+            </div>
+            <div className="mt-1 text-sm font-medium">
+              {formatDealNextAction(deal.nextAction)}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-background/70 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Завершено
+            </div>
+            <div className="mt-1 text-lg font-semibold">
+              {executionProgress.doneLegCount}/{executionProgress.totalLegCount}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-background/70 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Заблокировано
+            </div>
+            <div className="mt-1 text-lg font-semibold">
+              {executionProgress.blockedLegCount}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-background/70 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Операционных вопросов
+            </div>
+            <div className="mt-1 text-lg font-semibold">
+              {executionProgress.issueCount}
+            </div>
           </div>
         </div>
 
@@ -403,35 +406,16 @@ function OverviewTab({
           {blockers.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {blockers.map((blocker) => (
-                <li key={blocker} className="rounded-lg border px-4 py-3">
+                <li key={blocker} className="rounded-lg border bg-background/70 px-4 py-3">
                   {blocker}
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed bg-background/70 px-4 py-3 text-sm text-muted-foreground">
               Критичных блокировок сейчас нет.
             </div>
           )}
-        </div>
-
-        {actionNotes.length > 0 ? (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Ограничения действий</div>
-            {actionNotes.slice(0, 2).map((note) => (
-              <div
-                key={note}
-                className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground"
-              >
-                {note}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="space-y-3">
-          <div className="text-sm font-medium">Контекст сделки</div>
-          <DealContextContent deal={deal} />
         </div>
       </CardContent>
     </Card>
@@ -1185,8 +1169,9 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
 
-  const activeTab = isDealPageTab(searchParams.get("tab"))
-    ? searchParams.get("tab")
+  const tabParam = searchParams.get("tab");
+  const activeTab = isDealPageTab(tabParam)
+    ? tabParam
     : DEFAULT_DEAL_PAGE_TAB;
   const quoteCreationDisabledReason = getQuoteCreationDisabledReason(deal);
   const calculationDisabledReason = getCalculationDisabledReason(deal);
@@ -1389,49 +1374,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     <>
       <FinanceDealWorkspaceLayout
         title={title}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              disabled={Boolean(quoteCreationDisabledReason)}
-              onClick={() => setIsQuoteDialogOpen(true)}
-            >
-              <Wallet className="mr-2 h-4 w-4" />
-              Запросить котировку
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={Boolean(calculationDisabledReason) || isCreatingCalculation}
-              onClick={handleCreateCalculation}
-            >
-              <WalletCards className="mr-2 h-4 w-4" />
-              {isCreatingCalculation ? "Создаем..." : "Создать расчет"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!deal.actions.canUploadAttachment}
-              onClick={() => setIsUploadDialogOpen(true)}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Загрузить вложение
-            </Button>
-          </div>
-        }
         controls={
           <EntityWorkspaceTabs value={activeTab} tabs={workspaceTabs} />
         }
       >
         <div className="space-y-6">
+          <DealExecutionHeaderSummary deal={deal} />
+
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <div className="space-y-6">
               {activeTab === "overview" ? (
-                <OverviewTab
-                  calculationDisabledReason={calculationDisabledReason}
-                  deal={deal}
-                  quoteCreationDisabledReason={quoteCreationDisabledReason}
-                />
+                <OverviewTab deal={deal} />
               ) : null}
               {activeTab === "pricing" ? (
                 <PricingTab
@@ -1466,16 +1419,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
             </div>
 
             <div className="space-y-6">
-              {activeTab !== "overview" ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Контекст сделки</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <DealContextContent deal={deal} />
-                  </CardContent>
-                </Card>
-              ) : null}
+              <ExecutionSummaryRail deal={deal} />
 
               <Card>
                 <CardHeader>
@@ -1495,6 +1439,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   ))}
                 </CardContent>
               </Card>
+
+              {activeTab !== "overview" ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Контекст сделки</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <DealContextContent deal={deal} />
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
           </div>
         </div>

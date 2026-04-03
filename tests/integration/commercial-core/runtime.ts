@@ -12,6 +12,7 @@ import { currencies } from "../../../packages/modules/currencies/src/infra/drizz
 import { createDealsModule } from "../../../packages/modules/deals/src";
 import { DrizzleDealReads, DrizzleDealsUnitOfWork } from "../../../packages/modules/deals/src/adapters/drizzle";
 import { createPartiesModule } from "../../../packages/modules/parties/src";
+import { createPartiesQueries } from "../../../packages/modules/parties/src/queries";
 import {
   DrizzleCounterpartyGroupReads,
   DrizzleCounterpartyReads,
@@ -46,9 +47,10 @@ export function createCommercialCoreRuntime() {
   const now = createTestClock();
   const persistence = createPersistenceContext(db);
   const currenciesQueries = createCurrenciesQueries({ db });
+  const partiesQueries = createPartiesQueries({ db });
   const agreementReads = new DrizzleAgreementReads(db, currenciesQueries);
   const calculationReads = new DrizzleCalculationReads(db);
-  const dealReads = new DrizzleDealReads(db, currenciesQueries);
+  const dealReads = new DrizzleDealReads(db, currenciesQueries, partiesQueries);
 
   const idempotency = {
     async withIdempotencyTx<TResult>({

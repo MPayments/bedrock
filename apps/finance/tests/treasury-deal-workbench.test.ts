@@ -6,6 +6,7 @@ import type { FinanceDealWorkbench as FinanceDealWorkbenchData } from "@/feature
 
 const replace = vi.fn();
 const refresh = vi.fn();
+let searchParamsValue = "";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
@@ -13,7 +14,7 @@ vi.mock("next/navigation", () => ({
     refresh,
     replace,
   }),
-  useSearchParams: () => new URLSearchParams("tab=overview"),
+  useSearchParams: () => new URLSearchParams(searchParamsValue),
 }));
 
 vi.mock("@/features/treasury/deals/components/quote-request-dialog", () => ({
@@ -117,9 +118,10 @@ function createDeal(): FinanceDealWorkbenchData {
 describe("treasury deal workbench", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchParamsValue = "";
   });
 
-  it("renders the current action summary only once on the overview page", async () => {
+  it("opens the execution tab by default and keeps the operational summary centralized", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -136,10 +138,67 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup.match(/Что нужно сделать сейчас/g)).toHaveLength(1);
+    expect(markup).toContain("Этапы исполнения");
+    expect(markup).toContain("Операционная готовность");
+    expect(markup).toContain("Контур исполнения");
+    expect(markup).toContain("Причина очереди");
+    expect(markup).not.toContain("Обзор сделки");
+    expect(markup).not.toContain("Что нужно сделать сейчас");
+    expect(markup).not.toContain("Запросить котировку");
+    expect(markup).not.toContain("Создать расчет");
+    expect(markup.match(/Что мешает движению сделки/g)).toHaveLength(1);
     expect(
       markup.match(/Не заполнен обязательный участник: получатель выплаты\./g),
     ).toHaveLength(1);
-    expect(markup).not.toContain("Что блокирует движение сделки");
+  });
+
+  it("keeps the shared header on overview without duplicating next-step sections", async () => {
+    searchParamsValue = "tab=overview";
+
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal: createDeal(),
+      }),
+    );
+
+    expect(markup).toContain("Обзор сделки");
+    expect(markup.match(/Следующий шаг/g)).toHaveLength(1);
+    expect(markup.match(/Что мешает движению сделки/g)).toHaveLength(1);
+    expect(markup).not.toContain("Что нужно сделать сейчас");
+    expect(markup).not.toContain("Запросить котировку");
+    expect(markup).not.toContain("Создать расчет");
+  });
+
+  it("shows pricing actions only inside the pricing tab", async () => {
+    searchParamsValue = "tab=pricing";
+
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal: createDeal(),
+      }),
+    );
+
+    expect(markup.match(/Запросить котировку/g)).toHaveLength(1);
+    expect(markup.match(/Создать расчет/g)).toHaveLength(1);
   });
 });

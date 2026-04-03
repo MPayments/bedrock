@@ -28,6 +28,7 @@ import {
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
 } from "@bedrock/parties/adapters/drizzle";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -152,6 +153,7 @@ export function createWorkerImplementations(
     objectStorage,
     reads: new DrizzleFileReads(deps.db),
   });
+  const partiesQueries = createPartiesQueries({ db: deps.db });
   const dealsModule = createDealsModule({
     commandUow: new DrizzleDealsUnitOfWork({
       bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
@@ -163,7 +165,12 @@ export function createWorkerImplementations(
     },
     logger: deps.logger,
     now: () => new Date(),
-    reads: new DrizzleDealReads(deps.db, currenciesQueries, documentsReadModel),
+    reads: new DrizzleDealReads(
+      deps.db,
+      currenciesQueries,
+      partiesQueries,
+      documentsReadModel,
+    ),
     references: {
       async findAgreementById(id: string) {
         const agreement = await agreementReads.findById(id);

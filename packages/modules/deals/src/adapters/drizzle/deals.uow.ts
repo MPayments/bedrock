@@ -1,4 +1,5 @@
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
   createTransactionalPort,
   type Queryable,
@@ -26,6 +27,7 @@ function bindDealsTx(
     dealReads: new DrizzleDealReads(
       transaction,
       createCurrenciesQueries({ db: transaction }),
+      createPartiesQueries({ db: transaction }),
       bindDocumentsReadModel?.(transaction),
     ),
     dealStore: new DrizzleDealStore(transaction),

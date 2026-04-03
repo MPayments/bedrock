@@ -27,6 +27,7 @@
     "lint": "turbo run lint",
     "check:architecture": "node ./scripts/check-architecture.mjs",
     "check:manifests": "node ./scripts/check-manifests.mjs",
+    "check:hotspots": "node ./scripts/check-hotspots.mjs",
     "check:boundaries": "bun run check:architecture && bun run check:manifests",
     "check:cycles": "bun run check:architecture",
     "check:workspace-deps": "bun run check:manifests",

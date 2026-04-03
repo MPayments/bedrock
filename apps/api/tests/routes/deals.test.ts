@@ -26,7 +26,6 @@ vi.mock("../../src/auth", () => ({
 }));
 
 import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
-import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -194,9 +193,13 @@ function createWorkflowProjection() {
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
   const dealProjectionsWorkflow = {
+    getCrmDealsStats: vi.fn(),
     getCrmDealWorkbenchProjection: vi.fn(),
     getFinanceDealWorkspaceProjection: vi.fn(),
+    listCrmDeals: vi.fn(),
     listCrmDealBoard: vi.fn(),
+    listCrmDealsByDay: vi.fn(),
+    listCrmDealsByStatus: vi.fn(),
     listFinanceDealQueues: vi.fn(),
   };
   const dealQuoteWorkflow = {
@@ -286,89 +289,32 @@ describe("deals routes", () => {
   it("lists, fetches, and creates canonical deals", async () => {
     const {
       app,
-      calculationsModule,
-      currenciesService,
+      dealProjectionsWorkflow,
       dealsModule,
-      iamService,
-      partiesModule,
     } = createTestApp();
     const detail = createDealDetail();
-    const now = detail.createdAt;
-    dealsModule.deals.queries.list.mockResolvedValue({
+    dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
       data: [
         {
-          id: detail.id,
-          customerId: detail.customerId,
-          agreementId: detail.agreementId,
-          calculationId: detail.calculationId,
-          type: detail.type,
-          status: detail.status,
+          agentName: "Agent Smith",
+          amount: 100,
+          amountInBase: 90,
+          baseCurrencyCode: "RUB",
+          client: "Customer One",
+          clientId: detail.customerId,
+          closedAt: null,
           comment: detail.comment,
-          intakeComment: null,
-          nextAction: null,
-          reason: "Supplier payment",
-          requestedAmount: "100.00",
-          requestedCurrencyId: "00000000-0000-4000-8000-000000000006",
-          revision: 1,
-          createdAt: detail.createdAt,
-          updatedAt: detail.updatedAt,
-          agentId: "agent-1",
+          createdAt: detail.createdAt.toISOString(),
+          currency: "USD",
+          feePercentage: 1.5,
+          id: detail.id,
+          status: detail.status,
+          updatedAt: detail.updatedAt.toISOString(),
         },
       ],
       total: 1,
-      limit: MAX_QUERY_LIST_LIMIT,
+      limit: 20,
       offset: 0,
-    });
-    partiesModule.customers.queries.findById.mockResolvedValue({
-      id: detail.customerId,
-      displayName: "Customer One",
-    });
-    iamService.queries.findById.mockResolvedValue({
-      id: "agent-1",
-      name: "Agent Smith",
-    });
-    calculationsModule.calculations.queries.findById.mockResolvedValue({
-      id: detail.calculationId,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      currentSnapshot: {
-        id: "00000000-0000-4000-8000-000000000099",
-        snapshotNumber: 1,
-        calculationCurrencyId: "00000000-0000-4000-8000-000000000006",
-        originalAmountMinor: "10000",
-        feeBps: "150",
-        feeAmountMinor: "150",
-        totalAmountMinor: "10150",
-        baseCurrencyId: "00000000-0000-4000-8000-000000000007",
-        feeAmountInBaseMinor: "135",
-        totalInBaseMinor: "9000",
-        additionalExpensesCurrencyId: null,
-        additionalExpensesAmountMinor: "0",
-        additionalExpensesInBaseMinor: "0",
-        totalWithExpensesInBaseMinor: "9000",
-        rateSource: "manual",
-        rateNum: "90",
-        rateDen: "1",
-        additionalExpensesRateSource: null,
-        additionalExpensesRateNum: null,
-        additionalExpensesRateDen: null,
-        calculationTimestamp: now,
-        fxQuoteId: null,
-        quoteSnapshot: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-      lines: [],
-    });
-    currenciesService.findById.mockImplementation(async (id: string) => {
-      if (id === "00000000-0000-4000-8000-000000000006") {
-        return { id, code: "USD", precision: 2 };
-      }
-      if (id === "00000000-0000-4000-8000-000000000007") {
-        return { id, code: "RUB", precision: 2 };
-      }
-      throw new Error(`Unknown currency ${id}`);
     });
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
     dealsModule.deals.commands.create.mockResolvedValue(detail);
@@ -396,9 +342,8 @@ describe("deals routes", () => {
     expect(getResponse.status).toBe(200);
     expect(createResponse.status).toBe(201);
 
-    expect(dealsModule.deals.queries.list).toHaveBeenCalledWith({
-      customerId: undefined,
-      limit: MAX_QUERY_LIST_LIMIT,
+    expect(dealProjectionsWorkflow.listCrmDeals).toHaveBeenCalledWith({
+      limit: 20,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
@@ -491,6 +436,70 @@ describe("deals routes", () => {
 
     expect(response.status).toBe(200);
     expect(dealProjectionsWorkflow.listCrmDealBoard).toHaveBeenCalledOnce();
+  });
+
+  it("delegates CRM deals list projections to the workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
+      data: [],
+      limit: 20,
+      offset: 0,
+      total: 0,
+    });
+
+    const response = await app.request(
+      "http://localhost/deals?sortBy=createdAt&sortOrder=desc&limit=20&offset=0",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealProjectionsWorkflow.listCrmDeals).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+  });
+
+  it("delegates CRM stats and bucketed projections to the workflow", async () => {
+    const { app, dealProjectionsWorkflow } = createTestApp();
+    dealProjectionsWorkflow.getCrmDealsStats.mockResolvedValue({
+      byStatus: { draft: 1 },
+      totalAmount: "10000",
+      totalCount: 1,
+    });
+    dealProjectionsWorkflow.listCrmDealsByStatus.mockResolvedValue({
+      done: [],
+      inProgress: [],
+      pending: [],
+    });
+    dealProjectionsWorkflow.listCrmDealsByDay.mockResolvedValue([
+      {
+        amount: 100,
+        closedAmount: 0,
+        closedCount: 0,
+        count: 1,
+        date: "2026-03-30",
+        RUB: 100,
+      },
+    ]);
+
+    const [statsResponse, byStatusResponse, byDayResponse] = await Promise.all([
+      app.request("http://localhost/deals/stats?dateFrom=2026-03-01&dateTo=2026-03-31"),
+      app.request("http://localhost/deals/by-status"),
+      app.request("http://localhost/deals/by-day?dateFrom=2026-03-01"),
+    ]);
+
+    expect(statsResponse.status).toBe(200);
+    expect(byStatusResponse.status).toBe(200);
+    expect(byDayResponse.status).toBe(200);
+    expect(dealProjectionsWorkflow.getCrmDealsStats).toHaveBeenCalledWith({
+      dateFrom: "2026-03-01",
+      dateTo: "2026-03-31",
+    });
+    expect(dealProjectionsWorkflow.listCrmDealsByStatus).toHaveBeenCalledOnce();
+    expect(dealProjectionsWorkflow.listCrmDealsByDay).toHaveBeenCalledWith({
+      dateFrom: "2026-03-01",
+    });
   });
 
   it("returns 404 when a deal is missing", async () => {

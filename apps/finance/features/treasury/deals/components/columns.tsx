@@ -10,6 +10,7 @@ import type { FinanceDealListItem } from "@/features/treasury/deals/lib/queries"
 import {
   formatDealNextAction,
   formatDealWorkflowMessage,
+  getFinanceDealBlockerStateOptions,
   getFinanceDealQueueLabel,
   getFinanceDealQueueOptions,
   getFinanceDealQueueVariant,
@@ -115,6 +116,20 @@ export const columns: ColumnDef<FinanceDealListItem>[] = [
     },
     enableColumnFilter: true,
     enableSorting: true,
+  },
+  {
+    id: "blockerState",
+    accessorFn: (row) => row.blockerState,
+    header: () => null,
+    cell: () => null,
+    meta: {
+      label: "Блокеры",
+      options: getFinanceDealBlockerStateOptions(),
+      variant: "select",
+    },
+    enableColumnFilter: true,
+    enableHiding: false,
+    enableSorting: false,
   },
   {
     accessorKey: "nextAction",

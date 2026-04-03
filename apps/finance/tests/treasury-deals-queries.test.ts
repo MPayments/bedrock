@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries";
+
 const headers = vi.fn();
 const fetchMock = vi.fn();
 
@@ -7,7 +9,7 @@ vi.mock("next/headers", () => ({
   headers,
 }));
 
-function createFinanceWorkspacePayload() {
+function createFinanceWorkspacePayload(): FinanceDealWorkspace {
   return {
     acceptedQuote: {
       acceptedAt: "2026-04-02T08:15:00.000Z",
@@ -77,10 +79,14 @@ function createFinanceWorkspacePayload() {
     operationalState: {
       capabilities: [
         {
+          applicantCounterpartyId: null,
+          internalEntityOrganizationId: null,
           kind: "can_collect",
           note: null,
           reasonCode: null,
           status: "enabled",
+          updatedAt: null,
+          updatedByUserId: null,
         },
       ],
       positions: [
@@ -235,6 +241,7 @@ describe("treasury deals queries", () => {
 
     const result = await getFinanceDeals({
       applicant: "ООО",
+      blockerState: "clear",
       page: 2,
       perPage: 1,
       queue: "execution",
@@ -255,12 +262,162 @@ describe("treasury deals queries", () => {
       data: [
         expect.objectContaining({
           applicantName: "ООО Бета",
+          blockerState: "clear",
           dealId: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
         }),
       ],
       total: 2,
       limit: 1,
       offset: 1,
+    });
+  });
+
+  it("filters blocker state locally before pagination", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        counts: {
+          execution: 2,
+          failed_instruction: 1,
+          funding: 1,
+        },
+        filters: {},
+        items: [
+          {
+            applicantName: "ООО Блок",
+            blockingReasons: ["Required intake sections are incomplete"],
+            createdAt: "2026-04-03T00:00:00.000Z",
+            dealId: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
+            documentSummary: {
+              attachmentCount: 1,
+              formalDocumentCount: 2,
+            },
+            executionSummary: {
+              blockedLegCount: 1,
+              doneLegCount: 0,
+              totalLegCount: 2,
+            },
+            internalEntityName: "Орг Б",
+            nextAction: "Подготовить платеж",
+            profitabilitySnapshot: null,
+            queue: "execution",
+            queueReason: "Сделка ожидает исполнения",
+            quoteSummary: null,
+            status: "awaiting_payment",
+            type: "payment",
+          },
+          {
+            applicantName: "ООО Ошибка",
+            blockingReasons: [],
+            createdAt: "2026-04-02T00:00:00.000Z",
+            dealId: "b21972b4-aee0-45fb-86f8-b4175b42b39c",
+            documentSummary: {
+              attachmentCount: 0,
+              formalDocumentCount: 1,
+            },
+            executionSummary: {
+              blockedLegCount: 0,
+              doneLegCount: 0,
+              totalLegCount: 1,
+            },
+            internalEntityName: "Орг А",
+            nextAction: "Проверить документы",
+            profitabilitySnapshot: null,
+            queue: "failed_instruction",
+            queueReason: "Сделка заблокирована на этапе исполнения",
+            quoteSummary: null,
+            status: "submitted",
+            type: "currency_exchange",
+          },
+          {
+            applicantName: "ООО Чисто",
+            blockingReasons: [],
+            createdAt: "2026-04-01T00:00:00.000Z",
+            dealId: "f26f1b6e-7509-480d-9b3c-caa836ea0ae5",
+            documentSummary: {
+              attachmentCount: 0,
+              formalDocumentCount: 0,
+            },
+            executionSummary: {
+              blockedLegCount: 0,
+              doneLegCount: 0,
+              totalLegCount: 1,
+            },
+            internalEntityName: "Орг В",
+            nextAction: "Продолжить обработку",
+            profitabilitySnapshot: null,
+            queue: "funding",
+            queueReason: "Сделка находится на этапе фондирования",
+            quoteSummary: null,
+            status: "draft",
+            type: "payment",
+          },
+        ],
+      }),
+    });
+
+    const { getFinanceDeals } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const blocked = await getFinanceDeals({
+      blockerState: "blocked",
+      page: 1,
+      perPage: 1,
+      sort: [{ id: "createdAt", desc: true }],
+    });
+
+    const clear = await getFinanceDeals({
+      blockerState: "clear",
+      page: 1,
+      perPage: 10,
+      sort: [{ id: "createdAt", desc: true }],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/v1/deals/finance/queues?",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/v1/deals/finance/queues?",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(blocked).toEqual({
+      data: [
+        expect.objectContaining({
+          applicantName: "ООО Блок",
+          blockerState: "blocked",
+        }),
+      ],
+      total: 2,
+      limit: 1,
+      offset: 0,
+    });
+    expect(clear).toEqual({
+      data: [
+        expect.objectContaining({
+          applicantName: "ООО Чисто",
+          blockerState: "clear",
+        }),
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
     });
   });
 
@@ -309,9 +466,14 @@ describe("treasury deals queries", () => {
 
   it("normalizes non-ISO quote timestamps from finance workspace", async () => {
     const workspacePayload = createFinanceWorkspacePayload();
+    const acceptedQuote = workspacePayload.acceptedQuote;
+
+    if (!acceptedQuote) {
+      throw new Error("expected accepted quote in workspace payload");
+    }
 
     workspacePayload.acceptedQuote = {
-      ...workspacePayload.acceptedQuote,
+      ...acceptedQuote,
       acceptedAt: "2026-04-02 08:15:00",
       expiresAt: "2026-04-02 09:15:00",
       usedAt: "2026-04-02 08:35:00",

@@ -10,7 +10,7 @@ import type {
   OrganizationRequisiteLiquidityQueryRow,
 } from "../../contracts";
 
-type OrganizationRequisiteBalancePositionRow = {
+interface OrganizationRequisiteBalancePositionRow {
   organizationId: string;
   requisiteId: string;
   currency: string;
@@ -18,7 +18,7 @@ type OrganizationRequisiteBalancePositionRow = {
   availableMinor: string;
   reservedMinor: string;
   pendingMinor: string;
-};
+}
 
 export function aggregateOrganizationRequisiteLiquidityRows(
   rows: OrganizationRequisiteBalancePositionRow[],

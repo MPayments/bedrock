@@ -9,11 +9,14 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import type { EntityListResult } from "@/components/entities/entity-table-shell";
+import { deriveFinanceDealBlockerState } from "@/features/treasury/deals/lib/execution-summary";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import {
+  FINANCE_DEAL_BLOCKER_STATE_VALUES,
   FINANCE_DEAL_QUEUE_VALUES,
   FINANCE_DEAL_STATUS_VALUES,
   FINANCE_DEAL_TYPE_VALUES,
+  type FinanceDealBlockerState,
   getFinanceDealQueueLabel,
   getFinanceDealStatusLabel,
   getFinanceDealTypeLabel,
@@ -26,6 +29,7 @@ import type { FinanceDealsSearchParams, FinanceDealsSortId } from "./validations
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
+const FinanceDealBlockerStateSchema = z.enum(FINANCE_DEAL_BLOCKER_STATE_VALUES);
 const FinanceDealQueueSchema = z.enum(FINANCE_DEAL_QUEUE_VALUES);
 const FinanceDealStatusSchema = z.enum(FINANCE_DEAL_STATUS_VALUES);
 const FinanceDealTypeSchema = z.enum(FINANCE_DEAL_TYPE_VALUES);
@@ -406,7 +410,10 @@ const FinanceDealBreadcrumbSchema = z.object({
   summary: FinanceDealSummarySchema,
 });
 
-type FinanceDealFilters = z.infer<typeof FinanceDealQueueFiltersSchema>;
+type FinanceDealApiFilters = z.infer<typeof FinanceDealQueueFiltersSchema>;
+type FinanceDealFilters = FinanceDealApiFilters & {
+  blockerState?: FinanceDealBlockerState;
+};
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
@@ -462,12 +469,16 @@ function resolvePagination(search: FinanceDealsSearchParams) {
 function createFinanceDealFilters(
   search: FinanceDealsSearchParams,
 ): FinanceDealFilters {
+  const blockerState = getStringValue(search.blockerState);
   const queue = getStringValue(search.queue);
   const status = getStringValue(search.status);
   const type = getStringValue(search.type);
 
   return {
     applicant: getStringValue(search.applicant),
+    blockerState: FinanceDealBlockerStateSchema.safeParse(blockerState).success
+      ? (blockerState as FinanceDealBlockerState)
+      : undefined,
     internalEntity: getStringValue(search.internalEntity),
     queue: FINANCE_DEAL_QUEUE_VALUES.includes(queue as FinanceDealQueue)
       ? (queue as FinanceDealQueue)
@@ -485,7 +496,7 @@ function createFinanceDealsPath(filters: FinanceDealFilters) {
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(filters)) {
-    if (value) {
+    if (key !== "blockerState" && value) {
       query.set(key, value);
     }
   }
@@ -514,7 +525,9 @@ export type FinanceDealCalculationHistoryItem = z.infer<
 export type FinanceDealFormalDocumentRequirement = z.infer<
   typeof FinanceDealFormalDocumentRequirementSchema
 >;
-export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema>;
+export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
+  blockerState: FinanceDealBlockerState;
+};
 export type FinanceDealQuoteItem = z.infer<typeof FinanceDealQuoteItemSchema>;
 export type FinanceDealsListResult = EntityListResult<FinanceDealListItem>;
 export type FinanceDealBreadcrumb = z.infer<typeof FinanceDealBreadcrumbSchema>;
@@ -533,8 +546,16 @@ export async function getFinanceDeals(
     "Не удалось загрузить сделки казначейства",
   );
   const payload = await readJsonWithSchema(response, FinanceDealsResponseSchema);
+  const filteredItems = payload.items
+    .map<FinanceDealListItem>((item) => ({
+      ...item,
+      blockerState: deriveFinanceDealBlockerState(item),
+    }))
+    .filter((item) =>
+      filters.blockerState ? item.blockerState === filters.blockerState : true,
+    );
   const { sortBy, sortOrder } = resolveSort(search);
-  const sortedItems = sortInMemory(payload.items, {
+  const sortedItems = sortInMemory(filteredItems, {
     sortBy,
     sortOrder,
     sortMap: FINANCE_DEAL_SORT_MAP,

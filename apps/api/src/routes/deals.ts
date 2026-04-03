@@ -1,18 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import {
-  and,
-  between,
-  count,
-  eq,
-  gte,
-  inArray,
-  lte,
-  sql,
-  sum,
-} from "drizzle-orm";
 
 import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
-import { currencies as currenciesTable } from "@bedrock/currencies/schema";
 import {
   AssignDealAgentInputSchema,
   CreateDealInputSchema,
@@ -29,17 +17,11 @@ import {
   UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
 import {
-  dealIntakeSnapshots as dealIntakeSnapshotsTable,
-  deals as dealsTable,
-} from "@bedrock/deals/schema";
-import {
   FileAttachmentPurposeSchema,
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
-import { customers as customersTable } from "@bedrock/parties/schema";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { minorToAmountString } from "@bedrock/shared/money";
 import {
   PreviewQuoteInputSchema,
   QuoteListItemSchema,
@@ -48,6 +30,13 @@ import {
 import {
   CrmDealBoardProjectionSchema,
   CrmDealWorkbenchProjectionSchema,
+  CrmDealsByDayItemSchema,
+  CrmDealsByDayQuerySchema,
+  CrmDealsByStatusSchema,
+  CrmDealsListProjectionSchema,
+  CrmDealsListQuerySchema,
+  CrmDealsStatsQuerySchema,
+  CrmDealsStatsSchema,
   FinanceDealQueueFiltersSchema,
   FinanceDealQueueProjectionSchema,
   FinanceDealWorkspaceProjectionSchema,
@@ -57,7 +46,6 @@ import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
-import { db } from "../db/client";
 import type { AuthVariables } from "../middleware/auth";
 import {
   getRequestContext,
@@ -77,106 +65,6 @@ import {
   serializeQuote,
   serializeQuoteListItem,
 } from "./internal/treasury-quote-dto";
-
-const CRM_DEALS_SORT_COLUMNS = [
-  "id",
-  "createdAt",
-  "client",
-  "amount",
-  "amountInBase",
-  "closedAt",
-  "agentName",
-] as const;
-
-const CrmDealsListQuerySchema = z.object({
-  offset: z.coerce.number().int().min(0).default(0),
-  limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
-  sortBy: z.enum(CRM_DEALS_SORT_COLUMNS).default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
-  statuses: z.string().optional(),
-  currencies: z.string().optional(),
-  customerId: z.string().uuid().optional(),
-  agentId: z.string().optional(),
-  dateFrom: z.coerce.date().optional(),
-  dateTo: z.coerce.date().optional(),
-  qClient: z.string().trim().min(1).optional(),
-  qComment: z.string().trim().min(1).optional(),
-});
-
-const CrmDealListItemSchema = z.object({
-  id: z.string().uuid(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-  closedAt: z.iso.datetime().nullable(),
-  client: z.string(),
-  clientId: z.string().uuid(),
-  amount: z.number(),
-  currency: z.string(),
-  amountInBase: z.number(),
-  baseCurrencyCode: z.string(),
-  status: z.string(),
-  agentName: z.string(),
-  comment: z.string().optional(),
-  feePercentage: z.number(),
-});
-
-const CrmDealsListResponseSchema = z.object({
-  data: z.array(CrmDealListItemSchema),
-  total: z.number().int().nonnegative(),
-  limit: z.number().int().positive(),
-  offset: z.number().int().nonnegative(),
-});
-
-type CrmDealListItem = z.infer<typeof CrmDealListItemSchema>;
-
-function parseOptionalSet(value?: string): Set<string> | null {
-  if (!value) {
-    return null;
-  }
-
-  const items = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-
-  return items.length > 0 ? new Set(items) : null;
-}
-
-function parseDecimalOrZero(value: string | null | undefined): number {
-  if (!value) {
-    return 0;
-  }
-
-  const parsed = Number(value.replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseMinorOrZero(
-  value: string | bigint | null | undefined,
-  precision: number | null | undefined,
-): number {
-  if (value == null || precision == null) {
-    return 0;
-  }
-
-  return parseDecimalOrZero(minorToAmountString(value, { precision }));
-}
-
-function compareNullableStrings(
-  left: string | null | undefined,
-  right: string | null | undefined,
-): number {
-  return (left ?? "").localeCompare(right ?? "", "ru");
-}
-
-function compareNullableDates(
-  left: string | null | undefined,
-  right: string | null | undefined,
-): number {
-  const leftValue = left ? new Date(left).getTime() : 0;
-  const rightValue = right ? new Date(right).getTime() : 0;
-  return leftValue - rightValue;
-}
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -240,7 +128,7 @@ export function dealsRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: CrmDealsListResponseSchema,
+            schema: CrmDealsListProjectionSchema,
           },
         },
         description: "Paginated CRM deals",
@@ -255,37 +143,18 @@ export function dealsRoutes(ctx: AppContext) {
     tags: ["Deals"],
     summary: "Get deal statistics for a date range",
     request: {
-      query: z.object({
-        dateFrom: z.string().date(),
-        dateTo: z.string().date(),
-      }),
+      query: CrmDealsStatsQuerySchema,
     },
     responses: {
       200: {
         content: {
           "application/json": {
-            schema: z.object({
-              totalCount: z.number().int(),
-              byStatus: z.record(z.string(), z.number().int()),
-              totalAmount: z.string(),
-            }),
+            schema: CrmDealsStatsSchema,
           },
         },
         description: "Deal statistics",
       },
     },
-  });
-
-  const DealByStatusItemSchema = z.object({
-    id: z.string().uuid(),
-    client: z.string(),
-    amount: z.number(),
-    currency: z.string(),
-    amountInBase: z.number(),
-    baseCurrencyCode: z.string(),
-    status: z.string(),
-    createdAt: z.string(),
-    comment: z.string().optional(),
   });
 
   const byStatusRoute = createRoute({
@@ -298,11 +167,7 @@ export function dealsRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: z.object({
-              pending: z.array(DealByStatusItemSchema),
-              inProgress: z.array(DealByStatusItemSchema),
-              done: z.array(DealByStatusItemSchema),
-            }),
+            schema: CrmDealsByStatusSchema,
           },
         },
         description: "Deals grouped by status",
@@ -317,31 +182,13 @@ export function dealsRoutes(ctx: AppContext) {
     tags: ["Deals"],
     summary: "Get daily deal aggregation for charts",
     request: {
-      query: z.object({
-        dateFrom: z.string().optional(),
-        dateTo: z.string().optional(),
-        statuses: z.string().optional(),
-        currencies: z.string().optional(),
-        customerId: z.string().uuid().optional(),
-        agentId: z.string().optional(),
-        reportCurrencyCode: z.string().optional(),
-      }),
+      query: CrmDealsByDayQuerySchema,
     },
     responses: {
       200: {
         content: {
           "application/json": {
-            schema: z.array(
-              z
-                .object({
-                  date: z.string(),
-                  amount: z.number(),
-                  count: z.number(),
-                  closedCount: z.number(),
-                  closedAmount: z.number(),
-                })
-                .passthrough(),
-            ),
+            schema: z.array(CrmDealsByDayItemSchema),
           },
         },
         description: "Daily deal aggregation",
@@ -1143,472 +990,36 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(listRoute, async (c) => {
       try {
         const query = c.req.valid("query");
-        const requestedStatuses = parseOptionalSet(query.statuses);
-        const requestedCurrencies = parseOptionalSet(query.currencies);
-        const listedDeals: Awaited<
-          ReturnType<typeof ctx.dealsModule.deals.queries.list>
-        >["data"] = [];
-
-        let offset = 0;
-        let total = 0;
-
-        do {
-          const page = await ctx.dealsModule.deals.queries.list({
-            customerId: query.customerId,
-            limit: MAX_QUERY_LIST_LIMIT,
-            offset,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-          });
-
-          listedDeals.push(...page.data);
-          total = page.total;
-          offset += page.limit;
-        } while (offset < total);
-
-        const customerIds = [
-          ...new Set(listedDeals.map((deal) => deal.customerId)),
-        ];
-        const agentIds = [
-          ...new Set(
-            listedDeals
-              .map((deal) => deal.agentId)
-              .filter((agentId): agentId is string => Boolean(agentId)),
-          ),
-        ];
-        const calculationIds = [
-          ...new Set(
-            listedDeals
-              .map((deal) => deal.calculationId)
-              .filter((calculationId): calculationId is string =>
-                Boolean(calculationId),
-              ),
-          ),
-        ];
-        const requestedCurrencyIds = [
-          ...new Set(
-            listedDeals
-              .map((deal) => deal.requestedCurrencyId)
-              .filter((currencyId): currencyId is string =>
-                Boolean(currencyId),
-              ),
-          ),
-        ];
-
-        const [
-          customersById,
-          agentsById,
-          calculationsById,
-          requestedCurrenciesById,
-        ] = await Promise.all([
-          Promise.all(
-            customerIds.map(async (customerId) => [
-              customerId,
-              await ctx.partiesModule.customers.queries.findById(customerId),
-            ]),
-          ).then((entries) => new Map(entries)),
-          Promise.all(
-            agentIds.map(async (agentId) => [
-              agentId,
-              await ctx.iamService.queries.findById(agentId),
-            ]),
-          ).then((entries) => new Map(entries)),
-          Promise.all(
-            calculationIds.map(async (calculationId) => [
-              calculationId,
-              await ctx.calculationsModule.calculations.queries.findById(
-                calculationId,
-              ),
-            ]),
-          ).then((entries) => new Map(entries)),
-          Promise.all(
-            requestedCurrencyIds.map(async (currencyId) => [
-              currencyId,
-              await ctx.currenciesService.findById(currencyId),
-            ]),
-          ).then((entries) => new Map(entries)),
-        ]);
-
-        const baseCurrencyIds = [
-          ...new Set(
-            [...calculationsById.values()]
-              .map((calculation) => calculation?.currentSnapshot.baseCurrencyId)
-              .filter((currencyId): currencyId is string =>
-                Boolean(currencyId),
-              ),
-          ),
-        ];
-        const baseCurrenciesById = new Map(
-          await Promise.all(
-            baseCurrencyIds.map(async (currencyId) => [
-              currencyId,
-              await ctx.currenciesService.findById(currencyId),
-            ]),
-          ),
-        );
-
-        const enrichedDeals = listedDeals.map(
-          (
-            deal,
-          ): CrmDealListItem & {
-            agentId: string | null;
-            createdAtDate: number;
-          } => {
-            const customer = customersById.get(deal.customerId) ?? null;
-            const calculation = deal.calculationId
-              ? (calculationsById.get(deal.calculationId) ?? null)
-              : null;
-            const sourceCurrency = deal.requestedCurrencyId
-              ? (requestedCurrenciesById.get(deal.requestedCurrencyId) ?? null)
-              : null;
-            const baseCurrency = calculation
-              ? (baseCurrenciesById.get(
-                  calculation.currentSnapshot.baseCurrencyId,
-                ) ?? null)
-              : null;
-            const agent = deal.agentId
-              ? (agentsById.get(deal.agentId) ?? null)
-              : null;
-
-            const amount = parseDecimalOrZero(deal.requestedAmount);
-            const amountInBase = calculation
-              ? baseCurrency
-                ? parseMinorOrZero(
-                    calculation.currentSnapshot.totalInBaseMinor,
-                    baseCurrency.precision,
-                  )
-                : amount
-              : amount;
-            const feePercentage = calculation
-              ? parseMinorOrZero(calculation.currentSnapshot.feeBps, 2)
-              : 0;
-            const currencyCode = sourceCurrency?.code ?? "RUB";
-            const baseCurrencyCode = baseCurrency?.code ?? currencyCode;
-            const closedAt =
-              deal.status === "done" || deal.status === "cancelled"
-                ? deal.updatedAt.toISOString()
-                : null;
-            const comment =
-              deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
-
-            return {
-              agentId: deal.agentId,
-              agentName: agent?.name ?? "",
-              amount,
-              amountInBase,
-              baseCurrencyCode,
-              client: customer?.displayName ?? "—",
-              clientId: deal.customerId,
-              closedAt,
-              comment,
-              createdAt: deal.createdAt.toISOString(),
-              createdAtDate: deal.createdAt.getTime(),
-              currency: currencyCode,
-              feePercentage,
-              id: deal.id,
-              status: deal.status,
-              updatedAt: deal.updatedAt.toISOString(),
-            };
-          },
-        );
-
-        const filteredDeals = enrichedDeals.filter((deal) => {
-          if (requestedStatuses && !requestedStatuses.has(deal.status)) {
-            return false;
-          }
-          if (requestedCurrencies && !requestedCurrencies.has(deal.currency)) {
-            return false;
-          }
-          if (query.agentId && deal.agentId !== query.agentId) {
-            return false;
-          }
-          if (query.dateFrom && deal.createdAtDate < query.dateFrom.getTime()) {
-            return false;
-          }
-          if (query.dateTo && deal.createdAtDate > query.dateTo.getTime()) {
-            return false;
-          }
-          if (
-            query.qClient &&
-            !deal.client.toLowerCase().includes(query.qClient.toLowerCase())
-          ) {
-            return false;
-          }
-          if (
-            query.qComment &&
-            !(deal.comment ?? "")
-              .toLowerCase()
-              .includes(query.qComment.toLowerCase())
-          ) {
-            return false;
-          }
-
-          return true;
-        });
-
-        filteredDeals.sort((left, right) => {
-          let comparison = 0;
-
-          switch (query.sortBy) {
-            case "id":
-              comparison = left.id.localeCompare(right.id);
-              break;
-            case "client":
-              comparison = compareNullableStrings(left.client, right.client);
-              break;
-            case "amount":
-              comparison = left.amount - right.amount;
-              break;
-            case "amountInBase":
-              comparison = left.amountInBase - right.amountInBase;
-              break;
-            case "closedAt":
-              comparison = compareNullableDates(left.closedAt, right.closedAt);
-              break;
-            case "agentName":
-              comparison = compareNullableStrings(
-                left.agentName,
-                right.agentName,
-              );
-              break;
-            case "createdAt":
-            default:
-              comparison = left.createdAtDate - right.createdAtDate;
-              break;
-          }
-
-          return query.sortOrder === "asc" ? comparison : -comparison;
-        });
-
-        const pagedDeals = filteredDeals
-          .slice(query.offset, query.offset + query.limit)
-          .map(
-            ({ agentId: _agentId, createdAtDate: _createdAtDate, ...deal }) =>
-              deal,
-          );
-
-        return jsonOk(c, {
-          data: pagedDeals,
-          limit: query.limit,
-          offset: query.offset,
-          total: filteredDeals.length,
-        });
+        const result = await ctx.dealProjectionsWorkflow.listCrmDeals(query);
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
     })
     .openapi(statsRoute, async (c) => {
       try {
-        const { dateFrom, dateTo } = c.req.valid("query");
-        const from = new Date(`${dateFrom}T00:00:00Z`);
-        const to = new Date(`${dateTo}T23:59:59.999Z`);
-
-        const rows = await db
-          .select({
-            status: dealsTable.status,
-            count: count(),
-            total: sum(dealsTable.sourceAmountMinor),
-          })
-          .from(dealsTable)
-          .where(and(between(dealsTable.createdAt, from, to)))
-          .groupBy(dealsTable.status);
-
-        let totalCount = 0;
-        let totalAmount = BigInt(0);
-        const byStatus: Record<string, number> = {};
-
-        for (const row of rows) {
-          totalCount += row.count;
-          byStatus[row.status] = row.count;
-          if (row.total) {
-            totalAmount += BigInt(row.total);
-          }
-        }
-
-        return jsonOk(c, {
-          totalCount,
-          byStatus,
-          totalAmount: totalAmount.toString(),
-        });
+        const result = await ctx.dealProjectionsWorkflow.getCrmDealsStats(
+          c.req.valid("query"),
+        );
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
     })
     .openapi(byStatusRoute, async (c) => {
       try {
-        const PENDING_STATUSES = ["awaiting_funds"] as const;
-        const IN_PROGRESS_STATUSES = [
-          "draft",
-          "submitted",
-          "preparing_documents",
-          "awaiting_payment",
-        ] as const;
-        const DONE_STATUSES = ["closing_documents", "done"] as const;
-
-        const allStatuses = [
-          ...PENDING_STATUSES,
-          ...IN_PROGRESS_STATUSES,
-          ...DONE_STATUSES,
-        ];
-
-        const rows = await db
-          .select({
-            id: dealsTable.id,
-            status: dealsTable.status,
-            sourceAmountMinor: dealsTable.sourceAmountMinor,
-            sourceCurrencyId: dealsTable.sourceCurrencyId,
-            customerId: dealsTable.customerId,
-            createdAt: dealsTable.createdAt,
-            intakeSnapshot: dealIntakeSnapshotsTable.snapshot,
-            customerName: customersTable.displayName,
-            currencyCode: currenciesTable.code,
-          })
-          .from(dealsTable)
-          .leftJoin(
-            dealIntakeSnapshotsTable,
-            eq(dealsTable.id, dealIntakeSnapshotsTable.dealId),
-          )
-          .leftJoin(
-            customersTable,
-            eq(dealsTable.customerId, customersTable.id),
-          )
-          .leftJoin(
-            currenciesTable,
-            eq(dealsTable.sourceCurrencyId, currenciesTable.id),
-          )
-          .where(inArray(dealsTable.status, allStatuses))
-          .orderBy(dealsTable.createdAt);
-
-        function toDealItem(row: (typeof rows)[number]) {
-          const amountMinor = row.sourceAmountMinor
-            ? Number(row.sourceAmountMinor)
-            : 0;
-          const amount = amountMinor / 100;
-          const comment =
-            row.intakeSnapshot?.common.customerNote ??
-            row.intakeSnapshot?.moneyRequest.purpose ??
-            undefined;
-
-          return {
-            id: row.id,
-            client: row.customerName ?? "—",
-            amount,
-            currency: row.currencyCode ?? "RUB",
-            amountInBase: amount,
-            baseCurrencyCode: "RUB",
-            status: row.status,
-            createdAt: row.createdAt.toISOString(),
-            ...(comment ? { comment } : {}),
-          };
-        }
-
-        const pending = rows
-          .filter((r) =>
-            (PENDING_STATUSES as readonly string[]).includes(r.status),
-          )
-          .map(toDealItem);
-        const inProgress = rows
-          .filter((r) =>
-            (IN_PROGRESS_STATUSES as readonly string[]).includes(r.status),
-          )
-          .map(toDealItem);
-        const done = rows
-          .filter((r) =>
-            (DONE_STATUSES as readonly string[]).includes(r.status),
-          )
-          .map(toDealItem);
-
-        return jsonOk(c, { pending, inProgress, done });
+        const result = await ctx.dealProjectionsWorkflow.listCrmDealsByStatus();
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
     })
     .openapi(byDayRoute, async (c) => {
       try {
-        const query = c.req.valid("query");
-        const conditions = [];
-
-        if (query.dateFrom) {
-          conditions.push(gte(dealsTable.createdAt, new Date(query.dateFrom)));
-        }
-        if (query.dateTo) {
-          conditions.push(lte(dealsTable.createdAt, new Date(query.dateTo)));
-        }
-        if (query.customerId) {
-          conditions.push(eq(dealsTable.customerId, query.customerId));
-        }
-        if (query.agentId) {
-          conditions.push(eq(dealsTable.agentId, query.agentId));
-        }
-        if (query.statuses) {
-          const statusList = query.statuses.split(
-            ",",
-          ) as (typeof dealsTable.status.enumValues)[number][];
-          conditions.push(inArray(dealsTable.status, statusList));
-        }
-
-        const rows = await db
-          .select({
-            date: sql<string>`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`,
-            status: dealsTable.status,
-            currencyCode: currenciesTable.code,
-            count: count(),
-            total: sum(dealsTable.sourceAmountMinor),
-          })
-          .from(dealsTable)
-          .leftJoin(
-            currenciesTable,
-            eq(dealsTable.sourceCurrencyId, currenciesTable.id),
-          )
-          .where(conditions.length > 0 ? and(...conditions) : undefined)
-          .groupBy(
-            sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`,
-            dealsTable.status,
-            currenciesTable.code,
-          )
-          .orderBy(sql`to_char(${dealsTable.createdAt}, 'YYYY-MM-DD')`);
-
-        const dayMap = new Map<
-          string,
-          {
-            date: string;
-            amount: number;
-            count: number;
-            closedCount: number;
-            closedAmount: number;
-            [currency: string]: string | number;
-          }
-        >();
-
-        for (const row of rows) {
-          const date = row.date;
-          if (!dayMap.has(date)) {
-            dayMap.set(date, {
-              date,
-              amount: 0,
-              count: 0,
-              closedCount: 0,
-              closedAmount: 0,
-            });
-          }
-          const day = dayMap.get(date)!;
-          const totalMinor = row.total ? Number(row.total) / 100 : 0;
-
-          day.count += row.count;
-          day.amount += totalMinor;
-
-          if (row.status === "done") {
-            day.closedCount += row.count;
-            day.closedAmount += totalMinor;
-          }
-
-          if (row.currencyCode) {
-            day[row.currencyCode] =
-              ((day[row.currencyCode] as number) || 0) + totalMinor;
-          }
-        }
-
-        return jsonOk(c, Array.from(dayMap.values()));
+        const result = await ctx.dealProjectionsWorkflow.listCrmDealsByDay(
+          c.req.valid("query"),
+        );
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
