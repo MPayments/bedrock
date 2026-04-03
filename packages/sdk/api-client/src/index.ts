@@ -1,4 +1,3 @@
-import type { AppType } from "api/types";
 import { hc } from "hono/client";
 
 export interface CreateClientOptions {
@@ -6,11 +5,19 @@ export interface CreateClientOptions {
   init?: RequestInit;
 }
 
+const createUntypedClient = hc as (
+  baseUrl: string,
+  options?: {
+    headers?: Record<string, string>;
+    init?: RequestInit;
+  },
+) => unknown;
+
 export function createClient(
   baseUrl: string,
   options?: CreateClientOptions,
 ) {
-  return hc<AppType>(baseUrl, {
+  return createUntypedClient(baseUrl, {
     headers: options?.headers,
     init: {
       credentials: "include",
