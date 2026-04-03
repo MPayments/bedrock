@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 import {
+  TreasuryOperationKindSchema,
+  TreasuryOperationStateSchema,
+} from "./zod";
+import {
   TreasuryInstructionActionsSchema,
   TreasuryInstructionAvailableOutcomeTransitionsSchema,
   TreasuryInstructionSchema,
 } from "../../../instructions/application/contracts/dto";
-import {
-  TreasuryOperationKindSchema,
-  TreasuryOperationStateSchema,
-} from "./zod";
 
 const TreasuryOperationFinanceQueueSchema = z.enum([
   "funding",

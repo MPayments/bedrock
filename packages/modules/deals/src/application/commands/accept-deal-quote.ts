@@ -13,13 +13,13 @@ import {
   type AcceptDealQuoteInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
+import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
+import type { DealReferencesPort } from "../ports/references.port";
 import {
   buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
-import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
-import type { DealReferencesPort } from "../ports/references.port";
 
 const AcceptDealQuoteCommandInputSchema = AcceptDealQuoteInputSchema.extend({
   actorUserId: z.string().trim().min(1),

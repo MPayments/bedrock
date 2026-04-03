@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import { createDealProjectionsWorkflow } from "../src";
 
@@ -174,7 +174,7 @@ function createBaseWorkflow(): DealWorkflowProjection {
 }
 
 function createWorkflow(overrides?: {
-  attachments?: Array<{
+  attachments?: {
     createdAt: Date;
     description: string | null;
     fileName: string;
@@ -185,7 +185,7 @@ function createWorkflow(overrides?: {
     updatedAt: Date;
     uploadedBy: string | null;
     visibility: "customer_safe" | "internal" | null;
-  }>;
+  }[];
   calculation?: {
     createdAt: Date;
     currentSnapshot: {
@@ -217,7 +217,7 @@ function createWorkflow(overrides?: {
     };
     id: string;
     isActive: boolean;
-    lines: Array<{
+    lines: {
       amountMinor: string;
       createdAt: Date;
       currencyId: string;
@@ -225,10 +225,10 @@ function createWorkflow(overrides?: {
       idx: number;
       kind: string;
       updatedAt: Date;
-    }>;
+    }[];
     updatedAt: Date;
   } | null;
-  treasuryQuotes?: Array<{
+  treasuryQuotes?: {
     createdAt: Date;
     dealDirection: string | null;
     dealForm: string | null;
@@ -250,8 +250,8 @@ function createWorkflow(overrides?: {
     usedAt: Date | null;
     usedByRef: string | null;
     usedDocumentId: string | null;
-  }>;
-  treasuryOperations?: Array<{
+  }[];
+  treasuryOperations?: {
     amountMinor: bigint | null;
     counterAmountMinor: bigint | null;
     counterCurrencyId: string | null;
@@ -266,8 +266,8 @@ function createWorkflow(overrides?: {
     sourceRef: string;
     state: "planned";
     updatedAt: Date;
-  }>;
-  latestInstructions?: Array<{
+  }[];
+  latestInstructions?: {
     attempt: number;
     createdAt: Date;
     id: string;
@@ -284,9 +284,9 @@ function createWorkflow(overrides?: {
       | "return_requested"
       | "returned";
     updatedAt: Date;
-  }>;
-  reconciliationLinks?: Array<{
-    exceptions: Array<{
+  }[];
+  reconciliationLinks?: {
+    exceptions: {
       createdAt: Date;
       externalRecordId: string;
       id: string;
@@ -295,11 +295,11 @@ function createWorkflow(overrides?: {
       resolvedAt: Date | null;
       source: string;
       state: "open" | "resolved" | "ignored";
-    }>;
+    }[];
     lastActivityAt: Date | null;
     matchCount: number;
     operationId: string;
-  }>;
+  }[];
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
   const workflow = overrides?.workflow ?? createBaseWorkflow();

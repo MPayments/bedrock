@@ -18,7 +18,6 @@ import {
 import { Input } from "@bedrock/sdk-ui/components/input";
 
 import { signIn } from "@/lib/auth-client";
-import { PORTAL_BASE_URL } from "@/lib/constants";
 
 export function LoginForm() {
   const router = useRouter();
@@ -97,20 +96,6 @@ export function LoginForm() {
             </Field>
           </FieldGroup>
         </form>
-
-        <div className="mt-6 border-t pt-6 text-center">
-          <p className="mb-3 text-sm text-muted-foreground">
-            Вы клиент компании?
-          </p>
-          <Button
-            variant="outline"
-            className="h-12 w-full text-base font-medium"
-            nativeButton={false}
-            render={<a href={`${PORTAL_BASE_URL}/login`} />}
-          >
-            Вход для клиентов
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

@@ -20,7 +20,6 @@ import { toMinorAmountString } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteDetailsRecord,
-  TreasuryInstruction,
   TreasuryInstructionOutcome,
   TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";

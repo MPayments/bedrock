@@ -14,6 +14,31 @@ vi.mock("next/navigation", () => ({
   redirect,
 }));
 
+vi.mock("next/link", () => ({
+  default: () => null,
+}));
+
+vi.mock("lucide-react", () => ({
+  Building2: () => null,
+  Plus: () => null,
+}));
+
+vi.mock("@bedrock/sdk-ui/components/button", () => ({
+  Button: ({ children }: { children?: unknown }) => children ?? null,
+}));
+
+vi.mock("@/components/data-table/skeleton", () => ({
+  DataTableSkeleton: () => null,
+}));
+
+vi.mock("@/components/entities/entity-list-page-shell", () => ({
+  EntityListPageShell: ({ children }: { children?: unknown }) => children ?? null,
+}));
+
+vi.mock("@/features/entities/organizations/components/table", () => ({
+  OrganizationsTable: () => null,
+}));
+
 vi.mock("@/features/entities/organizations/lib/validations", () => ({
   searchParamsCache: {
     parse: parseSearchParams,

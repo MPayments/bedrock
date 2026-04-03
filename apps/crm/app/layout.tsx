@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_TITLE || "VED CRM",
-  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || "VED CRM",
+  title: process.env.NEXT_PUBLIC_APP_TITLE || "Multihansa CRM",
+  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Multihansa CRM",
 };
 
 export default function RootLayout({

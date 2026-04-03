@@ -4,10 +4,10 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { DealNotFoundError } from "../../errors";
-import { type DealWorkflowProjection } from "../contracts/dto";
 import { AssignDealAgentInputSchema } from "../contracts/commands";
-import { createTimelinePayloadEvent } from "../shared/workflow-state";
+import { type DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
+import { createTimelinePayloadEvent } from "../shared/workflow-state";
 
 const AssignDealAgentCommandInputSchema = AssignDealAgentInputSchema.extend({
   actorUserId: z.string().trim().min(1),

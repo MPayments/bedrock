@@ -1,15 +1,15 @@
-import type { TreasuryOperationsRepository } from "../../../operations/application/ports/operations.repository";
 import {
   TreasuryInstructionNotActionableError,
   TreasuryInstructionNotFoundError,
   TreasuryOperationNotFoundError,
 } from "../../../errors";
-import { mapTreasuryInstruction } from "../map-instruction";
+import type { TreasuryOperationsRepository } from "../../../operations/application/ports/operations.repository";
 import {
   PrepareTreasuryInstructionInputSchema,
   type PrepareTreasuryInstructionInput,
 } from "../contracts/commands";
 import type { TreasuryInstruction } from "../contracts/dto";
+import { mapTreasuryInstruction } from "../map-instruction";
 import type { TreasuryInstructionsRepository } from "../ports/instructions.repository";
 
 export class PrepareTreasuryInstructionCommand {

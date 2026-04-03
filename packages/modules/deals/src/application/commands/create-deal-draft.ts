@@ -17,6 +17,11 @@ import {
   type CreateDealDraftInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
+import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
+import type {
+  DealAgreementReference,
+  DealReferencesPort,
+} from "../ports/references.port";
 import {
   buildDealLegRows,
   buildDealOperationalPositionRows,
@@ -24,11 +29,6 @@ import {
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
-import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
-import type {
-  DealAgreementReference,
-  DealReferencesPort,
-} from "../ports/references.port";
 
 const CreateDealDraftCommandInputSchema = CreateDealDraftInputSchema.extend({
   actorUserId: z.string().trim().min(1),

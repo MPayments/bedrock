@@ -4,7 +4,7 @@ import * as authModule from "../auth";
 import type { ResourcePermissions } from "../auth";
 import type { AuthVariables } from "./auth";
 
-type PermissionAuthSurface = {
+interface PermissionAuthSurface {
   api: {
     userHasPermission: (input: {
       body: {
@@ -13,7 +13,7 @@ type PermissionAuthSurface = {
       };
     }) => Promise<{ success: boolean }>;
   };
-};
+}
 
 function resolveAuthSurface(
   audience: AuthVariables["audience"],

@@ -6,7 +6,7 @@ import { getServerSessionSnapshot } from "@/lib/auth/session";
 
 import { LoginForm } from "./login-form";
 
-const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || "VED CRM";
+const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || "Multihansa CRM";
 
 export default async function LoginPage() {
   const session = await getServerSessionSnapshot();

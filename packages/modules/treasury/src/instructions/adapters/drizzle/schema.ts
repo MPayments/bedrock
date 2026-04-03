@@ -10,8 +10,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { TreasuryInstructionState } from "../../domain/instruction-types";
 import { treasuryOperations } from "../../../operations/adapters/drizzle/schema";
+import type { TreasuryInstructionState } from "../../domain/instruction-types";
 
 export const treasuryInstructions = pgTable(
   "treasury_instructions",

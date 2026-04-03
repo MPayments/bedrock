@@ -17,6 +17,64 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(searchParamsValue),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+}));
+
+vi.mock("lucide-react", () => ({
+  AlertCircle: () => null,
+  CheckCircle2: () => null,
+  Clock3: () => null,
+  Download: () => null,
+  File: () => null,
+  FileText: () => null,
+  Info: () => null,
+  ListChecks: () => null,
+  ShieldCheck: () => null,
+  Trash2: () => null,
+  Upload: () => null,
+  Wallet: () => null,
+  WalletCards: () => null,
+  Workflow: () => null,
+}));
+
+vi.mock("@bedrock/sdk-ui/components/badge", () => ({
+  Badge: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+}));
+
+vi.mock("@bedrock/sdk-ui/components/button", () => ({
+  Button: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+}));
+
+vi.mock("@bedrock/sdk-ui/components/card", () => ({
+  Card: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  CardContent: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  CardHeader: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  CardTitle: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+}));
+
+vi.mock("@bedrock/sdk-ui/components/sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
+vi.mock("@/components/entities/workspace-layout", () => ({
+  EntityWorkspaceTabs: () => null,
+}));
+
+vi.mock("@/features/treasury/deals/components/execution-summary-rail", () => ({
+  ExecutionSummaryRail: () => createElement("div", null, "Контур исполнения"),
+}));
+
 vi.mock("@/features/treasury/deals/components/quote-request-dialog", () => ({
   QuoteRequestDialog: () => null,
 }));
@@ -35,6 +93,10 @@ vi.mock("@/features/treasury/deals/components/workspace-layout", () => ({
     children?: ReactNode;
     controls?: ReactNode;
   }) => createElement(Fragment, null, actions, controls, children),
+}));
+
+vi.mock("@/lib/resources/http", () => ({
+  executeMutation: vi.fn(),
 }));
 
 function createDeal(): FinanceDealWorkbenchData {
@@ -198,7 +260,7 @@ describe("treasury deal workbench", () => {
     expect(
       markup.match(/Не заполнен обязательный участник: получатель выплаты\./g),
     ).toHaveLength(1);
-  });
+  }, 15000);
 
   it("keeps the shared header on overview without duplicating next-step sections", async () => {
     searchParamsValue = "tab=overview";

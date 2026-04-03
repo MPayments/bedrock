@@ -1,12 +1,12 @@
-import { ValidationError } from "@bedrock/shared/core/errors";
 import type { ModuleRuntime } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
+import { DealNotFoundError } from "../../errors";
 import {
   EnqueueDealAttachmentIngestionInputSchema,
   type EnqueueDealAttachmentIngestionInput,
 } from "../contracts/commands";
 import type { DealAttachmentIngestion } from "../contracts/dto";
-import { DealNotFoundError } from "../../errors";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 
 export class EnqueueDealAttachmentIngestionCommand {

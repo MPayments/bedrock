@@ -21,6 +21,7 @@ import type {
   DocumentExtractionPort,
 } from "@bedrock/platform/ai";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import { isDecimalString } from "@bedrock/shared/core";
 
 const SUPPORTED_ATTACHMENT_PURPOSES = new Set<FileAttachmentPurpose>([
   "invoice",
@@ -89,12 +90,12 @@ type PaymentAttachmentMetadata = Pick<
   "createdAt" | "fileName" | "id" | "mimeType" | "purpose" | "visibility"
 >;
 
-type MergeResult = {
+interface MergeResult {
   appliedFields: string[];
   changed: boolean;
   intake: DealIntakeDraft;
   skippedFields: string[];
-};
+}
 
 export interface DealAttachmentIngestionWorkflowDeps {
   currencies: Pick<CurrenciesService, "findByCode">;
@@ -104,13 +105,13 @@ export interface DealAttachmentIngestionWorkflowDeps {
   logger?: Logger;
 }
 
-type RunOnceInput = {
+interface RunOnceInput {
   batchSize?: number;
   leaseSeconds?: number;
   maxAttempts?: number;
   now?: Date;
   retryDelayMs?: number;
-};
+}
 
 function normalizeNullableText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
@@ -141,7 +142,7 @@ function normalizeDecimalString(value: string | null | undefined): string | null
     return null;
   }
 
-  return /^(0|[1-9]\d*)(\.\d+)?$/u.test(normalized) ? normalized : null;
+  return isDecimalString(normalized) ? normalized : null;
 }
 
 function isBlankText(value: string | null | undefined) {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isDecimalString } from "@bedrock/shared/core";
 import {
   createPaginatedListSchema,
   type PaginatedList,
@@ -29,7 +30,7 @@ import {
 const DecimalStringSchema = z
   .string()
   .trim()
-  .regex(/^(0|[1-9]\d*)(\.\d+)?$/);
+  .refine(isDecimalString);
 
 const nullableDecimalStringSchema = DecimalStringSchema.nullable();
 

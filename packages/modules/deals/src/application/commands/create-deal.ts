@@ -3,16 +3,16 @@ import { z } from "zod";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { CreateDealDraftCommand } from "./create-deal-draft";
 import { DealNotFoundError } from "../../errors";
 import {
   CreateDealInputSchema,
   type CreateDealInput,
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
-import { buildLegacyCreateIntakeDraft } from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
-import { CreateDealDraftCommand } from "./create-deal-draft";
+import { buildLegacyCreateIntakeDraft } from "../shared/workflow-state";
 
 const CreateDealCommandInputSchema = CreateDealInputSchema.extend({
   actorUserId: z.string().trim().min(1),

@@ -2,16 +2,16 @@ import { z } from "zod";
 
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { ReplaceDealIntakeCommand } from "./replace-deal-intake";
 import { DealNotFoundError } from "../../errors";
 import {
   UpdateDealIntakeInputSchema,
   type UpdateDealIntakeInput,
 } from "../contracts/commands";
 import type { DealDetails } from "../contracts/dto";
-import { applyLegacyIntakePatch } from "../shared/workflow-state";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
-import { ReplaceDealIntakeCommand } from "./replace-deal-intake";
+import { applyLegacyIntakePatch } from "../shared/workflow-state";
 
 const UpdateDealIntakeCommandInputSchema = UpdateDealIntakeInputSchema.extend({
   actorUserId: z.string().trim().min(1),

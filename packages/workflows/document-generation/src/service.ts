@@ -1,9 +1,15 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { Counterparty, Organization, Requisite, RequisiteProvider } from "@bedrock/parties/contracts";
 import type { PartiesModule } from "@bedrock/parties";
+import type {
+  Counterparty,
+  Organization,
+  Requisite,
+  RequisiteProvider,
+} from "@bedrock/parties/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import { hasOnlyAsciiDigits } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 
 import {
@@ -78,18 +84,53 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 function isPositiveDecimalString(value: string): boolean {
-  return /^\d+(?:\.\d+)?$/u.test(value);
+  const separatorIndex = value.indexOf(".");
+
+  if (separatorIndex === -1) {
+    return hasOnlyAsciiDigits(value);
+  }
+
+  if (
+    separatorIndex === 0 ||
+    separatorIndex === value.length - 1 ||
+    separatorIndex !== value.lastIndexOf(".")
+  ) {
+    return false;
+  }
+
+  return (
+    hasOnlyAsciiDigits(value.slice(0, separatorIndex)) &&
+    hasOnlyAsciiDigits(value.slice(separatorIndex + 1))
+  );
 }
 
 function trimLeadingZeros(value: string): string {
-  const trimmed = value.replace(/^0+(?=\d)/, "");
-  return trimmed.length > 0 ? trimmed : "0";
+  let firstNonZeroIndex = 0;
+
+  while (
+    firstNonZeroIndex < value.length - 1 &&
+    value[firstNonZeroIndex] === "0"
+  ) {
+    firstNonZeroIndex += 1;
+  }
+
+  return value.slice(firstNonZeroIndex) || "0";
+}
+
+function trimTrailingZeros(value: string): string {
+  let endIndex = value.length;
+
+  while (endIndex > 0 && value[endIndex - 1] === "0") {
+    endIndex -= 1;
+  }
+
+  return value.slice(0, endIndex);
 }
 
 function normalizeDecimalString(value: string): string {
   const [wholeRaw = "0", fractionRaw = ""] = value.split(".");
   const whole = trimLeadingZeros(wholeRaw);
-  const fraction = fractionRaw.replace(/0+$/, "");
+  const fraction = trimTrailingZeros(fractionRaw);
 
   return fraction.length > 0 ? `${whole}.${fraction}` : whole;
 }
@@ -100,7 +141,7 @@ function shiftPositiveDecimalString(value: string, decimalPlaces: number): strin
   }
 
   const [wholeRaw, fractionRaw = ""] = value.split(".");
-  const digits = `${wholeRaw}${fractionRaw}`.replace(/^0+(?=\d)/, "") || "0";
+  const digits = trimLeadingZeros(`${wholeRaw}${fractionRaw}`);
   const nextScale = fractionRaw.length - decimalPlaces;
 
   if (digits === "0") {

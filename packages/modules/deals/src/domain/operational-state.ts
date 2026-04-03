@@ -1,3 +1,5 @@
+import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
+import { dealIntakeHasConvertLeg } from "./workflow";
 import type {
   DealCapabilityState,
   DealIntakeDraft,
@@ -13,15 +15,13 @@ import type {
   DealOperationalPositionState,
   DealStatus,
 } from "../application/contracts/zod";
-import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
-import { dealIntakeHasConvertLeg } from "./workflow";
 
-type CalculationOperationalLine = {
+interface CalculationOperationalLine {
   amountMinor: string;
   currencyId: string;
   kind: "fee_revenue" | "spread_revenue";
   updatedAt: Date;
-};
+}
 
 const OPERATIONAL_POSITION_PROGRESS_ORDER: Record<
   DealOperationalPositionState,

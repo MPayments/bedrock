@@ -1,6 +1,6 @@
 import type { TreasuryInstruction } from "./contracts/dto";
 
-type TreasuryInstructionLike = {
+interface TreasuryInstructionLike {
   attempt: number;
   createdAt: Date;
   failedAt: Date | null;
@@ -16,7 +16,7 @@ type TreasuryInstructionLike = {
   submittedAt: Date | null;
   updatedAt: Date;
   voidedAt: Date | null;
-};
+}
 
 export function mapTreasuryInstruction(
   input: TreasuryInstructionLike,

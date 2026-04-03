@@ -118,38 +118,6 @@ function addUniqueBlocker(blockers: string[], blocker: string) {
   }
 }
 
-function getLatestInstructionStateForLeg(input: {
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  workflow: DealWorkflowProjection;
-  legKinds: string[];
-}) {
-  const legs = input.workflow.executionPlan.filter((leg) =>
-    input.legKinds.includes(leg.kind),
-  );
-
-  if (legs.length === 0) {
-    return null;
-  }
-
-  const operationIds = legs.flatMap((leg) =>
-    leg.operationRefs.map((ref) => ref.operationId),
-  );
-
-  if (operationIds.length === 0) {
-    return null;
-  }
-
-  const states = operationIds
-    .map((operationId) => input.latestInstructionByOperationId.get(operationId)?.state)
-    .filter((state): state is NonNullable<typeof state> => Boolean(state));
-
-  if (states.length !== operationIds.length) {
-    return null;
-  }
-
-  return states.every((state) => state === states[0]) ? states[0] : states[0];
-}
-
 function doLegOperationsSatisfyStates(input: {
   allowedStates: Set<string>;
   latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;

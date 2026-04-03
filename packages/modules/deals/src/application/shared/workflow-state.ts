@@ -27,30 +27,6 @@ import type {
   DealReferencesPort,
 } from "../ports/references.port";
 
-function emptyCounterpartySnapshot() {
-  return {
-    country: null,
-    displayName: null,
-    inn: null,
-    legalName: null,
-  };
-}
-
-function emptyBankInstructionSnapshot() {
-  return {
-    accountNo: null,
-    bankAddress: null,
-    bankCountry: null,
-    bankName: null,
-    beneficiaryName: null,
-    bic: null,
-    corrAccount: null,
-    iban: null,
-    label: null,
-    swift: null,
-  };
-}
-
 export function createEmptyDealIntakeDraft(
   type: CreateDealDraftInput["intake"]["type"],
 ): DealIntakeDraft {

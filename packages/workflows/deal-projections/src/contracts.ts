@@ -23,12 +23,15 @@ import {
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import {
   CounterpartySchema,
-  CustomerSchema,
   OrganizationSchema,
   RequisiteProviderSchema,
   RequisiteSchema,
 } from "@bedrock/parties/contracts";
 import { ReconciliationExceptionStateSchema } from "@bedrock/reconciliation/contracts";
+import {
+  createPaginatedListSchema,
+  MAX_QUERY_LIST_LIMIT,
+} from "@bedrock/shared/core/pagination";
 import {
   QuoteListItemSchema,
   QuoteSchema,
@@ -39,10 +42,6 @@ import {
   TreasuryOperationKindSchema,
   TreasuryOperationStateSchema,
 } from "@bedrock/treasury/contracts";
-import {
-  createPaginatedListSchema,
-  MAX_QUERY_LIST_LIMIT,
-} from "@bedrock/shared/core/pagination";
 
 export const PortalSubmissionCompletenessSchema = z.object({
   blockingReasons: z.array(z.string()),

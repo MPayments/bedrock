@@ -1,6 +1,7 @@
 export type { CorrelationContext } from "./correlation";
 export { sha256Hex } from "./crypto";
 export { isUuidLike } from "./uuid";
+export { hasOnlyAsciiDigits, isDecimalString } from "./utils";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {
   createModuleRuntime,

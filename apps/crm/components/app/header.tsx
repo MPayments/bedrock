@@ -151,7 +151,7 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
           <Link href="/" className="flex items-center gap-3">
             <div className="flex justify-center py-1 bg-background">
               <h1 className="text-xl font-bold">
-                {process.env.NEXT_PUBLIC_APP_TITLE || "VED CRM"}
+                {process.env.NEXT_PUBLIC_APP_TITLE || "Multihansa CRM"}
               </h1>
             </div>
           </Link>

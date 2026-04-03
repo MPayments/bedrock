@@ -1,37 +1,38 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type {
   DealOperationalPosition,
   DealTimelineEvent,
   DealType,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
-import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
+import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type {
   Counterparty,
   Customer,
-  Organization,
-  Requisite,
-  RequisiteProvider,
 } from "@bedrock/parties/contracts";
-import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
-import type { TreasuryModule } from "@bedrock/treasury";
-import type {
-  QuoteListItem,
-  TreasuryInstruction,
-} from "@bedrock/treasury/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   minorToAmountString,
   toMinorAmountString,
 } from "@bedrock/shared/money";
+import type { TreasuryModule } from "@bedrock/treasury";
+import type {
+  QuoteListItem,
+  TreasuryInstruction,
+} from "@bedrock/treasury/contracts";
 
+import {
+  deriveFinanceDealReadiness,
+  deriveFinanceDealStage,
+} from "./close-readiness";
 import type {
   CrmDealByStatusItem,
   CrmDealBoardProjection,
@@ -57,10 +58,6 @@ import type {
   PortalDealProjection,
 } from "./contracts";
 import { CrmDealsListQuerySchema } from "./contracts";
-import {
-  deriveFinanceDealReadiness,
-  deriveFinanceDealStage,
-} from "./close-readiness";
 
 const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
@@ -474,7 +471,7 @@ function buildCrmEvidenceRequirements(input: {
 }
 
 function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
-  const requirements: Array<{
+  const requirements: {
     activeDocumentId: string | null;
     blockingReasons: string[];
     createAllowed: boolean;
@@ -482,7 +479,7 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     openAllowed: boolean;
     stage: "opening" | "closing";
     state: "in_progress" | "missing" | "not_required" | "ready";
-  }> = [];
+  }[] = [];
 
   const openingDocType =
     OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];

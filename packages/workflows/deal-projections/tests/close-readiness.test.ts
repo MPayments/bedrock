@@ -152,7 +152,7 @@ function createWorkflow(input?: {
 }
 
 function createInstructionStateMap(
-  entries: Array<[operationId: string, state: TreasuryInstruction["state"]]>,
+  entries: [operationId: string, state: TreasuryInstruction["state"]][],
 ): ReadonlyMap<string, TreasuryInstruction> {
   return new Map<string, TreasuryInstruction>(
     entries.map(([operationId, state], index) => [
@@ -182,7 +182,7 @@ function createInstructionStateMap(
 }
 
 function createReconciliationLinkMap(
-  entries: Array<[operationId: string, matchCount: number, openExceptionCount?: number]>,
+  entries: [operationId: string, matchCount: number, openExceptionCount?: number][],
 ): ReadonlyMap<string, ReconciliationOperationLinkDto> {
   return new Map<string, ReconciliationOperationLinkDto>(
     entries.map(([operationId, matchCount, openExceptionCount = 0], index) => [

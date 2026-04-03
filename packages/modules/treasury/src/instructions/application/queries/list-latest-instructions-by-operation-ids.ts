@@ -1,5 +1,5 @@
-import { mapTreasuryInstruction } from "../map-instruction";
 import type { TreasuryInstruction } from "../contracts/dto";
+import { mapTreasuryInstruction } from "../map-instruction";
 import type { TreasuryInstructionsRepository } from "../ports/instructions.repository";
 
 export class ListLatestTreasuryInstructionsByOperationIdsQuery {

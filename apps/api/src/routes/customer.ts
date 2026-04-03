@@ -8,7 +8,6 @@ import {
 import { CreatePortalDealInputSchema } from "@bedrock/deals/contracts";
 import {
   FileAttachmentPurposeSchema,
-  FileAttachmentSchema,
 } from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
 import { CustomerSchema } from "@bedrock/parties/contracts";

@@ -1,15 +1,15 @@
-import {
-  applyLocalizedTemplateField,
-  getLocalizedValue,
-  withLocalizedTemplateFields,
-} from "../localized-text";
-import { declineBasisToGenitive, formatDirector } from "../russian-language";
 import type {
   ClientContractAgreement,
   ClientContractClient,
   ClientContractOrganization,
   ClientContractOrganizationBankRequisite,
 } from "../contracts";
+import {
+  applyLocalizedTemplateField,
+  getLocalizedValue,
+  withLocalizedTemplateFields,
+} from "../localized-text";
+import { declineBasisToGenitive, formatDirector } from "../russian-language";
 import { resolveDocumentNumber } from "./document-number";
 import type { DocumentLang, OrgFiles } from "./types";
 import { prune } from "./types";

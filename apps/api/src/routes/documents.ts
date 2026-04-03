@@ -186,7 +186,7 @@ function parseJournalOperationsQuery(requestUrl: string) {
   });
 }
 
-type DocumentPermissionAuthSurface = {
+interface DocumentPermissionAuthSurface {
   api: {
     userHasPermission: (input: {
       body: {
@@ -197,7 +197,7 @@ type DocumentPermissionAuthSurface = {
       };
     }) => Promise<{ success: boolean }>;
   };
-};
+}
 
 function resolveAuthSurface(
   audience: AuthVariables["audience"],

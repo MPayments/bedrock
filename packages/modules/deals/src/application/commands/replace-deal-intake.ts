@@ -12,6 +12,8 @@ import {
   type ReplaceDealIntakeInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
+import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
+import type { DealReferencesPort } from "../ports/references.port";
 import {
   buildDealLegRows,
   buildDealOperationalPositionRows,
@@ -19,8 +21,6 @@ import {
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
-import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
-import type { DealReferencesPort } from "../ports/references.port";
 
 const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend({
   actorLabel: z.string().trim().max(255).nullable().optional(),

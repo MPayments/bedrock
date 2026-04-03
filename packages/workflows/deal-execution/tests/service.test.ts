@@ -9,7 +9,7 @@ import {
 
 function createWorkflowProjection(input?: {
   acceptedQuoteId?: string | null;
-  formalDocuments?: Array<{
+  formalDocuments?: {
     approvalStatus: string | null;
     createdAt: Date;
     docType: string;
@@ -18,7 +18,7 @@ function createWorkflowProjection(input?: {
     occurredAt: Date | null;
     postingStatus: string | null;
     submissionStatus: string | null;
-  }>;
+  }[];
   operationRefs?: {
     kind: string;
     operationId: string;
@@ -245,7 +245,7 @@ function createAcceptanceDocument() {
 }
 
 function createCloseDealHarness(input?: {
-  latestInstructions?: Array<{
+  latestInstructions?: {
     attempt: number;
     createdAt: Date;
     id: string;
@@ -262,9 +262,9 @@ function createCloseDealHarness(input?: {
       | "return_requested"
       | "returned";
     updatedAt: Date;
-  }>;
-  reconciliationLinks?: Array<{
-    exceptions: Array<{
+  }[];
+  reconciliationLinks?: {
+    exceptions: {
       createdAt: Date;
       externalRecordId: string;
       id: string;
@@ -273,11 +273,11 @@ function createCloseDealHarness(input?: {
       resolvedAt: Date | null;
       source: string;
       state: "open" | "resolved" | "ignored";
-    }>;
+    }[];
     lastActivityAt: Date | null;
     matchCount: number;
     operationId: string;
-  }>;
+  }[];
   workflow?: ReturnType<typeof createWorkflowProjection>;
 }) {
   const workflow =

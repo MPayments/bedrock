@@ -1,3 +1,10 @@
+import { DEAL_REQUIRED_SECTION_IDS_BY_TYPE, DEAL_STATUS_TRANSITIONS } from "./constants";
+import {
+  isOperationalPositionAtLeastReady,
+  isOperationalPositionDone,
+  listRequiredOperationalPositionKinds,
+} from "./operational-state";
+import { dealIntakeHasConvertLeg } from "./workflow";
 import type {
   DealApproval,
   DealOperationalState,
@@ -10,13 +17,6 @@ import type {
   DealWorkflowParticipant,
 } from "../application/contracts/dto";
 import type { DealStatus, DealType } from "../application/contracts/zod";
-import { DEAL_REQUIRED_SECTION_IDS_BY_TYPE, DEAL_STATUS_TRANSITIONS } from "./constants";
-import {
-  isOperationalPositionAtLeastReady,
-  isOperationalPositionDone,
-  listRequiredOperationalPositionKinds,
-} from "./operational-state";
-import { dealIntakeHasConvertLeg } from "./workflow";
 
 const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
   payment: "invoice",
@@ -118,7 +118,7 @@ function collectSubmittedBlockers(input: {
     }
   }
 
-  const requiredRoles: Array<{
+  const requiredRoles: {
     resolved: boolean;
     role:
       | "customer"
@@ -126,7 +126,7 @@ function collectSubmittedBlockers(input: {
       | "internal_entity"
       | "external_payer"
       | "external_beneficiary";
-  }> = [
+  }[] = [
     {
       resolved: hasParticipant(input.participants, "customer"),
       role: "customer",

@@ -39,14 +39,14 @@ export class DrizzleDealStore implements DealStore {
     leaseSeconds: number;
     now: Date;
   }): Promise<
-    Array<{
+    {
       attempts: number;
       availableAt: Date;
       dealId: string;
       fileAssetId: string;
       observedRevision: number;
       status: "pending" | "processing" | "processed" | "failed";
-    }>
+    }[]
   > {
     const claimed = await this.db.execute(sql`
       WITH c AS (
@@ -81,14 +81,14 @@ export class DrizzleDealStore implements DealStore {
         ingest.observed_revision as observed_revision
     `);
 
-    return ((claimed.rows ?? []) as Array<{
+    return ((claimed.rows ?? []) as {
       attempts: number;
       available_at: Date;
       deal_id: string;
       file_asset_id: string;
       observed_revision: number;
       status: "pending" | "processing" | "processed" | "failed";
-    }>).map((row) => ({
+    }[]).map((row) => ({
       attempts: Number(row.attempts),
       availableAt: new Date(row.available_at),
       dealId: row.deal_id,

@@ -61,7 +61,7 @@ export function PortalHeader({ session }: { session: UserSessionSnapshot }) {
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-primary">M</span>
           <span className="hidden text-lg font-semibold sm:inline">
-            MPayments Portal
+            Multihansa Portal
           </span>
         </div>
 

@@ -8,11 +8,11 @@ import {
   type AppendDealTimelineEventInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
+import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import {
   buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
-import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 
 const AppendDealTimelineEventCommandInputSchema =
   AppendDealTimelineEventInputSchema.extend({

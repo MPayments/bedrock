@@ -5,12 +5,12 @@ import {
   TreasuryInstructionNotFoundError,
   TreasuryInstructionStateError,
 } from "../../../errors";
-import { mapTreasuryInstruction } from "../map-instruction";
 import {
   VoidTreasuryInstructionInputSchema,
   type VoidTreasuryInstructionInput,
 } from "../contracts/commands";
 import type { TreasuryInstruction } from "../contracts/dto";
+import { mapTreasuryInstruction } from "../map-instruction";
 import type { TreasuryInstructionsRepository } from "../ports/instructions.repository";
 
 export class VoidTreasuryInstructionCommand {

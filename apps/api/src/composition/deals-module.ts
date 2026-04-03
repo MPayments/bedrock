@@ -4,7 +4,6 @@ import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { DrizzleCalculationReads } from "@bedrock/calculations/adapters/drizzle";
 import type { CurrenciesService } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import {
   createDealsModule,
   DealTypeNotSupportedError,
@@ -15,8 +14,9 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
-import { createPartiesQueries } from "@bedrock/parties/queries";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {

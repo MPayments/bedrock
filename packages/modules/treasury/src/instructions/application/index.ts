@@ -1,6 +1,5 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import type { TreasuryOperationsRepository } from "../../operations/application/ports/operations.repository";
 import { PrepareTreasuryInstructionCommand } from "./commands/prepare-instruction";
 import { RecordTreasuryInstructionOutcomeCommand } from "./commands/record-outcome";
 import { RequestTreasuryReturnCommand } from "./commands/request-return";
@@ -11,6 +10,7 @@ import type { TreasuryInstructionsRepository } from "./ports/instructions.reposi
 import { GetTreasuryInstructionByIdQuery } from "./queries/get-instruction-by-id";
 import { GetLatestTreasuryInstructionByOperationIdQuery } from "./queries/get-latest-instruction-by-operation-id";
 import { ListLatestTreasuryInstructionsByOperationIdsQuery } from "./queries/list-latest-instructions-by-operation-ids";
+import type { TreasuryOperationsRepository } from "../../operations/application/ports/operations.repository";
 
 export interface TreasuryInstructionsServiceDeps {
   instructionsRepository: TreasuryInstructionsRepository;

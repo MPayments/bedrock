@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_TITLE || "MPayments Portal",
+  title: process.env.NEXT_PUBLIC_APP_TITLE || "Multihansa Portal",
   description:
-    process.env.NEXT_PUBLIC_APP_DESCRIPTION || "MPayments customer portal",
+    process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Multihansa customer portal",
 };
 
 export default function RootLayout({
