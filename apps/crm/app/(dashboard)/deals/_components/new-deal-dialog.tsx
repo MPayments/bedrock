@@ -412,7 +412,7 @@ export function NewDealDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Новая сделка</DialogTitle>
           <DialogDescription>
@@ -446,7 +446,7 @@ export function NewDealDialog({
           ) : null}
 
           {step === 2 ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
               <div className="min-w-0 space-y-2">
                 <Label>Юридическое лицо заявителя</Label>
                 <Select

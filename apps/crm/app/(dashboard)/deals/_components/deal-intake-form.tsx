@@ -431,7 +431,7 @@ export function DealIntakeForm({
         <div>
           <h3 className="font-medium">Общие данные</h3>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
           <div className="min-w-0 max-w-full space-y-2">
             <Label>Юридическое лицо заявителя</Label>
             <Select
@@ -502,7 +502,7 @@ export function DealIntakeForm({
         <div>
           <h3 className="font-medium">{moneyRequestSectionTitle}</h3>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
             <Input
@@ -592,7 +592,7 @@ export function DealIntakeForm({
               Данные о платеже, который ожидается от покупателя или плательщика.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-2">
               <Label htmlFor="deal-expected-amount">Ожидаемая сумма</Label>
               <Input
@@ -676,7 +676,7 @@ export function DealIntakeForm({
               />
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-2">
               <Label htmlFor="deal-payer-display-name">Плательщик</Label>
               <Input
@@ -733,7 +733,7 @@ export function DealIntakeForm({
               Кому и по каким банковским реквизитам отправляем выплату.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-2">
               <Label htmlFor="deal-beneficiary-display-name">Получатель</Label>
               <Input
@@ -785,7 +785,7 @@ export function DealIntakeForm({
               />
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-2">
               <Label htmlFor="deal-beneficiary-bank-name">Банк получателя</Label>
               <Input
@@ -965,7 +965,7 @@ export function DealIntakeForm({
           ) : null}
 
           {intake.settlementDestination.mode === "manual" ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4">
               <div className="space-y-2">
                 <Label htmlFor="deal-settlement-bank-name">Банк</Label>
                 <Input
