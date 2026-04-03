@@ -55,6 +55,8 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import {
   ChartContainer,
+  type ChartTooltipFormatter,
+  type ChartTooltipLabelFormatter,
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
@@ -98,6 +100,18 @@ interface ChartDataPoint {
 
 // Валюты для Area Chart (без рублей)
 const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
+
+function formatReportChartTick(value: string | number) {
+  return format(new Date(value), "d MMM", { locale: ru });
+}
+
+const formatReportChartLabel: ChartTooltipLabelFormatter = (value) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return "";
+  }
+
+  return format(new Date(value), "d MMM yyyy", { locale: ru });
+};
 
 // Функция для вычисления начального диапазона дат (с 11 числа до текущего дня)
 function getInitialDateRange(): DateRange {
@@ -344,6 +358,23 @@ export default function ClientsReportsPage() {
     }
   };
 
+  const formatReportChartTooltip: ChartTooltipFormatter = (value, name) => {
+    if (name === "Сумма") {
+      return [formatCurrency(Number(value), reportCurrencyCode), "Сумма"];
+    }
+
+    if (name === "Сделок") {
+      const formatted = new Intl.NumberFormat("ru-RU", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number(value));
+
+      return [formatted, "Сделок"];
+    }
+
+    return [String(value), name];
+  };
+
   return (
     <div className="space-y-4">
       {/* Заголовок с кнопками */}
@@ -468,38 +499,14 @@ export default function ClientsReportsPage() {
                     tickMargin={8}
                     minTickGap={32}
                     tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return format(date, "d MMM", { locale: ru });
-                    }}
+                    tickFormatter={formatReportChartTick}
                   />
                   <ChartTooltip
                     cursor={false}
                     content={
                       <ChartTooltipContent
-                        labelFormatter={(value) => {
-                          const date = new Date(value);
-                          return format(date, "d MMM yyyy", { locale: ru });
-                        }}
-                        formatter={(value, name) => {
-                          if (name === "Сумма") {
-                            return [
-                              formatCurrency(Number(value), reportCurrencyCode),
-                              "Сумма",
-                            ];
-                          }
-
-                          if (name === "Сделок") {
-                            const formatted = new Intl.NumberFormat("ru-RU", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(Number(value));
-
-                            return [formatted, "Сделок"];
-                          }
-
-                          return [String(value), name];
-                        }}
+                        labelFormatter={formatReportChartLabel}
+                        formatter={formatReportChartTooltip}
                         indicator="dot"
                       />
                     }

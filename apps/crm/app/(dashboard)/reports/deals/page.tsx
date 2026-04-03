@@ -53,6 +53,8 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import {
   ChartContainer,
+  type ChartTooltipFormatter,
+  type ChartTooltipLabelFormatter,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -98,6 +100,18 @@ interface ChartDataPoint {
 
 // Валюты для Area Chart (без рублей)
 const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
+
+function formatReportChartTick(value: string | number) {
+  return format(new Date(value), "d MMM", { locale: ru });
+}
+
+const formatReportChartLabel: ChartTooltipLabelFormatter = (value) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return "";
+  }
+
+  return format(new Date(value), "d MMM yyyy", { locale: ru });
+};
 
 // Функция для вычисления начального диапазона дат (с 11 числа до текущего дня)
 function getInitialDateRange(): DateRange {
@@ -359,6 +373,41 @@ export default function DealsReportsPage() {
     }
   };
 
+  const formatDealsChartTooltip: ChartTooltipFormatter = (value, name, item) => {
+    const formatted = new Intl.NumberFormat("ru-RU", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Number(value));
+    const payload = item.payload as
+      | {
+          amount?: number;
+          cumulativeAmount?: number;
+        }
+      | undefined;
+
+    if (name === "Новых за день") {
+      return [
+        `${formatted} (${formatCurrency(
+          Number(payload?.amount ?? 0),
+          reportCurrencyCode,
+        )})`,
+        "Новых за день",
+      ];
+    }
+
+    if (name === "Всего на день") {
+      return [
+        `${formatted} (${formatCurrency(
+          Number(payload?.cumulativeAmount ?? 0),
+          reportCurrencyCode,
+        )})`,
+        "Всего на день",
+      ];
+    }
+
+    return [String(value), name];
+  };
+
   return (
     <div className="space-y-4">
       {/* Заголовок с кнопками */}
@@ -502,50 +551,14 @@ export default function DealsReportsPage() {
                       tickMargin={8}
                       minTickGap={32}
                       tick={{ fontSize: 10 }}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return format(date, "d MMM", { locale: ru });
-                      }}
+                      tickFormatter={formatReportChartTick}
                     />
                     <ChartTooltip
                       cursor={false}
                       content={
                         <ChartTooltipContent
-                          labelFormatter={(value) => {
-                            const date = new Date(value);
-                            return format(date, "d MMM yyyy", { locale: ru });
-                          }}
-                          formatter={(value, name, item) => {
-                            const formatted = new Intl.NumberFormat("ru-RU", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(Number(value));
-
-                            if (name === "Новых за день") {
-                              const amount = item.payload.amount;
-                              return [
-                                `${formatted} (${formatCurrency(
-                                  amount,
-                                  reportCurrencyCode,
-                                )})`,
-                                "Новых за день",
-                              ];
-                            }
-
-                            if (name === "Всего на день") {
-                              const cumulativeAmount =
-                                item.payload.cumulativeAmount;
-                              return [
-                                `${formatted} (${formatCurrency(
-                                  cumulativeAmount,
-                                  reportCurrencyCode,
-                                )})`,
-                                "Всего на день",
-                              ];
-                            }
-
-                            return [String(value), name];
-                          }}
+                          labelFormatter={formatReportChartLabel}
+                          formatter={formatDealsChartTooltip}
                           indicator="dot"
                         />
                       }
