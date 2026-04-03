@@ -38,7 +38,11 @@ COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
 
 # Build shared API artifacts first so finance consumes compiled RPC client types.
-RUN node_modules/.bin/turbo run build --filter=api --filter=@bedrock/sdk-api-client
+WORKDIR /repo/apps/api
+RUN node build.mjs
+
+WORKDIR /repo
+RUN node_modules/.bin/tsc -p packages/sdk/api-client/tsconfig.build.json
 
 # Build Next.js (produces .next/standalone)
 ARG API_INTERNAL_URL=http://localhost:3000
