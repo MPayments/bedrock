@@ -1,7 +1,4 @@
-import Link from "next/link";
-import { Handshake, Plus } from "lucide-react";
-
-import { Button } from "@bedrock/sdk-ui/components/button";
+import { Handshake } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
@@ -23,16 +20,6 @@ export default async function CustomersPage({ searchParams }: PageProps) {
       icon={Handshake}
       title="Клиенты"
       description="Управление клиентами и связанной контрагентской привязкой."
-      actions={
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<Link href="/entities/customers/create" />}
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden md:block">Добавить</span>
-        </Button>
-      }
       fallback={
         <DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />
       }

@@ -1,42 +1,30 @@
-import Link from "next/link";
-import { Building2, Plus } from "lucide-react";
-
-import { Button } from "@bedrock/sdk-ui/components/button";
-
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
-import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-import { OrganizationsTable } from "@/features/entities/organizations/components/table";
-import { getOrganizations } from "@/features/entities/organizations/lib/queries";
-import { searchParamsCache } from "@/features/entities/organizations/lib/validations";
+import { redirect } from "next/navigation";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function OrganizationsPage({ searchParams }: PageProps) {
-  const parsedSearch = await searchParamsCache.parse(searchParams);
-  const promise = getOrganizations(parsedSearch);
+function buildRedirectHref(
+  basePath: string,
+  searchParams: Record<string, string | string[] | undefined>,
+) {
+  const query = new URLSearchParams();
 
-  return (
-    <EntityListPageShell
-      icon={Building2}
-      title="Организации"
-      description="Отдельный справочник собственных организаций."
-      actions={
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<Link href="/entities/organizations/create" />}
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden md:block">Добавить</span>
-        </Button>
-      }
-      fallback={
-        <DataTableSkeleton columnCount={5} rowCount={10} filterCount={4} />
-      }
-    >
-      <OrganizationsTable promise={promise} />
-    </EntityListPageShell>
-  );
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (typeof value === "string") {
+      query.append(key, value);
+      return;
+    }
+
+    value?.forEach((item) => {
+      query.append(key, item);
+    });
+  });
+
+  const serialized = query.toString();
+  return serialized ? `${basePath}?${serialized}` : basePath;
+}
+
+export default async function OrganizationsPage({ searchParams }: PageProps) {
+  redirect(buildRedirectHref("/treasury/organizations", await searchParams));
 }

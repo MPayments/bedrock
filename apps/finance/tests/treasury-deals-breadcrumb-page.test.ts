@@ -98,4 +98,44 @@ describe("treasury deals breadcrumb page", () => {
       },
     ]);
   });
+
+  it("uses treasury canonical links for organization breadcrumbs", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getOrganizationById.mockResolvedValue({
+      id: "org-1",
+      shortName: "Bedrock Treasury",
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: ["treasury", "organizations", "org-1"],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Организации",
+        href: "/treasury/organizations",
+        icon: "landmark",
+      },
+      {
+        label: "Bedrock Treasury",
+        href: "/treasury/organizations/org-1",
+      },
+    ]);
+  });
 });

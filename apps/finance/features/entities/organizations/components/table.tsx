@@ -119,7 +119,7 @@ type OrganizationsTableProps = {
 
 export function OrganizationsTable({
   promise,
-  detailsBasePath = "/entities/organizations",
+  detailsBasePath = "/treasury/organizations",
 }: OrganizationsTableProps) {
   const router = useRouter();
 

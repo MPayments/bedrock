@@ -6,6 +6,7 @@ import {
   formatDealWorkflowMessage,
   getDealCapabilityLabel,
   getDealTimelineEventLabel,
+  getFinanceDealDisplayTitle,
   getFinanceDealQueueLabel,
   getFinanceDealStatusLabel,
   getFinanceDealTypeLabel,
@@ -60,5 +61,14 @@ describe("treasury deal labels", () => {
     ).toBe("Нужно настроить: выплата.");
     expect(isPrimaryOperationalPositionVisible("provider_payable")).toBe(true);
     expect(isPrimaryOperationalPositionVisible("spread_revenue")).toBe(false);
+  });
+
+  it("uses compact uppercase ids when applicant name is unavailable", () => {
+    expect(
+      getFinanceDealDisplayTitle({
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      }),
+    ).toBe("Платеж поставщику • #614FB6EB");
   });
 });

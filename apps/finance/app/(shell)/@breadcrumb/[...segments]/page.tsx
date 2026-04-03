@@ -93,7 +93,7 @@ const dynamicResolvers = {
   }),
   organizations: createResourceSegmentResolver({
     singularLabel: "Организация",
-    hrefPrefix: "/entities/organizations",
+    hrefPrefix: "/treasury/organizations",
     getById: getOrganizationById,
     getLabel: (organization) => organization.shortName,
     getId: (organization) => organization.id,

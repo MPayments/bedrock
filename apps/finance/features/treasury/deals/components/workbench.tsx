@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -299,104 +299,6 @@ function collectTopBlockers(deal: FinanceDealWorkbench) {
   return Array.from(messages).slice(0, 4);
 }
 
-type OverviewSectionProps = {
-  children: ReactNode;
-  description: string;
-  title: string;
-};
-
-function OverviewSection({
-  children,
-  description,
-  title,
-}: OverviewSectionProps) {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-background/90 p-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-      <div className="mt-5">{children}</div>
-    </section>
-  );
-}
-
-type CurrentActionSectionProps = {
-  calculationDisabledReason: string | null;
-  deal: FinanceDealWorkbench;
-  quoteCreationDisabledReason: string | null;
-};
-
-function CurrentActionSection({
-  calculationDisabledReason,
-  deal,
-  quoteCreationDisabledReason,
-}: CurrentActionSectionProps) {
-  const blockers = collectTopBlockers(deal).slice(0, 3);
-  const actionNotes = [
-    quoteCreationDisabledReason,
-    calculationDisabledReason,
-  ].filter((value): value is string => Boolean(value));
-
-  return (
-    <OverviewSection
-      description="Следующий шаг по сделке и основные причины, которые сейчас мешают движению."
-      title="Что нужно сделать сейчас"
-    >
-      <div className="space-y-5">
-        <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-4">
-          <div className="rounded-lg bg-muted/40 px-4 py-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Следующий шаг
-            </div>
-            <div className="mt-2 text-xl font-semibold leading-tight">
-              {formatDealNextAction(deal.nextAction)}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Что мешает двигаться
-          </div>
-          {blockers.length > 0 ? (
-            <ul className="space-y-2 text-sm">
-              {blockers.map((blocker) => (
-                <li
-                  key={blocker}
-                  className="rounded-2xl border border-border/60 px-4 py-3 leading-6"
-                >
-                  {blocker}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              Критичных блокировок сейчас нет.
-            </div>
-          )}
-        </div>
-
-        {actionNotes.length > 0 ? (
-          <div className="space-y-2">
-            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              Ограничения действий
-            </div>
-            {actionNotes.slice(0, 2).map((note) => (
-              <div
-                key={note}
-                className="rounded-2xl border border-dashed border-muted-foreground/40 bg-muted/20 px-4 py-3 text-sm text-muted-foreground"
-              >
-                {note}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </OverviewSection>
-  );
-}
-
 function refreshPage(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
@@ -407,69 +309,46 @@ type DealContextContentProps = {
 
 function DealContextContent({ deal }: DealContextContentProps) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-2xl bg-muted/30 px-4 py-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Тип сделки
-        </div>
-        <div className="mt-2 font-medium">
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-1 text-sm">
+        <div className="text-muted-foreground">Тип сделки</div>
+        <div className="font-medium">
           {getFinanceDealTypeLabel(deal.summary.type)}
         </div>
       </div>
-      <div className="rounded-2xl bg-muted/30 px-4 py-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Создана
-        </div>
-        <div className="mt-2 font-medium">{formatDate(deal.summary.createdAt)}</div>
+      <div className="space-y-1 text-sm">
+        <div className="text-muted-foreground">Создана</div>
+        <div className="font-medium">{formatDate(deal.summary.createdAt)}</div>
       </div>
-      <div className="rounded-2xl bg-muted/30 px-4 py-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Статус
-        </div>
-        <div className="mt-2">
+      <div className="space-y-1 text-sm">
+        <div className="text-muted-foreground">Статус</div>
+        <div>
           <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
             {getFinanceDealStatusLabel(deal.summary.status)}
           </Badge>
         </div>
       </div>
-      <div className="rounded-2xl bg-muted/30 px-4 py-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Очередь
-        </div>
-        <div className="mt-2">
+      <div className="space-y-1 text-sm">
+        <div className="text-muted-foreground">Очередь</div>
+        <div>
           <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
             {getFinanceDealQueueLabel(deal.queueContext.queue)}
           </Badge>
         </div>
       </div>
-      <div className="rounded-2xl bg-muted/30 px-4 py-3 sm:col-span-2">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Заявитель
-        </div>
-        <div className="mt-2 font-medium">
+      <div className="space-y-1 text-sm sm:col-span-2">
+        <div className="text-muted-foreground">Заявитель</div>
+        <div className="font-medium">
           {deal.summary.applicantDisplayName ?? "Не указан"}
         </div>
       </div>
-      <div className="rounded-2xl bg-muted/30 px-4 py-3 sm:col-span-2">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Внутренняя организация
-        </div>
-        <div className="mt-2 font-medium">
+      <div className="space-y-1 text-sm sm:col-span-2">
+        <div className="text-muted-foreground">Внутренняя организация</div>
+        <div className="font-medium">
           {deal.summary.internalEntityDisplayName ?? "Не указана"}
         </div>
       </div>
     </div>
-  );
-}
-
-function DealContextSection({ deal }: DealContextContentProps) {
-  return (
-    <OverviewSection
-      description="Кто участвует в сделке и в каком статусе она сейчас находится."
-      title="Контекст сделки"
-    >
-      <DealContextContent deal={deal} />
-    </OverviewSection>
   );
 }
 
@@ -484,18 +363,78 @@ function OverviewTab({
   deal,
   quoteCreationDisabledReason,
 }: OverviewTabProps) {
-  return (
-    <div className="space-y-6">
+  const blockers = collectTopBlockers(deal).slice(0, 3);
+  const actionNotes = [
+    quoteCreationDisabledReason,
+    calculationDisabledReason,
+  ].filter((value): value is string => Boolean(value));
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
-        <CurrentActionSection
-          calculationDisabledReason={calculationDisabledReason}
-          deal={deal}
-          quoteCreationDisabledReason={quoteCreationDisabledReason}
-        />
-        <DealContextSection deal={deal} />
-      </div>
-    </div>
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Обзор сделки</CardTitle>
+            <div className="text-sm text-muted-foreground">
+              {getFinanceDealTypeLabel(deal.summary.type)}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
+              {getFinanceDealStatusLabel(deal.summary.status)}
+            </Badge>
+            <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
+              {getFinanceDealQueueLabel(deal.queueContext.queue)}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6 pt-6">
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Что нужно сделать сейчас</div>
+          <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+            <div className="text-muted-foreground">Следующий шаг</div>
+            <div className="mt-1">{formatDealNextAction(deal.nextAction)}</div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Что мешает движению сделки</div>
+          {blockers.length > 0 ? (
+            <ul className="space-y-2 text-sm">
+              {blockers.map((blocker) => (
+                <li key={blocker} className="rounded-lg border px-4 py-3">
+                  {blocker}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              Критичных блокировок сейчас нет.
+            </div>
+          )}
+        </div>
+
+        {actionNotes.length > 0 ? (
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Ограничения действий</div>
+            {actionNotes.slice(0, 2).map((note) => (
+              <div
+                key={note}
+                className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground"
+              >
+                {note}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="space-y-3">
+          <div className="text-sm font-medium">Контекст сделки</div>
+          <DealContextContent deal={deal} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

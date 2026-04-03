@@ -11,6 +11,7 @@ import {
   Paperclip,
   Save,
   Trash2,
+  UserRound,
   Wallet,
   X,
   Upload as UploadIcon,
@@ -71,7 +72,11 @@ type CustomerLegalEntityPanelProps = {
   workspacePrimaryCounterpartyId: string | null;
 };
 
-type CustomerLegalEntitySection = "organization" | "requisites" | "documents";
+type CustomerLegalEntitySection =
+  | "organization"
+  | "subagent"
+  | "requisites"
+  | "documents";
 
 function formatRelationshipKind(value: "customer_owned" | "external"): string {
   return value === "customer_owned" ? "Клиент" : "Внешнее юр. лицо";
@@ -140,6 +145,7 @@ export function CustomerLegalEntityPanel({
         onValueChange={(value) => {
           if (
             value === "organization" ||
+            value === "subagent" ||
             value === "requisites" ||
             value === "documents"
           ) {
@@ -162,6 +168,10 @@ export function CustomerLegalEntityPanel({
             <TabsTrigger value="organization">
               <Building2 className="h-4 w-4" />
               Организация
+            </TabsTrigger>
+            <TabsTrigger value="subagent">
+              <UserRound className="h-4 w-4" />
+              Субагент
             </TabsTrigger>
             <TabsTrigger value="requisites">
               <Wallet className="h-4 w-4" />
@@ -303,34 +313,72 @@ export function CustomerLegalEntityPanel({
             </CardContent>
           </Card>
         </form>
+      </div>
 
+      <div
+        hidden={activeSection !== "subagent"}
+        aria-hidden={activeSection !== "subagent"}
+      >
         {selectedLegalEntity.subAgent ? (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Субагент</CardTitle>
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="text-base">Субагент</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Данные субагента, назначенного клиенту
+                </p>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="grid gap-4 text-sm md:grid-cols-2">
               <InfoRow
-                label="Имя"
+                label="Краткое имя"
                 value={selectedLegalEntity.subAgent.shortName}
+              />
+              <InfoRow
+                label="Полное имя"
+                value={selectedLegalEntity.subAgent.fullName}
               />
               <InfoRow
                 label="Комиссия"
                 value={`${selectedLegalEntity.subAgent.commissionRate}%`}
               />
+              <InfoRow
+                label="Тип"
+                value={
+                  selectedLegalEntity.subAgent.kind === "individual"
+                    ? "Физическое лицо"
+                    : "Юридическое лицо"
+                }
+              />
+              <InfoRow
+                label="Статус"
+                value={
+                  selectedLegalEntity.subAgent.isActive
+                    ? "Активен"
+                    : "Архивирован"
+                }
+              />
+              <InfoRow
+                label="Страна"
+                value={selectedLegalEntity.subAgent.country ?? "Не указана"}
+              />
             </CardContent>
           </Card>
         ) : (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Субагент</CardTitle>
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="text-base">Субагент</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Данные субагента, назначенного клиенту
+                </p>
+              </div>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Субагент не назначен.
             </CardContent>
           </Card>
         )}
-
       </div>
 
       <div

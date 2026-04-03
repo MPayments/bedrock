@@ -3,7 +3,6 @@ import { BookOpen } from "lucide-react";
 import { getCounterparties } from "@/features/entities/counterparties/lib/queries";
 import { getCurrencies } from "@/features/entities/currencies/lib/queries";
 import { getCustomers } from "@/features/entities/customers/lib/queries";
-import { getOrganizations } from "@/features/entities/organizations/lib/queries";
 import { getRequisiteProviders } from "@/features/entities/requisite-providers/lib/queries";
 import { getRequisites } from "@/features/entities/requisites/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
@@ -13,17 +12,9 @@ function formatCount(value: number) {
 }
 
 export default async function EntitiesOverviewPage() {
-  const [
-    customers,
-    organizations,
-    counterparties,
-    requisites,
-    requisiteProviders,
-    currencies,
-  ] =
+  const [customers, counterparties, requisites, requisiteProviders, currencies] =
     await Promise.all([
       getCustomers({ page: 1, perPage: 1 }),
-      getOrganizations(),
       getCounterparties({ page: 1, perPage: 1 }),
       getRequisites(),
       getRequisiteProviders(),
@@ -42,13 +33,6 @@ export default async function EntitiesOverviewPage() {
           value: formatCount(customers.total),
           description: "Организации и юридические сущности, владеющие потоками.",
           href: "/entities/customers",
-        },
-        {
-          id: "organizations",
-          label: "Организации",
-          value: formatCount(organizations.total),
-          description: "Собственные компании, владеющие книгами и расчетными позициями.",
-          href: "/entities/organizations",
         },
         {
           id: "counterparties",
@@ -91,13 +75,6 @@ export default async function EntitiesOverviewPage() {
           title: "Контрагенты",
           description: "Внешние стороны, папки и профили для расчетов и аналитики.",
           href: "/entities/counterparties",
-        },
-        {
-          id: "organizations",
-          title: "Организации",
-          description: "Отдельный master-справочник собственных компаний.",
-          href: "/entities/organizations",
-          cta: "Открыть организации",
         },
         {
           id: "requisites",

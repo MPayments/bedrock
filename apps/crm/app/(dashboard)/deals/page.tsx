@@ -63,14 +63,6 @@ export default function DealsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [board, setBoard] = useState<CrmBoardProjection | null>(null);
 
-  // Начальные фильтры: активные статусы (все кроме "done" и "cancelled")
-  const initialStatusFilter = [
-    "preparing_documents",
-    "awaiting_funds",
-    "awaiting_payment",
-    "closing_documents",
-  ] as const;
-
   // Используем хук для управления состоянием таблицы
   const {
     data,
@@ -90,7 +82,6 @@ export default function DealsPage() {
     setSelectedAgentId,
     refetch,
   } = useDealsTable({
-    initialStatusFilter: [...initialStatusFilter],
     initialPageSize: 20,
   });
 

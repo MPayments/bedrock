@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { formatCompactId } from "@bedrock/shared/core/uuid";
+
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import type {
   DealsRow,
@@ -126,7 +128,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
         <DataTableColumnHeader column={column} title="№ сделки" />
       ),
       enableSorting: true,
-      cell: ({ getValue }) => `#${getValue<string>()}`,
+      cell: ({ getValue }) => `#${formatCompactId(getValue<string>())}`,
     },
     {
       accessorKey: "createdAt",

@@ -1,5 +1,5 @@
-import { CreateCustomerFormClient } from "@/features/entities/customers/components/create-customer-form-client";
+import { redirect } from "next/navigation";
 
 export default function CreateCustomerPage() {
-  return <CreateCustomerFormClient />;
+  redirect("/entities/customers");
 }

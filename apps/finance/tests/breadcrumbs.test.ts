@@ -45,6 +45,11 @@ describe("breadcrumbs", () => {
       { label: "Казначейство", href: "/treasury", icon: "landmark" },
       { label: "Организации", href: "/treasury/organizations", icon: "landmark" },
     ]);
+
+    await expect(resolveBreadcrumbItems(["entities", "organizations"])).resolves.toEqual([
+      { label: "Справочники", href: "/entities", icon: "book-open" },
+      { label: "Организации", href: "/treasury/organizations", icon: "landmark" },
+    ]);
   });
 
   it("points transfers breadcrumbs to the documents workspace", async () => {

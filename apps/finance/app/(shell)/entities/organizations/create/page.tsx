@@ -1,5 +1,5 @@
-import { CreateOrganizationFormClient } from "@/features/entities/organizations/components/create-organization-form-client";
+import { redirect } from "next/navigation";
 
 export default function CreateOrganizationPage() {
-  return <CreateOrganizationFormClient />;
+  redirect("/treasury/organizations/create");
 }

@@ -1,3 +1,5 @@
+import { formatCompactId } from "@bedrock/shared/core/uuid";
+
 import type { Option } from "@/types/data-table";
 
 type DealBadgeVariant = "default" | "secondary" | "destructive" | "outline";
@@ -580,7 +582,7 @@ export function getFinanceDealDisplayTitle(input: {
   const applicantLabel =
     input.applicantDisplayName?.trim().length
       ? input.applicantDisplayName.trim()
-      : input.id;
+      : `#${formatCompactId(input.id)}`;
 
   return `${getFinanceDealTypeLabel(input.type)} • ${applicantLabel}`;
 }

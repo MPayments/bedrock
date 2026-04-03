@@ -10,7 +10,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
-import { getUuidPrefix } from "@bedrock/shared/core/uuid";
+import { formatCompactId } from "@bedrock/shared/core/uuid";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -172,7 +172,7 @@ export default function PortalDealDetailPage() {
   >(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  async function loadProjection() {
+  const loadProjection = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -188,13 +188,13 @@ export default function PortalDealDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [dealId]);
 
   useEffect(() => {
     if (dealId) {
       void loadProjection();
     }
-  }, [dealId]);
+  }, [dealId, loadProjection]);
 
   async function handleAttachmentSelection(
     event: ChangeEvent<HTMLInputElement>,
@@ -325,7 +325,7 @@ export default function PortalDealDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3">
-            <span>Сделка #{getUuidPrefix(data.summary.id)}</span>
+            <span>Сделка #{formatCompactId(data.summary.id)}</span>
             <span className="text-sm font-medium text-muted-foreground">
               {STATUS_LABELS[data.summary.status]}
             </span>

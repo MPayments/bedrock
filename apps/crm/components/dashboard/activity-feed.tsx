@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ru } from "date-fns/locale";
+import { formatCompactId, isUuidLike } from "@bedrock/shared/core/uuid";
 
 import { getCrmActivity } from "@/lib/activity/client";
 import type { CrmActivityItem } from "@/lib/activity/contracts";
@@ -118,9 +119,29 @@ function getStatusLabel(entityType: string, status: string): string {
   return statusLabels[entityType]?.[status] || status;
 }
 
+function getActivityEntityTitle(activity: CrmActivityItem): string {
+  if (activity.entityType !== "deal") {
+    return activity.entityTitle || (activity.entityId ? `#${activity.entityId}` : "");
+  }
+
+  const rawTitle = activity.entityTitle?.trim();
+  const normalizedTitle = rawTitle?.startsWith("#")
+    ? rawTitle.slice(1)
+    : rawTitle;
+
+  if (normalizedTitle && isUuidLike(normalizedTitle)) {
+    return `#${formatCompactId(normalizedTitle)}`;
+  }
+
+  if (rawTitle) {
+    return rawTitle;
+  }
+
+  return activity.entityId ? `#${formatCompactId(activity.entityId)}` : "";
+}
+
 function getActionText(activity: CrmActivityItem) {
-  const title =
-    activity.entityTitle || (activity.entityId ? `#${activity.entityId}` : "");
+  const title = getActivityEntityTitle(activity);
 
   const actionText =
     actionEntityTexts[activity.entityType]?.[activity.action] ||

@@ -168,13 +168,6 @@ const navItems: AppNavItem[] = [
         audience: "admin",
       },
       {
-        id: "entities-organizations",
-        title: "Организации",
-        href: "/entities/organizations",
-        icon: "landmark",
-        audience: "admin",
-      },
-      {
         id: "entities-counterparties",
         title: "Контрагенты",
         href: "/entities/counterparties",

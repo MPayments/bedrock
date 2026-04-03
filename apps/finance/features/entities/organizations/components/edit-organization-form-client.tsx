@@ -34,7 +34,7 @@ function toFormValues(
 
 export function EditOrganizationFormClient({
   organization,
-  listPath = "/entities/organizations",
+  listPath = "/treasury/organizations",
 }: EditOrganizationFormClientProps) {
   const router = useRouter();
   const { actions } = useOrganizationDraftName();

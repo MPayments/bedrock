@@ -1514,7 +1514,6 @@ export default function DealDetailPage() {
             onAgreementChange={handleAgreementChange}
             onAssigneeChange={handleAssigneeChange}
           />
-          <CustomerCard customer={data.customer} />
           <LegalEntityCard legalEntity={data.legalEntity} />
           <AgreementCard agreement={data.agreement} />
           <OrganizationCard organization={data.organization} />

@@ -55,7 +55,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   organizations: {
     label: "Организации",
-    href: "/entities/organizations",
+    href: "/treasury/organizations",
     icon: "landmark",
   },
   counterparties: {
@@ -116,19 +116,13 @@ function getCounterpartiesListHref(): string {
   return "/entities/counterparties";
 }
 
-function getOrganizationsListHref(segments: string[], index: number): string {
-  const parentSegments = segments.slice(0, index);
-  if (parentSegments.includes("treasury")) {
-    return "/treasury/organizations";
-  }
-
-  return "/entities/organizations";
+function getOrganizationsListHref(): string {
+  return "/treasury/organizations";
 }
 
 function resolveStaticSegment(
   segment: string,
   segments: string[],
-  index: number,
 ): BreadcrumbItem | null {
   const config = segmentMap[segment];
   if (!config) {
@@ -145,7 +139,7 @@ function resolveStaticSegment(
   if (segment === "organizations") {
     return {
       ...config,
-      href: getOrganizationsListHref(segments, index),
+      href: getOrganizationsListHref(),
     };
   }
 
@@ -184,7 +178,7 @@ export async function resolveBreadcrumbItems(
         }
       }
 
-      const staticSegment = resolveStaticSegment(segment, segments, index);
+      const staticSegment = resolveStaticSegment(segment, segments);
       if (staticSegment) {
         return staticSegment;
       }

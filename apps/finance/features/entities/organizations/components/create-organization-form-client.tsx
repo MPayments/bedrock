@@ -31,7 +31,7 @@ const EMPTY_ORGANIZATION_VALUES: OrganizationGeneralFormValues = {
 };
 
 export function CreateOrganizationFormClient({
-  detailsBasePath = "/entities/organizations",
+  detailsBasePath = "/treasury/organizations",
 }: CreateOrganizationFormClientProps) {
   const router = useRouter();
   const { actions } = useOrganizationDraftName();

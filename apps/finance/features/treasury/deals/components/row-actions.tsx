@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
+import { formatCompactId } from "@bedrock/shared/core/uuid";
 
 import { DealWorkflowDialog } from "@/features/treasury/deals/components/deal-preview-dialog";
 
@@ -25,7 +26,9 @@ export function FinanceDealRowActions({
 }: FinanceDealRowActionsProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const itemLabel =
-    applicantName?.trim().length ? applicantName.trim() : `сделки ${dealId}`;
+    applicantName?.trim().length
+      ? applicantName.trim()
+      : `сделки #${formatCompactId(dealId)}`;
 
   return (
     <>
@@ -65,4 +68,3 @@ export function FinanceDealRowActions({
     </>
   );
 }
-
