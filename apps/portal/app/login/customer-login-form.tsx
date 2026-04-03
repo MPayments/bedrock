@@ -1,14 +1,23 @@
 "use client";
 
-import { AlertCircle, Mail } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
-import { Label } from "@bedrock/sdk-ui/components/label";
 import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
+
 import { authClient } from "@/lib/auth-client";
 
 type Mode = "login" | "register";
@@ -94,95 +103,95 @@ export function CustomerLoginForm() {
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Mail className="h-7 w-7 text-primary" />
-        </div>
-        <h1 className="text-xl font-bold">Личный кабинет</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Войдите или зарегистрируйтесь
-        </p>
-      </div>
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-xl">Личный кабинет</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            setMode(value as Mode);
+            setError("");
+          }}
+          className="mb-6"
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Вход</TabsTrigger>
+            <TabsTrigger value="register">Регистрация</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      <Tabs
-        value={mode}
-        onValueChange={(value) => {
-          setMode(value as Mode);
-          setError("");
-        }}
-        className="mb-6"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="login">Вход</TabsTrigger>
-          <TabsTrigger value="register">Регистрация</TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            {mode === "register" ? (
+              <Field>
+                <FieldLabel htmlFor="name">
+                  Имя Фамилия / Название компании
+                </FieldLabel>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Иванов Иван Иванович"
+                  required
+                  disabled={loading}
+                  autoComplete="name"
+                />
+              </Field>
+            ) : null}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === "register" ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Имя Фамилия / Название компании</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Иванов Иван Иванович"
-              required
-              disabled={loading}
-              className="h-12 text-base"
-              autoComplete="name"
-            />
-          </div>
-        ) : null}
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                inputMode="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="m@example.com"
+                required
+                disabled={loading}
+                autoComplete="email"
+                autoFocus
+              />
+            </Field>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            inputMode="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="your@email.com"
-            required
-            disabled={loading}
-            className="h-12 text-base"
-            autoComplete="email"
-            autoFocus
-          />
-        </div>
+            <Field>
+              <FieldLabel htmlFor="password">Пароль</FieldLabel>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                disabled={loading}
+                autoComplete={
+                  mode === "register" ? "new-password" : "current-password"
+                }
+              />
+            </Field>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Пароль</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
-            required
-            disabled={loading}
-            className="h-12 text-base"
-            autoComplete={mode === "register" ? "new-password" : "current-password"}
-          />
-        </div>
+            {error ? (
+              <p className="text-center text-sm text-destructive">{error}</p>
+            ) : null}
 
-        {error ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Button type="submit" className="h-12 w-full text-base font-medium" disabled={loading}>
-          {loading
-            ? "Загрузка..."
-            : mode === "login"
-              ? "Войти"
-              : "Зарегистрироваться"}
-        </Button>
-      </form>
-    </div>
+            <Field>
+              <Button
+                type="submit"
+                className="h-12 w-full text-base font-medium"
+                disabled={loading}
+              >
+                {loading
+                  ? "Загрузка..."
+                  : mode === "login"
+                    ? "Войти"
+                    : "Зарегистрироваться"}
+              </Button>
+            </Field>
+          </FieldGroup>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

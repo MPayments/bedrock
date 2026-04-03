@@ -20,5 +20,6 @@ export { requisitesRoutes } from "./requisites";
 export { subAgentProfilesRoutes } from "./sub-agent-profiles";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
+export { treasuryOperationsRoutes } from "./treasury-operations";
 export { treasuryOrganizationBalancesRoutes } from "./treasury-organizations-balances";
 export { usersRoutes } from "./users";

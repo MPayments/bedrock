@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
+
+import { AuthShell } from "@bedrock/sdk-ui/components/auth-shell";
+
 import { getServerSessionSnapshot } from "@/lib/auth/session";
+
 import { LoginForm } from "./login-form";
+
+const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || "VED CRM";
 
 export default async function LoginPage() {
   const session = await getServerSessionSnapshot();
@@ -9,5 +15,5 @@ export default async function LoginPage() {
     redirect("/");
   }
 
-  return <LoginForm />;
+  return <AuthShell title={APP_TITLE}><LoginForm /></AuthShell>;
 }

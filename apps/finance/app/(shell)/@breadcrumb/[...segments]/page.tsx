@@ -7,6 +7,10 @@ import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
 import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
 import { getFinanceDealBreadcrumbById } from "@/features/treasury/deals/lib/queries";
 import {
+  getTreasuryOperationDisplayTitle,
+} from "@/features/treasury/operations/lib/labels";
+import { getTreasuryOperationById } from "@/features/treasury/operations/lib/queries";
+import {
   getDocumentTypeLabel,
   isKnownDocumentType,
 } from "@/features/documents/lib/doc-types";
@@ -83,6 +87,19 @@ const dynamicResolvers = {
         type: deal.summary.type,
       }),
     getId: (deal) => deal.summary.id,
+  }),
+  operations: createResourceSegmentResolver({
+    singularLabel: "Операция",
+    hrefPrefix: "/treasury/operations",
+    getById: getTreasuryOperationById,
+    getLabel: (operation) =>
+      getTreasuryOperationDisplayTitle({
+        applicantName: operation.dealRef?.applicantName,
+        dealId: operation.dealRef?.dealId,
+        id: operation.id,
+        kind: operation.kind,
+      }),
+    getId: (operation) => operation.id,
   }),
   customers: createResourceSegmentResolver({
     singularLabel: "Клиент",

@@ -79,7 +79,37 @@ export {
   type CreatePlannedTreasuryOperationInput,
 } from "./operations/application/contracts/commands";
 export {
+  ListTreasuryOperationsQuerySchema,
+  TREASURY_OPERATIONS_LIST_CONTRACT,
+  TREASURY_OPERATION_VIEW_VALUES,
+  TreasuryOperationViewSchema,
+  type ListTreasuryOperationsQuery,
+  type TreasuryOperationView,
+} from "./operations/application/contracts/queries";
+export {
   TreasuryOperationSchema,
+  TreasuryOperationAccountSummarySchema,
+  TreasuryOperationDealRefSchema,
+  TreasuryOperationInstructionStatusSchema,
+  TreasuryOperationInternalEntitySchema,
+  TreasuryOperationLegRefSchema,
+  TreasuryOperationMoneySummarySchema,
+  TreasuryOperationQueueContextSchema,
+  TreasuryOperationViewCountsSchema,
+  TreasuryOperationWorkspaceDetailSchema,
+  TreasuryOperationWorkspaceItemSchema,
+  TreasuryOperationWorkspaceListResponseSchema,
+  type TreasuryOperationAccountSummary,
+  type TreasuryOperationDealRef,
+  type TreasuryOperationInstructionStatus,
+  type TreasuryOperationInternalEntity,
+  type TreasuryOperationLegRef,
+  type TreasuryOperationMoneySummary,
+  type TreasuryOperationQueueContext,
+  type TreasuryOperationViewCounts,
+  type TreasuryOperationWorkspaceDetail,
+  type TreasuryOperationWorkspaceItem,
+  type TreasuryOperationWorkspaceListResponse,
   type TreasuryOperation,
 } from "./operations/application/contracts/dto";
 export {

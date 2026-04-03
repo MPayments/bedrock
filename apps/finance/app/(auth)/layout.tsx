@@ -1,22 +1,15 @@
-import { Stone } from "lucide-react"
+import { AuthShell } from "@bedrock/sdk-ui/components/auth-shell"
 
+const APP_TITLE = "Multihansa Finance"
 
 export default function AuthLayout({
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="#" className="flex items-center gap-2 self-center font-medium">
-          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-            <Stone className="size-4" />
-          </div>
-          Multihansa Finance
-        </a>
-        {children}
-      </div>
-    </div>
+    <AuthShell title={APP_TITLE}>
+      {children}
+    </AuthShell>
   )
 }

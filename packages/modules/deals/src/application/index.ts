@@ -14,9 +14,9 @@ import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calcula
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
-import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
-import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
 import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
+import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
+import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
@@ -24,10 +24,11 @@ import { FindDealAttachmentIngestionByFileAssetIdQuery } from "./queries/find-de
 import { FindDealByIdQuery } from "./queries/find-deal-by-id";
 import { FindDealTraceByIdQuery } from "./queries/find-deal-trace-by-id";
 import { FindDealWorkflowByIdQuery } from "./queries/find-deal-workflow-by-id";
+import { FindDealWorkflowsByIdsQuery } from "./queries/find-deal-workflows-by-ids";
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
-import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
-import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
 import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
+import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
+import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -118,6 +119,7 @@ export function createDealsService(deps: DealsServiceDeps) {
   const findAttachmentIngestionByFileAssetId =
     new FindDealAttachmentIngestionByFileAssetIdQuery(deps.reads);
   const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
+  const findDealWorkflowsByIds = new FindDealWorkflowsByIdsQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
   const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
   const listCapabilityStates = new ListDealCapabilityStatesQuery(deps.reads);
@@ -165,6 +167,8 @@ export function createDealsService(deps: DealsServiceDeps) {
       findPortalById: findPortalDealById.execute.bind(findPortalDealById),
       findTraceById: findDealTraceById.execute.bind(findDealTraceById),
       findWorkflowById: findDealWorkflowById.execute.bind(findDealWorkflowById),
+      findWorkflowsByIds:
+        findDealWorkflowsByIds.execute.bind(findDealWorkflowsByIds),
       listAttachmentIngestions:
         listAttachmentIngestions.execute.bind(listAttachmentIngestions),
       listCapabilityStates: listCapabilityStates.execute.bind(

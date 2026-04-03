@@ -394,6 +394,42 @@ export class DrizzleDealReads implements DealReads {
     return row ?? null;
   }
 
+  private async loadSummaryRowsByIds(ids: string[]): Promise<DealSummaryRow[]> {
+    const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.db
+      .select({
+        agreementId: deals.agreementId,
+        agentId: deals.agentId,
+        calculationId: deals.calculationId,
+        createdAt: deals.createdAt,
+        customerId: deals.customerId,
+        id: deals.id,
+        intakeRevision: dealIntakeSnapshots.revision,
+        nextAction: deals.nextAction,
+        snapshot: dealIntakeSnapshots.snapshot,
+        sourceAmountMinor: deals.sourceAmountMinor,
+        sourceCurrencyId: deals.sourceCurrencyId,
+        status: deals.status,
+        targetCurrencyId: deals.targetCurrencyId,
+        type: deals.type,
+        updatedAt: deals.updatedAt,
+      })
+      .from(deals)
+      .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
+      .where(inArray(deals.id, uniqueIds));
+
+    const rowById = new Map(rows.map((row) => [row.id, row] as const));
+
+    return uniqueIds
+      .map((id) => rowById.get(id) ?? null)
+      .filter((row): row is DealSummaryRow => row !== null);
+  }
+
   private async loadWorkflowParticipants(
     dealId: string,
   ): Promise<DealWorkflowParticipant[]> {
@@ -854,6 +890,14 @@ export class DrizzleDealReads implements DealReads {
     }
 
     return this.buildWorkflowProjectionFromSummary(summary);
+  }
+
+  async findWorkflowsByIds(ids: string[]): Promise<DealWorkflowProjection[]> {
+    const summaries = await this.loadSummaryRowsByIds(ids);
+
+    return Promise.all(
+      summaries.map((summary) => this.buildWorkflowProjectionFromSummary(summary)),
+    );
   }
 
   async findAttachmentIngestionByFileAssetId(

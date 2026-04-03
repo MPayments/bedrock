@@ -37,6 +37,16 @@ export interface TreasuryOperationWriteModel {
   state: TreasuryOperationState;
 }
 
+export interface TreasuryOperationsListQuery {
+  dealId?: string;
+  internalEntityOrganizationId?: string;
+  kind?: TreasuryOperationKind[];
+  limit: number;
+  offset: number;
+  sortBy?: "createdAt" | "kind";
+  sortOrder?: "asc" | "desc";
+}
+
 export interface TreasuryOperationsRepository {
   findOperationById(
     id: string,
@@ -50,4 +60,8 @@ export interface TreasuryOperationsRepository {
     input: TreasuryOperationWriteModel,
     tx?: PersistenceSession,
   ): Promise<TreasuryOperationRecord | null>;
+  listOperations(
+    input: TreasuryOperationsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryOperationRecord[]; total: number }>;
 }

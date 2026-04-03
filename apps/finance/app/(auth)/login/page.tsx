@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { cn } from "@bedrock/sdk-ui/lib/utils";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
@@ -60,7 +59,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={cn("flex flex-col gap-6")}>
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">С возвращением</CardTitle>
@@ -94,10 +93,14 @@ export default function LoginPage() {
                 />
               </Field>
               {error ? (
-                <p className="text-sm text-destructive text-center">{error}</p>
+                <p className="text-center text-sm text-destructive">{error}</p>
               ) : null}
               <Field>
-                <Button type="submit" disabled={isPending}>
+                <Button
+                  type="submit"
+                  className="h-12 w-full text-base font-medium"
+                  disabled={isPending}
+                >
                   {isPending ? "Вход..." : "Войти"}
                 </Button>
               </Field>

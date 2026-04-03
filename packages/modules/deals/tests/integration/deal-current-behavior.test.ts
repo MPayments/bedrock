@@ -244,6 +244,44 @@ describe("deals integration characterization", () => {
     });
   });
 
+  it("loads multiple workflow projections in input order without per-call lookup orchestration", async () => {
+    const fixture = await createAgreementFixture();
+    const firstDraft = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: createPaymentIntakeDraft({
+        applicantCounterpartyId: fixture.applicant.id,
+        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+        sourceCurrencyId: fixture.currencies.usd.id,
+      }),
+    });
+    const secondDraft =
+      await fixture.runtime.modules.deals.deals.commands.createDraft({
+        actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+        agreementId: fixture.agreement.id,
+        customerId: fixture.customer.id,
+        idempotencyKey: randomUUID(),
+        intake: createPaymentIntakeDraft({
+          applicantCounterpartyId: fixture.applicant.id,
+          beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+          sourceCurrencyId: fixture.currencies.eur.id,
+        }),
+      });
+
+    const workflows = await fixture.runtime.modules.deals.deals.queries.findWorkflowsByIds(
+      [secondDraft.summary.id, firstDraft.summary.id, randomUUID()],
+    );
+
+    expect(workflows.map((workflow) => workflow.summary.id)).toEqual([
+      secondDraft.summary.id,
+      firstDraft.summary.id,
+    ]);
+    expect(workflows[0]?.executionPlan.length).toBeGreaterThan(0);
+    expect(workflows[1]?.executionPlan.length).toBeGreaterThan(0);
+  });
+
   it("makes an accepted quote non-current after intake revision changes without deleting acceptance history", async () => {
     const fixture = await createAgreementFixture();
     const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({

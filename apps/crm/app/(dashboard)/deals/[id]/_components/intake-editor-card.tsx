@@ -4,13 +4,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
 import { DEAL_SECTION_LABELS } from "./constants";
-import {
-  DealIntakeForm,
-  type CrmApplicantRequisiteOption,
-  type CrmCurrencyOption,
-  type CrmCustomerLegalEntityOption,
-  type CrmDealIntakeDraft,
-} from "../../_components/deal-intake-form";
+import { DealIntakeForm } from "../../_components/deal-intake-form";
 import type { IntakeEditorCardProps } from "./intake-editor-card.types";
 
 export function IntakeEditorCard({

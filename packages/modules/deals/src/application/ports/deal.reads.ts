@@ -21,6 +21,7 @@ export interface DealReads {
   findPortalProjectionById(id: string): Promise<PortalDealProjection | null>;
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
+  findWorkflowsByIds(ids: string[]): Promise<DealWorkflowProjection[]>;
   listCapabilityStates(input: {
     applicantCounterpartyId?: string;
     capabilityKind?: DealCapabilityState["kind"];

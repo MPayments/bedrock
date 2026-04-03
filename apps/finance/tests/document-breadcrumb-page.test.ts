@@ -7,6 +7,7 @@ const getCustomerById = vi.fn();
 const getOrganizationById = vi.fn();
 const getRequisiteProviderById = vi.fn();
 const getRequisiteById = vi.fn();
+const getTreasuryOperationById = vi.fn();
 const getUserById = vi.fn();
 const getDocumentDetails = vi.fn();
 
@@ -32,6 +33,10 @@ vi.mock("@/features/entities/requisite-providers/lib/queries", () => ({
 
 vi.mock("@/features/entities/requisites/lib/queries", () => ({
   getRequisiteById,
+}));
+
+vi.mock("@/features/treasury/operations/lib/queries", () => ({
+  getTreasuryOperationById,
 }));
 
 vi.mock("@/app/(shell)/users/lib/queries", () => ({

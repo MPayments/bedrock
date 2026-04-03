@@ -108,6 +108,7 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
         createOrGetPlanned:
           treasuryModule.operations.commands.createOrGetPlanned,
         findById: treasuryModule.operations.queries.findById,
+        list: treasuryModule.operations.queries.list,
       },
     },
   };

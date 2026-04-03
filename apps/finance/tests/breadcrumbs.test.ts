@@ -28,6 +28,11 @@ describe("breadcrumbs", () => {
       { label: "Казначейство", href: "/treasury", icon: "landmark" },
       { label: "Сделки", href: "/treasury/deals", icon: "handshake" },
     ]);
+
+    await expect(resolveBreadcrumbItems(["treasury", "operations"])).resolves.toEqual([
+      { label: "Казначейство", href: "/treasury", icon: "landmark" },
+      { label: "Операции", href: "/treasury/operations", icon: "workflow" },
+    ]);
   });
 
   it("uses canonical hrefs for entity counterparties and treasury organizations", async () => {

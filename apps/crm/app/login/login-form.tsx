@@ -2,6 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
+
 import { signIn } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 
@@ -34,44 +49,30 @@ export function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="w-full max-w-md space-y-8 rounded-lg border bg-card p-8 shadow">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold">Вход</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Войдите в свой аккаунт
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          {error && (
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium">
-                Email
-              </label>
-              <input
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-xl">Вход</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
+                placeholder="m@example.com"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                disabled={loading}
               />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium">
-                Пароль
-              </label>
-              <input
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Пароль</FieldLabel>
+              <Input
                 id="password"
                 name="password"
                 type="password"
@@ -79,32 +80,38 @@ export function LoginForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                disabled={loading}
               />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {loading ? "Вход..." : "Войти"}
-          </button>
-
-          <div className="mt-6 border-t pt-6 text-center">
-            <p className="mb-3 text-sm text-muted-foreground">
-              Вы клиент компании?
-            </p>
-            <a
-              href={`${PORTAL_BASE_URL}/login`}
-              className="inline-block w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              Вход для клиентов
-            </a>
-          </div>
+            </Field>
+            {error ? (
+              <p className="text-center text-sm text-destructive">{error}</p>
+            ) : null}
+            <Field>
+              <Button
+                type="submit"
+                className="h-12 w-full text-base font-medium"
+                disabled={loading}
+              >
+                {loading ? "Вход..." : "Войти"}
+              </Button>
+            </Field>
+          </FieldGroup>
         </form>
-      </div>
-    </div>
+
+        <div className="mt-6 border-t pt-6 text-center">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Вы клиент компании?
+          </p>
+          <Button
+            variant="outline"
+            className="h-12 w-full text-base font-medium"
+            nativeButton={false}
+            render={<a href={`${PORTAL_BASE_URL}/login`} />}
+          >
+            Вход для клиентов
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

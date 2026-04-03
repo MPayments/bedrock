@@ -8,6 +8,7 @@ const getFinanceDealBreadcrumbById = vi.fn();
 const getOrganizationById = vi.fn();
 const getRequisiteProviderById = vi.fn();
 const getRequisiteById = vi.fn();
+const getTreasuryOperationById = vi.fn();
 const getUserById = vi.fn();
 const getDocumentDetails = vi.fn();
 
@@ -37,6 +38,10 @@ vi.mock("@/features/entities/requisite-providers/lib/queries", () => ({
 
 vi.mock("@/features/entities/requisites/lib/queries", () => ({
   getRequisiteById,
+}));
+
+vi.mock("@/features/treasury/operations/lib/queries", () => ({
+  getTreasuryOperationById,
 }));
 
 vi.mock("@/app/(shell)/users/lib/queries", () => ({
@@ -135,6 +140,56 @@ describe("treasury deals breadcrumb page", () => {
       {
         label: "Bedrock Treasury",
         href: "/treasury/organizations/org-1",
+      },
+    ]);
+  });
+
+  it("builds a localized breadcrumb for treasury operations", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getTreasuryOperationById.mockResolvedValue({
+      dealRef: {
+        applicantName: "ООО Ромашка",
+        dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        status: "awaiting_payment",
+        type: "payment",
+      },
+      id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      kind: "payout",
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: [
+          "treasury",
+          "operations",
+          "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        ],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Операции",
+        href: "/treasury/operations",
+        icon: "workflow",
+      },
+      {
+        label: "Выплата • ООО Ромашка",
+        href: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);
   });
