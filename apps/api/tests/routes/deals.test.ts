@@ -29,6 +29,20 @@ import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "convert" | "payout" | "transit_hold" | "settle_exporter",
+  state: "pending" | "ready" | "in_progress" | "done" | "blocked",
+) {
+  return {
+    id: `00000000-0000-4000-8000-0000000001${idx.toString().padStart(2, "0")}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
 function createDealDetail() {
   const now = new Date("2026-03-30T00:00:00.000Z");
 
@@ -104,9 +118,10 @@ function createWorkflowProjection() {
 
   return {
     acceptedQuote: null,
+    attachmentIngestions: [],
     executionPlan: [
-      { idx: 1, kind: "collect" as const, state: "ready" as const },
-      { idx: 2, kind: "payout" as const, state: "pending" as const },
+      createExecutionLeg(1, "collect", "ready"),
+      createExecutionLeg(2, "payout", "pending"),
     ],
     intake: {
       common: {
@@ -205,6 +220,9 @@ function createTestApp() {
   const dealQuoteWorkflow = {
     createCalculationFromAcceptedQuote: vi.fn(),
   };
+  const dealExecutionWorkflow = {
+    requestExecution: vi.fn(),
+  };
   const treasuryModule = {
     quotes: {
       queries: {
@@ -257,6 +275,7 @@ function createTestApp() {
     "/deals",
     dealsRoutes({
       dealProjectionsWorkflow,
+      dealExecutionWorkflow,
       dealQuoteWorkflow,
       dealsModule,
       iamService,
@@ -270,6 +289,7 @@ function createTestApp() {
   return {
     app,
     dealProjectionsWorkflow,
+    dealExecutionWorkflow,
     dealQuoteWorkflow,
     dealsModule,
     treasuryModule,
@@ -738,6 +758,125 @@ describe("deals routes", () => {
         targetStatus: "submitted",
       },
       error: "Deal transition to submitted is blocked",
+    });
+  });
+
+  it("requests deal execution materialization", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-1",
+        },
+        body: JSON.stringify({
+          comment: "Materialize execution legs",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Materialize execution legs",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-1",
+    });
+  });
+
+  it("returns structured blockers when execution request is blocked", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted" as const,
+    });
+    dealExecutionWorkflow.requestExecution.mockRejectedValue(
+      new DealTransitionBlockedError("awaiting_funds", [
+        {
+          code: "execution_leg_not_done",
+          message: "Execution is blocked",
+        },
+      ] as any),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-2",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "deal.transition_blocked",
+      details: {
+        targetStatus: "awaiting_funds",
+      },
+      error: "Deal transition to awaiting_funds is blocked",
+    });
+  });
+
+  it("forwards the same idempotency key on repeated execution requests", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "awaiting_funds" as const,
+    };
+    const projection = createWorkflowProjection();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
+
+    const first = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-replay",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+    const second = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/execution/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "execution-request-replay",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenNthCalledWith(1, {
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-replay",
+    });
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenNthCalledWith(2, {
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "execution-request-replay",
     });
   });
 

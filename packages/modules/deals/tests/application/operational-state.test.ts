@@ -5,6 +5,20 @@ import {
   listRequiredDealCapabilityKinds,
 } from "../../src/domain/operational-state";
 
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "payout",
+  state: "pending" | "ready" | "done",
+) {
+  return {
+    id: `leg-${idx}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
 describe("deal operational state", () => {
   it("maps required capabilities by deal type", () => {
     expect(
@@ -50,8 +64,8 @@ describe("deal operational state", () => {
       calculationLines: [],
       capabilityStates: [],
       executionPlan: [
-        { idx: 1, kind: "collect", state: "pending" },
-        { idx: 2, kind: "payout", state: "pending" },
+        createExecutionLeg(1, "collect", "pending"),
+        createExecutionLeg(2, "payout", "pending"),
       ],
       intake: {
         common: {
@@ -142,8 +156,8 @@ describe("deal operational state", () => {
       ],
       capabilityStates: [],
       executionPlan: [
-        { idx: 1, kind: "collect", state: "done" },
-        { idx: 2, kind: "payout", state: "ready" },
+        createExecutionLeg(1, "collect", "done"),
+        createExecutionLeg(2, "payout", "ready"),
       ],
       intake: {
         common: {

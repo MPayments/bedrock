@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CreateDealInputSchema } from "../../src/contracts";
+import {
+  CreateDealInputSchema,
+  DealLegOperationKindSchema,
+  RequestDealExecutionInputSchema,
+} from "../../src/contracts";
 
 describe("deals contracts", () => {
   it("trims nullable comment fields on create", () => {
@@ -25,5 +29,28 @@ describe("deals contracts", () => {
     expect(
       CreateDealInputSchema.shape.type.safeParse("exporter_settlement").success,
     ).toBe(true);
+  });
+
+  it("accepts empty or trimmed execution request comments", () => {
+    expect(RequestDealExecutionInputSchema.parse({})).toEqual({
+      comment: null,
+    });
+    expect(
+      RequestDealExecutionInputSchema.parse({
+        comment: "  materialize treasury ops  ",
+      }),
+    ).toEqual({
+      comment: "materialize treasury ops",
+    });
+  });
+
+  it("accepts treasury operation kinds linkable from deal legs", () => {
+    expect(DealLegOperationKindSchema.safeParse("payin").success).toBe(true);
+    expect(
+      DealLegOperationKindSchema.safeParse("fx_conversion").success,
+    ).toBe(true);
+    expect(
+      DealLegOperationKindSchema.safeParse("internal_treasury").success,
+    ).toBe(false);
   });
 });

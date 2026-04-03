@@ -24,31 +24,23 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
-  buildEffectiveDealExecutionPlan,
-  deriveDealNextAction,
-  evaluateDealSectionCompleteness,
-  filterTimelineForPortal,
-} from "../../domain/workflow";
-import { buildDealOperationalState } from "../../domain/operational-state";
-import { listDealTransitionReadiness } from "../../domain/transition-policy";
-import {
   dealAttachmentIngestions,
-  dealCapabilityStates,
   dealApprovals,
+  dealCapabilityStates,
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
+  dealLegOperationLinks,
   dealParticipants,
   deals,
-  dealQuoteAcceptances,
   dealTimelineEvents,
 } from "./schema";
 import type {
   Deal,
-  DealAttachmentIngestion,
-  DealCapabilityState,
   DealApproval,
+  DealAttachmentIngestion,
   DealCalculationHistoryItem,
+  DealCapabilityState,
   DealDetails,
   DealIntakeDraft,
   DealQuoteAcceptance,
@@ -62,6 +54,14 @@ import type {
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
 import type { DealReads } from "../../application/ports/deal.reads";
+import { buildDealOperationalState } from "../../domain/operational-state";
+import { listDealTransitionReadiness } from "../../domain/transition-policy";
+import {
+  buildEffectiveDealExecutionPlan,
+  deriveDealNextAction,
+  evaluateDealSectionCompleteness,
+  filterTimelineForPortal,
+} from "../../domain/workflow";
 
 const DEALS_SORT_COLUMN_MAP = {
   createdAt: deals.createdAt,
@@ -81,6 +81,7 @@ function mapTimelineEvent(row: {
     | "intake_saved"
     | "participant_changed"
     | "status_changed"
+    | "execution_requested"
     | "quote_created"
     | "quote_accepted"
     | "quote_expired"
@@ -312,7 +313,7 @@ function buildPortalCalculationSummary(
   return calculationId ? { id: calculationId } : null;
 }
 
-type DealSummaryRow = {
+interface DealSummaryRow {
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
@@ -328,18 +329,18 @@ type DealSummaryRow = {
   targetCurrencyId: string | null;
   type: Deal["type"];
   updatedAt: Date;
-};
+}
 
-type DealQuoteRow = {
+interface DealQuoteRow extends Record<string, unknown> {
   createdAt: Date;
   dealId: string | null;
   expiresAt: Date;
   id: string;
   status: string;
   usedDocumentId: string | null;
-};
+}
 
-export type DealTraceDocumentRow = {
+export interface DealTraceDocumentRow {
   approvalStatus: string;
   dealId: string | null;
   documentId: string;
@@ -349,7 +350,7 @@ export type DealTraceDocumentRow = {
   occurredAt: Date;
   postingStatus: string;
   submissionStatus: string;
-};
+}
 
 export interface DealDocumentsReadModel {
   listDealTraceRowsByDealId(dealId: string): Promise<DealTraceDocumentRow[]>;
@@ -469,19 +470,50 @@ export class DrizzleDealReads implements DealReads {
   private async loadStoredLegs(
     dealId: string,
   ): Promise<DealWorkflowProjection["executionPlan"]> {
-    const rows = await this.db
-      .select({
-        idx: dealLegs.idx,
-        kind: dealLegs.kind,
-        state: dealLegs.state,
-      })
-      .from(dealLegs)
-      .where(eq(dealLegs.dealId, dealId))
-      .orderBy(asc(dealLegs.idx));
+    const [rows, operationRefRows] = await Promise.all([
+      this.db
+        .select({
+          id: dealLegs.id,
+          idx: dealLegs.idx,
+          kind: dealLegs.kind,
+          state: dealLegs.state,
+        })
+        .from(dealLegs)
+        .where(eq(dealLegs.dealId, dealId))
+        .orderBy(asc(dealLegs.idx)),
+      this.db
+        .select({
+          dealLegId: dealLegOperationLinks.dealLegId,
+          kind: dealLegOperationLinks.operationKind,
+          operationId: dealLegOperationLinks.treasuryOperationId,
+          sourceRef: dealLegOperationLinks.sourceRef,
+        })
+        .from(dealLegOperationLinks)
+        .innerJoin(dealLegs, eq(dealLegOperationLinks.dealLegId, dealLegs.id))
+        .where(eq(dealLegs.dealId, dealId))
+        .orderBy(asc(dealLegs.idx), asc(dealLegOperationLinks.createdAt)),
+    ]);
+
+    const operationRefsByLegId = new Map<
+      string,
+      DealWorkflowProjection["executionPlan"][number]["operationRefs"]
+    >();
+
+    for (const row of operationRefRows) {
+      const operationRefs = operationRefsByLegId.get(row.dealLegId) ?? [];
+      operationRefs.push({
+        kind: row.kind,
+        operationId: row.operationId,
+        sourceRef: row.sourceRef,
+      });
+      operationRefsByLegId.set(row.dealLegId, operationRefs);
+    }
 
     return rows.map((row) => ({
+      id: row.id,
       idx: row.idx,
       kind: row.kind,
+      operationRefs: operationRefsByLegId.get(row.id) ?? [],
       state: row.state,
     }));
   }

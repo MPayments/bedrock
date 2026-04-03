@@ -322,6 +322,7 @@ export function createTimelinePayloadEvent(input: {
     | "quote_accepted"
     | "quote_expired"
     | "quote_used"
+    | "execution_requested"
     | "calculation_attached"
     | "attachment_uploaded"
     | "attachment_deleted"

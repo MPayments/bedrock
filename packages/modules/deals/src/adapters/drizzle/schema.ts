@@ -31,6 +31,7 @@ import {
   DEAL_CAPABILITY_KIND_VALUES,
   DEAL_CAPABILITY_STATUS_VALUES,
   DEAL_LEG_KIND_VALUES,
+  DEAL_LEG_OPERATION_KIND_VALUES,
   DEAL_LEG_STATE_VALUES,
   DEAL_OPERATIONAL_POSITION_KIND_VALUES,
   DEAL_OPERATIONAL_POSITION_STATE_VALUES,
@@ -45,6 +46,10 @@ export const dealTypeEnum = pgEnum("deal_type", DEAL_TYPE_VALUES);
 export const dealStatusEnum = pgEnum("deal_status", DEAL_STATUS_VALUES);
 export const dealLegKindEnum = pgEnum("deal_leg_kind", DEAL_LEG_KIND_VALUES);
 export const dealLegStateEnum = pgEnum("deal_leg_state", DEAL_LEG_STATE_VALUES);
+export const dealLegOperationKindEnum = pgEnum(
+  "deal_leg_operation_kind",
+  DEAL_LEG_OPERATION_KIND_VALUES,
+);
 export const dealCapabilityKindEnum = pgEnum(
   "deal_capability_kind",
   DEAL_CAPABILITY_KIND_VALUES,
@@ -216,6 +221,31 @@ export const dealLegs = pgTable(
   (table) => [
     uniqueIndex("deal_legs_deal_idx_uq").on(table.dealId, table.idx),
     index("deal_legs_deal_idx").on(table.dealId),
+  ],
+);
+
+export const dealLegOperationLinks = pgTable(
+  "deal_leg_operation_links",
+  {
+    id: uuid("id").primaryKey(),
+    dealLegId: uuid("deal_leg_id")
+      .notNull()
+      .references(() => dealLegs.id, { onDelete: "cascade" }),
+    treasuryOperationId: uuid("treasury_operation_id").notNull(),
+    operationKind: dealLegOperationKindEnum("operation_kind").notNull(),
+    sourceRef: text("source_ref").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("deal_leg_operation_links_source_ref_uq").on(table.sourceRef),
+    uniqueIndex("deal_leg_operation_links_leg_operation_uq").on(
+      table.dealLegId,
+      table.treasuryOperationId,
+    ),
+    index("deal_leg_operation_links_leg_idx").on(table.dealLegId),
+    index("deal_leg_operation_links_operation_idx").on(table.treasuryOperationId),
   ],
 );
 

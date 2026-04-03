@@ -211,6 +211,14 @@ export const AcceptDealQuoteInputSchema = z.object({
 
 export type AcceptDealQuoteInput = z.infer<typeof AcceptDealQuoteInputSchema>;
 
+export const RequestDealExecutionInputSchema = z.object({
+  comment: nullableText.optional(),
+});
+
+export type RequestDealExecutionInput = z.infer<
+  typeof RequestDealExecutionInputSchema
+>;
+
 export const AppendDealTimelineEventInputSchema = z.object({
   payload: z.record(z.string(), z.unknown()).optional().default({}),
   sourceRef: nullableShortText,
@@ -219,6 +227,7 @@ export const AppendDealTimelineEventInputSchema = z.object({
     "quote_accepted",
     "quote_expired",
     "quote_used",
+    "execution_requested",
     "attachment_uploaded",
     "attachment_deleted",
     "attachment_ingested",

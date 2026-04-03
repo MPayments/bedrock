@@ -20,6 +20,7 @@ import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
+import type { DealExecutionWorkflow } from "@bedrock/workflow-deal-execution";
 import type { DealProjectionsWorkflow } from "@bedrock/workflow-deal-projections";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
@@ -83,6 +84,7 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealExecutionWorkflow: DealExecutionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -121,6 +123,7 @@ export function createAppContext(env: Env): AppContext {
     treasuryModule: applicationServices.treasuryModule,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
+    dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     organizationBootstrapWorkflow:

@@ -3,12 +3,13 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
-  dealCapabilityStates,
   dealAttachmentIngestions,
+  dealCapabilityStates,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
+  dealLegOperationLinks,
   dealOperationalPositions,
   dealParticipants,
   deals,
@@ -19,13 +20,14 @@ import type {
   CreateDealApprovalStoredInput,
   CreateDealAttachmentIngestionStoredInput,
   CreateDealIntakeSnapshotStoredInput,
+  CreateDealLegOperationLinkStoredInput,
   CreateDealLegStoredInput,
-  ReplaceDealOperationalPositionStoredInput,
   CreateDealParticipantStoredInput,
   CreateDealQuoteAcceptanceStoredInput,
   CreateDealRootInput,
   CreateDealTimelineEventStoredInput,
   DealStore,
+  ReplaceDealOperationalPositionStoredInput,
   UpsertDealCapabilityStateStoredInput,
 } from "../../application/ports/deal.store";
 
@@ -141,6 +143,29 @@ export class DrizzleDealStore implements DealStore {
       revision: input.revision,
       snapshot: input.snapshot,
     });
+  }
+
+  async createDealLegOperationLinks(
+    input: CreateDealLegOperationLinkStoredInput[],
+  ): Promise<void> {
+    if (input.length === 0) {
+      return;
+    }
+
+    await this.db
+      .insert(dealLegOperationLinks)
+      .values(
+        input.map((link) => ({
+          dealLegId: link.dealLegId,
+          id: link.id,
+          operationKind: link.operationKind,
+          sourceRef: link.sourceRef,
+          treasuryOperationId: link.treasuryOperationId,
+        })),
+      )
+      .onConflictDoNothing({
+        target: dealLegOperationLinks.sourceRef,
+      });
   }
 
   async replaceIntakeSnapshot(input: {

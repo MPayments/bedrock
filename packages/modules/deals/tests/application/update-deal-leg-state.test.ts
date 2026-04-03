@@ -5,6 +5,20 @@ import { createModuleRuntime } from "@bedrock/shared/core";
 import { UpdateDealLegStateCommand } from "../../src/application/commands/update-deal-leg-state";
 import { DealLegStateTransitionError } from "../../src/errors";
 
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "payout",
+  state: "pending" | "ready" | "in_progress",
+) {
+  return {
+    id: `leg-${idx}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
 function createLogger() {
   const logger = {
     child: vi.fn(),
@@ -23,8 +37,8 @@ function createWorkflow() {
   return {
     acceptedQuote: null,
     executionPlan: [
-      { idx: 1, kind: "collect" as const, state: "ready" as const },
-      { idx: 2, kind: "payout" as const, state: "pending" as const },
+      createExecutionLeg(1, "collect", "ready"),
+      createExecutionLeg(2, "payout", "pending"),
     ],
     intake: {
       common: {
@@ -139,7 +153,7 @@ describe("update deal leg state command", () => {
     const updated = {
       ...existing,
       executionPlan: [
-        { idx: 1, kind: "collect" as const, state: "in_progress" as const },
+        createExecutionLeg(1, "collect", "in_progress"),
         existing.executionPlan[1],
       ],
     };

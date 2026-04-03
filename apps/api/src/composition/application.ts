@@ -6,6 +6,7 @@ import {
   type CurrenciesService,
 } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
+import { DrizzleDealStore } from "@bedrock/deals/adapters/drizzle";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -41,6 +42,10 @@ import {
   type DealAttachmentIngestionWorkflow,
 } from "@bedrock/workflow-deal-attachment-ingestion";
 import {
+  createDealExecutionWorkflow,
+  type DealExecutionWorkflow,
+} from "@bedrock/workflow-deal-execution";
+import {
   createDealProjectionsWorkflow,
   type DealProjectionsWorkflow,
 } from "@bedrock/workflow-deal-projections";
@@ -71,11 +76,11 @@ import { createApiAccountingModule } from "./accounting-module";
 import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
-import { createApiDealsModule } from "./deals-module";
 import {
   createDealQuoteWorkflow,
   type DealQuoteWorkflow,
 } from "./deal-quote-workflow";
+import { createApiDealsModule } from "./deals-module";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
@@ -100,6 +105,7 @@ export interface ApiApplicationServices {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealExecutionWorkflow: DealExecutionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -158,6 +164,22 @@ export function createApplicationServices(
       db: tx,
       idempotency,
       logger,
+      persistence: bindPersistenceSession(tx),
+    });
+  const createTreasuryModuleForTransaction = (tx: Transaction) =>
+    createApiTreasuryModule({
+      db: tx,
+      logger,
+      currencies: treasuryCurrenciesPort,
+      persistence: bindPersistenceSession(tx),
+    });
+  const createDealsModuleForTransaction = (tx: Transaction) =>
+    createApiDealsModule({
+      currencies: currenciesService,
+      db: tx,
+      quoteReads: createTreasuryModuleForTransaction(tx).quotes.queries,
+      logger,
+      idempotency,
       persistence: bindPersistenceSession(tx),
     });
 
@@ -227,6 +249,15 @@ export function createApplicationServices(
     currencies: currenciesService,
     deals: dealsModule,
     treasury: treasuryModule,
+  });
+  const dealExecutionWorkflow = createDealExecutionWorkflow({
+    agreements: agreementsModule,
+    currencies: currenciesService,
+    db,
+    idempotency,
+    createDealStore: (tx) => new DrizzleDealStore(tx),
+    createDealsModule: createDealsModuleForTransaction,
+    createTreasuryModule: createTreasuryModuleForTransaction,
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
@@ -543,6 +574,7 @@ export function createApplicationServices(
     currenciesService,
     treasuryModule,
     dealAttachmentIngestionWorkflow,
+    dealExecutionWorkflow,
     dealQuoteWorkflow,
     dealProjectionsWorkflow,
     organizationBootstrapWorkflow,

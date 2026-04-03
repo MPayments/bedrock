@@ -12,6 +12,7 @@ import {
   DealCapabilityKindSchema,
   DealCapabilityStatusSchema,
   DealLegKindSchema,
+  DealLegOperationKindSchema,
   DealLegStateSchema,
   DealOperationalPositionKindSchema,
   DealOperationalPositionStateSchema,
@@ -157,9 +158,19 @@ export const DealIntakeDraftSchema = z.discriminatedUnion("type", [
 
 export type DealIntakeDraft = z.infer<typeof DealIntakeDraftSchema>;
 
+export const DealLegOperationRefSchema = z.object({
+  kind: DealLegOperationKindSchema,
+  operationId: z.uuid(),
+  sourceRef: z.string(),
+});
+
+export type DealLegOperationRef = z.infer<typeof DealLegOperationRefSchema>;
+
 export const DealWorkflowLegSchema = z.object({
+  id: z.uuid().nullable().default(null),
   idx: z.number().int().positive(),
   kind: DealLegKindSchema,
+  operationRefs: z.array(DealLegOperationRefSchema).default([]),
   state: DealLegStateSchema,
 });
 

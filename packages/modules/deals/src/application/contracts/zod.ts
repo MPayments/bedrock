@@ -7,6 +7,7 @@ import {
   DEAL_CAPABILITY_KIND_VALUES,
   DEAL_CAPABILITY_STATUS_VALUES,
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,
+  DEAL_LEG_OPERATION_KIND_VALUES,
   DEAL_LEG_STATE_VALUES,
   DEAL_LEG_KIND_VALUES,
   DEAL_LEGACY_PARTICIPANT_ROLE_VALUES,
@@ -31,6 +32,11 @@ export type DealLegKind = z.infer<typeof DealLegKindSchema>;
 
 export const DealLegStateSchema = z.enum(DEAL_LEG_STATE_VALUES);
 export type DealLegState = z.infer<typeof DealLegStateSchema>;
+
+export const DealLegOperationKindSchema = z.enum(
+  DEAL_LEG_OPERATION_KIND_VALUES,
+);
+export type DealLegOperationKind = z.infer<typeof DealLegOperationKindSchema>;
 
 export const DealCapabilityKindSchema = z.enum(DEAL_CAPABILITY_KIND_VALUES);
 export type DealCapabilityKind = z.infer<typeof DealCapabilityKindSchema>;

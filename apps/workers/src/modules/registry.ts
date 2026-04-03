@@ -3,18 +3,14 @@ import { randomUUID } from "node:crypto";
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
-import {
-  createDealsModule,
-} from "@bedrock/deals";
+import { createDealsModule } from "@bedrock/deals";
 import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
-import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import {
-  createFilesModule,
-} from "@bedrock/files";
+import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
+import { createFilesModule } from "@bedrock/files";
 import {
   DrizzleFileReads,
   DrizzleFilesUnitOfWork,
@@ -38,12 +34,10 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/platform/worker-runtime";
-import {
-  createTreasuryModule,
-} from "@bedrock/treasury";
-import { createDealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
+import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -52,6 +46,7 @@ import {
 } from "@bedrock/treasury/adapters/drizzle";
 import { createDefaultRateSourceProviders } from "@bedrock/treasury/providers";
 import { createTreasuryRatesWorkerDefinition } from "@bedrock/treasury/worker";
+import { createDealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
@@ -250,6 +245,7 @@ export function createWorkerImplementations(
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
+    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
     quoteFinancialLinesRepository:

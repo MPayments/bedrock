@@ -8,8 +8,9 @@ import {
   DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
-  DealTraceSchema,
   DealWorkflowProjectionSchema,
+  RequestDealExecutionInputSchema,
+  DealTraceSchema,
   ReplaceDealIntakeInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
@@ -664,6 +665,51 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const requestExecutionRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/execution/request",
+    tags: ["Deals"],
+    summary: "Materialize deal execution legs into treasury operations",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RequestDealExecutionInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Execution requested",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Execution request blocked",
+      },
+    },
+  });
+
   const transitionStatusRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
@@ -1222,6 +1268,34 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(requestExecutionRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const deal = await requireDeal(ctx, id);
+            assertDealAllowsCommercialWrite(deal);
+
+            return ctx.dealExecutionWorkflow.requestExecution({
+              actorUserId: c.get("user")!.id,
+              comment: body.comment ?? null,
+              dealId: id,
+              idempotencyKey,
+            });
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }

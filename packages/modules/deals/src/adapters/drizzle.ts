@@ -11,6 +11,8 @@ export {
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegKindEnum,
+  dealLegOperationKindEnum,
+  dealLegOperationLinks,
   dealLegStateEnum,
   dealLegs,
   dealOperationalPositionKindEnum,

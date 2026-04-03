@@ -5,21 +5,27 @@ import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 
 import { createDealProjectionsWorkflow } from "../src";
 
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "payout",
+  state: "ready" | "pending",
+) {
+  return {
+    id: `leg-${idx}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
 function createBaseWorkflow(): DealWorkflowProjection {
   return {
     acceptedQuote: null,
     attachmentIngestions: [],
     executionPlan: [
-      {
-        idx: 1,
-        kind: "collect",
-        state: "ready",
-      },
-      {
-        idx: 2,
-        kind: "payout",
-        state: "ready",
-      },
+      createExecutionLeg(1, "collect", "ready"),
+      createExecutionLeg(2, "payout", "ready"),
     ],
     intake: {
       common: {

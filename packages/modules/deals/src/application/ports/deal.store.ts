@@ -6,6 +6,7 @@ import type {
   DealCapabilityKind,
   DealCapabilityStatus,
   DealLegKind,
+  DealLegOperationKind,
   DealLegState,
   DealOperationalPositionKind,
   DealOperationalPositionState,
@@ -51,6 +52,14 @@ export interface CreateDealParticipantStoredInput {
   id: string;
   organizationId: string | null;
   role: DealParticipantRole;
+}
+
+export interface CreateDealLegOperationLinkStoredInput {
+  dealLegId: string;
+  id: string;
+  operationKind: DealLegOperationKind;
+  sourceRef: string;
+  treasuryOperationId: string;
 }
 
 export interface CreateDealTimelineEventStoredInput {
@@ -133,14 +142,14 @@ export interface DealStore {
     leaseSeconds: number;
     now: Date;
   }): Promise<
-    Array<{
+    {
       attempts: number;
       availableAt: Date;
       dealId: string;
       fileAssetId: string;
       observedRevision: number;
       status: DealAttachmentIngestionStatus;
-    }>
+    }[]
   >;
   createDealApprovals(input: CreateDealApprovalStoredInput[]): Promise<void>;
   createDealAttachmentIngestion(
@@ -156,6 +165,9 @@ export interface DealStore {
   ): Promise<void>;
   createDealIntakeSnapshot(
     input: CreateDealIntakeSnapshotStoredInput,
+  ): Promise<void>;
+  createDealLegOperationLinks(
+    input: CreateDealLegOperationLinkStoredInput[],
   ): Promise<void>;
   createDealQuoteAcceptance(
     input: CreateDealQuoteAcceptanceStoredInput,

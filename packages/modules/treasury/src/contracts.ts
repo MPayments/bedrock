@@ -75,6 +75,20 @@ export type {
   QuoteRecord,
 } from "./quotes/application/ports";
 export {
+  CreatePlannedTreasuryOperationInputSchema,
+  type CreatePlannedTreasuryOperationInput,
+} from "./operations/application/contracts/commands";
+export {
+  TreasuryOperationSchema,
+  type TreasuryOperation,
+} from "./operations/application/contracts/dto";
+export {
+  TreasuryOperationKindSchema,
+  TreasuryOperationStateSchema,
+  type TreasuryOperationKind,
+  type TreasuryOperationState,
+} from "./operations/application/contracts/zod";
+export {
   calculateQuoteFeeComponentsSchema as CalculateQuoteFeeComponentsInputSchema,
   createFeeRuleSchema as CreateFeeRuleInputSchema,
 } from "./fees/application/contracts";

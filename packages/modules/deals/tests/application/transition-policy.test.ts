@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { evaluateDealTransitionReadiness } from "../../src/domain/transition-policy";
 
+function createExecutionLeg(
+  idx: number,
+  kind: "collect" | "convert" | "payout",
+  state: "pending" | "ready" | "in_progress",
+) {
+  return {
+    id: `leg-${idx}`,
+    idx,
+    kind,
+    operationRefs: [],
+    state,
+  };
+}
+
 function createBaseInput() {
   return {
     acceptance: null,
@@ -36,9 +50,9 @@ function createBaseInput() {
     ],
     documents: [],
     executionPlan: [
-      { idx: 1, kind: "collect" as const, state: "pending" as const },
-      { idx: 2, kind: "convert" as const, state: "pending" as const },
-      { idx: 3, kind: "payout" as const, state: "pending" as const },
+      createExecutionLeg(1, "collect", "pending"),
+      createExecutionLeg(2, "convert", "pending"),
+      createExecutionLeg(3, "payout", "pending"),
     ],
     intake: {
       externalBeneficiary: { beneficiarySnapshot: null },
@@ -267,8 +281,8 @@ describe("deal transition policy", () => {
     input.status = "preparing_documents";
     input.targetStatus = "awaiting_funds";
     input.executionPlan = [
-      { idx: 1, kind: "collect", state: "ready" },
-      { idx: 2, kind: "payout", state: "ready" },
+      createExecutionLeg(1, "collect", "ready"),
+      createExecutionLeg(2, "payout", "ready"),
     ];
 
     const readiness = evaluateDealTransitionReadiness(input);
@@ -312,9 +326,9 @@ describe("deal transition policy", () => {
       },
     ];
     input.executionPlan = [
-      { idx: 1, kind: "collect", state: "in_progress" },
-      { idx: 2, kind: "convert", state: "ready" },
-      { idx: 3, kind: "payout", state: "ready" },
+      createExecutionLeg(1, "collect", "in_progress"),
+      createExecutionLeg(2, "convert", "ready"),
+      createExecutionLeg(3, "payout", "ready"),
     ];
     input.operationalState.positions[0] = {
       ...input.operationalState.positions[0]!,

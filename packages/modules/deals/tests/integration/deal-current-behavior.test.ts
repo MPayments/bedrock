@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -157,6 +156,92 @@ describe("deals integration characterization", () => {
         status: "done",
       }),
     ).rejects.toThrow("Cannot transition deal status from draft to done");
+  });
+
+  it("hydrates linked treasury operations back onto execution plan legs", async () => {
+    const fixture = await createAgreementFixture();
+    const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: createPaymentIntakeDraft({
+        applicantCounterpartyId: fixture.applicant.id,
+        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+        sourceCurrencyId: fixture.currencies.usd.id,
+      }),
+    });
+
+    const workflowBefore = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
+      draft.summary.id,
+    );
+    const collectLeg = workflowBefore?.executionPlan.find(
+      (leg) => leg.kind === "collect",
+    );
+    expect(collectLeg).toBeDefined();
+    expect(collectLeg?.operationRefs).toEqual([]);
+
+    const operationId = randomUUID();
+    const linkId = randomUUID();
+    const sourceRef = `deal:${draft.summary.id}:leg:${collectLeg!.idx}:payin:1`;
+
+    await fixture.runtime.pool.query(
+      `
+        insert into treasury_operations (
+          id,
+          deal_id,
+          customer_id,
+          internal_entity_organization_id,
+          kind,
+          state,
+          source_ref,
+          amount_minor,
+          currency_id,
+          created_at,
+          updated_at
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+      `,
+      [
+        operationId,
+        draft.summary.id,
+        fixture.customer.id,
+        fixture.organization.id,
+        "payin",
+        "planned",
+        sourceRef,
+        "100000",
+        fixture.currencies.usd.id,
+      ],
+    );
+    await fixture.runtime.pool.query(
+      `
+        insert into deal_leg_operation_links (
+          id,
+          deal_leg_id,
+          treasury_operation_id,
+          operation_kind,
+          source_ref
+        ) values ($1, $2, $3, $4, $5)
+      `,
+      [linkId, collectLeg!.id, operationId, "payin", sourceRef],
+    );
+
+    const workflowAfter = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
+      draft.summary.id,
+    );
+
+    expect(
+      workflowAfter?.executionPlan.find((leg) => leg.kind === "collect"),
+    ).toMatchObject({
+      id: collectLeg!.id,
+      operationRefs: [
+        {
+          kind: "payin",
+          operationId,
+          sourceRef,
+        },
+      ],
+    });
   });
 
   it("makes an accepted quote non-current after intake revision changes without deleting acceptance history", async () => {

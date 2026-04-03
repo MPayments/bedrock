@@ -34,6 +34,14 @@ export const DEAL_LEG_STATE_VALUES = [
   "skipped",
 ] as const;
 
+export const DEAL_LEG_OPERATION_KIND_VALUES = [
+  "payin",
+  "payout",
+  "fx_conversion",
+  "intracompany_transfer",
+  "intercompany_funding",
+] as const;
+
 export const DEAL_CAPABILITY_KIND_VALUES = [
   "can_collect",
   "can_fx",
@@ -103,6 +111,7 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "participant_changed",
   "status_changed",
   "leg_state_changed",
+  "execution_requested",
   "quote_created",
   "quote_accepted",
   "quote_expired",

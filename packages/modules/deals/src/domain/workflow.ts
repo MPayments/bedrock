@@ -203,8 +203,10 @@ function createLeg(
   kind: (typeof DEAL_LEG_KIND_VALUES)[number],
 ): DealWorkflowLeg {
   return {
+    id: null,
     idx,
     kind,
+    operationRefs: [],
     state: "pending",
   };
 }
@@ -271,11 +273,15 @@ export function buildEffectiveDealExecutionPlan(input: {
 }): DealWorkflowLeg[] {
   const basePlan = buildDealExecutionPlan(input.intake);
   const storedByKey = new Map(
-    input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
+    input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg] as const),
   );
   const merged = basePlan.map((leg) => ({
     ...leg,
-    state: storedByKey.get(`${leg.idx}:${leg.kind}`) ?? leg.state,
+    id: storedByKey.get(`${leg.idx}:${leg.kind}`)?.id ?? leg.id,
+    operationRefs:
+      storedByKey.get(`${leg.idx}:${leg.kind}`)?.operationRefs ??
+      leg.operationRefs,
+    state: storedByKey.get(`${leg.idx}:${leg.kind}`)?.state ?? leg.state,
   }));
   const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
     acceptance: input.acceptance,

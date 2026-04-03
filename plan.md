@@ -1,547 +1,258 @@
-# Phase 2: Перенос бизнес-логики MPayments в Bedrock DDD
-
-## Context
+validate this plan. we should did it in the 1 work day
 
-Phase 1 завершена: `@bedrock/operations` содержит 17 ops_* Drizzle-схем и FK-мосты к bedrock-сущностям. MPayments NestJS продолжает работать с теми же таблицами. Цель Phase 2 — перенести бизнес-логику из NestJS-сервисов в DDD-модуль `@bedrock/operations` по архитектуре bedrock (contracts/domain/application/adapters). API-роуты и Telegram-бот будут в Phase 3.
+Here is the Codex plan I’d run **on top of the current `mpayments-integration` branch**, not as a fresh rewrite.
 
-> **Замечание:** Сервисы обменных курсов MPayments (CBR, Investing.com) полностью заменены модулем `@bedrock/treasury`. Миграция не требуется. Telegram-бот будет переписан с нуля в Phase 3 — переносить текущую реализацию не планируется.
+The branch already has the core deal foundation: `deals`, `deal_intake_snapshots`, `deal_legs`, `deal_participants`, `deal_timeline_events`, `deal_quote_acceptances`, `deal_capability_states`, and `deal_operational_positions`; the code also already defines the four external deal types `payment`, `currency_exchange`, `currency_transit`, and `exporter_settlement`. The API already exposes finance queue/workspace projections (`/v1/deals/finance/queues`, `/{id}/workflow`, `/{id}/finance-workspace`), and the Finance app already has `/treasury/deals` plus a workbench with Overview / Pricing / Documents / Execution tabs. ([GitHub][1])
 
----
-
-## Архитектурные решения
-
-### 1. Всё в `@bedrock/operations` как субдомены
-
-Applications, calculations, deals — один bounded context (тесный lifecycle: application → calculation → deal). Паттерн аналогичен `@bedrock/parties` (4 субдомена в одном модуле).
+So the next track should **not** be “rebuild deals again.” The real gap is that Finance is still too **quote-centered**: the current finance queue model is only `funding / execution / failed_instruction`, finance workspace actions are only `canCreateQuote / canCreateCalculation / canUploadAttachment`, related resources only include attachments / formal documents / quotes, and the UI still says quote creation is available only for “payments and conversions.” There is also no separate `/treasury/operations` surface in the Finance treasury nav right now. ([GitHub][2])
 
-```
-packages/modules/operations/src/
-  agents/              -- профиль агента (расширение bedrock user)
-  clients/             -- тонкий адаптер над @bedrock/parties counterparties
-  contracts/           -- контракты (агент-орг ↔ клиент)
-  applications/        -- lifecycle заявок
-  calculations/        -- расчёты (интеграция с @bedrock/treasury)
-  deals/               -- lifecycle сделок (ядро)
-  activity-log/        -- аудит
-  shared/              -- общий UoW type, порты
-  infra/drizzle/schema/  -- [СУЩЕСТВУЕТ] все 17 таблиц централизованно
-  module.ts            -- module factory
-  index.ts             -- [СУЩЕСТВУЕТ] обновить: re-export module factory + schema
-  schema.ts            -- [СУЩЕСТВУЕТ] re-export схем
-  contracts.ts         -- [СУЩЕСТВУЕТ] public DTOs placeholder → заполнить
-  adapters/drizzle.ts  -- [СУЩЕСТВУЕТ] adapter exports placeholder → заполнить
-```
+The operating model I would freeze is simple:
 
-### 2. Схемы: централизованные (отличие от parties)
+**Deal** = commercial root and finance context.
+**Deal leg** = execution plan step.
+**Treasury operation** = actual finance work item.
+**Instruction/event** = provider/bank execution reality.
+**Document + reconciliation** = control, accounting, and close reality.
 
-В parties каждый субдомен владеет `adapters/drizzle/schema.ts`. В operations все 17 таблиц уже в `infra/drizzle/schema/`. **Оставляем централизованными.** Субдомен-адаптеры импортируют из `../../infra/drizzle/schema/`. Причины:
-- Таблицы стабильны (Phase 1 завершена)
-- Перенос → ненужный churn + сломает импорты в `apps/db`
-- Таблицы тесно связаны FK внутри одного контекста
+That matches both Bedrock’s architecture and your own product direction: apps and workflows should compose use cases, not own business logic, and the frontend should stay small while treasury / FX / documents / ledger / reconciliation remain behind the backend. ([GitHub][3])  
 
-### 3. Command/query handler — class-based (по образцу parties)
+I would also normalize your treasury naming now, before coding:
 
-```typescript
-// Команда — класс с execute()
-export class CreateApplicationCommand {
-  constructor(
-    private readonly runtime: ModuleRuntime,
-    private readonly unitOfWork: ApplicationsCommandUnitOfWork,
-  ) {}
-  async execute(input: CreateApplicationInput) { ... }
-}
+* **Incoming money** → `payin`
+* **Outgoing money** → `payout`
+* **Intra-company transfer** → `intracompany_transfer`
+* **Between internal legal entities** → `intercompany_funding`
+* **FX** stays a **leg inside execution**, not the whole finance workflow
 
-// Сервис-фабрика — инстанцирует классы, экспортирует bound-методы
-export function createApplicationsService(deps: ApplicationsServiceDeps) {
-  const create = new CreateApplicationCommand(deps.runtime, deps.commandUow);
-  return {
-    commands: { create: create.execute.bind(create) },
-    queries: { list: listApps.execute.bind(listApps) },
-  };
-}
-```
+For Multihansa’s deal types, Finance recipes should be:
+`payment = payin → optional fx_conversion → payout`,
+`currency_exchange = payin → fx_conversion → payout/return`,
+`currency_transit = payin → intracompany_transfer or intercompany_funding → payout`,
+`exporter_settlement = payout → optional intercompany_funding → later payin / receivable close`.  
 
-### 4. ops_* таблицы остаются как extension tables
+## Pass 1 — finish the finance deal workspace
 
-НЕ добавляем mpayments-колонки в bedrock-таблицы (counterparties, organizations, requisites). ops_clients — это operations-specific проекция counterparty с i18n, INN/KPP, sub-agent привязкой. FK-мосты связывают.
+The fastest high-value pass is to **finish what the branch already returns**. The finance workspace projection already includes `executionPlan`, `operationalState`, `queueContext`, `relatedResources`, `nextAction`, `profitabilitySnapshot`, and even a `timeline`, while the current UI currently centers the screen around Overview / Pricing / Documents / Execution. That means the first pass should be read-model/UI only: no new execution writes yet. ([GitHub][4])
 
-### 5. MPayments NestJS продолжает работать параллельно
+What Codex should do in this pass:
 
-Phase 2 создаёт бизнес-логику в bedrock без HTTP-роутов. NestJS пишет в те же ops_* таблицы. Hono API endpoints — Phase 3.
+* Render the existing `timeline` in the finance deal workbench.
+* Add an **execution summary rail** that groups each leg by kind, state, blocker, and primary operational position.
+* Promote `queueReason`, blockers, and `nextAction` to the top of the screen.
+* Keep Pricing visible, but demote it from “main finance job” to “one section of the deal.”
+* Add finance filters on the deal journal by type, queue, applicant, internal entity, and blocker state using the existing queue/list projections.
 
----
+Main touchpoints:
 
-## Порядок миграции
+* `apps/finance/features/treasury/deals/components/workbench.tsx`
+* `apps/finance/features/treasury/deals/lib/queries.ts`
+* `apps/finance/features/treasury/deals/labels.ts`
+* possibly small additions in `apps/api/src/routes/deals.ts` if any projection field is missing
 
-### Step 0: DDD-скелет (~0.5 дня) [DONE]
+Done when:
 
-Создать структуру директорий и shared-слой в `@bedrock/operations`.
+* a finance user can open a deal and answer “what is the next operational step?” without going into quotes first
+* the timeline is visible
+* the Execution tab feels primary, not decorative
 
-**Файлы:**
-- `src/shared/application/unit-of-work.ts` — общий UoW type (по образцу `parties/shared/application/unit-of-work.ts`)
-- `src/shared/application/notification.port.ts` — порт для email-нотификаций
-- `src/module.ts` — `createOperationsModule(deps)` с `createModuleRuntime` из `@bedrock/shared/core`
-- Обновить `src/index.ts` — re-export module factory + schema
-- Обновить `package.json` exports
+## Pass 2 — compile deal legs into treasury execution refs
 
-**Паттерн (`parties/module.ts:49-87`):**
-```typescript
-export function createOperationsModule(deps: OperationsModuleDeps) {
-  const createRuntime = (service: string) =>
-    createModuleRuntime({ logger: deps.logger, now: deps.now, generateUuid: deps.generateUuid, service });
-  return {
-    activityLog: createActivityLogService({ runtime: createRuntime("operations.activity-log"), ... }),
-    // добавляются по мере портирования
-  };
-}
-```
+This is the first real backend pass. The current schema already gives you the right anchors: `deal_legs`, `deal_quote_acceptances`, `deal_calculation_links`, `deal_capability_states`, `deal_operational_positions`, and `deal_timeline_events`. What is missing is a deterministic **execution compiler** that turns a finance-ready deal into concrete treasury operation intents and keeps stable references from legs to operations. ([GitHub][1])
 
----
+What Codex should do in this pass:
 
-### Step 1: Activity Log (~1 день) [DONE]
+* Add a new workflow package, preferably `packages/workflows/workflow-deal-execution`.
+* Inside it, add a service like `compileDealExecutionRecipe(...)` that takes:
 
-Чистый CQRS без domain-логики. Нужен всем доменам.
+  * deal type
+  * intake snapshot
+  * participant bindings
+  * accepted quote
+  * agreement / internal entity context
+* Add a deals-owned linking table such as `deal_leg_operation_links`:
 
-**Файлы:**
-- `src/activity-log/application/contracts/` — Zod: `LogActivityInput`, `ListActivitiesQuery`, `ActivityLogDto`
-- `src/activity-log/application/commands/log-activity.ts` — `LogActivityCommand` class
-- `src/activity-log/application/queries/list-activities.ts` — `ListActivitiesQuery` class с пагинацией
-- `src/activity-log/application/ports/activity-log.repository.ts` — port interface
-- `src/activity-log/application/index.ts` — `createActivityLogService()`
-- `src/activity-log/adapters/drizzle/activity-log.repository.ts` — реализация через `opsActivityLog`
+  * `id`
+  * `deal_leg_id`
+  * `treasury_operation_id`
+  * `operation_kind`
+  * `created_at`
+  * optional `source_ref`
+* Make materialization idempotent.
+* Trigger it from a fixed command such as `RequestExecution`, not from page logic.
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/activity-log/activity-log.service.ts`
+Recipe rules to encode:
 
----
+* `payment`: `payin` → maybe `convert` → `payout`
+* `currency_exchange`: `payin` → `convert` → `payout` or `return`
+* `currency_transit`: `payin` → `transit_hold` + `intracompany_transfer` or `intercompany_funding` → `payout`
+* `exporter_settlement`: `payout` / funding first, then expected collection close
 
-### Step 2: Contracts (~1-2 дня) [DONE]
+Important constraint: **do not add `internal_treasury` here yet**. Your current code does not define it in `DEAL_TYPE_VALUES`, even though it exists in the broader v5 target plan. Keep internal treasury as pure treasury work until the external four types are solid. ([GitHub][5]) 
 
-Контракт связывает клиента с банк. реквизитами агент-организации + условия комиссии.
+Done when:
 
-**Domain:**
-- `src/contracts/domain/contract.ts` — entity с инвариантами (банк принадлежит организации, уникальность номера)
+* every finance-ready deal leg can resolve to a concrete treasury operation id
+* execution planning no longer lives as labels and heuristics only
+* quote acceptance remains anchored on the existing `deal_quote_acceptances` model, not a new duplicated state store
 
-**Application:**
-- `src/contracts/application/commands/` — `CreateContractCommand`, `UpdateContractCommand`
-- `src/contracts/application/queries/` — `FindContractsByClientQuery`
-- `src/contracts/application/ports/` — repository, reads
-- `src/contracts/application/contracts/` — Zod schemas, DTOs
-- `src/contracts/application/index.ts` — `createContractsService()`
+## Pass 3 — add a real `/treasury/operations` workspace
 
-**Adapters:**
-- `src/contracts/adapters/drizzle/` — реализация через `opsContracts`
+This is the pass that changes Finance from “deal browser with pricing tools” into an execution cockpit. The current Finance treasury nav includes `accounts`, `balances`, `counterparties`, `customers`, `deals`, `organizations`, `quotes`, and `rates`, but not a separate `operations` surface. That is the main UX gap now. ([GitHub][6])
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/client/contract.service.ts`
+What Codex should do in this pass:
+
+* Add `apps/finance/app/(shell)/treasury/operations/page.tsx`
+* Add `apps/finance/features/treasury/operations/*`
+* Provide saved views:
+
+  * Incoming money
+  * Outgoing money
+  * Intra-company transfers
+  * Intercompany funding
+  * FX conversions
+  * Failed / returned / blocked
+* Each operation row should show:
 
----
+  * operation kind
+  * amount / currency
+  * internal entity
+  * source / destination account
+  * provider / route
+  * instruction status
+  * `dealRef` with deal id, type, applicant, status
+  * next action
+* Opening a row should show an operation panel plus a link back to the deal workbench.
 
-### Step 3: Auth — расширение ролей (~2 дня) [DONE]
+API side:
 
-**Ключевое:** `user.role` — колонка типа `text` (не pgEnum), определена в `@bedrock/platform/auth-model/schema.ts`. Валидация — только TypeScript. **DB-миграция не нужна.**
+* if the current `/v1/treasury` contracts already expose enough operation data, reuse them
+* if not, add a finance projection route under the treasury route group instead of querying core tables from the UI
 
-**Изменения в `@bedrock/users`:**
-- `packages/modules/users/src/domain/user-role.ts` — расширить `USER_ROLE_VALUES` до `["admin", "user", "agent", "customer", "finance"]`
+Done when:
 
-**Новое в `@bedrock/operations` (используем существующую `opsAgents`, не создаём `ops_agent_profiles`):**
-- `src/agents/application/ports/agent-profile.reads.ts` — порт
-- `src/agents/application/contracts/` — Zod schemas, DTOs
-- `src/agents/application/queries/` — class-based query handlers
-- `src/agents/application/index.ts` — `createAgentsService()`
-- `src/agents/adapters/drizzle/agent-profile.reads.ts` — реализация через `opsAgents`
-- Seed-скрипт: сопоставление `opsAgents` ↔ `user` по email (заполнение `bedrockUserId`)
+* Finance users can work out of operation queues day to day
+* `/treasury/deals` becomes the **context journal**
+* `/treasury/operations` becomes the **actual work surface**
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/packages/auth/src/auth.ts`, `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/agent/agent.service.ts`
+## Pass 4 — add finance execution commands
 
----
+Right now the finance workspace action model only covers quote creation, calculation creation, and attachment upload. That is not enough for execution. This pass should add fixed backend commands for the real finance lifecycle, and the UI should consume backend-provided action availability rather than inferring it locally. ([GitHub][4]) 
 
-### Step 4: Applications (~2-3 дня) [DONE] [параллельно с Step 5]
+What Codex should do in this pass:
 
-State machine: `forming → created → rejected | finished`
+* Extend finance workspace actions with execution commands, for example:
 
-**Domain:**
-- `src/applications/domain/application.ts` — aggregate с state machine
-- `src/applications/domain/application-status.ts` — enum + матрица переходов
+  * `canRequestExecution`
+  * `canCreateLegOperation`
+  * `canPrepareInstruction`
+  * `canSubmitInstruction`
+  * `canRetryInstruction`
+  * `canVoidInstruction`
+  * `canRequestReturn`
+  * `canResolveExecutionBlocker`
+  * `canCloseDeal`
+* Add backend commands/endpoints for those actions.
+* Keep writes idempotent.
+* Append timeline events for every state-changing command.
+* Mirror treasury instruction/event outcomes back into `deal_timeline_events` through workflow/outbox handling, not React-side orchestration.
 
-**Application:**
-- `commands/` — `CreateApplicationCommand`, `UpdateApplicationStatusCommand`, `RejectApplicationCommand`, `AssignAgentCommand`
-- `queries/` — `FindApplicationByIdQuery`, `ListApplicationsQuery` (пагинация, фильтры по статусу/периоду)
-- `ports/` — repository, reads, UoW
-- `contracts/` — Zod schemas, DTOs
-- `index.ts` — `createApplicationsService()`
+The current `deal_timeline_events` table is already designed well for this because it has typed event kinds, visibility, payload, and a unique `(deal_id, source_ref)` constraint, which is exactly what you want for replay-safe system events. ([GitHub][1])
 
-**Бизнес-правила:**
-- Агент создаёт заявку со статусом `created` + agentId
-- Клиент создаёт со статусом `forming`, agentId = null
-- `rejected` требует reason
-- `finished` устанавливается только при создании deal
+Main touchpoints:
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/application/application.service.ts`
+* `packages/workflows/workflow-deal-execution/*`
+* `packages/modules/deals/src/application/*`
+* `packages/modules/treasury/*`
+* `apps/api/src/routes/deals.ts`
+* finance workbench and operations workspace action components
 
----
+Done when:
 
-### Step 5: Calculations (~2-3 дня) [DONE] [параллельно с Step 4]
+* finance can move a deal from “ready” to “submitted/settled/failed/returned” through commands
+* no one needs free-form manual finance status editing
+* quotes become just the pricing prerequisite, not the finance center of gravity
 
-Расчёт: курс + комиссия + доп. расходы → итого в базовой валюте (RUB).
+## Pass 5 — reconciliation, close readiness, and per-type hardening
 
-**Domain:**
-- `src/calculations/domain/calculation.ts` — immutable entity (snapshot на момент создания)
+Bedrock is async in critical places and reconciliation is already a real subsystem, so “deal executed” must not mean “deal closed.” This pass makes close criteria operationally correct. 
 
-**Application:**
-- `commands/` — `CreateCalculationCommand`, `DeleteCalculationCommand`
-- `queries/` — `FindCalculationByIdQuery`, `ListCalculationsByApplicationQuery`
-- `ports/` — repository, reads, `treasury-rates.port.ts` (делегирует в @bedrock/treasury), notification port
-- `contracts/` — Zod schemas, DTOs
-- `index.ts` — `createCalculationsService()`
+What Codex should do in this pass:
 
-**Интеграция с Treasury:**
-- Вместо прямых вызовов investing.com/CBR → использовать `treasury.rates.getCrossRate()`
-- При создании calculation можно опционально создать `fx_quote` через treasury и записать `fx_quote_id`
+* Extend `FinanceDealWorkspaceProjection` with:
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/calculation/calculation.service.ts`
+  * `reconciliationSummary`
+  * `relatedResources.reconciliationExceptions`
+  * `closeReadiness`
+  * `instructionSummary`
+* Keep the top-level finance queues simple for now (`funding`, `execution`, `failed_instruction`), but add secondary stage filters:
 
----
+  * awaiting collection
+  * awaiting fx
+  * awaiting intracompany transfer
+  * awaiting intercompany funding
+  * awaiting payout
+  * awaiting reconciliation
+  * ready to close
+* Add type-specific close criteria:
 
-### Step 6: Deals (~3-4 дня) [DONE] [зависит от Steps 4+5]
+  * `payment`: payout settled + docs okay + no blocking recon exception
+  * `currency_exchange`: conversion completed + payout or return settled + no blocking recon exception
+  * `currency_transit`: inbound and outbound complete + no blocked in-transit position
+  * `exporter_settlement`: payout complete + receivable leg resolved + no blocking recon exception
+* Add finance outcome card:
 
-Ядро системы. State machine: `preparing_documents → awaiting_funds → awaiting_payment → closing_documents → done | cancelled`
+  * fee revenue
+  * spread revenue
+  * provider costs
+  * reconciliation result
+  * close button
 
-**Domain:**
-- `src/deals/domain/deal.ts` — aggregate с state machine
-- `src/deals/domain/deal-status.ts` — enum + transition matrix
-- `src/deals/domain/deal-document.ts` — child entity
+Use the existing `profitabilitySnapshot`, `queueContext`, `executionPlan`, and `operationalState` as the base rather than inventing another finance-only deal model. ([GitHub][4])
 
-**Application:**
-- `commands/` — `CreateDealCommand`, `UpdateDealStatusCommand`, `CancelDealCommand`, `UploadDocumentCommand`, `DeleteDocumentCommand`, `UpdateDealDetailsCommand`
-- `queries/` — `FindDealByIdQuery`, `ListDealsQuery` (сложная фильтрация: по клиенту, валюте, статусу, периоду, агенту + пагинация + сортировка)
-- `ports/` — repository, reads, UoW, `s3.port.ts`, notification port, reporting port
-- `contracts/` — Zod schemas, DTOs
-- `index.ts` — `createDealsService()`
+Done when:
 
-**Инварианты:**
-- Один deal на application
-- Sequential status progression (кроме done/cancelled — из любого)
-- `awaiting_funds` требует наличие contractNumber
+* Finance closes deals from actual treasury + reconciliation truth
+* “done” is no longer just “we created a quote” or “we submitted a payout”
+* exporter settlement and transit stop feeling like second-class edge cases
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/deal/deal.service.ts`
+## What I would explicitly defer
 
----
+I would **defer `internal_treasury` as a deal type** until after the four external deal types are solid in Finance. The current codebase’s deal enum does not include it yet, and many internal treasury actions do not need a client deal root anyway. Use the treasury workspace directly for pure liquidity management, sweeps, and internal funding until you have a clear reason to model those as deals. ([GitHub][5]) 
 
-### Step 7: Agent Bonus → Ledger (~1-2 дня) [DONE] [параллельно с Step 8]
+## What Codex should not do
 
-Заменить `ops_agent_bonus` на ledger postings.
+Do not rebuild the deal schema from scratch.
+Do not put leg-to-operation compilation in React components.
+Do not make finance manage deals by free-form status edits.
+Do not make quotes the main finance object.
+Do not force `internal_treasury` into the current external deal flow.
 
-**Статус:**
-- [x] `SetAgentBonusCommand` — реализован в `deals/application/commands/set-agent-bonus.ts`
-- [x] `opsAgentBonus` схема — есть в `infra/drizzle/schema/commissions.ts`
-- [x] `DealStore.insertAgentBonus()` — реализован
-- [x] Workflow `packages/workflows/deal-commission/` — СОЗДАН (`createDealCommissionWorkflow`)
+Those guardrails follow the repo’s own architecture: packages own business logic, workflows orchestrate, apps compose and deliver. ([GitHub][3])
 
-**Источник:** `DealService.setNewAgentBonus()` в `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/deal/deal.service.ts`
+## The shortest delivery sequence
 
----
+If you want this in a **few Codex passes**, I’d sequence it exactly like this:
 
-### Step 8: Clients — адаптер над @bedrock/parties (~1-2 дня) [DONE] [параллельно с Step 7]
+1. **Finance workspace completion**
+   timeline + execution-first UI, no major writes
 
-Тонкий адаптер: при создании клиента в operations создаётся counterparty в parties + ops_client запись в одной транзакции.
+2. **Execution recipe + leg-operation links**
+   backend compiler and materialization
 
-**Статус:**
-- [x] Clients субдомен ПОЛНОСТЬЮ реализован (create, update, soft-delete, list, find-by-id)
-- [x] `counterpartyId` поле в Client DTO и схеме
-- [x] `integration-mpayments` workflow показывает паттерн (maps clients → counterparties)
-- [x] Порт `CounterpartiesPort` в `clients/application/ports/counterparties.port.ts` — СОЗДАН
-- [x] `CreateClientCommand` обновлён — вызывает counterparties port при создании
+3. **Operations journal**
+   `/treasury/operations` becomes day-to-day finance surface
 
-**Оставшаяся работа:**
-1. Добавить `CounterpartiesPort` interface в `clients/application/ports/counterparties.port.ts`
-   - `findOrCreateCounterparty(clientData): Promise<string>` (returns counterparty UUID)
-2. Обновить `CreateClientCommand` — вызывать counterparties port, записывать `counterpartyId`
-3. Реализовать adapter, делегирующий в `@bedrock/parties` counterparties service
-4. Прокинуть в `apps/api/src/composition/operations-module.ts`
+4. **Execution commands**
+   submit / retry / return / resolve blockers
 
-**Отложено:**
-- `ImportFromExcelCommand` — перенос позже
-- `SearchDadataQuery` — см. Step 11 (DaData порт)
+5. **Reconciliation + close readiness + type hardening**
+   correct closure for all four deal types
 
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/client/client.service.ts`
+That is the plan I would approve for implementation. It uses the branch’s current strengths instead of redoing them, and it closes the actual finance gap: turning deals from pricing context into executable treasury work packages.
 
----
-
-### Step 9: Sub-Agents (~1 день) [DONE] [параллельно с Steps 7-8]
-
-Управление суб-агентами с отслеживанием комиссий. Таблица `ops_sub_agents` уже существует в схеме.
-
-**Application:**
-- `src/agents/application/commands/create-sub-agent.ts` — `CreateSubAgentCommand`
-- `src/agents/application/commands/update-sub-agent.ts` — `UpdateSubAgentCommand`
-- `src/agents/application/commands/delete-sub-agent.ts` — `DeleteSubAgentCommand`
-- `src/agents/application/queries/list-sub-agents.ts` — `ListSubAgentsQuery`
-- `src/agents/application/ports/sub-agent.store.ts` — port interface
-- `src/agents/application/ports/sub-agent.reads.ts` — port interface
-- `src/agents/application/contracts/sub-agent-commands.ts` — Zod schemas
-- `src/agents/application/contracts/sub-agent-dto.ts` — DTO
-
-**Adapters:**
-- `src/agents/adapters/drizzle/sub-agent.store.ts` — через `opsSubAgents`
-- `src/agents/adapters/drizzle/sub-agent.reads.ts` — через `opsSubAgents`
-
-**Обновить:**
-- `src/agents/application/index.ts` — добавить sub-agent commands/queries в `createAgentsService()`
-- `src/module.ts` — добавить sub-agent deps
-- `src/adapters/drizzle.ts` — экспортировать новые адаптеры
-- `src/contracts.ts` — экспортировать sub-agent contracts
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/client/sub-agent.service.ts`
-
----
-
-### Step 10: Object Storage порт (~1 день) [DONE] [Phase 2 порт, Phase 3 реализация]
-
-Port interface для object storage. Deals и clients ссылаются на `s3Key` в документах.
-
-**Port (в operations module):**
-- `src/shared/application/ports/object-storage.port.ts`
-  ```typescript
-  export interface ObjectStoragePort {
-    upload(key: string, data: Buffer, contentType: string): Promise<string>;
-    download(key: string): Promise<Buffer>;
-    getSignedUrl(key: string, expiresInSeconds?: number): Promise<string>;
-    delete(key: string): Promise<void>;
-    queueForDeletion(key: string): Promise<void>;
-  }
-  ```
-
-**Phase 2:** no-op/stub реализация в composition.
-**Phase 3:** `packages/platform/src/object-storage/` с S3 adapter (`@aws-sdk/client-s3`).
-
-**Существующие схемы:** `ops_s3_cleanup_queue`, `ops_deal_documents`, `ops_client_documents` — все уже в bedrock.
-
----
-
-### Step 11: DaData порт (~0.5 дня) [DONE] [параллельно с Step 10]
-
-Поиск компании по ИНН через Tbank DaData API.
-
-**Port:**
-- `src/clients/application/ports/company-lookup.port.ts`
-  ```typescript
-  export interface CompanyLookupPort {
-    searchByInn(inn: string): Promise<CompanyLookupResult | null>;
-  }
-  ```
-- `src/clients/application/contracts/company-lookup-dto.ts` — Zod: `CompanyLookupResult`
-
-**Query:**
-- `src/clients/application/queries/search-company.ts` — `SearchCompanyQuery` class
-
-**Phase 3 adapter:**
-- `src/clients/adapters/dadata/company-lookup.adapter.ts` — HTTP fetch to Tbank API
-
-**Обновить:**
-- `src/clients/application/index.ts` — добавить `searchCompany` query
-- `src/module.ts` — добавить `companyLookup` dep (optional)
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/client/dadata.service.ts`
-
----
-
-### Step 12: Notification порт (~0.5 дня) [DONE] [Phase 2 порт, Phase 3 реализация]
-
-Port для email-уведомлений (смена статусов, новые расчёты).
-
-**Port:**
-- `src/shared/application/ports/notification.port.ts`
-  ```typescript
-  export interface NotificationPort {
-    notifyDealStatusChanged(dealId: number, status: string, agentId: number): Promise<void>;
-    notifyNewCalculation(calculationId: number, agentId: number): Promise<void>;
-    notifyApplicationCreated(applicationId: number): Promise<void>;
-  }
-  ```
-
-**Phase 2:** no-op/console-log реализация.
-**Phase 3:** `packages/platform/src/notifications/` с Resend adapter.
-
-**Прокинуть в:**
-- `deals/application/commands/update-deal-status.ts` — вызов notification при смене статуса
-- `calculations/application/commands/create-calculation.ts` — вызов notification при создании
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/notification/notification.service.ts`
-
----
-
-### Step 13: Customer субдомен (~2-3 дня) [DONE] [зависит от Steps 4, 5, 6, 8]
-
-Портал клиента: клиент создаёт заявки/сделки, запрашивает расчёты. Роль `customer` уже добавлена в Step 3.
-
-**NOTE:** Customer — это НЕ отдельный модуль. Это facade/workflow поверх существующих субдоменов operations с ролевыми ограничениями.
-
-**Варианты реализации:**
-
-**Вариант A — порт в operations:**
-- `src/shared/application/ports/customer.port.ts` — `getClientIdForUser()`, `assertCustomerOwnsApplication()`
-
-**Вариант B — workflow (если кросс-модульная оркестрация):**
-- `packages/workflows/customer-portal/src/service.ts` — `createCustomerPortalWorkflow(deps)`
-  - deps: `operations.applications`, `operations.calculations`, `operations.deals`, `operations.clients`
-  - Methods: `createApplication()`, `requestCalculation()`, `listMyDeals()`
-  - Enforces: customer видит только свои данные, ограниченные state transitions
-
-**API routes (Phase 3):**
-- `apps/api/src/routes/customer/` — customer-facing Hono routes с auth middleware
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/customer/customer.service.ts`
-
----
-
-### Step 14: AI модуль (~2-3 дня) [DONE — порты] [независимый]
-
-Отдельный platform subpath для AI-powered document data extraction.
-
-**Расположение:** `packages/platform/src/ai/` (platform subpath — инфраструктура, не бизнес-модуль)
-
-**Файлы:**
-- `packages/platform/src/ai/extraction.port.ts` — `DocumentExtractionPort`
-  ```typescript
-  export interface DocumentExtractionPort {
-    extractFromPdf(buffer: Buffer): Promise<ExtractedDocumentData>;
-    extractFromDocx(buffer: Buffer): Promise<ExtractedDocumentData>;
-    extractFromXlsx(buffer: Buffer): Promise<ExtractedDocumentData>;
-    translateFields(data: Record<string, string>, fromLang: string, toLang: string): Promise<Record<string, string>>;
-  }
-  ```
-- `packages/platform/src/ai/contracts.ts` — Zod: `ExtractedDocumentData`
-- `packages/platform/src/ai/openai.adapter.ts` — OpenAI gpt-4o adapter
-
-**Зависимости (npm):** `@ai-sdk/openai`, `mammoth`, `xlsx`
-
-**Wire в operations:**
-- `clients/application/ports/document-extraction.port.ts` — operations-side порт, делегирует в platform AI
-
-**Обновить:**
-- `packages/platform/package.json` — добавить `"./ai"` subpath export + dependencies
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/ai/ai.service.ts`
-
----
-
-### Step 15: Document Generation workflow (~2-3 дня) [DONE — скелет] [зависит от Steps 10, 14]
-
-Генерация DOCX/PDF документов из шаблонов с i18n.
-
-**Расположение:** `packages/workflows/document-generation/`
-
-**Файлы:**
-- `src/service.ts` — `createDocumentGenerationWorkflow(deps)`
-- `src/templates/` — определения шаблонов по типам документов
-- `src/contracts.ts` — Zod schemas для input/output
-- `src/adapters/template-renderer.ts` — `easy-template-x` для DOCX templating
-- `src/adapters/pdf-converter.ts` — `libreoffice-convert` для DOCX→PDF
-- `src/adapters/excel-generator.ts` — `exceljs` для Excel export
-
-**Типы шаблонов (из MPayments):**
-- Контракт (contract)
-- Счёт (invoice)
-- Заявка (application)
-- Расчёт (calculation)
-- Акт (acceptance)
-
-**Зависимости (npm):** `easy-template-x`, `libreoffice-convert`, `exceljs`, `lvovich`, `russian-nouns-js`
-
-**Интеграция:**
-- Вызывается из deals workflow при смене статусов → авто-генерация документов
-- Использует ObjectStoragePort (Step 10) для сохранения файлов
-
-**Источник:** `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/document/document.service.ts`
-
----
-
-### Step 16: Scheduled Tasks (~1 день) [DONE] [зависит от Steps 10, 12]
-
-Перенос cron-задач из MPayments в bedrock workers.
-
-**Новые worker entries в `apps/workers/src/catalog.ts`:**
-
-1. **`ops-s3-cleanup`** — ежедневное удаление файлов из `ops_s3_cleanup_queue`
-   - Interval: 86_400_000 (24 часа)
-   - Зависит от: ObjectStoragePort (Step 10)
-
-2. **`ops-activity-log-cleanup`** — очистка логов старше 180 дней
-   - Interval: 86_400_000 (24 часа)
-   - Uses: `opsActivityLog` table, DELETE WHERE created_at < now() - 180 days
-
-**НЕ переносим:**
-- `reports-scheduler` — часть Telegram бота (SKIP, будет перестроен в Phase 3)
-
-**Источники:**
-- `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/s3/s3-cleanup.service.ts`
-- `/mnt/disks/sata240/work/mpayments-web/apps/backend/src/activity-log/activity-log-cleanup.service.ts`
-
----
-
-## Граф зависимостей
-
-```
-Steps 0-16: [ALL DONE]
-
-Phase 2 завершена. Все шаги реализованы:
-- Steps 0-6: ядро DDD (activity-log, contracts, auth, applications, calculations, deals)
-- Steps 7-8: deal-commission workflow, counterparties port
-- Step 9: sub-agents CRUD
-- Steps 10-12: object-storage, dadata, notification ports
-- Step 13: customer portal workflow
-- Step 14: AI extraction port (platform)
-- Step 15: document generation workflow skeleton
-- Step 16: worker catalog entries
-```
-
----
-
-## Миграции БД
-
-Политика: **baseline-only hard cutover** (`db:nuke → db:migrate → db:seed`).
-
-| Step | Миграция |
-|------|----------|
-| Step 3 | **Нет DB-миграции.** `user.role` = `text`, не pgEnum. Только TypeScript. Seed для `bedrockUserId`. |
-| Steps 1-2, 4-6 | Без миграций — существующие ops_* схемы |
-| Step 7 | Опционально: новый ledger account type для agent commissions |
-| Steps 9-16 | Без миграций — все таблицы (`ops_sub_agents`, `ops_s3_cleanup_queue`, `ops_client_documents`, `ops_deal_documents`) уже существуют |
-
----
-
-## Тестирование
-
-Каждый step включает:
-- **Unit tests** — domain logic (state machines, invariants) с мок-портами
-- **Unit tests** — command/query handlers (class instances) с мок-репозиториями
-- **Integration tests** — Drizzle repositories с реальной PostgreSQL
-
-Запуск:
-```bash
-bunx vitest run --config vitest.config.ts --project operations
-bunx vitest run --config vitest.integration.config.ts --project operations:integration
-```
-
----
-
-## Ключевые файлы для reference
-
-| Паттерн | Файл |
-|---------|------|
-| Module factory | `packages/modules/parties/src/module.ts` (строки 49-87) |
-| Service factory (subdomain) | `packages/modules/parties/src/customers/application/index.ts` |
-| Command handler (class) | `packages/modules/parties/src/customers/application/commands/create-customer.ts` |
-| Query handler (class) | `packages/modules/parties/src/customers/application/queries/list-customers.ts` |
-| Port interface (store) | `packages/modules/parties/src/customers/application/ports/customer.store.ts` |
-| Port interface (reads) | `packages/modules/parties/src/customers/application/ports/customer.reads.ts` |
-| UoW interface | `packages/modules/parties/src/shared/application/unit-of-work.ts` |
-| Drizzle adapter | `packages/modules/parties/src/customers/adapters/drizzle/customer.store.ts` |
-| Operations schema | `packages/modules/operations/src/infra/drizzle/schema/` |
-| Operations composition | `apps/api/src/composition/operations-module.ts` |
-| User roles (TS only) | `packages/modules/users/src/domain/user-role.ts` |
-| User table (role=text) | `packages/platform/src/auth-model/schema.ts` |
-| Integration workflow | `packages/workflows/integration-mpayments/src/service.ts` |
-| Workflow factory (паттерн) | `packages/workflows/document-drafts/src/service.ts` |
-| Worker catalog | `apps/workers/src/catalog.ts` |
-| Platform subpath (паттерн) | `packages/platform/src/persistence/` |
-| Composition wiring | `apps/api/src/composition/parties-module.ts` |
+[1]: https://github.com/MPayments/bedrock/blob/mpayments-integration/packages/modules/deals/src/adapters/drizzle/schema.ts "https://github.com/MPayments/bedrock/blob/mpayments-integration/packages/modules/deals/src/adapters/drizzle/schema.ts"
+[2]: https://github.com/MPayments/bedrock/blob/mpayments-integration/apps/finance/features/treasury/deals/labels.ts "https://github.com/MPayments/bedrock/blob/mpayments-integration/apps/finance/features/treasury/deals/labels.ts"
+[3]: https://github.com/MPayments/bedrock/tree/mpayments-integration "GitHub - MPayments/bedrock at mpayments-integration · GitHub"
+[4]: https://github.com/MPayments/bedrock/blob/mpayments-integration/apps/finance/features/treasury/deals/lib/queries.ts "https://github.com/MPayments/bedrock/blob/mpayments-integration/apps/finance/features/treasury/deals/lib/queries.ts"
+[5]: https://github.com/MPayments/bedrock/blob/mpayments-integration/packages/modules/deals/src/domain/constants.ts "https://github.com/MPayments/bedrock/blob/mpayments-integration/packages/modules/deals/src/domain/constants.ts"
+[6]: https://github.com/MPayments/bedrock/tree/mpayments-integration/apps/finance/app/%28shell%29/treasury "https://github.com/MPayments/bedrock/tree/mpayments-integration/apps/finance/app/%28shell%29/treasury"

@@ -27,6 +27,8 @@ export {
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegKindEnum,
+  dealLegOperationKindEnum,
+  dealLegOperationLinks,
   dealLegStateEnum,
   dealLegs,
   dealParticipantRoleEnum,
@@ -83,6 +85,7 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
+  treasuryOperations,
 } from "@bedrock/treasury/schema";
 export {
   balanceEvents,

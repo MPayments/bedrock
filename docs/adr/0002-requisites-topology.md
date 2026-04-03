@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-03-22
 - References:
-  - [docs/adr/0001-bounded-context-explicit-architecture.md](/Users/alexey.eramasov/dev/ledger/docs/adr/0001-bounded-context-explicit-architecture.md)
+  - [ADR 0001: Bounded-Context Packages with Explicit Internal Architecture](./0001-bounded-context-explicit-architecture.md)
 
 ## Context
 
