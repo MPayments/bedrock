@@ -37,8 +37,8 @@ ENV NODE_OPTIONS=--max-old-space-size=${NEXT_BUILD_MAX_OLD_SPACE_SIZE}
 COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
 
-# Build API types first (finance imports types from api/dist via sdk-api-client)
-RUN npx tsgo --project apps/api/tsconfig.json
+# Build shared API artifacts first so finance consumes compiled RPC client types.
+RUN bunx turbo run build --filter=api --filter=@bedrock/sdk-api-client
 
 # Build Next.js (produces .next/standalone)
 ARG API_INTERNAL_URL=http://localhost:3000

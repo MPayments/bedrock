@@ -3,14 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "node -e \"console.log('sdk-api-client exports source files; no build output')\"",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --ignore-pattern \"src/**/*.d.ts\" --max-warnings 0"
