@@ -31,7 +31,7 @@ export function ErrorDialog({
       <AlertDialogContent
         className={cn(
           isDestructive &&
-            "border-destructive/50 bg-destructive/5 dark:border-destructive/40 dark:bg-destructive/10",
+            "border-destructive/50 dark:border-destructive/40",
         )}
       >
         <AlertDialogHeader>

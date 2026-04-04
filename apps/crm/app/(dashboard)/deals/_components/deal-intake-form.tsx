@@ -266,8 +266,11 @@ export function DealIntakeForm({
     : "Сумма и валюта сделки";
   const sourceAmountLabel = isPaymentDeal ? "Сумма платежа" : "Сумма";
   const sourceCurrencyTitle = isPaymentDeal
-    ? "Валюта платежа"
+    ? "Валюта списания"
     : "Валюта списания";
+  const targetCurrencyTitle = isPaymentDeal
+    ? "Валюта выплаты"
+    : "Целевая валюта";
   const selectedApplicantLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
     loadingLabel: "Загрузка юридических лиц...",
@@ -551,37 +554,35 @@ export function DealIntakeForm({
               </SelectContent>
             </Select>
           </div>
-          {isPaymentDeal ? null : (
-            <div
-              className={
-                shouldInlineMoneyRequestFields ? "col-span-full space-y-2" : "space-y-2"
+          <div
+            className={
+              shouldInlineMoneyRequestFields ? "col-span-full space-y-2" : "space-y-2"
+            }
+          >
+            <Label>{targetCurrencyTitle}</Label>
+            <Select
+              disabled={readOnly}
+              value={intake.moneyRequest.targetCurrencyId ?? "__same"}
+              onValueChange={(value) =>
+                updateMoneyRequest(
+                  "targetCurrencyId",
+                  value === "__same" ? null : value,
+                )
               }
             >
-              <Label>Целевая валюта</Label>
-              <Select
-                disabled={readOnly}
-                value={intake.moneyRequest.targetCurrencyId ?? "__same"}
-                onValueChange={(value) =>
-                  updateMoneyRequest(
-                    "targetCurrencyId",
-                    value === "__same" ? null : value,
-                  )
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue>{targetCurrencyLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__same">Без конвертации</SelectItem>
-                  {currencyOptions.map((currency) => (
-                    <SelectItem key={currency.id} value={currency.id}>
-                      {currency.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+              <SelectTrigger className="w-full">
+                <SelectValue>{targetCurrencyLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__same">Без конвертации</SelectItem>
+                {currencyOptions.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.id}>
+                    {currency.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="deal-purpose">Назначение</Label>

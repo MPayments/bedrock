@@ -68,7 +68,16 @@ vi.mock("@bedrock/sdk-ui/components/sonner", () => ({
 }));
 
 vi.mock("@/components/entities/workspace-layout", () => ({
-  EntityWorkspaceTabs: () => null,
+  EntityWorkspaceTabs: ({
+    tabs,
+  }: {
+    tabs: Array<{ id: string; label: string }>;
+  }) =>
+    createElement(
+      "div",
+      { "data-testid": "entity-workspace-tabs" },
+      tabs.map((tab) => createElement("span", { key: tab.id }, tab.label)),
+    ),
 }));
 
 vi.mock("@/features/treasury/deals/components/execution-summary-rail", () => ({
@@ -261,6 +270,30 @@ describe("treasury deal workbench", () => {
       markup.match(/Не заполнен обязательный участник: получатель выплаты\./g),
     ).toHaveLength(1);
   }, 15000);
+
+  it("renders the execution summary above the workspace tabs", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal: createDeal(),
+      }),
+    );
+
+    expect(markup.indexOf("Что мешает движению сделки")).toBeGreaterThan(-1);
+    expect(markup.indexOf("Котировки и расчет")).toBeGreaterThan(-1);
+    expect(markup.indexOf("Что мешает движению сделки")).toBeLessThan(
+      markup.indexOf("Котировки и расчет"),
+    );
+  });
 
   it("keeps the shared header on overview without duplicating next-step sections", async () => {
     searchParamsValue = "tab=overview";

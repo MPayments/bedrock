@@ -156,7 +156,7 @@ function createIdempotencyKey() {
 
 function getQuoteCreationDisabledReason(deal: FinanceDealWorkbench) {
   if (!deal.pricing.quoteEligibility) {
-    return "В этой версии котировка доступна только для платежей и конверсий.";
+    return "Котировка доступна только для сделок с обменом валют.";
   }
 
   if (!deal.actions.canCreateQuote) {
@@ -1736,14 +1736,10 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
 
   return (
     <>
-      <FinanceDealWorkspaceLayout
-        title={title}
-        controls={
-          <EntityWorkspaceTabs value={activeTab} tabs={workspaceTabs} />
-        }
-      >
+      <FinanceDealWorkspaceLayout title={title}>
         <div className="space-y-6">
           <DealExecutionHeaderSummary deal={deal} />
+          <EntityWorkspaceTabs value={activeTab} tabs={workspaceTabs} />
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <div className="space-y-6">

@@ -798,7 +798,7 @@ export default function DealDetailPage() {
   const quoteCreationDisabledReason = !data
     ? "Данные сделки еще загружаются."
     : !calculationTypeSupported
-      ? "В этой версии котировка доступна только для платежей и конверсий."
+      ? "Котировка доступна только для сделок с обменом валют."
       : !quoteStatusAllowed
         ? `Нельзя запросить котировку для статуса "${STATUS_LABELS[data.deal.status]}".`
         : !quoteHasRequestedAmount

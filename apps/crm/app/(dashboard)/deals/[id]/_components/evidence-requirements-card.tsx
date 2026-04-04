@@ -16,9 +16,9 @@ type EvidenceRequirementsCardProps = {
 };
 
 const STATE_LABELS: Record<EvidenceRequirement["state"], string> = {
-  missing: "Отсутствуют",
-  not_required: "Не требуются",
-  provided: "Загружены",
+  missing: "Отсутствует",
+  not_required: "Не требуется",
+  provided: "Загружен",
 };
 
 export function EvidenceRequirementsCard({

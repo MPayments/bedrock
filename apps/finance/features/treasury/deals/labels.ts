@@ -212,9 +212,9 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
 };
 
 export const DEAL_ATTACHMENT_REQUIREMENT_STATE_LABELS: Record<string, string> = {
-  missing: "Отсутствуют",
-  not_required: "Не требуются",
-  provided: "Загружены",
+  missing: "Отсутствует",
+  not_required: "Не требуется",
+  provided: "Загружен",
 };
 
 export const DEAL_FORMAL_DOCUMENT_REQUIREMENT_STATE_LABELS: Record<
