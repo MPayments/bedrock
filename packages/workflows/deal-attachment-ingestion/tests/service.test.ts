@@ -44,9 +44,10 @@ function createPaymentIntake(): DealIntakeDraft {
 }
 
 describe("mergeNormalizedPayloadIntoIntake", () => {
-  it("fills blank invoice-derived fields without overwriting populated values", () => {
+  it("maps invoice currency into payment target currency without overwriting populated values", () => {
     const intake = createPaymentIntake();
     intake.moneyRequest.purpose = "Оплатить поставщику";
+    intake.moneyRequest.sourceCurrencyId = "00000000-0000-4000-8000-000000000100";
 
     const result = mergeNormalizedPayloadIntoIntake({
       intake,
@@ -85,6 +86,9 @@ describe("mergeNormalizedPayloadIntoIntake", () => {
     expect(result.intake.incomingReceipt.expectedAmount).toBe("1000.50");
     expect(result.intake.moneyRequest.sourceAmount).toBe("1000.50");
     expect(result.intake.moneyRequest.sourceCurrencyId).toBe(
+      "00000000-0000-4000-8000-000000000100",
+    );
+    expect(result.intake.moneyRequest.targetCurrencyId).toBe(
       "00000000-0000-4000-8000-000000000210",
     );
     expect(result.intake.moneyRequest.purpose).toBe("Оплатить поставщику");
