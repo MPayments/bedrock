@@ -20,6 +20,10 @@ import {
   Workflow,
 } from "lucide-react";
 
+import {
+  Alert,
+  AlertDescription,
+} from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
@@ -70,7 +74,6 @@ import {
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
   getFinancePrimaryOperationalPositionLabel,
-  getDealTimelineEventLabel,
   getFormalDocumentLabel,
   getFormalDocumentStageLabel,
   isPrimaryOperationalPositionVisible,
@@ -85,6 +88,7 @@ import { executeMutation } from "@/lib/resources/http";
 import { formatDate, formatMajorAmount } from "@/lib/format";
 
 import { ExecutionSummaryRail } from "./execution-summary-rail";
+import { DealTimelineCard } from "./deal-timeline-card";
 import { formatFileSize, getFileIcon } from "./file-utils";
 import { QuoteRequestDialog } from "./quote-request-dialog";
 import { UploadAttachmentDialog } from "./upload-attachment-dialog";
@@ -341,7 +345,7 @@ function OverviewTab({ deal }: OverviewTabProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className="space-y-6">
         <div className="space-y-3">
           <div className="text-sm font-medium">Контекст сделки</div>
           <DealContextContent deal={deal} />
@@ -357,7 +361,7 @@ function DealExecutionHeaderSummary({ deal }: { deal: FinanceDealWorkbench }) {
 
   return (
     <Card className="border-muted-foreground/10 bg-gradient-to-br from-background via-background to-muted/30">
-      <CardContent className="space-y-5 pt-6">
+      <CardContent className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
             {getFinanceDealStatusLabel(deal.summary.status)}
@@ -413,13 +417,14 @@ function DealExecutionHeaderSummary({ deal }: { deal: FinanceDealWorkbench }) {
         <div className="space-y-2">
           <div className="text-sm font-medium">Что мешает движению сделки</div>
           {blockers.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <div className="space-y-2">
               {blockers.map((blocker) => (
-                <li key={blocker} className="rounded-lg border bg-background/70 px-4 py-3">
-                  {blocker}
-                </li>
+                <Alert key={blocker} variant="warning" className="py-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{blocker}</AlertDescription>
+                </Alert>
               ))}
-            </ul>
+            </div>
           ) : (
             <div className="rounded-lg border border-dashed bg-background/70 px-4 py-3 text-sm text-muted-foreground">
               Критичных блокировок сейчас нет.
@@ -478,7 +483,7 @@ function PricingTab({
             Запросить котировку
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4">
           {quoteCreationDisabledReason ? (
             <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               {quoteCreationDisabledReason}
@@ -626,7 +631,7 @@ function PricingTab({
             {isCreatingCalculation ? "Создаем..." : "Создать расчет"}
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4">
           {calculationDisabledReason ? (
             <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               {calculationDisabledReason}
@@ -1059,7 +1064,7 @@ function ExecutionTab({
             Финансовый результат и закрытие
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5 pt-6">
+        <CardContent className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-lg border px-4 py-3">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1183,7 +1188,7 @@ function ExecutionTab({
             Исключения сверки
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 pt-6">
+        <CardContent className="space-y-3">
           {deal.relatedResources.reconciliationExceptions.length === 0 ? (
             <div className="text-sm text-muted-foreground">
               По связанным операциям исключений сверки пока нет.
@@ -1798,31 +1803,14 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
             <div className="space-y-6">
               <ExecutionSummaryRail deal={deal} />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Таймлайн</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {deal.timeline.slice(0, 8).map((event) => (
-                    <div key={event.id} className="rounded-lg border px-3 py-2">
-                      <div className="text-sm font-medium">
-                        {getDealTimelineEventLabel(event.type)}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(event.occurredAt)}
-                        {event.actor?.label ? ` · ${event.actor.label}` : ""}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              <DealTimelineCard timeline={deal.timeline} maxItems={8} />
 
               {activeTab !== "overview" ? (
                 <Card>
                   <CardHeader>
                     <CardTitle>Контекст сделки</CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
+                  <CardContent>
                     <DealContextContent deal={deal} />
                   </CardContent>
                 </Card>

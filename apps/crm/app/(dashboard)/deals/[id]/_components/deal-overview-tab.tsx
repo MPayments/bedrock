@@ -3,18 +3,19 @@ import {
 } from "lucide-react";
 
 import {
+  Alert,
+  AlertDescription,
+} from "@bedrock/sdk-ui/components/alert";
+import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
-import { cn } from "@/lib/utils";
-
 import {
   formatDealNextAction,
   formatDealWorkflowMessage,
-  getDealWorkflowMessageTone,
 } from "./constants";
 import { DealInfoCard } from "./deal-info-card";
 import { LegalEntityCard } from "./legal-entity-card";
@@ -139,7 +140,7 @@ export function DealOverviewTab({
               Что нужно сделать сейчас
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted/40 px-4 py-3">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
                 Следующий шаг
@@ -154,20 +155,16 @@ export function DealOverviewTab({
                 <div className="text-sm font-medium text-muted-foreground">
                   Что блокирует движение сделки
                 </div>
-                <ul className="space-y-2 text-sm">
+                <div className="space-y-2">
                   {blockers.map((blocker) => (
-                    <li
-                      key={blocker}
-                      className={cn(
-                        "rounded-md border px-3 py-2",
-                        getDealWorkflowMessageTone(blocker) === "warning" &&
-                          "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100",
-                      )}
-                    >
-                      {formatDealWorkflowMessage(blocker)}
-                    </li>
+                    <Alert key={blocker} variant="warning" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {formatDealWorkflowMessage(blocker)}
+                      </AlertDescription>
+                    </Alert>
                   ))}
-                </ul>
+                </div>
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
