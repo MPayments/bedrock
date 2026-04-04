@@ -96,7 +96,7 @@ export function FinancialCard({
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Сумма
+                Сумма без комиссии
               </div>
               <div className="text-base font-medium">
                 {formatCurrency(
@@ -116,6 +116,17 @@ export function FinancialCard({
                   calculation.currencyCode,
                 )}
                 )
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Итого к списанию
+              </div>
+              <div className="text-base font-semibold text-primary">
+                {formatCurrency(
+                  calculation.totalAmount,
+                  calculation.currencyCode,
+                )}
               </div>
             </div>
             <div>
