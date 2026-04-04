@@ -23,9 +23,68 @@ import {
   loadInvoice,
   parseInvoicePayload,
   requirePostedDocument,
+  resolveInvoiceDealFxContext,
   resolveOrganizationBinding,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
+
+async function resolveExchangeDraftContext(
+  deps: CommercialModuleDeps,
+  context: {
+    runtime: Parameters<
+      CommercialModuleDeps["documentRelations"]["loadInvoice"]
+    >[0]["runtime"];
+  },
+  invoiceDocumentId: string,
+) {
+  const invoice = await loadInvoice(
+    deps,
+    context.runtime,
+    invoiceDocumentId,
+    true,
+  );
+  requirePostedDocument(invoice);
+
+  if (await getInvoiceExchangeChild(deps, context.runtime, invoice.id)) {
+    throw new DocumentValidationError(
+      "exchange already exists for this invoice",
+    );
+  }
+
+  const invoicePayload = parseInvoicePayload(invoice);
+  const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
+
+  if (dealFxContext) {
+    if (!dealFxContext.hasConvertLeg) {
+      throw new DocumentValidationError(
+        "exchange can only be created for deals with a convert leg",
+      );
+    }
+
+    if (!dealFxContext.calculationId) {
+      throw new DocumentValidationError(
+        "exchange requires an accepted calculation linked to the deal",
+      );
+    }
+
+    if (!dealFxContext.quoteSnapshot) {
+      throw new DocumentValidationError(
+        "exchange requires an accepted FX quote linked to the deal",
+      );
+    }
+
+    return {
+      financialLines: dealFxContext.financialLines,
+      invoice,
+      invoicePayload,
+      quoteSnapshot: dealFxContext.quoteSnapshot,
+    };
+  }
+
+  throw new DocumentValidationError(
+    "exchange requires an invoice linked to an FX deal",
+  );
+}
 
 export function createExchangeDocumentModule(
   deps: CommercialModuleDeps,
@@ -43,25 +102,11 @@ export function createExchangeDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
-      const invoice = await loadInvoice(
+      const { invoicePayload, quoteSnapshot } = await resolveExchangeDraftContext(
         deps,
-        context.runtime,
+        context,
         input.invoiceDocumentId,
-        true,
       );
-      requirePostedDocument(invoice);
-      const invoicePayload = parseInvoicePayload(invoice);
-
-      if (invoicePayload.mode !== "exchange") {
-        throw new DocumentValidationError(
-          "exchange can only be created for exchange-mode invoices",
-        );
-      }
-      if (await getInvoiceExchangeChild(deps, context.runtime, invoice.id)) {
-        throw new DocumentValidationError(
-          "exchange already exists for this invoice",
-        );
-      }
 
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
@@ -69,7 +114,7 @@ export function createExchangeDocumentModule(
         counterpartyId: invoicePayload.counterpartyId,
         organizationId: invoicePayload.organizationId,
         organizationRequisiteId: invoicePayload.organizationRequisiteId,
-        quoteSnapshot: invoicePayload.quoteSnapshot,
+        quoteSnapshot,
         memo: input.memo,
       });
     },
@@ -111,24 +156,11 @@ export function createExchangeDocumentModule(
       };
     },
     async canCreate(context, input) {
-      const invoice = await loadInvoice(
+      await resolveExchangeDraftContext(
         deps,
-        context.runtime,
+        context,
         input.invoiceDocumentId,
-        true,
       );
-      requirePostedDocument(invoice);
-      const invoicePayload = parseInvoicePayload(invoice);
-      if (invoicePayload.mode !== "exchange") {
-        throw new DocumentValidationError(
-          "exchange can only be created for exchange-mode invoices",
-        );
-      }
-      if (await getInvoiceExchangeChild(deps, context.runtime, invoice.id)) {
-        throw new DocumentValidationError(
-          "exchange already exists for this invoice",
-        );
-      }
     },
     async canEdit(context, document) {
       if (await getExchangeAcceptance(deps, context.runtime, document.id)) {
@@ -157,9 +189,15 @@ export function createExchangeDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      const dealFxContext = await resolveInvoiceDealFxContext(
+        deps,
+        payload.invoiceDocumentId,
+      );
 
       return buildExchangePostingPlan({
         document,
+        financialLines:
+          dealFxContext?.hasConvertLeg ? dealFxContext.financialLines : undefined,
         payload,
         bookId: binding.bookId,
       });

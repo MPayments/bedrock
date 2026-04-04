@@ -23,9 +23,9 @@ export function assembleInvoiceData(
 ): Record<string, unknown> {
   const formattedDate = formatDateByLang(date, lang);
 
-  const baseCurrency = (calculation.baseCurrencyCode as string) || "RUB";
+  const baseCurrency = (calculation.currencyCode as string) || "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
-  const totalInBase = calculation.totalWithExpensesInBase as string | number;
+  const totalInBase = calculation.totalAmount as string | number;
   const invoiceNumber = resolveDocumentNumber(deal.invoiceNumber, deal.id);
   const contractNumber = resolveDocumentNumber(contract.contractNumber, contract.id);
   const dealContractNumber = resolveDocumentNumber(

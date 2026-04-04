@@ -82,7 +82,7 @@ describe("document form registry", () => {
     expect(fieldNames).not.toContain("quoteRef");
   });
 
-  it("exposes generated-quote fields for exchange invoice mode", () => {
+  it("keeps invoice form single-currency without FX authoring fields", () => {
     const definition = getDocumentFormDefinitionForRole({
       docType: "invoice",
       role: "admin",
@@ -94,20 +94,12 @@ describe("document form registry", () => {
       definition?.sections.flatMap((section) =>
         section.fields.map((field) => field.name),
       ) ?? [];
-    const previewField = definition?.sections
-      .flatMap((section) => section.fields)
-      .find((field) => field.name === "quotePreview");
 
     expect(fieldNames).toContain("amount");
-    expect(fieldNames).toContain("targetCurrency");
+    expect(fieldNames).toContain("currency");
+    expect(fieldNames).not.toContain("targetCurrency");
     expect(fieldNames).not.toContain("quoteRef");
-    expect(previewField).toMatchObject({
-      kind: "fxQuotePreview",
-      requestMode: "auto_cross",
-      amountFieldName: "amount",
-      fromCurrencyFieldName: "currency",
-      toCurrencyFieldName: "targetCurrency",
-    });
+    expect(fieldNames).not.toContain("quotePreview");
   });
 
   it("exposes an auto-cross quote preview field for fx_execute", () => {

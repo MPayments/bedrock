@@ -72,7 +72,45 @@ export interface CommercialDocumentRelationsPort {
   }): Promise<Document | null>;
 }
 
+export interface CommercialDocumentBusinessLinksPort {
+  findDealIdByDocumentId(documentId: string): Promise<string | null>;
+}
+
+export interface CommercialDealFxContext {
+  calculationCurrency: string | null;
+  calculationId: string | null;
+  dealId: string;
+  dealType: string;
+  financialLines: Array<{
+    amountMinor: bigint;
+    bucket:
+      | "adjustment"
+      | "fee_revenue"
+      | "pass_through"
+      | "provider_fee_expense"
+      | "spread_revenue";
+    currency: string;
+    id: string;
+    memo?: string;
+    metadata?: Record<string, string>;
+    settlementMode: "in_ledger";
+    source: "rule";
+  }>;
+  hasConvertLeg: boolean;
+  originalAmountMinor: string | null;
+  quoteSnapshot: QuoteSnapshot | null;
+  totalAmountMinor: string | null;
+}
+
+export interface CommercialDealFxPort {
+  resolveDealFxContext(
+    dealId: string,
+  ): Promise<CommercialDealFxContext | null>;
+}
+
 export interface CommercialModuleDeps {
+  dealFx: CommercialDealFxPort;
+  documentBusinessLinks: CommercialDocumentBusinessLinksPort;
   documentRelations: CommercialDocumentRelationsPort;
   quoteSnapshot: CommercialQuoteSnapshotPort;
   quoteUsage: CommercialQuoteUsagePort;

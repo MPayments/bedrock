@@ -19,12 +19,14 @@ import {
   type InvoiceInput,
 } from "../validation";
 import {
+  buildDealLinkedInvoicePostingPlan,
   buildDirectInvoicePostingPlan,
-  buildExchangeInvoicePostingPlan,
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
-  loadQuoteSnapshot,
+  getInvoiceAmountMinor,
+  getInvoiceCurrency,
   parseInvoicePayload,
+  resolveInvoiceDealFxContext,
   resolveOrganizationBinding,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
@@ -32,45 +34,6 @@ import type { CommercialModuleDeps } from "./internal/types";
 export function createInvoiceDocumentModule(
   deps: CommercialModuleDeps,
 ): DocumentModule<InvoiceInput, InvoiceInput> {
-  function buildInvoiceExchangeQuoteIdempotencyKey(
-    operationIdempotencyKey: string | null,
-  ) {
-    if (!operationIdempotencyKey) {
-      throw new DocumentValidationError(
-        "invoice exchange quote generation requires an operation idempotency key",
-      );
-    }
-
-    return `documents.invoice.exchange.quote:${operationIdempotencyKey}`;
-  }
-
-  function getGeneratedExchangeInput(
-    input: Extract<InvoiceInput, { mode: "exchange" }>,
-  ): {
-    currency: string;
-    targetCurrency: string;
-    amountMinor: string;
-  } | null {
-    if (
-      !input.quoteRef &&
-      typeof input.currency === "string" &&
-      input.currency.length > 0 &&
-      typeof input.targetCurrency === "string" &&
-      input.targetCurrency.length > 0 &&
-      "amountMinor" in input &&
-      typeof input.amountMinor === "string" &&
-      input.amountMinor.length > 0
-    ) {
-      return {
-        currency: input.currency,
-        targetCurrency: input.targetCurrency,
-        amountMinor: input.amountMinor,
-      };
-    }
-
-    return null;
-  }
-
   return {
     moduleId: "invoice",
     accountingSourceIds: [
@@ -87,46 +50,13 @@ export function createInvoiceDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
-      if (input.mode === "direct") {
-        return buildDocumentDraft(input, {
-          ...serializeOccurredAt(input),
-          financialLines: compileInvoiceDirectFinancialLines({
-            financialLines: input.financialLines,
-            amountMinor: input.amountMinor,
-            currency: input.currency,
-          }),
-          memo: input.memo,
-        });
-      }
-
-      const generatedExchangeInput = getGeneratedExchangeInput(input);
-
-      if (!input.quoteRef && !generatedExchangeInput) {
-        throw new DocumentValidationError(
-          "exchange invoice quote input is incomplete",
-        );
-      }
-
-      const quoteSnapshot = input.quoteRef
-        ? await loadQuoteSnapshot({
-            runtime: _context.runtime,
-            deps,
-            quoteRef: input.quoteRef,
-          })
-        : await deps.quoteSnapshot.createQuoteSnapshot({
-            runtime: _context.runtime,
-            fromCurrency: generatedExchangeInput!.currency,
-            toCurrency: generatedExchangeInput!.targetCurrency,
-            fromAmountMinor: generatedExchangeInput!.amountMinor,
-            asOf: _context.now,
-            idempotencyKey: buildInvoiceExchangeQuoteIdempotencyKey(
-              _context.operationIdempotencyKey,
-            ),
-          });
-
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
-        quoteSnapshot,
+        financialLines: compileInvoiceDirectFinancialLines({
+          financialLines: input.financialLines,
+          amountMinor: input.amountMinor,
+          currency: input.currency,
+        }),
         memo: input.memo,
       });
     },
@@ -151,16 +81,9 @@ export function createInvoiceDocumentModule(
       const payload = parseInvoicePayload(document);
 
       return {
-        title:
-          payload.mode === "exchange" ? "Инвойс (обмен)" : "Инвойс",
-        amountMinor:
-          payload.mode === "exchange"
-            ? BigInt(payload.quoteSnapshot.fromAmountMinor)
-            : BigInt(payload.amountMinor),
-        currency:
-          payload.mode === "exchange"
-            ? payload.quoteSnapshot.fromCurrency
-            : payload.currency,
+        title: "Исходящий инвойс",
+        amountMinor: BigInt(getInvoiceAmountMinor(payload)),
+        currency: getInvoiceCurrency(payload),
         memo: payload.memo ?? null,
         counterpartyId: payload.counterpartyId,
         customerId: payload.customerId,
@@ -170,8 +93,7 @@ export function createInvoiceDocumentModule(
           document.docType,
           payload.customerId,
           payload.counterpartyId,
-          payload.mode,
-          payload.mode === "exchange" ? payload.quoteSnapshot.quoteRef : payload.currency,
+          getInvoiceCurrency(payload),
         ]
           .filter(Boolean)
           .join(" "),
@@ -194,25 +116,7 @@ export function createInvoiceDocumentModule(
         );
       }
 
-      if (input.mode === "exchange") {
-        if (input.quoteRef) {
-          const quoteSnapshot = await loadQuoteSnapshot({
-            runtime: _context.runtime,
-            deps,
-            quoteRef: input.quoteRef,
-          });
-
-          if (binding.currencyCode !== quoteSnapshot.fromCurrency) {
-            throw new DocumentValidationError(
-              `Currency mismatch: quote=${quoteSnapshot.fromCurrency}, account=${binding.currencyCode}`,
-            );
-          }
-        } else if (binding.currencyCode !== input.currency) {
-          throw new DocumentValidationError(
-            `Currency mismatch: invoice=${input.currency}, account=${binding.currencyCode}`,
-          );
-        }
-      } else if (binding.currencyCode !== input.currency) {
+      if (binding.currencyCode !== input.currency) {
         throw new DocumentValidationError(
           `Currency mismatch: invoice=${input.currency}, account=${binding.currencyCode}`,
         );
@@ -239,18 +143,15 @@ export function createInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+      const expectedCurrency =
+        dealFxContext?.hasConvertLeg && dealFxContext.calculationCurrency
+          ? dealFxContext.calculationCurrency
+          : getInvoiceCurrency(payload);
 
-      if (
-        payload.mode === "exchange" &&
-        binding.currencyCode !== payload.quoteSnapshot.fromCurrency
-      ) {
+      if (binding.currencyCode !== expectedCurrency) {
         throw new DocumentValidationError(
-          `Currency mismatch: quote=${payload.quoteSnapshot.fromCurrency}, account=${binding.currencyCode}`,
-        );
-      }
-      if (payload.mode === "direct" && binding.currencyCode !== payload.currency) {
-        throw new DocumentValidationError(
-          `Currency mismatch: invoice=${payload.currency}, account=${binding.currencyCode}`,
+          `Currency mismatch: invoice=${expectedCurrency}, account=${binding.currencyCode}`,
         );
       }
     },
@@ -272,28 +173,33 @@ export function createInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
+      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
 
-      if (payload.mode === "direct") {
-        return buildDirectInvoicePostingPlan({
+      if (dealFxContext?.hasConvertLeg) {
+        return buildDealLinkedInvoicePostingPlan({
+          deps,
+          dealFxContext,
+          context,
           document,
           payload,
           bookId: binding.bookId,
         });
       }
 
-      return buildExchangeInvoicePostingPlan({
-        deps,
-        context,
+      return buildDirectInvoicePostingPlan({
         document,
         payload,
         bookId: binding.bookId,
       });
     },
-    resolveAccountingSourceId(_context, document) {
-      const payload = parseInvoicePayload(document);
-      return payload.mode === "direct"
-        ? ACCOUNTING_SOURCE_ID.INVOICE_DIRECT
-        : ACCOUNTING_SOURCE_ID.INVOICE_RESERVE;
+    async resolveAccountingSourceId(_context, document) {
+      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+
+      if (dealFxContext?.hasConvertLeg) {
+        return ACCOUNTING_SOURCE_ID.INVOICE_RESERVE;
+      }
+
+      return ACCOUNTING_SOURCE_ID.INVOICE_DIRECT;
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);

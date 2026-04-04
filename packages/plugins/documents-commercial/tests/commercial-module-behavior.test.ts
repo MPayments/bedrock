@@ -41,6 +41,12 @@ function createQuoteSnapshot() {
 
 function createDeps() {
   return {
+    dealFx: {
+      resolveDealFxContext: vi.fn(async () => null),
+    },
+    documentBusinessLinks: {
+      findDealIdByDocumentId: vi.fn(async () => null),
+    },
     documentRelations: {
       loadInvoice: vi.fn(async () => {
         throw new Error("loadInvoice not configured");
@@ -73,7 +79,21 @@ function createDeps() {
   };
 }
 
-function createPostedExchangeInvoice() {
+function createDealFxContext() {
+  return {
+    calculationCurrency: "USD",
+    calculationId: "00000000-0000-4000-8000-000000000401",
+    dealId: "00000000-0000-4000-8000-000000000402",
+    dealType: "payment",
+    financialLines: [],
+    hasConvertLeg: true,
+    originalAmountMinor: "10000",
+    quoteSnapshot: createQuoteSnapshot(),
+    totalAmountMinor: "10150",
+  };
+}
+
+function createPostedInvoice() {
   return {
     id: "00000000-0000-4000-8000-000000000201",
     docType: "invoice",
@@ -81,12 +101,14 @@ function createPostedExchangeInvoice() {
     payloadVersion: 1,
     payload: {
       occurredAt: "2026-03-03T10:00:00.000Z",
-      mode: "exchange",
       customerId: "00000000-0000-4000-8000-000000000301",
       counterpartyId: "00000000-0000-4000-8000-000000000302",
       organizationId: "00000000-0000-4000-8000-000000000113",
       organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-      quoteSnapshot: createQuoteSnapshot(),
+      amount: "101.5",
+      amountMinor: "10150",
+      currency: "USD",
+      financialLines: [],
       memo: "exchange invoice",
     },
     occurredAt: new Date("2026-03-03T10:00:00.000Z"),
@@ -96,12 +118,8 @@ function createPostedExchangeInvoice() {
 }
 
 describe("commercial document modules", () => {
-  it("rejects invoice creation when exchange quote currency mismatches the selected requisite", async () => {
+  it("rejects invoice creation when invoice currency mismatches the selected requisite", async () => {
     const deps = createDeps();
-    deps.quoteSnapshot.loadQuoteSnapshot = vi.fn(async () => ({
-      ...createQuoteSnapshot(),
-      fromCurrency: "EUR",
-    }));
 
     const module = createInvoiceDocumentModule(deps as any);
 
@@ -110,16 +128,18 @@ describe("commercial document modules", () => {
         { db: {} } as any,
         {
           occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-          mode: "exchange",
-          quoteRef: "quote-ref-1",
           customerId: "00000000-0000-4000-8000-000000000301",
           counterpartyId: "00000000-0000-4000-8000-000000000302",
           organizationId: "00000000-0000-4000-8000-000000000113",
           organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+          amount: "100.00",
+          amountMinor: "10000",
+          currency: "EUR",
+          financialLines: [],
           memo: "invoice",
         },
       ),
-    ).rejects.toThrow("Currency mismatch: quote=EUR, account=USD");
+    ).rejects.toThrow("Currency mismatch: invoice=EUR, account=USD");
   });
 
   it("rejects invoice creation when referenced parties are missing", async () => {
@@ -135,7 +155,6 @@ describe("commercial document modules", () => {
         { db: {} } as any,
         {
           occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-          mode: "direct",
           customerId: "00000000-0000-4000-8000-000000000301",
           counterpartyId: "00000000-0000-4000-8000-000000000302",
           organizationId: "00000000-0000-4000-8000-000000000113",
@@ -165,7 +184,6 @@ describe("commercial document modules", () => {
       { db: {} } as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-        mode: "direct",
         customerId: "00000000-0000-4000-8000-000000000301",
         counterpartyId: "00000000-0000-4000-8000-000000000302",
         organizationId: "00000000-0000-4000-8000-000000000113",
@@ -198,40 +216,28 @@ describe("commercial document modules", () => {
     });
   });
 
-  it("creates exchange invoice drafts from current rates when quoteRef is omitted", async () => {
+  it("creates exchange drafts from linked deal FX context", async () => {
     const deps = createDeps();
-    const module = createInvoiceDocumentModule(deps as any);
-    const runtime = {} as any;
+    const invoice = createPostedInvoice();
+    deps.documentRelations.loadInvoice = vi.fn(async () => invoice);
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(async () => createDealFxContext());
 
+    const module = createExchangeDocumentModule(deps as any);
     const draft = await module.createDraft?.(
       {
-        runtime,
-        now: new Date("2026-03-03T10:00:00.000Z"),
-        operationIdempotencyKey: "create-idem",
+        runtime: {},
       } as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-        mode: "exchange",
-        customerId: "00000000-0000-4000-8000-000000000301",
-        counterpartyId: "00000000-0000-4000-8000-000000000302",
-        organizationId: "00000000-0000-4000-8000-000000000113",
-        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-        amount: "100.00",
-        amountMinor: "10000",
-        currency: "USD",
-        targetCurrency: "EUR",
+        executionRef: "exec-1",
+        invoiceDocumentId: invoice.id,
         memo: "exchange invoice",
       },
     );
 
-    expect(deps.quoteSnapshot.createQuoteSnapshot).toHaveBeenCalledWith({
-      runtime,
-      fromCurrency: "USD",
-      toCurrency: "EUR",
-      fromAmountMinor: "10000",
-      asOf: new Date("2026-03-03T10:00:00.000Z"),
-      idempotencyKey: "documents.invoice.exchange.quote:create-idem",
-    });
     expect(draft?.payload).toMatchObject({
       quoteSnapshot: expect.objectContaining({
         quoteId: "00000000-0000-4000-8000-000000000010",
@@ -274,8 +280,12 @@ describe("commercial document modules", () => {
   it("requires a posted exchange before creating acceptance for exchange-mode invoices", async () => {
     const deps = createDeps();
     deps.documentRelations.loadInvoice = vi.fn(async () =>
-      createPostedExchangeInvoice(),
+      createPostedInvoice(),
     );
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(async () => createDealFxContext());
 
     const module = createAcceptanceDocumentModule(deps as any);
 
@@ -289,7 +299,7 @@ describe("commercial document modules", () => {
         },
       ),
     ).rejects.toThrow(
-      "acceptance requires a posted exchange for exchange-mode invoices",
+      "acceptance requires a posted exchange for FX-linked invoices",
     );
   });
 
@@ -308,7 +318,6 @@ describe("commercial document modules", () => {
             occurredAt: "2026-03-05T10:00:00.000Z",
             invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
             exchangeDocumentId: "00000000-0000-4000-8000-000000000401",
-            invoiceMode: "exchange",
             memo: "acceptance",
           },
         } as any,

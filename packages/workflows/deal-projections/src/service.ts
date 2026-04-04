@@ -1936,6 +1936,15 @@ export function createDealProjectionsWorkflow(
       workflow,
     });
     const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
+    const openingInvoiceRequirement =
+      formalDocumentRequirements.find(
+        (requirement) =>
+          requirement.stage === "opening" && requirement.docType === "invoice",
+      ) ?? null;
+    const activeExchangeDocument =
+      workflow.relatedResources.formalDocuments.find(
+        (document) => document.docType === "exchange",
+      ) ?? null;
     const queueContext = classifyFinanceQueue(workflow);
     const latestInstructions =
       await deps.treasury.instructions.queries.listLatestByOperationIds(
@@ -2009,6 +2018,20 @@ export function createDealProjectionsWorkflow(
             leg.state !== "blocked" &&
             leg.state !== "skipped" &&
             !isDealInTerminalStatus(workflow),
+          exchangeDocument:
+            leg.kind === "convert" && openingInvoiceRequirement
+              ? {
+                  activeDocumentId: activeExchangeDocument?.id ?? null,
+                  createAllowed:
+                    openingInvoiceRequirement.state === "ready" &&
+                    Boolean(openingInvoiceRequirement.activeDocumentId) &&
+                    Boolean(workflow.summary.calculationId) &&
+                    !activeExchangeDocument &&
+                    !isDealInTerminalStatus(workflow),
+                  docType: "exchange",
+                  openAllowed: Boolean(activeExchangeDocument),
+                }
+              : null,
         },
       })),
       formalDocumentRequirements,

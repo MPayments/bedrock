@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AcceptancePayloadSchema,
   InvoiceInputSchema,
+  InvoicePayloadSchema,
   compileInvoiceDirectFinancialLines,
 } from "../src/validation";
 
@@ -16,7 +17,6 @@ const EXCHANGE_DOCUMENT_ID = "00000000-0000-4000-8000-000000000006";
 describe("commercial documents validation", () => {
   it("accepts direct invoice input with fixed and percent authoring rows", () => {
     const parsed = InvoiceInputSchema.parse({
-      mode: "direct",
       occurredAt: "2026-03-03T10:00:00.000Z",
       customerId: CUSTOMER_ID,
       counterpartyId: COUNTERPARTY_ID,
@@ -42,7 +42,6 @@ describe("commercial documents validation", () => {
     });
 
     expect(parsed).toMatchObject({
-      mode: "direct",
       amountMinor: "100050",
       currency: "USD",
     });
@@ -83,7 +82,7 @@ describe("commercial documents validation", () => {
         percentBps: -150,
         bucket: "pass_through",
         currency: "USD",
-        amountMinor: "-1500",
+        amountMinor: "-1501",
         source: "manual",
         settlementMode: "separate_payment_order",
       },
@@ -93,7 +92,6 @@ describe("commercial documents validation", () => {
   it("rejects percent rows that resolve to zero or mismatch invoice currency", () => {
     expect(() =>
       InvoiceInputSchema.parse({
-        mode: "direct",
         occurredAt: "2026-03-03T10:00:00.000Z",
         customerId: CUSTOMER_ID,
         counterpartyId: COUNTERPARTY_ID,
@@ -114,7 +112,6 @@ describe("commercial documents validation", () => {
 
     expect(() =>
       InvoiceInputSchema.parse({
-        mode: "direct",
         occurredAt: "2026-03-03T10:00:00.000Z",
         customerId: CUSTOMER_ID,
         counterpartyId: COUNTERPARTY_ID,
@@ -136,7 +133,6 @@ describe("commercial documents validation", () => {
 
   it("keeps payload parsing compatible with percent metadata", () => {
     const parsed = InvoiceInputSchema.parse({
-      mode: "direct",
       occurredAt: "2026-03-03T10:00:00.000Z",
       customerId: CUSTOMER_ID,
       counterpartyId: COUNTERPARTY_ID,
@@ -165,29 +161,8 @@ describe("commercial documents validation", () => {
     });
   });
 
-  it("accepts legacy exchange invoice input with quoteRef", () => {
+  it("accepts current single-currency invoice input without explicit financial lines", () => {
     const parsed = InvoiceInputSchema.parse({
-      mode: "exchange",
-      occurredAt: "2026-03-03T10:00:00.000Z",
-      customerId: CUSTOMER_ID,
-      counterpartyId: COUNTERPARTY_ID,
-      organizationId: ORGANIZATION_ID,
-      organizationRequisiteId: REQUISITE_ID,
-      quoteRef: "quote-ref-1",
-      memo: "fx invoice",
-    });
-
-    expect(parsed).toMatchObject({
-      mode: "exchange",
-      quoteRef: "quote-ref-1",
-      memo: "fx invoice",
-    });
-    expect("amountMinor" in parsed).toBe(false);
-  });
-
-  it("accepts generated exchange invoice input without quoteRef", () => {
-    const parsed = InvoiceInputSchema.parse({
-      mode: "exchange",
       occurredAt: "2026-03-03T10:00:00.000Z",
       customerId: CUSTOMER_ID,
       counterpartyId: COUNTERPARTY_ID,
@@ -195,33 +170,28 @@ describe("commercial documents validation", () => {
       organizationRequisiteId: REQUISITE_ID,
       amount: "100.50",
       currency: "usd",
-      targetCurrency: "eur",
       memo: "fx invoice",
     });
 
     expect(parsed).toMatchObject({
-      mode: "exchange",
       amount: "100.5",
       amountMinor: "10050",
       currency: "USD",
-      targetCurrency: "EUR",
       memo: "fx invoice",
     });
-    expect(parsed.quoteRef).toBeUndefined();
+    expect(parsed.financialLines).toEqual([]);
   });
 
   it("keeps acceptance payload compatible with optional exchange linkage", () => {
     const withoutExchange = AcceptancePayloadSchema.parse({
       occurredAt: "2026-03-03T10:00:00.000Z",
       invoiceDocumentId: INVOICE_DOCUMENT_ID,
-      invoiceMode: "direct",
       memo: "close direct invoice",
     });
     const withExchange = AcceptancePayloadSchema.parse({
       occurredAt: "2026-03-03T10:00:00.000Z",
       invoiceDocumentId: INVOICE_DOCUMENT_ID,
       exchangeDocumentId: EXCHANGE_DOCUMENT_ID,
-      invoiceMode: "exchange",
       memo: "close fx invoice",
     });
 

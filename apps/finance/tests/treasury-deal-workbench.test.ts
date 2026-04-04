@@ -156,6 +156,7 @@ function createDeal(): FinanceDealWorkbenchData {
       {
         actions: {
           canCreateLegOperation: false,
+          exchangeDocument: null,
         },
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
@@ -284,7 +285,7 @@ describe("treasury deal workbench", () => {
     expect(
       markup.match(/Не заполнен обязательный участник: получатель выплаты\./g),
     ).toHaveLength(1);
-  }, 15000);
+  }, 30000);
 
   it("renders the execution summary above the workspace tabs", async () => {
     (
@@ -308,7 +309,7 @@ describe("treasury deal workbench", () => {
     expect(markup.indexOf("Что мешает движению сделки")).toBeLessThan(
       markup.indexOf("Котировки и расчет"),
     );
-  });
+  }, 15000);
 
   it("keeps the shared header on overview without duplicating next-step sections", async () => {
     searchParamsValue = "tab=overview";

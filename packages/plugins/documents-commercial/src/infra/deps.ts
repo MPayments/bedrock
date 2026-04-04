@@ -1,4 +1,7 @@
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { CalculationDetails } from "@bedrock/calculations/contracts";
+import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
 import {
   DocumentValidationError,
@@ -16,13 +19,44 @@ import type {
   QuoteRecord,
 } from "@bedrock/treasury/contracts";
 
-import type { CommercialModuleDeps } from "../documents/internal/types";
+import type {
+  CommercialDealFxContext,
+  CommercialModuleDeps,
+} from "../documents/internal/types";
 import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
 
 const INVOICE_DOC_TYPE = "invoice";
 const EXCHANGE_DOC_TYPE = "exchange";
 const ACCEPTANCE_DOC_TYPE = "acceptance";
+const DEAL_CALCULATION_FINANCIAL_LINE_KINDS = new Set([
+  "adjustment",
+  "fee_revenue",
+  "pass_through",
+  "provider_fee_expense",
+  "spread_revenue",
+] as const);
+
+function isCommercialCalculationFinancialLineKind(
+  kind: CalculationDetails["lines"][number]["kind"],
+): kind is
+  | "adjustment"
+  | "fee_revenue"
+  | "pass_through"
+  | "provider_fee_expense"
+  | "spread_revenue" {
+  return DEAL_CALCULATION_FINANCIAL_LINE_KINDS.has(
+    kind as (typeof DEAL_CALCULATION_FINANCIAL_LINE_KINDS extends Set<infer T> ? T : never),
+  );
+}
+
+function isCommercialCalculationFinancialLine(
+  line: CalculationDetails["lines"][number],
+): line is CalculationDetails["lines"][number] & {
+  kind: CommercialDealFxContext["financialLines"][number]["bucket"];
+} {
+  return isCommercialCalculationFinancialLineKind(line.kind);
+}
 
 function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
@@ -210,6 +244,15 @@ async function markQuoteUsedForRef(input: {
 
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
+  dealReads?: Pick<
+    { findWorkflowById(id: string): Promise<DealWorkflowProjection | null> },
+    "findWorkflowById"
+  >;
+  calculationReads?: Pick<
+    { findById(id: string): Promise<CalculationDetails | null> },
+    "findById"
+  >;
+  documentsReadModel?: Pick<DocumentsReadModel, "findBusinessLinkByDocumentId">;
   treasuryQuotes: CommercialTreasuryQuotesPort;
   requisitesService: {
     resolveBindings(input: {
@@ -234,10 +277,166 @@ export function createCommercialDocumentDeps(input: {
     };
   };
 }): CommercialModuleDeps {
-  const { currenciesService, treasuryQuotes, requisitesService, partiesService } =
+  const {
+    calculationReads,
+    currenciesService,
+    dealReads,
+    documentsReadModel,
+    treasuryQuotes,
+    requisitesService,
+    partiesService,
+  } =
     input;
 
   return {
+    dealFx: {
+      async resolveDealFxContext(dealId) {
+        if (!dealReads) {
+          return null;
+        }
+
+        try {
+          const workflow = await dealReads.findWorkflowById(dealId);
+
+          if (!workflow) {
+            return null;
+          }
+
+          const hasConvertLeg = workflow.executionPlan.some(
+            (leg: DealWorkflowProjection["executionPlan"][number]) =>
+              leg.kind === "convert",
+          );
+          const calculationId = workflow.summary.calculationId ?? null;
+
+          if (!calculationId || !calculationReads) {
+            return {
+              calculationCurrency: null,
+              calculationId,
+              dealId,
+              dealType: workflow.summary.type,
+              financialLines: [] as CommercialDealFxContext["financialLines"],
+              hasConvertLeg,
+              originalAmountMinor: null,
+              quoteSnapshot: null,
+              totalAmountMinor: null,
+            };
+          }
+
+          const calculation = await calculationReads.findById(calculationId);
+
+          if (!calculation) {
+            return {
+              calculationCurrency: null,
+              calculationId,
+              dealId,
+              dealType: workflow.summary.type,
+              financialLines: [] as CommercialDealFxContext["financialLines"],
+              hasConvertLeg,
+              originalAmountMinor: null,
+              quoteSnapshot: null,
+              totalAmountMinor: null,
+            };
+          }
+
+          const currencyIds = [
+            calculation.currentSnapshot.calculationCurrencyId,
+            ...new Set(
+              calculation.lines
+                .filter((line: CalculationDetails["lines"][number]) =>
+                  isCommercialCalculationFinancialLineKind(line.kind),
+                )
+                .map((line: CalculationDetails["lines"][number]) => line.currencyId),
+            ),
+          ];
+          const currenciesById = new Map(
+            await Promise.all(
+              currencyIds.map(async (currencyId) => {
+                return [
+                  currencyId,
+                  await currenciesService.findById(currencyId),
+                ] as const;
+              }),
+            ),
+          );
+          const calculationCurrency = currenciesById.get(
+            calculation.currentSnapshot.calculationCurrencyId,
+          );
+
+          if (!calculationCurrency) {
+            throw new DocumentValidationError(
+              `Calculation currency ${calculation.currentSnapshot.calculationCurrencyId} is missing`,
+            );
+          }
+
+          const financialLines: CommercialDealFxContext["financialLines"] =
+            calculation.lines
+              .filter(isCommercialCalculationFinancialLine)
+              .map((line) => {
+              const currency = currenciesById.get(line.currencyId);
+
+              if (!currency) {
+                throw new DocumentValidationError(
+                  `Calculation line currency ${line.currencyId} is missing`,
+                );
+              }
+
+              return {
+                amountMinor: BigInt(line.amountMinor),
+                bucket: line.kind,
+                currency: currency.code,
+                id: `calculation:${line.id}`,
+                settlementMode: "in_ledger" as const,
+                source: "rule" as const,
+              };
+              })
+              .filter((line) => line.amountMinor !== 0n);
+          const storedQuoteSnapshot = calculation.currentSnapshot.quoteSnapshot;
+          const parsedStoredQuoteSnapshot = storedQuoteSnapshot
+            ? QuoteSnapshotSchema.safeParse(storedQuoteSnapshot)
+            : null;
+          const quoteSnapshot =
+            parsedStoredQuoteSnapshot?.success
+              ? parsedStoredQuoteSnapshot.data
+              : calculation.currentSnapshot.fxQuoteId
+                ? await loadQuoteSnapshotRecord({
+                    currenciesService,
+                    treasuryQuotes,
+                    quoteRef: calculation.currentSnapshot.fxQuoteId,
+                  })
+                : null;
+
+          return {
+            calculationCurrency: calculationCurrency.code,
+            calculationId,
+            dealId,
+            dealType: workflow.summary.type,
+            financialLines,
+            hasConvertLeg,
+            originalAmountMinor: calculation.currentSnapshot.originalAmountMinor,
+            quoteSnapshot,
+            totalAmountMinor: calculation.currentSnapshot.totalAmountMinor,
+          };
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
+      },
+    },
+    documentBusinessLinks: {
+      async findDealIdByDocumentId(documentId) {
+        if (!documentsReadModel) {
+          return null;
+        }
+
+        try {
+          return (
+            (await documentsReadModel.findBusinessLinkByDocumentId(documentId))
+              ?.dealId ?? null
+          );
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
+      },
+    },
     quoteSnapshot: {
       async loadQuoteSnapshot({ quoteRef }) {
         return loadQuoteSnapshotRecord({

@@ -18,7 +18,7 @@ import {
   buildDealDocumentsTabHref,
   normalizeInternalReturnToPath,
 } from "@/features/documents/lib/routes";
-import { getFinanceDealWorkspaceById } from "@/features/treasury/deals/lib/queries";
+import { getFinanceDealWorkbenchById } from "@/features/treasury/deals/lib/queries";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 import { isUuid } from "@/lib/resources/http";
 
@@ -65,7 +65,7 @@ export default async function DocumentCreateByTypePage({
 
   const [options, deal] = await Promise.all([
     getDocumentFormOptions().catch(() => createEmptyDocumentFormOptions()),
-    dealId ? getFinanceDealWorkspaceById(dealId) : Promise.resolve(null),
+    dealId ? getFinanceDealWorkbenchById(dealId) : Promise.resolve(null),
   ]);
 
   if (dealId && !deal) {
@@ -86,6 +86,7 @@ export default async function DocumentCreateByTypePage({
         agreement,
         deal,
         docType,
+        options,
       })
     : undefined;
 

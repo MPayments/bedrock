@@ -16,13 +16,7 @@ import {
   AcceptanceInputSchema,
   ExchangeInputSchema,
   InvoiceInputSchema,
-  InvoiceModeSchema,
 } from "../validation";
-
-export const INVOICE_MODE_OPTIONS = [
-  { value: "direct", label: "Без обмена" },
-  { value: "exchange", label: "С обменом" },
-] as const;
 
 function normalizeCommercialMajorAmountInput(
   amountMajor: unknown,
@@ -37,7 +31,6 @@ function normalizeCommercialMajorAmountInput(
 
 export function getDefaultInvoiceValues() {
   return {
-    mode: "direct",
     occurredAt: nowDateTimeLocal(),
     customerId: "",
     counterpartyId: "",
@@ -45,8 +38,6 @@ export function getDefaultInvoiceValues() {
     organizationRequisiteId: "",
     amount: "",
     currency: "",
-    targetCurrency: "",
-    quoteRef: "",
     financialLines: [],
     memo: "",
   };
@@ -99,31 +90,19 @@ function mapFinancialLineInput(
 }
 
 export function createInvoicePayload(values: Record<string, unknown>) {
-  const mode = readString(values.mode) === "exchange" ? "exchange" : "direct";
-
   return parseSchema(InvoiceInputSchema, {
-    mode,
     occurredAt: toOccurredAtIso(values.occurredAt),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
-    ...(mode === "direct"
-      ? {
-          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-          currency: readString(values.currency).trim(),
-          financialLines: Array.isArray(values.financialLines)
-            ? values.financialLines.map((line) =>
-                mapFinancialLineInput(line as Record<string, unknown>),
-              )
-            : [],
-        }
-      : {
-          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-          currency: readString(values.currency).trim(),
-          targetCurrency: readString(values.targetCurrency).trim(),
-          quoteRef: optionalString(values.quoteRef),
-        }),
+    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+    currency: readString(values.currency).trim(),
+    financialLines: Array.isArray(values.financialLines)
+      ? values.financialLines.map((line) =>
+          mapFinancialLineInput(line as Record<string, unknown>),
+        )
+      : [],
     memo: optionalString(values.memo),
   });
 }
@@ -148,7 +127,6 @@ export function createAcceptancePayload(values: Record<string, unknown>) {
 export {
   FINANCIAL_LINE_BUCKET_OPTIONS,
   InvoiceInputSchema,
-  InvoiceModeSchema,
   ExchangeInputSchema,
   AcceptanceInputSchema,
   isoToDateTimeLocal,

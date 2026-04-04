@@ -27,9 +27,11 @@ import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
   AcceptancePayloadSchema,
   ExchangePayloadSchema,
+  InvoiceCurrentPayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
   type ExchangePayload,
+  type InvoiceCurrentPayload,
   type InvoicePayload,
   type QuoteSnapshot,
 } from "../../validation";
@@ -49,6 +51,28 @@ export async function loadQuoteSnapshot(input: {
       quoteRef: input.quoteRef,
     }),
   );
+}
+
+export async function resolveInvoiceDealFxContext(
+  deps: Pick<CommercialModuleDeps, "dealFx" | "documentBusinessLinks">,
+  invoiceDocumentId: string,
+) {
+  const dealId =
+    await deps.documentBusinessLinks.findDealIdByDocumentId(invoiceDocumentId);
+
+  if (!dealId) {
+    return null;
+  }
+
+  return deps.dealFx.resolveDealFxContext(dealId);
+}
+
+export function getInvoiceAmountMinor(payload: InvoicePayload) {
+  return payload.amountMinor;
+}
+
+export function getInvoiceCurrency(payload: InvoicePayload) {
+  return payload.currency;
 }
 
 export async function resolveOrganizationBinding(
@@ -301,7 +325,7 @@ export function buildFinancialLineRequests(input: {
 
 export function buildDirectInvoicePostingPlan(input: {
   document: Document;
-  payload: Extract<InvoicePayload, { mode: "direct" }>;
+  payload: InvoiceCurrentPayload;
   bookId: string;
 }) {
   const chainId = `invoice:${input.document.id}`;
@@ -372,18 +396,36 @@ export function buildDirectInvoicePostingPlan(input: {
   });
 }
 
-export async function buildExchangeInvoicePostingPlan(input: {
+export async function buildDealLinkedInvoicePostingPlan(input: {
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
+  dealFxContext: NonNullable<
+    Awaited<
+      ReturnType<
+        typeof resolveInvoiceDealFxContext
+      >
+    >
+  >;
   context: DocumentModuleContext;
   document: Document;
-  payload: Extract<InvoicePayload, { mode: "exchange" }>;
+  payload: InvoicePayload;
   bookId: string;
 }) {
+  if (
+    !input.dealFxContext.quoteSnapshot ||
+    !input.dealFxContext.originalAmountMinor ||
+    !input.dealFxContext.calculationCurrency
+  ) {
+    throw new DocumentValidationError(
+      "linked deal does not have an accepted FX calculation for invoice posting",
+    );
+  }
+
+  const quoteSnapshot = input.dealFxContext.quoteSnapshot;
   const chainId = `invoice:${input.document.id}`;
   await markQuoteUsedForInvoice({
     runtime: input.context.runtime,
     deps: input.deps,
-    quoteId: input.payload.quoteSnapshot.quoteId,
+    quoteId: quoteSnapshot.quoteId,
     invoiceDocumentId: input.document.id,
     at: input.context.now,
   });
@@ -398,14 +440,14 @@ export async function buildExchangeInvoicePostingPlan(input: {
       buildDocumentPostingRequest(input.document, {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
         bookId: input.bookId,
-        currency: input.payload.quoteSnapshot.fromCurrency,
-        amountMinor: BigInt(input.payload.quoteSnapshot.fromAmountMinor),
+        currency: input.dealFxContext.calculationCurrency,
+        amountMinor: BigInt(input.dealFxContext.originalAmountMinor),
         dimensions: {
           customerId: input.payload.customerId,
           orderId: input.document.id,
         },
         refs: {
-          quoteRef: input.payload.quoteSnapshot.quoteRef,
+          quoteRef: quoteSnapshot.quoteRef,
           chainId,
         },
         memo: input.payload.memo ?? null,
@@ -416,13 +458,10 @@ export async function buildExchangeInvoicePostingPlan(input: {
         customerId: input.payload.customerId,
         orderId: input.document.id,
         counterpartyId: input.payload.counterpartyId,
-        quoteRef: input.payload.quoteSnapshot.quoteRef,
+        quoteRef: quoteSnapshot.quoteRef,
         chainId,
-        lines: input.payload.quoteSnapshot.financialLines.map((line) =>
-          normalizeFinancialLine({
-            ...line,
-            amountMinor: BigInt(line.amountMinor),
-          }),
+        lines: input.dealFxContext.financialLines.map((line) =>
+          normalizeFinancialLine(line),
         ),
         includeCustomerLines: true,
         includeProviderLines: false,
@@ -434,11 +473,22 @@ export async function buildExchangeInvoicePostingPlan(input: {
 
 export function buildExchangePostingPlan(input: {
   document: Document;
+  financialLines?: NonNullable<
+    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
+  >["financialLines"];
   payload: ExchangePayload;
   bookId: string;
 }) {
   const chainId = `invoice:${input.payload.invoiceDocumentId}`;
   const requests: DocumentPostingPlanRequest[] = [];
+  const financialLines =
+    input.financialLines?.map((line) => normalizeFinancialLine(line)) ??
+    input.payload.quoteSnapshot.financialLines.map((line) =>
+      normalizeFinancialLine({
+        ...line,
+        amountMinor: BigInt(line.amountMinor),
+      }),
+    );
 
   for (const leg of input.payload.quoteSnapshot.legs) {
     const counterpartyId =
@@ -508,12 +558,7 @@ export function buildExchangePostingPlan(input: {
       counterpartyId: input.payload.counterpartyId,
       quoteRef: input.payload.quoteSnapshot.quoteRef,
       chainId,
-      lines: input.payload.quoteSnapshot.financialLines.map((line) =>
-        normalizeFinancialLine({
-          ...line,
-          amountMinor: BigInt(line.amountMinor),
-        }),
-      ),
+      lines: financialLines,
       includeCustomerLines: true,
       includeProviderLines: true,
       postingPhase: "finalize",
@@ -532,6 +577,22 @@ export function buildExchangePostingPlan(input: {
 
 export function parseInvoicePayload(document: Document) {
   return parseDocumentPayload(InvoicePayloadSchema, document);
+}
+
+export async function invoiceRequiresExchange(
+  deps: Pick<
+    CommercialModuleDeps,
+    "dealFx" | "documentBusinessLinks"
+  >,
+  invoice: Document,
+) {
+  const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
+
+  if (dealFxContext) {
+    return dealFxContext.hasConvertLeg;
+  }
+
+  return false;
 }
 
 export function parseExchangePayload(document: Document) {

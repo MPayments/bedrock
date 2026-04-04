@@ -222,6 +222,13 @@ const FinanceDealWorkspaceActionsSchema = z.object({
   canUploadAttachment: z.boolean(),
 });
 
+const FinanceDealExecutionLegDocumentActionSchema = z.object({
+  activeDocumentId: z.string().uuid().nullable(),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+});
+
 const FinanceDealAttachmentRequirementSchema = z.object({
   blockingReasons: z.array(z.string()),
   code: z.string(),
@@ -449,6 +456,7 @@ const FinanceDealWorkspaceSchema = z.object({
     z.object({
       actions: z.object({
         canCreateLegOperation: z.boolean(),
+        exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
       }),
       id: z.string().uuid().nullable(),
       idx: z.number().int().positive(),

@@ -590,8 +590,16 @@ export type FinanceDealWorkspaceActions = z.infer<
   typeof FinanceDealWorkspaceActionsSchema
 >;
 
+export const FinanceDealExecutionLegDocumentActionSchema = z.object({
+  activeDocumentId: z.uuid().nullable(),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+});
+
 export const FinanceDealExecutionLegActionsSchema = z.object({
   canCreateLegOperation: z.boolean(),
+  exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
 });
 
 export const FinanceDealExecutionLegSchema = DealWorkflowLegSchema.extend({

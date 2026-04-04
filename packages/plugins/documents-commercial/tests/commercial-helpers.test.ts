@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 
 import {
-  buildExchangeInvoicePostingPlan,
+  buildDealLinkedInvoicePostingPlan,
   buildExchangePostingPlan,
   buildFinancialLineRequests,
   buildQuoteSnapshotHash,
@@ -296,31 +296,24 @@ describe("commercial document helpers", () => {
     const markQuoteUsed = vi.fn(async () => undefined);
     const runtime = {} as any;
 
-    const plan = await buildExchangeInvoicePostingPlan({
+    const plan = await buildDealLinkedInvoicePostingPlan({
       deps: {
         quoteUsage: {
           markQuoteUsedForInvoice: markQuoteUsed,
         },
       } as any,
       context: { runtime, now } as any,
-      document: {
-        id: "invoice-1",
-        occurredAt: now,
-      } as any,
-      bookId: "book-1",
-      payload: {
-        mode: "exchange",
-        occurredAt: now,
-        customerId: "customer-1",
-        counterpartyId: "counterparty-1",
-        organizationRequisiteId: "org-req-1",
-        quoteSnapshot: makeQuoteSnapshot([
+      dealFxContext: {
+        calculationCurrency: "USD",
+        calculationId: "calc-1",
+        dealId: "deal-1",
+        dealType: "payment",
+        financialLines: [
           {
             id: "fee-1",
             bucket: "fee_revenue",
             currency: "USD",
-            amount: "1.5",
-            amountMinor: "150",
+            amountMinor: 150n,
             source: "rule",
             settlementMode: "in_ledger",
           },
@@ -328,8 +321,7 @@ describe("commercial document helpers", () => {
             id: "spread-1",
             bucket: "spread_revenue",
             currency: "USD",
-            amount: "-0.25",
-            amountMinor: "-25",
+            amountMinor: -25n,
             source: "rule",
             settlementMode: "in_ledger",
           },
@@ -337,21 +329,38 @@ describe("commercial document helpers", () => {
             id: "pass-through-1",
             bucket: "pass_through",
             currency: "USD",
-            amount: "0.4",
-            amountMinor: "40",
+            amountMinor: 40n,
             source: "rule",
-            settlementMode: "separate_payment_order",
+            settlementMode: "in_ledger",
           },
           {
             id: "provider-1",
             bucket: "provider_fee_expense",
             currency: "USD",
-            amount: "0.3",
-            amountMinor: "30",
+            amountMinor: 30n,
             source: "rule",
             settlementMode: "in_ledger",
           },
-        ]),
+        ],
+        hasConvertLeg: true,
+        originalAmountMinor: "10000",
+        quoteSnapshot: makeQuoteSnapshot([]),
+        totalAmountMinor: "10165",
+      },
+      document: {
+        id: "invoice-1",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        occurredAt: now,
+        customerId: "customer-1",
+        counterpartyId: "counterparty-1",
+        organizationRequisiteId: "org-req-1",
+        amount: "101.65",
+        amountMinor: "10165",
+        currency: "USD",
+        financialLines: [],
       } as any,
     });
 

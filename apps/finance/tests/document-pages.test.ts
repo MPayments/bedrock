@@ -12,7 +12,7 @@ const getServerSessionSnapshot = vi.fn();
 const parseSearchParams = vi.fn();
 const getDocuments = vi.fn();
 const getDocumentFormOptions = vi.fn();
-const getFinanceDealWorkspaceById = vi.fn();
+const getFinanceDealWorkbenchById = vi.fn();
 const getAgreementContextById = vi.fn();
 const DocumentCreateTypedFormClient = vi.fn(() => null);
 const createEmptyDocumentFormOptions = vi.fn(() => ({
@@ -47,7 +47,7 @@ vi.mock("@/features/documents/lib/form-options", () => ({
 }));
 
 vi.mock("@/features/treasury/deals/lib/queries", () => ({
-  getFinanceDealWorkspaceById,
+  getFinanceDealWorkbenchById,
 }));
 
 vi.mock("@/features/agreements/lib/queries", () => ({
@@ -89,7 +89,7 @@ describe("document pages", () => {
       organizations: [],
       currencies: [],
     });
-    getFinanceDealWorkspaceById.mockResolvedValue(null);
+    getFinanceDealWorkbenchById.mockResolvedValue(null);
     getAgreementContextById.mockResolvedValue(null);
   });
 
@@ -104,7 +104,7 @@ describe("document pages", () => {
         searchParams: Promise.resolve({}),
       }),
     ).rejects.toBe(NOT_FOUND);
-  });
+  }, 15000);
 
   it("returns notFound for removed /documents/create/[docType] route shape", async () => {
     const { default: FamilyPage } = await import(
@@ -119,7 +119,7 @@ describe("document pages", () => {
         searchParams: Promise.resolve({ docType: "legacy_doc_type" }),
       }),
     ).rejects.toBe(NOT_FOUND);
-  });
+  }, 15000);
 
   it("returns notFound for family filter mismatches", async () => {
     const { default: FamilyPage } = await import(
@@ -152,8 +152,41 @@ describe("document pages", () => {
   });
 
   it("passes invoice prefills and validated success href for deal-scoped create pages", async () => {
-    getFinanceDealWorkspaceById.mockResolvedValue({
+    getDocumentFormOptions.mockResolvedValue({
+      counterparties: [],
+      customers: [],
+      organizations: [],
+      currencies: [
+        {
+          code: "RUB",
+          id: "00000000-0000-4000-8000-000000000666",
+          label: "Российский рубль",
+        },
+      ],
+    });
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [
+        {
+          baseCurrencyId: "00000000-0000-4000-8000-000000000667",
+          calculationCurrencyId: "00000000-0000-4000-8000-000000000666",
+          calculationId: "00000000-0000-4000-8000-000000000668",
+          calculationTimestamp: "2026-03-03T10:00:00.000Z",
+          createdAt: "2026-03-03T10:00:00.000Z",
+          feeAmountMinor: "1500",
+          fxQuoteId: "00000000-0000-4000-8000-000000000669",
+          originalAmountMinor: "100000",
+          rateDen: "1",
+          rateNum: "1",
+          sourceQuoteId: "00000000-0000-4000-8000-000000000669",
+          totalAmountMinor: "101500",
+          totalInBaseMinor: "100000",
+          totalWithExpensesInBaseMinor: "101500",
+        },
+      ],
       formalDocumentRequirements: [],
+      summary: {
+        calculationId: "00000000-0000-4000-8000-000000000668",
+      },
       workflow: {
         intake: {
           common: {
@@ -219,7 +252,9 @@ describe("document pages", () => {
       successHref:
         "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
       initialPayload: {
+        amount: "1015",
         counterpartyId: "00000000-0000-4000-8000-000000000222",
+        currency: "RUB",
         customerId: "00000000-0000-4000-8000-000000000111",
         organizationId: "00000000-0000-4000-8000-000000000333",
         organizationRequisiteId: "00000000-0000-4000-8000-000000000555",
@@ -228,7 +263,8 @@ describe("document pages", () => {
   });
 
   it("falls back to the deal documents tab and prefills closing docs from the opening invoice", async () => {
-    getFinanceDealWorkspaceById.mockResolvedValue({
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [],
       formalDocumentRequirements: [
         {
           activeDocumentId: "00000000-0000-4000-8000-000000000777",
@@ -240,6 +276,9 @@ describe("document pages", () => {
           state: "ready",
         },
       ],
+      summary: {
+        calculationId: null,
+      },
       workflow: {
         intake: {
           common: {

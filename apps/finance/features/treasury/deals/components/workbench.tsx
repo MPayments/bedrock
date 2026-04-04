@@ -1032,6 +1032,7 @@ function formatMinorSnapshotAmount(value: string | null | undefined) {
 
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
+  executionTabReturnTo: string;
   isClosingDeal: boolean;
   isCreatingLegOperationId: string | null;
   isRequestingExecution: boolean;
@@ -1046,6 +1047,7 @@ type ExecutionTabProps = {
 
 function ExecutionTab({
   deal,
+  executionTabReturnTo,
   isClosingDeal,
   isCreatingLegOperationId,
   isRequestingExecution,
@@ -1277,12 +1279,30 @@ function ExecutionTab({
             const linkedOperations = leg.operationRefs
               .map((ref) => operationsById.get(ref.operationId) ?? null)
               .filter((operation) => operation !== null);
+            const exchangeDocumentAction = leg.actions.exchangeDocument;
             const canResolveLegBlocker =
               deal.actions.canResolveExecutionBlocker &&
               leg.state === "blocked" &&
               Boolean(leg.id);
             const canCreateLegOperation =
               leg.actions.canCreateLegOperation && Boolean(leg.id);
+            const exchangeDocumentCreateHref =
+              exchangeDocumentAction?.createAllowed
+                ? buildDocumentCreateHref(exchangeDocumentAction.docType, {
+                    dealId: deal.summary.id,
+                    returnTo: executionTabReturnTo,
+                  })
+                : null;
+            const exchangeDocumentOpenHref =
+              exchangeDocumentAction?.openAllowed &&
+              exchangeDocumentAction.activeDocumentId
+                ? buildDocumentDetailsHref(
+                    exchangeDocumentAction.docType,
+                    exchangeDocumentAction.activeDocumentId,
+                  )
+                : null;
+            const exchangeDocumentActionHref =
+              exchangeDocumentCreateHref ?? exchangeDocumentOpenHref;
 
             return (
               <div
@@ -1320,6 +1340,16 @@ function ExecutionTab({
                         {isCreatingLegOperationId === leg.id
                           ? "Создаем..."
                           : "Создать операцию"}
+                      </Button>
+                    ) : null}
+                    {exchangeDocumentActionHref ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href={exchangeDocumentActionHref} />}
+                      >
+                        {exchangeDocumentCreateHref ? "Создать обмен" : "Открыть обмен"}
                       </Button>
                     ) : null}
                   </div>
@@ -1541,6 +1571,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     type: deal.summary.type,
   });
   const documentsTabReturnTo = getDealTabHref(pathname, searchParams, "documents");
+  const executionTabReturnTo = getDealTabHref(pathname, searchParams, "execution");
 
   async function handleAcceptQuote(quoteId: string) {
     setIsAcceptingQuoteId(quoteId);
@@ -1832,6 +1863,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
               {activeTab === "execution" ? (
                 <ExecutionTab
                   deal={deal}
+                  executionTabReturnTo={executionTabReturnTo}
                   isClosingDeal={isClosingDeal}
                   isCreatingLegOperationId={isCreatingLegOperationId}
                   isRequestingExecution={isRequestingExecution}

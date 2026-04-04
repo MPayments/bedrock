@@ -1,5 +1,7 @@
 import type { FinanceAgreementContext } from "@/features/agreements/lib/queries";
-import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries";
+import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
+import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 type DealWorkflowParticipantRole =
   | "applicant"
@@ -24,14 +26,14 @@ function compactPayload(
 }
 
 function getWorkflowParticipant(
-  deal: Pick<FinanceDealWorkspace, "workflow">,
+  deal: Pick<FinanceDealWorkbench, "workflow">,
   role: DealWorkflowParticipantRole,
 ) {
   return deal.workflow?.participants.find((participant) => participant.role === role);
 }
 
 function getOpeningInvoiceDocumentId(
-  deal: Pick<FinanceDealWorkspace, "formalDocumentRequirements">,
+  deal: Pick<FinanceDealWorkbench, "formalDocumentRequirements">,
 ) {
   return (
     deal.formalDocumentRequirements.find(
@@ -41,11 +43,34 @@ function getOpeningInvoiceDocumentId(
   );
 }
 
+function getCalculationCurrencyCode(
+  deal: Pick<FinanceDealWorkbench, "calculationHistory" | "summary">,
+  options: Pick<DocumentFormOptions, "currencies">,
+) {
+  const calculation =
+    (deal.summary.calculationId
+      ? deal.calculationHistory.find(
+          (item) => item.calculationId === deal.summary.calculationId,
+        )
+      : null) ?? deal.calculationHistory[0] ?? null;
+
+  if (!calculation) {
+    return null;
+  }
+
+  return (
+    options.currencies.find(
+      (currency) => currency.id === calculation.calculationCurrencyId,
+    )?.code ?? null
+  );
+}
+
 export function buildDealScopedDocumentInitialPayload(input: {
   agreement: FinanceAgreementContext | null;
+  options: Pick<DocumentFormOptions, "currencies">;
   deal: Pick<
-    FinanceDealWorkspace,
-    "formalDocumentRequirements" | "workflow"
+    FinanceDealWorkbench,
+    "calculationHistory" | "formalDocumentRequirements" | "summary" | "workflow"
   >;
   docType: string;
 }): Record<string, unknown> | undefined {
@@ -63,9 +88,25 @@ export function buildDealScopedDocumentInitialPayload(input: {
         null;
       const organizationRequisiteId =
         input.agreement?.organizationRequisiteId ?? null;
+      const calculation =
+        (input.deal.summary.calculationId
+          ? input.deal.calculationHistory.find(
+              (item) => item.calculationId === input.deal.summary.calculationId,
+            )
+          : null) ?? input.deal.calculationHistory[0] ?? null;
+      const currency =
+        getCalculationCurrencyCode(input.deal, input.options);
+      const amount =
+        calculation && currency
+          ? minorToAmountString(calculation.totalAmountMinor, {
+              currency,
+            })
+          : null;
 
       return compactPayload({
+        amount,
         counterpartyId,
+        currency,
         customerId,
         organizationId,
         organizationRequisiteId,
