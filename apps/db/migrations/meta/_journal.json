@@ -57,6 +57,13 @@
       "when": 1775222685566,
       "tag": "0007_many_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775291925075,
+      "tag": "0008_fluffy_proteus",
+      "breakpoints": true
     }
   ]
 }
