@@ -760,10 +760,17 @@ export type FinanceDealFormalDocumentRequirement = z.infer<
   typeof FinanceDealFormalDocumentRequirementSchema
 >;
 
+export const FinanceDealQuoteAmountSideSchema = z.enum(["source", "target"]);
+
+export type FinanceDealQuoteAmountSide = z.infer<
+  typeof FinanceDealQuoteAmountSideSchema
+>;
+
 export const FinanceDealPricingContextSchema = z.object({
+  quoteAmount: z.string().nullable(),
+  quoteAmountSide: FinanceDealQuoteAmountSideSchema,
   quoteEligibility: z.boolean(),
-  requestedAmount: z.string().nullable(),
-  requestedCurrencyId: z.uuid().nullable(),
+  sourceCurrencyId: z.uuid().nullable(),
   targetCurrencyId: z.uuid().nullable(),
 });
 

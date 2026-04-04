@@ -130,9 +130,10 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       ],
     },
     pricing: {
+      quoteAmount: "125000.00",
+      quoteAmountSide: "target",
       quoteEligibility: true,
-      requestedAmount: "125000.00",
-      requestedCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
@@ -727,7 +728,10 @@ describe("treasury deals queries", () => {
       expect.objectContaining({
         nextAction: "Create calculation from accepted quote",
         pricing: expect.objectContaining({
+          quoteAmount: "125000.00",
+          quoteAmountSide: "target",
           quoteEligibility: true,
+          sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
           targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
         }),
         quoteHistory: [

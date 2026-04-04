@@ -92,6 +92,37 @@ export class QuoteRoute extends ValueObject<QuoteRouteSnapshot> {
     });
   }
 
+  static singleFromTarget(input: {
+    fromCurrency: string;
+    toCurrency: string;
+    toAmountMinor: bigint;
+    rateNum: bigint;
+    rateDen: bigint;
+    asOf: Date;
+    sourceKind: CreateQuoteLegInput["sourceKind"];
+    sourceRef?: string | null;
+    executionCounterpartyId?: string | null;
+  }): QuoteRoute {
+    return new QuoteRoute({
+      fromCurrency: input.fromCurrency,
+      toCurrency: input.toCurrency,
+      legs: [
+        QuoteLeg.createFromTarget({
+          idx: 1,
+          fromCurrency: input.fromCurrency,
+          toCurrency: input.toCurrency,
+          toAmountMinor: input.toAmountMinor,
+          rateNum: input.rateNum,
+          rateDen: input.rateDen,
+          sourceKind: input.sourceKind,
+          sourceRef: input.sourceRef ?? null,
+          asOf: input.asOf,
+          executionCounterpartyId: input.executionCounterpartyId ?? null,
+        }).toSnapshot(),
+      ],
+    });
+  }
+
   static explicit(input: {
     fromCurrency: string;
     toCurrency: string;
@@ -125,8 +156,52 @@ export class QuoteRoute extends ValueObject<QuoteRouteSnapshot> {
     });
   }
 
+  static explicitFromTarget(input: {
+    fromCurrency: string;
+    toCurrency: string;
+    toAmountMinor: bigint;
+    asOf: Date;
+    legs: (Omit<CreateQuoteLegInput, "idx" | "fromAmountMinor" | "asOf"> & {
+      asOf?: Date;
+    })[];
+  }): QuoteRoute {
+    let rollingTargetAmount = input.toAmountMinor;
+
+    return new QuoteRoute({
+      fromCurrency: input.fromCurrency,
+      toCurrency: input.toCurrency,
+      legs: input.legs
+        .map((leg, index) => ({
+          idx: index + 1,
+          leg,
+        }))
+        .reverse()
+        .map(({ idx, leg }) => {
+          const pricedLeg = QuoteLeg.createFromTarget({
+            idx,
+            fromCurrency: leg.fromCurrency,
+            toCurrency: leg.toCurrency,
+            toAmountMinor: rollingTargetAmount,
+            rateNum: leg.rateNum,
+            rateDen: leg.rateDen,
+            sourceKind: leg.sourceKind,
+            sourceRef: leg.sourceRef ?? null,
+            asOf: leg.asOf ?? input.asOf,
+            executionCounterpartyId: leg.executionCounterpartyId ?? null,
+          });
+          rollingTargetAmount = pricedLeg.fromAmountMinor;
+          return pricedLeg.toSnapshot();
+        })
+        .reverse(),
+    });
+  }
+
   static fromSnapshots(input: QuoteRouteSnapshot): QuoteRoute {
     return new QuoteRoute(input);
+  }
+
+  get fromAmountMinor(): bigint {
+    return this.legs[0]!.fromAmountMinor;
   }
 
   get length(): number {

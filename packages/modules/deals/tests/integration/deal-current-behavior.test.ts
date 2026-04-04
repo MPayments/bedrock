@@ -56,6 +56,15 @@ describe("deals integration characterization", () => {
     expect(workflow?.revision).toBe(2);
     expect(workflow?.intake.moneyRequest.purpose).toBe("Updated purpose");
     expect(workflow?.intake.common.customerNote).toBe("Updated legacy note");
+    expect(workflow?.intake.moneyRequest.sourceAmount).toBeNull();
+    expect(workflow?.intake.moneyRequest.sourceCurrencyId).toBeNull();
+    expect(workflow?.intake.moneyRequest.targetCurrencyId).toBe(
+      fixture.currencies.usd.id,
+    );
+    expect(workflow?.intake.incomingReceipt.expectedAmount).toBe("1250.00");
+    expect(workflow?.intake.incomingReceipt.expectedCurrencyId).toBe(
+      fixture.currencies.usd.id,
+    );
   });
 
   it("links a calculation only from the accepted quote for a convert deal", async () => {

@@ -54,6 +54,7 @@ import type {
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
 import type { DealReads } from "../../application/ports/deal.reads";
+import { getCompatibilityRequestedFields } from "../../application/shared/compatibility-requested-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
@@ -270,6 +271,10 @@ function buildCompatibilityDeal(input: {
   type: Deal["type"];
   updatedAt: Date;
 }): Deal {
+  const compatibilityRequestedFields = getCompatibilityRequestedFields(
+    input.intake,
+  );
+
   return {
     agreementId: input.agreementId,
     agentId: input.agentId,
@@ -281,8 +286,8 @@ function buildCompatibilityDeal(input: {
     intakeComment: input.intake.common.customerNote,
     nextAction: input.nextAction,
     reason: input.intake.moneyRequest.purpose,
-    requestedAmount: input.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId: input.intake.moneyRequest.sourceCurrencyId,
+    requestedAmount: compatibilityRequestedFields.requestedAmount,
+    requestedCurrencyId: compatibilityRequestedFields.requestedCurrencyId,
     revision: input.revision,
     status: input.status,
     type: input.type,
@@ -1216,10 +1221,15 @@ export class DrizzleDealReads implements DealReads {
         const precision = row.sourceCurrencyId
           ? extraCurrenciesById.get(row.sourceCurrencyId)?.precision ?? null
           : null;
+        const compatibilityRequestedFields = getCompatibilityRequestedFields(
+          row.snapshot,
+        );
         const requestedAmount =
-          row.sourceAmountMinor != null && precision != null
+          row.type !== "payment" &&
+          row.sourceAmountMinor != null &&
+          precision != null
             ? minorToDecimalString(row.sourceAmountMinor, precision)
-            : row.snapshot.moneyRequest.sourceAmount;
+            : compatibilityRequestedFields.requestedAmount;
         const compat = buildCompatibilityDeal({
           agreementId: row.agreementId,
           agentId: row.agentId,

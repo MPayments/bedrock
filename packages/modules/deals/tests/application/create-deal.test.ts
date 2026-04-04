@@ -162,10 +162,10 @@ describe("create deal command", () => {
       customerId: "00000000-0000-4000-8000-000000000001",
       id: "00000000-0000-4000-8000-000000000010",
       nextAction: "Complete intake",
-      sourceAmountMinor: 10050n,
-      sourceCurrencyId: "00000000-0000-4000-8000-000000000005",
+      sourceAmountMinor: null,
+      sourceCurrencyId: null,
       status: "draft",
-      targetCurrencyId: null,
+      targetCurrencyId: "00000000-0000-4000-8000-000000000005",
       type: "payment",
     });
     expect(harness.dealStore.createDealIntakeSnapshot).toHaveBeenCalledWith({
@@ -184,18 +184,18 @@ describe("create deal command", () => {
         },
         incomingReceipt: {
           contractNumber: null,
-          expectedAmount: null,
+          expectedAmount: "100.50",
           expectedAt: null,
-          expectedCurrencyId: null,
+          expectedCurrencyId: "00000000-0000-4000-8000-000000000005",
           invoiceNumber: null,
           payerCounterpartyId: null,
           payerSnapshot: null,
         },
         moneyRequest: {
           purpose: null,
-          sourceAmount: "100.50",
-          sourceCurrencyId: "00000000-0000-4000-8000-000000000005",
-          targetCurrencyId: null,
+          sourceAmount: null,
+          sourceCurrencyId: null,
+          targetCurrencyId: "00000000-0000-4000-8000-000000000005",
         },
         settlementDestination: {
           bankInstructionSnapshot: null,

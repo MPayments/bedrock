@@ -1,6 +1,9 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
 
 import {
+  applyCompatibilityRequestedFields,
+} from "./compatibility-requested-fields";
+import {
   buildDealExecutionPlan,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
@@ -80,7 +83,11 @@ export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntake
     targetCurrencyId: input.moneyRequest.targetCurrencyId ?? null,
   };
 
-  if (input.type === "currency_transit" || input.type === "exporter_settlement") {
+  if (
+    input.type === "payment" ||
+    input.type === "currency_transit" ||
+    input.type === "exporter_settlement"
+  ) {
     draft.incomingReceipt = {
       contractNumber: input.incomingReceipt?.contractNumber ?? null,
       expectedAmount: input.incomingReceipt?.expectedAmount ?? null,
@@ -101,8 +108,11 @@ export function buildLegacyCreateIntakeDraft(input: CreateDealInput): DealIntake
   draft.common.applicantCounterpartyId = input.counterpartyId ?? null;
   draft.common.customerNote = input.comment ?? input.intakeComment ?? null;
   draft.moneyRequest.purpose = input.reason ?? null;
-  draft.moneyRequest.sourceAmount = input.requestedAmount ?? null;
-  draft.moneyRequest.sourceCurrencyId = input.requestedCurrencyId ?? null;
+  applyCompatibilityRequestedFields({
+    draft,
+    requestedAmount: input.requestedAmount,
+    requestedCurrencyId: input.requestedCurrencyId,
+  });
 
   return draft;
 }
@@ -132,11 +142,15 @@ export function applyLegacyIntakePatch(input: {
   if (input.patch.reason !== undefined) {
     next.moneyRequest.purpose = input.patch.reason ?? null;
   }
-  if (input.patch.requestedAmount !== undefined) {
-    next.moneyRequest.sourceAmount = input.patch.requestedAmount ?? null;
-  }
-  if (input.patch.requestedCurrencyId !== undefined) {
-    next.moneyRequest.sourceCurrencyId = input.patch.requestedCurrencyId ?? null;
+  if (
+    input.patch.requestedAmount !== undefined ||
+    input.patch.requestedCurrencyId !== undefined
+  ) {
+    applyCompatibilityRequestedFields({
+      draft: next,
+      requestedAmount: input.patch.requestedAmount,
+      requestedCurrencyId: input.patch.requestedCurrencyId,
+    });
   }
 
   return next;

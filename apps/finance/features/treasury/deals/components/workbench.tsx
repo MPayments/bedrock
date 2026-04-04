@@ -163,8 +163,19 @@ function getQuoteCreationDisabledReason(deal: FinanceDealWorkbench) {
     return "Сейчас нельзя запросить котировку для этой сделки.";
   }
 
-  if (!deal.pricing.requestedAmount || !deal.pricing.requestedCurrencyId) {
-    return "У сделки нет суммы или валюты для запроса котировки.";
+  if (!deal.pricing.quoteAmount) {
+    return "У сделки нет суммы для запроса котировки.";
+  }
+
+  if (!deal.pricing.sourceCurrencyId) {
+    return "У сделки не указана валюта списания.";
+  }
+
+  if (
+    deal.pricing.quoteAmountSide === "target" &&
+    !deal.pricing.targetCurrencyId
+  ) {
+    return "У сделки не указана валюта оплаты.";
   }
 
   return null;
@@ -1825,8 +1836,9 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
         dealId={deal.summary.id}
         disabledReason={quoteCreationDisabledReason}
         open={isQuoteDialogOpen}
-        requestedAmount={deal.pricing.requestedAmount}
-        requestedCurrencyId={deal.pricing.requestedCurrencyId}
+        quoteAmount={deal.pricing.quoteAmount}
+        quoteAmountSide={deal.pricing.quoteAmountSide}
+        sourceCurrencyId={deal.pricing.sourceCurrencyId}
         targetCurrencyId={deal.pricing.targetCurrencyId}
         onOpenChange={setIsQuoteDialogOpen}
         onSuccess={() => refreshPage(router)}

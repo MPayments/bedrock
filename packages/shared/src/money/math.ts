@@ -34,6 +34,11 @@ export function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
   return (a * num) / den;
 }
 
+export function mulDivCeil(a: bigint, num: bigint, den: bigint): bigint {
+  if (den <= 0n) throw new Error("rateDen must be > 0");
+  return ((a * num) + den - 1n) / den;
+}
+
 export function effectiveRateFromAmounts(
   fromAmountMinor: bigint,
   toAmountMinor: bigint,

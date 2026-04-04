@@ -179,9 +179,10 @@ function createDeal(): FinanceDealWorkbenchData {
       positions: [],
     },
     pricing: {
+      quoteAmount: "125000.00",
+      quoteAmountSide: "target",
       quoteEligibility: false,
-      requestedAmount: "125000.00",
-      requestedCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,

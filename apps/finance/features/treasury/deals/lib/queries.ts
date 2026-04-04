@@ -240,9 +240,10 @@ const FinanceDealFormalDocumentRequirementSchema = z.object({
 });
 
 const FinanceDealPricingContextSchema = z.object({
+  quoteAmount: z.string().nullable(),
+  quoteAmountSide: z.enum(["source", "target"]),
   quoteEligibility: z.boolean(),
-  requestedAmount: z.string().nullable(),
-  requestedCurrencyId: z.string().uuid().nullable(),
+  sourceCurrencyId: z.string().uuid().nullable(),
   targetCurrencyId: z.string().uuid().nullable(),
 });
 

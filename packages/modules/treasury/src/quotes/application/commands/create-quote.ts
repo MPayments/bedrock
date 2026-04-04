@@ -9,6 +9,7 @@ import type {
 } from "../../../shared/application/external-ports";
 import { Quote } from "../../domain/quote";
 import { QuotePricingPlan } from "../../domain/quote-pricing-plan";
+import { QuoteRoute } from "../../domain/quote-route";
 import {
   CreateQuoteInputSchema,
   type CreateQuoteInput,
@@ -165,15 +166,6 @@ export class CreateQuoteCommand {
   async buildPricingPlan(
     validated: CreateQuoteInput,
   ): Promise<QuotePricingPlan> {
-    const feeComponents = await this.fees.calculateQuoteFeeComponents({
-      fromCurrency: validated.fromCurrency,
-      toCurrency: validated.toCurrency,
-      principalMinor: validated.fromAmountMinor,
-      dealDirection: validated.dealDirection,
-      dealForm: validated.dealForm,
-      at: validated.asOf,
-    });
-
     if (validated.mode === "auto_cross") {
       const cross = await this.getCrossRate(
         validated.fromCurrency,
@@ -181,17 +173,81 @@ export class CreateQuoteCommand {
         validated.asOf,
         validated.anchor ?? "USD",
       );
+      const sourceAmountMinor = this.resolveAutoCrossSourceAmountMinor({
+        input: validated,
+        rateNum: cross.rateNum,
+        rateDen: cross.rateDen,
+      });
+      const feeComponents = await this.fees.calculateQuoteFeeComponents({
+        fromCurrency: validated.fromCurrency,
+        toCurrency: validated.toCurrency,
+        principalMinor: sourceAmountMinor,
+        dealDirection: validated.dealDirection,
+        dealForm: validated.dealForm,
+        at: validated.asOf,
+      });
+
       return QuotePricingPlan.autoCross({
         ...validated,
+        fromAmountMinor: sourceAmountMinor,
         crossRate: cross,
         feeComponents,
       });
     }
 
+    const sourceAmountMinor = this.resolveExplicitRouteSourceAmountMinor(validated);
+    const feeComponents = await this.fees.calculateQuoteFeeComponents({
+      fromCurrency: validated.fromCurrency,
+      toCurrency: validated.toCurrency,
+      principalMinor: sourceAmountMinor,
+      dealDirection: validated.dealDirection,
+      dealForm: validated.dealForm,
+      at: validated.asOf,
+    });
+
     return QuotePricingPlan.explicitRoute({
       ...validated,
+      fromAmountMinor: sourceAmountMinor,
       feeComponents,
     });
+  }
+
+  private resolveAutoCrossSourceAmountMinor(input: {
+    input: Extract<CreateQuoteInput, { mode: "auto_cross" }>;
+    rateNum: bigint;
+    rateDen: bigint;
+  }): bigint {
+    if ("fromAmountMinor" in input.input) {
+      return input.input.fromAmountMinor;
+    }
+
+    return QuoteRoute.singleFromTarget({
+      fromCurrency: input.input.fromCurrency,
+      toCurrency: input.input.toCurrency,
+      toAmountMinor: input.input.toAmountMinor,
+      rateNum: input.rateNum,
+      rateDen: input.rateDen,
+      asOf: input.input.asOf,
+      sourceKind: "derived",
+      sourceRef: input.input.anchor ?? "USD",
+      executionCounterpartyId: null,
+    }).fromAmountMinor;
+  }
+
+  private resolveExplicitRouteSourceAmountMinor(
+    input: Extract<CreateQuoteInput, { mode: "explicit_route" }>,
+  ): bigint {
+    if ("fromAmountMinor" in input) {
+      return input.fromAmountMinor;
+    }
+
+    return QuoteRoute.explicitFromTarget({
+      fromCurrency: input.fromCurrency,
+      toCurrency: input.toCurrency,
+      toAmountMinor: input.toAmountMinor,
+      asOf: input.asOf,
+      legs: input.legs,
+    }).fromAmountMinor;
   }
 
   private async assertIdempotentReplayMatches(

@@ -944,6 +944,24 @@ function isQuoteEligible(workflow: DealWorkflowProjection) {
   return workflow.executionPlan.some((leg) => leg.kind === "convert");
 }
 
+function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
+  if (workflow.summary.type === "payment") {
+    return {
+      quoteAmount: workflow.intake.incomingReceipt.expectedAmount ?? null,
+      quoteAmountSide: "target" as const,
+      sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+      targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
+    };
+  }
+
+  return {
+    quoteAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
+    quoteAmountSide: "source" as const,
+    sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
+  };
+}
+
 function getPositionByKind(
   workflow: DealWorkflowProjection,
   kind: string,
@@ -1992,11 +2010,8 @@ export function createDealProjectionsWorkflow(
       nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,
       pricing: {
+        ...buildFinanceQuoteRequestContext(workflow),
         quoteEligibility: isQuoteEligible(workflow),
-        requestedAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
-        requestedCurrencyId:
-          workflow.intake.moneyRequest.sourceCurrencyId ?? null,
-        targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
       },
       profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
       queueContext,

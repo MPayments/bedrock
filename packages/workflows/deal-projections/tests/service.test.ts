@@ -40,16 +40,16 @@ function createBaseWorkflow(): DealWorkflowProjection {
       },
       incomingReceipt: {
         contractNumber: null,
-        expectedAmount: null,
+        expectedAmount: "1000",
         expectedAt: null,
-        expectedCurrencyId: null,
+        expectedCurrencyId: "currency-usd",
         invoiceNumber: null,
         payerCounterpartyId: null,
         payerSnapshot: null,
       },
       moneyRequest: {
         purpose: "Pay supplier",
-        sourceAmount: "1000",
+        sourceAmount: null,
         sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
@@ -352,8 +352,14 @@ function createWorkflow(overrides?: {
               intakeComment: workflow.intake.common.customerNote,
               nextAction: workflow.nextAction,
               reason: workflow.intake.moneyRequest.purpose,
-              requestedAmount: workflow.intake.moneyRequest.sourceAmount,
-              requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
+              requestedAmount:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.incomingReceipt.expectedAmount
+                  : workflow.intake.moneyRequest.sourceAmount,
+              requestedCurrencyId:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.moneyRequest.targetCurrencyId
+                  : workflow.intake.moneyRequest.sourceCurrencyId,
               revision: workflow.revision,
               status: workflow.summary.status,
               type: workflow.summary.type,
@@ -728,10 +734,10 @@ describe("createDealProjectionsWorkflow", () => {
           agentName: "",
           amount: 1000,
           amountInBase: 1000,
-          baseCurrencyCode: "RUB",
+          baseCurrencyCode: "USD",
           client: "Customer One",
           clientId: "customer-1",
-          currency: "RUB",
+          currency: "USD",
           feePercentage: 0,
           id: "deal-1",
           status: "submitted",
@@ -774,13 +780,13 @@ describe("createDealProjectionsWorkflow", () => {
       expect.objectContaining({
         amount: 1000,
         client: "Customer One",
-        currency: "RUB",
+        currency: "USD",
         id: "deal-1",
       }),
     ]);
     expect(byDay).toEqual([
       expect.objectContaining({
-        RUB: 1000,
+        USD: 1000,
         amount: 1000,
         closedAmount: 1000,
         closedCount: 1,
@@ -1030,9 +1036,10 @@ describe("createDealProjectionsWorkflow", () => {
         },
       ],
       pricing: {
+        quoteAmount: "1000",
+        quoteAmountSide: "target",
         quoteEligibility: false,
-        requestedAmount: "1000",
-        requestedCurrencyId: "currency-rub",
+        sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
       profitabilitySnapshot: {

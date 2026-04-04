@@ -66,6 +66,12 @@ export async function fetchFxQuotePreview(input: {
     fromAmountMinor: input.request.fromAmountMinor,
     asOf: new Date(),
   });
+  const fromAmountMinor =
+    "fromAmountMinor" in request ? request.fromAmountMinor : null;
+
+  if (!fromAmountMinor) {
+    throw new Error("Не удалось подготовить сумму для preview-котировки");
+  }
 
   const response = await fetch(`/v1/treasury/quotes/preview`, {
     method: "POST",
@@ -77,7 +83,7 @@ export async function fetchFxQuotePreview(input: {
     },
     body: JSON.stringify({
       ...request,
-      fromAmountMinor: request.fromAmountMinor.toString(),
+      fromAmountMinor: fromAmountMinor.toString(),
     }),
   });
 

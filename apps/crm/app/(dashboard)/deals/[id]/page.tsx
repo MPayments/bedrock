@@ -88,6 +88,7 @@ type DealPageData = {
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
   requestedCurrency: ApiCurrency | null;
+  sourceCurrency: ApiCurrency | null;
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
@@ -174,8 +175,14 @@ function buildDealViewFromWorkbench(
       }),
     ],
     reason: workbench.intake.moneyRequest.purpose,
-    requestedAmount: workbench.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+    requestedAmount:
+      workbench.summary.type === "payment"
+        ? workbench.intake.incomingReceipt.expectedAmount
+        : workbench.intake.moneyRequest.sourceAmount,
+    requestedCurrencyId:
+      workbench.summary.type === "payment"
+        ? workbench.intake.moneyRequest.targetCurrencyId
+        : workbench.intake.moneyRequest.sourceCurrencyId,
     status: workbench.summary.status,
     statusHistory: workbench.timeline
       .filter(
@@ -198,6 +205,24 @@ function buildDealViewFromWorkbench(
       })),
     type: workbench.summary.type,
     updatedAt: workbench.summary.updatedAt,
+  };
+}
+
+function buildQuoteRequestContext(workbench: ApiCrmDealWorkbenchProjection) {
+  if (workbench.summary.type === "payment") {
+    return {
+      amount: workbench.intake.incomingReceipt.expectedAmount,
+      amountSide: "target" as const,
+      sourceCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+      targetCurrencyId: workbench.intake.moneyRequest.targetCurrencyId,
+    };
+  }
+
+  return {
+    amount: workbench.intake.moneyRequest.sourceAmount,
+    amountSide: "source" as const,
+    sourceCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+    targetCurrencyId: workbench.intake.moneyRequest.targetCurrencyId,
   };
 }
 
@@ -484,6 +509,7 @@ export default function DealDetailPage() {
         `${API_BASE_URL}/deals/${dealId}/crm-workbench`,
       );
       const deal = buildDealViewFromWorkbench(workbench);
+      const quoteRequest = buildQuoteRequestContext(workbench);
 
       if (
         !workbench.context.agreement ||
@@ -505,14 +531,20 @@ export default function DealDetailPage() {
 
       const [
         requestedCurrency,
+        sourceCurrency,
         calculation,
         currencyOptions,
         agreementsPayload,
         applicantRequisitesPayload,
       ] = await Promise.all([
-        workbench.intake.moneyRequest.sourceCurrencyId
+        deal.requestedCurrencyId
           ? fetchJson<ApiCurrency>(
-              `${API_BASE_URL}/currencies/${workbench.intake.moneyRequest.sourceCurrencyId}`,
+              `${API_BASE_URL}/currencies/${deal.requestedCurrencyId}`,
+            )
+          : Promise.resolve(null),
+        quoteRequest.sourceCurrencyId
+          ? fetchJson<ApiCurrency>(
+              `${API_BASE_URL}/currencies/${quoteRequest.sourceCurrencyId}`,
             )
           : Promise.resolve(null),
         workbench.pricing.currentCalculation
@@ -579,6 +611,7 @@ export default function DealDetailPage() {
         organizationRequisiteProvider:
           workbench.context.internalEntityRequisiteProvider,
         requestedCurrency,
+        sourceCurrency,
         workbench,
         workflow: workbench.workflow,
       });
@@ -661,7 +694,7 @@ export default function DealDetailPage() {
       return;
     }
 
-    setCalculationAmount(data.deal.requestedAmount ?? "");
+    setCalculationAmount(buildQuoteRequestContext(data.workbench).amount ?? "");
   }, [data, overrideCalculationAmount]);
 
   useEffect(() => {
@@ -669,11 +702,14 @@ export default function DealDetailPage() {
       return;
     }
 
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
     setCalculationToCurrency(
-      resolveDefaultToCurrency(
-        data.currencyOptions,
-        data.requestedCurrency?.code ?? null,
-      ),
+      quoteRequest.amountSide === "target"
+        ? (data.requestedCurrency?.code ?? "")
+        : resolveDefaultToCurrency(
+            data.currencyOptions,
+            data.sourceCurrency?.code ?? null,
+          ),
     );
   }, [calculationToCurrency, data]);
 
@@ -683,12 +719,15 @@ export default function DealDetailPage() {
     }
 
     setOverrideCalculationAmount(false);
-    setCalculationAmount(data.deal.requestedAmount ?? "");
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
+    setCalculationAmount(quoteRequest.amount ?? "");
     setCalculationToCurrency(
-      resolveDefaultToCurrency(
-        data.currencyOptions,
-        data.requestedCurrency?.code ?? null,
-      ),
+      quoteRequest.amountSide === "target"
+        ? (data.requestedCurrency?.code ?? "")
+        : resolveDefaultToCurrency(
+            data.currencyOptions,
+            data.sourceCurrency?.code ?? null,
+          ),
     );
     setCalculationAsOf(formatDateTimeInput(new Date()));
     setIsQuoteDialogOpen(true);
@@ -699,7 +738,12 @@ export default function DealDetailPage() {
       return;
     }
 
-    if (!data.requestedCurrency || !data.deal.requestedAmount) {
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
+    const amountSource = overrideCalculationAmount
+      ? calculationAmount
+      : (quoteRequest.amount ?? "");
+
+    if (!data.sourceCurrency || !amountSource) {
       showError(
         "Недостаточно данных",
         "Для запроса котировки нужны сумма и валюта списания.",
@@ -712,17 +756,16 @@ export default function DealDetailPage() {
       return;
     }
 
-    if (calculationToCurrency === data.requestedCurrency.code) {
+    if (calculationToCurrency === data.sourceCurrency.code) {
       showError("Недопустимая валютная пара", "Выберите другую валюту.");
       return;
     }
 
-    const amountSource = overrideCalculationAmount
-      ? calculationAmount
-      : data.deal.requestedAmount;
     const amountMinor = decimalToMinorString(
       amountSource,
-      data.requestedCurrency.precision,
+      quoteRequest.amountSide === "target"
+        ? (data.requestedCurrency?.precision ?? data.sourceCurrency.precision)
+        : data.sourceCurrency.precision,
     );
 
     if (!amountMinor || BigInt(amountMinor) <= 0n) {
@@ -753,9 +796,11 @@ export default function DealDetailPage() {
           },
           body: JSON.stringify({
             mode: "auto_cross",
-            fromCurrency: data.requestedCurrency.code,
+            ...(quoteRequest.amountSide === "target"
+              ? { toAmountMinor: amountMinor }
+              : { fromAmountMinor: amountMinor }),
+            fromCurrency: data.sourceCurrency.code,
             toCurrency: calculationToCurrency,
-            fromAmountMinor: amountMinor,
             asOf: asOfDate.toISOString(),
           }),
         },
@@ -791,8 +836,13 @@ export default function DealDetailPage() {
   const quoteStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
     : false;
+  const quoteRequest = data
+    ? buildQuoteRequestContext(data.workbench)
+    : null;
   const quoteHasRequestedAmount = Boolean(
-    data?.deal.requestedAmount && data?.requestedCurrency,
+    quoteRequest?.amount &&
+      quoteRequest.sourceCurrencyId &&
+      (quoteRequest.amountSide === "source" || quoteRequest.targetCurrencyId),
   );
   const isIntakeDirty = !areIntakeDraftsEqual(draftIntake, baselineIntake);
   const quoteCreationDisabledReason = !data
@@ -802,7 +852,7 @@ export default function DealDetailPage() {
       : !quoteStatusAllowed
         ? `Нельзя запросить котировку для статуса "${STATUS_LABELS[data.deal.status]}".`
         : !quoteHasRequestedAmount
-          ? "У сделки нет запрошенной суммы или валюты."
+          ? "У сделки нет суммы или валют для запроса котировки."
           : null;
   const calculationDisabledReason = !data
     ? "Данные сделки еще загружаются."
@@ -1521,6 +1571,7 @@ export default function DealDetailPage() {
       <CalculationDialog
         asOf={calculationAsOf}
         amount={calculationAmount}
+        amountSide={quoteRequest?.amountSide ?? "source"}
         currencyOptions={data.currencyOptions}
         description="Получите котировку для сделки. После этого ее можно принять и создать расчет."
         disabledReason={quoteCreationDisabledReason}
@@ -1539,7 +1590,7 @@ export default function DealDetailPage() {
         onToggleOverride={setOverrideCalculationAmount}
         open={isQuoteDialogOpen}
         overrideAmount={overrideCalculationAmount}
-        requestedCurrency={data.requestedCurrency}
+        sourceCurrency={data.sourceCurrency}
         loadingLabel="Запрашиваем..."
         submitLabel="Запросить котировку"
         title="Запросить котировку"
