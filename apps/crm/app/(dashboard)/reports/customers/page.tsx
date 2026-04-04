@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import {
   Table,
   TableBody,
@@ -51,7 +52,6 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import {
   ChartContainer,
@@ -550,7 +550,8 @@ export default function ClientsReportsPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DateRangePicker
+              <DatePicker
+                mode="range"
                 value={dateRange}
                 onChange={setDateRange}
                 placeholder="Период..."

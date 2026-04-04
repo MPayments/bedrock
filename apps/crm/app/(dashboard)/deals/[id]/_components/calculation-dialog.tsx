@@ -93,6 +93,7 @@ export function CalculationDialog({
       <Input
         id="deal-calculation-amount"
         disabled={!overrideAmount}
+        inputMode="decimal"
         placeholder="Например 1000.00"
         value={amount}
         onChange={(event) => onAmountChange(event.target.value)}

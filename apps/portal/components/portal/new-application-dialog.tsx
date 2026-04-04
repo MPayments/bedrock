@@ -13,6 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@bedrock/sdk-ui/components/command";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -114,6 +115,32 @@ const DEAL_TYPE_OPTIONS: {
 const STEP_LABELS = ["Юрлицо", "Тип", "Данные"] as const;
 const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
 const DEFAULT_EXPECTED_CURRENCY = "USD";
+
+function formatDatePickerValue(value: Date | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function parseDatePickerValue(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return undefined;
+  }
+
+  return new Date(year, month - 1, day);
+}
 
 export function NewDealDialog({
   customerContexts,
@@ -668,11 +695,13 @@ export function NewDealDialog({
 
         <div className="space-y-2">
           <Label htmlFor="requestedExecutionDate">Желаемая дата исполнения</Label>
-          <Input
+          <DatePicker
             id="requestedExecutionDate"
-            type="date"
-            value={requestedExecutionDate}
-            onChange={(event) => setRequestedExecutionDate(event.target.value)}
+            className="w-full"
+            value={parseDatePickerValue(requestedExecutionDate)}
+            onChange={(date) =>
+              setRequestedExecutionDate(formatDatePickerValue(date))
+            }
           />
         </div>
 
@@ -726,11 +755,11 @@ export function NewDealDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="expectedAt">Ожидаемая дата поступления</Label>
-              <Input
+              <DatePicker
                 id="expectedAt"
-                type="date"
-                value={expectedAt}
-                onChange={(event) => setExpectedAt(event.target.value)}
+                className="w-full"
+                value={parseDatePickerValue(expectedAt)}
+                onChange={(date) => setExpectedAt(formatDatePickerValue(date))}
               />
             </div>
           </div>

@@ -1118,10 +1118,7 @@ export default function NewCustomerPage() {
                           </Label>
                           <Input
                             id="new-sub-agent-commission"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
+                            inputMode="decimal"
                             value={newSubAgentCommission}
                             onChange={(event) => {
                               setNewSubAgentCommission(event.target.value);

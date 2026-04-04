@@ -215,6 +215,7 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   deal_created: "Сделка создана",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
+  execution_blocker_resolved: "Блокер исполнения устранен",
   intake_saved: "Анкета сохранена",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",

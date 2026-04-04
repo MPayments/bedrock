@@ -123,6 +123,7 @@ export type ApiDealTimelineEvent = {
     | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
+    | "execution_blocker_resolved"
     | "leg_state_changed";
   visibility: "customer_safe" | "internal";
 };

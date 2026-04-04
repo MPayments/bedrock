@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -39,14 +40,16 @@ export function FinancialCard({
         <div className="flex flex-wrap items-center gap-2">
           {calculationHistory.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="outline" size="sm">
-                  История
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="sm" />}
+              >
+                История
+                <ChevronDown className="ml-2 h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <div className="space-y-1">
                   {calculationHistory.map((item) => {

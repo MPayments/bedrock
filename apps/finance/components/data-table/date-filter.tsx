@@ -3,23 +3,13 @@
 import type { Column } from "@tanstack/react-table";
 import { CalendarIcon, XCircle } from "lucide-react";
 import * as React from "react";
-import type { DateRange } from "react-day-picker";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Calendar } from "@bedrock/sdk-ui/components/calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@bedrock/sdk-ui/components/popover";
+  DatePicker,
+  type DateRange,
+} from "@bedrock/sdk-ui/components/date-picker";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
-import { formatDate } from "@/lib/format";
-
-type DateSelection = Date[] | DateRange;
-
-function getIsDateRange(value: DateSelection): value is DateRange {
-  return value && typeof value === "object" && !Array.isArray(value);
-}
 
 function parseAsDate(timestamp: number | string | undefined): Date | undefined {
   if (!timestamp) return undefined;
@@ -69,166 +59,113 @@ function DataTableDateFilterBase<TData>({
   const isRangeMode = mode === "range";
   const columnFilterValue = column.getFilterValue();
 
-  const selectedDates = React.useMemo<DateSelection>(() => {
-    if (!columnFilterValue) {
-      return isRangeMode ? { from: undefined, to: undefined } : [];
-    }
-
-    if (isRangeMode) {
-      const timestamps = parseColumnFilterValue(columnFilterValue);
-      return {
-        from: parseAsDate(timestamps[0]),
-        to: parseAsDate(timestamps[1]),
-      };
+  const selectedRange = React.useMemo<DateRange | undefined>(() => {
+    if (!isRangeMode || !columnFilterValue) {
+      return undefined;
     }
 
     const timestamps = parseColumnFilterValue(columnFilterValue);
-    const date = parseAsDate(timestamps[0]);
-    return date ? [date] : [];
+    const from = parseAsDate(timestamps[0]);
+    const to = parseAsDate(timestamps[1]);
+
+    return from || to ? { from, to } : undefined;
   }, [columnFilterValue, isRangeMode]);
 
-  const onSelect = React.useCallback(
-    (date: Date | DateRange | undefined) => {
-      if (!date) {
-        column.setFilterValue(undefined);
-        return;
-      }
-
-      if (isRangeMode && !("getTime" in date)) {
-        const from = date.from?.getTime();
-        const to = date.to?.getTime();
-        column.setFilterValue(from || to ? [from, to] : undefined);
-      } else if (!isRangeMode && "getTime" in date) {
-        column.setFilterValue(date.getTime());
-      }
-    },
-    [column, isRangeMode],
-  );
-
-  const onReset = React.useCallback(
-    (event: React.MouseEvent) => {
-      event.stopPropagation();
-      column.setFilterValue(undefined);
-    },
-    [column],
-  );
-
-  const hasValue = React.useMemo(() => {
-    if (isRangeMode) {
-      if (!getIsDateRange(selectedDates)) return false;
-      return selectedDates.from || selectedDates.to;
-    }
-    if (!Array.isArray(selectedDates)) return false;
-    return selectedDates.length > 0;
-  }, [isRangeMode, selectedDates]);
-
-  const formatDateRange = React.useCallback((range: DateRange) => {
-    if (!range.from && !range.to) return "";
-    if (range.from && range.to) {
-      return `${formatDate(range.from)} - ${formatDate(range.to)}`;
-    }
-    return formatDate(range.from ?? range.to);
-  }, []);
-
-  const label = React.useMemo(() => {
-    if (isRangeMode) {
-      if (!getIsDateRange(selectedDates)) return null;
-
-      const hasSelectedDates = selectedDates.from || selectedDates.to;
-      const dateText = hasSelectedDates
-        ? formatDateRange(selectedDates)
-        : "Select date range";
-
-      return (
-        <span className="flex items-center gap-2">
-          <span>{title}</span>
-          {hasSelectedDates && (
-            <>
-              <Separator
-                orientation="vertical"
-                className="mx-0.5 data-[orientation=vertical]:h-4"
-              />
-              <span>{dateText}</span>
-            </>
-          )}
-        </span>
-      );
+  const selectedDate = React.useMemo<Date | undefined>(() => {
+    if (isRangeMode || !columnFilterValue) {
+      return undefined;
     }
 
-    if (getIsDateRange(selectedDates)) return null;
+    const timestamps = parseColumnFilterValue(columnFilterValue);
+    return parseAsDate(timestamps[0]);
+  }, [columnFilterValue, isRangeMode]);
 
-    const hasSelectedDate = selectedDates.length > 0;
-    const dateText = hasSelectedDate
-      ? formatDate(selectedDates[0])
-      : "Select date";
-
-    return (
-      <span className="flex items-center gap-2">
-        <span>{title}</span>
-        {hasSelectedDate && (
-          <>
-            <Separator
-              orientation="vertical"
-              className="mx-0.5 data-[orientation=vertical]:h-4"
-            />
-            <span>{dateText}</span>
-          </>
+  const renderTrigger = React.useCallback(
+    ({
+      clear,
+      hasValue,
+      label,
+    }: {
+      clear: () => void;
+      hasValue: boolean;
+      label: string;
+      open: boolean;
+    }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-dashed font-normal"
+      >
+        {hasValue ? (
+          <div
+            role="button"
+            aria-label={`Clear ${title} filter`}
+            tabIndex={0}
+            onClick={(event) => {
+              event.stopPropagation();
+              clear();
+            }}
+            className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <XCircle />
+          </div>
+        ) : (
+          <CalendarIcon />
         )}
-      </span>
+        {title ? (
+          <span className="flex items-center gap-2">
+            <span>{title}</span>
+            {hasValue ? (
+              <>
+                <Separator
+                  orientation="vertical"
+                  className="mx-0.5 data-[orientation=vertical]:h-4"
+                />
+                <span>{label}</span>
+              </>
+            ) : null}
+          </span>
+        ) : (
+          <span>{label}</span>
+        )}
+      </Button>
+    ),
+    [title],
+  );
+
+  if (isRangeMode) {
+    return (
+      <DatePicker
+        mode="range"
+        value={selectedRange}
+        onChange={(date) => {
+          if (!date) {
+            column.setFilterValue(undefined);
+            return;
+          }
+
+          const from = date.from?.getTime();
+          const to = date.to?.getTime();
+          column.setFilterValue(from || to ? [from, to] : undefined);
+        }}
+        align="start"
+        captionLayout="dropdown"
+        presets={false}
+        renderTrigger={renderTrigger}
+      />
     );
-  }, [selectedDates, isRangeMode, formatDateRange, title]);
+  }
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-dashed font-normal"
-          />
-        }
-      >
-          {hasValue ? (
-            <div
-              role="button"
-              aria-label={`Clear ${title} filter`}
-              tabIndex={0}
-              onClick={onReset}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <XCircle />
-            </div>
-          ) : (
-            <CalendarIcon />
-          )}
-          {label}
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        {isRangeMode ? (
-          <Calendar
-            autoFocus
-            captionLayout="dropdown"
-            mode="range"
-            selected={
-              getIsDateRange(selectedDates)
-                ? selectedDates
-                : { from: undefined, to: undefined }
-            }
-            onSelect={onSelect}
-          />
-        ) : (
-          <Calendar
-            captionLayout="dropdown"
-            mode="single"
-            selected={
-              !getIsDateRange(selectedDates) ? selectedDates[0] : undefined
-            }
-            onSelect={onSelect}
-          />
-        )}
-      </PopoverContent>
-    </Popover>
+    <DatePicker
+      value={selectedDate}
+      onChange={(date) => {
+        column.setFilterValue(date ? date.getTime() : undefined);
+      }}
+      align="start"
+      captionLayout="dropdown"
+      renderTrigger={renderTrigger}
+    />
   );
 }
 

@@ -369,6 +369,7 @@ export function QuoteRequestDialog({
             <Input
               id="deal-quote-amount"
               disabled={!overrideAmount}
+              inputMode="decimal"
               placeholder="Например 1000.00"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}

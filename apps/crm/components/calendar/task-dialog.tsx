@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,6 @@ import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
-import { DatePicker } from "@/components/ui/date-picker";
 import type { CrmTask } from "@/lib/tasks/contracts";
 import { useCrmTaskCapabilities } from "@/lib/tasks/use-task-capabilities";
 

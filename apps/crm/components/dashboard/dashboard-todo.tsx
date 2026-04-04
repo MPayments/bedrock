@@ -39,12 +39,8 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import { Input } from "@bedrock/sdk-ui/components/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@bedrock/sdk-ui/components/popover";
 import {
   Table,
   TableBody,
@@ -53,7 +49,6 @@ import {
 } from "@bedrock/sdk-ui/components/table";
 
 import { UserCombobox } from "@/components/calendar/user-combobox";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   createCrmTask,
   deleteCrmTask,
@@ -88,7 +83,6 @@ function DraggableTodoRow({
   } = useSortable({ id: item.id });
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(item.title);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   function commitRename() {
     const next = tempTitle.trim();
@@ -166,21 +160,21 @@ function DraggableTodoRow({
         </div>
       </TableCell>
       <TableCell className="float-right space-x-2">
-        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-          <PopoverTrigger render={<Button variant="ghost" size="icon" />}>
-            <CalendarIcon size={16} />
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <DatePicker
-              value={item.dueDate ? new Date(item.dueDate) : undefined}
-              onChange={(date) => {
-                onDateChange(item.id, date);
-                setDatePickerOpen(false);
-              }}
-              allowClear
-            />
-          </PopoverContent>
-        </Popover>
+        <DatePicker
+          value={item.dueDate ? new Date(item.dueDate) : undefined}
+          onChange={(date) => onDateChange(item.id, date)}
+          allowClear
+          align="end"
+          renderTrigger={() => (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Изменить срок задачи"
+            >
+              <CalendarIcon size={16} />
+            </Button>
+          )}
+        />
         <Button variant="ghost" size="icon" onClick={() => onDelete(item.id)}>
           <Trash2 size={16} />
         </Button>
