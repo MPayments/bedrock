@@ -702,7 +702,7 @@ export default function DealDetailPage() {
     if (!data.requestedCurrency || !data.deal.requestedAmount) {
       showError(
         "Недостаточно данных",
-        "Для запроса котировки нужны сумма и валюта сделки.",
+        "Для запроса котировки нужны сумма и валюта списания.",
       );
       return;
     }

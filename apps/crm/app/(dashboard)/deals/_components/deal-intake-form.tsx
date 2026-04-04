@@ -208,6 +208,14 @@ function snapshotFieldValue(value: string | null) {
 }
 
 function shouldRenderIncomingReceipt(type: CrmDealType) {
+  return (
+    type === "payment" ||
+    type === "currency_transit" ||
+    type === "exporter_settlement"
+  );
+}
+
+function shouldRenderIncomingReceiptPayer(type: CrmDealType) {
   return type === "currency_transit" || type === "exporter_settlement";
 }
 
@@ -264,13 +272,29 @@ export function DealIntakeForm({
   const moneyRequestSectionTitle = isPaymentDeal
     ? "Параметры платежа"
     : "Сумма и валюта сделки";
-  const sourceAmountLabel = isPaymentDeal ? "Сумма платежа" : "Сумма";
+  const sourceAmountLabel = isPaymentDeal ? "Сумма списания" : "Сумма";
   const sourceCurrencyTitle = isPaymentDeal
     ? "Валюта списания"
     : "Валюта списания";
   const targetCurrencyTitle = isPaymentDeal
     ? "Валюта выплаты"
     : "Целевая валюта";
+  const incomingReceiptSectionTitle = isPaymentDeal
+    ? "Инвойс поставщика"
+    : "Входящее поступление";
+  const incomingReceiptSectionDescription = isPaymentDeal
+    ? "Данные из инвойса поставщика: сумма, номер и договор. Их можно заполнить вручную или подтянуть из OCR."
+    : "Данные о платеже, который ожидается от покупателя или плательщика.";
+  const expectedAmountLabel = isPaymentDeal
+    ? "Сумма инвойса"
+    : "Ожидаемая сумма";
+  const expectedCurrencyTitle = isPaymentDeal
+    ? "Валюта инвойса"
+    : "Валюта поступления";
+  const expectedDateLabel = isPaymentDeal
+    ? "Плановая дата выплаты"
+    : "Ожидаемая дата поступления";
+  const shouldRenderPayerDetails = shouldRenderIncomingReceiptPayer(intake.type);
   const selectedApplicantLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
     loadingLabel: "Загрузка юридических лиц...",
@@ -351,12 +375,21 @@ export function DealIntakeForm({
     key: keyof CrmDealIntakeDraft["moneyRequest"],
     value: string | null,
   ) {
-    update({
+    const nextIntake: Partial<CrmDealIntakeDraft> = {
       moneyRequest: {
         ...intake.moneyRequest,
         [key]: value,
       },
-    });
+    };
+
+    if (intake.type === "payment" && key === "targetCurrencyId") {
+      nextIntake.incomingReceipt = {
+        ...intake.incomingReceipt,
+        expectedCurrencyId: value,
+      };
+    }
+
+    update(nextIntake);
   }
 
   function updateIncomingReceipt(
@@ -601,14 +634,14 @@ export function DealIntakeForm({
       {shouldRenderIncomingReceipt(intake.type) ? (
         <section className="space-y-4">
           <div>
-            <h3 className="font-medium">Входящее поступление</h3>
+            <h3 className="font-medium">{incomingReceiptSectionTitle}</h3>
             <p className="text-sm text-muted-foreground">
-              Данные о платеже, который ожидается от покупателя или плательщика.
+              {incomingReceiptSectionDescription}
             </p>
           </div>
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label htmlFor="deal-expected-amount">Ожидаемая сумма</Label>
+              <Label htmlFor="deal-expected-amount">{expectedAmountLabel}</Label>
               <Input
                 id="deal-expected-amount"
                 disabled={readOnly}
@@ -622,33 +655,35 @@ export function DealIntakeForm({
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label>Валюта поступления</Label>
-              <Select
-                disabled={readOnly}
-                value={intake.incomingReceipt.expectedCurrencyId ?? "__none"}
-                onValueChange={(value) =>
-                  updateIncomingReceipt(
-                    "expectedCurrencyId",
-                    value === "__none" ? null : value,
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите валюту">
-                    {expectedCurrencyLabel}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">Не выбрано</SelectItem>
-                  {currencyOptions.map((currency) => (
-                    <SelectItem key={currency.id} value={currency.id}>
-                      {currency.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isPaymentDeal ? (
+              <div className="space-y-2">
+                <Label>{expectedCurrencyTitle}</Label>
+                <Select
+                  disabled={readOnly}
+                  value={intake.incomingReceipt.expectedCurrencyId ?? "__none"}
+                  onValueChange={(value) =>
+                    updateIncomingReceipt(
+                      "expectedCurrencyId",
+                      value === "__none" ? null : value,
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите валюту">
+                      {expectedCurrencyLabel}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Не выбрано</SelectItem>
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency.id} value={currency.id}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="deal-invoice-number">Номер инвойса</Label>
               <Input
@@ -675,7 +710,7 @@ export function DealIntakeForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="deal-expected-date">Ожидаемая дата поступления</Label>
+              <Label htmlFor="deal-expected-date">{expectedDateLabel}</Label>
               <Input
                 id="deal-expected-date"
                 disabled={readOnly}
@@ -690,52 +725,54 @@ export function DealIntakeForm({
               />
             </div>
           </div>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="deal-payer-display-name">Плательщик</Label>
-              <Input
-                id="deal-payer-display-name"
-                disabled={readOnly}
-                value={snapshotFieldValue(applicantSnapshot.displayName)}
-                onChange={(event) =>
-                  updatePayerSnapshot("displayName", event.target.value || null)
-                }
-              />
+          {shouldRenderPayerDetails ? (
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="deal-payer-display-name">Плательщик</Label>
+                <Input
+                  id="deal-payer-display-name"
+                  disabled={readOnly}
+                  value={snapshotFieldValue(applicantSnapshot.displayName)}
+                  onChange={(event) =>
+                    updatePayerSnapshot("displayName", event.target.value || null)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deal-payer-legal-name">Полное наименование</Label>
+                <Input
+                  id="deal-payer-legal-name"
+                  disabled={readOnly}
+                  value={snapshotFieldValue(applicantSnapshot.legalName)}
+                  onChange={(event) =>
+                    updatePayerSnapshot("legalName", event.target.value || null)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deal-payer-inn">ИНН / рег. номер</Label>
+                <Input
+                  id="deal-payer-inn"
+                  disabled={readOnly}
+                  value={snapshotFieldValue(applicantSnapshot.inn)}
+                  onChange={(event) =>
+                    updatePayerSnapshot("inn", event.target.value || null)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deal-payer-country">Страна</Label>
+                <Input
+                  id="deal-payer-country"
+                  disabled={readOnly}
+                  value={snapshotFieldValue(applicantSnapshot.country)}
+                  onChange={(event) =>
+                    updatePayerSnapshot("country", event.target.value || null)
+                  }
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="deal-payer-legal-name">Полное наименование</Label>
-              <Input
-                id="deal-payer-legal-name"
-                disabled={readOnly}
-                value={snapshotFieldValue(applicantSnapshot.legalName)}
-                onChange={(event) =>
-                  updatePayerSnapshot("legalName", event.target.value || null)
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deal-payer-inn">ИНН / рег. номер</Label>
-              <Input
-                id="deal-payer-inn"
-                disabled={readOnly}
-                value={snapshotFieldValue(applicantSnapshot.inn)}
-                onChange={(event) =>
-                  updatePayerSnapshot("inn", event.target.value || null)
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deal-payer-country">Страна</Label>
-              <Input
-                id="deal-payer-country"
-                disabled={readOnly}
-                value={snapshotFieldValue(applicantSnapshot.country)}
-                onChange={(event) =>
-                  updatePayerSnapshot("country", event.target.value || null)
-                }
-              />
-            </div>
-          </div>
+          ) : null}
         </section>
       ) : null}
 

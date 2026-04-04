@@ -31,7 +31,7 @@ export function DealInfoCard({
   onSaveComment,
 }: DealInfoCardProps) {
   const requestedAmountLabel =
-    deal.type === "payment" ? "Сумма платежа" : "Запрошенная сумма";
+    deal.type === "payment" ? "Сумма списания" : "Запрошенная сумма";
 
   return (
     <Card>
