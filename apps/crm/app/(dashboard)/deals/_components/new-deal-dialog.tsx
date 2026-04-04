@@ -25,6 +25,7 @@ import {
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { API_BASE_URL } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 import {
   createEmptyCrmDealIntake,
@@ -424,7 +425,14 @@ export function NewDealDialog({
         <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
           {STEP_LABELS.map((label, index) => (
             <div key={label} className="flex items-center gap-2">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border">
+              <span
+                className={cn(
+                  "inline-flex h-6 w-6 items-center justify-center rounded-full border",
+                  index + 1 === step
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border",
+                )}
+              >
                 {index + 1}
               </span>
               <span>{label}</span>
