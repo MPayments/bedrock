@@ -210,6 +210,7 @@ export interface DealStore {
     agreementId?: string;
     agentId?: string | null;
     calculationId?: string | null;
+    comment?: string | null;
     dealId: string;
     nextAction?: string | null;
     sourceAmountMinor?: bigint | null;

@@ -1,18 +1,13 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
 
 import {
-  applyCompatibilityRequestedFields,
-} from "./compatibility-requested-fields";
-import {
   buildDealExecutionPlan,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
 } from "../../domain/workflow";
 import type {
   CreateDealDraftInput,
-  CreateDealInput,
   CreatePortalDealInput,
-  UpdateDealIntakeInput,
 } from "../contracts/commands";
 import type {
   DealOperationalState,
@@ -100,60 +95,6 @@ export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntake
   }
 
   return draft;
-}
-
-export function buildLegacyCreateIntakeDraft(input: CreateDealInput): DealIntakeDraft {
-  const draft = createEmptyDealIntakeDraft(input.type);
-
-  draft.common.applicantCounterpartyId = input.counterpartyId ?? null;
-  draft.common.customerNote = input.comment ?? input.intakeComment ?? null;
-  draft.moneyRequest.purpose = input.reason ?? null;
-  applyCompatibilityRequestedFields({
-    draft,
-    requestedAmount: input.requestedAmount,
-    requestedCurrencyId: input.requestedCurrencyId,
-  });
-
-  return draft;
-}
-
-export function applyLegacyIntakePatch(input: {
-  current: DealIntakeDraft;
-  patch: UpdateDealIntakeInput;
-}): DealIntakeDraft {
-  const next: DealIntakeDraft = {
-    ...input.current,
-    common: { ...input.current.common },
-    externalBeneficiary: { ...input.current.externalBeneficiary },
-    incomingReceipt: { ...input.current.incomingReceipt },
-    moneyRequest: { ...input.current.moneyRequest },
-    settlementDestination: { ...input.current.settlementDestination },
-  };
-
-  if (input.patch.counterpartyId !== undefined) {
-    next.common.applicantCounterpartyId = input.patch.counterpartyId ?? null;
-  }
-  if (input.patch.comment !== undefined || input.patch.intakeComment !== undefined) {
-    next.common.customerNote =
-      input.patch.comment ??
-      input.patch.intakeComment ??
-      next.common.customerNote;
-  }
-  if (input.patch.reason !== undefined) {
-    next.moneyRequest.purpose = input.patch.reason ?? null;
-  }
-  if (
-    input.patch.requestedAmount !== undefined ||
-    input.patch.requestedCurrencyId !== undefined
-  ) {
-    applyCompatibilityRequestedFields({
-      draft: next,
-      requestedAmount: input.patch.requestedAmount,
-      requestedCurrencyId: input.patch.requestedCurrencyId,
-    });
-  }
-
-  return next;
 }
 
 export async function deriveDealRootState(input: {

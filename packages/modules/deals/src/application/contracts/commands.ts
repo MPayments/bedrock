@@ -78,36 +78,6 @@ const nullablePortalCurrencyReference = z
     "Must be a currency UUID or ISO code",
   );
 
-export const CreateDealInputSchema = z
-  .object({
-    agentId: nullableShortText,
-    agreementId: z.uuid().optional(),
-    calculationId: z.uuid().nullable().optional(),
-    comment: nullableText,
-    counterpartyId: z.uuid().optional(),
-    customerId: z.uuid(),
-    intakeComment: nullableText,
-    reason: nullableText,
-    requestedAmount: nullableDecimalText,
-    requestedCurrencyId: z.uuid().nullable().optional(),
-    type: DealTypeSchema,
-  })
-  .superRefine((value, ctx) => {
-    const hasRequestedAmount = value.requestedAmount !== null;
-    const hasRequestedCurrencyId = value.requestedCurrencyId != null;
-
-    if (hasRequestedAmount !== hasRequestedCurrencyId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          "requestedAmount and requestedCurrencyId must be provided together",
-        path: hasRequestedAmount ? ["requestedCurrencyId"] : ["requestedAmount"],
-      });
-    }
-  });
-
-export type CreateDealInput = z.infer<typeof CreateDealInputSchema>;
-
 export const CreatePortalDealInputSchema = z.object({
   common: z.object({
     applicantCounterpartyId: z.uuid(),
@@ -170,31 +140,11 @@ export const AssignDealAgentInputSchema = z.object({
 
 export type AssignDealAgentInput = z.infer<typeof AssignDealAgentInputSchema>;
 
-export const UpdateDealIntakeInputSchema = z
-  .object({
-    agentId: nullableShortText.optional(),
-    comment: nullableText.optional(),
-    counterpartyId: z.uuid().nullable().optional(),
-    intakeComment: nullableText.optional(),
-    reason: nullableText.optional(),
-    requestedAmount: nullableDecimalText.optional(),
-    requestedCurrencyId: z.uuid().nullable().optional(),
-  })
-  .superRefine((value, ctx) => {
-    const hasRequestedAmount = value.requestedAmount !== undefined;
-    const hasRequestedCurrencyId = value.requestedCurrencyId !== undefined;
+export const UpdateDealCommentInputSchema = z.object({
+  comment: nullableText,
+});
 
-    if (hasRequestedAmount !== hasRequestedCurrencyId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          "requestedAmount and requestedCurrencyId must be patched together",
-        path: hasRequestedAmount ? ["requestedCurrencyId"] : ["requestedAmount"],
-      });
-    }
-  });
-
-export type UpdateDealIntakeInput = z.infer<typeof UpdateDealIntakeInputSchema>;
+export type UpdateDealCommentInput = z.infer<typeof UpdateDealCommentInputSchema>;
 
 export const LinkDealCalculationFromAcceptedQuoteInputSchema = z.object({
   calculationId: z.uuid(),
@@ -381,16 +331,6 @@ export const FailDealAttachmentIngestionInputSchema = z.object({
 
 export type FailDealAttachmentIngestionInput = z.infer<
   typeof FailDealAttachmentIngestionInputSchema
->;
-
-export const LegacyPortalCreateDealInputSchema = z.object({
-  counterpartyId: z.uuid(),
-  requestedAmount: nullableDecimalText.optional(),
-  requestedCurrency: z.string().trim().min(3).max(16).optional(),
-});
-
-export type LegacyPortalCreateDealInput = z.infer<
-  typeof LegacyPortalCreateDealInputSchema
 >;
 
 export const PortalSettlementDestinationInputSchema = z.object({
