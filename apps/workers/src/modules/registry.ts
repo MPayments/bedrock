@@ -132,6 +132,7 @@ export function createWorkerImplementations(
             accessKeyId: deps.env.S3_ACCESS_KEY,
             bucket: deps.env.S3_BUCKET,
             endpoint: deps.env.S3_ENDPOINT,
+            publicEndpoint: deps.env.S3_PUBLIC_ENDPOINT,
             forcePathStyle: true,
             region: deps.env.S3_REGION,
             secretAccessKey: deps.env.S3_SECRET_KEY,

@@ -13,6 +13,7 @@ import type { Logger } from "@bedrock/platform/observability";
 
 export interface S3ObjectStorageConfig {
   endpoint: string;
+  publicEndpoint?: string;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
@@ -28,6 +29,7 @@ export interface S3ObjectStorageConfig {
  */
 export class S3ObjectStorageAdapter {
   private readonly client: S3Client;
+  private readonly publicClient: S3Client;
   private readonly bucket: string;
   private readonly logger: Logger;
   private bucketEnsured = false;
@@ -38,6 +40,16 @@ export class S3ObjectStorageAdapter {
 
     this.client = new S3Client({
       endpoint: config.endpoint,
+      region: config.region,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+      forcePathStyle: config.forcePathStyle ?? true,
+    });
+
+    this.publicClient = new S3Client({
+      endpoint: config.publicEndpoint ?? config.endpoint,
       region: config.region,
       credentials: {
         accessKeyId: config.accessKeyId,
@@ -113,7 +125,9 @@ export class S3ObjectStorageAdapter {
         Key: key,
       });
 
-      return await getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+      return await getSignedUrl(this.publicClient, command, {
+        expiresIn: expiresInSeconds,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to generate signed URL: ${message}`);

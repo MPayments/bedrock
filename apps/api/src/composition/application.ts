@@ -527,8 +527,9 @@ export function createApplicationServices(
   });
 
   const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
-    ? new S3ObjectStorageAdapter({
+      ? new S3ObjectStorageAdapter({
         endpoint: env.S3_ENDPOINT,
+        publicEndpoint: env.S3_PUBLIC_ENDPOINT,
         region: env.S3_REGION ?? "us-east-1",
         accessKeyId: env.S3_ACCESS_KEY,
         secretAccessKey: env.S3_SECRET_KEY,

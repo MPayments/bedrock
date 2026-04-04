@@ -56,6 +56,7 @@ const EnvSchema = z.object({
 
   // Operations adapters (all optional — graceful degradation)
   S3_ENDPOINT: z.string().optional(),
+  S3_PUBLIC_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
