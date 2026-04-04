@@ -566,6 +566,7 @@ export function NewDealDialog({
               currencyOptions={currencyOptions}
               intake={intake}
               legalEntities={legalEntities}
+              moneyRequestLayout="inline"
               onChange={setIntake}
             />
           ) : null}

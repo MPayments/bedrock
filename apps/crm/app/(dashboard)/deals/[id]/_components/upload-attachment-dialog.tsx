@@ -17,6 +17,10 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
+import {
+  ATTACHMENT_PURPOSE_LABELS,
+  ATTACHMENT_VISIBILITY_LABELS,
+} from "./constants";
 import { formatFileSize } from "./file-utils";
 
 type UploadAttachmentDialogProps = {
@@ -50,6 +54,9 @@ export function UploadAttachmentDialog({
   onCancel,
   onSubmit,
 }: UploadAttachmentDialogProps) {
+  const uploadPurposeLabel = ATTACHMENT_PURPOSE_LABELS[uploadPurpose];
+  const uploadVisibilityLabel = ATTACHMENT_VISIBILITY_LABELS[uploadVisibility];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -96,12 +103,20 @@ export function UploadAttachmentDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Выберите тип файла">
+                  {uploadPurposeLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="invoice">Инвойс</SelectItem>
-                <SelectItem value="contract">Договор</SelectItem>
-                <SelectItem value="other">Другое</SelectItem>
+                <SelectItem value="invoice">
+                  {ATTACHMENT_PURPOSE_LABELS.invoice}
+                </SelectItem>
+                <SelectItem value="contract">
+                  {ATTACHMENT_PURPOSE_LABELS.contract}
+                </SelectItem>
+                <SelectItem value="other">
+                  {ATTACHMENT_PURPOSE_LABELS.other}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -110,18 +125,22 @@ export function UploadAttachmentDialog({
             <Select
               value={uploadVisibility}
               onValueChange={(value) => {
-                if (value) {
+                if (value === "customer_safe" || value === "internal") {
                   onVisibilityChange(value);
                 }
               }}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Выберите видимость">
+                  {uploadVisibilityLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="internal">Только CRM / внутреннее</SelectItem>
+                <SelectItem value="internal">
+                  {ATTACHMENT_VISIBILITY_LABELS.internal}
+                </SelectItem>
                 <SelectItem value="customer_safe">
-                  Видно клиенту и CRM
+                  {ATTACHMENT_VISIBILITY_LABELS.customer_safe}
                 </SelectItem>
               </SelectContent>
             </Select>

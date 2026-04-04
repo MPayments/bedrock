@@ -100,6 +100,7 @@ type DealIntakeFormProps = {
   currencyOptions: CrmCurrencyOption[];
   intake: CrmDealIntakeDraft;
   legalEntities: CrmCustomerLegalEntityOption[];
+  moneyRequestLayout?: "inline" | "stacked";
   onChange: (next: CrmDealIntakeDraft) => void;
   readOnly?: boolean;
 };
@@ -223,6 +224,7 @@ export function DealIntakeForm({
   currencyOptions,
   intake,
   legalEntities,
+  moneyRequestLayout = "stacked",
   onChange,
   readOnly = false,
 }: DealIntakeFormProps) {
@@ -258,6 +260,7 @@ export function DealIntakeForm({
       (requisite) => requisite.id === intake.settlementDestination.requisiteId,
     ) ?? null;
   const isPaymentDeal = intake.type === "payment";
+  const shouldInlineMoneyRequestFields = moneyRequestLayout === "inline";
   const moneyRequestSectionTitle = isPaymentDeal
     ? "Параметры платежа"
     : "Сумма и валюта сделки";
@@ -502,8 +505,14 @@ export function DealIntakeForm({
         <div>
           <h3 className="font-medium">{moneyRequestSectionTitle}</h3>
         </div>
-        <div className="grid gap-4">
-          <div className="space-y-2">
+        <div
+          className={
+            shouldInlineMoneyRequestFields
+              ? "grid grid-cols-[minmax(0,1fr)_minmax(9rem,12rem)] gap-4"
+              : "grid gap-4"
+          }
+        >
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
             <Input
               id="deal-source-amount"
@@ -515,7 +524,7 @@ export function DealIntakeForm({
               }
             />
           </div>
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label>{sourceCurrencyTitle}</Label>
             <Select
               disabled={readOnly}
@@ -527,7 +536,7 @@ export function DealIntakeForm({
                 )
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Выберите валюту">
                   {sourceCurrencyLabel}
                 </SelectValue>
@@ -543,7 +552,11 @@ export function DealIntakeForm({
             </Select>
           </div>
           {isPaymentDeal ? null : (
-            <div className="space-y-2">
+            <div
+              className={
+                shouldInlineMoneyRequestFields ? "col-span-full space-y-2" : "space-y-2"
+              }
+            >
               <Label>Целевая валюта</Label>
               <Select
                 disabled={readOnly}
@@ -555,7 +568,7 @@ export function DealIntakeForm({
                   )
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue>{targetCurrencyLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>

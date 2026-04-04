@@ -234,6 +234,14 @@ export const ATTACHMENT_PURPOSE_LABELS: Record<
   other: "Другое",
 };
 
+export const ATTACHMENT_VISIBILITY_LABELS: Record<
+  "customer_safe" | "internal",
+  string
+> = {
+  customer_safe: "Видно клиенту и CRM",
+  internal: "Только CRM / внутреннее",
+};
+
 export const ATTACHMENT_INGESTION_STATUS_LABELS = {
   applied: "Данные учтены",
   failed: "Не удалось обработать",

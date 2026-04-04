@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 import {
   ATTACHMENT_INGESTION_STATUS_LABELS,
   ATTACHMENT_PURPOSE_LABELS,
+  ATTACHMENT_VISIBILITY_LABELS,
 } from "./constants";
 import { formatDate } from "./format";
 import { formatFileSize, getFileIcon } from "./file-utils";
@@ -179,9 +180,11 @@ export function AttachmentsCard({
                         {ATTACHMENT_PURPOSE_LABELS[attachment.purpose ?? "other"]}
                       </Badge>
                       <Badge variant="outline">
-                        {attachment.visibility === "customer_safe"
-                          ? "Клиент + CRM"
-                          : "Только CRM"}
+                        {
+                          ATTACHMENT_VISIBILITY_LABELS[
+                            attachment.visibility ?? "internal"
+                          ]
+                        }
                       </Badge>
                       {ingestionView ? (
                         <Badge variant="outline">
