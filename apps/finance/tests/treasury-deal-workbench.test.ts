@@ -18,8 +18,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children }: { children?: ReactNode }) =>
-    createElement(Fragment, null, children),
+  default: ({
+    children,
+    href,
+  }: {
+    children?: ReactNode;
+    href?: string;
+  }) => createElement("a", { href }, children),
 }));
 
 vi.mock("lucide-react", () => ({
@@ -29,6 +34,7 @@ vi.mock("lucide-react", () => ({
   Download: () => null,
   File: () => null,
   FileText: () => null,
+  History: () => null,
   Info: () => null,
   ListChecks: () => null,
   ShieldCheck: () => null,
@@ -45,8 +51,16 @@ vi.mock("@bedrock/sdk-ui/components/badge", () => ({
 }));
 
 vi.mock("@bedrock/sdk-ui/components/button", () => ({
-  Button: ({ children }: { children?: ReactNode }) =>
-    createElement(Fragment, null, children),
+  Button: ({
+    children,
+    render,
+  }: {
+    children?: ReactNode;
+    render?: ReactNode;
+  }) =>
+    React.isValidElement(render)
+      ? React.cloneElement(render, undefined, children)
+      : createElement(Fragment, null, children),
 }));
 
 vi.mock("@bedrock/sdk-ui/components/card", () => ({
@@ -402,5 +416,89 @@ describe("treasury deal workbench", () => {
     expect(markup).toContain("Исключения сверки");
     expect(markup).toContain("bank_statement");
     expect(markup).not.toContain("Закрыть сделку");
+  });
+
+  it("renders a deal-scoped create action for missing formal document requirements", async () => {
+    searchParamsValue = "tab=documents";
+
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+    const deal = createDeal();
+    const [firstRequirement] = deal.formalDocumentRequirements;
+    if (!firstRequirement) {
+      throw new Error("Expected at least one formal document requirement");
+    }
+    deal.formalDocumentRequirements = [
+      {
+        ...firstRequirement,
+        createAllowed: true,
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal,
+      }),
+    );
+
+    expect(markup).toContain("Создать");
+    expect(markup).toContain(
+      "returnTo=%2Ftreasury%2Fdeals%2F614fb6eb-a1bd-429e-9628-e97d0f2efa0b%3Ftab%3Ddocuments",
+    );
+  });
+
+  it("keeps the requirement-row open action and removes the duplicate card open action", async () => {
+    searchParamsValue = "tab=documents";
+
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+    const deal = createDeal();
+    deal.formalDocumentRequirements = [
+      {
+        activeDocumentId: "doc-1",
+        blockingReasons: [
+          "Opening document is not ready: invoice",
+        ],
+        createAllowed: false,
+        docType: "invoice",
+        openAllowed: true,
+        stage: "opening",
+        state: "in_progress",
+      },
+    ];
+    deal.relatedResources.formalDocuments = [
+      {
+        approvalStatus: "pending",
+        createdAt: "2026-04-02T08:10:00.000Z",
+        docType: "invoice",
+        id: "doc-1",
+        lifecycleStatus: "active",
+        occurredAt: "2026-04-02T08:10:00.000Z",
+        postingStatus: "unposted",
+        submissionStatus: "draft",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal,
+      }),
+    );
+
+    expect(markup.match(/Открыть/g)).toHaveLength(1);
   });
 });

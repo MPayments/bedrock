@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   amountMinorSchema,
   amountValueSchema,
+  formatFractionDecimal,
   minorToAmountString,
+  mulDivRoundHalfUp,
   normalizeMajorAmountInput,
   parseMinorAmount,
   parseMinorAmountOrZero,
@@ -72,5 +74,28 @@ describe("money helpers", () => {
     expect(parseMinorAmount("bad")).toBeNull();
     expect(parseMinorAmountOrZero("1250")).toBe(1250n);
     expect(parseMinorAmountOrZero("bad")).toBe(0n);
+  });
+
+  it("formats fractions with exact decimal rounding and optional fixed scale", () => {
+    expect(formatFractionDecimal("12542", "1000000")).toBe("0.012542");
+    expect(
+      formatFractionDecimal("2551337", "255133760", {
+        scale: 2,
+        trimTrailingZeros: false,
+      }),
+    ).toBe("0.01");
+    expect(
+      formatFractionDecimal("1", "8", {
+        scale: 2,
+        trimTrailingZeros: false,
+      }),
+    ).toBe("0.13");
+  });
+
+  it("rounds mul/div to nearest minor unit with half-up policy", () => {
+    expect(mulDivRoundHalfUp(25_513_37n, 12_542n, 1_000_000n)).toBe(31_999n);
+    expect(mulDivRoundHalfUp(1n, 1n, 8n)).toBe(0n);
+    expect(mulDivRoundHalfUp(1n, 7n, 8n)).toBe(1n);
+    expect(mulDivRoundHalfUp(-1n, 7n, 8n)).toBe(-1n);
   });
 });

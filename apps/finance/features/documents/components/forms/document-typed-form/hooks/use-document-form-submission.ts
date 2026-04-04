@@ -9,6 +9,7 @@ import { toast } from "@bedrock/sdk-ui/components/sonner";
 import type { DocumentFormDefinition } from "@/features/documents/lib/document-form-registry";
 import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
 import {
+  createDealScopedDocumentDraft,
   createDocumentDraft,
   updateDocumentDraft,
   type DocumentMutationDto,
@@ -20,6 +21,7 @@ import {
 } from "../helpers";
 
 export function useDocumentFormSubmission(input: {
+  createDealId?: string;
   methods: UseFormReturn<DocumentFormValues>;
   definition: DocumentFormDefinition | null;
   mode: DocumentFormMode;
@@ -37,6 +39,7 @@ export function useDocumentFormSubmission(input: {
     setError,
   } = input.methods;
   const {
+    createDealId,
     defaultValues,
     definition,
     disabled,
@@ -100,10 +103,16 @@ export function useDocumentFormSubmission(input: {
 
       const mutationResult =
         mode === "create"
-          ? await createDocumentDraft({
-              docType,
-              payload,
-            })
+          ? await (createDealId
+              ? createDealScopedDocumentDraft({
+                  dealId: createDealId,
+                  docType,
+                  payload,
+                })
+              : createDocumentDraft({
+                  docType,
+                  payload,
+                }))
           : await updateDocumentDraft({
               docType,
               documentId: documentId ?? "",
@@ -129,6 +138,7 @@ export function useDocumentFormSubmission(input: {
     },
     [
       clearErrors,
+      createDealId,
       definition,
       disabled,
       docType,

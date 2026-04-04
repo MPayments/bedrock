@@ -39,6 +39,72 @@ export function mulDivCeil(a: bigint, num: bigint, den: bigint): bigint {
   return ((a * num) + den - 1n) / den;
 }
 
+// Monetary amounts round to the nearest minor unit; ties round away from zero.
+export function mulDivRoundHalfUp(
+  a: bigint,
+  num: bigint,
+  den: bigint,
+): bigint {
+  if (den <= 0n) throw new Error("rateDen must be > 0");
+
+  const product = a * num;
+  if (product === 0n) {
+    return 0n;
+  }
+
+  const negative = product < 0n;
+  const absoluteProduct = negative ? -product : product;
+  const rounded = (absoluteProduct + den / 2n) / den;
+
+  return negative ? -rounded : rounded;
+}
+
+export function formatFractionDecimal(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  options: {
+    scale?: number;
+    trimTrailingZeros?: boolean;
+  } = {},
+): string {
+  const scale = options.scale ?? 6;
+  const trimTrailingZeros = options.trimTrailingZeros ?? true;
+  const num = typeof numerator === "string" ? BigInt(numerator) : numerator;
+  const den = typeof denominator === "string" ? BigInt(denominator) : denominator;
+
+  if (den === 0n) {
+    throw new Error("rateDen must be > 0");
+  }
+
+  if (scale < 0) {
+    throw new Error("scale must be non-negative");
+  }
+
+  const negative = (num < 0n) !== (den < 0n);
+  const absoluteNum = num < 0n ? -num : num;
+  const absoluteDen = den < 0n ? -den : den;
+
+  if (scale === 0) {
+    const roundedInteger = (absoluteNum + absoluteDen / 2n) / absoluteDen;
+    return `${negative ? "-" : ""}${roundedInteger.toString()}`;
+  }
+
+  const scaleFactor = 10n ** BigInt(scale);
+  const roundedScaled =
+    (absoluteNum * scaleFactor + absoluteDen / 2n) / absoluteDen;
+  const integerPart = roundedScaled / scaleFactor;
+  const fractionalPart = roundedScaled % scaleFactor;
+  const rawFraction = fractionalPart.toString().padStart(scale, "0");
+  const fraction = trimTrailingZeros ? rawFraction.replace(/0+$/, "") : rawFraction;
+  const prefix = negative ? "-" : "";
+
+  if (fraction.length === 0) {
+    return `${prefix}${integerPart.toString()}`;
+  }
+
+  return `${prefix}${integerPart.toString()}.${fraction}`;
+}
+
 export function effectiveRateFromAmounts(
   fromAmountMinor: bigint,
   toAmountMinor: bigint,

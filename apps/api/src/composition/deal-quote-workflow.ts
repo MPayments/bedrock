@@ -8,8 +8,12 @@ import {
   DealQuoteNotAcceptedError,
   type DealsModule,
 } from "@bedrock/deals";
-import { toMinorAmountString } from "@bedrock/shared/money";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
+import {
+  BPS_SCALE,
+  mulDivRoundHalfUp,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 
 import { serializeQuoteDetails } from "../routes/internal/treasury-quote-dto";
@@ -101,6 +105,36 @@ function percentStringToBps(value: string) {
   return (parts.digits * 100n + denominator / 2n) / denominator;
 }
 
+function ratioToRoundedBps(numerator: bigint, denominator: bigint) {
+  if (denominator === 0n) {
+    return 0n;
+  }
+
+  return mulDivRoundHalfUp(numerator, BPS_SCALE, denominator);
+}
+
+function calculatePercentAmountMinorHalfUp(
+  amountMinor: bigint,
+  bps: bigint,
+): bigint {
+  // Contractual percentage fees round to the nearest minor unit.
+  return mulDivRoundHalfUp(amountMinor, bps, BPS_SCALE);
+}
+
+function convertQuoteComponentToBaseMinorHalfUp(input: {
+  amountMinor: bigint;
+  quote: Awaited<
+    ReturnType<TreasuryModule["quotes"]["queries"]["getQuoteDetails"]>
+  >["quote"];
+}) {
+  // Standalone derived components are converted and rounded per component.
+  return mulDivRoundHalfUp(
+    input.amountMinor,
+    input.quote.rateNum,
+    input.quote.rateDen,
+  );
+}
+
 function resolveAdditionalExpensesInBaseMinor(input: {
   amountMinor: bigint;
   currencyCode: string;
@@ -136,8 +170,10 @@ function resolveAdditionalExpensesInBaseMinor(input: {
     return {
       additionalExpensesAmountMinor: input.amountMinor,
       additionalExpensesCurrencyId: input.quote.fromCurrencyId,
-      additionalExpensesInBaseMinor:
-        (input.amountMinor * input.quote.rateNum) / input.quote.rateDen,
+      additionalExpensesInBaseMinor: convertQuoteComponentToBaseMinorHalfUp({
+        amountMinor: input.amountMinor,
+        quote: input.quote,
+      }),
       additionalExpensesRateDen: input.quote.rateDen.toString(),
       additionalExpensesRateNum: input.quote.rateNum.toString(),
       additionalExpensesRateSource: "fx_quote" as const,
@@ -207,7 +243,10 @@ async function resolveCalculationFees(input: {
   const agreementFeeAmountMinor =
     input.quote.fromAmountMinor === 0n
       ? 0n
-      : (input.quote.fromAmountMinor * agreementFeeBps) / 10000n;
+      : calculatePercentAmountMinorHalfUp(
+        input.quote.fromAmountMinor,
+        agreementFeeBps,
+      );
   const feeAmountMinor = input.quoteFeeAmountMinor + agreementFeeAmountMinor;
 
   let fixedFeeCurrencyCode =
@@ -271,9 +310,7 @@ async function resolveCalculationFees(input: {
       additionalExpensesRateSource: null,
       feeAmountMinor,
       feeBps:
-        input.quote.fromAmountMinor === 0n
-          ? 0n
-          : (feeAmountMinor * 10000n) / input.quote.fromAmountMinor,
+        ratioToRoundedBps(feeAmountMinor, input.quote.fromAmountMinor),
       feeLineAmountMinor: agreementFeeAmountMinor,
       fixedFeeCurrencyCode: null,
       fixedFeeLineAmountMinor: 0n,
@@ -293,9 +330,7 @@ async function resolveCalculationFees(input: {
     ...additionalExpenses,
     feeAmountMinor,
     feeBps:
-      input.quote.fromAmountMinor === 0n
-        ? 0n
-        : (feeAmountMinor * 10000n) / input.quote.fromAmountMinor,
+      ratioToRoundedBps(feeAmountMinor, input.quote.fromAmountMinor),
     feeLineAmountMinor: agreementFeeAmountMinor,
     fixedFeeCurrencyCode: additionalExpensesCurrencyCode,
     fixedFeeLineAmountMinor:
@@ -452,7 +487,10 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
       const feeBps = resolvedFees.feeBps;
       const feeAmountMinor = resolvedFees.feeAmountMinor;
       const totalAmountMinor = originalAmountMinor + feeAmountMinor;
-      const feeAmountInBaseMinor = (feeAmountMinor * quote.rateNum) / quote.rateDen;
+      const feeAmountInBaseMinor = convertQuoteComponentToBaseMinorHalfUp({
+        amountMinor: feeAmountMinor,
+        quote,
+      });
       const totalInBaseMinor = quote.toAmountMinor;
       const additionalExpensesAmountMinor =
         resolvedFees.additionalExpensesAmountMinor;

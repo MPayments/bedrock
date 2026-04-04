@@ -1,6 +1,7 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type {
   DealOperationalPosition,
@@ -485,6 +486,10 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
   const closingDocType =
     CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+  const createAllowed = canDealWriteTreasuryOrFormalDocuments({
+    status: workflow.summary.status,
+    type: workflow.summary.type,
+  });
 
   for (const [stage, docType] of [
     ["opening", openingDocType] as const,
@@ -514,7 +519,7 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
           ? []
           : ["Формальный документ еще не готов к использованию"]
         : ["Формальный документ еще не создан"],
-      createAllowed: false,
+      createAllowed: !document && createAllowed,
       docType,
       openAllowed: Boolean(document?.id),
       stage,

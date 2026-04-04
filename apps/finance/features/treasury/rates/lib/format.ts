@@ -1,3 +1,5 @@
+import { formatFractionDecimal } from "@bedrock/shared/money";
+
 import { SOURCE_LABELS } from "./constants";
 
 export function sourceLabel(source: string): string {
@@ -23,7 +25,12 @@ export function currencySymbol(code: string): string {
 }
 
 export function computeDecimalRate(rateNum: string, rateDen: string): number {
-  return Number(rateNum) / Number(rateDen);
+  return Number(
+    formatFractionDecimal(rateNum, rateDen, {
+      scale: 12,
+      trimTrailingZeros: false,
+    }),
+  );
 }
 
 export function getDecimalPlaces(value: number, minDecimals: number): number {
@@ -35,7 +42,10 @@ export function getDecimalPlaces(value: number, minDecimals: number): number {
 }
 
 export function formatRate(rateNum: string, rateDen: string): string {
-  return computeDecimalRate(rateNum, rateDen).toFixed(6);
+  return formatFractionDecimal(rateNum, rateDen, {
+    scale: 6,
+    trimTrailingZeros: false,
+  });
 }
 
 export function formatShortDate(iso: string): string {

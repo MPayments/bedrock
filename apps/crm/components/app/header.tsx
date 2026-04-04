@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { formatFractionDecimal } from "@bedrock/shared/money";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -29,7 +30,7 @@ import type { UserSessionSnapshot } from "@/lib/auth/types";
 
 type CurrencyCode = "USD" | "EUR" | "CNY";
 type HeaderRateSource = "cbr" | "investing";
-type SourceRates = Partial<Record<CurrencyCode, number>>;
+type SourceRates = Partial<Record<CurrencyCode, string>>;
 type SourceRateDto = {
   source: string;
   rateNum: string;
@@ -80,12 +81,14 @@ async function fetchHeaderRates(): Promise<Record<HeaderRateSource, SourceRates>
         continue;
       }
 
-      const rate = Number(sourceRate.rateNum) / Number(sourceRate.rateDen || 1);
-      if (!Number.isFinite(rate)) {
-        continue;
-      }
-
-      nextRates[source][pair.baseCurrencyCode] = rate;
+      nextRates[source][pair.baseCurrencyCode] = formatFractionDecimal(
+        sourceRate.rateNum,
+        sourceRate.rateDen || "1",
+        {
+          scale: 2,
+          trimTrailingZeros: false,
+        },
+      );
     }
   }
 
@@ -343,7 +346,7 @@ function SourceRatesTicker({
           {HEADER_CURRENCIES.map((currency) =>
             rates[currency] != null ? (
               <span key={currency} className="inline-flex items-center gap-1">
-                {currency} {rates[currency]!.toFixed(2)} ₽
+                {currency} {rates[currency]} ₽
                 <Minus className="h-3 w-3 text-gray-400" />
               </span>
             ) : (

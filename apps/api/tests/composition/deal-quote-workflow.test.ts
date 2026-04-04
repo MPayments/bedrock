@@ -472,4 +472,139 @@ describe("deal quote workflow", () => {
       }),
     );
   });
+
+  it("rounds fee bps instead of truncating when the fee amount lands between bps", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 255133760n,
+        fromCurrency: "RUB",
+        fromCurrencyId: "cur-rub",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        rateDen: 1000000n,
+        rateNum: 12542n,
+        status: "active",
+        toAmountMinor: 3200000n,
+        toCurrency: "USD",
+        toCurrencyId: "cur-usd",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
+      },
+    }));
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+      getQuoteDetails,
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feeAmountInBaseMinor: "31999",
+        feeAmountMinor: "2551338",
+        feeBps: "100",
+        totalAmountMinor: "257685098",
+      }),
+    );
+  });
+
+  it("rounds percentage fees and converted components with half-up minor-unit policy", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 50n,
+        fromCurrency: "USD",
+        fromCurrencyId: "cur-usd",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        rateDen: 2n,
+        rateNum: 1n,
+        status: "active",
+        toAmountMinor: 25n,
+        toCurrency: "EUR",
+        toCurrencyId: "cur-eur",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
+      },
+    }));
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+      getQuoteDetails,
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      fixedFeeAmount: "0.01",
+      fixedFeeCurrencyCode: "USD",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalExpensesAmountMinor: "1",
+        additionalExpensesCurrencyId: "cur-usd",
+        additionalExpensesInBaseMinor: "1",
+        feeAmountInBaseMinor: "1",
+        feeAmountMinor: "1",
+        totalAmountMinor: "51",
+        totalWithExpensesInBaseMinor: "27",
+      }),
+    );
+  });
 });

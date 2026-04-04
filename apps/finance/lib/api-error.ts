@@ -1,7 +1,47 @@
 type ValidationDetails = {
   formErrors?: unknown;
   fieldErrors?: unknown;
+  errors?: unknown;
+  items?: unknown;
+  properties?: unknown;
 };
+
+function findFirstValidationMessage(node: unknown): string | null {
+  if (!node || typeof node !== "object") {
+    return null;
+  }
+
+  const parsed = node as ValidationDetails;
+
+  if (Array.isArray(parsed.errors)) {
+    const firstNodeError = parsed.errors.find(
+      (item): item is string => typeof item === "string" && item.trim().length > 0,
+    );
+    if (firstNodeError) {
+      return firstNodeError;
+    }
+  }
+
+  if (parsed.properties && typeof parsed.properties === "object") {
+    for (const value of Object.values(parsed.properties)) {
+      const nestedMessage = findFirstValidationMessage(value);
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+  }
+
+  if (Array.isArray(parsed.items)) {
+    for (const item of parsed.items) {
+      const nestedMessage = findFirstValidationMessage(item);
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+  }
+
+  return null;
+}
 
 function extractValidationMessage(details: unknown): string | null {
   if (!details || typeof details !== "object") {
@@ -34,7 +74,7 @@ function extractValidationMessage(details: unknown): string | null {
     }
   }
 
-  return null;
+  return findFirstValidationMessage(parsed);
 }
 
 function extractApiErrorMessage(payload: unknown): string | null {

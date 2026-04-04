@@ -27,6 +27,7 @@ import { useDocumentFormSubmission } from "./hooks/use-document-form-submission"
 
 type DocumentTypedFormProviderProps = {
   children: ReactNode;
+  createDealId?: string;
   docType: string;
   userRole: UserRole;
   options: DocumentFormOptions;
@@ -39,10 +40,12 @@ type DocumentTypedFormProviderProps = {
 
 export type CreateDocumentTypedFormProviderProps = {
   children: ReactNode;
+  createDealId?: string;
   docType: string;
   userRole: UserRole;
   options: DocumentFormOptions;
   disabled?: boolean;
+  initialPayload?: Record<string, unknown>;
   onSuccess?: (result: DocumentMutationDto) => void;
 };
 
@@ -59,6 +62,7 @@ export type EditDocumentTypedFormProviderProps = {
 
 function DocumentTypedFormProvider({
   children,
+  createDealId,
   docType,
   userRole,
   options,
@@ -172,6 +176,7 @@ function DocumentTypedFormProvider({
   }, [defaultValues, reset]);
 
   const submission = useDocumentFormSubmission({
+    createDealId,
     methods,
     definition,
     mode,

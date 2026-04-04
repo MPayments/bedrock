@@ -1027,11 +1027,15 @@ describe("createDealProjectionsWorkflow", () => {
       ],
       formalDocumentRequirements: [
         {
+          createAllowed: true,
           docType: "invoice",
+          openAllowed: false,
           state: "missing",
         },
         {
+          createAllowed: false,
           docType: "acceptance",
+          openAllowed: true,
           state: "ready",
         },
       ],
@@ -1097,5 +1101,31 @@ describe("createDealProjectionsWorkflow", () => {
         ],
       },
     });
+  });
+
+  it("keeps createAllowed disabled for missing formal documents when commercial writes are blocked", async () => {
+    const workflow = createWorkflow({
+      workflow: {
+        ...createBaseWorkflow(),
+        summary: {
+          ...createBaseWorkflow().summary,
+          status: "draft",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
   });
 });

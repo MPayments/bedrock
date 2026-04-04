@@ -311,6 +311,31 @@ const FinanceDealQuoteItemSchema = z.object({
   usedDocumentId: z.string().uuid().nullable(),
 });
 
+const FinanceDealWorkflowParticipantSchema = z.object({
+  counterpartyId: z.string().uuid().nullable(),
+  customerId: z.string().uuid().nullable(),
+  organizationId: z.string().uuid().nullable(),
+  role: z.enum([
+    "applicant",
+    "customer",
+    "external_beneficiary",
+    "external_payer",
+    "internal_entity",
+  ]),
+});
+
+const FinanceDealWorkflowContextSchema = z.object({
+  intake: z.object({
+    common: z.object({
+      applicantCounterpartyId: z.string().uuid().nullable(),
+    }),
+  }),
+  participants: z.array(FinanceDealWorkflowParticipantSchema),
+  summary: z.object({
+    agreementId: z.string().uuid(),
+  }),
+});
+
 const FinanceDealCalculationHistoryItemSchema = z.object({
   baseCurrencyId: z.string().uuid(),
   calculationCurrencyId: z.string().uuid(),
@@ -502,6 +527,7 @@ const FinanceDealWorkspaceSchema = z.object({
       type: z.string(),
     }),
   ),
+  workflow: FinanceDealWorkflowContextSchema.optional(),
 });
 
 const FinanceDealBreadcrumbSchema = z.object({
@@ -631,6 +657,9 @@ export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
   blockerState: FinanceDealBlockerState;
 };
 export type FinanceDealQuoteItem = z.infer<typeof FinanceDealQuoteItemSchema>;
+export type FinanceDealWorkflowContext = z.infer<
+  typeof FinanceDealWorkflowContextSchema
+>;
 export type FinanceDealsListResult = EntityListResult<FinanceDealListItem>;
 export type FinanceDealBreadcrumb = z.infer<typeof FinanceDealBreadcrumbSchema>;
 export type FinanceDealWorkspace = z.infer<typeof FinanceDealWorkspaceSchema>;

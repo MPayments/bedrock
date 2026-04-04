@@ -38,7 +38,10 @@ import {
   getPostingStatusLabel,
   getSubmissionStatusLabel,
 } from "@/features/documents/lib/status-labels";
-import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
+import {
+  buildDocumentCreateHref,
+  buildDocumentDetailsHref,
+} from "@/features/documents/lib/routes";
 import {
   formatRate,
 } from "@/features/treasury/rates/lib/format";
@@ -729,6 +732,7 @@ function PricingTab({
 type DocumentsTabProps = {
   deal: FinanceDealWorkbench;
   deletingAttachmentId: string | null;
+  documentsTabReturnTo: string;
   onAttachmentDelete: (attachmentId: string) => void;
   onAttachmentDownload: (attachmentId: string) => void;
   onAttachmentUpload: () => void;
@@ -737,10 +741,17 @@ type DocumentsTabProps = {
 function DocumentsTab({
   deal,
   deletingAttachmentId,
+  documentsTabReturnTo,
   onAttachmentDelete,
   onAttachmentDownload,
   onAttachmentUpload,
 }: DocumentsTabProps) {
+  const activeRequiredDocumentIds = new Set(
+    deal.formalDocumentRequirements
+      .map((requirement) => requirement.activeDocumentId)
+      .filter((documentId): documentId is string => Boolean(documentId)),
+  );
+
   return (
     <div className="space-y-6">
       <Card>
@@ -860,33 +871,64 @@ function DocumentsTab({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            {deal.formalDocumentRequirements.map((requirement) => (
-              <div
-                key={`${requirement.stage}:${requirement.docType}`}
-                className="rounded-lg border p-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium">
-                      {getFormalDocumentLabel(requirement.docType)}
+            {deal.formalDocumentRequirements.map((requirement) => {
+              const createHref = requirement.createAllowed
+                ? buildDocumentCreateHref(requirement.docType, {
+                    dealId: deal.summary.id,
+                    returnTo: documentsTabReturnTo,
+                  })
+                : null;
+              const openHref =
+                requirement.openAllowed && requirement.activeDocumentId
+                  ? buildDocumentDetailsHref(
+                      requirement.docType,
+                      requirement.activeDocumentId,
+                    )
+                  : null;
+              const actionHref = createHref ?? openHref;
+
+              return (
+                <div
+                  key={`${requirement.stage}:${requirement.docType}`}
+                  className="rounded-lg border p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">
+                        {getFormalDocumentLabel(requirement.docType)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {getFormalDocumentStageLabel(requirement.stage)}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {getFormalDocumentStageLabel(requirement.stage)}
+                    <div className="flex items-center gap-2">
+                      {actionHref ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          nativeButton={false}
+                          render={<Link href={actionHref} />}
+                        >
+                          {createHref ? "Создать" : "Открыть"}
+                        </Button>
+                      ) : null}
+                      <Badge variant="outline">
+                        {getDealFormalDocumentRequirementStateLabel(
+                          requirement.state,
+                        )}
+                      </Badge>
                     </div>
                   </div>
-                  <Badge variant="outline">
-                    {getDealFormalDocumentRequirementStateLabel(requirement.state)}
-                  </Badge>
+                  {requirement.blockingReasons.length > 0 ? (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      {requirement.blockingReasons
+                        .map((reason) => formatDealWorkflowMessage(reason))
+                        .join(" ")}
+                    </div>
+                  ) : null}
                 </div>
-                {requirement.blockingReasons.length > 0 ? (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    {requirement.blockingReasons
-                      .map((reason) => formatDealWorkflowMessage(reason))
-                      .join(" ")}
-                  </div>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {deal.relatedResources.formalDocuments.length === 0 ? (
@@ -897,6 +939,8 @@ function DocumentsTab({
             <div className="space-y-3">
               {deal.relatedResources.formalDocuments.map((document) => {
                 const href = buildDocumentDetailsHref(document.docType, document.id);
+                const showOpenAction =
+                  href !== null && !activeRequiredDocumentIds.has(document.id);
 
                 return (
                   <div key={document.id} className="rounded-lg border p-4">
@@ -909,7 +953,7 @@ function DocumentsTab({
                           {formatDate(document.createdAt ?? document.occurredAt ?? "")}
                         </div>
                       </div>
-                      {href ? (
+                      {showOpenAction ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1496,6 +1540,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     id: deal.summary.id,
     type: deal.summary.type,
   });
+  const documentsTabReturnTo = getDealTabHref(pathname, searchParams, "documents");
 
   async function handleAcceptQuote(quoteId: string) {
     setIsAcceptingQuoteId(quoteId);
@@ -1778,6 +1823,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <DocumentsTab
                   deal={deal}
                   deletingAttachmentId={deletingAttachmentId}
+                  documentsTabReturnTo={documentsTabReturnTo}
                   onAttachmentDelete={handleDeleteAttachment}
                   onAttachmentDownload={handleDownloadAttachment}
                   onAttachmentUpload={() => setIsUploadDialogOpen(true)}

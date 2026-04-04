@@ -129,7 +129,7 @@ export function resolveDocumentFormDefaultValues(input: {
     return {};
   }
 
-  if (input.mode === "edit" && input.initialPayload) {
+  if (input.initialPayload) {
     return input.definition.fromPayload(input.initialPayload);
   }
 

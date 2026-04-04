@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence/drizzle";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import { schema as fxSchema } from "../../../schema";
 import type {
@@ -20,7 +21,12 @@ import type {
 import { RateBook } from "../../domain/rate-book";
 
 function computeRate(num: bigint, den: bigint): number {
-  return Number(num) / Number(den);
+  return Number(
+    formatFractionDecimal(num, den, {
+      scale: 12,
+      trimTrailingZeros: false,
+    }),
+  );
 }
 
 function getSourcePriority(source: string, order: RateSource[]): number {
