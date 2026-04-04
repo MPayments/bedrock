@@ -119,9 +119,14 @@ export function dealsRoutes(ctx: AppContext) {
   const DealCalculationHistorySchema = z.array(
     DealCalculationHistoryItemSchema,
   );
-  const DealCalculationFromQuoteInputSchema = z.object({
-    quoteId: z.string().uuid(),
-  });
+  const DealCalculationFromQuoteInputSchema = z
+    .object({
+      agentFeePercent: z.string().trim().min(1).nullable().optional(),
+      fixedFeeAmount: z.string().trim().min(1).nullable().optional(),
+      fixedFeeCurrencyCode: z.string().trim().min(1).nullable().optional(),
+      quoteId: z.string().uuid(),
+    })
+    .strict();
   const DealAttachmentVisibilityInputSchema = z.object({
     visibility: FileAttachmentVisibilitySchema.optional(),
   });
@@ -1354,8 +1359,11 @@ export function dealsRoutes(ctx: AppContext) {
             const deal = await requireDeal(ctx, id);
             assertDealAllowsCommercialWrite(deal);
             return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+              agentFeePercent: body.agentFeePercent,
               actorUserId: c.get("user")!.id,
               dealId: id,
+              fixedFeeAmount: body.fixedFeeAmount,
+              fixedFeeCurrencyCode: body.fixedFeeCurrencyCode,
               idempotencyKey,
               quoteId: body.quoteId,
             });

@@ -250,6 +250,7 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
   });
   const dealQuoteWorkflow = createDealQuoteWorkflow({
+    agreements: agreementsModule,
     calculations: calculationsModule,
     currencies: currenciesService,
     deals: dealsModule,

@@ -893,6 +893,9 @@ describe("deals routes", () => {
           "idempotency-key": "from-quote-1",
         },
         body: JSON.stringify({
+          agentFeePercent: "1",
+          fixedFeeAmount: "150",
+          fixedFeeCurrencyCode: "USD",
           quoteId: "00000000-0000-4000-8000-000000000210",
         }),
       },
@@ -902,8 +905,11 @@ describe("deals routes", () => {
     expect(
       dealQuoteWorkflow.createCalculationFromAcceptedQuote,
     ).toHaveBeenCalledWith({
+      agentFeePercent: "1",
       actorUserId: "user-1",
       dealId: detail.id,
+      fixedFeeAmount: "150",
+      fixedFeeCurrencyCode: "USD",
       idempotencyKey: "from-quote-1",
       quoteId: "00000000-0000-4000-8000-000000000210",
     });
