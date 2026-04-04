@@ -67,6 +67,62 @@ export function CalculationDialog({
   description = "Создайте котировку и сохраните расчет для этой сделки.",
   loadingLabel = "Сохраняем...",
 }: CalculationDialogProps) {
+  const amountLabel =
+    amountSide === "target" ? "Сумма оплаты" : "Сумма списания";
+  const toCurrencyLabel =
+    amountSide === "target" ? "Валюта оплаты" : "Валюта назначения";
+
+  const amountField = (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="deal-calculation-amount">{amountLabel}</Label>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox
+            id="deal-calculation-amount-override"
+            checked={overrideAmount}
+            onCheckedChange={(checked) => onToggleOverride(Boolean(checked))}
+          />
+          <Label
+            htmlFor="deal-calculation-amount-override"
+            className="text-xs text-muted-foreground"
+          >
+            Изменить сумму
+          </Label>
+        </div>
+      </div>
+      <Input
+        id="deal-calculation-amount"
+        disabled={!overrideAmount}
+        placeholder="Например 1000.00"
+        value={amount}
+        onChange={(event) => onAmountChange(event.target.value)}
+      />
+    </div>
+  );
+
+  const toCurrencyField = (
+    <div className="grid gap-2">
+      <Label>{toCurrencyLabel}</Label>
+      <Select
+        value={toCurrency}
+        onValueChange={(value) => onToCurrencyChange(value ?? "")}
+      >
+        <SelectTrigger disabled={amountSide === "target"}>
+          <SelectValue placeholder="Выберите валюту" />
+        </SelectTrigger>
+        <SelectContent>
+          {currencyOptions
+            .filter((option) => option.code !== sourceCurrency?.code)
+            .map((option) => (
+              <SelectItem key={option.code} value={option.code}>
+                {option.label}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -79,57 +135,17 @@ export function CalculationDialog({
             <Label>Валюта списания</Label>
             <Input disabled value={sourceCurrency?.code ?? "—"} />
           </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="deal-calculation-amount">
-                {amountSide === "target" ? "Сумма оплаты" : "Сумма списания"}
-              </Label>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox
-                  id="deal-calculation-amount-override"
-                  checked={overrideAmount}
-                  onCheckedChange={(checked) =>
-                    onToggleOverride(Boolean(checked))
-                  }
-                />
-                <Label
-                  htmlFor="deal-calculation-amount-override"
-                  className="text-xs text-muted-foreground"
-                >
-                  Изменить сумму
-                </Label>
-              </div>
-            </div>
-            <Input
-              id="deal-calculation-amount"
-              disabled={!overrideAmount}
-              placeholder="Например 1000.00"
-              value={amount}
-              onChange={(event) => onAmountChange(event.target.value)}
-            />
+          <div
+            className={
+              amountSide === "target"
+                ? "grid grid-cols-[minmax(0,1fr)_11rem] gap-3"
+                : "grid gap-4"
+            }
+          >
+            {amountField}
+            {amountSide === "target" ? toCurrencyField : null}
           </div>
-          <div className="grid gap-2">
-            <Label>
-              {amountSide === "target" ? "Валюта оплаты" : "Валюта назначения"}
-            </Label>
-            <Select
-              value={toCurrency}
-              onValueChange={(value) => onToCurrencyChange(value ?? "")}
-            >
-              <SelectTrigger disabled={amountSide === "target"}>
-                <SelectValue placeholder="Выберите валюту" />
-              </SelectTrigger>
-              <SelectContent>
-                {currencyOptions
-                  .filter((option) => option.code !== sourceCurrency?.code)
-                  .map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {amountSide === "target" ? null : toCurrencyField}
           <div className="grid gap-2">
             <Label htmlFor="deal-calculation-asof">Дата котировки</Label>
             <Input

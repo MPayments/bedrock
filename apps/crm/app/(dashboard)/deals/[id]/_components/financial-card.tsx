@@ -4,8 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -50,27 +48,25 @@ export function FinancialCard({
               <DropdownMenuContent align="end" className="w-72">
                 <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuGroup>
+                <div className="space-y-1">
                   {calculationHistory.map((item) => {
                     const isCurrent = item.calculationId === activeCalculationId;
                     return (
-                      <DropdownMenuItem
+                      <div
                         key={item.calculationId}
-                        disabled
+                        className="rounded-md px-1.5 py-1 text-sm"
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm">
-                            {formatDate(item.calculationTimestamp)}
-                          </span>
+                          <span>{formatDate(item.calculationTimestamp)}</span>
                           <span className="text-xs text-muted-foreground">
                             курс {item.rate}
                             {isCurrent ? " · текущая версия" : ""}
                           </span>
                         </div>
-                      </DropdownMenuItem>
+                      </div>
                     );
                   })}
-                </DropdownMenuGroup>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
