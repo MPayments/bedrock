@@ -28,6 +28,11 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
+import {
+  formatDecimalString,
+  formatFractionDecimal,
+  parseDecimalToFraction,
+} from "@bedrock/shared/money";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -106,16 +111,14 @@ function formatDate(value: string | null) {
 }
 
 function formatDecimal(value: string, maximumFractionDigits = 2) {
-  const numericValue = Number(value);
-
-  if (!Number.isFinite(numericValue)) {
+  try {
+    return formatDecimalString(value, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits,
+    });
+  } catch {
     return "—";
   }
-
-  return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits,
-  }).format(numericValue);
 }
 
 function formatCurrencyAmount(
@@ -132,22 +135,28 @@ function formatCurrencyAmount(
 }
 
 function formatCalculationRate(calculation: PortalDealCalculation) {
-  const directRate = Number(calculation.rate);
+  try {
+    const rate = formatDecimalString(calculation.rate, {
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 6,
+    });
 
-  if (!Number.isFinite(directRate) || directRate <= 0) {
+    if (
+      calculation.currencyCode === "RUB" &&
+      calculation.baseCurrencyCode !== "RUB"
+    ) {
+      const fraction = parseDecimalToFraction(calculation.rate);
+      const inverseRate = formatFractionDecimal(fraction.den, fraction.num, {
+        scale: 6,
+        trimTrailingZeros: false,
+      });
+      return `1 ${calculation.baseCurrencyCode} = ${inverseRate} ${calculation.currencyCode}`;
+    }
+
+    return `1 ${calculation.currencyCode} = ${rate} ${calculation.baseCurrencyCode}`;
+  } catch {
     return "—";
   }
-
-  if (
-    calculation.currencyCode === "RUB" &&
-    calculation.baseCurrencyCode !== "RUB"
-  ) {
-    const inverseRate = formatDecimal(String(1 / directRate), 6);
-    return `1 ${calculation.baseCurrencyCode} = ${inverseRate} ${calculation.currencyCode}`;
-  }
-
-  const rate = formatDecimal(calculation.rate, 6);
-  return `1 ${calculation.currencyCode} = ${rate} ${calculation.baseCurrencyCode}`;
 }
 
 export default function PortalDealDetailPage() {

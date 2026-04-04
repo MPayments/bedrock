@@ -4,10 +4,31 @@ import { incline } from "lvovich";
 import numberToWordsRu from "number-to-words-ru";
 import RussianNouns from "russian-nouns-js";
 
+import { formatDecimalString } from "@bedrock/shared/money";
+
 const convertNumberToWordsRu = numberToWordsRu.convert;
 const { Case, Engine, Gender, createLemma } = RussianNouns;
 
 export type SupportedLang = "ru" | "en";
+
+function normalizeAmountToFixedScale(
+  amount: number | string,
+  scale: number,
+): string | null {
+  try {
+    return formatDecimalString(
+      typeof amount === "string" ? amount.replace(/\s/g, "") : amount,
+      {
+        minimumFractionDigits: scale,
+        maximumFractionDigits: scale,
+        groupSeparator: "",
+        decimalSeparator: ".",
+      },
+    );
+  } catch {
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Currency symbols
@@ -83,45 +104,40 @@ export function formatMoneyInWords(
   currencyCode: string,
   lang: SupportedLang = "ru",
 ): string {
+  const normalizedAmount = normalizeAmountToFixedScale(amount, 2);
+
+  if (!normalizedAmount) return "0";
+
   if (lang === "en") {
-    const numericAmount =
-      typeof amount === "string"
-        ? parseFloat(amount.replace(/\s/g, "").replace(",", "."))
-        : amount;
-    if (!Number.isFinite(numericAmount)) return "0";
-    return `${new Intl.NumberFormat("en-US", {
+    return `${formatDecimalString(normalizedAmount, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(numericAmount)} ${currencyCode.toUpperCase()}`;
+      groupSeparator: ",",
+      decimalSeparator: ".",
+    })} ${currencyCode.toUpperCase()}`;
   }
-
-  const numericAmount =
-    typeof amount === "string"
-      ? parseFloat(amount.replace(/\s/g, "").replace(",", "."))
-      : amount;
-
-  if (!Number.isFinite(numericAmount)) return "0";
 
   const config = CURRENCY_WORDS[currencyCode.toUpperCase()];
 
   if (!config) {
-    const result = convertNumberToWordsRu(numericAmount, {
+    const result = convertNumberToWordsRu(Number(normalizedAmount), {
       convertNumberToWords: { fractional: true },
     });
     return `${result} ${currencyCode}`;
   }
 
   if (currencyCode === "RUB") {
-    return convertNumberToWordsRu(numericAmount, {
+    return convertNumberToWordsRu(Number(normalizedAmount), {
       convertNumberToWords: { fractional: true },
     });
   }
 
-  const roundedAmount = Math.round(numericAmount * 100) / 100;
-  const integerPart = Math.floor(Math.abs(roundedAmount));
-  const fractionalPart = Math.round(
-    (Math.abs(roundedAmount) - integerPart) * 100,
-  );
+  const negative = normalizedAmount.startsWith("-");
+  const unsignedAmount = negative ? normalizedAmount.slice(1) : normalizedAmount;
+  const [integerPartRaw = "0", fractionalPartRaw = "00"] =
+    unsignedAmount.split(".");
+  const integerPart = Number(integerPartRaw);
+  const fractionalPart = Number(fractionalPartRaw);
 
   const integerWords = convertNumberToWordsRu(integerPart, {
     convertNumberToWords: { fractional: false },
@@ -132,13 +148,14 @@ export function formatMoneyInWords(
     .trim();
 
   const integerNoun = pluralize(integerPart, config.integer);
-  const fractionalStr = fractionalPart.toString().padStart(2, "0");
+  const fractionalStr = fractionalPartRaw.padStart(2, "0");
   const fractionalNoun = pluralize(fractionalPart, config.fractional);
 
   const capitalized =
     cleanIntegerWords.charAt(0).toUpperCase() + cleanIntegerWords.slice(1);
 
-  return `${capitalized} ${integerNoun} ${fractionalStr} ${fractionalNoun}`;
+  const value = `${capitalized} ${integerNoun} ${fractionalStr} ${fractionalNoun}`;
+  return negative ? `Минус ${value}` : value;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,28 +170,15 @@ export function formatCurrencyAmount(
     return "0.00";
   }
 
-  const numericValue =
-    typeof totalPrice === "number"
-      ? totalPrice
-      : parseFloat(String(totalPrice).replace(",", "."));
+  const formatted = normalizeAmountToFixedScale(totalPrice, 2);
+  if (!formatted) return "0.00";
 
-  if (!Number.isFinite(numericValue)) return "0.00";
-
-  const roundedValue = Math.round(numericValue * 100) / 100;
-  const [integerPart = "0", decimalPart = "00"] = roundedValue.toFixed(2).split(".");
-  const reversedDigits = [...integerPart].reverse();
-  const groupedDigits: string[] = [];
-
-  for (let index = 0; index < reversedDigits.length; index += 1) {
-    groupedDigits.push(reversedDigits[index]!);
-    if ((index + 1) % 3 === 0 && index !== reversedDigits.length - 1) {
-      groupedDigits.push(divider);
-    }
-  }
-
-  const formattedInteger = groupedDigits.reverse().join("");
-
-  return `${formattedInteger}.${decimalPart}`;
+  return formatDecimalString(formatted, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    groupSeparator: divider,
+    decimalSeparator: ".",
+  });
 }
 
 // ---------------------------------------------------------------------------

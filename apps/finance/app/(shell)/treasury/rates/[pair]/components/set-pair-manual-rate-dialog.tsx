@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Dialog,
@@ -19,6 +18,8 @@ import {
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { formatDecimalString } from "@bedrock/shared/money";
+import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
@@ -38,6 +39,20 @@ export function SetPairManualRateDialog({
   const [open, setOpen] = React.useState(false);
   const [submitting, startTransition] = React.useTransition();
   const [rate, setRate] = React.useState("");
+  const ratePreview = React.useMemo(() => {
+    if (!rate.trim()) {
+      return null;
+    }
+
+    try {
+      return formatDecimalString(rate, {
+        minimumFractionDigits: 6,
+        maximumFractionDigits: 6,
+      });
+    } catch {
+      return null;
+    }
+  }, [rate]);
 
   function resetForm() {
     setRate("");
@@ -119,12 +134,10 @@ export function SetPairManualRateDialog({
             </p>
           </div>
 
-          {rate.trim() && Number(rate.replace(",", ".")) > 0 && (
+          {ratePreview && (
             <p className="text-muted-foreground text-sm">
               Курс:{" "}
-              <span className="font-mono">
-                {Number(rate.replace(",", ".")).toFixed(6)}
-              </span>
+              <span className="font-mono">{ratePreview}</span>
             </p>
           )}
 

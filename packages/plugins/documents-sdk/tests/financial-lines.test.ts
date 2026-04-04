@@ -15,9 +15,9 @@ describe("document financial-line percent helpers", () => {
     expect(formatPercentFromBps(-150)).toBe("-1.5");
   });
 
-  it("computes signed percent amounts with floor-on-magnitude rounding", () => {
-    expect(calculatePercentAmountMinor(100050n, 125)).toBe(1250n);
-    expect(calculatePercentAmountMinor(100050n, -125)).toBe(-1250n);
+  it("computes signed percent amounts with half-up minor-unit rounding", () => {
+    expect(calculatePercentAmountMinor(100050n, 125)).toBe(1251n);
+    expect(calculatePercentAmountMinor(100050n, -125)).toBe(-1251n);
   });
 
   it("compiles fixed and percent manual lines", () => {

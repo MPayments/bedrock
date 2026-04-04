@@ -82,6 +82,12 @@ function createCalculationsModuleStub() {
 
 function createTestApp() {
   const calculationsModule = createCalculationsModuleStub();
+  const currenciesService = {
+    findById: vi.fn(),
+  };
+  const documentGenerationWorkflow = {
+    generateCalculation: vi.fn(),
+  };
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -96,9 +102,21 @@ function createTestApp() {
     await next();
   });
 
-  app.route("/calculations", calculationsRoutes({ calculationsModule } as any));
+  app.route(
+    "/calculations",
+    calculationsRoutes({
+      calculationsModule,
+      currenciesService,
+      documentGenerationWorkflow,
+    } as any),
+  );
 
-  return { app, calculationsModule };
+  return {
+    app,
+    calculationsModule,
+    currenciesService,
+    documentGenerationWorkflow,
+  };
 }
 
 describe("calculations routes", () => {
@@ -221,5 +239,64 @@ describe("calculations routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("exports calculation using canonical document data without compatibility serializer", async () => {
+    const { app, calculationsModule, currenciesService, documentGenerationWorkflow } =
+      createTestApp();
+    const detail = createCalculationDetail();
+    calculationsModule.calculations.queries.findById.mockResolvedValue(detail);
+    currenciesService.findById.mockImplementation(async (id: string) => {
+      if (id === detail.currentSnapshot.calculationCurrencyId) {
+        return {
+          code: "USD",
+          id,
+          precision: 2,
+        };
+      }
+
+      if (id === detail.currentSnapshot.baseCurrencyId) {
+        return {
+          code: "RUB",
+          id,
+          precision: 2,
+        };
+      }
+
+      throw new Error(`Unexpected currency id ${id}`);
+    });
+    documentGenerationWorkflow.generateCalculation.mockResolvedValue({
+      fileName: "calculation.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("pdf"),
+    });
+
+    const response = await app.request(
+      `http://localhost/calculations/${detail.id}/export?format=pdf&lang=ru`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentGenerationWorkflow.generateCalculation).toHaveBeenCalledWith({
+      calculationData: {
+        additionalExpenses: "0.00",
+        additionalExpensesInBase: "0.00",
+        baseCurrencyCode: "RUB",
+        calculationTimestamp:
+          detail.currentSnapshot.calculationTimestamp.toISOString(),
+        currencyCode: "USD",
+        feeAmount: "1.25",
+        feeAmountInBase: "1.00",
+        feePercentage: "1.25",
+        id: detail.id,
+        originalAmount: "100.00",
+        rate: "0.81",
+        rateSource: "manual",
+        totalAmount: "101.25",
+        totalInBase: "81.00",
+        totalWithExpensesInBase: "81.00",
+      },
+      format: "pdf",
+      lang: "ru",
+    });
   });
 });

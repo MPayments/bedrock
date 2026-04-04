@@ -94,6 +94,24 @@ export interface ClientContractOrganizationBankRequisite {
   swift: string | null;
 }
 
+export interface CalculationDocumentData {
+  additionalExpenses: string;
+  additionalExpensesInBase: string;
+  baseCurrencyCode: string;
+  calculationTimestamp: string;
+  currencyCode: string;
+  feeAmount: string;
+  feeAmountInBase: string;
+  feePercentage: string;
+  id: string;
+  originalAmount: string;
+  rate: string;
+  rateSource: string;
+  totalAmount: string;
+  totalInBase: string;
+  totalWithExpensesInBase: string;
+}
+
 export interface RenderClientContractInput {
   agreement: ClientContractAgreement;
   client: ClientContractClient;

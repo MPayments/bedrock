@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   amountMinorSchema,
   amountValueSchema,
+  formatDecimalString,
   formatFractionDecimal,
   minorToAmountString,
   mulDivRoundHalfUp,
@@ -90,6 +91,28 @@ describe("money helpers", () => {
         trimTrailingZeros: false,
       }),
     ).toBe("0.13");
+  });
+
+  it("formats decimal strings with exact grouping and half-up rounding", () => {
+    expect(
+      formatDecimalString("1234567.895", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    ).toBe("1 234 567.90");
+    expect(
+      formatDecimalString("-0.005", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    ).toBe("-0.01");
+    expect(
+      formatDecimalString("20000", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        groupSeparator: ",",
+      }),
+    ).toBe("20,000.00");
   });
 
   it("rounds mul/div to nearest minor unit with half-up policy", () => {

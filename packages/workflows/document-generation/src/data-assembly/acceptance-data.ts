@@ -72,8 +72,7 @@ export function assembleAcceptanceData(
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
     originalAmountInBase: formatCurrencyAmount(
-      parseFloat(String(calculation.originalAmount)) *
-        parseFloat(String(calculation.rate)),
+      calculation.totalInBase as string | number,
     ),
     feeAmountInBase: formatCurrencyAmount(feeInBase),
     feeAmountInBaseWords: formatMoneyInWords(feeInBase, baseCurrency, lang),

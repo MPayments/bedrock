@@ -396,14 +396,40 @@ export type CustomerOnboardInput = z.infer<typeof customerOnboardSchema>;
 
 // --- Contract ---
 
+function parseNonNegativeDecimal(value: string): {
+  fraction: string;
+  integer: string;
+} | null {
+  const normalized = value.trim().replace(",", ".");
+  const match = normalized.match(/^(\d+)(?:\.(\d+))?$/u);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    fraction: match[2] ?? "",
+    integer: match[1] ?? "0",
+  };
+}
+
 const percentFeeSchema = z
   .string()
   .optional()
   .refine(
     (val) => {
       if (!val || val === "") return true;
-      const num = parseFloat(val);
-      return !isNaN(num) && num >= 0 && num <= 100;
+      const parsed = parseNonNegativeDecimal(val);
+      if (!parsed) {
+        return false;
+      }
+
+      const integer = parsed.integer.replace(/^0+(?=\d)/u, "") || "0";
+      if (integer.length < 3) {
+        return true;
+      }
+
+      return integer === "100" && /^0*$/u.test(parsed.fraction);
     },
     { message: "Комиссия должна быть числом от 0 до 100" }
   );
@@ -414,8 +440,7 @@ const fixedFeeSchema = z
   .refine(
     (val) => {
       if (!val || val === "") return true;
-      const num = parseFloat(val);
-      return !isNaN(num) && num >= 0;
+      return parseNonNegativeDecimal(val) !== null;
     },
     { message: "Комиссия должна быть положительным числом" }
   );

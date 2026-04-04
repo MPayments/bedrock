@@ -1,5 +1,6 @@
 "use client";
 
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import {
@@ -857,13 +858,18 @@ export function DealIntakeForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="deal-beneficiary-country">Страна</Label>
-              <Input
+              <CountrySelect
                 id="deal-beneficiary-country"
-                disabled={readOnly}
                 value={snapshotFieldValue(beneficiarySnapshot.country)}
-                onChange={(event) =>
-                  updateBeneficiarySnapshot("country", event.target.value || null)
+                onValueChange={(nextValue) =>
+                  updateBeneficiarySnapshot("country", nextValue || null)
                 }
+                disabled={readOnly}
+                placeholder="Не выбрано"
+                searchPlaceholder="Поиск страны..."
+                emptyLabel="Страна не найдена"
+                clearable
+                clearLabel="Очистить"
               />
             </div>
           </div>

@@ -8,7 +8,6 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import { minorToDecimalString } from "@bedrock/calculations";
 import {
   calculationLines,
   calculationSnapshots,
@@ -72,6 +71,23 @@ const DEALS_SORT_COLUMN_MAP = {
 } as const;
 
 const DEAL_COMMENT_SQL = sql<string | null>`${sql.identifier("deals")}.${sql.identifier("comment")}`;
+
+function minorToDecimalString(amountMinor: bigint | string, precision: number) {
+  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const digits = absolute.toString();
+
+  if (precision === 0) {
+    return `${negative ? "-" : ""}${digits}`;
+  }
+
+  const padded = digits.padStart(precision + 1, "0");
+  const integerPart = padded.slice(0, padded.length - precision);
+  const fractionPart = padded.slice(padded.length - precision);
+
+  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
 
 function mapTimelineEvent(row: {
   actorLabel: string | null;

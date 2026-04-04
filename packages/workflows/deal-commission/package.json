@@ -15,7 +15,8 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/platform": "workspace:*"
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",

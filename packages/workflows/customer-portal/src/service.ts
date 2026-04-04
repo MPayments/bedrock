@@ -1,6 +1,4 @@
 import {
-  serializeCompatibilityCalculation,
-  type CalculationCompatibilityCurrency,
   type CalculationsModule,
 } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
@@ -22,6 +20,7 @@ import {
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { isUuidLike, MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import {
   createCustomerBankingService,
@@ -123,6 +122,36 @@ type CanonicalCounterpartyListItem = Awaited<
 type CustomerMembership = Awaited<
   ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
 >[number];
+
+interface PortalCalculationCurrencyMetadata {
+  code: string;
+  id: string;
+  precision: number;
+}
+
+interface CustomerPortalCalculation {
+  additionalExpenses: string;
+  additionalExpensesCurrencyCode: string | null;
+  additionalExpensesInBase: string;
+  baseCurrencyCode: string;
+  calculationTimestamp: string;
+  createdAt: string;
+  currencyCode: string;
+  dealId: string | null;
+  feeAmount: string;
+  feeAmountInBase: string;
+  feePercentage: string;
+  fxQuoteId: string | null;
+  id: string;
+  originalAmount: string;
+  rate: string;
+  rateSource: string;
+  sentToClient: number;
+  status: "active" | "archived";
+  totalAmount: string;
+  totalInBase: string;
+  totalWithExpensesInBase: string;
+}
 
 export interface CustomerPortalLegalEntity {
   address: string | null;
@@ -273,6 +302,42 @@ async function resolvePortalCurrencyId(
   return currency.id;
 }
 
+function minorToDecimalString(amountMinor: bigint | string, precision: number) {
+  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const digits = absolute.toString();
+
+  if (precision === 0) {
+    return `${negative ? "-" : ""}${digits}`;
+  }
+
+  const padded = digits.padStart(precision + 1, "0");
+  const integerPart = padded.slice(0, padded.length - precision);
+  const fractionPart = padded.slice(padded.length - precision);
+
+  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
+
+function feeBpsToPercentString(feeBps: bigint | string) {
+  return minorToDecimalString(feeBps, 2);
+}
+
+function rationalToDecimalString(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  scale = 6,
+) {
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
+}
+
+function serializeRateSource(rateSource: string) {
+  return rateSource === "cbr" ? "cbru" : rateSource;
+}
+
 async function buildCalculationCurrencyMetadata(
   deps: CustomerPortalWorkflowDeps,
   currencyIds: string[],
@@ -287,7 +352,7 @@ async function buildCalculationCurrencyMetadata(
           id: currency.id,
           code: currency.code,
           precision: currency.precision,
-        } satisfies CalculationCompatibilityCurrency,
+        } satisfies PortalCalculationCurrencyMetadata,
       ] as const;
     }),
   );
@@ -295,10 +360,10 @@ async function buildCalculationCurrencyMetadata(
   return new Map(entries);
 }
 
-async function serializeCompatibilityCalculationForDeal(
+async function serializePortalCalculationForDeal(
   deps: CustomerPortalWorkflowDeps,
   calculation: CanonicalCalculation | null,
-) {
+): Promise<CustomerPortalCalculation | null> {
   if (!calculation) {
     return null;
   }
@@ -312,12 +377,64 @@ async function serializeCompatibilityCalculationForDeal(
     ],
   );
 
-  return serializeCompatibilityCalculation({
+  const snapshot = calculation.currentSnapshot;
+  const calculationCurrency = currencyMetadata.get(snapshot.calculationCurrencyId);
+  const baseCurrency = currencyMetadata.get(snapshot.baseCurrencyId);
+  const additionalExpensesCurrency = snapshot.additionalExpensesCurrencyId
+    ? currencyMetadata.get(snapshot.additionalExpensesCurrencyId) ?? null
+    : null;
+
+  if (!calculationCurrency || !baseCurrency) {
+    throw new Error("Missing currency metadata for portal calculation");
+  }
+
+  return {
+    id: calculation.id,
     dealId: null,
-    calculation,
-    currencies: currencyMetadata,
+    currencyCode: calculationCurrency.code,
+    originalAmount: minorToDecimalString(
+      snapshot.originalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    feePercentage: feeBpsToPercentString(snapshot.feeBps),
+    feeAmount: minorToDecimalString(
+      snapshot.feeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalAmount: minorToDecimalString(
+      snapshot.totalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    rateSource: serializeRateSource(snapshot.rateSource),
+    rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
+    additionalExpensesCurrencyCode: additionalExpensesCurrency?.code ?? null,
+    additionalExpenses: minorToDecimalString(
+      snapshot.additionalExpensesAmountMinor,
+      additionalExpensesCurrency?.precision ?? baseCurrency.precision,
+    ),
+    baseCurrencyCode: baseCurrency.code,
+    feeAmountInBase: minorToDecimalString(
+      snapshot.feeAmountInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalInBase: minorToDecimalString(
+      snapshot.totalInBaseMinor,
+      baseCurrency.precision,
+    ),
+    additionalExpensesInBase: minorToDecimalString(
+      snapshot.additionalExpensesInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalWithExpensesInBase: minorToDecimalString(
+      snapshot.totalWithExpensesInBaseMinor,
+      baseCurrency.precision,
+    ),
+    calculationTimestamp: snapshot.calculationTimestamp.toISOString(),
     sentToClient: 0,
-  });
+    status: calculation.isActive ? "active" : "archived",
+    fxQuoteId: snapshot.fxQuoteId,
+    createdAt: calculation.createdAt.toISOString(),
+  };
 }
 
 function mapPortalDealStatus(status: Deal["status"]): Deal["status"] {
@@ -396,7 +513,7 @@ function buildPortalDealIntakeDraft(
 
 interface CustomerPortalDealListItem {
   amount: string | null;
-  calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
+  calculation: Awaited<ReturnType<typeof serializePortalCalculationForDeal>>;
   counterpartyId: string | null;
   createdAt: string;
   currencyCode: string | null;
@@ -413,7 +530,7 @@ interface CustomerPortalDealListResponse {
 }
 
 interface CustomerPortalDealDetailResponse {
-  calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
+  calculation: Awaited<ReturnType<typeof serializePortalCalculationForDeal>>;
   deal: DealDetails;
   organizationName: string | null;
 }
@@ -670,7 +787,7 @@ export function createCustomerPortalWorkflow(
 
     return {
       amount: deal.amount,
-      calculation: await serializeCompatibilityCalculationForDeal(
+      calculation: await serializePortalCalculationForDeal(
         deps,
         calculation,
       ),
@@ -1023,7 +1140,7 @@ export function createCustomerPortalWorkflow(
       ]);
 
       return {
-        calculation: await serializeCompatibilityCalculationForDeal(
+        calculation: await serializePortalCalculationForDeal(
           deps,
           calculation,
         ),

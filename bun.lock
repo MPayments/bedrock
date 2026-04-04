@@ -782,6 +782,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
       },
       "devDependencies": {
         "@bedrock/typescript-config": "workspace:*",
