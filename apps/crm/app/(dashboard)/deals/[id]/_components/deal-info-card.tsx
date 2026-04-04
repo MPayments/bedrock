@@ -9,7 +9,7 @@ import type { ApiDealDetails, ApiCurrency } from "./types";
 
 type DealInfoCardProps = {
   deal: ApiDealDetails;
-  requestedCurrency: ApiCurrency | null;
+  currency: ApiCurrency | null;
   isEditingComment: boolean;
   commentValue: string;
   isSavingComment: boolean;
@@ -21,7 +21,7 @@ type DealInfoCardProps = {
 
 export function DealInfoCard({
   deal,
-  requestedCurrency,
+  currency,
   isEditingComment,
   commentValue,
   isSavingComment,
@@ -30,7 +30,7 @@ export function DealInfoCard({
   onCommentChange,
   onSaveComment,
 }: DealInfoCardProps) {
-  const requestedAmountLabel =
+  const amountLabel =
     deal.type === "payment" ? "Сумма оплаты" : "Запрошенная сумма";
 
   return (
@@ -61,10 +61,10 @@ export function DealInfoCard({
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">
-              {requestedAmountLabel}
+              {amountLabel}
             </div>
             <div className="text-base font-medium">
-              {formatCurrency(deal.requestedAmount, requestedCurrency?.code ?? null)}
+              {formatCurrency(deal.amount, currency?.code ?? null)}
             </div>
           </div>
           {deal.reason && (

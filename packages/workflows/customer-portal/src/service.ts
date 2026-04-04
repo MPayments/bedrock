@@ -208,17 +208,6 @@ export interface CustomerPortalWorkflow {
     data: CustomerPortalCustomerContext[];
     total: number;
   }>;
-  createDeal(
-    ctx: CustomerContext,
-    input: {
-      counterpartyId: string;
-      requestedAmount?: string;
-      requestedCurrency?: string;
-    },
-    options: {
-      idempotencyKey: string;
-    },
-  ): Promise<DealDetails>;
   createDealDraft(
     ctx: CustomerContext,
     input: CreatePortalDealInput,
@@ -406,13 +395,13 @@ function buildPortalDealIntakeDraft(
 }
 
 interface CustomerPortalDealListItem {
+  amount: string | null;
   calculation: Awaited<ReturnType<typeof serializeCompatibilityCalculationForDeal>>;
   counterpartyId: string | null;
   createdAt: string;
+  currencyCode: string | null;
   id: string;
   organizationName: string | null;
-  requestedAmount: string | null;
-  requestedCurrencyCode: string | null;
   status: Deal["status"];
 }
 
@@ -662,10 +651,10 @@ export function createCustomerPortalWorkflow(
   async function serializePortalDealListItem(
     deal: Deal,
   ): Promise<CustomerPortalDealListItem> {
-    const [dealDetails, requestedCurrency, calculation] = await Promise.all([
+    const [dealDetails, currency, calculation] = await Promise.all([
       deps.deals.deals.queries.findById(deal.id),
-      deal.requestedCurrencyId
-        ? deps.currencies.findById(deal.requestedCurrencyId)
+      deal.currencyId
+        ? deps.currencies.findById(deal.currencyId)
         : Promise.resolve(null),
       deal.calculationId
         ? deps.calculations.calculations.queries.findById(deal.calculationId)
@@ -680,16 +669,16 @@ export function createCustomerPortalWorkflow(
       : { counterpartyId: null, organizationName: null };
 
     return {
+      amount: deal.amount,
       calculation: await serializeCompatibilityCalculationForDeal(
         deps,
         calculation,
       ),
       counterpartyId,
       createdAt: deal.createdAt.toISOString(),
+      currencyCode: currency?.code ?? null,
       id: deal.id,
       organizationName,
-      requestedAmount: deal.requestedAmount,
-      requestedCurrencyCode: requestedCurrency?.code ?? null,
       status: mapPortalDealStatus(deal.status),
     };
   }
@@ -867,49 +856,6 @@ export function createCustomerPortalWorkflow(
         data,
         total: data.length,
       };
-    },
-
-    async createDeal(
-      ctx: CustomerContext,
-      input: {
-        counterpartyId: string;
-        requestedAmount?: string;
-        requestedCurrency?: string;
-      },
-      options: {
-        idempotencyKey: string;
-      },
-    ) {
-      const counterparty = await assertCounterpartyOwnership(
-        ctx.userId,
-        input.counterpartyId,
-      );
-
-      const requestedCurrency = input.requestedCurrency
-        ? await deps.currencies.findByCode(input.requestedCurrency)
-        : null;
-
-      const result = await deps.deals.deals.commands.create({
-        actorUserId: ctx.userId,
-        agentId: null,
-        comment: null,
-        counterpartyId: input.counterpartyId,
-        customerId: counterparty.customerId!,
-        idempotencyKey: options.idempotencyKey,
-        intakeComment: null,
-        reason: null,
-        requestedAmount: input.requestedAmount ?? null,
-        requestedCurrencyId: requestedCurrency?.id ?? null,
-        type: "payment",
-      });
-
-      deps.logger.info("Customer created deal", {
-        userId: ctx.userId,
-        counterpartyId: input.counterpartyId,
-        dealId: result.id,
-      });
-
-      return result;
     },
 
     async createDealDraft(

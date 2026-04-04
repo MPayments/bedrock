@@ -354,38 +354,16 @@ const CustomerPortalDealAttachmentParamsSchema = CustomerPortalDealIdParamSchema
   },
 );
 
-const CustomerPortalCreateDealInputSchema = z.object({
-  counterpartyId: z.string().uuid(),
-  requestedAmount: z
-    .string()
-    .trim()
-    .refine((value) => {
-      const [whole, fraction, ...rest] = value.split(".");
-
-      if (rest.length > 0 || !whole || !/^[0-9]+$/u.test(whole)) {
-        return false;
-      }
-
-      if (fraction === undefined) {
-        return true;
-      }
-
-      return fraction.length > 0 && /^[0-9]+$/u.test(fraction);
-    })
-    .optional(),
-  requestedCurrency: z.string().trim().min(3).max(16).optional(),
-});
-
 const CustomerPortalCreateDealDraftInputSchema = CreatePortalDealInputSchema;
 
 const CustomerPortalDealListItemSchema = z.object({
+  amount: z.string().nullable(),
   calculation: z.any().nullable(),
   counterpartyId: z.string().uuid().nullable(),
   createdAt: z.string(),
+  currencyCode: z.string().nullable(),
   id: z.string().uuid(),
   organizationName: z.string().nullable(),
-  requestedAmount: z.string().nullable(),
-  requestedCurrencyCode: z.string().nullable(),
   status: z.enum([
     "draft",
     "submitted",
@@ -576,38 +554,6 @@ export function customerRoutes(ctx: AppContext) {
       200: {
         content: { "application/json": { schema: z.any() } },
         description: "Parsed card data",
-      },
-      403: {
-        content: { "application/json": { schema: z.object({ error: z.string() }) } },
-        description: "Not authorized",
-      },
-    },
-  });
-
-  const createDealRoute = createRoute({
-    method: "post",
-    path: "/deals",
-    tags: ["Customer"],
-    middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "Create customer deal",
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: CustomerPortalCreateDealInputSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      400: {
-        content: { "application/json": { schema: z.object({ error: z.string() }) } },
-        description: "Missing Idempotency-Key",
-      },
-      201: {
-        content: { "application/json": { schema: z.any() } },
-        description: "Deal created",
       },
       403: {
         content: { "application/json": { schema: z.object({ error: z.string() }) } },
@@ -1052,35 +998,6 @@ const getDealProjectionRoute = createRoute({
             : await ctx.documentExtraction.extractFromPdf(buffer);
 
       return c.json(result, 200);
-    })
-    .openapi(createDealRoute, async (c): Promise<any> => {
-      const user = c.get("user")!;
-      const input = c.req.valid("json");
-
-      try {
-        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          ctx.customerPortalWorkflow.createDeal(
-            { userId: user.id },
-            input,
-            { idempotencyKey },
-          ),
-        );
-
-        if (result instanceof Response) {
-          return result;
-        }
-
-        return c.json(result, 201);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.name === "CustomerNotAuthorizedError"
-        ) {
-          return c.json({ error: error.message }, 403);
-        }
-
-        throw error;
-      }
     })
     .openapi(createDealDraftRoute, async (c): Promise<any> => {
       const user = c.get("user")!;

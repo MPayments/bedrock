@@ -264,6 +264,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
   beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
+  comment: z.string().nullable(),
   context: z.object({
     agreement: AgreementDetailsSchema.nullable(),
     applicant: CounterpartySchema.nullable(),

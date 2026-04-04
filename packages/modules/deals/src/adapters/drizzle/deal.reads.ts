@@ -54,7 +54,7 @@ import type {
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
 import type { DealReads } from "../../application/ports/deal.reads";
-import { getCompatibilityRequestedFields } from "../../application/shared/compatibility-requested-fields";
+import { getPrimaryDealAmountFields } from "../../application/shared/primary-amount-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
@@ -70,6 +70,8 @@ const DEALS_SORT_COLUMN_MAP = {
   type: deals.type,
   updatedAt: deals.updatedAt,
 } as const;
+
+const DEAL_COMMENT_SQL = sql<string | null>`${sql.identifier("deals")}.${sql.identifier("comment")}`;
 
 function mapTimelineEvent(row: {
   actorLabel: string | null;
@@ -257,10 +259,11 @@ function buildCompatibilityParticipants(
   });
 }
 
-function buildCompatibilityDeal(input: {
+function buildDealSummaryView(input: {
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
+  comment: string | null;
   createdAt: Date;
   customerId: string;
   id: string;
@@ -271,23 +274,21 @@ function buildCompatibilityDeal(input: {
   type: Deal["type"];
   updatedAt: Date;
 }): Deal {
-  const compatibilityRequestedFields = getCompatibilityRequestedFields(
-    input.intake,
-  );
+  const primaryAmountFields = getPrimaryDealAmountFields(input.intake);
 
   return {
     agreementId: input.agreementId,
+    amount: primaryAmountFields.amount,
     agentId: input.agentId,
     calculationId: input.calculationId,
-    comment: input.intake.common.customerNote,
+    comment: input.comment,
+    currencyId: primaryAmountFields.currencyId,
     createdAt: input.createdAt,
     customerId: input.customerId,
     id: input.id,
     intakeComment: input.intake.common.customerNote,
     nextAction: input.nextAction,
     reason: input.intake.moneyRequest.purpose,
-    requestedAmount: compatibilityRequestedFields.requestedAmount,
-    requestedCurrencyId: compatibilityRequestedFields.requestedCurrencyId,
     revision: input.revision,
     status: input.status,
     type: input.type,
@@ -305,6 +306,7 @@ interface DealSummaryRow {
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
+  comment: string | null;
   createdAt: Date;
   customerId: string;
   id: string;
@@ -361,6 +363,7 @@ export class DrizzleDealReads implements DealReads {
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
+        comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
         id: deals.id,
@@ -394,6 +397,7 @@ export class DrizzleDealReads implements DealReads {
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
+        comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
         id: deals.id,
@@ -1066,30 +1070,32 @@ export class DrizzleDealReads implements DealReads {
   }
 
   async findById(id: string): Promise<DealDetails | null> {
-    const workflow = await this.findWorkflowById(id);
-    if (!workflow) {
+    const summary = await this.loadSummaryRow(id);
+    if (!summary) {
       return null;
     }
 
-    const compat = buildCompatibilityDeal({
-      agreementId: workflow.summary.agreementId,
-      agentId: workflow.summary.agentId,
-      calculationId: workflow.summary.calculationId,
-      createdAt: workflow.summary.createdAt,
+    const workflow = await this.buildWorkflowProjectionFromSummary(summary);
+    const deal = buildDealSummaryView({
+      agreementId: summary.agreementId,
+      agentId: summary.agentId,
+      calculationId: summary.calculationId,
+      comment: summary.comment,
+      createdAt: summary.createdAt,
       customerId:
         workflow.participants.find((participant) => participant.role === "customer")
           ?.customerId ?? "",
-      id: workflow.summary.id,
+      id: summary.id,
       intake: workflow.intake,
       nextAction: workflow.nextAction,
       revision: workflow.revision,
-      status: workflow.summary.status,
-      type: workflow.summary.type,
-      updatedAt: workflow.summary.updatedAt,
+      status: summary.status,
+      type: summary.type,
+      updatedAt: summary.updatedAt,
     });
 
     return {
-      ...compat,
+      ...deal,
       approvals: await this.loadApprovals(id),
       legs: workflow.executionPlan.map((leg) => ({
         createdAt: workflow.summary.createdAt,
@@ -1185,6 +1191,7 @@ export class DrizzleDealReads implements DealReads {
           agreementId: deals.agreementId,
           agentId: deals.agentId,
           calculationId: deals.calculationId,
+          comment: DEAL_COMMENT_SQL,
           createdAt: deals.createdAt,
           customerId: deals.customerId,
           id: deals.id,
@@ -1221,19 +1228,18 @@ export class DrizzleDealReads implements DealReads {
         const precision = row.sourceCurrencyId
           ? extraCurrenciesById.get(row.sourceCurrencyId)?.precision ?? null
           : null;
-        const compatibilityRequestedFields = getCompatibilityRequestedFields(
-          row.snapshot,
-        );
-        const requestedAmount =
+        const primaryAmountFields = getPrimaryDealAmountFields(row.snapshot);
+        const amount =
           row.type !== "payment" &&
           row.sourceAmountMinor != null &&
           precision != null
             ? minorToDecimalString(row.sourceAmountMinor, precision)
-            : compatibilityRequestedFields.requestedAmount;
-        const compat = buildCompatibilityDeal({
+            : primaryAmountFields.amount;
+        const deal = buildDealSummaryView({
           agreementId: row.agreementId,
           agentId: row.agentId,
           calculationId: row.calculationId,
+          comment: row.comment,
           createdAt: row.createdAt,
           customerId: row.customerId,
           id: row.id,
@@ -1246,8 +1252,8 @@ export class DrizzleDealReads implements DealReads {
         });
 
         return {
-          ...compat,
-          requestedAmount,
+          ...deal,
+          amount,
         };
       }),
       limit: input.limit,

@@ -341,9 +341,17 @@ function createWorkflow(overrides?: {
           data: [
             {
               agreementId: workflow.summary.agreementId,
+              amount:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.incomingReceipt.expectedAmount
+                  : workflow.intake.moneyRequest.sourceAmount,
               agentId: workflow.summary.agentId,
               calculationId: workflow.summary.calculationId,
               comment: workflow.intake.common.customerNote,
+              currencyId:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.moneyRequest.targetCurrencyId
+                  : workflow.intake.moneyRequest.sourceCurrencyId,
               createdAt: workflow.summary.createdAt,
               customerId:
                 workflow.participants.find((participant) => participant.role === "customer")
@@ -352,14 +360,6 @@ function createWorkflow(overrides?: {
               intakeComment: workflow.intake.common.customerNote,
               nextAction: workflow.nextAction,
               reason: workflow.intake.moneyRequest.purpose,
-              requestedAmount:
-                workflow.summary.type === "payment"
-                  ? workflow.intake.incomingReceipt.expectedAmount
-                  : workflow.intake.moneyRequest.sourceAmount,
-              requestedCurrencyId:
-                workflow.summary.type === "payment"
-                  ? workflow.intake.moneyRequest.targetCurrencyId
-                  : workflow.intake.moneyRequest.sourceCurrencyId,
               revision: workflow.revision,
               status: workflow.summary.status,
               type: workflow.summary.type,

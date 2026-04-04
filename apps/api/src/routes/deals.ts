@@ -5,7 +5,6 @@ import {
   AssignDealAgentInputSchema,
   CloseDealInputSchema,
   CreateDealLegOperationInputSchema,
-  CreateDealInputSchema,
   CreateDealDraftInputSchema,
   DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
@@ -17,8 +16,8 @@ import {
   ResolveDealExecutionBlockerInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
+  UpdateDealCommentInputSchema,
   UpdateDealLegStateInputSchema,
-  UpdateDealIntakeInputSchema,
 } from "@bedrock/deals/contracts";
 import {
   FileAttachmentPurposeSchema,
@@ -366,58 +365,6 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const createRoute_ = createRoute({
-    middleware: [requirePermission({ deals: ["create"] })],
-    method: "post",
-    path: "/",
-    tags: ["Deals"],
-    summary: "Create draft deal",
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: CreateDealInputSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      201: {
-        content: {
-          "application/json": {
-            schema: DealDetailsSchema,
-          },
-        },
-        description: "Deal created",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation or idempotency header error",
-      },
-      404: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Referenced entity not found",
-      },
-      409: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Idempotency conflict",
-      },
-    },
-  });
-
   const createDraftRoute = createRoute({
     middleware: [requirePermission({ deals: ["create"] })],
     method: "post",
@@ -462,18 +409,18 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const updateIntakeRoute = createRoute({
+  const updateCommentRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
-    path: "/{id}/intake",
+    path: "/{id}/comment",
     tags: ["Deals"],
-    summary: "Update deal intake fields",
+    summary: "Update deal root comment",
     request: {
       params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: UpdateDealIntakeInputSchema,
+            schema: UpdateDealCommentInputSchema,
           },
         },
         required: true,
@@ -1293,26 +1240,6 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(createRoute_, async (c) => {
-      try {
-        const body = c.req.valid("json");
-        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          ctx.dealsModule.deals.commands.create({
-            ...body,
-            actorUserId: c.get("user")!.id,
-            idempotencyKey,
-          }),
-        );
-
-        if (result instanceof Response) {
-          return result;
-        }
-
-        return jsonOk(c, result, 201);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
     .openapi(createDraftRoute, async (c) => {
       try {
         const body = c.req.valid("json");
@@ -1333,13 +1260,12 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(updateIntakeRoute, async (c) => {
+    .openapi(updateCommentRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await ctx.dealsModule.deals.commands.updateIntake({
+        const result = await ctx.dealsModule.deals.commands.updateComment({
           ...body,
-          actorUserId: c.get("user")!.id,
           dealId: id,
         });
 

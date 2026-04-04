@@ -46,7 +46,7 @@ type DealOverviewTabProps = {
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
-  requestedCurrency: ApiCurrency | null;
+  currency: ApiCurrency | null;
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
 };
@@ -121,7 +121,7 @@ export function DealOverviewTab({
   organization,
   organizationRequisite,
   organizationRequisiteProvider,
-  requestedCurrency,
+  currency,
   workbench,
   workflow,
 }: DealOverviewTabProps) {
@@ -180,13 +180,13 @@ export function DealOverviewTab({
         <DealInfoCard
           commentValue={commentValue}
           deal={deal}
+          currency={currency}
           isEditingComment={isEditingComment}
           isSavingComment={isSavingComment}
           onCancelEdit={onCancelEdit}
           onCommentChange={onCommentChange}
           onEditComment={onEditComment}
           onSaveComment={onSaveComment}
-          requestedCurrency={requestedCurrency}
         />
       </div>
 

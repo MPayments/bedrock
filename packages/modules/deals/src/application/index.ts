@@ -6,7 +6,6 @@ import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-
 import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
 import { ClaimDealAttachmentIngestionsCommand } from "./commands/claim-deal-attachment-ingestions";
 import { CompleteDealAttachmentIngestionCommand } from "./commands/complete-deal-attachment-ingestion";
-import { CreateDealCommand } from "./commands/create-deal";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
 import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
 import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
@@ -14,7 +13,7 @@ import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calcula
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
-import { UpdateDealIntakeCommand } from "./commands/update-deal-intake";
+import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
 import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
 import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
 import type { DealReads } from "./ports/deal.reads";
@@ -63,22 +62,12 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
-  const createDeal = new CreateDealCommand(
-    deps.runtime,
-    deps.commandUow,
-    deps.idempotency,
-    deps.references,
-  );
   const replaceDealIntake = new ReplaceDealIntakeCommand(
     deps.runtime,
     deps.commandUow,
     deps.references,
   );
-  const updateDealIntake = new UpdateDealIntakeCommand(
-    deps.runtime,
-    deps.commandUow,
-    deps.references,
-  );
+  const updateDealComment = new UpdateDealCommentCommand(deps.commandUow);
   const linkCalculationFromAcceptedQuote =
     new LinkCalculationFromAcceptedQuoteCommand(
       deps.runtime,
@@ -139,7 +128,6 @@ export function createDealsService(deps: DealsServiceDeps) {
         claimAttachmentIngestions.execute.bind(claimAttachmentIngestions),
       completeAttachmentIngestion:
         completeAttachmentIngestion.execute.bind(completeAttachmentIngestion),
-      create: createDeal.execute.bind(createDeal),
       createDraft: createDealDraft.execute.bind(createDealDraft),
       enqueueAttachmentIngestion:
         enqueueAttachmentIngestion.execute.bind(enqueueAttachmentIngestion),
@@ -152,11 +140,11 @@ export function createDealsService(deps: DealsServiceDeps) {
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
+      updateComment: updateDealComment.execute.bind(updateDealComment),
       upsertCapabilityState: upsertDealCapabilityState.execute.bind(
         upsertDealCapabilityState,
       ),
       updateLegState: updateDealLegState.execute.bind(updateDealLegState),
-      updateIntake: updateDealIntake.execute.bind(updateDealIntake),
     },
     queries: {
       findAttachmentIngestionByFileAssetId:

@@ -10,54 +10,91 @@ import {
 } from "../../../../../tests/integration/commercial-core/fixtures";
 
 describe("deals integration characterization", () => {
-  it("resolves the sole active agreement on legacy create and maps legacy intake patch fields into the typed snapshot", async () => {
+  it("creates and updates typed payment intake without source-side compatibility fields", async () => {
     const fixture = await createAgreementFixture();
 
-    const created = await fixture.runtime.modules.deals.deals.commands.create({
+    const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      agreementId: undefined,
-      agentId: null,
-      calculationId: null,
-      comment: "Legacy intake comment",
-      counterpartyId: fixture.applicant.id,
+      agreementId: fixture.agreement.id,
       customerId: fixture.customer.id,
       idempotencyKey: randomUUID(),
-      intakeComment: null,
-      reason: null,
-      requestedAmount: "1000.00",
-      requestedCurrencyId: fixture.currencies.usd.id,
-      type: "payment",
+      intake: {
+        ...createPaymentIntakeDraft({
+          applicantCounterpartyId: fixture.applicant.id,
+          beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+          sourceCurrencyId: fixture.currencies.rub.id,
+          targetCurrencyId: fixture.currencies.usd.id,
+        }),
+        incomingReceipt: {
+          contractNumber: null,
+          expectedAmount: "1000.00",
+          expectedAt: null,
+          expectedCurrencyId: fixture.currencies.usd.id,
+          invoiceNumber: null,
+          payerCounterpartyId: null,
+          payerSnapshot: null,
+        },
+        moneyRequest: {
+          ...createPaymentIntakeDraft({
+            applicantCounterpartyId: fixture.applicant.id,
+            beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+            sourceCurrencyId: fixture.currencies.rub.id,
+            targetCurrencyId: fixture.currencies.usd.id,
+          }).moneyRequest,
+          sourceAmount: null,
+        },
+      },
     });
 
-    expect(created.agreementId).toBe(fixture.agreement.id);
-    expect(created.status).toBe("draft");
-    expect(created.requestedAmount).toBe("1000.00");
-    expect(created.participants.some((participant) => participant.role === "customer")).toBe(true);
+    expect(created.summary.agreementId).toBe(fixture.agreement.id);
+    expect(created.summary.status).toBe("draft");
+    expect(
+      created.participants.some((participant) => participant.role === "customer"),
+    ).toBe(true);
 
-    const updated = await fixture.runtime.modules.deals.deals.commands.updateIntake({
+    const updated = await fixture.runtime.modules.deals.deals.commands.replaceIntake({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      comment: "Updated legacy note",
-      counterpartyId: fixture.applicant.id,
-      dealId: created.id,
-      reason: "Updated purpose",
-      requestedAmount: "1250.00",
-      requestedCurrencyId: fixture.currencies.usd.id,
+      dealId: created.summary.id,
+      expectedRevision: created.revision,
+      intake: {
+        ...created.intake,
+        common: {
+          ...created.intake.common,
+          customerNote: "Updated intake note",
+        },
+        incomingReceipt: {
+          ...created.intake.incomingReceipt,
+          expectedAmount: "1250.00",
+          expectedCurrencyId: fixture.currencies.usd.id,
+        },
+        moneyRequest: {
+          ...created.intake.moneyRequest,
+          purpose: "Updated purpose",
+          sourceAmount: null,
+          sourceCurrencyId: fixture.currencies.rub.id,
+          targetCurrencyId: fixture.currencies.usd.id,
+        },
+      },
     });
 
-    expect(updated.reason).toBe("Updated purpose");
-    expect(updated.requestedAmount).toBe("1250.00");
-    expect(updated.comment).toBe("Updated legacy note");
+    expect(updated.intake.moneyRequest.purpose).toBe("Updated purpose");
     expect(updated.revision).toBe(2);
 
     const workflow = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
-      created.id,
+      created.summary.id,
     );
+    const detail = await fixture.runtime.modules.deals.deals.queries.findById(
+      created.summary.id,
+    );
+
     expect(workflow?.summary.agreementId).toBe(fixture.agreement.id);
     expect(workflow?.revision).toBe(2);
     expect(workflow?.intake.moneyRequest.purpose).toBe("Updated purpose");
-    expect(workflow?.intake.common.customerNote).toBe("Updated legacy note");
+    expect(workflow?.intake.common.customerNote).toBe("Updated intake note");
     expect(workflow?.intake.moneyRequest.sourceAmount).toBeNull();
-    expect(workflow?.intake.moneyRequest.sourceCurrencyId).toBeNull();
+    expect(workflow?.intake.moneyRequest.sourceCurrencyId).toBe(
+      fixture.currencies.rub.id,
+    );
     expect(workflow?.intake.moneyRequest.targetCurrencyId).toBe(
       fixture.currencies.usd.id,
     );
@@ -65,6 +102,9 @@ describe("deals integration characterization", () => {
     expect(workflow?.intake.incomingReceipt.expectedCurrencyId).toBe(
       fixture.currencies.usd.id,
     );
+    expect(detail?.amount).toBe("1250.00");
+    expect(detail?.currencyId).toBe(fixture.currencies.usd.id);
+    expect(detail?.comment).toBeNull();
   });
 
   it("links a calculation only from the accepted quote for a convert deal", async () => {
@@ -128,32 +168,55 @@ describe("deals integration characterization", () => {
 
   it("blocks status transitions when business requirements are not met and still rejects transitions outside the static map", async () => {
     const fixture = await createAgreementFixture();
-    const created = await fixture.runtime.modules.deals.deals.commands.create({
+    const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
       agreementId: fixture.agreement.id,
-      agentId: null,
-      calculationId: null,
-      comment: null,
-      counterpartyId: fixture.applicant.id,
       customerId: fixture.customer.id,
       idempotencyKey: randomUUID(),
-      intakeComment: null,
-      reason: "Legacy payment",
-      requestedAmount: "1000.00",
-      requestedCurrencyId: fixture.currencies.usd.id,
-      type: "payment",
+      intake: {
+        ...createPaymentIntakeDraft({
+          applicantCounterpartyId: fixture.applicant.id,
+          beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+          sourceCurrencyId: fixture.currencies.rub.id,
+          targetCurrencyId: fixture.currencies.usd.id,
+        }),
+        incomingReceipt: {
+          contractNumber: null,
+          expectedAmount: "1000.00",
+          expectedAt: null,
+          expectedCurrencyId: fixture.currencies.usd.id,
+          invoiceNumber: null,
+          payerCounterpartyId: null,
+          payerSnapshot: null,
+        },
+        moneyRequest: {
+          ...createPaymentIntakeDraft({
+            applicantCounterpartyId: fixture.applicant.id,
+            beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+            sourceCurrencyId: fixture.currencies.rub.id,
+            targetCurrencyId: fixture.currencies.usd.id,
+          }).moneyRequest,
+          sourceAmount: null,
+        },
+      },
     });
 
     const workflowBefore = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
-      created.id,
+      created.summary.id,
     );
     expect(workflowBefore?.nextAction).toBe("Complete intake");
+
+    const commented = await fixture.runtime.modules.deals.deals.commands.updateComment({
+      comment: "Internal comment",
+      dealId: created.summary.id,
+    });
+    expect(commented.comment).toBe("Internal comment");
 
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({
         actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
         comment: "Move to submitted",
-        dealId: created.id,
+        dealId: created.summary.id,
         status: "submitted",
       }),
     ).rejects.toThrow("Deal transition to submitted is blocked");
@@ -161,7 +224,7 @@ describe("deals integration characterization", () => {
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({
         actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-        dealId: created.id,
+        dealId: created.summary.id,
         status: "done",
       }),
     ).rejects.toThrow("Cannot transition deal status from draft to done");

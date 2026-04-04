@@ -105,6 +105,7 @@ export const deals = pgTable(
     type: dealTypeEnum("type").notNull(),
     status: dealStatusEnum("status").notNull().default("draft"),
     agentId: text("agent_id").references(() => user.id),
+    comment: text("comment"),
     nextAction: text("next_action"),
     sourceAmountMinor: bigint("source_amount_minor", { mode: "bigint" }),
     sourceCurrencyId: uuid("source_currency_id").references(() => currencies.id),

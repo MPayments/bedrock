@@ -87,7 +87,7 @@ type DealPageData = {
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
-  requestedCurrency: ApiCurrency | null;
+  currency: ApiCurrency | null;
   sourceCurrency: ApiCurrency | null;
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
@@ -142,10 +142,18 @@ function buildDealViewFromWorkbench(
 
   return {
     agreementId: workbench.summary.agreementId,
+    amount:
+      workbench.summary.type === "payment"
+        ? workbench.intake.incomingReceipt.expectedAmount
+        : workbench.intake.moneyRequest.sourceAmount,
     agentId: workbench.summary.agentId,
     approvals: workbench.approvals,
     calculationId: workbench.summary.calculationId,
-    comment: workbench.intake.common.customerNote,
+    comment: workbench.comment,
+    currencyId:
+      workbench.summary.type === "payment"
+        ? workbench.intake.moneyRequest.targetCurrencyId
+        : workbench.intake.moneyRequest.sourceCurrencyId,
     createdAt: workbench.summary.createdAt,
     customerId,
     id: workbench.summary.id,
@@ -175,14 +183,6 @@ function buildDealViewFromWorkbench(
       }),
     ],
     reason: workbench.intake.moneyRequest.purpose,
-    requestedAmount:
-      workbench.summary.type === "payment"
-        ? workbench.intake.incomingReceipt.expectedAmount
-        : workbench.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId:
-      workbench.summary.type === "payment"
-        ? workbench.intake.moneyRequest.targetCurrencyId
-        : workbench.intake.moneyRequest.sourceCurrencyId,
     status: workbench.summary.status,
     statusHistory: workbench.timeline
       .filter(
@@ -530,16 +530,16 @@ export default function DealDetailPage() {
         workbench.intake.common.applicantCounterpartyId ?? null;
 
       const [
-        requestedCurrency,
+        currency,
         sourceCurrency,
         calculation,
         currencyOptions,
         agreementsPayload,
         applicantRequisitesPayload,
       ] = await Promise.all([
-        deal.requestedCurrencyId
+        deal.currencyId
           ? fetchJson<ApiCurrency>(
-              `${API_BASE_URL}/currencies/${deal.requestedCurrencyId}`,
+              `${API_BASE_URL}/currencies/${deal.currencyId}`,
             )
           : Promise.resolve(null),
         quoteRequest.sourceCurrencyId
@@ -610,7 +610,7 @@ export default function DealDetailPage() {
         organizationRequisite: workbench.context.internalEntityRequisite,
         organizationRequisiteProvider:
           workbench.context.internalEntityRequisiteProvider,
-        requestedCurrency,
+        currency,
         sourceCurrency,
         workbench,
         workflow: workbench.workflow,
@@ -705,7 +705,7 @@ export default function DealDetailPage() {
     const quoteRequest = buildQuoteRequestContext(data.workbench);
     setCalculationToCurrency(
       quoteRequest.amountSide === "target"
-        ? (data.requestedCurrency?.code ?? "")
+        ? (data.currency?.code ?? "")
         : resolveDefaultToCurrency(
             data.currencyOptions,
             data.sourceCurrency?.code ?? null,
@@ -723,7 +723,7 @@ export default function DealDetailPage() {
     setCalculationAmount(quoteRequest.amount ?? "");
     setCalculationToCurrency(
       quoteRequest.amountSide === "target"
-        ? (data.requestedCurrency?.code ?? "")
+        ? (data.currency?.code ?? "")
         : resolveDefaultToCurrency(
             data.currencyOptions,
             data.sourceCurrency?.code ?? null,
@@ -764,7 +764,7 @@ export default function DealDetailPage() {
     const amountMinor = decimalToMinorString(
       amountSource,
       quoteRequest.amountSide === "target"
-        ? (data.requestedCurrency?.precision ?? data.sourceCurrency.precision)
+        ? (data.currency?.precision ?? data.sourceCurrency.precision)
         : data.sourceCurrency.precision,
     );
 
@@ -1052,7 +1052,7 @@ export default function DealDetailPage() {
     try {
       setIsSavingComment(true);
 
-      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/intake`, {
+      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/comment`, {
         body: JSON.stringify({ comment: commentValue }),
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1475,7 +1475,7 @@ export default function DealDetailPage() {
                 organization={data.organization}
                 organizationRequisite={data.organizationRequisite}
                 organizationRequisiteProvider={data.organizationRequisiteProvider}
-                requestedCurrency={data.requestedCurrency}
+                currency={data.currency}
                 workbench={data.workbench}
                 workflow={data.workflow}
               />

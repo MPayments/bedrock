@@ -1240,10 +1240,10 @@ export function createDealProjectionsWorkflow(
           ),
       ),
     ];
-    const requestedCurrencyIds = [
+    const currencyIds = [
       ...new Set(
         listedDeals
-          .map((deal) => deal.requestedCurrencyId)
+          .map((deal) => deal.currencyId)
           .filter((currencyId): currencyId is string => Boolean(currencyId)),
       ),
     ];
@@ -1252,7 +1252,7 @@ export function createDealProjectionsWorkflow(
       customers,
       agentEntries,
       calculationEntries,
-      requestedCurrencyEntries,
+      currencyEntries,
     ] = await Promise.all([
       deps.parties.customers.queries.listByIds(customerIds),
       Promise.all(
@@ -1275,7 +1275,7 @@ export function createDealProjectionsWorkflow(
         ),
       ),
       Promise.all(
-        requestedCurrencyIds.map(
+        currencyIds.map(
           async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
             [currencyId, await deps.currencies.findById(currencyId)] as const,
         ),
@@ -1284,7 +1284,7 @@ export function createDealProjectionsWorkflow(
 
     const agentsById = toMap(agentEntries);
     const calculationsById = toMap(calculationEntries);
-    const requestedCurrenciesById = toMap(requestedCurrencyEntries);
+    const currenciesById = toMap(currencyEntries);
     const customersById = toMap(
       customers.map(
         (customer): readonly [string, CustomerListItemLike] =>
@@ -1318,8 +1318,8 @@ export function createDealProjectionsWorkflow(
         const calculation = deal.calculationId
           ? (calculationsById.get(deal.calculationId) ?? null)
           : null;
-        const sourceCurrency = deal.requestedCurrencyId
-          ? (requestedCurrenciesById.get(deal.requestedCurrencyId) ?? null)
+        const sourceCurrency = deal.currencyId
+          ? (currenciesById.get(deal.currencyId) ?? null)
           : null;
         const baseCurrency = calculation
           ? (baseCurrenciesById.get(
@@ -1330,7 +1330,7 @@ export function createDealProjectionsWorkflow(
           ? (agentsById.get(deal.agentId) ?? null)
           : null;
 
-        const amount = parseDecimalOrZero(deal.requestedAmount);
+        const amount = parseDecimalOrZero(deal.amount);
         const amountInBase = calculation
           ? baseCurrency
             ? parseMinorOrZero(
@@ -1471,7 +1471,7 @@ export function createDealProjectionsWorkflow(
         [
           ...new Set(
             listedDeals
-              .map((deal) => deal.requestedCurrencyId)
+              .map((deal) => deal.currencyId)
               .filter((currencyId): currencyId is string =>
                 Boolean(currencyId),
               ),
@@ -1498,11 +1498,11 @@ export function createDealProjectionsWorkflow(
       byStatus[deal.status] = (byStatus[deal.status] ?? 0) + 1;
 
       const currencyCode =
-        (deal.requestedCurrencyId
-          ? currenciesById.get(deal.requestedCurrencyId)?.code
+        (deal.currencyId
+          ? currenciesById.get(deal.currencyId)?.code
           : undefined) ?? "RUB";
       totalAmount += BigInt(
-        toMinorAmountString(deal.requestedAmount ?? "0", currencyCode),
+        toMinorAmountString(deal.amount ?? "0", currencyCode),
       );
     }
 
@@ -1530,7 +1530,7 @@ export function createDealProjectionsWorkflow(
     const currencyIds = [
       ...new Set(
         listedDeals
-          .map((deal) => deal.requestedCurrencyId)
+          .map((deal) => deal.currencyId)
           .filter((currencyId): currencyId is string => Boolean(currencyId)),
       ),
     ];
@@ -1557,14 +1557,14 @@ export function createDealProjectionsWorkflow(
         deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
 
       return {
-        amount: parseDecimalOrZero(deal.requestedAmount),
-        amountInBase: parseDecimalOrZero(deal.requestedAmount),
+        amount: parseDecimalOrZero(deal.amount),
+        amountInBase: parseDecimalOrZero(deal.amount),
         baseCurrencyCode: "RUB",
         client: customersById.get(deal.customerId)?.displayName ?? "—",
         createdAt: deal.createdAt.toISOString(),
         currency:
-          (deal.requestedCurrencyId
-            ? currenciesById.get(deal.requestedCurrencyId)?.code
+          (deal.currencyId
+            ? currenciesById.get(deal.currencyId)?.code
             : undefined) ?? "RUB",
         id: deal.id,
         status: deal.status,
@@ -1602,7 +1602,7 @@ export function createDealProjectionsWorkflow(
         [
           ...new Set(
             listedDeals
-              .map((deal) => deal.requestedCurrencyId)
+              .map((deal) => deal.currencyId)
               .filter((currencyId): currencyId is string =>
                 Boolean(currencyId),
               ),
@@ -1634,8 +1634,8 @@ export function createDealProjectionsWorkflow(
       }
 
       const currencyCode =
-        (deal.requestedCurrencyId
-          ? currenciesById.get(deal.requestedCurrencyId)?.code
+        (deal.currencyId
+          ? currenciesById.get(deal.currencyId)?.code
           : undefined) ?? "RUB";
 
       if (requestedCurrencies && !requestedCurrencies.has(currencyCode)) {
@@ -1643,7 +1643,7 @@ export function createDealProjectionsWorkflow(
       }
 
       const date = deal.createdAt.toISOString().slice(0, 10);
-      const total = parseDecimalOrZero(deal.requestedAmount);
+      const total = parseDecimalOrZero(deal.amount);
 
       if (!dayMap.has(date)) {
         dayMap.set(date, {
@@ -1772,6 +1772,7 @@ export function createDealProjectionsWorkflow(
         userId: workflow.summary.agentId,
       },
       beneficiaryDraft,
+      comment: detail.comment,
       context: {
         agreement,
         applicant,
