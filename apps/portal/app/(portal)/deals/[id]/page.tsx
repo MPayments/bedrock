@@ -313,7 +313,11 @@ export default function PortalDealDetailPage() {
   }
 
   const primaryAmountLabel =
-    data.summary.type === "payment" ? "Сумма платежа" : "Сумма сделки";
+    data.summary.type === "payment" ? "Сумма оплаты" : "Сумма сделки";
+  const primaryAmountValue =
+    data.summary.type === "payment"
+      ? data.customerSafeIntake.expectedAmount
+      : data.customerSafeIntake.sourceAmount;
 
   return (
     <div className="space-y-4">
@@ -416,7 +420,7 @@ export default function PortalDealDetailPage() {
               {primaryAmountLabel}
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.sourceAmount ?? "Не указана"}
+              {primaryAmountValue ?? "Не указана"}
             </p>
           </div>
           <div>

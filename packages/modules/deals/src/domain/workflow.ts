@@ -100,7 +100,14 @@ export function evaluateDealSectionCompleteness(
   });
 
   const moneyRequestBlockingReasons: string[] = [];
-  if (!hasMoneyAmount(intake.moneyRequest.sourceAmount)) {
+  if (intake.type === "payment") {
+    if (!hasMoneyAmount(intake.incomingReceipt.expectedAmount)) {
+      moneyRequestBlockingReasons.push("Payment amount is required");
+    }
+    if (!intake.moneyRequest.targetCurrencyId) {
+      moneyRequestBlockingReasons.push("Payment currency is required");
+    }
+  } else if (!hasMoneyAmount(intake.moneyRequest.sourceAmount)) {
     moneyRequestBlockingReasons.push("Source amount is required");
   }
   if (!intake.moneyRequest.sourceCurrencyId) {

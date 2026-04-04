@@ -28,18 +28,18 @@ describe("deal workflow", () => {
       },
       incomingReceipt: {
         contractNumber: null,
-        expectedAmount: null,
+        expectedAmount: "1000.00",
         expectedAt: null,
-        expectedCurrencyId: null,
+        expectedCurrencyId: "currency-2",
         invoiceNumber: null,
         payerCounterpartyId: null,
         payerSnapshot: null,
       },
       moneyRequest: {
         purpose: null,
-        sourceAmount: "1000.00",
+        sourceAmount: null,
         sourceCurrencyId: "currency-1",
-        targetCurrencyId: null,
+        targetCurrencyId: "currency-2",
       },
       settlementDestination: {
         bankInstructionSnapshot: null,

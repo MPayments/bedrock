@@ -272,13 +272,16 @@ export function DealIntakeForm({
   const moneyRequestSectionTitle = isPaymentDeal
     ? "Параметры платежа"
     : "Сумма и валюта сделки";
-  const sourceAmountLabel = isPaymentDeal ? "Сумма списания" : "Сумма";
+  const primaryAmountLabel = isPaymentDeal ? "Сумма оплаты" : "Сумма";
   const sourceCurrencyTitle = isPaymentDeal
     ? "Валюта списания"
     : "Валюта списания";
   const targetCurrencyTitle = isPaymentDeal
-    ? "Валюта выплаты"
+    ? "Валюта оплаты"
     : "Целевая валюта";
+  const sourceAmountLabel = isPaymentDeal
+    ? "Сумма списания, если согласована"
+    : "Сумма списания";
   const incomingReceiptSectionTitle = isPaymentDeal
     ? "Инвойс поставщика"
     : "Входящее поступление";
@@ -295,6 +298,9 @@ export function DealIntakeForm({
     ? "Плановая дата выплаты"
     : "Ожидаемая дата поступления";
   const shouldRenderPayerDetails = shouldRenderIncomingReceiptPayer(intake.type);
+  const primaryAmountValue = isPaymentDeal
+    ? snapshotFieldValue(intake.incomingReceipt.expectedAmount)
+    : snapshotFieldValue(intake.moneyRequest.sourceAmount);
   const selectedApplicantLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
     loadingLabel: "Загрузка юридических лиц...",
@@ -316,7 +322,7 @@ export function DealIntakeForm({
     value: intake.moneyRequest.sourceCurrencyId,
   });
   const targetCurrencyLabel = resolveOptionLabel({
-    emptyLabel: "Без конвертации",
+    emptyLabel: isPaymentDeal ? "Не выбрано" : "Без конвертации",
     loadingLabel: "Загрузка валют...",
     matchedLabel: selectedTargetCurrency?.label ?? null,
     missingLabel: "Выбранная валюта недоступна",
@@ -390,6 +396,15 @@ export function DealIntakeForm({
     }
 
     update(nextIntake);
+  }
+
+  function updatePrimaryAmount(value: string | null) {
+    if (isPaymentDeal) {
+      updateIncomingReceipt("expectedAmount", value);
+      return;
+    }
+
+    updateMoneyRequest("sourceAmount", value);
   }
 
   function updateIncomingReceipt(
@@ -549,18 +564,47 @@ export function DealIntakeForm({
           }
         >
           <div className="min-w-0 space-y-2">
-            <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
+            <Label htmlFor="deal-primary-amount">{primaryAmountLabel}</Label>
             <Input
-              id="deal-source-amount"
+              id="deal-primary-amount"
               disabled={readOnly}
               inputMode="decimal"
-              value={snapshotFieldValue(intake.moneyRequest.sourceAmount)}
-              onChange={(event) =>
-                updateMoneyRequest("sourceAmount", event.target.value || null)
-              }
+              value={primaryAmountValue}
+              onChange={(event) => updatePrimaryAmount(event.target.value || null)}
             />
           </div>
           <div className="min-w-0 space-y-2">
+            <Label>{targetCurrencyTitle}</Label>
+            <Select
+              disabled={readOnly}
+              value={intake.moneyRequest.targetCurrencyId ?? "__none"}
+              onValueChange={(value) =>
+                updateMoneyRequest(
+                  "targetCurrencyId",
+                  value === "__none" ? null : value,
+                )
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Выберите валюту">
+                  {targetCurrencyLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Не выбрано</SelectItem>
+                {currencyOptions.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.id}>
+                    {currency.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div
+            className={
+              shouldInlineMoneyRequestFields ? "col-span-full space-y-2" : "space-y-2"
+            }
+          >
             <Label>{sourceCurrencyTitle}</Label>
             <Select
               disabled={readOnly}
@@ -587,36 +631,21 @@ export function DealIntakeForm({
               </SelectContent>
             </Select>
           </div>
-          <div
-            className={
-              shouldInlineMoneyRequestFields ? "col-span-full space-y-2" : "space-y-2"
-            }
-          >
-            <Label>{targetCurrencyTitle}</Label>
-            <Select
-              disabled={readOnly}
-              value={intake.moneyRequest.targetCurrencyId ?? "__same"}
-              onValueChange={(value) =>
-                updateMoneyRequest(
-                  "targetCurrencyId",
-                  value === "__same" ? null : value,
-                )
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>{targetCurrencyLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__same">Без конвертации</SelectItem>
-                {currencyOptions.map((currency) => (
-                  <SelectItem key={currency.id} value={currency.id}>
-                    {currency.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
+        {isPaymentDeal ? (
+          <div className="space-y-2">
+            <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
+            <Input
+              id="deal-source-amount"
+              disabled={readOnly}
+              inputMode="decimal"
+              value={snapshotFieldValue(intake.moneyRequest.sourceAmount)}
+              onChange={(event) =>
+                updateMoneyRequest("sourceAmount", event.target.value || null)
+              }
+            />
+          </div>
+        ) : null}
         <div className="space-y-2">
           <Label htmlFor="deal-purpose">Назначение</Label>
           <Textarea
@@ -640,21 +669,23 @@ export function DealIntakeForm({
             </p>
           </div>
           <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="deal-expected-amount">{expectedAmountLabel}</Label>
-              <Input
-                id="deal-expected-amount"
-                disabled={readOnly}
-                inputMode="decimal"
-                value={snapshotFieldValue(intake.incomingReceipt.expectedAmount)}
-                onChange={(event) =>
-                  updateIncomingReceipt(
-                    "expectedAmount",
-                    event.target.value || null,
-                  )
-                }
-              />
-            </div>
+            {!isPaymentDeal ? (
+              <div className="space-y-2">
+                <Label htmlFor="deal-expected-amount">{expectedAmountLabel}</Label>
+                <Input
+                  id="deal-expected-amount"
+                  disabled={readOnly}
+                  inputMode="decimal"
+                  value={snapshotFieldValue(intake.incomingReceipt.expectedAmount)}
+                  onChange={(event) =>
+                    updateIncomingReceipt(
+                      "expectedAmount",
+                      event.target.value || null,
+                    )
+                  }
+                />
+              </div>
+            ) : null}
             {!isPaymentDeal ? (
               <div className="space-y-2">
                 <Label>{expectedCurrencyTitle}</Label>
