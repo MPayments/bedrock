@@ -123,6 +123,18 @@ vi.mock("@/lib/resources/http", () => ({
 }));
 
 function createDeal(): FinanceDealWorkbenchData {
+  const fundingResolution = {
+    availableMinor: null,
+    fundingOrganizationId: null,
+    fundingRequisiteId: null,
+    reasonCode: "accepted_quote_missing",
+    requiredAmountMinor: null,
+    state: "blocked" as const,
+    strategy: null,
+    targetCurrency: "USD",
+    targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+  };
+
   return {
     acceptedQuote: null,
     acceptedQuoteDetails: null,
@@ -194,6 +206,8 @@ function createDeal(): FinanceDealWorkbenchData {
       positions: [],
     },
     pricing: {
+      fundingMessage: null,
+      fundingResolution,
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: false,
@@ -248,6 +262,10 @@ function createDeal(): FinanceDealWorkbenchData {
       },
     ],
   };
+}
+
+function normalizeMarkupWhitespace(markup: string) {
+  return markup.replaceAll(/\u00a0|\u202f/gu, " ");
 }
 
 describe("treasury deal workbench", () => {
@@ -374,11 +392,34 @@ describe("treasury deal workbench", () => {
     const deal = createDeal();
     deal.profitabilitySnapshot = {
       calculationId: "calc-1",
-      currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
-      feeRevenueMinor: "1000",
-      providerFeeExpenseMinor: "250",
-      spreadRevenueMinor: "500",
-      totalRevenueMinor: "1500",
+      feeRevenue: [
+        {
+          amountMinor: "2551338",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      providerFeeExpense: [
+        {
+          amountMinor: "250",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      spreadRevenue: [
+        {
+          amountMinor: "500",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      totalRevenue: [
+        {
+          amountMinor: "2551838",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
     };
     deal.reconciliationSummary = {
       ignoredExceptionCount: 0,
@@ -410,13 +451,17 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup).toContain("Финансовый результат и закрытие");
-    expect(markup).toContain("Расходы провайдера");
-    expect(markup).toContain("Результат сверки");
-    expect(markup).toContain("Открытых исключений");
-    expect(markup).toContain("Исключения сверки");
-    expect(markup).toContain("bank_statement");
-    expect(markup).not.toContain("Закрыть сделку");
+    const normalizedMarkup = normalizeMarkupWhitespace(markup);
+
+    expect(normalizedMarkup).toContain("Финансовый результат и закрытие");
+    expect(normalizedMarkup).toContain("Расходы провайдера");
+    expect(normalizedMarkup).toContain("Результат сверки");
+    expect(normalizedMarkup).toContain("Открытых исключений");
+    expect(normalizedMarkup).toContain("Исключения сверки");
+    expect(normalizedMarkup).toContain("bank_statement");
+    expect(normalizedMarkup).toContain("25 513,38 RUB");
+    expect(normalizedMarkup).not.toContain("2 551 338");
+    expect(normalizedMarkup).not.toContain("Закрыть сделку");
   });
 
   it("renders a deal-scoped create action for missing formal document requirements", async () => {

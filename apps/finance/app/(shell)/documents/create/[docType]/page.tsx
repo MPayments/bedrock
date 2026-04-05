@@ -18,6 +18,7 @@ import {
   buildDealDocumentsTabHref,
   normalizeInternalReturnToPath,
 } from "@/features/documents/lib/routes";
+import { getOrganizationRequisitesForOrganization } from "@/features/entities/organization-requisites/lib/queries";
 import { getFinanceDealWorkbenchById } from "@/features/treasury/deals/lib/queries";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 import { isUuid } from "@/lib/resources/http";
@@ -37,6 +38,19 @@ function getFirstSearchParamValue(value: string | string[] | undefined) {
   }
 
   return undefined;
+}
+
+function getDealOrganizationId(
+  deal: Awaited<ReturnType<typeof getFinanceDealWorkbenchById>>,
+  agreement: Awaited<ReturnType<typeof getAgreementContextById>> | null,
+) {
+  return (
+    agreement?.organizationId ??
+    deal?.workflow?.participants.find(
+      (participant) => participant.role === "internal_entity",
+    )?.organizationId ??
+    null
+  );
 }
 
 export default async function DocumentCreateByTypePage({
@@ -81,12 +95,20 @@ export default async function DocumentCreateByTypePage({
           () => null,
         )
       : null;
+  const dealOrganizationId = getDealOrganizationId(deal, agreement);
+  const organizationRequisites =
+    deal && docType === "invoice" && dealOrganizationId
+      ? await getOrganizationRequisitesForOrganization(
+          dealOrganizationId,
+        ).catch(() => [])
+      : [];
   const initialPayload = deal
     ? buildDealScopedDocumentInitialPayload({
         agreement,
         deal,
         docType,
         options,
+        organizationRequisites,
       })
     : undefined;
 

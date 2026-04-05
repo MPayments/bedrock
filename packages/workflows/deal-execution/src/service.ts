@@ -173,7 +173,9 @@ export function compileDealExecutionRecipe(input: {
     );
   }
 
-  return input.workflow.executionPlan.map((leg) => {
+  return input.workflow.executionPlan
+    .filter((leg) => leg.state !== "skipped")
+    .map((leg) => {
     if (!leg.id) {
       throw new ValidationError(
         `Deal ${input.workflow.summary.id} leg ${leg.idx}:${leg.kind} is missing an id`,
@@ -230,7 +232,7 @@ export function compileDealExecutionRecipe(input: {
       quoteId,
       sourceRef: `deal:${input.workflow.summary.id}:leg:${leg.idx}:${operationKind}:1`,
     };
-  });
+    });
 }
 
 async function resolveAmountRef(input: {
@@ -657,6 +659,12 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           if (!leg) {
             throw new ValidationError(
               `Deal ${input.dealId} does not have execution leg ${input.legId}`,
+            );
+          }
+
+          if (leg.state === "skipped") {
+            throw new ValidationError(
+              `Deal ${input.dealId} execution leg ${input.legId} is skipped and cannot materialize an operation`,
             );
           }
 

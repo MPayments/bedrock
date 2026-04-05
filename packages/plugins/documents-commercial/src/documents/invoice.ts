@@ -21,6 +21,7 @@ import {
 import {
   buildDealLinkedInvoicePostingPlan,
   buildDirectInvoicePostingPlan,
+  buildInventoryFundedInvoicePostingPlan,
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
   getInvoiceAmountMinor,
@@ -38,6 +39,7 @@ export function createInvoiceDocumentModule(
     moduleId: "invoice",
     accountingSourceIds: [
       ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE,
       ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
     ],
     docType: "invoice",
@@ -176,6 +178,26 @@ export function createInvoiceDocumentModule(
       const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
 
       if (dealFxContext?.hasConvertLeg) {
+        if (
+          dealFxContext.fundingResolution.state !== "resolved" ||
+          !dealFxContext.fundingResolution.strategy
+        ) {
+          throw new DocumentValidationError(
+            "linked FX deal does not have a resolved funding strategy",
+          );
+        }
+
+        if (dealFxContext.fundingResolution.strategy === "existing_inventory") {
+          return buildInventoryFundedInvoicePostingPlan({
+            deps,
+            dealFxContext,
+            context,
+            document,
+            payload,
+            bookId: binding.bookId,
+          });
+        }
+
         return buildDealLinkedInvoicePostingPlan({
           deps,
           dealFxContext,
@@ -196,6 +218,19 @@ export function createInvoiceDocumentModule(
       const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
 
       if (dealFxContext?.hasConvertLeg) {
+        if (
+          dealFxContext.fundingResolution.state !== "resolved" ||
+          !dealFxContext.fundingResolution.strategy
+        ) {
+          throw new DocumentValidationError(
+            "linked FX deal does not have a resolved funding strategy",
+          );
+        }
+
+        if (dealFxContext.fundingResolution.strategy === "existing_inventory") {
+          return ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE;
+        }
+
         return ACCOUNTING_SOURCE_ID.INVOICE_RESERVE;
       }
 

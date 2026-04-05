@@ -45,6 +45,7 @@ export const invoiceDocumentDefinition = {
             name: "organizationRequisiteId",
             label: "Реквизит организации",
             counterpartyField: "organizationId",
+            currencyFieldName: "currency",
             optionsSource: "organizationRequisites",
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
@@ -83,10 +84,6 @@ export const invoiceDocumentDefinition = {
             kind: "currency",
             name: "currency",
             label: "Валюта списания",
-            deriveFrom: {
-              kind: "accountCurrency",
-              accountFieldNames: ["organizationRequisiteId"],
-            },
           },
           {
             kind: "financialLines",

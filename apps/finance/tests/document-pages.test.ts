@@ -14,6 +14,7 @@ const getDocuments = vi.fn();
 const getDocumentFormOptions = vi.fn();
 const getFinanceDealWorkbenchById = vi.fn();
 const getAgreementContextById = vi.fn();
+const getOrganizationRequisitesForOrganization = vi.fn();
 const DocumentCreateTypedFormClient = vi.fn(() => null);
 const createEmptyDocumentFormOptions = vi.fn(() => ({
   counterparties: [],
@@ -54,6 +55,10 @@ vi.mock("@/features/agreements/lib/queries", () => ({
   getAgreementContextById,
 }));
 
+vi.mock("@/features/entities/organization-requisites/lib/queries", () => ({
+  getOrganizationRequisitesForOrganization,
+}));
+
 vi.mock("@/components/entities/entity-list-page-shell", () => ({
   EntityListPageShell: ({ children }: { children?: unknown }) => children ?? null,
 }));
@@ -91,6 +96,7 @@ describe("document pages", () => {
     });
     getFinanceDealWorkbenchById.mockResolvedValue(null);
     getAgreementContextById.mockResolvedValue(null);
+    getOrganizationRequisitesForOrganization.mockResolvedValue([]);
   });
 
   it("returns notFound for removed /documents/create family route", async () => {
@@ -223,6 +229,42 @@ describe("document pages", () => {
       organizationId: "00000000-0000-4000-8000-000000000333",
       organizationRequisiteId: "00000000-0000-4000-8000-000000000555",
     });
+    getOrganizationRequisitesForOrganization.mockResolvedValue([
+      {
+        createdAt: "2026-03-02T10:00:00.000Z",
+        currencyDisplay: "US Dollar",
+        currencyId: "00000000-0000-4000-8000-000000000667",
+        id: "00000000-0000-4000-8000-000000000555",
+        identity: "US-ACC-1",
+        isDefault: true,
+        kind: "bank",
+        kindDisplay: "Банк",
+        label: "USD Requisite",
+        ownerDisplay: "Multihansa",
+        ownerId: "00000000-0000-4000-8000-000000000333",
+        ownerType: "organization",
+        providerDisplay: "Bank",
+        providerId: "00000000-0000-4000-8000-000000000777",
+        updatedAt: "2026-03-02T10:00:00.000Z",
+      },
+      {
+        createdAt: "2026-03-03T10:00:00.000Z",
+        currencyDisplay: "Российский рубль",
+        currencyId: "00000000-0000-4000-8000-000000000666",
+        id: "00000000-0000-4000-8000-000000000556",
+        identity: "RU-ACC-1",
+        isDefault: true,
+        kind: "bank",
+        kindDisplay: "Банк",
+        label: "RUB Requisite",
+        ownerDisplay: "Multihansa",
+        ownerId: "00000000-0000-4000-8000-000000000333",
+        ownerType: "organization",
+        providerDisplay: "Bank",
+        providerId: "00000000-0000-4000-8000-000000000778",
+        updatedAt: "2026-03-03T10:00:00.000Z",
+      },
+    ]);
 
     const { default: CreatePage } = await import(
       "@/app/(shell)/documents/create/[docType]/page"
@@ -257,9 +299,135 @@ describe("document pages", () => {
         currency: "RUB",
         customerId: "00000000-0000-4000-8000-000000000111",
         organizationId: "00000000-0000-4000-8000-000000000333",
-        organizationRequisiteId: "00000000-0000-4000-8000-000000000555",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000556",
       },
     });
+  });
+
+  it("leaves invoice organization requisite empty when the organization has no matching currency requisite", async () => {
+    getDocumentFormOptions.mockResolvedValue({
+      counterparties: [],
+      customers: [],
+      organizations: [],
+      currencies: [
+        {
+          code: "RUB",
+          id: "00000000-0000-4000-8000-000000000666",
+          label: "Российский рубль",
+        },
+      ],
+    });
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [
+        {
+          baseCurrencyId: "00000000-0000-4000-8000-000000000667",
+          calculationCurrencyId: "00000000-0000-4000-8000-000000000666",
+          calculationId: "00000000-0000-4000-8000-000000000668",
+          calculationTimestamp: "2026-03-03T10:00:00.000Z",
+          createdAt: "2026-03-03T10:00:00.000Z",
+          feeAmountMinor: "1500",
+          fxQuoteId: "00000000-0000-4000-8000-000000000669",
+          originalAmountMinor: "100000",
+          rateDen: "1",
+          rateNum: "1",
+          sourceQuoteId: "00000000-0000-4000-8000-000000000669",
+          totalAmountMinor: "101500",
+          totalInBaseMinor: "100000",
+          totalWithExpensesInBaseMinor: "101500",
+        },
+      ],
+      formalDocumentRequirements: [],
+      summary: {
+        calculationId: "00000000-0000-4000-8000-000000000668",
+      },
+      workflow: {
+        intake: {
+          common: {
+            applicantCounterpartyId: "00000000-0000-4000-8000-000000000222",
+          },
+        },
+        participants: [
+          {
+            counterpartyId: null,
+            customerId: "00000000-0000-4000-8000-000000000111",
+            organizationId: null,
+            role: "customer",
+          },
+          {
+            counterpartyId: "00000000-0000-4000-8000-000000000222",
+            customerId: null,
+            organizationId: null,
+            role: "applicant",
+          },
+          {
+            counterpartyId: null,
+            customerId: null,
+            organizationId: "00000000-0000-4000-8000-000000000333",
+            role: "internal_entity",
+          },
+        ],
+        summary: {
+          agreementId: "00000000-0000-4000-8000-000000000444",
+        },
+      },
+    });
+    getAgreementContextById.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000444",
+      organizationId: "00000000-0000-4000-8000-000000000333",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000555",
+    });
+    getOrganizationRequisitesForOrganization.mockResolvedValue([
+      {
+        createdAt: "2026-03-02T10:00:00.000Z",
+        currencyDisplay: "US Dollar",
+        currencyId: "00000000-0000-4000-8000-000000000667",
+        id: "00000000-0000-4000-8000-000000000555",
+        identity: "US-ACC-1",
+        isDefault: true,
+        kind: "bank",
+        kindDisplay: "Банк",
+        label: "USD Requisite",
+        ownerDisplay: "Multihansa",
+        ownerId: "00000000-0000-4000-8000-000000000333",
+        ownerType: "organization",
+        providerDisplay: "Bank",
+        providerId: "00000000-0000-4000-8000-000000000777",
+        updatedAt: "2026-03-02T10:00:00.000Z",
+      },
+    ]);
+
+    const { default: CreatePage } = await import(
+      "@/app/(shell)/documents/create/[docType]/page"
+    );
+
+    const page = await CreatePage({
+      params: Promise.resolve({
+        docType: "invoice",
+      }),
+      searchParams: Promise.resolve({
+        dealId: "00000000-0000-4000-8000-000000000999",
+      }),
+    });
+    renderToStaticMarkup(page);
+
+    const lastCall = DocumentCreateTypedFormClient.mock.calls.at(-1) as
+      | [unknown]
+      | undefined;
+    expect(lastCall).toBeDefined();
+    const [props] = lastCall!;
+    expect(props).toMatchObject({
+      initialPayload: {
+        amount: "1015",
+        counterpartyId: "00000000-0000-4000-8000-000000000222",
+        currency: "RUB",
+        customerId: "00000000-0000-4000-8000-000000000111",
+        organizationId: "00000000-0000-4000-8000-000000000333",
+      },
+    });
+    expect(
+      (props as { initialPayload?: Record<string, unknown> }).initialPayload
+        ?.organizationRequisiteId,
+    ).toBeUndefined();
   });
 
   it("falls back to the deal documents tab and prefills closing docs from the opening invoice", async () => {

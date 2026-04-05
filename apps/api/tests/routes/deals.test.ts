@@ -125,6 +125,17 @@ function createWorkflowProjection() {
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "pending"),
     ],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: "no_convert_leg",
+      requiredAmountMinor: null,
+      state: "not_applicable" as const,
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
     intake: {
       common: {
         applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
@@ -241,11 +252,34 @@ function createFinanceQueueProjection() {
         },
         profitabilitySnapshot: {
           calculationId: "calc-1",
-          currencyId: "00000000-0000-4000-8000-000000000006",
-          feeRevenueMinor: "1000",
-          providerFeeExpenseMinor: "250",
-          spreadRevenueMinor: "500",
-          totalRevenueMinor: "1500",
+          feeRevenue: [
+            {
+              amountMinor: "1000",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          providerFeeExpense: [
+            {
+              amountMinor: "250",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          spreadRevenue: [
+            {
+              amountMinor: "500",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          totalRevenue: [
+            {
+              amountMinor: "1500",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
         },
         queue: "execution",
         queueReason: "Сделка ожидает исполнения",
@@ -328,11 +362,34 @@ function createFinanceWorkspaceProjection() {
     },
     profitabilitySnapshot: {
       calculationId: "calc-1",
-      currencyId: "00000000-0000-4000-8000-000000000006",
-      feeRevenueMinor: "1000",
-      providerFeeExpenseMinor: "250",
-      spreadRevenueMinor: "500",
-      totalRevenueMinor: "1500",
+      feeRevenue: [
+        {
+          amountMinor: "1000",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      providerFeeExpense: [
+        {
+          amountMinor: "250",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      spreadRevenue: [
+        {
+          amountMinor: "500",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      totalRevenue: [
+        {
+          amountMinor: "1500",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
     },
     queueContext: {
       blockers: [],

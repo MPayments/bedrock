@@ -37,6 +37,9 @@ describe("treasury deal labels", () => {
       "Ожидание сверки",
     );
     expect(getDealCapabilityLabel("can_fx")).toBe("Конвертация");
+    expect(getDealTimelineEventLabel("attachment_ingested")).toBe(
+      "Файл распознан",
+    );
     expect(getDealTimelineEventLabel("quote_used")).toBe(
       "Котировка исполнена",
     );

@@ -13,6 +13,7 @@ import type { DocumentFormField } from "@/features/documents/lib/document-form-r
 
 import {
   buildWatchedValueMap,
+  collectAccountDependencyNames,
   resolveAccountRequisiteRequests,
 } from "../helpers";
 
@@ -21,23 +22,21 @@ export function useAccountRequisiteOptions(input: {
   control: {
     _subjects: unknown;
   };
+  currencyIdByCode: Map<string, string>;
   currencyCodeById: Map<string, string>;
   currencyLabelById: Map<string, string>;
 }) {
-  const ownerFieldNames = useMemo(
-    () =>
-      Array.from(
-        new Set(input.accountFields.map((field) => field.counterpartyField)),
-      ),
+  const dependencyFieldNames = useMemo(
+    () => collectAccountDependencyNames(input.accountFields),
     [input.accountFields],
   );
-  const watchedOwnerValues = useWatch({
+  const watchedDependencyValues = useWatch({
     control: input.control as never,
-    name: ownerFieldNames as never[],
+    name: dependencyFieldNames as never[],
   });
   const ownerValuesByField = useMemo(
-    () => buildWatchedValueMap(ownerFieldNames, watchedOwnerValues),
-    [ownerFieldNames, watchedOwnerValues],
+    () => buildWatchedValueMap(dependencyFieldNames, watchedDependencyValues),
+    [dependencyFieldNames, watchedDependencyValues],
   );
   const [requisitesByOwnerKey, setRequisitesByOwnerKey] = useState(
     new Map<string, RequisiteOption[]>(),
@@ -51,9 +50,16 @@ export function useAccountRequisiteOptions(input: {
         accountFields: input.accountFields,
         ownerValuesByField,
         cachedOwnerKeys: requisitesByOwnerKey.keys(),
+        currencyIdByCode: input.currencyIdByCode,
         loadingOwnerKeys,
       }),
-    [input.accountFields, loadingOwnerKeys, ownerValuesByField, requisitesByOwnerKey],
+    [
+      input.accountFields,
+      input.currencyIdByCode,
+      loadingOwnerKeys,
+      ownerValuesByField,
+      requisitesByOwnerKey,
+    ],
   );
 
   useEffect(() => {
@@ -66,6 +72,7 @@ export function useAccountRequisiteOptions(input: {
       setLoadingOwnerKeys((current) => new Set([...current, request.ownerKey]));
 
       void fetchRequisiteOptions({
+        currencyId: request.currencyId,
         ownerId: request.ownerId,
         ownerType: request.ownerType,
         currencyLabelById: input.currencyLabelById,

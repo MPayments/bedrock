@@ -1,3 +1,6 @@
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import type { AppContext } from "../context";
@@ -53,29 +56,109 @@ interface DadataResponse {
   resultCode?: string;
 }
 
-export async function lookupCompanyByInn(apiUrl: string, inn: string) {
+type JsonRequestResponse = {
+  body: unknown;
+  status: number;
+  statusText: string;
+};
+
+async function postJsonWithTimeout(input: {
+  body: unknown;
+  timeoutMs: number;
+  url: string;
+}): Promise<JsonRequestResponse> {
+  const url = new URL(input.url);
+  const requestBody = JSON.stringify(input.body);
+  const requestImpl = url.protocol === "https:" ? httpsRequest : httpRequest;
+
+  return new Promise<JsonRequestResponse>((resolve, reject) => {
+    const request = requestImpl(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Length": Buffer.byteLength(requestBody).toString(),
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+
+        response.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        response.on("end", () => {
+          clearTimeout(timer);
+
+          const rawBody = Buffer.concat(chunks).toString("utf8");
+          const status = response.statusCode ?? 0;
+          const statusText = response.statusMessage ?? "";
+
+          if (rawBody.trim().length === 0) {
+            resolve({
+              body: null,
+              status,
+              statusText,
+            });
+            return;
+          }
+
+          try {
+            resolve({
+              body: JSON.parse(rawBody),
+              status,
+              statusText,
+            });
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+
+    const timer = setTimeout(() => {
+      request.destroy(
+        new Error(
+          `DaData lookup timed out after ${input.timeoutMs}ms`,
+        ),
+      );
+    }, input.timeoutMs);
+
+    request.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+
+    request.write(requestBody);
+    request.end();
+  });
+}
+
+export async function lookupCompanyByInn(
+  apiUrl: string,
+  inn: string,
+  timeoutMs = 30000,
+) {
   if (!DADATA_INN_PATTERN.test(inn)) {
     throw new Error("INN must be exactly 10 or 12 digits");
   }
 
-  const response = await fetch(`${apiUrl}/party`, {
-    body: JSON.stringify({
+  const response = await postJsonWithTimeout({
+    body: {
       branch_type: "MAIN",
       count: 1,
       query: inn,
-    }),
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
     },
-    method: "POST",
+    timeoutMs,
+    url: `${apiUrl}/party`,
   });
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`DaData API error: ${response.status} ${response.statusText}`);
   }
 
-  const data = (await response.json()) as DadataResponse;
+  const data = response.body as DadataResponse;
   const suggestion = data.payload?.suggestions?.[0];
   const company = suggestion?.data;
 
@@ -200,7 +283,11 @@ export function legalEntitiesRoutes(ctx: AppContext) {
     })
     .openapi(lookupByInnRoute, async (c): Promise<any> => {
       const { inn } = c.req.valid("query");
-      const result = await lookupCompanyByInn(ctx.env.DADATA_API_URL, inn);
+      const result = await lookupCompanyByInn(
+        ctx.env.DADATA_API_URL,
+        inn,
+        ctx.env.DADATA_TIMEOUT_MS,
+      );
       return c.json(result, 200);
     })
     .openapi(parseCardRoute, async (c): Promise<any> => {

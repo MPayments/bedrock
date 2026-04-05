@@ -7,6 +7,7 @@ import {
   buildWatchedValueMap,
   collectVisibilityDependencyNames,
   deriveAccountCurrencyFieldUpdates,
+  findInvalidAccountFieldUpdates,
   findDependentAccountFieldNames,
   isFieldVisible,
   mapDocumentFormZodError,
@@ -24,6 +25,7 @@ const accountField = {
   name: "organizationRequisiteId",
   label: "Organization account",
   counterpartyField: "organizationId",
+  currencyFieldName: "currency",
   optionsSource: "organizationRequisites",
 } satisfies DocumentFormField;
 
@@ -67,6 +69,23 @@ describe("document typed form helpers", () => {
       payload: {
         id: "draft-1",
       },
+    });
+  });
+
+  it("merges create-mode initial payload into default values without using fromPayload", () => {
+    expect(
+      resolveDocumentFormDefaultValues({
+        definition: documentDefinition,
+        mode: "create",
+        initialPayload: {
+          amount: "1000",
+          currency: "RUB",
+        },
+      }),
+    ).toEqual({
+      amount: "1000",
+      currency: "RUB",
+      mode: "default",
     });
   });
 
@@ -115,6 +134,7 @@ describe("document typed form helpers", () => {
 
   it("plans deduplicated requisite requests and skips cached/loading owners", () => {
     const ownerId = "614fb6eb-a1bd-429e-9628-e97d0f2efa0b";
+    const rubCurrencyId = "714fb6eb-a1bd-429e-9628-e97d0f2efa0c";
 
     expect(
       resolveAccountRequisiteRequests({
@@ -126,15 +146,18 @@ describe("document typed form helpers", () => {
           },
         ],
         ownerValuesByField: {
+          currency: "RUB",
           organizationId: ownerId,
         },
         cachedOwnerKeys: [],
+        currencyIdByCode: new Map([["RUB", rubCurrencyId]]),
         loadingOwnerKeys: [],
       }),
     ).toEqual([
       {
+        currencyId: rubCurrencyId,
         ownerId,
-        ownerKey: `organizationRequisites:${ownerId}`,
+        ownerKey: `organizationRequisites:${ownerId}:${rubCurrencyId}`,
         ownerType: "organization",
       },
     ]);
@@ -143,12 +166,43 @@ describe("document typed form helpers", () => {
       resolveAccountRequisiteRequests({
         accountFields: [accountField],
         ownerValuesByField: {
+          currency: "RUB",
           organizationId: ownerId,
         },
-        cachedOwnerKeys: [`organizationRequisites:${ownerId}`],
+        cachedOwnerKeys: [`organizationRequisites:${ownerId}:${rubCurrencyId}`],
+        currencyIdByCode: new Map([["RUB", rubCurrencyId]]),
         loadingOwnerKeys: [],
       }),
     ).toEqual([]);
+  });
+
+  it("clears selected account values that no longer match the current currency-scoped options", () => {
+    const ownerId = "614fb6eb-a1bd-429e-9628-e97d0f2efa0b";
+    const rubCurrencyId = "714fb6eb-a1bd-429e-9628-e97d0f2efa0c";
+
+    expect(
+      findInvalidAccountFieldUpdates({
+        accountFields: [accountField],
+        currencyIdByCode: new Map([["RUB", rubCurrencyId]]),
+        loadingOwnerKeys: [],
+        requisitesByOwnerKey: new Map([
+          [
+            `organizationRequisites:${ownerId}:${rubCurrencyId}`,
+            [{ id: "requisite-rub" }],
+          ],
+        ]),
+        values: {
+          currency: "RUB",
+          organizationId: ownerId,
+          organizationRequisiteId: "requisite-usd",
+        },
+      }),
+    ).toEqual([
+      {
+        name: "organizationRequisiteId",
+        value: "",
+      },
+    ]);
   });
 
   it("derives hidden account-currency updates and clears stale values", () => {

@@ -53,6 +53,7 @@ import type {
   FinanceDealQueueFilters,
   FinanceDealQueueProjection,
   FinanceDealQueueItem,
+  FinanceProfitabilityAmount,
   FinanceDealWorkspaceProjection,
   FinanceProfitabilitySnapshot,
   PortalDealListProjection,
@@ -949,9 +950,36 @@ function isQuoteEligible(workflow: DealWorkflowProjection) {
   return workflow.executionPlan.some((leg) => leg.kind === "convert");
 }
 
+function buildFundingMessage(workflow: DealWorkflowProjection) {
+  if (!workflow.executionPlan.some((leg) => leg.kind === "convert")) {
+    return null;
+  }
+
+  if (
+    workflow.fundingResolution.state === "resolved" &&
+    workflow.fundingResolution.strategy === "existing_inventory"
+  ) {
+    const targetCurrency =
+      workflow.fundingResolution.targetCurrency ?? "целевой валюте";
+
+    return `Используем остаток ${targetCurrency} на казначейском счете`;
+  }
+
+  if (
+    workflow.fundingResolution.state === "resolved" &&
+    workflow.fundingResolution.strategy === "external_fx"
+  ) {
+    return "Требуется конвертация";
+  }
+
+  return null;
+}
+
 function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
   if (workflow.summary.type === "payment") {
     return {
+      fundingMessage: buildFundingMessage(workflow),
+      fundingResolution: workflow.fundingResolution,
       quoteAmount: workflow.intake.incomingReceipt.expectedAmount ?? null,
       quoteAmountSide: "target" as const,
       sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
@@ -960,6 +988,8 @@ function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
   }
 
   return {
+    fundingMessage: buildFundingMessage(workflow),
+    fundingResolution: workflow.fundingResolution,
     quoteAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
     quoteAmountSide: "source" as const,
     sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
@@ -978,7 +1008,7 @@ function getPositionByKind(
   );
 }
 
-function sumCalculationLineAmounts(
+function sumCalculationLineAmountsByCurrency(
   lines: CalculationDetailsLike["lines"],
   kind: string,
 ) {
@@ -987,39 +1017,99 @@ function sumCalculationLineAmounts(
       return acc;
     }
 
-    return acc + BigInt(line.amountMinor);
-  }, 0n);
+    const nextAmount =
+      (acc.get(line.currencyId) ?? 0n) + BigInt(line.amountMinor);
+
+    acc.set(line.currencyId, nextAmount);
+    return acc;
+  }, new Map<string, bigint>());
 }
 
-function buildProfitabilitySnapshot(
+function mergeProfitabilityAmountsByCurrency(
+  ...groups: Array<Map<string, bigint>>
+) {
+  const totals = new Map<string, bigint>();
+
+  for (const group of groups) {
+    for (const [currencyId, amountMinor] of group.entries()) {
+      totals.set(currencyId, (totals.get(currencyId) ?? 0n) + amountMinor);
+    }
+  }
+
+  return totals;
+}
+
+async function resolveProfitabilityAmounts(
+  currencyIdsToAmounts: Map<string, bigint>,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceProfitabilityAmount[]> {
+  if (currencyIdsToAmounts.size === 0) {
+    return [];
+  }
+
+  const currencies = await Promise.all(
+    Array.from(currencyIdsToAmounts.keys()).map(async (currencyId) => ({
+      currency: await deps.currencies.findById(currencyId),
+      currencyId,
+    })),
+  );
+
+  const codeById = new Map(
+    currencies.map(({ currency, currencyId }) => [
+      currencyId,
+      currency?.code ?? currencyId,
+    ]),
+  );
+
+  return Array.from(currencyIdsToAmounts.entries())
+    .sort(([leftId], [rightId]) => {
+      const leftCode = codeById.get(leftId) ?? leftId;
+      const rightCode = codeById.get(rightId) ?? rightId;
+      return leftCode.localeCompare(rightCode);
+    })
+    .map(([currencyId, amountMinor]) => ({
+      amountMinor: amountMinor.toString(),
+      currencyCode: codeById.get(currencyId) ?? currencyId,
+      currencyId,
+    }));
+}
+
+async function buildProfitabilitySnapshot(
   calculation: Awaited<
     ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
   > | null,
-): FinanceProfitabilitySnapshot {
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceProfitabilitySnapshot> {
   if (!calculation) {
     return null;
   }
 
-  const feeRevenueMinor = sumCalculationLineAmounts(
+  const feeRevenue = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "fee_revenue",
   );
-  const providerFeeExpenseMinor = sumCalculationLineAmounts(
+  const providerFeeExpense = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "provider_fee_expense",
   );
-  const spreadRevenueMinor = sumCalculationLineAmounts(
+  const spreadRevenue = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "spread_revenue",
+  );
+  const totalRevenue = mergeProfitabilityAmountsByCurrency(
+    feeRevenue,
+    spreadRevenue,
   );
 
   return {
     calculationId: calculation.id,
-    currencyId: calculation.currentSnapshot.baseCurrencyId,
-    feeRevenueMinor: feeRevenueMinor.toString(),
-    providerFeeExpenseMinor: providerFeeExpenseMinor.toString(),
-    spreadRevenueMinor: spreadRevenueMinor.toString(),
-    totalRevenueMinor: (feeRevenueMinor + spreadRevenueMinor).toString(),
+    feeRevenue: await resolveProfitabilityAmounts(feeRevenue, deps),
+    providerFeeExpense: await resolveProfitabilityAmounts(
+      providerFeeExpense,
+      deps,
+    ),
+    spreadRevenue: await resolveProfitabilityAmounts(spreadRevenue, deps),
+    totalRevenue: await resolveProfitabilityAmounts(totalRevenue, deps),
   };
 }
 
@@ -2019,7 +2109,10 @@ export function createDealProjectionsWorkflow(
             leg.state !== "skipped" &&
             !isDealInTerminalStatus(workflow),
           exchangeDocument:
-            leg.kind === "convert" && openingInvoiceRequirement
+            leg.kind === "convert" &&
+            workflow.fundingResolution.state === "resolved" &&
+            workflow.fundingResolution.strategy === "external_fx" &&
+            openingInvoiceRequirement
               ? {
                   activeDocumentId: activeExchangeDocument?.id ?? null,
                   createAllowed:
@@ -2042,7 +2135,10 @@ export function createDealProjectionsWorkflow(
         ...buildFinanceQuoteRequestContext(workflow),
         quoteEligibility: isQuoteEligible(workflow),
       },
-      profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
+      profitabilitySnapshot: await buildProfitabilitySnapshot(
+        currentCalculation,
+        deps,
+      ),
       queueContext,
       reconciliationSummary,
       relatedResources: {
@@ -2094,10 +2190,17 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
-          const applicantName =
-            getApplicantParticipant(workflow)?.displayName ?? null;
+          const customerId = getCustomerParticipant(workflow)?.customerId ?? null;
           const internalEntityName =
             getInternalEntityParticipant(workflow)?.displayName ?? null;
+
+          const customer = customerId
+            ? await deps.parties.customers.queries.findById(customerId)
+            : null;
+          const applicantName =
+            customer?.displayName ??
+            getApplicantParticipant(workflow)?.displayName ??
+            null;
 
           if (
             !matchesTextFilter(applicantName, filters.applicant) ||
@@ -2178,8 +2281,10 @@ export function createDealProjectionsWorkflow(
             internalEntityName,
             nextAction: workflow.nextAction,
             operationalState: workflow.operationalState,
-            profitabilitySnapshot:
-              buildProfitabilitySnapshot(currentCalculation),
+            profitabilitySnapshot: await buildProfitabilitySnapshot(
+              currentCalculation,
+              deps,
+            ),
             queue: queueContext.queue,
             queueReason: queueContext.queueReason,
             stage,

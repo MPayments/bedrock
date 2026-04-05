@@ -22,11 +22,14 @@ export const REQUISITE_PROVIDER_IDS = {
   CRYPTO_EXCHANGE: "00000000-0000-4000-8000-000000000402",
   ALT_BANK: "00000000-0000-4000-8000-000000000403",
   PAYMENT_GATEWAY: "00000000-0000-4000-8000-000000000404",
+  RUSSIAN_BANK: "00000000-0000-4000-8000-000000000405",
 } as const;
 
 export const REQUISITE_IDS = {
   MULTIHANSA_USD: "00000000-0000-4000-8000-000000000501",
   MULTIHANSA_EUR: "00000000-0000-4000-8000-000000000502",
+  MULTIHANSA_RUB: "00000000-0000-4000-8000-000000000503",
+  MULTIHANSA_RUSSIA_RUB: "00000000-0000-4000-8000-000000000504",
   ACME_USD: "00000000-0000-4000-8000-000000000511",
   ACME_EUR: "00000000-0000-4000-8000-000000000512",
   GLOBEX_USD: "00000000-0000-4000-8000-000000000521",
@@ -162,6 +165,17 @@ export const REQUISITE_PROVIDERS = [
     bic: null,
     swift: null,
   },
+  {
+    id: REQUISITE_PROVIDER_IDS.RUSSIAN_BANK,
+    kind: "bank" as const,
+    name: "Russian Settlement Bank",
+    description: "RUB settlement bank for local treasury operations",
+    country: "RU" as const,
+    address: "Moscow, Russia",
+    contact: "ops@ru-settlement-bank.example",
+    bic: "044525225",
+    swift: null,
+  },
 ] as const;
 
 export interface SeedRequisiteFixture {
@@ -223,6 +237,21 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: true,
   },
   {
+    id: REQUISITE_IDS.MULTIHANSA_RUB,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
+    providerId: REQUISITE_PROVIDER_IDS.RUSSIAN_BANK,
+    currencyCode: "RUB",
+    kind: "bank",
+    label: "Multihansa RUB",
+    beneficiaryName: "Multihansa Financial Services Ltd",
+    institutionName: "Russian Settlement Bank",
+    accountNo: "40702810900000000001",
+    corrAccount: "30101810400000000225",
+    bic: "044525225",
+    isDefault: true,
+  },
+  {
     id: REQUISITE_IDS.MULTIHANSA_USDT,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
@@ -261,6 +290,21 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     institutionName: "Alternative Settlement Bank",
     accountNo: "JP000001",
     swift: "ALTBGB2LXXX",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.MULTIHANSA_RUSSIA_RUB,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_RUSSIA,
+    providerId: REQUISITE_PROVIDER_IDS.RUSSIAN_BANK,
+    currencyCode: "RUB",
+    kind: "bank",
+    label: "Multihansa Russia RUB",
+    beneficiaryName: "Multihansa Russia LLC",
+    institutionName: "Russian Settlement Bank",
+    accountNo: "40702810900000000002",
+    corrAccount: "30101810400000000225",
+    bic: "044525225",
     isDefault: true,
   },
   {

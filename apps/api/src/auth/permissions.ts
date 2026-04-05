@@ -111,7 +111,7 @@ export const finance = ac.newRole({
   deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list"],
   organizations: ["list"],
-  documents: ["create", "list", "get", "update", "submit"],
+  documents: ["create", "list", "get", "update", "submit", "post", "cancel"],
   accounting: ["list"],
   balances: ["get"],
   requisites: ["list", "providers_list"],

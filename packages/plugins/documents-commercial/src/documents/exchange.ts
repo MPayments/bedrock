@@ -61,6 +61,21 @@ async function resolveExchangeDraftContext(
       );
     }
 
+    if (
+      dealFxContext.fundingResolution.state !== "resolved" ||
+      !dealFxContext.fundingResolution.strategy
+    ) {
+      throw new DocumentValidationError(
+        "exchange requires a resolved deal funding strategy",
+      );
+    }
+
+    if (dealFxContext.fundingResolution.strategy !== "external_fx") {
+      throw new DocumentValidationError(
+        "exchange is available only when the deal requires external FX execution",
+      );
+    }
+
     if (!dealFxContext.calculationId) {
       throw new DocumentValidationError(
         "exchange requires an accepted calculation linked to the deal",

@@ -41,6 +41,7 @@ import type {
   DealCalculationHistoryItem,
   DealCapabilityState,
   DealDetails,
+  DealFundingResolution,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealTimelineEvent,
@@ -52,12 +53,16 @@ import type {
   PortalDealProjection,
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
-import type { DealReads } from "../../application/ports/deal.reads";
+import type {
+  DealFundingAssessmentPort,
+  DealReads,
+} from "../../application/ports/deal.reads";
 import { getPrimaryDealAmountFields } from "../../application/shared/primary-amount-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
+  dealIntakeHasConvertLeg,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -371,6 +376,7 @@ export class DrizzleDealReads implements DealReads {
       "counterparties" | "customers" | "organizations"
     >,
     private readonly documentsReadModel?: DealDocumentsReadModel,
+    private readonly fundingAssessment?: DealFundingAssessmentPort,
   ) {}
 
   private async loadSummaryRow(id: string): Promise<DealSummaryRow | null> {
@@ -625,6 +631,40 @@ export class DrizzleDealReads implements DealReads {
     return row ? mapQuoteAcceptance(row) : null;
   }
 
+  private async assessFundingResolution(input: {
+    acceptedQuote: DealQuoteAcceptance | null;
+    intake: DealIntakeDraft;
+    participants: DealWorkflowParticipant[];
+  }): Promise<DealFundingResolution> {
+    const hasConvertLeg = dealIntakeHasConvertLeg(input.intake);
+
+    if (!this.fundingAssessment) {
+      return {
+        availableMinor: null,
+        fundingOrganizationId: null,
+        fundingRequisiteId: null,
+        reasonCode: hasConvertLeg
+          ? "funding_assessment_unavailable"
+          : "no_convert_leg",
+        requiredAmountMinor: null,
+        state: hasConvertLeg ? "blocked" : "not_applicable",
+        strategy: null,
+        targetCurrency: null,
+        targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+      };
+    }
+
+    return this.fundingAssessment.assessFunding({
+      acceptedQuoteId: input.acceptedQuote?.quoteId ?? null,
+      hasConvertLeg,
+      internalEntityOrganizationId:
+        input.participants.find(
+          (participant) => participant.role === "internal_entity",
+        )?.organizationId ?? null,
+      targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+    });
+  }
+
   private async loadApprovals(dealId: string): Promise<DealApproval[]> {
     const rows = await this.db
       .select({
@@ -794,12 +834,18 @@ export class DrizzleDealReads implements DealReads {
         this.loadFormalDocuments(summary.id),
         this.loadAttachmentIngestions(summary.id),
       ]);
+    const fundingResolution = await this.assessFundingResolution({
+      acceptedQuote,
+      intake: summary.snapshot,
+      participants,
+    });
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
     const executionPlan = buildEffectiveDealExecutionPlan({
       acceptance: acceptedQuote,
       documents: formalDocuments,
+      fundingResolution,
       intake: summary.snapshot,
       now,
       storedLegs,
@@ -856,6 +902,7 @@ export class DrizzleDealReads implements DealReads {
       acceptedQuote,
       attachmentIngestions,
       executionPlan,
+      fundingResolution,
       intake: summary.snapshot,
       nextAction,
       operationalState,

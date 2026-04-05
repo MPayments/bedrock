@@ -27,11 +27,25 @@ import {
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
 } from "@/features/treasury/deals/labels";
-import { formatDate, formatMajorAmount } from "@/lib/format";
+import { formatDate, formatMinorAmountWithCurrency } from "@/lib/format";
 
 type FinanceDealWorkspaceViewProps = {
   deal: FinanceDealWorkspace;
 };
+
+function formatProfitabilityAmounts(
+  items: NonNullable<FinanceDealWorkspace["profitabilitySnapshot"]>["feeRevenue"],
+) {
+  if (!items || items.length === 0) {
+    return "0";
+  }
+
+  return items
+    .map((item) =>
+      formatMinorAmountWithCurrency(item.amountMinor, item.currencyCode),
+    )
+    .join(" · ");
+}
 
 export function FinanceDealWorkspaceView({
   deal,
@@ -142,7 +156,7 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Комиссионный доход</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(deal.profitabilitySnapshot.feeRevenueMinor)
+                  ? formatProfitabilityAmounts(deal.profitabilitySnapshot.feeRevenue)
                   : "—"}
               </span>
             </div>
@@ -150,7 +164,9 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Доход от спреда</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(deal.profitabilitySnapshot.spreadRevenueMinor)
+                  ? formatProfitabilityAmounts(
+                      deal.profitabilitySnapshot.spreadRevenue,
+                    )
                   : "—"}
               </span>
             </div>
@@ -158,8 +174,8 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Расходы провайдера</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(
-                      deal.profitabilitySnapshot.providerFeeExpenseMinor,
+                  ? formatProfitabilityAmounts(
+                      deal.profitabilitySnapshot.providerFeeExpense,
                     )
                   : "—"}
               </span>

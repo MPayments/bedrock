@@ -182,9 +182,6 @@ export function DocumentDetailsView({
               <span className="text-muted-foreground">Тип:</span>{" "}
               {getDocumentTypeLabel(document.docType)}
             </div>
-            <div className="font-mono text-xs text-muted-foreground">
-              {document.docType}
-            </div>
             <div>
               <span className="text-muted-foreground">Дата:</span>{" "}
               {formatDate(document.occurredAt)}
@@ -334,17 +331,6 @@ export function DocumentDetailsView({
           </CardContent>
         </Card>
       ) : null}
-
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Данные документа</CardTitle>
-        </CardHeader>
-        <CardContent className="py-6">
-          <pre className="bg-muted overflow-x-auto rounded-sm p-4 text-xs">
-            {JSON.stringify(document.payload, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
 
       {details.computed ? (
         <Card className="rounded-sm">

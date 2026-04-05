@@ -23,6 +23,7 @@ import {
 } from "./helpers";
 import { useAccountRequisiteOptions } from "./hooks/use-account-requisite-options";
 import { useDerivedAccountCurrencyFields } from "./hooks/use-derived-account-currency-fields";
+import { useResetIncompatibleAccountFields } from "./hooks/use-reset-incompatible-account-fields";
 import { useDocumentFormSubmission } from "./hooks/use-document-form-submission";
 
 type DocumentTypedFormProviderProps = {
@@ -126,6 +127,13 @@ function DocumentTypedFormProvider({
       ),
     [options.currencies],
   );
+  const currencyIdByCode = useMemo(
+    () =>
+      new Map(
+        options.currencies.map((currency) => [currency.code, currency.id] as const),
+      ),
+    [options.currencies],
+  );
   const selectOptions = useMemo(
     () => ({
       currencies: options.currencies.map((currency) => ({
@@ -160,6 +168,7 @@ function DocumentTypedFormProvider({
   } = useAccountRequisiteOptions({
     accountFields,
     control,
+    currencyIdByCode,
     currencyCodeById,
     currencyLabelById,
   });
@@ -168,6 +177,15 @@ function DocumentTypedFormProvider({
     control,
     derivedFields,
     accountCurrencyCodeById,
+    setValue,
+  });
+
+  useResetIncompatibleAccountFields({
+    accountFields,
+    control,
+    currencyIdByCode,
+    loadingOwnerKeys,
+    requisitesByOwnerKey,
     setValue,
   });
 

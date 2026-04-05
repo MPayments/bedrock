@@ -1,6 +1,7 @@
 "use client";
 
 import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { useMemo } from "react";
 
 import {
   Select,
@@ -15,10 +16,11 @@ import { isUuid } from "@/lib/resources/http";
 
 import { useDocumentTypedForm } from "../context";
 import {
+  buildWatchedValueMap,
   findSelectedLabel,
   getDocumentFormFieldId,
   readValueAsString,
-  resolveOwnerKey,
+  resolveAccountFieldOwnerKey,
   resolveRequisiteFieldSource,
 } from "../helpers";
 import {
@@ -33,22 +35,45 @@ export function AccountFieldRenderer({
   field,
 }: DocumentTypedFormFieldRendererProps<"account">) {
   const {
-    meta: { loadingOwnerKeys, requisitesByOwnerKey },
+    meta: { loadingOwnerKeys, options, requisitesByOwnerKey },
   } = useDocumentTypedForm();
   const { control } = useFormContext<DocumentFormValues>();
   const { disabled, submitting } = useDocumentTypedFormDisabledState();
   const errorMessage = useDocumentTypedFormFieldError(field.name);
-  const ownerId = readValueAsString(
-    useWatch({
-      control,
-      name: field.counterpartyField,
-    }),
-  ).trim();
-  const requisiteSource = resolveRequisiteFieldSource(field);
-  const ownerKey = resolveOwnerKey({
-    ownerId,
-    requisiteSource,
+  const dependencyFieldNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          field.currencyFieldName
+            ? [field.counterpartyField, field.currencyFieldName]
+            : [field.counterpartyField],
+        ),
+      ),
+    [field.counterpartyField, field.currencyFieldName],
+  );
+  const watchedDependencyValues = useWatch({
+    control,
+    name: dependencyFieldNames as never[],
   });
+  const dependencyValues = useMemo(
+    () => buildWatchedValueMap(dependencyFieldNames, watchedDependencyValues),
+    [dependencyFieldNames, watchedDependencyValues],
+  );
+  const ownerId = readValueAsString(dependencyValues[field.counterpartyField]).trim();
+  const requisiteSource = resolveRequisiteFieldSource(field);
+  const currencyIdByCode = useMemo(
+    () =>
+      new Map(
+        options.currencies.map((currency) => [currency.code, currency.id] as const),
+      ),
+    [options.currencies],
+  );
+  const ownerKey =
+    resolveAccountFieldOwnerKey({
+      currencyIdByCode,
+      field,
+      values: dependencyValues,
+    }) ?? "";
   const accountOptions = isUuid(ownerId)
     ? (requisitesByOwnerKey.get(ownerKey) ?? [])
     : [];

@@ -27,6 +27,17 @@ function createBaseWorkflow(): DealWorkflowProjection {
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "ready"),
     ],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: "not_applicable",
+      requiredAmountMinor: null,
+      state: "not_applicable",
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
     intake: {
       common: {
         applicantCounterpartyId: "counterparty-1",
@@ -640,14 +651,33 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection.counts.failed_instruction).toBe(1);
     expect(projection.items).toHaveLength(1);
     expect(projection.items[0]).toMatchObject({
+      applicantName: "Customer One",
       dealId: "deal-1",
       createdAt: new Date("2026-04-01T00:00:00.000Z"),
       queue: "failed_instruction",
       queueReason: "Сделка заблокирована на этапе исполнения",
       profitabilitySnapshot: {
-        feeRevenueMinor: "100",
-        spreadRevenueMinor: "250",
-        totalRevenueMinor: "350",
+        feeRevenue: [
+          {
+            amountMinor: "100",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        spreadRevenue: [
+          {
+            amountMinor: "250",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        totalRevenue: [
+          {
+            amountMinor: "350",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
       },
     });
     expect(projection.items[0]?.blockingReasons).toContain(
@@ -1048,11 +1078,34 @@ describe("createDealProjectionsWorkflow", () => {
       },
       profitabilitySnapshot: {
         calculationId: "calculation-1",
-        currencyId: "currency-rub",
-        feeRevenueMinor: "100",
-        providerFeeExpenseMinor: "250",
-        spreadRevenueMinor: "500",
-        totalRevenueMinor: "600",
+        feeRevenue: [
+          {
+            amountMinor: "100",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        providerFeeExpense: [
+          {
+            amountMinor: "250",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        spreadRevenue: [
+          {
+            amountMinor: "500",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        totalRevenue: [
+          {
+            amountMinor: "600",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
       },
       instructionSummary: {
         failed: 0,

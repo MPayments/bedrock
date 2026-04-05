@@ -3,6 +3,7 @@ import {
   type DEAL_LEG_KIND_VALUES,
 } from "./constants";
 import type {
+  DealFundingResolution,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
@@ -274,6 +275,7 @@ function hasPostedTransferDocument(
 export function buildEffectiveDealExecutionPlan(input: {
   acceptance: DealQuoteAcceptance | null;
   documents: DealRelatedFormalDocument[];
+  fundingResolution: DealFundingResolution;
   intake: DealIntakeDraft;
   now: Date;
   storedLegs: DealWorkflowLeg[];
@@ -304,6 +306,20 @@ export function buildEffectiveDealExecutionPlan(input: {
     downstreamLegs.length === 1 && hasPostedTransferDocument(input.documents);
 
   return merged.map((leg) => {
+    if (
+      leg.kind === "convert" &&
+      input.fundingResolution.state === "resolved" &&
+      input.fundingResolution.strategy === "existing_inventory" &&
+      leg.state !== "done" &&
+      leg.state !== "skipped" &&
+      leg.operationRefs.length === 0
+    ) {
+      return {
+        ...leg,
+        state: "skipped",
+      };
+    }
+
     if (
       leg.kind === "convert" &&
       leg.state !== "done" &&

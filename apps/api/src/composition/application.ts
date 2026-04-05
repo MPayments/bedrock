@@ -182,6 +182,7 @@ export function createApplicationServices(
     createApiDealsModule({
       currencies: currenciesService,
       db: tx,
+      ledgerBalances: createLedgerModuleForTransaction(tx).balances.queries,
       quoteReads: createTreasuryModuleForTransaction(tx).quotes.queries,
       logger,
       idempotency,
@@ -244,6 +245,7 @@ export function createApplicationServices(
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
+    ledgerBalances: ledgerModule.balances.queries,
     quoteReads: treasuryModule.quotes.queries,
     logger,
     idempotency,

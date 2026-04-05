@@ -945,7 +945,11 @@ const getDealProjectionRoute = createRoute({
         await ctx.customerPortalWorkflow.assertOnboardingAccess({
           userId: user.id,
         });
-        const result = await lookupCompanyByInn(ctx.env.DADATA_API_URL, inn);
+        const result = await lookupCompanyByInn(
+          ctx.env.DADATA_API_URL,
+          inn,
+          ctx.env.DADATA_TIMEOUT_MS,
+        );
         return c.json(result, 200);
       } catch (error) {
         if (

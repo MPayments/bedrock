@@ -1,4 +1,5 @@
 import type { FinanceAgreementContext } from "@/features/agreements/lib/queries";
+import type { SerializedRequisite } from "@/features/entities/requisites-shared/lib/constants";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
 import { minorToAmountString } from "@bedrock/shared/money";
@@ -47,12 +48,7 @@ function getCalculationCurrencyCode(
   deal: Pick<FinanceDealWorkbench, "calculationHistory" | "summary">,
   options: Pick<DocumentFormOptions, "currencies">,
 ) {
-  const calculation =
-    (deal.summary.calculationId
-      ? deal.calculationHistory.find(
-          (item) => item.calculationId === deal.summary.calculationId,
-        )
-      : null) ?? deal.calculationHistory[0] ?? null;
+  const calculation = getSelectedCalculation(deal);
 
   if (!calculation) {
     return null;
@@ -65,6 +61,55 @@ function getCalculationCurrencyCode(
   );
 }
 
+function getSelectedCalculation(
+  deal: Pick<FinanceDealWorkbench, "calculationHistory" | "summary">,
+) {
+  return (
+    (deal.summary.calculationId
+      ? deal.calculationHistory.find(
+          (item) => item.calculationId === deal.summary.calculationId,
+        )
+      : null) ?? deal.calculationHistory[0] ?? null
+  );
+}
+
+function selectOrganizationRequisiteId(input: {
+  agreementRequisiteId: string | null;
+  calculationCurrencyId: string | null;
+  organizationRequisites?: Pick<SerializedRequisite, "currencyId" | "id" | "isDefault">[];
+}) {
+  if (!input.organizationRequisites) {
+    return input.agreementRequisiteId;
+  }
+
+  if (!input.calculationCurrencyId) {
+    return input.agreementRequisiteId;
+  }
+
+  const sameCurrencyRequisites = input.organizationRequisites.filter(
+    (requisite) => requisite.currencyId === input.calculationCurrencyId,
+  );
+
+  if (sameCurrencyRequisites.length === 0) {
+    return null;
+  }
+
+  if (
+    input.agreementRequisiteId &&
+    sameCurrencyRequisites.some(
+      (requisite) => requisite.id === input.agreementRequisiteId,
+    )
+  ) {
+    return input.agreementRequisiteId;
+  }
+
+  return (
+    sameCurrencyRequisites.find((requisite) => requisite.isDefault)?.id ??
+    sameCurrencyRequisites[0]?.id ??
+    null
+  );
+}
+
 export function buildDealScopedDocumentInitialPayload(input: {
   agreement: FinanceAgreementContext | null;
   options: Pick<DocumentFormOptions, "currencies">;
@@ -73,6 +118,7 @@ export function buildDealScopedDocumentInitialPayload(input: {
     "calculationHistory" | "formalDocumentRequirements" | "summary" | "workflow"
   >;
   docType: string;
+  organizationRequisites?: Pick<SerializedRequisite, "currencyId" | "id" | "isDefault">[];
 }): Record<string, unknown> | undefined {
   switch (input.docType) {
     case "invoice": {
@@ -86,14 +132,7 @@ export function buildDealScopedDocumentInitialPayload(input: {
         input.agreement?.organizationId ??
         getWorkflowParticipant(input.deal, "internal_entity")?.organizationId ??
         null;
-      const organizationRequisiteId =
-        input.agreement?.organizationRequisiteId ?? null;
-      const calculation =
-        (input.deal.summary.calculationId
-          ? input.deal.calculationHistory.find(
-              (item) => item.calculationId === input.deal.summary.calculationId,
-            )
-          : null) ?? input.deal.calculationHistory[0] ?? null;
+      const calculation = getSelectedCalculation(input.deal);
       const currency =
         getCalculationCurrencyCode(input.deal, input.options);
       const amount =
@@ -102,6 +141,11 @@ export function buildDealScopedDocumentInitialPayload(input: {
               currency,
             })
           : null;
+      const organizationRequisiteId = selectOrganizationRequisiteId({
+        agreementRequisiteId: input.agreement?.organizationRequisiteId ?? null,
+        calculationCurrencyId: calculation?.calculationCurrencyId ?? null,
+        organizationRequisites: input.organizationRequisites,
+      });
 
       return compactPayload({
         amount,

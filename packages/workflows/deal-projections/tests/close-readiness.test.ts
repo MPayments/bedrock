@@ -72,6 +72,17 @@ function createWorkflow(input?: {
         operationId: "operation-2",
       }),
     ],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: "not_applicable",
+      requiredAmountMinor: null,
+      state: "not_applicable",
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
     intake: {
       common: {
         applicantCounterpartyId: "counterparty-1",

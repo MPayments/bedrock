@@ -48,6 +48,7 @@ import {
 import type {
   FinanceDealQuoteItem,
   FinanceDealWorkbench,
+  FinanceProfitabilityAmount,
 } from "@/features/treasury/deals/lib/queries";
 import {
   collectFinanceDealTopBlockers,
@@ -88,7 +89,11 @@ import {
   getTreasuryOperationKindVariant,
 } from "@/features/treasury/operations/lib/labels";
 import { executeMutation } from "@/lib/resources/http";
-import { formatDate, formatMajorAmount } from "@/lib/format";
+import {
+  formatDate,
+  formatMajorAmount,
+  formatMinorAmountWithCurrency,
+} from "@/lib/format";
 
 import { ExecutionSummaryRail } from "./execution-summary-rail";
 import { DealTimelineCard } from "./deal-timeline-card";
@@ -1022,12 +1027,18 @@ function getReconciliationStateVariant(value: string) {
   }
 }
 
-function formatMinorSnapshotAmount(value: string | null | undefined) {
-  if (!value) {
-    return "—";
+function formatProfitabilityAmounts(
+  items: FinanceProfitabilityAmount[] | null | undefined,
+) {
+  if (!items || items.length === 0) {
+    return "0";
   }
 
-  return formatMajorAmount(value);
+  return items
+    .map((item) =>
+      formatMinorAmountWithCurrency(item.amountMinor, item.currencyCode),
+    )
+    .join(" · ");
 }
 
 type ExecutionTabProps = {
@@ -1117,8 +1128,8 @@ function ExecutionTab({
                 Комиссионный доход
               </div>
               <div className="mt-1 text-lg font-semibold">
-                {formatMinorSnapshotAmount(
-                  deal.profitabilitySnapshot?.feeRevenueMinor,
+                {formatProfitabilityAmounts(
+                  deal.profitabilitySnapshot?.feeRevenue,
                 )}
               </div>
             </div>
@@ -1127,8 +1138,8 @@ function ExecutionTab({
                 Доход от спреда
               </div>
               <div className="mt-1 text-lg font-semibold">
-                {formatMinorSnapshotAmount(
-                  deal.profitabilitySnapshot?.spreadRevenueMinor,
+                {formatProfitabilityAmounts(
+                  deal.profitabilitySnapshot?.spreadRevenue,
                 )}
               </div>
             </div>
@@ -1137,8 +1148,8 @@ function ExecutionTab({
                 Расходы провайдера
               </div>
               <div className="mt-1 text-lg font-semibold">
-                {formatMinorSnapshotAmount(
-                  deal.profitabilitySnapshot?.providerFeeExpenseMinor,
+                {formatProfitabilityAmounts(
+                  deal.profitabilitySnapshot?.providerFeeExpense,
                 )}
               </div>
             </div>
@@ -1317,6 +1328,11 @@ function ExecutionTab({
                     <div className="text-sm text-muted-foreground">
                       {getDealLegStateLabel(leg.state)}
                     </div>
+                    {leg.kind === "convert" && deal.pricing.fundingMessage ? (
+                      <div className="text-sm text-muted-foreground">
+                        {deal.pricing.fundingMessage}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{getDealLegStateLabel(leg.state)}</Badge>

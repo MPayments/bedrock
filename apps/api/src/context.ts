@@ -65,6 +65,7 @@ const EnvSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default("noreply@bedrock.app"),
   DADATA_API_URL: z.string().default("https://www.tbank.ru/business/contractor/company-pages/papi/dadata/suggestions/api/4_1/rs/suggest"),
+  DADATA_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 }).superRefine((env, ctx) => {
   const hasSharedBaseUrl = typeof env.BETTER_AUTH_URL === "string";
   const hasAudienceBaseUrls =

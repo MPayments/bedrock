@@ -185,6 +185,7 @@ export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
 
 export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   attachment_deleted: "Вложение удалено",
+  attachment_ingested: "Файл распознан",
   attachment_uploaded: "Вложение загружено",
   calculation_attached: "Расчет привязан",
   deal_created: "Сделка создана",

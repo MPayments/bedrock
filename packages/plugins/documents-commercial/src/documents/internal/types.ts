@@ -1,3 +1,4 @@
+import type { DealFundingResolution } from "@bedrock/deals/contracts";
 import type {
   Document,
   DocumentModuleRuntime,
@@ -96,6 +97,7 @@ export interface CommercialDealFxContext {
     settlementMode: "in_ledger";
     source: "rule";
   }>;
+  fundingResolution: DealFundingResolution;
   hasConvertLeg: boolean;
   originalAmountMinor: string | null;
   quoteSnapshot: QuoteSnapshot | null;

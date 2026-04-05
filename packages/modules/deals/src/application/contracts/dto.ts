@@ -322,6 +322,39 @@ export const DealRelatedResourcesSchema = z.object({
 
 export type DealRelatedResources = z.infer<typeof DealRelatedResourcesSchema>;
 
+export const DealFundingResolutionStateSchema = z.enum([
+  "not_applicable",
+  "blocked",
+  "resolved",
+]);
+
+export type DealFundingResolutionState = z.infer<
+  typeof DealFundingResolutionStateSchema
+>;
+
+export const DealFundingStrategySchema = z.enum([
+  "existing_inventory",
+  "external_fx",
+]);
+
+export type DealFundingStrategy = z.infer<typeof DealFundingStrategySchema>;
+
+export const DealFundingResolutionSchema = z.object({
+  availableMinor: z.string().nullable(),
+  fundingOrganizationId: z.uuid().nullable(),
+  fundingRequisiteId: z.uuid().nullable(),
+  reasonCode: z.string().nullable(),
+  requiredAmountMinor: z.string().nullable(),
+  state: DealFundingResolutionStateSchema,
+  strategy: DealFundingStrategySchema.nullable(),
+  targetCurrency: z.string().nullable(),
+  targetCurrencyId: z.uuid().nullable(),
+});
+
+export type DealFundingResolution = z.infer<
+  typeof DealFundingResolutionSchema
+>;
+
 export const DealSummarySchema = z.object({
   agreementId: z.uuid(),
   agentId: z.string().nullable(),
@@ -392,6 +425,7 @@ export const DealWorkflowProjectionSchema = z.object({
   acceptedQuote: DealQuoteAcceptanceSchema.nullable(),
   attachmentIngestions: z.array(DealAttachmentIngestionSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
+  fundingResolution: DealFundingResolutionSchema,
   intake: DealIntakeDraftSchema,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,

@@ -161,6 +161,11 @@ const FinanceDealQueueFiltersSchema = z.object({
   status: FinanceDealStatusSchema.optional(),
   type: FinanceDealTypeSchema.optional(),
 });
+const FinanceProfitabilityAmountSchema = z.object({
+  amountMinor: z.string(),
+  currencyCode: z.string(),
+  currencyId: z.string().uuid(),
+});
 
 const FinanceDealListItemSchema = z.object({
   applicantName: z.string().nullable(),
@@ -181,11 +186,10 @@ const FinanceDealListItemSchema = z.object({
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
-      currencyId: z.string().uuid(),
-      feeRevenueMinor: z.string(),
-      providerFeeExpenseMinor: z.string(),
-      spreadRevenueMinor: z.string(),
-      totalRevenueMinor: z.string(),
+      feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
+      spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
+      totalRevenue: z.array(FinanceProfitabilityAmountSchema),
     })
     .nullable(),
   queue: FinanceDealQueueSchema,
@@ -247,6 +251,18 @@ const FinanceDealFormalDocumentRequirementSchema = z.object({
 });
 
 const FinanceDealPricingContextSchema = z.object({
+  fundingMessage: z.string().nullable(),
+  fundingResolution: z.object({
+    availableMinor: z.string().nullable(),
+    fundingOrganizationId: z.string().uuid().nullable(),
+    fundingRequisiteId: z.string().uuid().nullable(),
+    reasonCode: z.string().nullable(),
+    requiredAmountMinor: z.string().nullable(),
+    state: z.enum(["not_applicable", "blocked", "resolved"]),
+    strategy: z.enum(["existing_inventory", "external_fx"]).nullable(),
+    targetCurrency: z.string().nullable(),
+    targetCurrencyId: z.string().uuid().nullable(),
+  }),
   quoteAmount: z.string().nullable(),
   quoteAmountSide: z.enum(["source", "target"]),
   quoteEligibility: z.boolean(),
@@ -332,6 +348,7 @@ const FinanceDealWorkflowParticipantSchema = z.object({
 });
 
 const FinanceDealWorkflowContextSchema = z.object({
+  fundingResolution: FinanceDealPricingContextSchema.shape.fundingResolution,
   intake: z.object({
     common: z.object({
       applicantCounterpartyId: z.string().uuid().nullable(),
@@ -502,11 +519,10 @@ const FinanceDealWorkspaceSchema = z.object({
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
-      currencyId: z.string().uuid(),
-      feeRevenueMinor: z.string(),
-      providerFeeExpenseMinor: z.string(),
-      spreadRevenueMinor: z.string(),
-      totalRevenueMinor: z.string(),
+      feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
+      spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
+      totalRevenue: z.array(FinanceProfitabilityAmountSchema),
     })
     .nullable(),
   queueContext: z.object({
@@ -660,6 +676,9 @@ export type FinanceDealCalculationHistoryItem = z.infer<
 >;
 export type FinanceDealFormalDocumentRequirement = z.infer<
   typeof FinanceDealFormalDocumentRequirementSchema
+>;
+export type FinanceProfitabilityAmount = z.infer<
+  typeof FinanceProfitabilityAmountSchema
 >;
 export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
   blockerState: FinanceDealBlockerState;

@@ -107,6 +107,29 @@ function createWorkflowProjection(input?: {
       ...leg,
       operationRefs: input?.operationRefs?.[index] ?? [],
     })),
+    fundingResolution: withConvert
+      ? {
+          availableMinor: null,
+          fundingOrganizationId: "org-1",
+          fundingRequisiteId: null,
+          reasonCode: "inventory_insufficient",
+          requiredAmountMinor: "9000",
+          state: "resolved" as const,
+          strategy: "external_fx" as const,
+          targetCurrency: "EUR",
+          targetCurrencyId: "currency-eur",
+        }
+      : {
+          availableMinor: null,
+          fundingOrganizationId: null,
+          fundingRequisiteId: null,
+          reasonCode: "no_convert_leg",
+          requiredAmountMinor: null,
+          state: "not_applicable" as const,
+          strategy: null,
+          targetCurrency: null,
+          targetCurrencyId: null,
+        },
     intake: {
       common: {
         applicantCounterpartyId: "counterparty-1",

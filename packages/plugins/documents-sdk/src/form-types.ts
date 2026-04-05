@@ -61,6 +61,7 @@ export type DocumentFormField =
   | (DocumentFormFieldBase & {
       kind: "account";
       counterpartyField: string;
+      currencyFieldName?: string;
       optionsSource?: DocumentFormRequisiteOptionsSource;
     })
   | (DocumentFormFieldBase & {

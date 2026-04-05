@@ -10,6 +10,18 @@ vi.mock("next/headers", () => ({
 }));
 
 function createFinanceWorkspacePayload(): FinanceDealWorkspace {
+  const fundingResolution = {
+    availableMinor: null,
+    fundingOrganizationId: "84bb2b72-886b-43b2-bdc5-1d4d6d03120d",
+    fundingRequisiteId: null,
+    reasonCode: "inventory_insufficient",
+    requiredAmountMinor: "1214375000",
+    state: "resolved" as const,
+    strategy: "external_fx" as const,
+    targetCurrency: "RUB",
+    targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+  };
+
   return {
     acceptedQuote: {
       acceptedAt: "2026-04-02T08:15:00.000Z",
@@ -75,6 +87,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       {
         actions: {
           canCreateLegOperation: false,
+          exchangeDocument: null,
         },
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
@@ -130,6 +143,8 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       ],
     },
     pricing: {
+      fundingMessage: "Требуется конвертация",
+      fundingResolution,
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: true,
@@ -203,7 +218,8 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
 describe("treasury deals queries", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    fetchMock.mockReset();
+    headers.mockReset();
 
     headers.mockResolvedValue(
       new Headers({
