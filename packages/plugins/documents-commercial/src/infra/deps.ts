@@ -229,12 +229,14 @@ async function markQuoteUsedForRef(input: {
   treasuryQuotes: CommercialTreasuryQuotesPort;
   quoteId: string;
   usedByRef: string;
+  usedDocumentId?: string;
   at: Date;
 }) {
   try {
     await input.treasuryQuotes.markQuoteUsed({
       quoteId: input.quoteId,
       usedByRef: input.usedByRef,
+      usedDocumentId: input.usedDocumentId,
       at: input.at,
     });
   } catch (error) {
@@ -485,6 +487,7 @@ export function createCommercialDocumentDeps(input: {
           treasuryQuotes,
           quoteId,
           usedByRef: `invoice:${invoiceDocumentId}`,
+          usedDocumentId: invoiceDocumentId,
           at,
         });
       },

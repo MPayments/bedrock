@@ -342,6 +342,7 @@ async function resolveCalculationFees(input: {
 }
 
 async function requireCurrentAcceptedQuote(input: {
+  allowUsedDocumentId?: string | null;
   dealId: string;
   deals: DealQuoteWorkflowDeps["deals"];
   now: Date;
@@ -357,7 +358,12 @@ async function requireCurrentAcceptedQuote(input: {
     throw new DealQuoteNotAcceptedError(input.dealId, input.quoteId);
   }
 
-  if (workflow.acceptedQuote.quoteStatus !== "active") {
+  const sameUsedDocument = isAcceptedQuoteUsedBySameDocument({
+    acceptedQuote: workflow.acceptedQuote,
+    usedDocumentId: input.allowUsedDocumentId,
+  });
+
+  if (workflow.acceptedQuote.quoteStatus !== "active" && !sameUsedDocument) {
     throw new DealQuoteInactiveError(
       input.quoteId,
       workflow.acceptedQuote.quoteStatus,
@@ -365,6 +371,7 @@ async function requireCurrentAcceptedQuote(input: {
   }
 
   if (
+    !sameUsedDocument &&
     workflow.acceptedQuote.expiresAt &&
     workflow.acceptedQuote.expiresAt.getTime() <= input.now.getTime()
   ) {
@@ -372,6 +379,20 @@ async function requireCurrentAcceptedQuote(input: {
   }
 
   return workflow;
+}
+
+function isAcceptedQuoteUsedBySameDocument(input: {
+  acceptedQuote: {
+    quoteStatus: string;
+    usedDocumentId: string | null;
+  };
+  usedDocumentId?: string | null;
+}) {
+  return (
+    input.acceptedQuote.quoteStatus === "used" &&
+    input.usedDocumentId != null &&
+    input.acceptedQuote.usedDocumentId === input.usedDocumentId
+  );
 }
 
 export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
@@ -603,6 +624,7 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
 
       if (dealId) {
         await requireCurrentAcceptedQuote({
+          allowUsedDocumentId: input.usedDocumentId ?? null,
           dealId,
           deals: deps.deals,
           now: input.at,

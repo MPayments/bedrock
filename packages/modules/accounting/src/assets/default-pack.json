@@ -956,7 +956,7 @@
       "lineType": "create",
       "postingCode": "TC.2001",
       "transferCode": 2001,
-      "allowSources": ["fx_execute", "invoice_direct", "invoice_inventory_finalize"],
+      "allowSources": ["fx_execute", "invoice_direct", "invoice_inventory_finalize", "invoice_reserve"],
       "requiredBookRefs": ["bookId"],
       "requiredDimensions": ["customerId", "orderId"],
       "requiredRefs": ["quoteRef", "chainId"],

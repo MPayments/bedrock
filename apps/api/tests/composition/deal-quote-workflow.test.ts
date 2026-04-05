@@ -273,6 +273,94 @@ describe("deal quote workflow", () => {
     });
   });
 
+  it("allows idempotent markQuoteUsed when the accepted quote is already used by the same document", async () => {
+    const appendTimelineEvent = vi.fn(async () => undefined);
+    const { deals, treasury, workflow } = createWorkflow({
+      acceptedQuote: {
+        acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
+        acceptedByUserId: "user-1",
+        agreementVersionId: null,
+        dealId: "deal-1",
+        dealRevision: 2,
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        id: "acceptance-1",
+        quoteId: "quote-1",
+        quoteStatus: "used",
+        replacedByQuoteId: null,
+        revokedAt: null,
+        usedAt: new Date("2026-04-01T10:05:00.000Z"),
+        usedDocumentId: "doc-1",
+      },
+      appendTimelineEvent,
+    });
+
+    await expect(
+      workflow.markQuoteUsed({
+        at: new Date("2026-04-01T10:06:00.000Z"),
+        dealId: "deal-1",
+        quoteId: "quote-1",
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      }),
+    ).resolves.toMatchObject({
+      id: "quote-1",
+      status: "used",
+      usedDocumentId: "doc-1",
+    });
+
+    expect(treasury.quotes.commands.markQuoteUsed).toHaveBeenCalledWith({
+      at: new Date("2026-04-01T10:06:00.000Z"),
+      dealId: "deal-1",
+      quoteId: "quote-1",
+      usedByRef: "invoice:doc-1",
+      usedDocumentId: "doc-1",
+    });
+    expect(deals.deals.commands.appendTimelineEvent).toHaveBeenCalledWith({
+      dealId: "deal-1",
+      payload: {
+        quoteId: "quote-1",
+        usedAt: new Date("2026-04-01T10:06:00.000Z"),
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      },
+      sourceRef: "quote:quote-1:used:invoice:doc-1",
+      type: "quote_used",
+      visibility: "internal",
+    });
+  });
+
+  it("still rejects markQuoteUsed when the accepted quote is already used by another document", async () => {
+    const { treasury, workflow } = createWorkflow({
+      acceptedQuote: {
+        acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
+        acceptedByUserId: "user-1",
+        agreementVersionId: null,
+        dealId: "deal-1",
+        dealRevision: 2,
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        id: "acceptance-1",
+        quoteId: "quote-1",
+        quoteStatus: "used",
+        replacedByQuoteId: null,
+        revokedAt: null,
+        usedAt: new Date("2026-04-01T10:05:00.000Z"),
+        usedDocumentId: "doc-2",
+      },
+    });
+
+    await expect(
+      workflow.markQuoteUsed({
+        at: new Date("2026-04-01T10:06:00.000Z"),
+        dealId: "deal-1",
+        quoteId: "quote-1",
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      }),
+    ).rejects.toThrow("Quote quote-1 is not active: used");
+
+    expect(treasury.quotes.commands.markQuoteUsed).not.toHaveBeenCalled();
+  });
+
   it("appends quote_expired for linked deal quotes", async () => {
     const appendTimelineEvent = vi.fn(async () => undefined);
     const expireQuotes = vi.fn(async () => [
