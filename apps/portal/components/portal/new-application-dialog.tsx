@@ -13,6 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@bedrock/sdk-ui/components/command";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -115,6 +116,32 @@ const STEP_LABELS = ["Юрлицо", "Тип", "Данные"] as const;
 const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
 const DEFAULT_EXPECTED_CURRENCY = "USD";
 
+function formatDatePickerValue(value: Date | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function parseDatePickerValue(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return undefined;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
 export function NewDealDialog({
   customerContexts,
   open,
@@ -133,7 +160,9 @@ export function NewDealDialog({
   const [sourceCurrencyId, setSourceCurrencyId] = useState(
     DEFAULT_PAYMENT_SOURCE_CURRENCY,
   );
-  const [targetCurrencyId, setTargetCurrencyId] = useState<string | null>(null);
+  const [targetCurrencyId, setTargetCurrencyId] = useState<string | null>(
+    DEFAULT_EXPECTED_CURRENCY,
+  );
   const [purpose, setPurpose] = useState("");
   const [customerNote, setCustomerNote] = useState("");
   const [requestedExecutionDate, setRequestedExecutionDate] = useState("");
@@ -237,7 +266,8 @@ export function NewDealDialog({
     }
 
     setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
-    setTargetCurrencyId(null);
+    setTargetCurrencyId((current) => current ?? DEFAULT_EXPECTED_CURRENCY);
+    setExpectedCurrencyId((current) => current || DEFAULT_EXPECTED_CURRENCY);
   }, [dealType]);
 
   async function fetchClients() {
@@ -259,7 +289,7 @@ export function NewDealDialog({
     setDealType("payment");
     setSourceAmount("");
     setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
-    setTargetCurrencyId(null);
+    setTargetCurrencyId(DEFAULT_EXPECTED_CURRENCY);
     setPurpose("");
     setCustomerNote("");
     setRequestedExecutionDate("");
@@ -301,13 +331,23 @@ export function NewDealDialog({
     }
 
     if (step === 3) {
-      if (!sourceAmount) {
-        setError("Укажите сумму заявки.");
+      if (!purpose.trim()) {
+        setError("Укажите цель сделки.");
         return false;
       }
 
-      if (!purpose.trim()) {
-        setError("Укажите цель сделки.");
+      if (isPaymentDeal) {
+        if (!expectedAmount) {
+          setError("Укажите сумму оплаты по инвойсу.");
+          return false;
+        }
+
+        if (!targetCurrencyId) {
+          setError("Укажите валюту оплаты по инвойсу.");
+          return false;
+        }
+      } else if (!sourceAmount) {
+        setError("Укажите сумму заявки.");
         return false;
       }
 
@@ -351,20 +391,25 @@ export function NewDealDialog({
         },
         moneyRequest: {
           purpose: purpose || null,
-          sourceAmount: sourceAmount || null,
+          sourceAmount: isPaymentDeal ? null : sourceAmount || null,
           sourceCurrencyId,
-          targetCurrencyId:
-            targetCurrencyId && targetCurrencyId !== sourceCurrencyId
+          targetCurrencyId: isPaymentDeal
+            ? targetCurrencyId
+            : targetCurrencyId && targetCurrencyId !== sourceCurrencyId
               ? targetCurrencyId
               : null,
         },
-        ...(requiresIncomingReceipt
+        ...((requiresIncomingReceipt || isPaymentDeal)
           ? {
               incomingReceipt: {
                 contractNumber: contractNumber || null,
-                expectedAmount: expectedAmount || null,
+                expectedAmount: isPaymentDeal
+                  ? expectedAmount || null
+                  : expectedAmount || null,
                 expectedAt: expectedAt ? `${expectedAt}T00:00:00.000Z` : null,
-                expectedCurrencyId,
+                expectedCurrencyId: isPaymentDeal
+                  ? targetCurrencyId
+                  : expectedCurrencyId,
                 invoiceNumber: invoiceNumber || null,
               },
             }
@@ -524,39 +569,94 @@ export function NewDealDialog({
   function renderDataStep() {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="sourceAmount">
-              {isPaymentDeal ? "Сумма платежа" : "Сумма"}
-            </Label>
-            <Input
-              id="sourceAmount"
-              value={sourceAmount}
-              onChange={(event) => setSourceAmount(event.target.value)}
-              placeholder="100000"
-              inputMode="decimal"
-            />
-          </div>
+        {isPaymentDeal ? (
+          <>
+            <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="expectedAmount">Сумма оплаты</Label>
+                <Input
+                  id="expectedAmount"
+                  value={expectedAmount}
+                  onChange={(event) => setExpectedAmount(event.target.value)}
+                  placeholder="100000"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Валюта оплаты</Label>
+                <Select
+                  value={targetCurrencyId ?? DEFAULT_EXPECTED_CURRENCY}
+                  onValueChange={(value) => {
+                    const nextValue = value ?? DEFAULT_EXPECTED_CURRENCY;
+                    setTargetCurrencyId(nextValue);
+                    setExpectedCurrencyId(nextValue);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Валюта списания</Label>
+              <Select
+                value={sourceCurrencyId}
+                onValueChange={(value) => setSourceCurrencyId(value ?? "USD")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="sourceAmount">Сумма</Label>
+              <Input
+                id="sourceAmount"
+                value={sourceAmount}
+                onChange={(event) => setSourceAmount(event.target.value)}
+                placeholder="100000"
+                inputMode="decimal"
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>{isPaymentDeal ? "Валюта платежа" : "Валюта"}</Label>
-            <Select
-              value={sourceCurrencyId}
-              onValueChange={(value) => setSourceCurrencyId(value ?? "USD")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label>Валюта</Label>
+              <Select
+                value={sourceCurrencyId}
+                onValueChange={(value) => setSourceCurrencyId(value ?? "USD")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+        )}
 
         {isPaymentDeal ? null : (
           <div className="space-y-2">
@@ -595,11 +695,13 @@ export function NewDealDialog({
 
         <div className="space-y-2">
           <Label htmlFor="requestedExecutionDate">Желаемая дата исполнения</Label>
-          <Input
+          <DatePicker
             id="requestedExecutionDate"
-            type="date"
-            value={requestedExecutionDate}
-            onChange={(event) => setRequestedExecutionDate(event.target.value)}
+            className="w-full"
+            value={parseDatePickerValue(requestedExecutionDate)}
+            onChange={(date) =>
+              setRequestedExecutionDate(formatDatePickerValue(date))
+            }
           />
         </div>
 
@@ -653,11 +755,11 @@ export function NewDealDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="expectedAt">Ожидаемая дата поступления</Label>
-              <Input
+              <DatePicker
                 id="expectedAt"
-                type="date"
-                value={expectedAt}
-                onChange={(event) => setExpectedAt(event.target.value)}
+                className="w-full"
+                value={parseDatePickerValue(expectedAt)}
+                onChange={(date) => setExpectedAt(formatDatePickerValue(date))}
               />
             </div>
           </div>

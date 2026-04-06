@@ -51,7 +51,7 @@
     "@bedrock/sdk-api-client#build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": []
+      "outputs": ["dist/**"]
     },
     "lint": {
       "dependsOn": ["^lint"]

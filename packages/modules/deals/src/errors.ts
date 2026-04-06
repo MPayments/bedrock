@@ -59,12 +59,6 @@ export class DealActiveAgreementAmbiguousError extends ValidationError {
   }
 }
 
-export class DealRequestedAmountCurrencyMismatchError extends ValidationError {
-  constructor() {
-    super("requestedAmount and requestedCurrencyId must be provided together");
-  }
-}
-
 export class DealStatusTransitionError extends ValidationError {
   constructor(from: string, to: string) {
     super(`Cannot transition deal status from ${from} to ${to}`);

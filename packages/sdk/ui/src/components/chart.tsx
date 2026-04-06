@@ -4,8 +4,9 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import type {
   DefaultLegendContentProps,
+  DefaultTooltipContentProps,
   ResponsiveContainerProps,
-  TooltipContentProps,
+  TooltipProps,
 } from "recharts"
 
 import { cn } from "@bedrock/sdk-ui/lib/utils"
@@ -27,22 +28,41 @@ type ChartContextProps = {
   config: ChartConfig
 }
 
+type ChartTooltipValue = number | string | ReadonlyArray<number | string>
+type ChartTooltipName = number | string
+
+export type ChartTooltipPayload = NonNullable<
+  NonNullable<
+    DefaultTooltipContentProps<ChartTooltipValue, ChartTooltipName>["payload"]
+  >[number]
+>
+
+export type ChartTooltipFormatter = NonNullable<
+  DefaultTooltipContentProps<ChartTooltipValue, ChartTooltipName>["formatter"]
+>
+
+export type ChartTooltipLabelFormatter = NonNullable<
+  DefaultTooltipContentProps<
+    ChartTooltipValue,
+    ChartTooltipName
+  >["labelFormatter"]
+>
+
 type ChartTooltipContentProps = React.ComponentProps<"div"> &
-  Omit<
-    TooltipContentProps,
-    "active" | "payload" | "label" | "coordinate" | "accessibilityLayer" | "activeIndex"
+  Pick<
+    TooltipProps<ChartTooltipValue, ChartTooltipName>,
+    "active"
   > &
-  Partial<
-    Pick<
-      TooltipContentProps,
-      "active" | "payload" | "label" | "coordinate" | "accessibilityLayer" | "activeIndex"
-    >
+  Pick<
+    DefaultTooltipContentProps<ChartTooltipValue, ChartTooltipName>,
+    "formatter" | "label" | "labelFormatter" | "payload"
   > & {
+    labelClassName?: string
     hideLabel?: boolean
     hideIndicator?: boolean
     indicator?: "line" | "dot" | "dashed"
-    nameKey?: string
     labelKey?: string
+    nameKey?: string
   }
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
@@ -198,7 +218,14 @@ function ChartTooltipContent({
           .map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
-            const indicatorColor = color || item.payload.fill || item.color
+            const payloadFill =
+              typeof item.payload === "object" &&
+              item.payload !== null &&
+              "fill" in item.payload &&
+              typeof item.payload.fill === "string"
+                ? item.payload.fill
+                : undefined
+            const indicatorColor = color || payloadFill || item.color
             const itemKey = `${item.dataKey ?? item.name ?? item.value ?? index}`
 
             return (

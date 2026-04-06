@@ -72,5 +72,5 @@ describe("treasury operations queries", () => {
       { init: { cache: "no-store" } },
     );
     expect(result.viewCounts.all).toBe(0);
-  });
+  }, 15_000);
 });

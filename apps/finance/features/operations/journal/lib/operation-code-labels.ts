@@ -19,6 +19,8 @@ const OPERATION_CODE_LABELS: Record<string, string> = {
   TREASURY_FEE_PAYMENT_SETTLE: "Проведение выплаты комиссии",
   TREASURY_FEE_PAYMENT_VOID: "Отмена выплаты комиссии",
   COMMERCIAL_INVOICE_DIRECT: "Проведение прямого инвойса",
+  COMMERCIAL_INVOICE_INVENTORY_FINALIZE:
+    "Проведение инвойса за счет существующего остатка",
   COMMERCIAL_INVOICE_RESERVE: "Резервирование инвойса под обмен",
 };
 

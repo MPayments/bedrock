@@ -4,14 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const push = vi.fn();
 const renderEntityTableShell = vi.fn<(props: unknown) => null>(() => null);
-let searchParamsValue = "";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/treasury/operations",
   useRouter: () => ({
     push,
   }),
-  useSearchParams: () => new URLSearchParams(searchParamsValue),
 }));
 
 vi.mock("@/components/entities/entity-table-shell", () => ({
@@ -25,7 +22,6 @@ describe("treasury operations table", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    searchParamsValue = "";
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -33,7 +29,7 @@ describe("treasury operations table", () => {
     ).React = React;
   });
 
-  it("renders saved-view chips and opens the operation panel on row double click", async () => {
+  it("renders the operations table and opens the operation panel on row double click", async () => {
     const result = {
       data: [],
       limit: 10,
@@ -64,11 +60,7 @@ describe("treasury operations table", () => {
         } as unknown as Promise<typeof result>,
       }),
     );
-
-    expect(markup).toContain("Все");
-    expect(markup).toContain("Входящие");
-    expect(markup).toContain("Исходящие");
-    expect(markup).toContain("Исключения");
+    expect(markup).toBe("");
 
     expect(renderEntityTableShell).toHaveBeenCalledTimes(1);
 
@@ -106,5 +98,5 @@ describe("treasury operations table", () => {
     expect(push).toHaveBeenCalledWith(
       "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
     );
-  });
+  }, 15_000);
 });

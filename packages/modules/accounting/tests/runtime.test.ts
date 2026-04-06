@@ -252,6 +252,48 @@ describe("accounting packs service", () => {
     ]);
   });
 
+  it("allows invoice reserve plans to reserve payment principal", async () => {
+    const result = await packsService.queries.resolvePostingPlan({
+      accountingSourceId: "invoice_reserve",
+      source: { type: "documents/invoice/post", id: "doc-3-principal" },
+      idempotencyKey: "post:doc-3-principal",
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
+      plan: {
+        operationCode: "COMMERCIAL_INVOICE_RESERVE",
+        operationVersion: 1,
+        payload: { invoiceId: "doc-3-principal" },
+        requests: [
+          {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 10_000n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {
+              customerId: "customer-1",
+              orderId: "order-1",
+            },
+            refs: {
+              quoteRef: "quote-ref-1",
+              chainId: "invoice:order-1",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.appliedTemplates).toEqual([
+      {
+        requestIndex: 0,
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+        lineType: "create",
+        postingCode: "TC.2001",
+      },
+    ]);
+  });
+
   it("omits absent pending config from direct invoice intent lines", async () => {
     const result = await packsService.queries.resolvePostingPlan({
       accountingSourceId: "invoice_direct",

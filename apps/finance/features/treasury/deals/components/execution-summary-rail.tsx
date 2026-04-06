@@ -48,7 +48,7 @@ export function ExecutionSummaryRail({ deal }: ExecutionSummaryRailProps) {
           Контур исполнения
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border bg-muted/20 px-3 py-3">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">

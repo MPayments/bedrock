@@ -52,7 +52,7 @@ export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
   exchange: "Документ по обмену валюты",
   fx_execute: "Исполнение конвертации",
   fx_resolution: "Сверка по конвертации",
-  invoice: "Инвойс",
+  invoice: "Исходящий инвойс",
   transfer_intra: "Внутренний перевод",
   transfer_intercompany: "Межкомпанейский перевод",
   transfer_resolution: "Сверка по переводу",
@@ -215,6 +215,7 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   deal_created: "Сделка создана",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
+  execution_blocker_resolved: "Блокер исполнения устранен",
   intake_saved: "Анкета сохранена",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
@@ -232,6 +233,14 @@ export const ATTACHMENT_PURPOSE_LABELS: Record<
   contract: "Договор",
   invoice: "Инвойс",
   other: "Другое",
+};
+
+export const ATTACHMENT_VISIBILITY_LABELS: Record<
+  "customer_safe" | "internal",
+  string
+> = {
+  customer_safe: "Видно клиенту и CRM",
+  internal: "Только CRM / внутреннее",
 };
 
 export const ATTACHMENT_INGESTION_STATUS_LABELS = {

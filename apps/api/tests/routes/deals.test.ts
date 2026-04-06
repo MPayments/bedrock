@@ -47,6 +47,7 @@ function createDealDetail() {
   const now = new Date("2026-03-30T00:00:00.000Z");
 
   return {
+    amount: "100.00",
     id: "00000000-0000-4000-8000-000000000010",
     customerId: "00000000-0000-4000-8000-000000000001",
     agreementId: "00000000-0000-4000-8000-000000000002",
@@ -55,6 +56,7 @@ function createDealDetail() {
     status: "draft" as const,
     comment: "Draft payment deal",
     createdAt: now,
+    currencyId: "00000000-0000-4000-8000-000000000006",
     updatedAt: now,
     legs: [
       {
@@ -103,10 +105,10 @@ function createDealsModuleStub() {
       commands: {
         acceptQuote: vi.fn(),
         assignAgent: vi.fn(),
-        create: vi.fn(),
         createDraft: vi.fn(),
         transitionStatus: vi.fn(),
         updateAgreement: vi.fn(),
+        updateComment: vi.fn(),
         updateLegState: vi.fn(),
       },
     },
@@ -123,6 +125,17 @@ function createWorkflowProjection() {
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "pending"),
     ],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: "no_convert_leg",
+      requiredAmountMinor: null,
+      state: "not_applicable" as const,
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
     intake: {
       common: {
         applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
@@ -239,11 +252,34 @@ function createFinanceQueueProjection() {
         },
         profitabilitySnapshot: {
           calculationId: "calc-1",
-          currencyId: "00000000-0000-4000-8000-000000000006",
-          feeRevenueMinor: "1000",
-          providerFeeExpenseMinor: "250",
-          spreadRevenueMinor: "500",
-          totalRevenueMinor: "1500",
+          feeRevenue: [
+            {
+              amountMinor: "1000",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          providerFeeExpense: [
+            {
+              amountMinor: "250",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          spreadRevenue: [
+            {
+              amountMinor: "500",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
+          totalRevenue: [
+            {
+              amountMinor: "1500",
+              currencyCode: "RUB",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+            },
+          ],
         },
         queue: "execution",
         queueReason: "Сделка ожидает исполнения",
@@ -318,18 +354,42 @@ function createFinanceWorkspaceProjection() {
       positions: [],
     },
     pricing: {
+      quoteAmount: "100.00",
+      quoteAmountSide: "source",
       quoteEligibility: false,
-      requestedAmount: "100.00",
-      requestedCurrencyId: "00000000-0000-4000-8000-000000000006",
+      sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
       targetCurrencyId: null,
     },
     profitabilitySnapshot: {
       calculationId: "calc-1",
-      currencyId: "00000000-0000-4000-8000-000000000006",
-      feeRevenueMinor: "1000",
-      providerFeeExpenseMinor: "250",
-      spreadRevenueMinor: "500",
-      totalRevenueMinor: "1500",
+      feeRevenue: [
+        {
+          amountMinor: "1000",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      providerFeeExpense: [
+        {
+          amountMinor: "250",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      spreadRevenue: [
+        {
+          amountMinor: "500",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      totalRevenue: [
+        {
+          amountMinor: "1500",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
     },
     queueContext: {
       blockers: [],
@@ -484,7 +544,7 @@ describe("deals routes", () => {
     userHasPermission.mockResolvedValue({ success: true });
   });
 
-  it("lists, fetches, and creates canonical deals", async () => {
+  it("lists and fetches canonical deals", async () => {
     const {
       app,
       dealProjectionsWorkflow,
@@ -515,30 +575,14 @@ describe("deals routes", () => {
       offset: 0,
     });
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
-    dealsModule.deals.commands.create.mockResolvedValue(detail);
 
     const listResponse = await app.request("http://localhost/deals");
     const getResponse = await app.request(
       `http://localhost/deals/${detail.id}`,
     );
-    const createResponse = await app.request("http://localhost/deals", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "idempotency-key": "deal-create-1",
-      },
-      body: JSON.stringify({
-        customerId: detail.customerId,
-        agreementId: detail.agreementId,
-        calculationId: detail.calculationId,
-        type: "payment",
-        comment: detail.comment,
-      }),
-    });
 
     expect(listResponse.status).toBe(200);
     expect(getResponse.status).toBe(200);
-    expect(createResponse.status).toBe(201);
 
     expect(dealProjectionsWorkflow.listCrmDeals).toHaveBeenCalledWith({
       limit: 20,
@@ -562,18 +606,33 @@ describe("deals routes", () => {
       total: 1,
     });
     expect(dealsModule.deals.queries.findById).toHaveBeenCalledWith(detail.id);
-    expect(dealsModule.deals.commands.create).toHaveBeenCalledWith({
-      customerId: detail.customerId,
-      agreementId: detail.agreementId,
-      calculationId: detail.calculationId,
-      type: "payment",
-      agentId: null,
-      comment: detail.comment,
-      intakeComment: null,
-      reason: null,
-      requestedAmount: null,
-      actorUserId: "user-1",
-      idempotencyKey: "deal-create-1",
+  });
+
+  it("updates the root deal comment", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = createDealDetail();
+    dealsModule.deals.commands.updateComment.mockResolvedValue({
+      ...detail,
+      comment: "Updated comment",
+    });
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/comment`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          comment: "  Updated comment  ",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.updateComment).toHaveBeenCalledWith({
+      comment: "Updated comment",
+      dealId: detail.id,
     });
   });
 
@@ -891,6 +950,9 @@ describe("deals routes", () => {
           "idempotency-key": "from-quote-1",
         },
         body: JSON.stringify({
+          agentFeePercent: "1",
+          fixedFeeAmount: "150",
+          fixedFeeCurrencyCode: "USD",
           quoteId: "00000000-0000-4000-8000-000000000210",
         }),
       },
@@ -900,8 +962,11 @@ describe("deals routes", () => {
     expect(
       dealQuoteWorkflow.createCalculationFromAcceptedQuote,
     ).toHaveBeenCalledWith({
+      agentFeePercent: "1",
       actorUserId: "user-1",
       dealId: detail.id,
+      fixedFeeAmount: "150",
+      fixedFeeCurrencyCode: "USD",
       idempotencyKey: "from-quote-1",
       quoteId: "00000000-0000-4000-8000-000000000210",
     });

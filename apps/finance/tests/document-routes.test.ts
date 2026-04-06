@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDealDocumentsTabHref,
   buildDocumentCreateHref,
   buildDocumentDetailsHref,
   buildDocumentsFamilyHref,
   buildDocumentTypeHref,
+  normalizeInternalReturnToPath,
 } from "@/features/documents/lib/routes";
 
 describe("document routes", () => {
@@ -28,6 +30,14 @@ describe("document routes", () => {
       "/documents/create/transfer_resolution",
     );
     expect(
+      buildDocumentCreateHref("invoice", {
+        dealId: "deal-123",
+        returnTo: buildDealDocumentsTabHref("deal-123"),
+      }),
+    ).toBe(
+      "/documents/create/invoice?dealId=deal-123&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Ddocuments",
+    );
+    expect(
       buildDocumentDetailsHref("period_close", "doc-123"),
     ).toBe("/documents/ifrs/period_close/doc-123");
   });
@@ -36,5 +46,14 @@ describe("document routes", () => {
     expect(buildDocumentTypeHref("legacy_doc_type")).toBeNull();
     expect(buildDocumentCreateHref("unknown_doc_type")).toBeNull();
     expect(buildDocumentDetailsHref("legacy_doc_type", "doc-123")).toBeNull();
+  });
+
+  it("accepts only internal absolute returnTo paths", () => {
+    expect(
+      normalizeInternalReturnToPath("/treasury/deals/deal-123?tab=documents"),
+    ).toBe("/treasury/deals/deal-123?tab=documents");
+    expect(normalizeInternalReturnToPath("https://example.com")).toBeNull();
+    expect(normalizeInternalReturnToPath("//example.com")).toBeNull();
+    expect(normalizeInternalReturnToPath("documents")).toBeNull();
   });
 });

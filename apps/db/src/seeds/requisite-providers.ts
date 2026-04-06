@@ -30,6 +30,7 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
           contact: provider.contact,
           bic: provider.bic,
           swift: provider.swift,
+          archivedAt: null,
         },
       });
   }

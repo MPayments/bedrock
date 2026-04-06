@@ -44,6 +44,7 @@ describe("commercial module registry", () => {
 
     expect(invoice?.accountingSourceIds).toEqual([
       ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE,
       ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
     ]);
     expect(exchange?.accountingSourceId).toBe(ACCOUNTING_SOURCE_ID.FX_EXECUTE);

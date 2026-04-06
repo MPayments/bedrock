@@ -133,6 +133,33 @@ describe("organization detail pages", () => {
     expect(renderOperationsJournalTable).toHaveBeenCalledTimes(1);
   });
 
+  it("shows an inline error state when the organization journal query fails", async () => {
+    const { ApiRequestError } = await import("@/lib/api/response");
+
+    getOperations.mockRejectedValueOnce(
+      new ApiRequestError(
+        "Ошибка сервера. Попробуйте позже.",
+        500,
+        { error: "Internal server error" },
+      ),
+    );
+
+    const { default: TreasuryOrganizationDocumentsPage } = await import(
+      "@/app/(shell)/treasury/organizations/[id]/documents/page"
+    );
+
+    const html = renderToStaticMarkup(
+      await TreasuryOrganizationDocumentsPage({
+        params: Promise.resolve({ id: "org-1" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(renderOperationsJournalTable).not.toHaveBeenCalled();
+    expect(html).toContain("Не удалось загрузить журнал операций по организации.");
+    expect(html).toContain("Ошибка сервера. Попробуйте позже.");
+  });
+
   it("redirects the legacy organization detail route to treasury", async () => {
     const { default: OrganizationPage } = await import(
       "@/app/(shell)/entities/organizations/[id]/page"

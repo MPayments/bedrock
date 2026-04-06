@@ -291,6 +291,58 @@ describe("deal transition policy", () => {
     expect(readiness.blockers.some((blocker) => blocker.code === "opening_document_missing")).toBe(true);
   });
 
+  it("allows preparing_documents -> awaiting_funds when the accepted quote is already used and the opening document is posted", () => {
+    const input = createBaseInput();
+    input.status = "preparing_documents";
+    input.targetStatus = "awaiting_funds";
+    input.intake.moneyRequest.targetCurrencyId = "currency-2";
+    input.acceptance = {
+      acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
+      acceptedByUserId: "user-1",
+      agreementVersionId: null,
+      dealId: "deal-1",
+      dealRevision: 2,
+      expiresAt: new Date("2026-04-02T10:00:00.000Z"),
+      id: "acceptance-1",
+      quoteId: "quote-1",
+      quoteStatus: "used",
+      replacedByQuoteId: null,
+      revokedAt: null,
+      usedAt: new Date("2026-04-01T10:05:00.000Z"),
+      usedDocumentId: "doc-1",
+    };
+    input.calculationId = "calculation-1";
+    input.documents = [
+      {
+        approvalStatus: "approved",
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        docType: "invoice",
+        id: "doc-1",
+        lifecycleStatus: "active",
+        occurredAt: new Date("2026-04-01T10:00:00.000Z"),
+        postingStatus: "posted",
+        submissionStatus: "submitted",
+      },
+    ];
+    input.executionPlan = [
+      createExecutionLeg(1, "collect", "pending"),
+      {
+        ...createExecutionLeg(2, "convert", "pending"),
+        state: "done",
+      },
+      createExecutionLeg(3, "payout", "pending"),
+    ];
+
+    const readiness = evaluateDealTransitionReadiness(input);
+
+    expect(readiness.allowed).toBe(true);
+    expect(
+      readiness.blockers.some(
+        (blocker) => blocker.code === "accepted_quote_inactive",
+      ),
+    ).toBe(false);
+  });
+
   it("blocks submitted -> preparing_documents when a required capability is disabled", () => {
     const input = createBaseInput();
     input.status = "submitted";

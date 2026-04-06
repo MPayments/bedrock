@@ -15,6 +15,7 @@ import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
   GenerateCustomerContractInputSchema,
   GenerateDocumentInputSchema,
+  type CalculationDocumentData,
   type ClientContractAgreement,
   type ClientContractClient,
   type ClientContractOrganization,
@@ -576,7 +577,7 @@ export function createDocumentGenerationWorkflow(
     },
 
     async generateCalculation(input: {
-      calculationData: Record<string, unknown>;
+      calculationData: CalculationDocumentData;
       format?: DocumentFormat;
       lang?: DocumentLang;
       organizationId?: string;

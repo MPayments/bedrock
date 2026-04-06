@@ -1,20 +1,19 @@
-import { minorToAmountString } from "@bedrock/shared/money";
-
 import {
   FINANCIAL_LINE_BUCKET_OPTIONS,
-  INVOICE_MODE_OPTIONS,
   createInvoicePayload,
   getDefaultInvoiceValues,
   isoToDateTimeLocal,
   mapPayloadFinancialLines,
-  readString,
 } from "./shared";
 import type { CommercialDocumentCatalogEntry } from "./types";
-import { InvoiceInputSchema } from "../validation";
+import {
+  InvoiceInputSchema,
+  InvoicePayloadSchema,
+} from "../validation";
 
 export const invoiceDocumentDefinition = {
   docType: "invoice",
-  label: "Инвойс",
+  label: "Исходящий инвойс",
   family: "commercial",
   docNoPrefix: "INV",
   schema: InvoiceInputSchema,
@@ -24,7 +23,7 @@ export const invoiceDocumentDefinition = {
   listed: true,
   formDefinition: {
     docType: "invoice",
-    label: "Инвойс",
+    label: "Исходящий инвойс",
     family: "commercial",
     schema: InvoiceInputSchema,
     sections: [
@@ -32,12 +31,6 @@ export const invoiceDocumentDefinition = {
         id: "main",
         title: "Основные реквизиты",
         fields: [
-          {
-            kind: "enum",
-            name: "mode",
-            label: "Режим",
-            options: [...INVOICE_MODE_OPTIONS],
-          },
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           { kind: "customer", name: "customerId", label: "Клиент" },
           { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
@@ -52,13 +45,14 @@ export const invoiceDocumentDefinition = {
             name: "organizationRequisiteId",
             label: "Реквизит организации",
             counterpartyField: "organizationId",
+            currencyFieldName: "currency",
             optionsSource: "organizationRequisites",
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
         layout: {
           rows: [
-            { fields: ["mode", "occurredAt"] },
+            { fields: ["occurredAt"] },
             {
               columns: {
                 base: 1,
@@ -78,25 +72,18 @@ export const invoiceDocumentDefinition = {
         },
       },
       {
-        id: "direct",
-        title: "Прямой инвойс",
+        id: "amounts",
+        title: "Реквизиты инвойса",
         fields: [
           {
             kind: "amount",
             name: "amount",
             label: "Сумма",
-            visibleWhen: { fieldName: "mode", equals: ["direct"] },
           },
           {
             kind: "currency",
             name: "currency",
-            label: "Валюта",
-            hidden: true,
-            deriveFrom: {
-              kind: "accountCurrency",
-              accountFieldNames: ["organizationRequisiteId"],
-            },
-            visibleWhen: { fieldName: "mode", equals: ["direct"] },
+            label: "Валюта списания",
           },
           {
             kind: "financialLines",
@@ -106,7 +93,6 @@ export const invoiceDocumentDefinition = {
             supportedCalcMethods: ["fixed", "percent"],
             baseAmountFieldName: "amount",
             baseCurrencyFieldName: "currency",
-            visibleWhen: { fieldName: "mode", equals: ["direct"] },
           },
         ],
         layout: {
@@ -116,85 +102,22 @@ export const invoiceDocumentDefinition = {
           ],
         },
       },
-      {
-        id: "exchange",
-        title: "Текущая котировка",
-        fields: [
-          {
-            kind: "amount",
-            name: "amount",
-            label: "Сумма",
-            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
-          },
-          {
-            kind: "currency",
-            name: "currency",
-            label: "Валюта списания",
-            hidden: true,
-            deriveFrom: {
-              kind: "accountCurrency",
-              accountFieldNames: ["organizationRequisiteId"],
-            },
-            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
-          },
-          {
-            kind: "currency",
-            name: "targetCurrency",
-            label: "Валюта выплаты",
-            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
-          },
-          {
-            kind: "fxQuotePreview",
-            name: "quotePreview",
-            label: "Текущая котировка",
-            requestMode: "auto_cross",
-            amountFieldName: "amount",
-            fromCurrencyFieldName: "currency",
-            toCurrencyFieldName: "targetCurrency",
-            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
-          },
-        ],
-        layout: {
-          rows: [
-            { fields: ["amount", "targetCurrency"] },
-            { fields: ["quotePreview"] },
-          ],
-        },
-      },
     ],
     defaultValues: getDefaultInvoiceValues,
     fromPayload(payload) {
-      const mode = readString(payload.mode) === "exchange" ? "exchange" : "direct";
-      const quoteSnapshot =
-        typeof payload.quoteSnapshot === "object" && payload.quoteSnapshot !== null
-          ? (payload.quoteSnapshot as Record<string, unknown>)
-          : null;
+      const normalized = InvoicePayloadSchema.parse(payload);
 
       return {
         ...getDefaultInvoiceValues(),
-        mode,
-        occurredAt: isoToDateTimeLocal(payload.occurredAt),
-        customerId: readString(payload.customerId),
-        counterpartyId: readString(payload.counterpartyId),
-        organizationId: readString(payload.organizationId),
-        organizationRequisiteId: readString(payload.organizationRequisiteId),
-        amount:
-          mode === "exchange"
-            ? minorToAmountString(quoteSnapshot?.fromAmountMinor, {
-                currency: readString(quoteSnapshot?.fromCurrency) || undefined,
-              })
-            : readString(payload.amount),
-        currency:
-          mode === "exchange"
-            ? readString(quoteSnapshot?.fromCurrency)
-            : readString(payload.currency),
-        targetCurrency: readString(quoteSnapshot?.toCurrency),
-        financialLines: mapPayloadFinancialLines(
-          Array.isArray(payload.financialLines)
-            ? (payload.financialLines as any)
-            : undefined,
-        ),
-        memo: readString(payload.memo),
+        occurredAt: isoToDateTimeLocal(normalized.occurredAt),
+        customerId: normalized.customerId,
+        counterpartyId: normalized.counterpartyId,
+        organizationId: normalized.organizationId ?? "",
+        organizationRequisiteId: normalized.organizationRequisiteId,
+        amount: normalized.amount,
+        currency: normalized.currency,
+        financialLines: mapPayloadFinancialLines(normalized.financialLines),
+        memo: normalized.memo ?? "",
       };
     },
     toPayload(values) {

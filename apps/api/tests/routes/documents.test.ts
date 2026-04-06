@@ -96,6 +96,14 @@ function createDocumentPostingWorkflowStub() {
   };
 }
 
+function createAccountingReportsServiceStub() {
+  return {
+    listOperationsWithLabels: vi.fn(),
+    getOperationDetailsWithLabels: vi.fn(),
+    listOperationDetailsWithLabels: vi.fn(),
+  };
+}
+
 function createTestApp(input?: {
   requestIdempotencyKey?: string | null;
   role?: string;
@@ -108,6 +116,7 @@ function createTestApp(input?: {
   const documentsService = createDocumentsServiceStub();
   const documentDraftWorkflow = createDocumentDraftWorkflowStub();
   const documentPostingWorkflow = createDocumentPostingWorkflowStub();
+  const accountingReportsService = createAccountingReportsServiceStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -124,6 +133,19 @@ function createTestApp(input?: {
   app.route(
     "/",
     documentsRoutes({
+      accountingModule: {
+        reports: {
+          queries: {
+            getOperationDetailsWithLabels:
+              accountingReportsService.getOperationDetailsWithLabels,
+            listOperationDetailsWithLabels:
+              accountingReportsService.listOperationDetailsWithLabels,
+            listOperationsWithLabels:
+              accountingReportsService.listOperationsWithLabels,
+          },
+        },
+      },
+      accountingReportsService,
       documentsService,
       documentDraftWorkflow,
       documentPostingWorkflow,
@@ -132,6 +154,7 @@ function createTestApp(input?: {
 
   return {
     app,
+    accountingReportsService,
     documentsService,
     documentDraftWorkflow,
     documentPostingWorkflow,
@@ -251,6 +274,63 @@ describe("documentsRoutes mutation actions", () => {
       }),
       "user-1",
     );
+  });
+
+  it("keeps post and cancel actions visible for finance users", async () => {
+    userHasPermission.mockImplementation(async ({ body }) => {
+      const permission = body.permissions.documents?.[0];
+      return {
+        success:
+          permission === "list" ||
+          permission === "get" ||
+          permission === "submit" ||
+          permission === "post" ||
+          permission === "cancel",
+      };
+    });
+
+    const { app, documentsService } = createTestApp({ role: "finance" });
+    documentsService.list.mockResolvedValue({
+      data: [createDocumentWithOperation()],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        expect.objectContaining({
+          id: "11111111-1111-4111-8111-111111111111",
+          allowedActions: ["submit", "post", "cancel", "repost"],
+        }),
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+  });
+
+  it("omits absent optional filters when listing journal operations", async () => {
+    const { app, accountingReportsService } = createTestApp();
+    accountingReportsService.listOperationsWithLabels.mockResolvedValue({
+      data: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+
+    const response = await app.request("http://localhost/journal");
+
+    expect(response.status).toBe(200);
+    expect(accountingReportsService.listOperationsWithLabels).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
   });
 
   it("blocks system-only document creation for non-admin users", async () => {

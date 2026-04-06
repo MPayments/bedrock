@@ -1,12 +1,12 @@
 import type { AppType } from "api/types";
 import { hc } from "hono/client";
 
-export type Client = ReturnType<typeof hc<AppType>>;
-
 export interface CreateClientOptions {
   headers?: Record<string, string>;
   init?: RequestInit;
 }
+
+export type Client = ReturnType<typeof hc<AppType>>;
 
 export function createClient(
   baseUrl: string,
@@ -18,5 +18,5 @@ export function createClient(
       credentials: "include",
       ...options?.init,
     },
-  });
+  }) as Client;
 }

@@ -367,6 +367,107 @@ describe("createTreasuryTestService", () => {
         expect(txDelete).toHaveBeenCalledWith(schema.fxQuoteFinancialLines);
     });
 
+    it("quotes auto-cross from target amount for payment-style requests", async () => {
+        const createdQuote = makeQuote({
+            idempotencyKey: "idem-auto-target-1",
+            fromCurrencyId: "cur-rub",
+            toCurrencyId: "cur-usd",
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            fromAmountMinor: 5_000n,
+            toAmountMinor: 1_000n,
+            pricingMode: "auto_cross",
+            pricingTrace: {
+                version: "v1",
+                mode: "auto_cross",
+                anchor: "USD",
+            },
+            dealDirection: null,
+            dealForm: null,
+            rateNum: 1n,
+            rateDen: 5n,
+        });
+        const insertedLegRows: any[] = [];
+        const txDelete = vi.fn((table: unknown) => {
+            if (table === schema.fxQuoteFeeComponents) {
+                return deleteWhere();
+            }
+            if (table === schema.fxQuoteFinancialLines) {
+                return deleteWhere();
+            }
+
+            throw new Error("unexpected delete table");
+        });
+        const db = {
+            select: vi
+                .fn()
+                .mockImplementationOnce(() => selectWhereLimit([{
+                    base: "RUB",
+                    quote: "USD",
+                    rateNum: 1n,
+                    rateDen: 5n,
+                    asOf: new Date("2026-02-14T00:00:00Z"),
+                    source: "manual",
+                }])),
+            transaction: vi.fn(async (fn: any) => fn({
+                insert: vi.fn((table: unknown) => {
+                    if (table === schema.fxQuotes) {
+                        return {
+                            values: vi.fn(() => ({
+                                onConflictDoNothing: vi.fn(() => ({
+                                    returning: vi.fn(async () => [createdQuote]),
+                                })),
+                            })),
+                        };
+                    }
+                    if (table === schema.fxQuoteLegs) {
+                        return {
+                            values: vi.fn(async (rows: any[]) => {
+                                insertedLegRows.push(...rows);
+                                return rows;
+                            }),
+                        };
+                    }
+                    throw new Error("unexpected insert table");
+                }),
+                delete: txDelete,
+            })),
+        } as any;
+        const feesService = {
+            calculateQuoteFeeComponents: vi.fn(async () => []),
+        } as any;
+        const service = createTreasuryTestService({
+            persistence: createPersistenceContext(db),
+            feesService,
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const quote = await service.quotes.quote({
+            mode: "auto_cross",
+            idempotencyKey: "idem-auto-target-1",
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            toAmountMinor: 1_000n,
+            asOf: new Date("2026-02-14T00:00:00Z"),
+        });
+
+        expect(quote).toEqual(createdQuote);
+        expect(insertedLegRows).toHaveLength(1);
+        expect(insertedLegRows[0]).toMatchObject({
+            idx: 1,
+            fromCurrencyId: "cur-rub",
+            toCurrencyId: "cur-usd",
+            fromAmountMinor: 5_000n,
+            toAmountMinor: 1_000n,
+            sourceKind: "derived",
+        });
+        expect(feesService.calculateQuoteFeeComponents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                principalMinor: 5_000n,
+            }),
+        );
+    });
+
     it("returns existing quote on idempotency race without duplicating side effects", async () => {
         const existingQuote = makeQuote({
             idempotencyKey: "idem-race-1",
@@ -637,6 +738,59 @@ describe("createTreasuryTestService", () => {
             }),
         ]);
         expect(db.transaction).not.toHaveBeenCalled();
+    });
+
+    it("previews auto-cross quotes from target amount", async () => {
+        const db = {
+            select: vi
+                .fn()
+                .mockImplementationOnce(() => selectWhereLimit([{
+                    base: "RUB",
+                    quote: "USD",
+                    rateNum: 1n,
+                    rateDen: 5n,
+                    asOf: new Date("2026-02-14T00:00:00Z"),
+                    source: "manual",
+                }])),
+            transaction: vi.fn(async () => {
+                throw new Error("previewQuote must not open a transaction");
+            }),
+        } as any;
+        const feesService = {
+            calculateQuoteFeeComponents: vi.fn(async () => []),
+        } as any;
+        const service = createTreasuryTestService({
+            persistence: createPersistenceContext(db),
+            feesService,
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const preview = await service.quotes.previewQuote({
+            mode: "auto_cross",
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            toAmountMinor: 1_000n,
+            asOf: new Date("2026-02-14T00:00:00Z"),
+        });
+
+        expect(preview).toMatchObject({
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            fromAmountMinor: 5_000n,
+            toAmountMinor: 1_000n,
+            pricingMode: "auto_cross",
+            rateNum: 1n,
+            rateDen: 5n,
+        });
+        expect(preview.legs).toEqual([
+            expect.objectContaining({
+                idx: 1,
+                fromCurrency: "RUB",
+                toCurrency: "USD",
+                fromAmountMinor: 5_000n,
+                toAmountMinor: 1_000n,
+            }),
+        ]);
     });
 
     it("returns quote details with legs, persisted fee snapshot, and pricing trace", async () => {

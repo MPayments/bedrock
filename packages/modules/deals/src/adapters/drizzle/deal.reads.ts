@@ -8,7 +8,6 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import { minorToDecimalString } from "@bedrock/calculations";
 import {
   calculationLines,
   calculationSnapshots,
@@ -42,6 +41,7 @@ import type {
   DealCalculationHistoryItem,
   DealCapabilityState,
   DealDetails,
+  DealFundingResolution,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealTimelineEvent,
@@ -53,11 +53,16 @@ import type {
   PortalDealProjection,
 } from "../../application/contracts/dto";
 import type { ListDealsQuery } from "../../application/contracts/queries";
-import type { DealReads } from "../../application/ports/deal.reads";
+import type {
+  DealFundingAssessmentPort,
+  DealReads,
+} from "../../application/ports/deal.reads";
+import { getPrimaryDealAmountFields } from "../../application/shared/primary-amount-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
+  dealIntakeHasConvertLeg,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -69,6 +74,25 @@ const DEALS_SORT_COLUMN_MAP = {
   type: deals.type,
   updatedAt: deals.updatedAt,
 } as const;
+
+const DEAL_COMMENT_SQL = sql<string | null>`${sql.identifier("deals")}.${sql.identifier("comment")}`;
+
+function minorToDecimalString(amountMinor: bigint | string, precision: number) {
+  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const digits = absolute.toString();
+
+  if (precision === 0) {
+    return `${negative ? "-" : ""}${digits}`;
+  }
+
+  const padded = digits.padStart(precision + 1, "0");
+  const integerPart = padded.slice(0, padded.length - precision);
+  const fractionPart = padded.slice(padded.length - precision);
+
+  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
 
 function mapTimelineEvent(row: {
   actorLabel: string | null;
@@ -256,10 +280,11 @@ function buildCompatibilityParticipants(
   });
 }
 
-function buildCompatibilityDeal(input: {
+function buildDealSummaryView(input: {
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
+  comment: string | null;
   createdAt: Date;
   customerId: string;
   id: string;
@@ -270,19 +295,21 @@ function buildCompatibilityDeal(input: {
   type: Deal["type"];
   updatedAt: Date;
 }): Deal {
+  const primaryAmountFields = getPrimaryDealAmountFields(input.intake);
+
   return {
     agreementId: input.agreementId,
+    amount: primaryAmountFields.amount,
     agentId: input.agentId,
     calculationId: input.calculationId,
-    comment: input.intake.common.customerNote,
+    comment: input.comment,
+    currencyId: primaryAmountFields.currencyId,
     createdAt: input.createdAt,
     customerId: input.customerId,
     id: input.id,
     intakeComment: input.intake.common.customerNote,
     nextAction: input.nextAction,
     reason: input.intake.moneyRequest.purpose,
-    requestedAmount: input.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId: input.intake.moneyRequest.sourceCurrencyId,
     revision: input.revision,
     status: input.status,
     type: input.type,
@@ -300,6 +327,7 @@ interface DealSummaryRow {
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
+  comment: string | null;
   createdAt: Date;
   customerId: string;
   id: string;
@@ -348,6 +376,7 @@ export class DrizzleDealReads implements DealReads {
       "counterparties" | "customers" | "organizations"
     >,
     private readonly documentsReadModel?: DealDocumentsReadModel,
+    private readonly fundingAssessment?: DealFundingAssessmentPort,
   ) {}
 
   private async loadSummaryRow(id: string): Promise<DealSummaryRow | null> {
@@ -356,6 +385,7 @@ export class DrizzleDealReads implements DealReads {
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
+        comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
         id: deals.id,
@@ -389,6 +419,7 @@ export class DrizzleDealReads implements DealReads {
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
+        comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
         id: deals.id,
@@ -600,6 +631,40 @@ export class DrizzleDealReads implements DealReads {
     return row ? mapQuoteAcceptance(row) : null;
   }
 
+  private async assessFundingResolution(input: {
+    acceptedQuote: DealQuoteAcceptance | null;
+    intake: DealIntakeDraft;
+    participants: DealWorkflowParticipant[];
+  }): Promise<DealFundingResolution> {
+    const hasConvertLeg = dealIntakeHasConvertLeg(input.intake);
+
+    if (!this.fundingAssessment) {
+      return {
+        availableMinor: null,
+        fundingOrganizationId: null,
+        fundingRequisiteId: null,
+        reasonCode: hasConvertLeg
+          ? "funding_assessment_unavailable"
+          : "no_convert_leg",
+        requiredAmountMinor: null,
+        state: hasConvertLeg ? "blocked" : "not_applicable",
+        strategy: null,
+        targetCurrency: null,
+        targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+      };
+    }
+
+    return this.fundingAssessment.assessFunding({
+      acceptedQuoteId: input.acceptedQuote?.quoteId ?? null,
+      hasConvertLeg,
+      internalEntityOrganizationId:
+        input.participants.find(
+          (participant) => participant.role === "internal_entity",
+        )?.organizationId ?? null,
+      targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+    });
+  }
+
   private async loadApprovals(dealId: string): Promise<DealApproval[]> {
     const rows = await this.db
       .select({
@@ -769,12 +834,18 @@ export class DrizzleDealReads implements DealReads {
         this.loadFormalDocuments(summary.id),
         this.loadAttachmentIngestions(summary.id),
       ]);
+    const fundingResolution = await this.assessFundingResolution({
+      acceptedQuote,
+      intake: summary.snapshot,
+      participants,
+    });
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
     const executionPlan = buildEffectiveDealExecutionPlan({
       acceptance: acceptedQuote,
       documents: formalDocuments,
+      fundingResolution,
       intake: summary.snapshot,
       now,
       storedLegs,
@@ -831,6 +902,7 @@ export class DrizzleDealReads implements DealReads {
       acceptedQuote,
       attachmentIngestions,
       executionPlan,
+      fundingResolution,
       intake: summary.snapshot,
       nextAction,
       operationalState,
@@ -1061,30 +1133,32 @@ export class DrizzleDealReads implements DealReads {
   }
 
   async findById(id: string): Promise<DealDetails | null> {
-    const workflow = await this.findWorkflowById(id);
-    if (!workflow) {
+    const summary = await this.loadSummaryRow(id);
+    if (!summary) {
       return null;
     }
 
-    const compat = buildCompatibilityDeal({
-      agreementId: workflow.summary.agreementId,
-      agentId: workflow.summary.agentId,
-      calculationId: workflow.summary.calculationId,
-      createdAt: workflow.summary.createdAt,
+    const workflow = await this.buildWorkflowProjectionFromSummary(summary);
+    const deal = buildDealSummaryView({
+      agreementId: summary.agreementId,
+      agentId: summary.agentId,
+      calculationId: summary.calculationId,
+      comment: summary.comment,
+      createdAt: summary.createdAt,
       customerId:
         workflow.participants.find((participant) => participant.role === "customer")
           ?.customerId ?? "",
-      id: workflow.summary.id,
+      id: summary.id,
       intake: workflow.intake,
       nextAction: workflow.nextAction,
       revision: workflow.revision,
-      status: workflow.summary.status,
-      type: workflow.summary.type,
-      updatedAt: workflow.summary.updatedAt,
+      status: summary.status,
+      type: summary.type,
+      updatedAt: summary.updatedAt,
     });
 
     return {
-      ...compat,
+      ...deal,
       approvals: await this.loadApprovals(id),
       legs: workflow.executionPlan.map((leg) => ({
         createdAt: workflow.summary.createdAt,
@@ -1180,6 +1254,7 @@ export class DrizzleDealReads implements DealReads {
           agreementId: deals.agreementId,
           agentId: deals.agentId,
           calculationId: deals.calculationId,
+          comment: DEAL_COMMENT_SQL,
           createdAt: deals.createdAt,
           customerId: deals.customerId,
           id: deals.id,
@@ -1216,14 +1291,18 @@ export class DrizzleDealReads implements DealReads {
         const precision = row.sourceCurrencyId
           ? extraCurrenciesById.get(row.sourceCurrencyId)?.precision ?? null
           : null;
-        const requestedAmount =
-          row.sourceAmountMinor != null && precision != null
+        const primaryAmountFields = getPrimaryDealAmountFields(row.snapshot);
+        const amount =
+          row.type !== "payment" &&
+          row.sourceAmountMinor != null &&
+          precision != null
             ? minorToDecimalString(row.sourceAmountMinor, precision)
-            : row.snapshot.moneyRequest.sourceAmount;
-        const compat = buildCompatibilityDeal({
+            : primaryAmountFields.amount;
+        const deal = buildDealSummaryView({
           agreementId: row.agreementId,
           agentId: row.agentId,
           calculationId: row.calculationId,
+          comment: row.comment,
           createdAt: row.createdAt,
           customerId: row.customerId,
           id: row.id,
@@ -1236,8 +1315,8 @@ export class DrizzleDealReads implements DealReads {
         });
 
         return {
-          ...compat,
-          requestedAmount,
+          ...deal,
+          amount,
         };
       }),
       limit: input.limit,

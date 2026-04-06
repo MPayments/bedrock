@@ -1,4 +1,9 @@
-import { minorToAmountString, parseMinorAmount, toMinorAmountString } from "@bedrock/shared/money";
+import {
+  minorToAmountString,
+  mulDivRoundHalfUp,
+  parseMinorAmount,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 
 export type FinancialLineCalcMethod = "fixed" | "percent";
 export type ManualFinancialLineDraftInput =
@@ -124,7 +129,11 @@ export function calculatePercentAmountMinor(
 
   const sign = percentBps < 0 ? -1n : 1n;
   const absoluteBps = BigInt(Math.abs(percentBps));
-  const amountMinor = (baseAmountMinor * absoluteBps) / PERCENT_BPS_SCALE;
+  const amountMinor = mulDivRoundHalfUp(
+    baseAmountMinor,
+    absoluteBps,
+    PERCENT_BPS_SCALE,
+  );
   return sign * amountMinor;
 }
 

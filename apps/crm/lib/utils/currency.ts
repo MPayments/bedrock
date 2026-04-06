@@ -3,6 +3,8 @@
  * Replaces duplicated formatCurrency() implementations across the codebase.
  */
 
+import { formatDecimalString } from "@bedrock/shared/money";
+
 /** Map of currency codes to their symbols */
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -60,7 +62,10 @@ export function formatCurrency(
       }).format(value);
       return `${formatted} ${symbol}`;
     } catch {
-      return `${value.toFixed(2)} ${symbol}`;
+      return `${formatDecimalString(value, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} ${symbol}`;
     }
   }
 

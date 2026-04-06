@@ -34,6 +34,10 @@ export function FinanceDealsTable({ promise }: FinanceDealsTableProps) {
       initialState={{
         columnVisibility: {
           blockerState: false,
+          documentSummary: false,
+          executionSummary: false,
+          internalEntityName: false,
+          nextAction: false,
         },
         sorting: [{ id: "createdAt", desc: true }],
       }}

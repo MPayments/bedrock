@@ -369,7 +369,7 @@ export function TreasuryOperationDetailsView({
                 value={operation.counterAmount?.formatted ?? "—"}
               />
               <DetailValue
-                label="Внутренняя организация"
+                label="Организация"
                 value={operation.internalEntity.name ?? "—"}
               />
               <DetailValue

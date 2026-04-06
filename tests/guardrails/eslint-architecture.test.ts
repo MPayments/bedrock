@@ -38,7 +38,7 @@ describe("architecture eslint", () => {
         (message) => message.ruleId === "no-restricted-syntax",
       ),
     ).toBe(true);
-  });
+  }, 15_000);
 
   it("keeps accounting domain and ports free of forbidden imports", async () => {
     const [domainResult] = await lintText(

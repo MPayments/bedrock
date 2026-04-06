@@ -1,5 +1,5 @@
 import { ValueObject, invariant } from "@bedrock/shared/core/domain";
-import { mulDivFloor } from "@bedrock/shared/money/math";
+import { mulDivCeil, mulDivFloor } from "@bedrock/shared/money/math";
 
 import type { QuoteLegSourceKind } from "./quote-types";
 
@@ -108,8 +108,27 @@ export class QuoteLeg extends ValueObject<QuoteLegSnapshot> {
     });
   }
 
+  static createFromTarget(input: Omit<CreateQuoteLegInput, "fromAmountMinor"> & {
+    toAmountMinor: bigint;
+  }): QuoteLeg {
+    const fromAmountMinor = mulDivCeil(
+      input.toAmountMinor,
+      input.rateDen,
+      input.rateNum,
+    );
+
+    return QuoteLeg.create({
+      ...input,
+      fromAmountMinor,
+    });
+  }
+
   static fromSnapshot(snapshot: QuoteLegSnapshot): QuoteLeg {
     return new QuoteLeg(snapshot);
+  }
+
+  get fromAmountMinor(): bigint {
+    return this.props.fromAmountMinor;
   }
 
   get fromCurrency(): string {

@@ -6,6 +6,7 @@ import { createDealQuoteWorkflow } from "../../src/composition/deal-quote-workfl
 
 function createWorkflow(overrides?: {
   acceptedQuote?: Record<string, unknown> | null;
+  agreement?: Record<string, unknown>;
   appendTimelineEvent?: ReturnType<typeof vi.fn>;
   expireQuotes?: ReturnType<typeof vi.fn>;
   getQuoteDetails?: ReturnType<typeof vi.fn>;
@@ -40,7 +41,36 @@ function createWorkflow(overrides?: {
               usedAt: null,
               usedDocumentId: null,
             } as const),
+          summary: {
+            agreementId: "agreement-1",
+          },
           revision: 2,
+        })),
+      },
+    },
+  };
+  const agreements = {
+    agreements: {
+      queries: {
+        findById: vi.fn(async () => ({
+          id: "agreement-1",
+          customerId: "customer-1",
+          organizationId: "organization-1",
+          organizationRequisiteId: "requisite-1",
+          isActive: true,
+          createdAt: new Date("2026-04-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          currentVersion: {
+            id: "agreement-version-1",
+            versionNumber: 1,
+            contractNumber: null,
+            contractDate: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+            parties: [],
+            feeRules: [],
+            ...overrides?.agreement,
+          },
         })),
       },
     },
@@ -58,6 +88,11 @@ function createWorkflow(overrides?: {
     findByCode: vi.fn(async (code: string) => ({
       code,
       id: `cur-${code.toLowerCase()}`,
+      precision: 2,
+    })),
+    findById: vi.fn(async (id: string) => ({
+      code: id.replace(/^cur-/u, "").toUpperCase(),
+      id,
       precision: 2,
     })),
   };
@@ -163,11 +198,13 @@ function createWorkflow(overrides?: {
   };
 
   return {
+    agreements,
     calculations,
     currencies,
     deals,
     treasury,
     workflow: createDealQuoteWorkflow({
+      agreements: agreements as any,
       calculations: calculations as any,
       currencies: currencies as any,
       deals: deals as any,
@@ -234,6 +271,94 @@ describe("deal quote workflow", () => {
       type: "quote_used",
       visibility: "internal",
     });
+  });
+
+  it("allows idempotent markQuoteUsed when the accepted quote is already used by the same document", async () => {
+    const appendTimelineEvent = vi.fn(async () => undefined);
+    const { deals, treasury, workflow } = createWorkflow({
+      acceptedQuote: {
+        acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
+        acceptedByUserId: "user-1",
+        agreementVersionId: null,
+        dealId: "deal-1",
+        dealRevision: 2,
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        id: "acceptance-1",
+        quoteId: "quote-1",
+        quoteStatus: "used",
+        replacedByQuoteId: null,
+        revokedAt: null,
+        usedAt: new Date("2026-04-01T10:05:00.000Z"),
+        usedDocumentId: "doc-1",
+      },
+      appendTimelineEvent,
+    });
+
+    await expect(
+      workflow.markQuoteUsed({
+        at: new Date("2026-04-01T10:06:00.000Z"),
+        dealId: "deal-1",
+        quoteId: "quote-1",
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      }),
+    ).resolves.toMatchObject({
+      id: "quote-1",
+      status: "used",
+      usedDocumentId: "doc-1",
+    });
+
+    expect(treasury.quotes.commands.markQuoteUsed).toHaveBeenCalledWith({
+      at: new Date("2026-04-01T10:06:00.000Z"),
+      dealId: "deal-1",
+      quoteId: "quote-1",
+      usedByRef: "invoice:doc-1",
+      usedDocumentId: "doc-1",
+    });
+    expect(deals.deals.commands.appendTimelineEvent).toHaveBeenCalledWith({
+      dealId: "deal-1",
+      payload: {
+        quoteId: "quote-1",
+        usedAt: new Date("2026-04-01T10:06:00.000Z"),
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      },
+      sourceRef: "quote:quote-1:used:invoice:doc-1",
+      type: "quote_used",
+      visibility: "internal",
+    });
+  });
+
+  it("still rejects markQuoteUsed when the accepted quote is already used by another document", async () => {
+    const { treasury, workflow } = createWorkflow({
+      acceptedQuote: {
+        acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
+        acceptedByUserId: "user-1",
+        agreementVersionId: null,
+        dealId: "deal-1",
+        dealRevision: 2,
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        id: "acceptance-1",
+        quoteId: "quote-1",
+        quoteStatus: "used",
+        replacedByQuoteId: null,
+        revokedAt: null,
+        usedAt: new Date("2026-04-01T10:05:00.000Z"),
+        usedDocumentId: "doc-2",
+      },
+    });
+
+    await expect(
+      workflow.markQuoteUsed({
+        at: new Date("2026-04-01T10:06:00.000Z"),
+        dealId: "deal-1",
+        quoteId: "quote-1",
+        usedByRef: "invoice:doc-1",
+        usedDocumentId: "doc-1",
+      }),
+    ).rejects.toThrow("Quote quote-1 is not active: used");
+
+    expect(treasury.quotes.commands.markQuoteUsed).not.toHaveBeenCalled();
   });
 
   it("appends quote_expired for linked deal quotes", async () => {
@@ -334,5 +459,240 @@ describe("deal quote workflow", () => {
       },
     );
     expect(calculation).toEqual({ id: "calculation-1" });
+  });
+
+  it("applies active agreement fee defaults when creating a calculation", async () => {
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+          {
+            id: "rule-fixed-fee",
+            kind: "fixed_fee",
+            unit: "money",
+            value: "150",
+            currencyId: "cur-eur",
+            currencyCode: "EUR",
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalExpensesAmountMinor: "15050",
+        additionalExpensesCurrencyId: "cur-eur",
+        additionalExpensesInBaseMinor: "15050",
+        feeAmountInBaseMinor: "180",
+        feeAmountMinor: "200",
+        feeBps: "200",
+        totalAmountMinor: "10200",
+        totalWithExpensesInBaseMinor: "24230",
+      }),
+    );
+  });
+
+  it("allows clearing agreement fee defaults explicitly", async () => {
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+          {
+            id: "rule-fixed-fee",
+            kind: "fixed_fee",
+            unit: "money",
+            value: "150",
+            currencyId: "cur-eur",
+            currencyCode: "EUR",
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      agentFeePercent: null,
+      dealId: "deal-1",
+      fixedFeeAmount: null,
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalExpensesAmountMinor: "50",
+        additionalExpensesCurrencyId: "cur-eur",
+        additionalExpensesInBaseMinor: "50",
+        feeAmountInBaseMinor: "90",
+        feeAmountMinor: "100",
+        feeBps: "100",
+        totalAmountMinor: "10100",
+        totalWithExpensesInBaseMinor: "9140",
+      }),
+    );
+  });
+
+  it("rounds fee bps instead of truncating when the fee amount lands between bps", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 255133760n,
+        fromCurrency: "RUB",
+        fromCurrencyId: "cur-rub",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        rateDen: 1000000n,
+        rateNum: 12542n,
+        status: "active",
+        toAmountMinor: 3200000n,
+        toCurrency: "USD",
+        toCurrencyId: "cur-usd",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
+      },
+    }));
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+      getQuoteDetails,
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feeAmountInBaseMinor: "31999",
+        feeAmountMinor: "2551338",
+        feeBps: "100",
+        totalAmountMinor: "257685098",
+      }),
+    );
+  });
+
+  it("rounds percentage fees and converted components with half-up minor-unit policy", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 50n,
+        fromCurrency: "USD",
+        fromCurrencyId: "cur-usd",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        rateDen: 2n,
+        rateNum: 1n,
+        status: "active",
+        toAmountMinor: 25n,
+        toCurrency: "EUR",
+        toCurrencyId: "cur-eur",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
+      },
+    }));
+    const { calculations, workflow } = createWorkflow({
+      agreement: {
+        feeRules: [
+          {
+            id: "rule-agent-fee",
+            kind: "agent_fee",
+            unit: "bps",
+            value: "100",
+            currencyId: null,
+            currencyCode: null,
+            createdAt: new Date("2026-04-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ],
+      },
+      getQuoteDetails,
+    });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      fixedFeeAmount: "0.01",
+      fixedFeeCurrencyCode: "USD",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalExpensesAmountMinor: "1",
+        additionalExpensesCurrencyId: "cur-usd",
+        additionalExpensesInBaseMinor: "1",
+        feeAmountInBaseMinor: "1",
+        feeAmountMinor: "1",
+        totalAmountMinor: "51",
+        totalWithExpensesInBaseMinor: "27",
+      }),
+    );
   });
 });

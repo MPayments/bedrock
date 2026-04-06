@@ -507,6 +507,7 @@ export class DrizzleDealStore implements DealStore {
     agreementId?: string;
     agentId?: string | null;
     calculationId?: string | null;
+    comment?: string | null;
     dealId: string;
     nextAction?: string | null;
     sourceAmountMinor?: bigint | null;
@@ -524,6 +525,9 @@ export class DrizzleDealStore implements DealStore {
     }
     if ("calculationId" in input) {
       values.calculationId = input.calculationId ?? null;
+    }
+    if ("comment" in input) {
+      values.comment = input.comment ?? null;
     }
     if ("nextAction" in input) {
       values.nextAction = input.nextAction ?? null;

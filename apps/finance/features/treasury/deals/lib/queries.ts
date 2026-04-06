@@ -161,6 +161,11 @@ const FinanceDealQueueFiltersSchema = z.object({
   status: FinanceDealStatusSchema.optional(),
   type: FinanceDealTypeSchema.optional(),
 });
+const FinanceProfitabilityAmountSchema = z.object({
+  amountMinor: z.string(),
+  currencyCode: z.string(),
+  currencyId: z.string().uuid(),
+});
 
 const FinanceDealListItemSchema = z.object({
   applicantName: z.string().nullable(),
@@ -181,11 +186,10 @@ const FinanceDealListItemSchema = z.object({
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
-      currencyId: z.string().uuid(),
-      feeRevenueMinor: z.string(),
-      providerFeeExpenseMinor: z.string(),
-      spreadRevenueMinor: z.string(),
-      totalRevenueMinor: z.string(),
+      feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
+      spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
+      totalRevenue: z.array(FinanceProfitabilityAmountSchema),
     })
     .nullable(),
   queue: FinanceDealQueueSchema,
@@ -222,6 +226,13 @@ const FinanceDealWorkspaceActionsSchema = z.object({
   canUploadAttachment: z.boolean(),
 });
 
+const FinanceDealExecutionLegDocumentActionSchema = z.object({
+  activeDocumentId: z.string().uuid().nullable(),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+});
+
 const FinanceDealAttachmentRequirementSchema = z.object({
   blockingReasons: z.array(z.string()),
   code: z.string(),
@@ -240,9 +251,22 @@ const FinanceDealFormalDocumentRequirementSchema = z.object({
 });
 
 const FinanceDealPricingContextSchema = z.object({
+  fundingMessage: z.string().nullable(),
+  fundingResolution: z.object({
+    availableMinor: z.string().nullable(),
+    fundingOrganizationId: z.string().uuid().nullable(),
+    fundingRequisiteId: z.string().uuid().nullable(),
+    reasonCode: z.string().nullable(),
+    requiredAmountMinor: z.string().nullable(),
+    state: z.enum(["not_applicable", "blocked", "resolved"]),
+    strategy: z.enum(["existing_inventory", "external_fx"]).nullable(),
+    targetCurrency: z.string().nullable(),
+    targetCurrencyId: z.string().uuid().nullable(),
+  }),
+  quoteAmount: z.string().nullable(),
+  quoteAmountSide: z.enum(["source", "target"]),
   quoteEligibility: z.boolean(),
-  requestedAmount: z.string().nullable(),
-  requestedCurrencyId: z.string().uuid().nullable(),
+  sourceCurrencyId: z.string().uuid().nullable(),
   targetCurrencyId: z.string().uuid().nullable(),
 });
 
@@ -308,6 +332,32 @@ const FinanceDealQuoteItemSchema = z.object({
   usedAt: z.iso.datetime().nullable(),
   usedByRef: z.string().nullable(),
   usedDocumentId: z.string().uuid().nullable(),
+});
+
+const FinanceDealWorkflowParticipantSchema = z.object({
+  counterpartyId: z.string().uuid().nullable(),
+  customerId: z.string().uuid().nullable(),
+  organizationId: z.string().uuid().nullable(),
+  role: z.enum([
+    "applicant",
+    "customer",
+    "external_beneficiary",
+    "external_payer",
+    "internal_entity",
+  ]),
+});
+
+const FinanceDealWorkflowContextSchema = z.object({
+  fundingResolution: FinanceDealPricingContextSchema.shape.fundingResolution,
+  intake: z.object({
+    common: z.object({
+      applicantCounterpartyId: z.string().uuid().nullable(),
+    }),
+  }),
+  participants: z.array(FinanceDealWorkflowParticipantSchema),
+  summary: z.object({
+    agreementId: z.string().uuid(),
+  }),
 });
 
 const FinanceDealCalculationHistoryItemSchema = z.object({
@@ -423,6 +473,7 @@ const FinanceDealWorkspaceSchema = z.object({
     z.object({
       actions: z.object({
         canCreateLegOperation: z.boolean(),
+        exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
       }),
       id: z.string().uuid().nullable(),
       idx: z.number().int().positive(),
@@ -468,11 +519,10 @@ const FinanceDealWorkspaceSchema = z.object({
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
-      currencyId: z.string().uuid(),
-      feeRevenueMinor: z.string(),
-      providerFeeExpenseMinor: z.string(),
-      spreadRevenueMinor: z.string(),
-      totalRevenueMinor: z.string(),
+      feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
+      spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
+      totalRevenue: z.array(FinanceProfitabilityAmountSchema),
     })
     .nullable(),
   queueContext: z.object({
@@ -501,6 +551,7 @@ const FinanceDealWorkspaceSchema = z.object({
       type: z.string(),
     }),
   ),
+  workflow: FinanceDealWorkflowContextSchema.optional(),
 });
 
 const FinanceDealBreadcrumbSchema = z.object({
@@ -626,10 +677,16 @@ export type FinanceDealCalculationHistoryItem = z.infer<
 export type FinanceDealFormalDocumentRequirement = z.infer<
   typeof FinanceDealFormalDocumentRequirementSchema
 >;
+export type FinanceProfitabilityAmount = z.infer<
+  typeof FinanceProfitabilityAmountSchema
+>;
 export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
   blockerState: FinanceDealBlockerState;
 };
 export type FinanceDealQuoteItem = z.infer<typeof FinanceDealQuoteItemSchema>;
+export type FinanceDealWorkflowContext = z.infer<
+  typeof FinanceDealWorkflowContextSchema
+>;
 export type FinanceDealsListResult = EntityListResult<FinanceDealListItem>;
 export type FinanceDealBreadcrumb = z.infer<typeof FinanceDealBreadcrumbSchema>;
 export type FinanceDealWorkspace = z.infer<typeof FinanceDealWorkspaceSchema>;

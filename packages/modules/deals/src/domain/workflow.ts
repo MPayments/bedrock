@@ -3,6 +3,7 @@ import {
   type DEAL_LEG_KIND_VALUES,
 } from "./constants";
 import type {
+  DealFundingResolution,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
@@ -12,7 +13,19 @@ import type {
   DealWorkflowLeg,
   DealWorkflowParticipant,
 } from "../application/contracts/dto";
-import type { DealSectionId, DealType } from "../application/contracts/zod";
+import type {
+  DealSectionId,
+  DealStatus,
+  DealType,
+} from "../application/contracts/zod";
+
+const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
+  awaiting_funds: "awaiting_payment",
+  awaiting_payment: "closing_documents",
+  closing_documents: "done",
+  preparing_documents: "awaiting_funds",
+  submitted: "preparing_documents",
+};
 
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
@@ -100,7 +113,14 @@ export function evaluateDealSectionCompleteness(
   });
 
   const moneyRequestBlockingReasons: string[] = [];
-  if (!hasMoneyAmount(intake.moneyRequest.sourceAmount)) {
+  if (intake.type === "payment") {
+    if (!hasMoneyAmount(intake.incomingReceipt.expectedAmount)) {
+      moneyRequestBlockingReasons.push("Payment amount is required");
+    }
+    if (!intake.moneyRequest.targetCurrencyId) {
+      moneyRequestBlockingReasons.push("Payment currency is required");
+    }
+  } else if (!hasMoneyAmount(intake.moneyRequest.sourceAmount)) {
     moneyRequestBlockingReasons.push("Source amount is required");
   }
   if (!intake.moneyRequest.sourceCurrencyId) {
@@ -267,6 +287,7 @@ function hasPostedTransferDocument(
 export function buildEffectiveDealExecutionPlan(input: {
   acceptance: DealQuoteAcceptance | null;
   documents: DealRelatedFormalDocument[];
+  fundingResolution: DealFundingResolution;
   intake: DealIntakeDraft;
   now: Date;
   storedLegs: DealWorkflowLeg[];
@@ -297,6 +318,20 @@ export function buildEffectiveDealExecutionPlan(input: {
     downstreamLegs.length === 1 && hasPostedTransferDocument(input.documents);
 
   return merged.map((leg) => {
+    if (
+      leg.kind === "convert" &&
+      input.fundingResolution.state === "resolved" &&
+      input.fundingResolution.strategy === "existing_inventory" &&
+      leg.state !== "done" &&
+      leg.state !== "skipped" &&
+      leg.operationRefs.length === 0
+    ) {
+      return {
+        ...leg,
+        state: "skipped",
+      };
+    }
+
     if (
       leg.kind === "convert" &&
       leg.state !== "done" &&
@@ -341,7 +376,7 @@ export function deriveDealNextAction(input: {
   intake: DealIntakeDraft;
   now?: Date;
   transitionReadiness?: DealTransitionReadiness[];
-  status: string;
+  status: DealStatus;
 }): string {
   if (!isRequiredDealSectionComplete(input.intake.type, input.completeness)) {
     return "Complete intake";
@@ -355,11 +390,19 @@ export function deriveDealNextAction(input: {
     return "No action";
   }
 
+  const nextProgressStatus =
+    NEXT_PROGRESS_STATUS_BY_STATUS[input.status] ?? null;
   const allBlockers =
     input.transitionReadiness?.flatMap((item) => item.blockers) ?? [];
+  const relevantBlockers =
+    (nextProgressStatus
+      ? input.transitionReadiness?.find(
+          (item) => item.targetStatus === nextProgressStatus,
+        )?.blockers
+      : null) ?? allBlockers;
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["capability_pending", "capability_disabled"].includes(blocker.code),
     )
   ) {
@@ -367,7 +410,7 @@ export function deriveDealNextAction(input: {
   }
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["operational_position_incomplete", "operational_position_blocked"].includes(
         blocker.code,
       ),
@@ -377,10 +420,11 @@ export function deriveDealNextAction(input: {
   }
 
   const now = input.now ?? new Date();
-  const hasCurrentAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
-    acceptance: input.acceptance,
-    now,
-  });
+  const hasCurrentAcceptedQuote =
+    isAcceptedQuoteCurrentAndExecutable({
+      acceptance: input.acceptance,
+      now,
+    }) || input.acceptance?.quoteStatus === "used";
 
   if (dealIntakeHasConvertLeg(input.intake) && !hasCurrentAcceptedQuote) {
     return "Accept quote";
@@ -391,7 +435,7 @@ export function deriveDealNextAction(input: {
   }
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["approval_pending", "approval_rejected"].includes(blocker.code),
     )
   ) {
@@ -399,7 +443,7 @@ export function deriveDealNextAction(input: {
   }
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["opening_document_missing", "opening_document_not_ready"].includes(
         blocker.code,
       ),
@@ -409,7 +453,7 @@ export function deriveDealNextAction(input: {
   }
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["execution_leg_blocked", "execution_leg_not_ready", "execution_leg_not_done"].includes(
         blocker.code,
       ),
@@ -419,7 +463,7 @@ export function deriveDealNextAction(input: {
   }
 
   if (
-    allBlockers.some((blocker) =>
+    relevantBlockers.some((blocker) =>
       ["closing_document_missing", "closing_document_not_ready"].includes(
         blocker.code,
       ),

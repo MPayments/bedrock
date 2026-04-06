@@ -27,6 +27,7 @@ export type DocumentFormZodErrorState = {
 };
 
 export type DocumentFormOwnerRequest = {
+  currencyId?: string;
   ownerId: string;
   ownerKey: string;
   ownerType: "counterparty" | "organization";
@@ -114,10 +115,71 @@ export function resolveRequisiteFieldSource(
 }
 
 export function resolveOwnerKey(input: {
+  currencyId?: string | null;
   ownerId: string;
   requisiteSource: "counterpartyRequisites" | "organizationRequisites";
 }) {
-  return `${input.requisiteSource}:${input.ownerId}`;
+  const key = `${input.requisiteSource}:${input.ownerId}`;
+
+  if (!input.currencyId) {
+    return key;
+  }
+
+  return `${key}:${input.currencyId}`;
+}
+
+export function resolveAccountFieldCurrencyId(input: {
+  currencyIdByCode: Map<string, string>;
+  field: Extract<DocumentFormField, { kind: "account" }>;
+  values: DocumentFormValues;
+}): string | null {
+  if (!input.field.currencyFieldName) {
+    return null;
+  }
+
+  const currencyCode = readValueAsString(
+    input.values[input.field.currencyFieldName],
+  ).trim();
+
+  if (!currencyCode) {
+    return null;
+  }
+
+  return input.currencyIdByCode.get(currencyCode) ?? null;
+}
+
+export function resolveAccountFieldOwnerKey(input: {
+  currencyIdByCode: Map<string, string>;
+  field: Extract<DocumentFormField, { kind: "account" }>;
+  values: DocumentFormValues;
+}): string | null {
+  const ownerId = readValueAsString(
+    input.values[input.field.counterpartyField],
+  ).trim();
+
+  if (!isUuid(ownerId)) {
+    return null;
+  }
+
+  return resolveOwnerKey({
+    currencyId: resolveAccountFieldCurrencyId(input),
+    ownerId,
+    requisiteSource: resolveRequisiteFieldSource(input.field),
+  });
+}
+
+export function collectAccountDependencyNames(
+  accountFields: Array<Extract<DocumentFormField, { kind: "account" }>>,
+): string[] {
+  return Array.from(
+    new Set(
+      accountFields.flatMap((field) =>
+        field.currencyFieldName
+          ? [field.name, field.counterpartyField, field.currencyFieldName]
+          : [field.name, field.counterpartyField],
+      ),
+    ),
+  );
 }
 
 export function resolveDocumentFormDefaultValues(input: {
@@ -129,7 +191,14 @@ export function resolveDocumentFormDefaultValues(input: {
     return {};
   }
 
-  if (input.mode === "edit" && input.initialPayload) {
+  if (input.initialPayload) {
+    if (input.mode === "create") {
+      return {
+        ...input.definition.defaultValues(),
+        ...input.initialPayload,
+      };
+    }
+
     return input.definition.fromPayload(input.initialPayload);
   }
 
@@ -187,6 +256,7 @@ export function resolveAccountRequisiteRequests(input: {
   accountFields: Array<Extract<DocumentFormField, { kind: "account" }>>;
   ownerValuesByField: DocumentFormValues;
   cachedOwnerKeys: Iterable<string>;
+  currencyIdByCode: Map<string, string>;
   loadingOwnerKeys: Iterable<string>;
 }): DocumentFormOwnerRequest[] {
   const cachedOwnerKeySet = new Set(input.cachedOwnerKeys);
@@ -199,7 +269,13 @@ export function resolveAccountRequisiteRequests(input: {
       input.ownerValuesByField[field.counterpartyField],
     ).trim();
     const requisiteSource = resolveRequisiteFieldSource(field);
+    const currencyId = resolveAccountFieldCurrencyId({
+      currencyIdByCode: input.currencyIdByCode,
+      field,
+      values: input.ownerValuesByField,
+    });
     const ownerKey = resolveOwnerKey({
+      currencyId,
       ownerId,
       requisiteSource,
     });
@@ -218,6 +294,7 @@ export function resolveAccountRequisiteRequests(input: {
 
     seenOwnerKeys.add(ownerKey);
     requests.push({
+      currencyId: currencyId ?? undefined,
       ownerId,
       ownerKey,
       ownerType:
@@ -228,6 +305,51 @@ export function resolveAccountRequisiteRequests(input: {
   }
 
   return requests;
+}
+
+export function findInvalidAccountFieldUpdates(input: {
+  accountFields: Array<Extract<DocumentFormField, { kind: "account" }>>;
+  currencyIdByCode: Map<string, string>;
+  loadingOwnerKeys: Iterable<string>;
+  requisitesByOwnerKey: ReadonlyMap<string, Array<{ id: string }>>;
+  values: DocumentFormValues;
+}): Array<{ name: string; value: string }> {
+  const loadingOwnerKeySet = new Set(input.loadingOwnerKeys);
+  const updates: Array<{ name: string; value: string }> = [];
+
+  for (const field of input.accountFields) {
+    const selectedAccountId = readValueAsString(input.values[field.name]).trim();
+
+    if (!selectedAccountId) {
+      continue;
+    }
+
+    const ownerKey = resolveAccountFieldOwnerKey({
+      currencyIdByCode: input.currencyIdByCode,
+      field,
+      values: input.values,
+    });
+
+    if (!ownerKey) {
+      updates.push({ name: field.name, value: "" });
+      continue;
+    }
+
+    if (loadingOwnerKeySet.has(ownerKey)) {
+      continue;
+    }
+
+    const options = input.requisitesByOwnerKey.get(ownerKey);
+    if (!options) {
+      continue;
+    }
+
+    if (!options.some((option) => option.id === selectedAccountId)) {
+      updates.push({ name: field.name, value: "" });
+    }
+  }
+
+  return updates;
 }
 
 export function deriveAccountCurrencyFieldUpdates(input: {

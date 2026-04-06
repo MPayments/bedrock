@@ -133,6 +133,10 @@ function doLegOperationsSatisfyStates(input: {
   }
 
   return legs.every((leg) => {
+    if (leg.state === "skipped") {
+      return true;
+    }
+
     if (leg.operationRefs.length === 0) {
       return false;
     }
@@ -325,7 +329,7 @@ function createCriteria(input: {
 }) {
   const criteria: FinanceDealCloseReadinessCriterion[] = [];
   const operationsMaterialized = input.workflow.executionPlan.every(
-    (leg) => leg.operationRefs.length > 0,
+    (leg) => leg.state === "skipped" || leg.operationRefs.length > 0,
   );
 
   criteria.push(

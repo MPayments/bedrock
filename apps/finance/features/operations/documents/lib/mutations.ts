@@ -40,7 +40,7 @@ function mutationHeaders(idempotencyKey?: string): Record<string, string> {
   };
 
   if (idempotencyKey) {
-    headers["idempotency-key"] = idempotencyKey;
+    headers["Idempotency-Key"] = idempotencyKey;
   }
 
   return headers;
@@ -69,6 +69,33 @@ export async function createDocumentDraft(input: {
       }),
     schema: parseDocumentResultSchema(),
     fallbackMessage: `Не удалось создать документ ${input.docType}`,
+  });
+}
+
+export async function createDealScopedDocumentDraft(input: {
+  dealId: string;
+  docType: string;
+  payload: unknown;
+}): Promise<ApiMutationResult<DocumentMutationDto>> {
+  const idempotencyKey = generateIdempotencyKey("deals.docs.create");
+
+  return executeApiMutation({
+    request: () =>
+      fetch(
+        buildDocumentUrl(
+          `/v1/deals/${encodeURIComponent(input.dealId)}/formal-documents/${encodeURIComponent(input.docType)}`,
+        ),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: mutationHeaders(idempotencyKey),
+          body: JSON.stringify({
+            input: input.payload,
+          }),
+        },
+      ),
+    schema: parseDocumentResultSchema(),
+    fallbackMessage: `Не удалось создать документ ${input.docType} для сделки`,
   });
 }
 

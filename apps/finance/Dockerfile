@@ -29,14 +29,20 @@ RUN bun install --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
+ARG NEXT_BUILD_MAX_OLD_SPACE_SIZE=4096
 WORKDIR /repo
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS=--max-old-space-size=${NEXT_BUILD_MAX_OLD_SPACE_SIZE}
 
 COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
 
-# Build API types first (finance imports types from api/dist via sdk-api-client)
-RUN npx tsgo --project apps/api/tsconfig.json
+# Build shared API artifacts first so finance consumes compiled RPC client types.
+WORKDIR /repo/apps/api
+RUN node build.mjs
+
+WORKDIR /repo
+RUN node_modules/.bin/tsc -p packages/sdk/api-client/tsconfig.build.json
 
 # Build Next.js (produces .next/standalone)
 ARG API_INTERNAL_URL=http://localhost:3000

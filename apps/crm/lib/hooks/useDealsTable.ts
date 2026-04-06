@@ -59,6 +59,7 @@ interface DealsByDayPoint {
   closedCount: number;
   count: number;
   date: string;
+  [currencyCode: string]: number | string | undefined;
 }
 
 export interface UseDealsTableOptions {
@@ -203,16 +204,49 @@ export function useDealsTable(options: UseDealsTableOptions = {}) {
         let totalCount = 0;
         let doneCount = 0;
         let totalAmountInBase = 0;
+        const presentCurrencies = new Set<string>();
 
         for (const point of points) {
           totalCount += point.count ?? 0;
           doneCount += point.closedCount ?? 0;
-          totalAmountInBase += point.amount ?? 0;
+
+          for (const [key, value] of Object.entries(point)) {
+            if (
+              key === "amount" ||
+              key === "closedAmount" ||
+              key === "closedCount" ||
+              key === "count" ||
+              key === "date"
+            ) {
+              continue;
+            }
+
+            if (typeof value === "number" && value !== 0) {
+              presentCurrencies.add(key);
+            }
+          }
+
+          if (reportCurrencyCode) {
+            totalAmountInBase += point.amount ?? 0;
+          }
+        }
+
+        const resolvedBaseCurrencyCode = reportCurrencyCode
+          ? reportCurrencyCode
+          : presentCurrencies.size === 1
+            ? Array.from(presentCurrencies)[0]
+            : undefined;
+
+        if (!reportCurrencyCode && resolvedBaseCurrencyCode) {
+          totalAmountInBase = points.reduce((sum, point) => {
+            const nextAmount = point[resolvedBaseCurrencyCode];
+            return sum + (typeof nextAmount === "number" ? nextAmount : 0);
+          }, 0);
         }
 
         setStatistics({
           activeCount: Math.max(totalCount - doneCount, 0),
-          baseCurrencyCode: "RUB",
+          baseCurrencyCode: resolvedBaseCurrencyCode,
           doneCount,
           reportCurrencyCode,
           totalAmountInBase,

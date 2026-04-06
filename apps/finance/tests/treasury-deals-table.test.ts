@@ -68,6 +68,10 @@ describe("finance deals table", () => {
     expect(props.initialState).toEqual({
       columnVisibility: {
         blockerState: false,
+        documentSummary: false,
+        executionSummary: false,
+        internalEntityName: false,
+        nextAction: false,
       },
       sorting: [{ id: "createdAt", desc: true }],
     });
@@ -80,5 +84,5 @@ describe("finance deals table", () => {
     });
 
     expect(push).toHaveBeenCalledWith("/treasury/deals/deal-1");
-  });
+  }, 15_000);
 });

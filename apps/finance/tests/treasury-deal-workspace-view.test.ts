@@ -6,6 +6,18 @@ import { FinanceDealWorkspaceView } from "@/features/treasury/deals/components/w
 import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries";
 
 function createDeal(): FinanceDealWorkspace {
+  const fundingResolution = {
+    availableMinor: null,
+    fundingOrganizationId: "organization-1",
+    fundingRequisiteId: null,
+    reasonCode: "inventory_insufficient",
+    requiredAmountMinor: "1214375000",
+    state: "resolved" as const,
+    strategy: "external_fx" as const,
+    targetCurrency: "RUB",
+    targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+  };
+
   return {
     acceptedQuote: {
       acceptedAt: "2026-04-02T08:15:00.000Z",
@@ -79,6 +91,7 @@ function createDeal(): FinanceDealWorkspace {
       {
         actions: {
           canCreateLegOperation: false,
+          exchangeDocument: null,
         },
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
@@ -134,9 +147,12 @@ function createDeal(): FinanceDealWorkspace {
       ],
     },
     pricing: {
+      fundingMessage: "Требуется конвертация",
+      fundingResolution,
+      quoteAmount: "125000.00",
+      quoteAmountSide: "target",
       quoteEligibility: true,
-      requestedAmount: "125000.00",
-      requestedCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+      sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
@@ -218,6 +234,10 @@ function createDeal(): FinanceDealWorkspace {
   };
 }
 
+function normalizeMarkupWhitespace(markup: string) {
+  return markup.replaceAll(/\u00a0|\u202f/gu, " ");
+}
+
 describe("treasury deal workspace view", () => {
   it("renders an execution-first localized preview without raw technical details or action buttons", () => {
     (
@@ -232,21 +252,71 @@ describe("treasury deal workspace view", () => {
       }),
     );
 
-    expect(markup).toContain("Платеж поставщику");
-    expect(markup).toContain("Контур исполнения");
-    expect(markup).toContain("Создать расчет по принятой котировке");
-    expect(markup).toContain("Анкета заполнена не полностью.");
-    expect(markup).toContain("Не заполнен обязательный участник: получатель выплаты.");
-    expect(markup.indexOf("Контур исполнения")).toBeLessThan(
-      markup.indexOf("Котировки и расчет"),
+    const normalizedMarkup = normalizeMarkupWhitespace(markup);
+
+    expect(normalizedMarkup).toContain("Платеж поставщику");
+    expect(normalizedMarkup).toContain("Контур исполнения");
+    expect(normalizedMarkup).toContain("Создать расчет по принятой котировке");
+    expect(normalizedMarkup).toContain("Анкета заполнена не полностью.");
+    expect(normalizedMarkup).toContain(
+      "Не заполнен обязательный участник: получатель выплаты.",
     );
-    expect(markup).not.toContain("Required intake sections are incomplete");
-    expect(markup).not.toContain("capability_missing");
-    expect(markup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
-    expect(markup).not.toContain("Запросить котировку");
-    expect(markup).toContain("Расходы провайдера");
-    expect(markup).toContain("Критерии закрытия");
-    expect(markup).toContain("Сверка");
-    expect(markup).toContain("Последнее исключение");
+    expect(normalizedMarkup.indexOf("Контур исполнения")).toBeLessThan(
+      normalizedMarkup.indexOf("Котировки и расчет"),
+    );
+    expect(normalizedMarkup).not.toContain("Required intake sections are incomplete");
+    expect(normalizedMarkup).not.toContain("capability_missing");
+    expect(normalizedMarkup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
+    expect(normalizedMarkup).not.toContain("Запросить котировку");
+    expect(normalizedMarkup).toContain("Расходы провайдера");
+    expect(normalizedMarkup).toContain("Критерии закрытия");
+    expect(normalizedMarkup).toContain("Сверка");
+    expect(normalizedMarkup).toContain("Последнее исключение");
+  });
+
+  it("formats profitability snapshot amounts from minor units", () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const deal = createDeal();
+    deal.profitabilitySnapshot = {
+      calculationId: "calc-1",
+      feeRevenue: [
+        {
+          amountMinor: "2551338",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      providerFeeExpense: [
+        {
+          amountMinor: "15000",
+          currencyCode: "USD",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      spreadRevenue: [],
+      totalRevenue: [
+        {
+          amountMinor: "2551338",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+    };
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkspaceView, {
+        deal,
+      }),
+    );
+    const normalizedMarkup = normalizeMarkupWhitespace(markup);
+
+    expect(normalizedMarkup).toContain("25 513,38 RUB");
+    expect(normalizedMarkup).toContain("150 USD");
+    expect(normalizedMarkup).not.toContain("2 551 338");
   });
 });

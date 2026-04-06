@@ -25,7 +25,6 @@ import {
   type DocumentDetailsDto,
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
-import { DealWorkflowDialog } from "@/features/treasury/quotes/components/deal-workflow-dialog";
 
 import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
@@ -44,12 +43,14 @@ function StatusBadges({
   function getStatusBadgeVariant(
     status: string,
     kind: "submission" | "approval" | "posting" | "lifecycle",
-  ): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
-    if (
-      status === "approved" ||
-      status === "posted" ||
-      status === "active"
-    ) {
+  ):
+    | "default"
+    | "secondary"
+    | "destructive"
+    | "outline"
+    | "success"
+    | "warning" {
+    if (status === "approved" || status === "posted" || status === "active") {
       return "success";
     }
 
@@ -57,10 +58,7 @@ function StatusBadges({
       return "warning";
     }
 
-    if (
-      status === "submitted" ||
-      status === "posting"
-    ) {
+    if (status === "submitted" || status === "posting") {
       return "default";
     }
 
@@ -129,7 +127,6 @@ function buildDocumentHref(
 }
 
 export function DocumentDetailsView({
-  dealId,
   details,
   documentBasePath,
   userRole,
@@ -173,7 +170,6 @@ export function DocumentDetailsView({
               documentId={document.id}
               allowedActions={document.allowedActions}
             />
-            {dealId ? <DealWorkflowDialog dealId={dealId} /> : null}
           </div>
         </CardHeader>
         <CardContent className="grid gap-6 py-6 md:grid-cols-2">
@@ -181,9 +177,6 @@ export function DocumentDetailsView({
             <div>
               <span className="text-muted-foreground">Тип:</span>{" "}
               {getDocumentTypeLabel(document.docType)}
-            </div>
-            <div className="font-mono text-xs text-muted-foreground">
-              {document.docType}
             </div>
             <div>
               <span className="text-muted-foreground">Дата:</span>{" "}
@@ -334,17 +327,6 @@ export function DocumentDetailsView({
           </CardContent>
         </Card>
       ) : null}
-
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Данные документа</CardTitle>
-        </CardHeader>
-        <CardContent className="py-6">
-          <pre className="bg-muted overflow-x-auto rounded-sm p-4 text-xs">
-            {JSON.stringify(document.payload, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
 
       {details.computed ? (
         <Card className="rounded-sm">

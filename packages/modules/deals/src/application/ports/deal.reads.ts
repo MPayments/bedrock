@@ -6,12 +6,22 @@ import type {
   DealCapabilityState,
   DealCalculationHistoryItem,
   DealDetails,
+  DealFundingResolution,
   DealTraceProjection,
   DealWorkflowProjection,
   PortalDealListProjection,
   PortalDealProjection,
 } from "../contracts/dto";
 import type { ListDealsQuery } from "../contracts/queries";
+
+export interface DealFundingAssessmentPort {
+  assessFunding(input: {
+    acceptedQuoteId: string | null;
+    hasConvertLeg: boolean;
+    internalEntityOrganizationId: string | null;
+    targetCurrencyId: string | null;
+  }): Promise<DealFundingResolution>;
+}
 
 export interface DealReads {
   findById(id: string): Promise<DealDetails | null>;

@@ -13,6 +13,7 @@ import {
   type DealDocumentsReadModel,
 } from "./deal.reads";
 import { DrizzleDealStore } from "./deal.store";
+import type { DealFundingAssessmentPort } from "../../application/ports/deal.reads";
 import type {
   DealsCommandTx,
   DealsCommandUnitOfWork,
@@ -21,6 +22,7 @@ import type {
 function bindDealsTx(
   transaction: Transaction,
   bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel,
+  fundingAssessment?: DealFundingAssessmentPort,
 ): DealsCommandTx {
   return {
     transaction,
@@ -29,6 +31,7 @@ function bindDealsTx(
       createCurrenciesQueries({ db: transaction }),
       createPartiesQueries({ db: transaction }),
       bindDocumentsReadModel?.(transaction),
+      fundingAssessment,
     ),
     dealStore: new DrizzleDealStore(transaction),
   };
@@ -39,11 +42,17 @@ export class DrizzleDealsUnitOfWork implements DealsCommandUnitOfWork {
 
   constructor(input: {
     bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel;
+    fundingAssessment?: DealFundingAssessmentPort;
     persistence: PersistenceContext;
   }) {
     this.transactional = createTransactionalPort(
       input.persistence,
-      (transaction) => bindDealsTx(transaction, input.bindDocumentsReadModel),
+      (transaction) =>
+        bindDealsTx(
+          transaction,
+          input.bindDocumentsReadModel,
+          input.fundingAssessment,
+        ),
     );
   }
 

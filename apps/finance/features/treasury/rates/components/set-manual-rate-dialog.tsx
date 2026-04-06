@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { formatDecimalString } from "@bedrock/shared/money";
 
 import { apiClient } from "@/lib/api-client";
 import { parseDecimalToFraction } from "@/lib/decimal";
@@ -56,6 +57,20 @@ export function SetManualRateDialog({
   const quoteCurrencyOptions = currencies.filter(
     (currency) => currency.code !== base,
   );
+  const ratePreview = React.useMemo(() => {
+    if (!rate.trim()) {
+      return null;
+    }
+
+    try {
+      return formatDecimalString(rate, {
+        minimumFractionDigits: 6,
+        maximumFractionDigits: 6,
+      });
+    } catch {
+      return null;
+    }
+  }, [rate]);
 
   function resetForm() {
     setBase(null);
@@ -178,12 +193,10 @@ export function SetManualRateDialog({
             </p>
           </div>
 
-          {rate.trim() && Number(rate.replace(",", ".")) > 0 && (
+          {ratePreview && (
             <p className="text-muted-foreground text-sm">
               Курс:{" "}
-              <span className="font-mono">
-                {Number(rate.replace(",", ".")).toFixed(6)}
-              </span>
+              <span className="font-mono">{ratePreview}</span>
             </p>
           )}
 

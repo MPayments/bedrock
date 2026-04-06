@@ -19,6 +19,7 @@ export const env = {
   S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
   S3_BUCKET: process.env.S3_BUCKET ?? "bedrock-documents",
   S3_ENDPOINT: process.env.S3_ENDPOINT,
+  S3_PUBLIC_ENDPOINT: process.env.S3_PUBLIC_ENDPOINT,
   S3_REGION: process.env.S3_REGION ?? "us-east-1",
   S3_SECRET_KEY: process.env.S3_SECRET_KEY,
   TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3555",

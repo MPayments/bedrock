@@ -33,6 +33,7 @@ function buildRequisiteIdentity(item: z.infer<typeof RequisiteListItemSchema>) {
 export async function fetchRequisiteOptions(input: {
   ownerId: string;
   ownerType: "counterparty" | "organization";
+  currencyId?: string;
   currencyLabelById: Map<string, string>;
 }): Promise<RequisiteOption[]> {
   const query = new URLSearchParams({
@@ -43,6 +44,10 @@ export async function fetchRequisiteOptions(input: {
     sortBy: "createdAt",
     sortOrder: "desc",
   });
+
+  if (input.currencyId) {
+    query.set("currencyId", input.currencyId);
+  }
 
   const response = await fetch(
     `/v1/requisites?${query.toString()}`,

@@ -148,7 +148,6 @@ export const pricingTraceInputSchema = QuotePricingTraceSchema.transform(
 const quotePricingBaseSchema = z.object({
   fromCurrency: currencySchema,
   toCurrency: currencySchema,
-  fromAmountMinor: quoteMinorAmountInputSchema,
   manualFinancialLines: z.array(quoteFinancialLineInputSchema).optional(),
   dealDirection: feeDealDirectionSchema.optional(),
   dealForm: feeDealFormSchema.optional(),
@@ -158,18 +157,26 @@ const quotePricingBaseSchema = z.object({
   asOf: quoteDateInputSchema,
 });
 
+const quoteFromAmountSchema = z.object({
+  fromAmountMinor: quoteMinorAmountInputSchema,
+});
+
+const quoteToAmountSchema = z.object({
+  toAmountMinor: quoteMinorAmountInputSchema,
+});
+
 export const QuotePricingInputSchema = z
   .union([
     quotePricingBaseSchema.extend({
       mode: z.literal("auto_cross"),
       anchor: currencySchema.optional(),
       pricingTrace: pricingTraceInputSchema.optional(),
-    }),
+    }).and(z.union([quoteFromAmountSchema, quoteToAmountSchema])),
     quotePricingBaseSchema.extend({
       mode: z.literal("explicit_route"),
       legs: z.array(quoteLegInputDataSchema).min(1),
       pricingTrace: pricingTraceInputSchema,
-    }),
+    }).and(z.union([quoteFromAmountSchema, quoteToAmountSchema])),
   ])
   .refine((data) => data.fromCurrency !== data.toCurrency, {
     message: "fromCurrency and toCurrency must be different",

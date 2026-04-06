@@ -27,6 +27,17 @@ function createBaseWorkflow(): DealWorkflowProjection {
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "ready"),
     ],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: "not_applicable",
+      requiredAmountMinor: null,
+      state: "not_applicable",
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
     intake: {
       common: {
         applicantCounterpartyId: "counterparty-1",
@@ -40,16 +51,16 @@ function createBaseWorkflow(): DealWorkflowProjection {
       },
       incomingReceipt: {
         contractNumber: null,
-        expectedAmount: null,
+        expectedAmount: "1000",
         expectedAt: null,
-        expectedCurrencyId: null,
+        expectedCurrencyId: "currency-usd",
         invoiceNumber: null,
         payerCounterpartyId: null,
         payerSnapshot: null,
       },
       moneyRequest: {
         purpose: "Pay supplier",
-        sourceAmount: "1000",
+        sourceAmount: null,
         sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
@@ -341,9 +352,17 @@ function createWorkflow(overrides?: {
           data: [
             {
               agreementId: workflow.summary.agreementId,
+              amount:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.incomingReceipt.expectedAmount
+                  : workflow.intake.moneyRequest.sourceAmount,
               agentId: workflow.summary.agentId,
               calculationId: workflow.summary.calculationId,
               comment: workflow.intake.common.customerNote,
+              currencyId:
+                workflow.summary.type === "payment"
+                  ? workflow.intake.moneyRequest.targetCurrencyId
+                  : workflow.intake.moneyRequest.sourceCurrencyId,
               createdAt: workflow.summary.createdAt,
               customerId:
                 workflow.participants.find((participant) => participant.role === "customer")
@@ -352,8 +371,6 @@ function createWorkflow(overrides?: {
               intakeComment: workflow.intake.common.customerNote,
               nextAction: workflow.nextAction,
               reason: workflow.intake.moneyRequest.purpose,
-              requestedAmount: workflow.intake.moneyRequest.sourceAmount,
-              requestedCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
               revision: workflow.revision,
               status: workflow.summary.status,
               type: workflow.summary.type,
@@ -634,14 +651,33 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection.counts.failed_instruction).toBe(1);
     expect(projection.items).toHaveLength(1);
     expect(projection.items[0]).toMatchObject({
+      applicantName: "Customer One",
       dealId: "deal-1",
       createdAt: new Date("2026-04-01T00:00:00.000Z"),
       queue: "failed_instruction",
       queueReason: "Сделка заблокирована на этапе исполнения",
       profitabilitySnapshot: {
-        feeRevenueMinor: "100",
-        spreadRevenueMinor: "250",
-        totalRevenueMinor: "350",
+        feeRevenue: [
+          {
+            amountMinor: "100",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        spreadRevenue: [
+          {
+            amountMinor: "250",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        totalRevenue: [
+          {
+            amountMinor: "350",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
       },
     });
     expect(projection.items[0]?.blockingReasons).toContain(
@@ -728,10 +764,10 @@ describe("createDealProjectionsWorkflow", () => {
           agentName: "",
           amount: 1000,
           amountInBase: 1000,
-          baseCurrencyCode: "RUB",
+          baseCurrencyCode: "USD",
           client: "Customer One",
           clientId: "customer-1",
-          currency: "RUB",
+          currency: "USD",
           feePercentage: 0,
           id: "deal-1",
           status: "submitted",
@@ -773,17 +809,39 @@ describe("createDealProjectionsWorkflow", () => {
     expect(buckets.done).toEqual([
       expect.objectContaining({
         amount: 1000,
+        amountInBase: 1000,
+        baseCurrencyCode: "USD",
         client: "Customer One",
-        currency: "RUB",
+        currency: "USD",
         id: "deal-1",
       }),
     ]);
     expect(byDay).toEqual([
       expect.objectContaining({
-        RUB: 1000,
+        USD: 1000,
         amount: 1000,
         closedAmount: 1000,
         closedCount: 1,
+        count: 1,
+        date: "2026-04-01",
+      }),
+    ]);
+  });
+
+  it("returns day aggregates in the selected report currency without relabeling mixed totals", async () => {
+    const workflow = createWorkflow();
+
+    const byDay = await workflow.listCrmDealsByDay({
+      dateFrom: "2026-04-01",
+      reportCurrencyCode: "USD",
+    });
+
+    expect(byDay).toEqual([
+      expect.objectContaining({
+        USD: 1000,
+        amount: 1000,
+        closedAmount: 0,
+        closedCount: 0,
         count: 1,
         date: "2026-04-01",
       }),
@@ -1021,27 +1079,55 @@ describe("createDealProjectionsWorkflow", () => {
       ],
       formalDocumentRequirements: [
         {
+          createAllowed: true,
           docType: "invoice",
+          openAllowed: false,
           state: "missing",
         },
         {
+          createAllowed: false,
           docType: "acceptance",
+          openAllowed: true,
           state: "ready",
         },
       ],
       pricing: {
+        quoteAmount: "1000",
+        quoteAmountSide: "target",
         quoteEligibility: false,
-        requestedAmount: "1000",
-        requestedCurrencyId: "currency-rub",
+        sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
       profitabilitySnapshot: {
         calculationId: "calculation-1",
-        currencyId: "currency-rub",
-        feeRevenueMinor: "100",
-        providerFeeExpenseMinor: "250",
-        spreadRevenueMinor: "500",
-        totalRevenueMinor: "600",
+        feeRevenue: [
+          {
+            amountMinor: "100",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        providerFeeExpense: [
+          {
+            amountMinor: "250",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        spreadRevenue: [
+          {
+            amountMinor: "500",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        totalRevenue: [
+          {
+            amountMinor: "600",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
       },
       instructionSummary: {
         failed: 0,
@@ -1090,5 +1176,31 @@ describe("createDealProjectionsWorkflow", () => {
         ],
       },
     });
+  });
+
+  it("keeps createAllowed disabled for missing formal documents when commercial writes are blocked", async () => {
+    const workflow = createWorkflow({
+      workflow: {
+        ...createBaseWorkflow(),
+        summary: {
+          ...createBaseWorkflow().summary,
+          status: "draft",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
   });
 });

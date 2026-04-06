@@ -1,3 +1,8 @@
+import {
+  formatDecimalString,
+  formatFractionDecimal,
+} from "@bedrock/shared/money";
+
 export function minorToDecimalString(amountMinor: string, precision: number) {
   const value = BigInt(amountMinor);
   const negative = value < 0n;
@@ -60,29 +65,10 @@ export function rationalToDecimalString(
   denominator: string,
   scale = 6,
 ) {
-  const num = BigInt(numerator);
-  const den = BigInt(denominator);
-
-  if (den === 0n) {
-    throw new Error("Cannot format rate with zero denominator");
-  }
-
-  const negative = (num < 0n) !== (den < 0n);
-  const absoluteNum = num < 0n ? -num : num;
-  const absoluteDen = den < 0n ? -den : den;
-  const integerPart = absoluteNum / absoluteDen;
-  let remainder = absoluteNum % absoluteDen;
-  let fraction = "";
-
-  for (let index = 0; index < scale; index += 1) {
-    remainder *= 10n;
-    fraction += (remainder / absoluteDen).toString();
-    remainder %= absoluteDen;
-  }
-
-  const trimmedFraction = fraction.replace(/0+$/, "");
-  const prefix = negative ? "-" : "";
-  return trimmedFraction ? `${prefix}${integerPart}.${trimmedFraction}` : `${prefix}${integerPart}`;
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
 }
 
 export function feeBpsToPercentString(feeBps: string) {
@@ -97,23 +83,39 @@ export function formatCurrency(
     return "—";
   }
 
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
+  const normalized =
+    typeof value === "number"
+      ? new Intl.NumberFormat("ru-RU", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value)
+      : (() => {
+        try {
+          return formatDecimalString(value, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+        } catch {
+          return null;
+        }
+      })();
+
+  if (normalized === null) {
     return "—";
   }
 
   try {
-    return new Intl.NumberFormat("ru-RU", {
+    const parts = new Intl.NumberFormat("ru-RU", {
       style: "currency",
       currency: currency ?? "RUB",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(numeric);
+    }).formatToParts(1);
+    const currencyPart = parts.find((part) => part.type === "currency")?.value;
+
+    return currencyPart ? `${normalized} ${currencyPart}` : normalized;
   } catch {
-    return new Intl.NumberFormat("ru-RU", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numeric);
+    return normalized;
   }
 }
 

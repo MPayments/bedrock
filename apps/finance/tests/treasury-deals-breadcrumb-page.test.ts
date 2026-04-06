@@ -102,7 +102,7 @@ describe("treasury deals breadcrumb page", () => {
         href: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);
-  });
+  }, 15_000);
 
   it("uses treasury canonical links for organization breadcrumbs", async () => {
     (

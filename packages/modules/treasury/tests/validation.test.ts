@@ -87,6 +87,22 @@ describe("Treasury validation", () => {
         expect(previewParsed.toCurrency).toBe("EUR");
     });
 
+    it("accepts target-side quote input", () => {
+        const parsed = CreateQuoteInputSchema.parse({
+            mode: "auto_cross",
+            idempotencyKey: "idem-target-side",
+            fromCurrency: "rub",
+            toCurrency: "usd",
+            toAmountMinor: 1000n,
+            asOf: new Date("2026-02-19T00:00:00.000Z"),
+        });
+
+        expect(parsed.mode).toBe("auto_cross");
+        expect(parsed.fromCurrency).toBe("RUB");
+        expect(parsed.toCurrency).toBe("USD");
+        expect("toAmountMinor" in parsed).toBe(true);
+    });
+
     it("formats contextual validation error with field path", () => {
         const schema = z.object({
             nested: z.object({

@@ -25,6 +25,7 @@ import {
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { API_BASE_URL } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 import {
   createEmptyCrmDealIntake,
@@ -333,7 +334,6 @@ export function NewDealDialog({
                   ? defaultPaymentSourceCurrencyId
                   : current.moneyRequest.sourceCurrencyId ??
                     defaultPaymentSourceCurrencyId,
-              targetCurrencyId: null,
             }
           : current.moneyRequest,
       type: dealType,
@@ -412,7 +412,7 @@ export function NewDealDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Новая сделка</DialogTitle>
           <DialogDescription>
@@ -424,7 +424,14 @@ export function NewDealDialog({
         <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
           {STEP_LABELS.map((label, index) => (
             <div key={label} className="flex items-center gap-2">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border">
+              <span
+                className={cn(
+                  "inline-flex h-6 w-6 items-center justify-center rounded-full border",
+                  index + 1 === step
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border",
+                )}
+              >
                 {index + 1}
               </span>
               <span>{label}</span>
@@ -446,7 +453,7 @@ export function NewDealDialog({
           ) : null}
 
           {step === 2 ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
               <div className="min-w-0 space-y-2">
                 <Label>Юридическое лицо заявителя</Label>
                 <Select
@@ -558,6 +565,7 @@ export function NewDealDialog({
               currencyOptions={currencyOptions}
               intake={intake}
               legalEntities={legalEntities}
+              moneyRequestLayout="inline"
               onChange={setIntake}
             />
           ) : null}

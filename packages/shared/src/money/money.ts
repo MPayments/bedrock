@@ -13,6 +13,13 @@ export interface NormalizeMajorAmountInputOptions {
   }) => string;
 }
 
+export interface DecimalStringFormatOptions {
+  decimalSeparator?: string;
+  groupSeparator?: string;
+  maximumFractionDigits?: number;
+  minimumFractionDigits?: number;
+}
+
 function isDigits(value: string): boolean {
   if (value.length === 0) {
     return false;
@@ -98,6 +105,21 @@ function readAmountInputValue(value: unknown): string {
   return "";
 }
 
+function groupIntegerDigits(value: string, separator: string): string {
+  if (!separator || value.length <= 3) {
+    return value;
+  }
+
+  const parts: string[] = [];
+
+  for (let index = value.length; index > 0; index -= 3) {
+    const start = Math.max(0, index - 3);
+    parts.push(value.slice(start, index));
+  }
+
+  return parts.reverse().join(separator);
+}
+
 export function normalizeAmountValue(value: unknown): string {
   if (typeof value === "bigint") {
     return value.toString();
@@ -115,6 +137,76 @@ export function normalizeAmountValue(value: unknown): string {
   }
 
   throw new Error("amount must be a string, number, or bigint");
+}
+
+export function formatDecimalString(
+  value: string | number,
+  options: DecimalStringFormatOptions = {},
+): string {
+  const minimumFractionDigits = options.minimumFractionDigits ?? 0;
+  const maximumFractionDigits =
+    options.maximumFractionDigits ?? minimumFractionDigits;
+
+  if (
+    minimumFractionDigits < 0 ||
+    maximumFractionDigits < minimumFractionDigits
+  ) {
+    throw new Error("invalid decimal format precision");
+  }
+
+  const normalized = String(value).trim().replace(",", ".");
+  const parsed = parseAmountParts(normalized);
+
+  if (!parsed) {
+    throw new Error("amount must be a number, e.g. 1000.50");
+  }
+
+  const { signRaw, integerRaw, fractionRaw } = parsed;
+  const precisionDelta = fractionRaw.length - maximumFractionDigits;
+  const digits =
+    `${integerRaw}${fractionRaw}`.replace(/^0+(?=\d)/, "") || "0";
+  const absolute = BigInt(digits);
+
+  let roundedScaled: bigint;
+  if (precisionDelta <= 0) {
+    roundedScaled = absolute * 10n ** BigInt(-precisionDelta);
+  } else {
+    const divisor = 10n ** BigInt(precisionDelta);
+    roundedScaled = (absolute + divisor / 2n) / divisor;
+  }
+
+  const negative = signRaw === "-" && roundedScaled !== 0n;
+  const integerScale = 10n ** BigInt(maximumFractionDigits);
+  const integerPart =
+    maximumFractionDigits === 0
+      ? roundedScaled.toString()
+      : (roundedScaled / integerScale).toString();
+  const rawFraction =
+    maximumFractionDigits === 0
+      ? ""
+      : (roundedScaled % integerScale)
+        .toString()
+        .padStart(maximumFractionDigits, "0");
+  const trimmedFraction =
+    maximumFractionDigits === minimumFractionDigits
+      ? rawFraction
+      : rawFraction.replace(/0+$/, "");
+  const fraction =
+    trimmedFraction.length < minimumFractionDigits
+      ? trimmedFraction.padEnd(minimumFractionDigits, "0")
+      : trimmedFraction;
+  const groupedInteger = groupIntegerDigits(
+    integerPart,
+    options.groupSeparator ?? " ",
+  );
+
+  if (fraction.length === 0) {
+    return `${negative ? "-" : ""}${groupedInteger}`;
+  }
+
+  return `${negative ? "-" : ""}${groupedInteger}${
+    options.decimalSeparator ?? "."
+  }${fraction}`;
 }
 
 export function parseMinorAmount(value: unknown): bigint | null {

@@ -182,6 +182,7 @@ export function createApplicationServices(
     createApiDealsModule({
       currencies: currenciesService,
       db: tx,
+      ledgerBalances: createLedgerModuleForTransaction(tx).balances.queries,
       quoteReads: createTreasuryModuleForTransaction(tx).quotes.queries,
       logger,
       idempotency,
@@ -244,12 +245,14 @@ export function createApplicationServices(
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
+    ledgerBalances: ledgerModule.balances.queries,
     quoteReads: treasuryModule.quotes.queries,
     logger,
     idempotency,
     persistence: createPersistenceContext(db),
   });
   const dealQuoteWorkflow = createDealQuoteWorkflow({
+    agreements: agreementsModule,
     calculations: calculationsModule,
     currencies: currenciesService,
     deals: dealsModule,
@@ -456,7 +459,10 @@ export function createApplicationServices(
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
+        calculationReads: calculationsModule.calculations.queries,
         currenciesService,
+        dealReads: dealsModule.deals.queries,
+        documentsReadModel,
         treasuryQuotes,
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
@@ -527,8 +533,9 @@ export function createApplicationServices(
   });
 
   const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
-    ? new S3ObjectStorageAdapter({
+      ? new S3ObjectStorageAdapter({
         endpoint: env.S3_ENDPOINT,
+        publicEndpoint: env.S3_PUBLIC_ENDPOINT,
         region: env.S3_REGION ?? "us-east-1",
         accessKeyId: env.S3_ACCESS_KEY,
         secretAccessKey: env.S3_SECRET_KEY,

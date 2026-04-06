@@ -1,4 +1,4 @@
-import { BPS_SCALE } from "@bedrock/shared/money/math";
+import { BPS_SCALE, mulDivRoundHalfUp } from "@bedrock/shared/money/math";
 
 import { FeeValidationError } from "../errors";
 
@@ -11,5 +11,5 @@ export function calculateBpsAmount(amountMinor: bigint, bps: number): bigint {
     throw new FeeValidationError("bps must be an integer between 0 and 10000");
   }
 
-  return (amountMinor * BigInt(bps)) / BPS_SCALE;
+  return mulDivRoundHalfUp(amountMinor, BigInt(bps), BPS_SCALE);
 }

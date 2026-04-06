@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { formatFractionDecimal } from "@bedrock/shared/money";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -29,46 +30,69 @@ import type { UserSessionSnapshot } from "@/lib/auth/types";
 
 type CurrencyCode = "USD" | "EUR" | "CNY";
 type HeaderRateSource = "cbr" | "investing";
-type SourceRates = Partial<Record<CurrencyCode, number>>;
+type SourceRates = Partial<Record<CurrencyCode, string>>;
+type SourceRateDto = {
+  source: string;
+  rateNum: string;
+  rateDen: string;
+};
+type RatePairDto = {
+  baseCurrencyCode: string;
+  quoteCurrencyCode: string;
+  rates: SourceRateDto[];
+};
+type RatePairsResponseDto = {
+  data?: RatePairDto[];
+};
 
 const HEADER_CURRENCIES = ["USD", "EUR", "CNY"] as const;
+const HEADER_SOURCES = ["cbr", "investing"] as const;
 const HEADER_RATES_POLL_INTERVAL_MS = 60_000;
 
-async function fetchSourceRates(
-  source: HeaderRateSource,
-): Promise<SourceRates> {
-  const results = await Promise.all(
-    HEADER_CURRENCIES.map(async (currency) => {
-      try {
-        const res = await fetch(
-          `/v1/treasury/rates/latest?base=${currency}&quote=RUB&source=${source}`,
-          { cache: "no-store", credentials: "include" },
-        );
-        if (!res.ok) {
-          return null;
-        }
+function isHeaderCurrency(value: string): value is CurrencyCode {
+  return HEADER_CURRENCIES.includes(value as CurrencyCode);
+}
 
-        const data = await res.json();
-        const rate = Number(data.rateNum) / Number(data.rateDen || 1);
-        if (!Number.isFinite(rate)) {
-          return null;
-        }
+async function fetchHeaderRates(): Promise<Record<HeaderRateSource, SourceRates>> {
+  const res = await fetch("/v1/treasury/rates/pairs", {
+    cache: "no-store",
+    credentials: "include",
+  });
 
-        return { currency, rate };
-      } catch {
-        return null;
+  if (!res.ok) {
+    throw new Error(`Failed to load treasury pairs: ${res.status}`);
+  }
+
+  const payload = (await res.json()) as RatePairsResponseDto;
+  const pairs = Array.isArray(payload.data) ? payload.data : [];
+  const nextRates: Record<HeaderRateSource, SourceRates> = {
+    cbr: {},
+    investing: {},
+  };
+
+  for (const pair of pairs) {
+    if (pair.quoteCurrencyCode !== "RUB" || !isHeaderCurrency(pair.baseCurrencyCode)) {
+      continue;
+    }
+
+    for (const source of HEADER_SOURCES) {
+      const sourceRate = pair.rates.find((rate) => rate.source === source);
+      if (!sourceRate) {
+        continue;
       }
-    }),
-  );
 
-  const rates: SourceRates = {};
-  for (const result of results) {
-    if (result) {
-      rates[result.currency] = result.rate;
+      nextRates[source][pair.baseCurrencyCode] = formatFractionDecimal(
+        sourceRate.rateNum,
+        sourceRate.rateDen || "1",
+        {
+          scale: 2,
+          trimTrailingZeros: false,
+        },
+      );
     }
   }
 
-  return rates;
+  return nextRates;
 }
 
 export function AppHeader({ session }: { session: UserSessionSnapshot }) {
@@ -93,10 +117,9 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
         setCbrError(null);
         setInvestingError(null);
 
-        const [nextCbrRates, nextInvestingRates] = await Promise.all([
-          fetchSourceRates("cbr"),
-          fetchSourceRates("investing"),
-        ]);
+        const nextRates = await fetchHeaderRates();
+        const nextCbrRates = nextRates.cbr;
+        const nextInvestingRates = nextRates.investing;
 
         if (isCancelled) {
           return;
@@ -323,7 +346,7 @@ function SourceRatesTicker({
           {HEADER_CURRENCIES.map((currency) =>
             rates[currency] != null ? (
               <span key={currency} className="inline-flex items-center gap-1">
-                {currency} {rates[currency]!.toFixed(2)} ₽
+                {currency} {rates[currency]} ₽
                 <Minus className="h-3 w-3 text-gray-400" />
               </span>
             ) : (

@@ -184,10 +184,12 @@ export default function DealsPage() {
             <div className="font-medium text-muted-foreground">
               Общая сумма:{" "}
               <span className="font-bold text-foreground">
-                {formatCurrency(
-                  statistics.totalAmountInBase,
-                  statistics.baseCurrencyCode ?? "RUB"
-                )}
+                {statistics.baseCurrencyCode
+                  ? formatCurrency(
+                      statistics.totalAmountInBase,
+                      statistics.baseCurrencyCode,
+                    )
+                  : "Смешанные валюты"}
               </span>
             </div>
           </div>

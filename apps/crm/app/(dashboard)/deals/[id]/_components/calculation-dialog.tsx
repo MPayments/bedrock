@@ -22,6 +22,7 @@ import type { ApiCurrency, ApiCurrencyOption } from "./types";
 
 type CalculationDialogProps = {
   amount: string;
+  amountSide?: "source" | "target";
   asOf: string;
   currencyOptions: ApiCurrencyOption[];
   description?: string;
@@ -37,7 +38,7 @@ type CalculationDialogProps = {
   onToggleOverride: (next: boolean) => void;
   open: boolean;
   overrideAmount: boolean;
-  requestedCurrency: ApiCurrency | null;
+  sourceCurrency: ApiCurrency | null;
   submitLabel?: string;
   title?: string;
   toCurrency: string;
@@ -47,6 +48,7 @@ export function CalculationDialog({
   open,
   onOpenChange,
   amount,
+  amountSide = "source",
   asOf,
   currencyOptions,
   disabledReason,
@@ -58,13 +60,70 @@ export function CalculationDialog({
   onToCurrencyChange,
   onToggleOverride,
   overrideAmount,
-  requestedCurrency,
+  sourceCurrency,
   submitLabel = "Сохранить",
   title = "Создать расчет",
   toCurrency,
   description = "Создайте котировку и сохраните расчет для этой сделки.",
   loadingLabel = "Сохраняем...",
 }: CalculationDialogProps) {
+  const amountLabel =
+    amountSide === "target" ? "Сумма оплаты" : "Сумма списания";
+  const toCurrencyLabel =
+    amountSide === "target" ? "Валюта оплаты" : "Валюта назначения";
+
+  const amountField = (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="deal-calculation-amount">{amountLabel}</Label>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox
+            id="deal-calculation-amount-override"
+            checked={overrideAmount}
+            onCheckedChange={(checked) => onToggleOverride(Boolean(checked))}
+          />
+          <Label
+            htmlFor="deal-calculation-amount-override"
+            className="text-xs text-muted-foreground"
+          >
+            Изменить сумму
+          </Label>
+        </div>
+      </div>
+      <Input
+        id="deal-calculation-amount"
+        disabled={!overrideAmount}
+        inputMode="decimal"
+        placeholder="Например 1000.00"
+        value={amount}
+        onChange={(event) => onAmountChange(event.target.value)}
+      />
+    </div>
+  );
+
+  const toCurrencyField = (
+    <div className="grid gap-2">
+      <Label>{toCurrencyLabel}</Label>
+      <Select
+        value={toCurrency}
+        onValueChange={(value) => onToCurrencyChange(value ?? "")}
+      >
+        <SelectTrigger disabled={amountSide === "target"}>
+          <SelectValue placeholder="Выберите валюту" />
+        </SelectTrigger>
+        <SelectContent>
+          {currencyOptions
+            .filter((option) => option.code !== sourceCurrency?.code)
+            .map((option) => (
+              <SelectItem key={option.code} value={option.code}>
+                {option.label}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -74,56 +133,20 @@ export function CalculationDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label>Валюта сделки</Label>
-            <Input disabled value={requestedCurrency?.code ?? "—"} />
+            <Label>Валюта списания</Label>
+            <Input disabled value={sourceCurrency?.code ?? "—"} />
           </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="deal-calculation-amount">Сумма</Label>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox
-                  id="deal-calculation-amount-override"
-                  checked={overrideAmount}
-                  onCheckedChange={(checked) =>
-                    onToggleOverride(Boolean(checked))
-                  }
-                />
-                <Label
-                  htmlFor="deal-calculation-amount-override"
-                  className="text-xs text-muted-foreground"
-                >
-                  Изменить сумму
-                </Label>
-              </div>
-            </div>
-            <Input
-              id="deal-calculation-amount"
-              disabled={!overrideAmount}
-              placeholder="Например 1000.00"
-              value={amount}
-              onChange={(event) => onAmountChange(event.target.value)}
-            />
+          <div
+            className={
+              amountSide === "target"
+                ? "grid grid-cols-[minmax(0,1fr)_11rem] gap-3"
+                : "grid gap-4"
+            }
+          >
+            {amountField}
+            {amountSide === "target" ? toCurrencyField : null}
           </div>
-          <div className="grid gap-2">
-            <Label>Валюта назначения</Label>
-            <Select
-              value={toCurrency}
-              onValueChange={(value) => onToCurrencyChange(value ?? "")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите валюту" />
-              </SelectTrigger>
-              <SelectContent>
-                {currencyOptions
-                  .filter((option) => option.code !== requestedCurrency?.code)
-                  .map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {amountSide === "target" ? null : toCurrencyField}
           <div className="grid gap-2">
             <Label htmlFor="deal-calculation-asof">Дата котировки</Label>
             <Input

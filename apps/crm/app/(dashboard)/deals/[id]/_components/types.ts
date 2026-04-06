@@ -123,6 +123,7 @@ export type ApiDealTimelineEvent = {
     | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
+    | "execution_blocker_resolved"
     | "leg_state_changed";
   visibility: "customer_safe" | "internal";
 };
@@ -320,6 +321,7 @@ export type ApiDealStatusHistory = {
 
 export type ApiDealDetails = {
   agreementId: string;
+  amount: string | null;
   agentId: string | null;
   approvals: {
     approvalType: string;
@@ -333,14 +335,13 @@ export type ApiDealDetails = {
   }[];
   calculationId: string | null;
   comment: string | null;
+  currencyId: string | null;
   createdAt: string;
   customerId: string;
   id: string;
   intakeComment: string | null;
   participants: ApiDealParticipant[];
   reason: string | null;
-  requestedAmount: string | null;
-  requestedCurrencyId: string | null;
   status: DealStatus;
   statusHistory: ApiDealStatusHistory[];
   type: DealType;
@@ -556,7 +557,7 @@ export type DealPageData = {
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
-  requestedCurrency: ApiCurrency | null;
+  currency: ApiCurrency | null;
   currencyOptions: ApiCurrencyOption[];
   workbench: ApiCrmDealWorkbenchProjection;
 };
@@ -587,6 +588,7 @@ export type ApiCrmDealWorkbenchProjection = {
     purpose: "invoice" | "contract" | "other" | null;
     sourceAttachmentId: string;
   } | null;
+  comment: string | null;
   context: {
     agreement: ApiAgreementDetails | null;
     applicant: ApiCustomerLegalEntity | null;

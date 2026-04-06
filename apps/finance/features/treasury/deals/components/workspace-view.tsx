@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   CheckCircle2,
-  Clock3,
   FileText,
   ShieldCheck,
   Wallet,
@@ -10,6 +9,7 @@ import {
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
+import { DealTimelineCard } from "@/features/treasury/deals/components/deal-timeline-card";
 import { ExecutionSummaryRail } from "@/features/treasury/deals/components/execution-summary-rail";
 import {
   collectFinanceDealTopBlockers,
@@ -21,18 +21,31 @@ import {
   formatDealWorkflowMessage,
   getDealQuoteStatusLabel,
   getDealQuoteStatusVariant,
-  getDealTimelineEventLabel,
   getFinanceDealQueueLabel,
   getFinanceDealQueueVariant,
   getFinanceDealStatusLabel,
   getFinanceDealStatusVariant,
   getFinanceDealTypeLabel,
 } from "@/features/treasury/deals/labels";
-import { formatDate, formatMajorAmount } from "@/lib/format";
+import { formatDate, formatMinorAmountWithCurrency } from "@/lib/format";
 
 type FinanceDealWorkspaceViewProps = {
   deal: FinanceDealWorkspace;
 };
+
+function formatProfitabilityAmounts(
+  items: NonNullable<FinanceDealWorkspace["profitabilitySnapshot"]>["feeRevenue"],
+) {
+  if (!items || items.length === 0) {
+    return "0";
+  }
+
+  return items
+    .map((item) =>
+      formatMinorAmountWithCurrency(item.amountMinor, item.currencyCode),
+    )
+    .join(" · ");
+}
 
 export function FinanceDealWorkspaceView({
   deal,
@@ -143,7 +156,7 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Комиссионный доход</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(deal.profitabilitySnapshot.feeRevenueMinor)
+                  ? formatProfitabilityAmounts(deal.profitabilitySnapshot.feeRevenue)
                   : "—"}
               </span>
             </div>
@@ -151,7 +164,9 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Доход от спреда</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(deal.profitabilitySnapshot.spreadRevenueMinor)
+                  ? formatProfitabilityAmounts(
+                      deal.profitabilitySnapshot.spreadRevenue,
+                    )
                   : "—"}
               </span>
             </div>
@@ -159,8 +174,8 @@ export function FinanceDealWorkspaceView({
               <span className="text-muted-foreground">Расходы провайдера</span>
               <span className="font-medium">
                 {deal.profitabilitySnapshot
-                  ? formatMajorAmount(
-                      deal.profitabilitySnapshot.providerFeeExpenseMinor,
+                  ? formatProfitabilityAmounts(
+                      deal.profitabilitySnapshot.providerFeeExpense,
                     )
                   : "—"}
               </span>
@@ -322,27 +337,7 @@ export function FinanceDealWorkspaceView({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock3 className="h-4 w-4 text-muted-foreground" />
-            Таймлайн
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-6">
-          {deal.timeline.slice(0, 6).map((event) => (
-            <div key={event.id} className="rounded-lg border px-3 py-3">
-              <div className="text-sm font-medium">
-                {getDealTimelineEventLabel(event.type)}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {formatDate(event.occurredAt)}
-                {event.actor?.label ? ` · ${event.actor.label}` : ""}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <DealTimelineCard timeline={deal.timeline} maxItems={6} />
     </div>
   );
 }

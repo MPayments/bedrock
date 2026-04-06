@@ -161,7 +161,7 @@ export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
   exchange: "Документ по обмену валюты",
   fx_execute: "Исполнение конвертации",
   fx_resolution: "Сверка по конвертации",
-  invoice: "Инвойс",
+  invoice: "Исходящий инвойс",
   transfer_intra: "Внутренний перевод",
   transfer_intercompany: "Межкомпанейский перевод",
   transfer_resolution: "Сверка по переводу",
@@ -185,6 +185,7 @@ export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
 
 export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   attachment_deleted: "Вложение удалено",
+  attachment_ingested: "Файл распознан",
   attachment_uploaded: "Вложение загружено",
   calculation_attached: "Расчет привязан",
   deal_created: "Сделка создана",
@@ -212,9 +213,9 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
 };
 
 export const DEAL_ATTACHMENT_REQUIREMENT_STATE_LABELS: Record<string, string> = {
-  missing: "Отсутствуют",
-  not_required: "Не требуются",
-  provided: "Загружены",
+  missing: "Отсутствует",
+  not_required: "Не требуется",
+  provided: "Загружен",
 };
 
 export const DEAL_FORMAL_DOCUMENT_REQUIREMENT_STATE_LABELS: Record<

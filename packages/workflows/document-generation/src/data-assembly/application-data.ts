@@ -79,8 +79,7 @@ export function assembleApplicationData(
     feeAmountInBase: formatCurrencyAmount(calculation.feeAmountInBase as string | number),
     rate: calculation.rate,
     originalInBase: formatCurrencyAmount(
-      parseFloat(String(calculation.rate)) *
-        parseFloat(String(calculation.originalAmount)),
+      calculation.totalInBase as string | number,
     ),
     date: formattedDate,
     agentTaxId: organization.taxId,

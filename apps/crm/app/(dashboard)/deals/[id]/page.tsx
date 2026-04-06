@@ -21,6 +21,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { API_BASE_URL } from "@/lib/constants";
 import { AgreementCard } from "./_components/agreement-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
+import { CreateCalculationDialog } from "./_components/create-calculation-dialog";
 import { DealDocumentsTab } from "./_components/deal-documents-tab";
 import { DealManagementCard } from "./_components/deal-management-card";
 import { DealTimelineCard } from "./_components/deal-timeline-card";
@@ -63,6 +64,7 @@ import type {
   ApiCustomerLegalEntity,
   ApiCustomerWorkspace,
   ApiDealDetails,
+  ApiDealPricingQuote,
   ApiDealTransitionBlocker,
   ApiDealWorkflowProjection,
   ApiFormalDocument,
@@ -87,7 +89,8 @@ type DealPageData = {
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
-  requestedCurrency: ApiCurrency | null;
+  currency: ApiCurrency | null;
+  sourceCurrency: ApiCurrency | null;
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
@@ -141,10 +144,18 @@ function buildDealViewFromWorkbench(
 
   return {
     agreementId: workbench.summary.agreementId,
+    amount:
+      workbench.summary.type === "payment"
+        ? workbench.intake.incomingReceipt.expectedAmount
+        : workbench.intake.moneyRequest.sourceAmount,
     agentId: workbench.summary.agentId,
     approvals: workbench.approvals,
     calculationId: workbench.summary.calculationId,
-    comment: workbench.intake.common.customerNote,
+    comment: workbench.comment,
+    currencyId:
+      workbench.summary.type === "payment"
+        ? workbench.intake.moneyRequest.targetCurrencyId
+        : workbench.intake.moneyRequest.sourceCurrencyId,
     createdAt: workbench.summary.createdAt,
     customerId,
     id: workbench.summary.id,
@@ -174,8 +185,6 @@ function buildDealViewFromWorkbench(
       }),
     ],
     reason: workbench.intake.moneyRequest.purpose,
-    requestedAmount: workbench.intake.moneyRequest.sourceAmount,
-    requestedCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
     status: workbench.summary.status,
     statusHistory: workbench.timeline
       .filter(
@@ -199,6 +208,108 @@ function buildDealViewFromWorkbench(
     type: workbench.summary.type,
     updatedAt: workbench.summary.updatedAt,
   };
+}
+
+function buildQuoteRequestContext(workbench: ApiCrmDealWorkbenchProjection) {
+  if (workbench.summary.type === "payment") {
+    return {
+      amount: workbench.intake.incomingReceipt.expectedAmount,
+      amountSide: "target" as const,
+      sourceCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+      targetCurrencyId: workbench.intake.moneyRequest.targetCurrencyId,
+    };
+  }
+
+  return {
+    amount: workbench.intake.moneyRequest.sourceAmount,
+    amountSide: "source" as const,
+    sourceCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
+    targetCurrencyId: workbench.intake.moneyRequest.targetCurrencyId,
+  };
+}
+
+function normalizeDecimalString(value: string) {
+  const normalized = value.trim().replace(",", ".");
+
+  if (!normalized || !/^\d+(?:\.\d+)?$/u.test(normalized)) {
+    return null;
+  }
+
+  const [wholeRaw = "0", fractionRaw = ""] = normalized.split(".");
+  const whole = wholeRaw.replace(/^0+(?=\d)/u, "") || "0";
+  const fraction = fractionRaw.replace(/0+$/u, "");
+
+  return fraction.length > 0 ? `${whole}.${fraction}` : whole;
+}
+
+function shiftDecimalString(value: string, decimalPlaces: number) {
+  const normalized = normalizeDecimalString(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const [wholeRaw = "0", fractionRaw = ""] = normalized.split(".");
+  const digits = `${wholeRaw}${fractionRaw}`.replace(/^0+(?=\d)/u, "") || "0";
+  const nextScale = fractionRaw.length - decimalPlaces;
+
+  if (digits === "0") {
+    return "0";
+  }
+
+  if (nextScale <= 0) {
+    return normalizeDecimalString(`${digits}${"0".repeat(-nextScale)}`);
+  }
+
+  if (nextScale >= digits.length) {
+    return normalizeDecimalString(
+      `0.${"0".repeat(nextScale - digits.length)}${digits}`,
+    );
+  }
+
+  const integerPart = digits.slice(0, digits.length - nextScale);
+  const fractionPart = digits.slice(digits.length - nextScale);
+
+  return normalizeDecimalString(`${integerPart}.${fractionPart}`);
+}
+
+function buildCalculationFeeDefaults(input: {
+  agreement: ApiAgreementDetails;
+  fallbackCurrencyCode: string | null;
+}) {
+  let agentFeePercent = "";
+  let fixedFeeAmount = "";
+  let fixedFeeCurrencyCode = input.fallbackCurrencyCode;
+
+  for (const rule of input.agreement.currentVersion.feeRules) {
+    if (rule.kind === "agent_fee") {
+      agentFeePercent = shiftDecimalString(rule.value, -2) ?? "";
+      continue;
+    }
+
+    if (rule.kind === "fixed_fee") {
+      fixedFeeAmount = normalizeDecimalString(rule.value) ?? "";
+      fixedFeeCurrencyCode = rule.currencyCode ?? input.fallbackCurrencyCode;
+    }
+  }
+
+  return {
+    agentFeePercent,
+    fixedFeeAmount,
+    fixedFeeCurrencyCode,
+  };
+}
+
+function findAcceptedQuoteDetails(
+  workbench: ApiCrmDealWorkbenchProjection,
+): ApiDealPricingQuote | null {
+  const acceptedQuoteId = workbench.acceptedQuote?.quoteId;
+
+  if (!acceptedQuoteId) {
+    return null;
+  }
+
+  return workbench.pricing.quotes.find((quote) => quote.id === acceptedQuoteId) ?? null;
 }
 
 function mapRelatedDocumentsToFormalDocuments(
@@ -422,6 +533,14 @@ export default function DealDetailPage() {
     null,
   );
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
+  const [isCreateCalculationDialogOpen, setIsCreateCalculationDialogOpen] =
+    useState(false);
+  const [calculationAgentFeePercent, setCalculationAgentFeePercent] =
+    useState("");
+  const [calculationFixedFeeAmount, setCalculationFixedFeeAmount] =
+    useState("");
+  const [calculationFixedFeeCurrencyCode, setCalculationFixedFeeCurrencyCode] =
+    useState<string | null>(null);
   const [overrideCalculationAmount, setOverrideCalculationAmount] =
     useState(false);
   const [calculationAmount, setCalculationAmount] = useState("");
@@ -434,6 +553,14 @@ export default function DealDetailPage() {
     const tabParam = searchParams.get("tab");
     return isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
   }, [searchParams]);
+
+  const acceptedQuoteDetails = useMemo(() => {
+    if (!data) {
+      return null;
+    }
+
+    return findAcceptedQuoteDetails(data.workbench);
+  }, [data]);
 
   const showError = useCallback(
     (
@@ -484,6 +611,7 @@ export default function DealDetailPage() {
         `${API_BASE_URL}/deals/${dealId}/crm-workbench`,
       );
       const deal = buildDealViewFromWorkbench(workbench);
+      const quoteRequest = buildQuoteRequestContext(workbench);
 
       if (
         !workbench.context.agreement ||
@@ -504,15 +632,21 @@ export default function DealDetailPage() {
         workbench.intake.common.applicantCounterpartyId ?? null;
 
       const [
-        requestedCurrency,
+        currency,
+        sourceCurrency,
         calculation,
         currencyOptions,
         agreementsPayload,
         applicantRequisitesPayload,
       ] = await Promise.all([
-        workbench.intake.moneyRequest.sourceCurrencyId
+        deal.currencyId
           ? fetchJson<ApiCurrency>(
-              `${API_BASE_URL}/currencies/${workbench.intake.moneyRequest.sourceCurrencyId}`,
+              `${API_BASE_URL}/currencies/${deal.currencyId}`,
+            )
+          : Promise.resolve(null),
+        quoteRequest.sourceCurrencyId
+          ? fetchJson<ApiCurrency>(
+              `${API_BASE_URL}/currencies/${quoteRequest.sourceCurrencyId}`,
             )
           : Promise.resolve(null),
         workbench.pricing.currentCalculation
@@ -578,7 +712,8 @@ export default function DealDetailPage() {
         organizationRequisite: workbench.context.internalEntityRequisite,
         organizationRequisiteProvider:
           workbench.context.internalEntityRequisiteProvider,
-        requestedCurrency,
+        currency,
+        sourceCurrency,
         workbench,
         workflow: workbench.workflow,
       });
@@ -661,7 +796,7 @@ export default function DealDetailPage() {
       return;
     }
 
-    setCalculationAmount(data.deal.requestedAmount ?? "");
+    setCalculationAmount(buildQuoteRequestContext(data.workbench).amount ?? "");
   }, [data, overrideCalculationAmount]);
 
   useEffect(() => {
@@ -669,11 +804,14 @@ export default function DealDetailPage() {
       return;
     }
 
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
     setCalculationToCurrency(
-      resolveDefaultToCurrency(
-        data.currencyOptions,
-        data.requestedCurrency?.code ?? null,
-      ),
+      quoteRequest.amountSide === "target"
+        ? (data.currency?.code ?? "")
+        : resolveDefaultToCurrency(
+            data.currencyOptions,
+            data.sourceCurrency?.code ?? null,
+          ),
     );
   }, [calculationToCurrency, data]);
 
@@ -683,12 +821,15 @@ export default function DealDetailPage() {
     }
 
     setOverrideCalculationAmount(false);
-    setCalculationAmount(data.deal.requestedAmount ?? "");
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
+    setCalculationAmount(quoteRequest.amount ?? "");
     setCalculationToCurrency(
-      resolveDefaultToCurrency(
-        data.currencyOptions,
-        data.requestedCurrency?.code ?? null,
-      ),
+      quoteRequest.amountSide === "target"
+        ? (data.currency?.code ?? "")
+        : resolveDefaultToCurrency(
+            data.currencyOptions,
+            data.sourceCurrency?.code ?? null,
+          ),
     );
     setCalculationAsOf(formatDateTimeInput(new Date()));
     setIsQuoteDialogOpen(true);
@@ -699,10 +840,15 @@ export default function DealDetailPage() {
       return;
     }
 
-    if (!data.requestedCurrency || !data.deal.requestedAmount) {
+    const quoteRequest = buildQuoteRequestContext(data.workbench);
+    const amountSource = overrideCalculationAmount
+      ? calculationAmount
+      : (quoteRequest.amount ?? "");
+
+    if (!data.sourceCurrency || !amountSource) {
       showError(
         "Недостаточно данных",
-        "Для запроса котировки нужны сумма и валюта сделки.",
+        "Для запроса котировки нужны сумма и валюта списания.",
       );
       return;
     }
@@ -712,17 +858,16 @@ export default function DealDetailPage() {
       return;
     }
 
-    if (calculationToCurrency === data.requestedCurrency.code) {
+    if (calculationToCurrency === data.sourceCurrency.code) {
       showError("Недопустимая валютная пара", "Выберите другую валюту.");
       return;
     }
 
-    const amountSource = overrideCalculationAmount
-      ? calculationAmount
-      : data.deal.requestedAmount;
     const amountMinor = decimalToMinorString(
       amountSource,
-      data.requestedCurrency.precision,
+      quoteRequest.amountSide === "target"
+        ? (data.currency?.precision ?? data.sourceCurrency.precision)
+        : data.sourceCurrency.precision,
     );
 
     if (!amountMinor || BigInt(amountMinor) <= 0n) {
@@ -753,9 +898,11 @@ export default function DealDetailPage() {
           },
           body: JSON.stringify({
             mode: "auto_cross",
-            fromCurrency: data.requestedCurrency.code,
+            ...(quoteRequest.amountSide === "target"
+              ? { toAmountMinor: amountMinor }
+              : { fromAmountMinor: amountMinor }),
+            fromCurrency: data.sourceCurrency.code,
             toCurrency: calculationToCurrency,
-            fromAmountMinor: amountMinor,
             asOf: asOfDate.toISOString(),
           }),
         },
@@ -791,18 +938,23 @@ export default function DealDetailPage() {
   const quoteStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
     : false;
+  const quoteRequest = data
+    ? buildQuoteRequestContext(data.workbench)
+    : null;
   const quoteHasRequestedAmount = Boolean(
-    data?.deal.requestedAmount && data?.requestedCurrency,
+    quoteRequest?.amount &&
+      quoteRequest.sourceCurrencyId &&
+      (quoteRequest.amountSide === "source" || quoteRequest.targetCurrencyId),
   );
   const isIntakeDirty = !areIntakeDraftsEqual(draftIntake, baselineIntake);
   const quoteCreationDisabledReason = !data
     ? "Данные сделки еще загружаются."
     : !calculationTypeSupported
-      ? "В этой версии котировка доступна только для платежей и конверсий."
+      ? "Котировка доступна только для сделок с обменом валют."
       : !quoteStatusAllowed
         ? `Нельзя запросить котировку для статуса "${STATUS_LABELS[data.deal.status]}".`
         : !quoteHasRequestedAmount
-          ? "У сделки нет запрошенной суммы или валюты."
+          ? "У сделки нет суммы или валют для запроса котировки."
           : null;
   const calculationDisabledReason = !data
     ? "Данные сделки еще загружаются."
@@ -842,6 +994,32 @@ export default function DealDetailPage() {
     [dealId, loadDeal, showError],
   );
 
+  const handleOpenCreateCalculationDialog = useCallback(() => {
+    if (!data?.workbench.acceptedQuote) {
+      showError("Нет принятой котировки", "Сначала примите котировку.");
+      return;
+    }
+
+    if (data.workbench.acceptedQuote.quoteStatus !== "active") {
+      showError(
+        "Котировка недоступна",
+        "Создать расчет можно только по действующей принятой котировке.",
+      );
+      return;
+    }
+
+    const defaults = buildCalculationFeeDefaults({
+      agreement: data.agreement,
+      fallbackCurrencyCode:
+        acceptedQuoteDetails?.toCurrency ?? data.currency?.code ?? null,
+    });
+
+    setCalculationAgentFeePercent(defaults.agentFeePercent);
+    setCalculationFixedFeeAmount(defaults.fixedFeeAmount);
+    setCalculationFixedFeeCurrencyCode(defaults.fixedFeeCurrencyCode);
+    setIsCreateCalculationDialogOpen(true);
+  }, [acceptedQuoteDetails, data, showError]);
+
   const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
     if (!data?.workbench.acceptedQuote) {
       showError("Нет принятой котировки", "Сначала примите котировку.");
@@ -852,6 +1030,17 @@ export default function DealDetailPage() {
       showError(
         "Котировка недоступна",
         "Создать расчет можно только по действующей принятой котировке.",
+      );
+      return;
+    }
+
+    const agentFeePercent = calculationAgentFeePercent.trim();
+    const fixedFeeAmount = calculationFixedFeeAmount.trim();
+
+    if (fixedFeeAmount && !calculationFixedFeeCurrencyCode) {
+      showError(
+        "Недостаточно данных",
+        "Для фиксированной комиссии нужна валюта.",
       );
       return;
     }
@@ -868,11 +1057,16 @@ export default function DealDetailPage() {
             "Idempotency-Key": createIdempotencyKey(),
           },
           body: JSON.stringify({
+            agentFeePercent: agentFeePercent.length > 0 ? agentFeePercent : null,
+            fixedFeeAmount: fixedFeeAmount.length > 0 ? fixedFeeAmount : null,
+            fixedFeeCurrencyCode:
+              fixedFeeAmount.length > 0 ? calculationFixedFeeCurrencyCode : null,
             quoteId: data.workbench.acceptedQuote.quoteId,
           }),
         },
       );
 
+      setIsCreateCalculationDialogOpen(false);
       await loadDeal();
     } catch (nextError) {
       console.error("Calculation creation error:", nextError);
@@ -885,7 +1079,15 @@ export default function DealDetailPage() {
     } finally {
       setIsCreatingCalculation(false);
     }
-  }, [data, dealId, loadDeal, showError]);
+  }, [
+    calculationAgentFeePercent,
+    calculationFixedFeeAmount,
+    calculationFixedFeeCurrencyCode,
+    data,
+    dealId,
+    loadDeal,
+    showError,
+  ]);
 
   const handleStatusUpdate = useCallback(
     async (status: DealStatus) => {
@@ -1002,7 +1204,7 @@ export default function DealDetailPage() {
     try {
       setIsSavingComment(true);
 
-      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/intake`, {
+      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/comment`, {
         body: JSON.stringify({ comment: commentValue }),
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1425,7 +1627,7 @@ export default function DealDetailPage() {
                 organization={data.organization}
                 organizationRequisite={data.organizationRequisite}
                 organizationRequisiteProvider={data.organizationRequisiteProvider}
-                requestedCurrency={data.requestedCurrency}
+                currency={data.currency}
                 workbench={data.workbench}
                 workflow={data.workflow}
               />
@@ -1458,7 +1660,7 @@ export default function DealDetailPage() {
                 isCreatingCalculation={isCreatingCalculation}
                 isCreatingQuote={isCreatingQuote}
                 onAcceptQuote={handleAcceptQuote}
-                onCreateCalculation={handleCreateCalculationFromAcceptedQuote}
+                onCreateCalculation={handleOpenCreateCalculationDialog}
                 onCreateQuote={handleOpenQuoteDialog}
                 quoteCreationDisabledReason={quoteCreationDisabledReason}
                 quotes={data.workbench.pricing.quotes}
@@ -1521,6 +1723,7 @@ export default function DealDetailPage() {
       <CalculationDialog
         asOf={calculationAsOf}
         amount={calculationAmount}
+        amountSide={quoteRequest?.amountSide ?? "source"}
         currencyOptions={data.currencyOptions}
         description="Получите котировку для сделки. После этого ее можно принять и создать расчет."
         disabledReason={quoteCreationDisabledReason}
@@ -1539,11 +1742,29 @@ export default function DealDetailPage() {
         onToggleOverride={setOverrideCalculationAmount}
         open={isQuoteDialogOpen}
         overrideAmount={overrideCalculationAmount}
-        requestedCurrency={data.requestedCurrency}
+        sourceCurrency={data.sourceCurrency}
         loadingLabel="Запрашиваем..."
         submitLabel="Запросить котировку"
         title="Запросить котировку"
         toCurrency={calculationToCurrency}
+      />
+
+      <CreateCalculationDialog
+        agentFeePercent={calculationAgentFeePercent}
+        fixedFeeAmount={calculationFixedFeeAmount}
+        fixedFeeCurrencyCode={calculationFixedFeeCurrencyCode}
+        isCreating={isCreatingCalculation}
+        onAgentFeePercentChange={setCalculationAgentFeePercent}
+        onCancel={() => setIsCreateCalculationDialogOpen(false)}
+        onFixedFeeAmountChange={setCalculationFixedFeeAmount}
+        onOpenChange={setIsCreateCalculationDialogOpen}
+        onSubmit={handleCreateCalculationFromAcceptedQuote}
+        open={isCreateCalculationDialogOpen}
+        quotePairLabel={
+          acceptedQuoteDetails
+            ? `${acceptedQuoteDetails.fromCurrency} → ${acceptedQuoteDetails.toCurrency}`
+            : null
+        }
       />
 
       <UploadAttachmentDialog

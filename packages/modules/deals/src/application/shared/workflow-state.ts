@@ -7,9 +7,7 @@ import {
 } from "../../domain/workflow";
 import type {
   CreateDealDraftInput,
-  CreateDealInput,
   CreatePortalDealInput,
-  UpdateDealIntakeInput,
 } from "../contracts/commands";
 import type {
   DealOperationalState,
@@ -17,6 +15,7 @@ import type {
   DealQuoteAcceptance,
   DealWorkflowLeg,
 } from "../contracts/dto";
+import type { DealStatus } from "../contracts/zod";
 import type {
   CreateDealLegStoredInput,
   ReplaceDealOperationalPositionStoredInput,
@@ -80,7 +79,11 @@ export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntake
     targetCurrencyId: input.moneyRequest.targetCurrencyId ?? null,
   };
 
-  if (input.type === "currency_transit" || input.type === "exporter_settlement") {
+  if (
+    input.type === "payment" ||
+    input.type === "currency_transit" ||
+    input.type === "exporter_settlement"
+  ) {
     draft.incomingReceipt = {
       contractNumber: input.incomingReceipt?.contractNumber ?? null,
       expectedAmount: input.incomingReceipt?.expectedAmount ?? null,
@@ -95,59 +98,12 @@ export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntake
   return draft;
 }
 
-export function buildLegacyCreateIntakeDraft(input: CreateDealInput): DealIntakeDraft {
-  const draft = createEmptyDealIntakeDraft(input.type);
-
-  draft.common.applicantCounterpartyId = input.counterpartyId ?? null;
-  draft.common.customerNote = input.comment ?? input.intakeComment ?? null;
-  draft.moneyRequest.purpose = input.reason ?? null;
-  draft.moneyRequest.sourceAmount = input.requestedAmount ?? null;
-  draft.moneyRequest.sourceCurrencyId = input.requestedCurrencyId ?? null;
-
-  return draft;
-}
-
-export function applyLegacyIntakePatch(input: {
-  current: DealIntakeDraft;
-  patch: UpdateDealIntakeInput;
-}): DealIntakeDraft {
-  const next: DealIntakeDraft = {
-    ...input.current,
-    common: { ...input.current.common },
-    externalBeneficiary: { ...input.current.externalBeneficiary },
-    incomingReceipt: { ...input.current.incomingReceipt },
-    moneyRequest: { ...input.current.moneyRequest },
-    settlementDestination: { ...input.current.settlementDestination },
-  };
-
-  if (input.patch.counterpartyId !== undefined) {
-    next.common.applicantCounterpartyId = input.patch.counterpartyId ?? null;
-  }
-  if (input.patch.comment !== undefined || input.patch.intakeComment !== undefined) {
-    next.common.customerNote =
-      input.patch.comment ??
-      input.patch.intakeComment ??
-      next.common.customerNote;
-  }
-  if (input.patch.reason !== undefined) {
-    next.moneyRequest.purpose = input.patch.reason ?? null;
-  }
-  if (input.patch.requestedAmount !== undefined) {
-    next.moneyRequest.sourceAmount = input.patch.requestedAmount ?? null;
-  }
-  if (input.patch.requestedCurrencyId !== undefined) {
-    next.moneyRequest.sourceCurrencyId = input.patch.requestedCurrencyId ?? null;
-  }
-
-  return next;
-}
-
 export async function deriveDealRootState(input: {
   acceptance: DealQuoteAcceptance | null;
   calculationId: string | null;
   intake: DealIntakeDraft;
   references: DealReferencesPort;
-  status: string;
+  status: DealStatus;
 }) {
   const sourceCurrency = input.intake.moneyRequest.sourceCurrencyId
     ? await input.references.findCurrencyById(

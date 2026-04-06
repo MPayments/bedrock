@@ -28,6 +28,11 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
+import {
+  formatDecimalString,
+  formatFractionDecimal,
+  parseDecimalToFraction,
+} from "@bedrock/shared/money";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -106,16 +111,14 @@ function formatDate(value: string | null) {
 }
 
 function formatDecimal(value: string, maximumFractionDigits = 2) {
-  const numericValue = Number(value);
-
-  if (!Number.isFinite(numericValue)) {
+  try {
+    return formatDecimalString(value, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits,
+    });
+  } catch {
     return "—";
   }
-
-  return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits,
-  }).format(numericValue);
 }
 
 function formatCurrencyAmount(
@@ -132,22 +135,28 @@ function formatCurrencyAmount(
 }
 
 function formatCalculationRate(calculation: PortalDealCalculation) {
-  const directRate = Number(calculation.rate);
+  try {
+    const rate = formatDecimalString(calculation.rate, {
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 6,
+    });
 
-  if (!Number.isFinite(directRate) || directRate <= 0) {
+    if (
+      calculation.currencyCode === "RUB" &&
+      calculation.baseCurrencyCode !== "RUB"
+    ) {
+      const fraction = parseDecimalToFraction(calculation.rate);
+      const inverseRate = formatFractionDecimal(fraction.den, fraction.num, {
+        scale: 6,
+        trimTrailingZeros: false,
+      });
+      return `1 ${calculation.baseCurrencyCode} = ${inverseRate} ${calculation.currencyCode}`;
+    }
+
+    return `1 ${calculation.currencyCode} = ${rate} ${calculation.baseCurrencyCode}`;
+  } catch {
     return "—";
   }
-
-  if (
-    calculation.currencyCode === "RUB" &&
-    calculation.baseCurrencyCode !== "RUB"
-  ) {
-    const inverseRate = formatDecimal(String(1 / directRate), 6);
-    return `1 ${calculation.baseCurrencyCode} = ${inverseRate} ${calculation.currencyCode}`;
-  }
-
-  const rate = formatDecimal(calculation.rate, 6);
-  return `1 ${calculation.currencyCode} = ${rate} ${calculation.baseCurrencyCode}`;
 }
 
 export default function PortalDealDetailPage() {
@@ -313,7 +322,11 @@ export default function PortalDealDetailPage() {
   }
 
   const primaryAmountLabel =
-    data.summary.type === "payment" ? "Сумма платежа" : "Сумма сделки";
+    data.summary.type === "payment" ? "Сумма оплаты" : "Сумма сделки";
+  const primaryAmountValue =
+    data.summary.type === "payment"
+      ? data.customerSafeIntake.expectedAmount
+      : data.customerSafeIntake.sourceAmount;
 
   return (
     <div className="space-y-4">
@@ -416,7 +429,7 @@ export default function PortalDealDetailPage() {
               {primaryAmountLabel}
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.sourceAmount ?? "Не указана"}
+              {primaryAmountValue ?? "Не указана"}
             </p>
           </div>
           <div>
@@ -608,7 +621,9 @@ export default function PortalDealDetailPage() {
                       </div>
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">
-                      <div className="text-xs text-muted-foreground">Сумма</div>
+                      <div className="text-xs text-muted-foreground">
+                        Сумма без комиссии
+                      </div>
                       <div className="text-sm font-medium">
                         {formatCurrencyAmount(
                           data.calculation.originalAmount,
@@ -630,9 +645,32 @@ export default function PortalDealDetailPage() {
                       </div>
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Итого к списанию
+                      </div>
+                      <div className="text-sm font-semibold">
+                        {formatCurrencyAmount(
+                          data.calculation.totalAmount,
+                          data.calculation.currencyCode,
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
                       <div className="text-xs text-muted-foreground">Курс</div>
                       <div className="text-sm font-medium">
                         {formatCalculationRate(data.calculation)}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Доп. расходы
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrencyAmount(
+                          data.calculation.additionalExpenses,
+                          data.calculation.additionalExpensesCurrencyCode ??
+                            data.calculation.baseCurrencyCode,
+                        )}
                       </div>
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">

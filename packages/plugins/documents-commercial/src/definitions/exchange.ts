@@ -40,7 +40,7 @@ export const exchangeDocumentDefinition = {
           {
             kind: "text",
             name: "invoiceDocumentId",
-            label: "Инвойс",
+            label: "Исходящий инвойс",
             placeholder: "UUID инвойса",
           },
           {

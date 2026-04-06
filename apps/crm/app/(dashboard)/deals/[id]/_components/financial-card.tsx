@@ -5,7 +5,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -41,36 +40,36 @@ export function FinancialCard({
         <div className="flex flex-wrap items-center gap-2">
           {calculationHistory.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="outline" size="sm">
-                  История
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="sm" />}
+              >
+                История
+                <ChevronDown className="ml-2 h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuLabel>Версии расчета</DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <div className="space-y-1">
                   {calculationHistory.map((item) => {
                     const isCurrent = item.calculationId === activeCalculationId;
                     return (
-                      <DropdownMenuItem
+                      <div
                         key={item.calculationId}
-                        disabled
+                        className="rounded-md px-1.5 py-1 text-sm"
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm">
-                            {formatDate(item.calculationTimestamp)}
-                          </span>
+                          <span>{formatDate(item.calculationTimestamp)}</span>
                           <span className="text-xs text-muted-foreground">
                             курс {item.rate}
                             {isCurrent ? " · текущая версия" : ""}
                           </span>
                         </div>
-                      </DropdownMenuItem>
+                      </div>
                     );
                   })}
-                </DropdownMenuGroup>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -100,7 +99,7 @@ export function FinancialCard({
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Сумма
+                Сумма без комиссии
               </div>
               <div className="text-base font-medium">
                 {formatCurrency(
@@ -120,6 +119,17 @@ export function FinancialCard({
                   calculation.currencyCode,
                 )}
                 )
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Итого к списанию
+              </div>
+              <div className="text-base font-semibold text-primary">
+                {formatCurrency(
+                  calculation.totalAmount,
+                  calculation.currencyCode,
+                )}
               </div>
             </div>
             <div>

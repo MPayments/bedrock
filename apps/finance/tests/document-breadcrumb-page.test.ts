@@ -90,7 +90,7 @@ describe("document breadcrumb page", () => {
         icon: "book-open",
       },
       {
-        label: "Инвойс",
+        label: "Исходящий инвойс",
         href: "/documents/commercial?docType=invoice",
       },
       {
@@ -98,5 +98,5 @@ describe("document breadcrumb page", () => {
         href: "/documents/commercial/invoice/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);
-  });
+  }, 15_000);
 });

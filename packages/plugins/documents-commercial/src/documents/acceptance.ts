@@ -16,8 +16,8 @@ import {
 import {
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
+  invoiceRequiresExchange,
   loadInvoice,
-  parseInvoicePayload,
   requirePostedDocument,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
@@ -48,23 +48,22 @@ export function createAcceptanceDocumentModule(
         true,
       );
       requirePostedDocument(invoice);
-      const invoicePayload = parseInvoicePayload(invoice);
-
       if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",
         );
       }
 
+      const requiresExchange = await invoiceRequiresExchange(deps, invoice);
       const exchange = await getInvoiceExchangeChild(
         deps,
         context.runtime,
         invoice.id,
       );
-      if (invoicePayload.mode === "exchange") {
+      if (requiresExchange) {
         if (!exchange) {
           throw new DocumentValidationError(
-            "acceptance requires a posted exchange for exchange-mode invoices",
+            "acceptance requires a posted exchange for FX-linked invoices",
           );
         }
         requirePostedDocument(exchange);
@@ -72,7 +71,6 @@ export function createAcceptanceDocumentModule(
 
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
-        invoiceMode: invoicePayload.mode,
         exchangeDocumentId: exchange?.id,
         memo: input.memo,
       });
@@ -98,7 +96,6 @@ export function createAcceptanceDocumentModule(
           document.docType,
           payload.invoiceDocumentId,
           payload.exchangeDocumentId,
-          payload.invoiceMode,
         ]
           .filter(Boolean)
           .join(" "),
@@ -112,14 +109,13 @@ export function createAcceptanceDocumentModule(
         true,
       );
       requirePostedDocument(invoice);
-      const invoicePayload = parseInvoicePayload(invoice);
       if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",
         );
       }
 
-      if (invoicePayload.mode === "exchange") {
+      if (await invoiceRequiresExchange(deps, invoice)) {
         const exchange = await getInvoiceExchangeChild(
           deps,
           context.runtime,
@@ -127,7 +123,7 @@ export function createAcceptanceDocumentModule(
         );
         if (!exchange) {
           throw new DocumentValidationError(
-            "acceptance requires a posted exchange for exchange-mode invoices",
+            "acceptance requires a posted exchange for FX-linked invoices",
           );
         }
         requirePostedDocument(exchange);

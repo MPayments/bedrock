@@ -21,7 +21,11 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
+import { getCountryByAlpha2 } from "@bedrock/shared/reference-data/countries";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Table,
   TableBody,
@@ -30,11 +34,9 @@ import {
   TableHeader,
   TableRow,
 } from "@bedrock/sdk-ui/components/table";
+
 import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
 import { API_BASE_URL } from "@/lib/constants";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +53,6 @@ interface OrganizationRow {
   name: string;
   orgType: string | null;
   country: string | null;
-  city: string | null;
   inn: string | null;
   directorName: string | null;
   isActive: boolean;
@@ -61,6 +62,20 @@ interface OrganizationRow {
 }
 
 type OrganizationListItem = Partial<OrganizationRow> & Record<string, unknown>;
+
+function getCountryLabel(countryCode: string | null): string {
+  if (!countryCode) {
+    return "—";
+  }
+
+  const country = getCountryByAlpha2(countryCode);
+  if (!country) {
+    const normalizedCode = countryCode.trim().toUpperCase();
+    return normalizedCode || "—";
+  }
+
+  return `${country.emoji} ${country.name}`;
+}
 
 export default function OrganizationsPage() {
   const router = useRouter();
@@ -95,7 +110,6 @@ export default function OrganizationsPage() {
         const rawItems = Array.isArray(response) ? response : response.data ?? [];
         const items: OrganizationRow[] = rawItems.map((item: OrganizationListItem) => ({
           banksCount: item.banksCount ?? 0,
-          city: item.city ?? null,
           country: item.country ?? null,
           createdAt: item.createdAt,
           directorName: item.directorName ?? null,
@@ -190,16 +204,12 @@ export default function OrganizationsPage() {
         cell: ({ getValue }) => getValue<string | null>() || "—",
       },
       {
-        accessorKey: "city",
-        meta: { label: "Город" },
+        accessorKey: "country",
+        meta: { label: "Страна" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Город" />
+          <DataTableColumnHeader column={column} title="Страна" />
         ),
-        cell: ({ row }) => {
-          const { country, city } = row.original;
-          if (city && country) return `${city}, ${country}`;
-          return city || country || "—";
-        },
+        cell: ({ row }) => getCountryLabel(row.original.country),
       },
       {
         accessorKey: "directorName",

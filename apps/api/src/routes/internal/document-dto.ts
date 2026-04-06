@@ -7,6 +7,17 @@ import { minorToAmountString } from "@bedrock/shared/money";
 
 import { normalizeMoneyFields } from "../../common/amount";
 
+function restoreRawPayload(
+  target: unknown,
+  rawPayload: Record<string, unknown>,
+) {
+  if (!target || typeof target !== "object" || Array.isArray(target)) {
+    return;
+  }
+
+  (target as { payload: unknown }).payload = toJsonSafe(rawPayload);
+}
+
 export function toDocumentDto(input: DocumentWithOperationId) {
   const { document } = input;
 
@@ -15,7 +26,7 @@ export function toDocumentDto(input: DocumentWithOperationId) {
     docType: document.docType,
     docNo: document.docNo,
     payloadVersion: document.payloadVersion,
-    payload: toJsonSafe(normalizeMoneyFields(document.payload)),
+    payload: toJsonSafe(document.payload),
     title: document.title,
     occurredAt: document.occurredAt.toISOString(),
     submissionStatus: document.submissionStatus,
@@ -74,96 +85,129 @@ export function toDocumentDetailsDto(
     ledgerOperations?: unknown[];
   },
 ) {
-  return toJsonSafe(
-    normalizeMoneyFields({
-      document: toDocumentDto({
-        document: details.document,
-        dealId: details.dealId,
-        postingOperationId: details.postingOperationId,
-        allowedActions: details.allowedActions,
-      }),
-      links: details.links.map((link) => ({
-        id: link.id,
-        fromDocumentId: link.fromDocumentId,
-        toDocumentId: link.toDocumentId,
-        linkType: link.linkType,
-        role: link.role,
-        createdAt: link.createdAt.toISOString(),
-      })),
-      parent: details.parent
-        ? toDocumentDto({
-            document: details.parent,
-            dealId: null,
-            postingOperationId: null,
-            allowedActions: [],
-          })
-        : null,
-      children: details.children.map((document) =>
-        toDocumentDto({
-          document,
-          dealId: null,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      dependsOn: details.dependsOn.map((document) =>
-        toDocumentDto({
-          document,
-          dealId: null,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      compensates: details.compensates.map((document) =>
-        toDocumentDto({
-          document,
-          dealId: null,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      documentOperations: details.documentOperations.map((operation) => ({
-        id: operation.id,
-        documentId: operation.documentId,
-        operationId: operation.operationId,
-        kind: operation.kind,
-        createdAt: operation.createdAt.toISOString(),
-      })),
-      events: details.events.map((event) => ({
-        id: event.id,
-        documentId: event.documentId,
-        eventType: event.eventType,
-        actorId: event.actorId,
-        requestId: event.requestId,
-        correlationId: event.correlationId,
-        traceId: event.traceId,
-        causationId: event.causationId,
-        reasonCode: event.reasonCode,
-        reasonMeta: event.reasonMeta,
-        before: event.before,
-        after: event.after,
-        createdAt: event.createdAt.toISOString(),
-      })),
-      snapshot: details.snapshot
-        ? {
-            id: details.snapshot.id,
-            documentId: details.snapshot.documentId,
-            payload: details.snapshot.payload,
-            payloadVersion: details.snapshot.payloadVersion,
-            moduleId: details.snapshot.moduleId,
-            moduleVersion: details.snapshot.moduleVersion,
-            packChecksum: details.snapshot.packChecksum,
-            postingPlanChecksum: details.snapshot.postingPlanChecksum,
-            journalIntentChecksum: details.snapshot.journalIntentChecksum,
-            postingPlan: details.snapshot.postingPlan,
-            journalIntent: details.snapshot.journalIntent,
-            resolvedTemplates: details.snapshot.resolvedTemplates,
-            createdAt: details.snapshot.createdAt.toISOString(),
-          }
-        : null,
-      ledgerOperations: input?.ledgerOperations ?? details.ledgerOperations,
-      computed: details.computed,
-      extra: details.extra,
+  const normalized = normalizeMoneyFields({
+    document: toDocumentDto({
+      document: details.document,
+      dealId: details.dealId,
+      postingOperationId: details.postingOperationId,
+      allowedActions: details.allowedActions,
     }),
-  );
+    links: details.links.map((link) => ({
+      id: link.id,
+      fromDocumentId: link.fromDocumentId,
+      toDocumentId: link.toDocumentId,
+      linkType: link.linkType,
+      role: link.role,
+      createdAt: link.createdAt.toISOString(),
+    })),
+    parent: details.parent
+      ? toDocumentDto({
+          document: details.parent,
+          dealId: null,
+          postingOperationId: null,
+          allowedActions: [],
+        })
+      : null,
+    children: details.children.map((document) =>
+      toDocumentDto({
+        document,
+        dealId: null,
+        postingOperationId: null,
+        allowedActions: [],
+      }),
+    ),
+    dependsOn: details.dependsOn.map((document) =>
+      toDocumentDto({
+        document,
+        dealId: null,
+        postingOperationId: null,
+        allowedActions: [],
+      }),
+    ),
+    compensates: details.compensates.map((document) =>
+      toDocumentDto({
+        document,
+        dealId: null,
+        postingOperationId: null,
+        allowedActions: [],
+      }),
+    ),
+    documentOperations: details.documentOperations.map((operation) => ({
+      id: operation.id,
+      documentId: operation.documentId,
+      operationId: operation.operationId,
+      kind: operation.kind,
+      createdAt: operation.createdAt.toISOString(),
+    })),
+    events: details.events.map((event) => ({
+      id: event.id,
+      documentId: event.documentId,
+      eventType: event.eventType,
+      actorId: event.actorId,
+      requestId: event.requestId,
+      correlationId: event.correlationId,
+      traceId: event.traceId,
+      causationId: event.causationId,
+      reasonCode: event.reasonCode,
+      reasonMeta: event.reasonMeta,
+      before: event.before,
+      after: event.after,
+      createdAt: event.createdAt.toISOString(),
+    })),
+    snapshot: details.snapshot
+      ? {
+          id: details.snapshot.id,
+          documentId: details.snapshot.documentId,
+          payload: toJsonSafe(details.snapshot.payload),
+          payloadVersion: details.snapshot.payloadVersion,
+          moduleId: details.snapshot.moduleId,
+          moduleVersion: details.snapshot.moduleVersion,
+          packChecksum: details.snapshot.packChecksum,
+          postingPlanChecksum: details.snapshot.postingPlanChecksum,
+          journalIntentChecksum: details.snapshot.journalIntentChecksum,
+          postingPlan: details.snapshot.postingPlan,
+          journalIntent: details.snapshot.journalIntent,
+          resolvedTemplates: details.snapshot.resolvedTemplates,
+          createdAt: details.snapshot.createdAt.toISOString(),
+        }
+      : null,
+    ledgerOperations: input?.ledgerOperations ?? details.ledgerOperations,
+    computed: details.computed,
+    extra: details.extra,
+  }) as Record<string, unknown>;
+
+  restoreRawPayload(normalized.document, details.document.payload);
+  restoreRawPayload(normalized.parent, details.parent?.payload ?? {});
+
+  const children = Array.isArray(normalized.children) ? normalized.children : [];
+  children.forEach((child, index) => {
+    const rawPayload = details.children[index]?.payload;
+    if (rawPayload) {
+      restoreRawPayload(child, rawPayload);
+    }
+  });
+
+  const dependsOn = Array.isArray(normalized.dependsOn) ? normalized.dependsOn : [];
+  dependsOn.forEach((dependency, index) => {
+    const rawPayload = details.dependsOn[index]?.payload;
+    if (rawPayload) {
+      restoreRawPayload(dependency, rawPayload);
+    }
+  });
+
+  const compensates = Array.isArray(normalized.compensates)
+    ? normalized.compensates
+    : [];
+  compensates.forEach((document, index) => {
+    const rawPayload = details.compensates[index]?.payload;
+    if (rawPayload) {
+      restoreRawPayload(document, rawPayload);
+    }
+  });
+
+  if (details.snapshot?.payload) {
+    restoreRawPayload(normalized.snapshot, details.snapshot.payload);
+  }
+
+  return toJsonSafe(normalized);
 }

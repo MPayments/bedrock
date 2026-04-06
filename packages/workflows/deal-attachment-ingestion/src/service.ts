@@ -509,21 +509,13 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       target: intake.incomingReceipt,
       targetKey: "expectedCurrencyId",
     });
-    applyTextField({
-      appliedFields,
-      nextValue: input.normalizedPayload.amount,
-      path: "moneyRequest.sourceAmount",
-      skippedFields,
-      target: intake.moneyRequest,
-      targetKey: "sourceAmount",
-    });
     applyCurrencyField({
       appliedFields,
       nextValue: input.normalizedPayload.currencyId,
-      path: "moneyRequest.sourceCurrencyId",
+      path: "moneyRequest.targetCurrencyId",
       skippedFields,
       target: intake.moneyRequest,
-      targetKey: "sourceCurrencyId",
+      targetKey: "targetCurrencyId",
     });
     applyTextField({
       appliedFields,

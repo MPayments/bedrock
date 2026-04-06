@@ -1,3 +1,5 @@
+import { formatDecimalString } from "@bedrock/shared/money";
+
 export type AgreementFeeRuleView = {
   currencyCode: string | null;
   kind: "agent_fee" | "fixed_fee";
@@ -64,23 +66,33 @@ function formatDecimalCurrency(
   value: string,
   currencyCode: string | null | undefined,
 ): string {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
+  let formattedNumber: string;
+
+  try {
+    formattedNumber = formatDecimalString(value, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  } catch {
     return "—";
   }
 
   try {
-    return new Intl.NumberFormat("ru-RU", {
+    const currencyPart = new Intl.NumberFormat("ru-RU", {
       style: "currency",
       currency: currencyCode ?? "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(numeric);
+    })
+      .formatToParts(1)
+      .find((part) => part.type === "currency")
+      ?.value;
+
+    return currencyPart
+      ? `${formattedNumber} ${currencyPart}`
+      : formattedNumber;
   } catch {
-    return new Intl.NumberFormat("ru-RU", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numeric);
+    return formattedNumber;
   }
 }
 

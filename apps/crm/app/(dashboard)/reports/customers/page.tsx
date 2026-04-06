@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import {
   Table,
   TableBody,
@@ -51,10 +52,11 @@ import { DataTablePagination } from "@/components/data-table/DataTablePagination
 import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import {
   ChartContainer,
+  type ChartTooltipFormatter,
+  type ChartTooltipLabelFormatter,
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
@@ -98,6 +100,18 @@ interface ChartDataPoint {
 
 // Валюты для Area Chart (без рублей)
 const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
+
+function formatReportChartTick(value: string | number) {
+  return format(new Date(value), "d MMM", { locale: ru });
+}
+
+const formatReportChartLabel: ChartTooltipLabelFormatter = (value) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return "";
+  }
+
+  return format(new Date(value), "d MMM yyyy", { locale: ru });
+};
 
 // Функция для вычисления начального диапазона дат (с 11 числа до текущего дня)
 function getInitialDateRange(): DateRange {
@@ -344,6 +358,23 @@ export default function ClientsReportsPage() {
     }
   };
 
+  const formatReportChartTooltip: ChartTooltipFormatter = (value, name) => {
+    if (name === "Сумма") {
+      return [formatCurrency(Number(value), reportCurrencyCode), "Сумма"];
+    }
+
+    if (name === "Сделок") {
+      const formatted = new Intl.NumberFormat("ru-RU", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number(value));
+
+      return [formatted, "Сделок"];
+    }
+
+    return [String(value), name];
+  };
+
   return (
     <div className="space-y-4">
       {/* Заголовок с кнопками */}
@@ -468,38 +499,14 @@ export default function ClientsReportsPage() {
                     tickMargin={8}
                     minTickGap={32}
                     tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return format(date, "d MMM", { locale: ru });
-                    }}
+                    tickFormatter={formatReportChartTick}
                   />
                   <ChartTooltip
                     cursor={false}
                     content={
                       <ChartTooltipContent
-                        labelFormatter={(value) => {
-                          const date = new Date(value);
-                          return format(date, "d MMM yyyy", { locale: ru });
-                        }}
-                        formatter={(value, name) => {
-                          if (name === "Сумма") {
-                            return [
-                              formatCurrency(Number(value), reportCurrencyCode),
-                              "Сумма",
-                            ];
-                          }
-
-                          if (name === "Сделок") {
-                            const formatted = new Intl.NumberFormat("ru-RU", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(Number(value));
-
-                            return [formatted, "Сделок"];
-                          }
-
-                          return [String(value), name];
-                        }}
+                        labelFormatter={formatReportChartLabel}
+                        formatter={formatReportChartTooltip}
                         indicator="dot"
                       />
                     }
@@ -543,7 +550,8 @@ export default function ClientsReportsPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DateRangePicker
+              <DatePicker
+                mode="range"
                 value={dateRange}
                 onChange={setDateRange}
                 placeholder="Период..."

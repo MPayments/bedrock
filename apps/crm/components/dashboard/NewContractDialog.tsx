@@ -511,6 +511,7 @@ export function NewContractDialog({
                     <Label htmlFor="agentFee">Агентская комиссия (%)</Label>
                     <Input
                       id="agentFee"
+                      inputMode="decimal"
                       value={formData.agentFee}
                       onChange={(e) =>
                         setFormData((prev) => ({
@@ -530,6 +531,7 @@ export function NewContractDialog({
                     <Label htmlFor="fixedFee">SWIFT комиссия (USD)</Label>
                     <Input
                       id="fixedFee"
+                      inputMode="decimal"
                       value={formData.fixedFee}
                       onChange={(e) =>
                         setFormData((prev) => ({

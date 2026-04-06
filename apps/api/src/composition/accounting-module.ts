@@ -20,6 +20,9 @@ import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import type {
   LedgerBookRow,
+  LedgerOperationDetails,
+  LedgerOperationList,
+  ListLedgerOperationsInput,
   ListScopedPostingRowsInput,
 } from "@bedrock/ledger/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -64,22 +67,32 @@ export function createApiAccountingModule(input: {
 }): AccountingModule {
   const partiesReadRuntime = createApiPartiesReadRuntime(input.db);
   const ledgerReadRuntime = createApiLedgerReadRuntime(input.db);
+  const { booksQueries, operationsQueries, reportsQueries } = ledgerReadRuntime;
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
   const ledgerQueries = {
     listBooksById: (ids: string[]) =>
       listBooksWithLabels({
         ids,
-        listBooksById: ledgerReadRuntime.booksQueries.listById,
+        listBooksById: (bookIds) => booksQueries.listById(bookIds),
         organizationsQueries: partiesReadRuntime.organizationsQueries,
       }),
-    listBooksByOwnerId: ledgerReadRuntime.booksQueries.listByOwnerId,
+    listBooksByOwnerId: (ownerId: string) =>
+      booksQueries.listByOwnerId(ownerId),
     listScopedPostingRows: (query: ListScopedPostingRowsInput) =>
-      ledgerReadRuntime.reportsQueries.listScopedPostingRows(query),
+      reportsQueries.listScopedPostingRows(query),
   };
   const ledgerReadPort = {
-    listOperations: ledgerReadRuntime.operationsQueries.list,
-    listOperationDetails: ledgerReadRuntime.operationsQueries.listDetails,
-    getOperationDetails: ledgerReadRuntime.operationsQueries.getDetails,
+    listOperations: (
+      query?: ListLedgerOperationsInput,
+    ): Promise<LedgerOperationList> => operationsQueries.list(query),
+    listOperationDetails: (
+      operationIds: string[],
+    ): Promise<Map<string, LedgerOperationDetails>> =>
+      operationsQueries.listDetails(operationIds),
+    getOperationDetails: (
+      operationId: string,
+    ): Promise<LedgerOperationDetails | null> =>
+      operationsQueries.getDetails(operationId),
   };
   const currenciesQueries = createCurrenciesQueries({
     db: input.db as Database,

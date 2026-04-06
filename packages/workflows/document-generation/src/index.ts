@@ -10,6 +10,7 @@ export {
   type ClientContractFormat,
   type ClientContractOrganization,
   type ClientContractOrganizationBankRequisite,
+  type CalculationDocumentData,
   type DocumentLanguage,
   type DocumentTemplateType,
   type GenerateCustomerContractInput,

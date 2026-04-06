@@ -1,7 +1,10 @@
 export { createCommercialDocumentModules } from "./documents";
 export { createCommercialDocumentDeps } from "./infra/deps";
 export type {
+  CommercialDealFxContext,
+  CommercialDealFxPort,
   CommercialDocumentDb,
+  CommercialDocumentBusinessLinksPort,
   CommercialDocumentRelationsPort,
   CommercialModuleDeps,
   CommercialPartyReferencesPort,

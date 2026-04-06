@@ -6,6 +6,7 @@
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],
+      "@bedrock/sdk-api-client": ["../../packages/sdk/api-client/src/index.ts"],
       "@bedrock/sdk-ui/globals.css": ["../../packages/sdk/ui/src/styles/globals.css"],
       "@bedrock/sdk-ui/*": ["../../packages/sdk/ui/src/*"]
     },

@@ -12,6 +12,7 @@ import {
   buildDocumentPostingRequest,
   parseDocumentPayload,
 } from "@bedrock/plugin-documents-sdk/module-kit";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import { IFRS_DOCUMENT_METADATA } from "../metadata";
@@ -44,7 +45,10 @@ function assertFxExecuteAmountMatchesQuote(payload: FxExecutePayload) {
 }
 
 function formatRate(rateNum: string, rateDen: string) {
-  return (Number(rateNum) / Number(rateDen)).toFixed(6);
+  return formatFractionDecimal(rateNum, rateDen, {
+    scale: 6,
+    trimTrailingZeros: false,
+  });
 }
 
 function buildFxExecuteDetails(payload: FxExecutePayload) {

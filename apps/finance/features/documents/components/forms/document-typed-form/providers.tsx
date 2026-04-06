@@ -23,10 +23,12 @@ import {
 } from "./helpers";
 import { useAccountRequisiteOptions } from "./hooks/use-account-requisite-options";
 import { useDerivedAccountCurrencyFields } from "./hooks/use-derived-account-currency-fields";
+import { useResetIncompatibleAccountFields } from "./hooks/use-reset-incompatible-account-fields";
 import { useDocumentFormSubmission } from "./hooks/use-document-form-submission";
 
 type DocumentTypedFormProviderProps = {
   children: ReactNode;
+  createDealId?: string;
   docType: string;
   userRole: UserRole;
   options: DocumentFormOptions;
@@ -39,10 +41,12 @@ type DocumentTypedFormProviderProps = {
 
 export type CreateDocumentTypedFormProviderProps = {
   children: ReactNode;
+  createDealId?: string;
   docType: string;
   userRole: UserRole;
   options: DocumentFormOptions;
   disabled?: boolean;
+  initialPayload?: Record<string, unknown>;
   onSuccess?: (result: DocumentMutationDto) => void;
 };
 
@@ -59,6 +63,7 @@ export type EditDocumentTypedFormProviderProps = {
 
 function DocumentTypedFormProvider({
   children,
+  createDealId,
   docType,
   userRole,
   options,
@@ -122,6 +127,13 @@ function DocumentTypedFormProvider({
       ),
     [options.currencies],
   );
+  const currencyIdByCode = useMemo(
+    () =>
+      new Map(
+        options.currencies.map((currency) => [currency.code, currency.id] as const),
+      ),
+    [options.currencies],
+  );
   const selectOptions = useMemo(
     () => ({
       currencies: options.currencies.map((currency) => ({
@@ -156,6 +168,7 @@ function DocumentTypedFormProvider({
   } = useAccountRequisiteOptions({
     accountFields,
     control,
+    currencyIdByCode,
     currencyCodeById,
     currencyLabelById,
   });
@@ -167,11 +180,21 @@ function DocumentTypedFormProvider({
     setValue,
   });
 
+  useResetIncompatibleAccountFields({
+    accountFields,
+    control,
+    currencyIdByCode,
+    loadingOwnerKeys,
+    requisitesByOwnerKey,
+    setValue,
+  });
+
   useEffect(() => {
     reset(defaultValues);
   }, [defaultValues, reset]);
 
   const submission = useDocumentFormSubmission({
+    createDealId,
     methods,
     definition,
     mode,

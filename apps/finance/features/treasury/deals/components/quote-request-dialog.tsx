@@ -41,8 +41,9 @@ type QuoteRequestDialogProps = {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   open: boolean;
-  requestedAmount: string | null;
-  requestedCurrencyId: string | null;
+  quoteAmount: string | null;
+  quoteAmountSide: "source" | "target";
+  sourceCurrencyId: string | null;
   targetCurrencyId: string | null;
 };
 
@@ -70,11 +71,12 @@ export function QuoteRequestDialog({
   onOpenChange,
   onSuccess,
   open,
-  requestedAmount,
-  requestedCurrencyId,
+  quoteAmount,
+  quoteAmountSide,
+  sourceCurrencyId,
   targetCurrencyId,
 }: QuoteRequestDialogProps) {
-  const [amount, setAmount] = useState(requestedAmount ?? "");
+  const [amount, setAmount] = useState(quoteAmount ?? "");
   const [asOf, setAsOf] = useState(formatDateTimeInput(new Date()));
   const [toCurrency, setToCurrency] = useState("");
   const [manualRate, setManualRate] = useState("");
@@ -82,7 +84,11 @@ export function QuoteRequestDialog({
   const [overrideAmount, setOverrideAmount] = useState(false);
   const [loadingContext, setLoadingContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [requestedCurrency, setRequestedCurrency] = useState<{
+  const [sourceCurrency, setSourceCurrency] = useState<{
+    code: string;
+    precision: number;
+  } | null>(null);
+  const [targetQuoteCurrency, setTargetQuoteCurrency] = useState<{
     code: string;
     precision: number;
   } | null>(null);
@@ -93,37 +99,51 @@ export function QuoteRequestDialog({
       return;
     }
 
-    setAmount(requestedAmount ?? "");
+    setAmount(quoteAmount ?? "");
     setAsOf(formatDateTimeInput(new Date()));
     setManualRate("");
     setManualRateEnabled(false);
     setOverrideAmount(false);
-  }, [open, requestedAmount]);
+  }, [open, quoteAmount]);
 
   useEffect(() => {
-    if (!open || !requestedCurrencyId) {
+    if (!open || !sourceCurrencyId) {
       return;
     }
 
-    const currentRequestedCurrencyId = requestedCurrencyId;
+    const currentSourceCurrencyId = sourceCurrencyId;
     let cancelled = false;
 
     async function loadContext() {
       setLoadingContext(true);
 
       try {
-        const [currencyResponse, optionsResponse] = await Promise.all([
-          fetch(`/v1/currencies/${encodeURIComponent(currentRequestedCurrencyId)}`, {
+        const sourceCurrencyRequest = fetch(
+          `/v1/currencies/${encodeURIComponent(currentSourceCurrencyId)}`,
+          {
             cache: "no-store",
             credentials: "include",
-          }),
-          fetch("/v1/currencies/options", {
-            cache: "no-store",
-            credentials: "include",
-          }),
-        ]);
+          },
+        );
+        const optionsRequest = fetch("/v1/currencies/options", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const targetCurrencyRequest =
+          quoteAmountSide === "target" && targetCurrencyId
+            ? fetch(`/v1/currencies/${encodeURIComponent(targetCurrencyId)}`, {
+                cache: "no-store",
+                credentials: "include",
+              })
+            : Promise.resolve(null);
+        const [sourceCurrencyResponse, optionsResponse, targetCurrencyResponse] =
+          await Promise.all([
+            sourceCurrencyRequest,
+            optionsRequest,
+            targetCurrencyRequest,
+          ]);
 
-        if (!currencyResponse.ok) {
+        if (!sourceCurrencyResponse.ok) {
           throw new Error("Не удалось загрузить валюту сделки");
         }
 
@@ -131,38 +151,71 @@ export function QuoteRequestDialog({
           throw new Error("Не удалось загрузить валюты");
         }
 
-        const nextRequestedCurrency = CurrencySchema.parse(
-          await currencyResponse.json(),
+        if (
+          quoteAmountSide === "target" &&
+          targetCurrencyId &&
+          targetCurrencyResponse &&
+          !targetCurrencyResponse.ok
+        ) {
+          throw new Error("Не удалось загрузить валюту оплаты");
+        }
+
+        const nextSourceCurrency = CurrencySchema.parse(
+          await sourceCurrencyResponse.json(),
         );
         const nextOptions = CurrencyOptionsResponseSchema.parse(
           await optionsResponse.json(),
         );
+        const nextTargetCurrency =
+          quoteAmountSide === "target" &&
+          targetCurrencyId &&
+          targetCurrencyResponse
+            ? CurrencySchema.parse(await targetCurrencyResponse.json())
+            : null;
 
         if (cancelled) {
           return;
         }
 
         const availableOptions = nextOptions.data
-          .filter((item) => item.code !== nextRequestedCurrency.code)
+          .filter((item) => item.code !== nextSourceCurrency.code)
           .map((item) => ({
             code: item.code,
             id: item.id,
             label: item.label,
           }));
 
-        setRequestedCurrency({
-          code: nextRequestedCurrency.code,
-          precision: nextRequestedCurrency.precision,
+        setSourceCurrency({
+          code: nextSourceCurrency.code,
+          precision: nextSourceCurrency.precision,
         });
-        setCurrencyOptions(availableOptions);
-        setToCurrency((currentValue) =>
-          resolveDefaultToCurrency({
-            currentValue,
-            options: availableOptions,
-            preferredTargetCurrencyId: targetCurrencyId,
-            sourceCurrencyCode: nextRequestedCurrency.code,
-          }),
-        );
+        if (quoteAmountSide === "target") {
+          const fixedTargetCode = nextTargetCurrency?.code ?? "";
+          const fixedTargetOption = availableOptions.find(
+            (item) => item.id === targetCurrencyId,
+          );
+          setTargetQuoteCurrency(
+            nextTargetCurrency
+              ? {
+                  code: nextTargetCurrency.code,
+                  precision: nextTargetCurrency.precision,
+                }
+              : null,
+          );
+          setCurrencyOptions(fixedTargetOption ? [fixedTargetOption] : []);
+          setToCurrency(fixedTargetCode);
+        } else {
+          setTargetQuoteCurrency(null);
+          setCurrencyOptions(availableOptions);
+          setToCurrency((currentValue) =>
+            resolveDefaultToCurrency({
+              currentValue,
+              options: availableOptions,
+              preferredTargetCurrencyId: targetCurrencyId,
+              sourceCurrencyCode: nextSourceCurrency.code,
+            }),
+          );
+        }
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -181,7 +234,7 @@ export function QuoteRequestDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, requestedCurrencyId, targetCurrencyId]);
+  }, [open, quoteAmountSide, sourceCurrencyId, targetCurrencyId]);
 
   async function handleSubmit() {
     if (disabledReason) {
@@ -189,7 +242,7 @@ export function QuoteRequestDialog({
       return;
     }
 
-    if (!requestedCurrency) {
+    if (!sourceCurrency) {
       toast.error("Не удалось определить валюту сделки");
       return;
     }
@@ -199,12 +252,19 @@ export function QuoteRequestDialog({
       return;
     }
 
-    if (requestedCurrency.code === toCurrency) {
+    if (sourceCurrency.code === toCurrency) {
       toast.error("Выберите другую валюту назначения");
       return;
     }
 
-    const amountMinor = decimalToMinorString(amount, requestedCurrency.precision);
+    const amountPrecision =
+      quoteAmountSide === "target"
+        ? targetQuoteCurrency?.precision
+        : sourceCurrency.precision;
+    const amountMinor =
+      amountPrecision == null
+        ? null
+        : decimalToMinorString(amount, amountPrecision);
 
     if (!amountMinor || BigInt(amountMinor) <= 0n) {
       toast.error("Введите сумму больше нуля в формате 1000.00");
@@ -239,15 +299,18 @@ export function QuoteRequestDialog({
             manualRateEnabled
               ? buildManualQuotePayload({
                   asOf: asOfDate.toISOString(),
-                  fromAmountMinor: amountMinor,
-                  fromCurrency: requestedCurrency.code,
+                  amountMinor,
+                  amountSide: quoteAmountSide,
+                  fromCurrency: sourceCurrency.code,
                   manualRate,
                   toCurrency,
                 })
               : {
                   mode: "auto_cross",
-                  fromAmountMinor: amountMinor,
-                  fromCurrency: requestedCurrency.code,
+                  ...(quoteAmountSide === "target"
+                    ? { toAmountMinor: amountMinor }
+                    : { fromAmountMinor: amountMinor }),
+                  fromCurrency: sourceCurrency.code,
                   toCurrency,
                   asOf: asOfDate.toISOString(),
                 },
@@ -280,11 +343,13 @@ export function QuoteRequestDialog({
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label>Валюта списания</Label>
-            <Input disabled value={requestedCurrency?.code ?? "—"} />
+            <Input disabled value={sourceCurrency?.code ?? "—"} />
           </div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="deal-quote-amount">Сумма</Label>
+              <Label htmlFor="deal-quote-amount">
+                {quoteAmountSide === "target" ? "Сумма оплаты" : "Сумма списания"}
+              </Label>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox
                   id="deal-quote-amount-override"
@@ -304,15 +369,22 @@ export function QuoteRequestDialog({
             <Input
               id="deal-quote-amount"
               disabled={!overrideAmount}
+              inputMode="decimal"
               placeholder="Например 1000.00"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label>Валюта назначения</Label>
+            <Label>
+              {quoteAmountSide === "target"
+                ? "Валюта оплаты"
+                : "Валюта назначения"}
+            </Label>
             <Select value={toCurrency} onValueChange={(value) => setToCurrency(value ?? "")}>
-              <SelectTrigger disabled={loadingContext}>
+              <SelectTrigger
+                disabled={loadingContext || quoteAmountSide === "target"}
+              >
                 <SelectValue
                   placeholder={
                     loadingContext ? "Загружаем валюты..." : "Выберите валюту"
@@ -351,8 +423,8 @@ export function QuoteRequestDialog({
               id="deal-quote-manual-rate"
               disabled={!manualRateEnabled}
               placeholder={
-                requestedCurrency && toCurrency
-                  ? `Например 97.15 ${toCurrency} за 1 ${requestedCurrency.code}`
+                sourceCurrency && toCurrency
+                  ? `Например 97.15 ${toCurrency} за 1 ${sourceCurrency.code}`
                   : "Например 97.15"
               }
               value={manualRate}
@@ -392,7 +464,8 @@ export function QuoteRequestDialog({
 
 function buildManualQuotePayload(input: {
   asOf: string;
-  fromAmountMinor: string;
+  amountMinor: string;
+  amountSide: "source" | "target";
   fromCurrency: string;
   manualRate: string;
   toCurrency: string;
@@ -405,7 +478,9 @@ function buildManualQuotePayload(input: {
 
   return {
     mode: "explicit_route",
-    fromAmountMinor: input.fromAmountMinor,
+    ...(input.amountSide === "target"
+      ? { toAmountMinor: input.amountMinor }
+      : { fromAmountMinor: input.amountMinor }),
     fromCurrency: input.fromCurrency,
     toCurrency: input.toCurrency,
     asOf: input.asOf,

@@ -24,9 +24,12 @@ import {
 } from "./forms/document-typed-form";
 
 type DocumentCreateTypedFormClientProps = {
+  dealId?: string;
   docType: string;
+  initialPayload?: Record<string, unknown>;
   userRole: UserRole;
   options: DocumentFormOptions;
+  successHref?: string;
 };
 
 function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
@@ -57,20 +60,27 @@ function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
 }
 
 export function DocumentCreateTypedFormClient({
+  dealId,
   docType,
+  initialPayload,
   userRole,
   options,
+  successHref,
 }: DocumentCreateTypedFormClientProps) {
   const router = useRouter();
 
   return (
     <CreateDocumentTypedFormProvider
+      createDealId={dealId}
       docType={docType}
+      initialPayload={initialPayload}
       userRole={userRole}
       options={options}
       onSuccess={(document) => {
         router.push(
-          buildDocumentDetailsHref(document.docType, document.id) ?? "/documents",
+          successHref ??
+            buildDocumentDetailsHref(document.docType, document.id) ??
+            "/documents",
         );
       }}
     >

@@ -1,6 +1,7 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type {
   DealOperationalPosition,
@@ -52,6 +53,7 @@ import type {
   FinanceDealQueueFilters,
   FinanceDealQueueProjection,
   FinanceDealQueueItem,
+  FinanceProfitabilityAmount,
   FinanceDealWorkspaceProjection,
   FinanceProfitabilitySnapshot,
   PortalDealListProjection,
@@ -170,6 +172,21 @@ function parseMinorOrZero(
   return parseDecimalOrZero(minorToAmountString(value, { precision }));
 }
 
+function toMinorOrZero(
+  value: string | null | undefined,
+  currencyCode: string,
+): bigint {
+  return BigInt(toMinorAmountString(value ?? "0", currencyCode));
+}
+
+function compareBigInt(left: bigint, right: bigint): number {
+  if (left === right) {
+    return 0;
+  }
+
+  return left < right ? -1 : 1;
+}
+
 function compareNullableStrings(
   left: string | null | undefined,
   right: string | null | undefined,
@@ -188,6 +205,106 @@ function compareNullableDates(
 
 function toMap<K, V>(entries: readonly (readonly [K, V])[]): Map<K, V> {
   return new Map(entries);
+}
+
+function buildCrmDealMoneySummary(input: {
+  deal: DealListRecord;
+  calculation: CalculationDetailsLike | null;
+  sourceCurrency: CurrencyDetailsLike | null;
+  baseCurrency: CurrencyDetailsLike | null;
+}) {
+  const currencyCode = input.sourceCurrency?.code ?? "RUB";
+  const sourcePrecision = input.sourceCurrency?.precision ?? 2;
+  const amountMinor = toMinorOrZero(input.deal.amount, currencyCode);
+  const amount = parseDecimalOrZero(input.deal.amount);
+
+  const amountInBaseMinor =
+    input.calculation && input.baseCurrency
+      ? BigInt(input.calculation.currentSnapshot.totalInBaseMinor)
+      : amountMinor;
+  const amountInBase =
+    input.calculation && input.baseCurrency
+      ? parseMinorOrZero(
+          input.calculation.currentSnapshot.totalInBaseMinor,
+          input.baseCurrency.precision,
+        )
+      : parseMinorOrZero(amountMinor, sourcePrecision);
+  const feePercentage = input.calculation
+    ? parseMinorOrZero(input.calculation.currentSnapshot.feeBps, 2)
+    : 0;
+
+  return {
+    amount,
+    amountInBase,
+    amountInBaseMinor,
+    amountMinor,
+    baseCurrencyCode: input.baseCurrency?.code ?? currencyCode,
+    currencyCode,
+    feePercentage,
+  };
+}
+
+async function loadDealMoneyLookups(
+  listedDeals: DealListRecord[],
+  deps: Pick<DealProjectionsWorkflowDeps, "calculations" | "currencies">,
+) {
+  const calculationIds = [
+    ...new Set(
+      listedDeals
+        .map((deal) => deal.calculationId)
+        .filter((calculationId): calculationId is string => Boolean(calculationId)),
+    ),
+  ];
+  const sourceCurrencyIds = [
+    ...new Set(
+      listedDeals
+        .map((deal) => deal.currencyId)
+        .filter((currencyId): currencyId is string => Boolean(currencyId)),
+    ),
+  ];
+
+  const calculationsById = toMap(
+    await Promise.all(
+      calculationIds.map(
+        async (
+          calculationId,
+        ): Promise<readonly [string, CalculationDetailsLike | null]> =>
+          [
+            calculationId,
+            (await deps.calculations.calculations.queries.findById(calculationId)) ??
+              null,
+          ] as const,
+      ),
+    ),
+  );
+  const baseCurrencyIds = [
+    ...new Set(
+      Array.from(calculationsById.values())
+        .map((calculation) => calculation?.currentSnapshot.baseCurrencyId ?? null)
+        .filter((currencyId): currencyId is string => Boolean(currencyId)),
+    ),
+  ];
+
+  const [currenciesById, baseCurrenciesById] = await Promise.all([
+    Promise.all(
+      sourceCurrencyIds.map(
+        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+          [currencyId, await deps.currencies.findById(currencyId)] as const,
+      ),
+    ).then(toMap),
+    Promise.all(
+      baseCurrencyIds.map(
+        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+          [currencyId, await deps.currencies.findById(currencyId)] as const,
+      ),
+    ).then(toMap),
+  ]);
+
+  return {
+    baseCurrenciesById,
+    calculationsById,
+    currenciesById,
+  };
 }
 
 function getCustomerParticipant(workflow: DealWorkflowProjection) {
@@ -485,6 +602,10 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
   const closingDocType =
     CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
+  const createAllowed = canDealWriteTreasuryOrFormalDocuments({
+    status: workflow.summary.status,
+    type: workflow.summary.type,
+  });
 
   for (const [stage, docType] of [
     ["opening", openingDocType] as const,
@@ -514,7 +635,7 @@ function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
           ? []
           : ["Формальный документ еще не готов к использованию"]
         : ["Формальный документ еще не создан"],
-      createAllowed: false,
+      createAllowed: !document && createAllowed,
       docType,
       openAllowed: Boolean(document?.id),
       stage,
@@ -944,6 +1065,53 @@ function isQuoteEligible(workflow: DealWorkflowProjection) {
   return workflow.executionPlan.some((leg) => leg.kind === "convert");
 }
 
+function buildFundingMessage(workflow: DealWorkflowProjection) {
+  if (!workflow.executionPlan.some((leg) => leg.kind === "convert")) {
+    return null;
+  }
+
+  if (
+    workflow.fundingResolution.state === "resolved" &&
+    workflow.fundingResolution.strategy === "existing_inventory"
+  ) {
+    const targetCurrency =
+      workflow.fundingResolution.targetCurrency ?? "целевой валюте";
+
+    return `Используем остаток ${targetCurrency} на казначейском счете`;
+  }
+
+  if (
+    workflow.fundingResolution.state === "resolved" &&
+    workflow.fundingResolution.strategy === "external_fx"
+  ) {
+    return "Требуется конвертация";
+  }
+
+  return null;
+}
+
+function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
+  if (workflow.summary.type === "payment") {
+    return {
+      fundingMessage: buildFundingMessage(workflow),
+      fundingResolution: workflow.fundingResolution,
+      quoteAmount: workflow.intake.incomingReceipt.expectedAmount ?? null,
+      quoteAmountSide: "target" as const,
+      sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+      targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
+    };
+  }
+
+  return {
+    fundingMessage: buildFundingMessage(workflow),
+    fundingResolution: workflow.fundingResolution,
+    quoteAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
+    quoteAmountSide: "source" as const,
+    sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
+  };
+}
+
 function getPositionByKind(
   workflow: DealWorkflowProjection,
   kind: string,
@@ -955,7 +1123,7 @@ function getPositionByKind(
   );
 }
 
-function sumCalculationLineAmounts(
+function sumCalculationLineAmountsByCurrency(
   lines: CalculationDetailsLike["lines"],
   kind: string,
 ) {
@@ -964,39 +1132,99 @@ function sumCalculationLineAmounts(
       return acc;
     }
 
-    return acc + BigInt(line.amountMinor);
-  }, 0n);
+    const nextAmount =
+      (acc.get(line.currencyId) ?? 0n) + BigInt(line.amountMinor);
+
+    acc.set(line.currencyId, nextAmount);
+    return acc;
+  }, new Map<string, bigint>());
 }
 
-function buildProfitabilitySnapshot(
+function mergeProfitabilityAmountsByCurrency(
+  ...groups: Map<string, bigint>[]
+) {
+  const totals = new Map<string, bigint>();
+
+  for (const group of groups) {
+    for (const [currencyId, amountMinor] of group.entries()) {
+      totals.set(currencyId, (totals.get(currencyId) ?? 0n) + amountMinor);
+    }
+  }
+
+  return totals;
+}
+
+async function resolveProfitabilityAmounts(
+  currencyIdsToAmounts: Map<string, bigint>,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceProfitabilityAmount[]> {
+  if (currencyIdsToAmounts.size === 0) {
+    return [];
+  }
+
+  const currencies = await Promise.all(
+    Array.from(currencyIdsToAmounts.keys()).map(async (currencyId) => ({
+      currency: await deps.currencies.findById(currencyId),
+      currencyId,
+    })),
+  );
+
+  const codeById = new Map(
+    currencies.map(({ currency, currencyId }) => [
+      currencyId,
+      currency?.code ?? currencyId,
+    ]),
+  );
+
+  return Array.from(currencyIdsToAmounts.entries())
+    .sort(([leftId], [rightId]) => {
+      const leftCode = codeById.get(leftId) ?? leftId;
+      const rightCode = codeById.get(rightId) ?? rightId;
+      return leftCode.localeCompare(rightCode);
+    })
+    .map(([currencyId, amountMinor]) => ({
+      amountMinor: amountMinor.toString(),
+      currencyCode: codeById.get(currencyId) ?? currencyId,
+      currencyId,
+    }));
+}
+
+async function buildProfitabilitySnapshot(
   calculation: Awaited<
     ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
   > | null,
-): FinanceProfitabilitySnapshot {
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceProfitabilitySnapshot> {
   if (!calculation) {
     return null;
   }
 
-  const feeRevenueMinor = sumCalculationLineAmounts(
+  const feeRevenue = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "fee_revenue",
   );
-  const providerFeeExpenseMinor = sumCalculationLineAmounts(
+  const providerFeeExpense = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "provider_fee_expense",
   );
-  const spreadRevenueMinor = sumCalculationLineAmounts(
+  const spreadRevenue = sumCalculationLineAmountsByCurrency(
     calculation.lines,
     "spread_revenue",
+  );
+  const totalRevenue = mergeProfitabilityAmountsByCurrency(
+    feeRevenue,
+    spreadRevenue,
   );
 
   return {
     calculationId: calculation.id,
-    currencyId: calculation.currentSnapshot.baseCurrencyId,
-    feeRevenueMinor: feeRevenueMinor.toString(),
-    providerFeeExpenseMinor: providerFeeExpenseMinor.toString(),
-    spreadRevenueMinor: spreadRevenueMinor.toString(),
-    totalRevenueMinor: (feeRevenueMinor + spreadRevenueMinor).toString(),
+    feeRevenue: await resolveProfitabilityAmounts(feeRevenue, deps),
+    providerFeeExpense: await resolveProfitabilityAmounts(
+      providerFeeExpense,
+      deps,
+    ),
+    spreadRevenue: await resolveProfitabilityAmounts(spreadRevenue, deps),
+    totalRevenue: await resolveProfitabilityAmounts(totalRevenue, deps),
   };
 }
 
@@ -1213,29 +1441,9 @@ export function createDealProjectionsWorkflow(
           .filter((agentId): agentId is string => Boolean(agentId)),
       ),
     ];
-    const calculationIds = [
-      ...new Set(
-        listedDeals
-          .map((deal) => deal.calculationId)
-          .filter((calculationId): calculationId is string =>
-            Boolean(calculationId),
-          ),
-      ),
-    ];
-    const requestedCurrencyIds = [
-      ...new Set(
-        listedDeals
-          .map((deal) => deal.requestedCurrencyId)
-          .filter((currencyId): currencyId is string => Boolean(currencyId)),
-      ),
-    ];
-
-    const [
-      customers,
-      agentEntries,
-      calculationEntries,
-      requestedCurrencyEntries,
-    ] = await Promise.all([
+    const [{ baseCurrenciesById, calculationsById, currenciesById }, customers, agentEntries] =
+      await Promise.all([
+        loadDealMoneyLookups(listedDeals, deps),
       deps.parties.customers.queries.listByIds(customerIds),
       Promise.all(
         agentIds.map(
@@ -1243,49 +1451,13 @@ export function createDealProjectionsWorkflow(
             [agentId, await deps.iam.queries.findById(agentId)] as const,
         ),
       ),
-      Promise.all(
-        calculationIds.map(
-          async (
-            calculationId,
-          ): Promise<readonly [string, CalculationDetailsLike | null]> =>
-            [
-              calculationId,
-              await deps.calculations.calculations.queries.findById(
-                calculationId,
-              ),
-            ] as const,
-        ),
-      ),
-      Promise.all(
-        requestedCurrencyIds.map(
-          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-            [currencyId, await deps.currencies.findById(currencyId)] as const,
-        ),
-      ),
     ]);
 
     const agentsById = toMap(agentEntries);
-    const calculationsById = toMap(calculationEntries);
-    const requestedCurrenciesById = toMap(requestedCurrencyEntries);
     const customersById = toMap(
       customers.map(
         (customer): readonly [string, CustomerListItemLike] =>
           [customer.id, customer] as const,
-      ),
-    );
-    const baseCurrencyIds = [
-      ...new Set(
-        [...calculationsById.values()]
-          .map((calculation) => calculation?.currentSnapshot.baseCurrencyId)
-          .filter((currencyId): currencyId is string => Boolean(currencyId)),
-      ),
-    ];
-    const baseCurrenciesById = toMap(
-      await Promise.all(
-        baseCurrencyIds.map(
-          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-            [currencyId, await deps.currencies.findById(currencyId)] as const,
-        ),
       ),
     );
 
@@ -1294,14 +1466,16 @@ export function createDealProjectionsWorkflow(
         deal,
       ): CrmDealListItem & {
         agentId: string | null;
+        amountInBaseMinor: bigint;
+        amountMinor: bigint;
         createdAtDate: number;
       } => {
         const customer = customersById.get(deal.customerId) ?? null;
         const calculation = deal.calculationId
           ? (calculationsById.get(deal.calculationId) ?? null)
           : null;
-        const sourceCurrency = deal.requestedCurrencyId
-          ? (requestedCurrenciesById.get(deal.requestedCurrencyId) ?? null)
+        const sourceCurrency = deal.currencyId
+          ? (currenciesById.get(deal.currencyId) ?? null)
           : null;
         const baseCurrency = calculation
           ? (baseCurrenciesById.get(
@@ -1311,21 +1485,12 @@ export function createDealProjectionsWorkflow(
         const agent = deal.agentId
           ? (agentsById.get(deal.agentId) ?? null)
           : null;
-
-        const amount = parseDecimalOrZero(deal.requestedAmount);
-        const amountInBase = calculation
-          ? baseCurrency
-            ? parseMinorOrZero(
-                calculation.currentSnapshot.totalInBaseMinor,
-                baseCurrency.precision,
-              )
-            : amount
-          : amount;
-        const feePercentage = calculation
-          ? parseMinorOrZero(calculation.currentSnapshot.feeBps, 2)
-          : 0;
-        const currencyCode = sourceCurrency?.code ?? "RUB";
-        const baseCurrencyCode = baseCurrency?.code ?? currencyCode;
+        const monetary = buildCrmDealMoneySummary({
+          deal,
+          calculation,
+          sourceCurrency,
+          baseCurrency,
+        });
         const closedAt =
           deal.status === "done" || deal.status === "cancelled"
             ? deal.updatedAt.toISOString()
@@ -1336,17 +1501,19 @@ export function createDealProjectionsWorkflow(
         return {
           agentId: deal.agentId,
           agentName: agent?.name ?? "",
-          amount,
-          amountInBase,
-          baseCurrencyCode,
+          amount: monetary.amount,
+          amountInBase: monetary.amountInBase,
+          amountInBaseMinor: monetary.amountInBaseMinor,
+          amountMinor: monetary.amountMinor,
+          baseCurrencyCode: monetary.baseCurrencyCode,
           client: customer?.displayName ?? "—",
           clientId: deal.customerId,
           closedAt,
           comment,
           createdAt: deal.createdAt.toISOString(),
           createdAtDate: deal.createdAt.getTime(),
-          currency: currencyCode,
-          feePercentage,
+          currency: monetary.currencyCode,
+          feePercentage: monetary.feePercentage,
           id: deal.id,
           status: deal.status,
           updatedAt: deal.updatedAt.toISOString(),
@@ -1407,10 +1574,13 @@ export function createDealProjectionsWorkflow(
           comparison = compareNullableStrings(left.client, right.client);
           break;
         case "amount":
-          comparison = left.amount - right.amount;
+          comparison = compareBigInt(left.amountMinor, right.amountMinor);
           break;
         case "amountInBase":
-          comparison = left.amountInBase - right.amountInBase;
+          comparison = compareBigInt(
+            left.amountInBaseMinor,
+            right.amountInBaseMinor,
+          );
           break;
         case "closedAt":
           comparison = compareNullableDates(left.closedAt, right.closedAt);
@@ -1433,7 +1603,13 @@ export function createDealProjectionsWorkflow(
         normalizedQuery.offset + normalizedQuery.limit,
       )
       .map(
-        ({ agentId: _agentId, createdAtDate: _createdAtDate, ...deal }) => deal,
+        ({
+          agentId: _agentId,
+          amountInBaseMinor: _amountInBaseMinor,
+          amountMinor: _amountMinor,
+          createdAtDate: _createdAtDate,
+          ...deal
+        }) => deal,
       );
 
     return {
@@ -1453,7 +1629,7 @@ export function createDealProjectionsWorkflow(
         [
           ...new Set(
             listedDeals
-              .map((deal) => deal.requestedCurrencyId)
+              .map((deal) => deal.currencyId)
               .filter((currencyId): currencyId is string =>
                 Boolean(currencyId),
               ),
@@ -1464,7 +1640,6 @@ export function createDealProjectionsWorkflow(
         ),
       ),
     );
-
     const from = new Date(`${input.dateFrom}T00:00:00Z`);
     const to = new Date(`${input.dateTo}T23:59:59.999Z`);
     let totalCount = 0;
@@ -1480,11 +1655,11 @@ export function createDealProjectionsWorkflow(
       byStatus[deal.status] = (byStatus[deal.status] ?? 0) + 1;
 
       const currencyCode =
-        (deal.requestedCurrencyId
-          ? currenciesById.get(deal.requestedCurrencyId)?.code
+        (deal.currencyId
+          ? currenciesById.get(deal.currencyId)?.code
           : undefined) ?? "RUB";
       totalAmount += BigInt(
-        toMinorAmountString(deal.requestedAmount ?? "0", currencyCode),
+        toMinorAmountString(deal.amount ?? "0", currencyCode),
       );
     }
 
@@ -1509,22 +1684,11 @@ export function createDealProjectionsWorkflow(
     const customerIds = [
       ...new Set(listedDeals.map((deal) => deal.customerId)),
     ];
-    const currencyIds = [
-      ...new Set(
-        listedDeals
-          .map((deal) => deal.requestedCurrencyId)
-          .filter((currencyId): currencyId is string => Boolean(currencyId)),
-      ),
-    ];
 
-    const [customers, currenciesById] = await Promise.all([
+    const [{ baseCurrenciesById, calculationsById, currenciesById }, customers] =
+      await Promise.all([
+        loadDealMoneyLookups(listedDeals, deps),
       deps.parties.customers.queries.listByIds(customerIds),
-      Promise.all(
-        currencyIds.map(
-          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-            [currencyId, await deps.currencies.findById(currencyId)] as const,
-        ),
-      ).then(toMap),
     ]);
 
     const customersById = toMap(
@@ -1537,17 +1701,29 @@ export function createDealProjectionsWorkflow(
     function toDealItem(deal: DealListRecord): CrmDealByStatusItem {
       const comment =
         deal.comment ?? deal.intakeComment ?? deal.reason ?? undefined;
+      const calculation = deal.calculationId
+        ? (calculationsById.get(deal.calculationId) ?? null)
+        : null;
+      const sourceCurrency = deal.currencyId
+        ? (currenciesById.get(deal.currencyId) ?? null)
+        : null;
+      const baseCurrency = calculation
+        ? (baseCurrenciesById.get(calculation.currentSnapshot.baseCurrencyId) ?? null)
+        : null;
+      const monetary = buildCrmDealMoneySummary({
+        deal,
+        calculation,
+        sourceCurrency,
+        baseCurrency,
+      });
 
       return {
-        amount: parseDecimalOrZero(deal.requestedAmount),
-        amountInBase: parseDecimalOrZero(deal.requestedAmount),
-        baseCurrencyCode: "RUB",
+        amount: monetary.amount,
+        amountInBase: monetary.amountInBase,
+        baseCurrencyCode: monetary.baseCurrencyCode,
         client: customersById.get(deal.customerId)?.displayName ?? "—",
         createdAt: deal.createdAt.toISOString(),
-        currency:
-          (deal.requestedCurrencyId
-            ? currenciesById.get(deal.requestedCurrencyId)?.code
-            : undefined) ?? "RUB",
+        currency: monetary.currencyCode,
         id: deal.id,
         status: deal.status,
         ...(comment ? { comment } : {}),
@@ -1584,7 +1760,7 @@ export function createDealProjectionsWorkflow(
         [
           ...new Set(
             listedDeals
-              .map((deal) => deal.requestedCurrencyId)
+              .map((deal) => deal.currencyId)
               .filter((currencyId): currencyId is string =>
                 Boolean(currencyId),
               ),
@@ -1595,10 +1771,21 @@ export function createDealProjectionsWorkflow(
         ),
       ),
     );
+    const precisionByCode = new Map(
+      Array.from(currenciesById.values())
+        .filter((currency): currency is NonNullable<typeof currency> => Boolean(currency))
+        .map((currency) => [currency.code, currency.precision] as const),
+    );
 
     const dayMap = new Map<
       string,
-      CrmDealsByDayItem & Record<string, number | string>
+      {
+        closedCount: number;
+        count: number;
+        date: string;
+        totalsByCurrency: Map<string, bigint>;
+        closedTotalsByCurrency: Map<string, bigint>;
+      }
     >();
 
     for (const deal of listedDeals) {
@@ -1616,8 +1803,8 @@ export function createDealProjectionsWorkflow(
       }
 
       const currencyCode =
-        (deal.requestedCurrencyId
-          ? currenciesById.get(deal.requestedCurrencyId)?.code
+        (deal.currencyId
+          ? currenciesById.get(deal.currencyId)?.code
           : undefined) ?? "RUB";
 
       if (requestedCurrencies && !requestedCurrencies.has(currencyCode)) {
@@ -1625,31 +1812,73 @@ export function createDealProjectionsWorkflow(
       }
 
       const date = deal.createdAt.toISOString().slice(0, 10);
-      const total = parseDecimalOrZero(deal.requestedAmount);
+      const totalMinor = toMinorOrZero(deal.amount, currencyCode);
 
       if (!dayMap.has(date)) {
         dayMap.set(date, {
-          amount: 0,
-          closedAmount: 0,
           closedCount: 0,
           count: 0,
           date,
+          closedTotalsByCurrency: new Map<string, bigint>(),
+          totalsByCurrency: new Map<string, bigint>(),
         });
       }
 
       const day = dayMap.get(date)!;
       day.count += 1;
-      day.amount += total;
+      day.totalsByCurrency.set(
+        currencyCode,
+        (day.totalsByCurrency.get(currencyCode) ?? 0n) + totalMinor,
+      );
 
       if (deal.status === "done") {
         day.closedCount += 1;
-        day.closedAmount += total;
+        day.closedTotalsByCurrency.set(
+          currencyCode,
+          (day.closedTotalsByCurrency.get(currencyCode) ?? 0n) + totalMinor,
+        );
       }
-
-      day[currencyCode] = ((day[currencyCode] as number) || 0) + total;
     }
 
-    return Array.from(dayMap.values());
+    return Array.from(dayMap.values()).map((day) => {
+      const totalsByCurrency = Array.from(day.totalsByCurrency.entries()).map(
+        ([currencyCode, amountMinor]) => {
+          return [
+            currencyCode,
+            parseMinorOrZero(amountMinor, precisionByCode.get(currencyCode) ?? 2),
+          ] as const;
+        },
+      );
+      const totalsObject = Object.fromEntries(totalsByCurrency);
+      const reportCurrencyCode = query.reportCurrencyCode?.trim().toUpperCase();
+      const amount = reportCurrencyCode
+        ? ((totalsObject[reportCurrencyCode] as number | undefined) ?? 0)
+        : totalsByCurrency.length === 1
+          ? totalsByCurrency[0]?.[1] ?? 0
+          : 0;
+      const closedAmount = reportCurrencyCode
+        ? parseMinorOrZero(
+            day.closedTotalsByCurrency.get(reportCurrencyCode) ?? 0n,
+            precisionByCode.get(reportCurrencyCode) ?? 2,
+          )
+        : day.closedTotalsByCurrency.size === 1
+          ? parseMinorOrZero(
+              Array.from(day.closedTotalsByCurrency.values())[0] ?? 0n,
+              precisionByCode.get(
+                Array.from(day.closedTotalsByCurrency.keys())[0] ?? "",
+              ) ?? 2,
+            )
+          : 0;
+
+      return {
+        amount,
+        closedAmount,
+        closedCount: day.closedCount,
+        count: day.count,
+        date: day.date,
+        ...totalsObject,
+      };
+    });
   }
 
   async function getCrmDealWorkbenchProjection(
@@ -1754,6 +1983,7 @@ export function createDealProjectionsWorkflow(
         userId: workflow.summary.agentId,
       },
       beneficiaryDraft,
+      comment: detail.comment,
       context: {
         agreement,
         applicant,
@@ -1912,6 +2142,15 @@ export function createDealProjectionsWorkflow(
       workflow,
     });
     const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
+    const openingInvoiceRequirement =
+      formalDocumentRequirements.find(
+        (requirement) =>
+          requirement.stage === "opening" && requirement.docType === "invoice",
+      ) ?? null;
+    const activeExchangeDocument =
+      workflow.relatedResources.formalDocuments.find(
+        (document) => document.docType === "exchange",
+      ) ?? null;
     const queueContext = classifyFinanceQueue(workflow);
     const latestInstructions =
       await deps.treasury.instructions.queries.listLatestByOperationIds(
@@ -1985,6 +2224,23 @@ export function createDealProjectionsWorkflow(
             leg.state !== "blocked" &&
             leg.state !== "skipped" &&
             !isDealInTerminalStatus(workflow),
+          exchangeDocument:
+            leg.kind === "convert" &&
+            workflow.fundingResolution.state === "resolved" &&
+            workflow.fundingResolution.strategy === "external_fx" &&
+            openingInvoiceRequirement
+              ? {
+                  activeDocumentId: activeExchangeDocument?.id ?? null,
+                  createAllowed:
+                    openingInvoiceRequirement.state === "ready" &&
+                    Boolean(openingInvoiceRequirement.activeDocumentId) &&
+                    Boolean(workflow.summary.calculationId) &&
+                    !activeExchangeDocument &&
+                    !isDealInTerminalStatus(workflow),
+                  docType: "exchange",
+                  openAllowed: Boolean(activeExchangeDocument),
+                }
+              : null,
         },
       })),
       formalDocumentRequirements,
@@ -1992,13 +2248,13 @@ export function createDealProjectionsWorkflow(
       nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,
       pricing: {
+        ...buildFinanceQuoteRequestContext(workflow),
         quoteEligibility: isQuoteEligible(workflow),
-        requestedAmount: workflow.intake.moneyRequest.sourceAmount ?? null,
-        requestedCurrencyId:
-          workflow.intake.moneyRequest.sourceCurrencyId ?? null,
-        targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
       },
-      profitabilitySnapshot: buildProfitabilitySnapshot(currentCalculation),
+      profitabilitySnapshot: await buildProfitabilitySnapshot(
+        currentCalculation,
+        deps,
+      ),
       queueContext,
       reconciliationSummary,
       relatedResources: {
@@ -2050,10 +2306,17 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
-          const applicantName =
-            getApplicantParticipant(workflow)?.displayName ?? null;
+          const customerId = getCustomerParticipant(workflow)?.customerId ?? null;
           const internalEntityName =
             getInternalEntityParticipant(workflow)?.displayName ?? null;
+
+          const customer = customerId
+            ? await deps.parties.customers.queries.findById(customerId)
+            : null;
+          const applicantName =
+            customer?.displayName ??
+            getApplicantParticipant(workflow)?.displayName ??
+            null;
 
           if (
             !matchesTextFilter(applicantName, filters.applicant) ||
@@ -2134,8 +2397,10 @@ export function createDealProjectionsWorkflow(
             internalEntityName,
             nextAction: workflow.nextAction,
             operationalState: workflow.operationalState,
-            profitabilitySnapshot:
-              buildProfitabilitySnapshot(currentCalculation),
+            profitabilitySnapshot: await buildProfitabilitySnapshot(
+              currentCalculation,
+              deps,
+            ),
             queue: queueContext.queue,
             queueReason: queueContext.queueReason,
             stage,

@@ -4,6 +4,7 @@ import {
   admin,
   agent,
   customer,
+  finance,
   user,
 } from "../../src/auth/permissions";
 
@@ -75,5 +76,17 @@ describe("auth permissions", () => {
       "delete",
     ]);
     expect((customer as any).statements.deals).toBeUndefined();
+  });
+
+  it("grants finance users post and cancel permissions for documents", () => {
+    expect((finance as any).statements.documents).toEqual([
+      "create",
+      "list",
+      "get",
+      "update",
+      "submit",
+      "post",
+      "cancel",
+    ]);
   });
 });

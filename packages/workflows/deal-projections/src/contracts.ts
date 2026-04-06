@@ -264,6 +264,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
   beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
+  comment: z.string().nullable(),
   context: z.object({
     agreement: AgreementDetailsSchema.nullable(),
     applicant: CounterpartySchema.nullable(),
@@ -487,14 +488,23 @@ export const FinanceDealStageSchema = z.enum([
 
 export type FinanceDealStage = z.infer<typeof FinanceDealStageSchema>;
 
+export const FinanceProfitabilityAmountSchema = z.object({
+  amountMinor: z.string(),
+  currencyCode: z.string(),
+  currencyId: z.uuid(),
+});
+
+export type FinanceProfitabilityAmount = z.infer<
+  typeof FinanceProfitabilityAmountSchema
+>;
+
 export const FinanceProfitabilitySnapshotSchema = z
   .object({
     calculationId: z.uuid(),
-    currencyId: z.uuid(),
-    feeRevenueMinor: z.string(),
-    providerFeeExpenseMinor: z.string(),
-    spreadRevenueMinor: z.string(),
-    totalRevenueMinor: z.string(),
+    feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+    providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
+    spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
+    totalRevenue: z.array(FinanceProfitabilityAmountSchema),
   })
   .nullable();
 
@@ -589,8 +599,16 @@ export type FinanceDealWorkspaceActions = z.infer<
   typeof FinanceDealWorkspaceActionsSchema
 >;
 
+export const FinanceDealExecutionLegDocumentActionSchema = z.object({
+  activeDocumentId: z.uuid().nullable(),
+  createAllowed: z.boolean(),
+  docType: z.string(),
+  openAllowed: z.boolean(),
+});
+
 export const FinanceDealExecutionLegActionsSchema = z.object({
   canCreateLegOperation: z.boolean(),
+  exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
 });
 
 export const FinanceDealExecutionLegSchema = DealWorkflowLegSchema.extend({
@@ -760,10 +778,19 @@ export type FinanceDealFormalDocumentRequirement = z.infer<
   typeof FinanceDealFormalDocumentRequirementSchema
 >;
 
+export const FinanceDealQuoteAmountSideSchema = z.enum(["source", "target"]);
+
+export type FinanceDealQuoteAmountSide = z.infer<
+  typeof FinanceDealQuoteAmountSideSchema
+>;
+
 export const FinanceDealPricingContextSchema = z.object({
+  fundingMessage: z.string().nullable(),
+  fundingResolution: DealWorkflowProjectionSchema.shape.fundingResolution,
+  quoteAmount: z.string().nullable(),
+  quoteAmountSide: FinanceDealQuoteAmountSideSchema,
   quoteEligibility: z.boolean(),
-  requestedAmount: z.string().nullable(),
-  requestedCurrencyId: z.uuid().nullable(),
+  sourceCurrencyId: z.uuid().nullable(),
   targetCurrencyId: z.uuid().nullable(),
 });
 

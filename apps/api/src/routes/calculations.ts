@@ -1,12 +1,14 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { serializeCompatibilityCalculation } from "@bedrock/calculations";
 import {
   CalculationDetailsSchema,
   CreateCalculationInputSchema,
   ListCalculationsQuerySchema,
   PaginatedCalculationsSchema,
+  type CalculationDetails,
 } from "@bedrock/calculations/contracts";
+import { formatFractionDecimal } from "@bedrock/shared/money";
+import type { CalculationDocumentData } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -15,6 +17,106 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+
+interface CalculationCurrencyMetadata {
+  code: string;
+  id: string;
+  precision: number;
+}
+
+function minorToDecimalString(amountMinor: bigint | string, precision: number) {
+  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const digits = absolute.toString();
+
+  if (precision === 0) {
+    return `${negative ? "-" : ""}${digits}`;
+  }
+
+  const padded = digits.padStart(precision + 1, "0");
+  const integerPart = padded.slice(0, padded.length - precision);
+  const fractionPart = padded.slice(padded.length - precision);
+
+  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
+
+function feeBpsToPercentString(feeBps: bigint | string) {
+  return minorToDecimalString(feeBps, 2);
+}
+
+function rationalToDecimalString(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  scale = 6,
+) {
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
+}
+
+function serializeRateSource(rateSource: string) {
+  return rateSource === "cbr" ? "cbru" : rateSource;
+}
+
+function serializeCalculationForDocumentGeneration(input: {
+  calculation: CalculationDetails;
+  currencies: Map<string, CalculationCurrencyMetadata>;
+}): CalculationDocumentData {
+  const snapshot = input.calculation.currentSnapshot;
+  const calculationCurrency = input.currencies.get(snapshot.calculationCurrencyId);
+  const baseCurrency = input.currencies.get(snapshot.baseCurrencyId);
+  const additionalExpensesCurrency = snapshot.additionalExpensesCurrencyId
+    ? input.currencies.get(snapshot.additionalExpensesCurrencyId) ?? null
+    : null;
+
+  if (!calculationCurrency || !baseCurrency) {
+    throw new Error("Missing currency metadata for calculation export");
+  }
+
+  return {
+    id: input.calculation.id,
+    currencyCode: calculationCurrency.code,
+    originalAmount: minorToDecimalString(
+      snapshot.originalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    feePercentage: feeBpsToPercentString(snapshot.feeBps),
+    feeAmount: minorToDecimalString(
+      snapshot.feeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalAmount: minorToDecimalString(
+      snapshot.totalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    rateSource: serializeRateSource(snapshot.rateSource),
+    rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
+    additionalExpenses: minorToDecimalString(
+      snapshot.additionalExpensesAmountMinor,
+      additionalExpensesCurrency?.precision ?? baseCurrency.precision,
+    ),
+    baseCurrencyCode: baseCurrency.code,
+    feeAmountInBase: minorToDecimalString(
+      snapshot.feeAmountInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalInBase: minorToDecimalString(
+      snapshot.totalInBaseMinor,
+      baseCurrency.precision,
+    ),
+    additionalExpensesInBase: minorToDecimalString(
+      snapshot.additionalExpensesInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalWithExpensesInBase: minorToDecimalString(
+      snapshot.totalWithExpensesInBaseMinor,
+      baseCurrency.precision,
+    ),
+    calculationTimestamp: snapshot.calculationTimestamp.toISOString(),
+  };
+}
 
 export function calculationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -259,13 +361,12 @@ export function calculationsRoutes(ctx: AppContext) {
             }),
           ),
         );
-        const serialized = serializeCompatibilityCalculation({
+        const serialized = serializeCalculationForDocumentGeneration({
           calculation,
           currencies,
-          dealId: null,
         });
         const result = await ctx.documentGenerationWorkflow.generateCalculation({
-          calculationData: serialized as unknown as Record<string, unknown>,
+          calculationData: serialized,
           format,
           lang,
         });
