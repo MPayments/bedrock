@@ -264,7 +264,9 @@ export const requisiteIdentifiers = pgTable(
 export const organizationRequisiteBindings = pgTable(
   "organization_requisite_bindings",
   {
-    requisiteId: uuid("requisite_id").primaryKey(),
+    requisiteId: uuid("requisite_id")
+      .primaryKey()
+      .references(() => requisites.id, { onDelete: "cascade" }),
     bookId: uuid("book_id")
       .notNull()
       .references(() => books.id),

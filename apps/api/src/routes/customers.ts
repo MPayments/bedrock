@@ -4,9 +4,8 @@ import ExcelJS from "exceljs";
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
 } from "@bedrock/parties";
+import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
   createPaginatedListSchema,
@@ -24,6 +23,10 @@ import {
 } from "./customer-agreements";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
+import {
+  projectLegacyPartyLegalEntity,
+  projectLegacyRequisiteRouting,
+} from "./legacy-party-projections";
 import {
   CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
@@ -480,40 +483,96 @@ function extractCanonicalUpdateInput(
 function buildCounterpartyLegalEntityBundle(input: {
   customerId: string;
   values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
-}) {
+}): PartyLegalEntityBundleInput {
   const country = normalizeCountryCode(
     input.values.country ?? input.values.bankCountry,
   );
 
-  const identifiers = [
-    ["inn", normalizeNullableText(input.values.inn)],
-    ["kpp", normalizeNullableText(input.values.kpp)],
-    ["ogrn", normalizeNullableText(input.values.ogrn)],
-    ["okpo", normalizeNullableText(input.values.okpo)],
-    ["oktmo", normalizeNullableText(input.values.oktmo)],
-  ]
-    .filter(([, value]) => value)
-    .map(([scheme, value]) => ({
-      scheme: scheme!,
-      value: value!,
+  const identifiers: PartyLegalEntityBundleInput["identifiers"] = [];
+  const inn = normalizeNullableText(input.values.inn);
+  const kpp = normalizeNullableText(input.values.kpp);
+  const ogrn = normalizeNullableText(input.values.ogrn);
+  const okpo = normalizeNullableText(input.values.okpo);
+  const oktmo = normalizeNullableText(input.values.oktmo);
+
+  if (inn) {
+    identifiers.push({
+      scheme: "inn",
+      value: inn,
       jurisdictionCode: null,
       issuer: null,
       isPrimary: true,
       validFrom: null,
       validTo: null,
-    }));
-  const contacts = [
-    ["email", normalizeNullableText(input.values.email)],
-    ["phone", normalizeNullableText(input.values.phone)],
-  ]
-    .filter(([, value]) => value)
-    .map(([type, value]) => ({
-      type: type!,
-      label: null,
-      value: value!,
+    });
+  }
+  if (kpp) {
+    identifiers.push({
+      scheme: "kpp",
+      value: kpp,
+      jurisdictionCode: null,
+      issuer: null,
       isPrimary: true,
-    }));
-  const addresses = normalizeNullableText(input.values.address)
+      validFrom: null,
+      validTo: null,
+    });
+  }
+  if (ogrn) {
+    identifiers.push({
+      scheme: "ogrn",
+      value: ogrn,
+      jurisdictionCode: null,
+      issuer: null,
+      isPrimary: true,
+      validFrom: null,
+      validTo: null,
+    });
+  }
+  if (okpo) {
+    identifiers.push({
+      scheme: "okpo",
+      value: okpo,
+      jurisdictionCode: null,
+      issuer: null,
+      isPrimary: true,
+      validFrom: null,
+      validTo: null,
+    });
+  }
+  if (oktmo) {
+    identifiers.push({
+      scheme: "oktmo",
+      value: oktmo,
+      jurisdictionCode: null,
+      issuer: null,
+      isPrimary: true,
+      validFrom: null,
+      validTo: null,
+    });
+  }
+
+  const contacts: PartyLegalEntityBundleInput["contacts"] = [];
+  const email = normalizeNullableText(input.values.email);
+  const phone = normalizeNullableText(input.values.phone);
+
+  if (email) {
+    contacts.push({
+      type: "email",
+      label: null,
+      value: email,
+      isPrimary: true,
+    });
+  }
+  if (phone) {
+    contacts.push({
+      type: "phone",
+      label: null,
+      value: phone,
+      isPrimary: true,
+    });
+  }
+  const addresses: PartyLegalEntityBundleInput["addresses"] =
+    normalizeNullableText(input.values.address)
     ? [
         {
           type: "legal",
@@ -529,7 +588,8 @@ function buildCounterpartyLegalEntityBundle(input: {
         },
       ]
     : [];
-  const representatives = normalizeNullableText(input.values.directorName)
+  const representatives: PartyLegalEntityBundleInput["representatives"] =
+    normalizeNullableText(input.values.directorName)
     ? [
         {
           role: "director",
@@ -543,6 +603,7 @@ function buildCounterpartyLegalEntityBundle(input: {
         },
       ]
     : [];
+  const licenses: PartyLegalEntityBundleInput["licenses"] = [];
 
   return {
     profile: {
@@ -565,7 +626,7 @@ function buildCounterpartyLegalEntityBundle(input: {
     addresses,
     contacts,
     representatives,
-    licenses: [],
+    licenses,
   };
 }
 
@@ -891,35 +952,10 @@ async function upsertLegalEntity(
         values: input.values,
       }),
     );
-    await ctx.partiesModule.legalEntities.commands.upsertProfile({
+    await ctx.partiesModule.legalEntities.commands.replaceBundle({
       ownerId: counterpartyId,
       ownerType: "counterparty",
-      profile: legalEntityBundle.profile,
-    });
-    await ctx.partiesModule.legalEntities.commands.replaceIdentifiers({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      items: legalEntityBundle.identifiers,
-    });
-    await ctx.partiesModule.legalEntities.commands.replaceAddresses({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      items: legalEntityBundle.addresses,
-    });
-    await ctx.partiesModule.legalEntities.commands.replaceContacts({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      items: legalEntityBundle.contacts,
-    });
-    await ctx.partiesModule.legalEntities.commands.replaceRepresentatives({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      items: legalEntityBundle.representatives,
-    });
-    await ctx.partiesModule.legalEntities.commands.replaceLicenses({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      items: legalEntityBundle.licenses,
+      bundle: legalEntityBundle,
     });
   } else {
     const createdCounterparty =

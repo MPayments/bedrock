@@ -8,6 +8,22 @@ import {
 } from "../../../shared/domain/locale-map";
 import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
 import { organizations } from "../../../organizations/adapters/drizzle/schema";
+import type {
+  PartyAddress,
+  PartyAddressInput,
+  PartyContact,
+  PartyContactInput,
+  PartyLegalEntityBundle,
+  PartyLegalIdentifier,
+  PartyLegalIdentifierInput,
+  PartyLegalOwnerType,
+  PartyLegalProfile,
+  PartyLegalProfileInput,
+  PartyLicense,
+  PartyLicenseInput,
+  PartyRepresentative,
+  PartyRepresentativeInput,
+} from "../../application/contracts";
 import type { LegalEntitiesStore } from "../../application/ports/legal-entities.store";
 import { DrizzleLegalEntitiesReads } from "./legal-entities.reads";
 import {
@@ -30,7 +46,7 @@ function normalizeLocaleMap(
 }
 
 function ownerWhere(input: {
-  ownerType: "organization" | "counterparty";
+  ownerType: PartyLegalOwnerType;
   ownerId: string;
 }) {
   return input.ownerType === "organization"
@@ -42,32 +58,17 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
   constructor(private readonly db: Queryable) {}
 
   findBundleByOwner(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-  }) {
+  }): Promise<PartyLegalEntityBundle | null> {
     return new DrizzleLegalEntitiesReads(this.db).findBundleByOwner(input);
   }
 
   async upsertProfile(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    profile: {
-      fullName: string;
-      shortName: string;
-      fullNameI18n: Record<string, string | null> | null;
-      shortNameI18n: Record<string, string | null> | null;
-      legalFormCode: string | null;
-      legalFormLabel: string | null;
-      legalFormLabelI18n: Record<string, string | null> | null;
-      countryCode: string | null;
-      jurisdictionCode: string | null;
-      registrationAuthority: string | null;
-      registeredAt: Date | null;
-      businessActivityCode: string | null;
-      businessActivityText: string | null;
-      status: string | null;
-    };
-  }) {
+    profile: PartyLegalProfileInput;
+  }): Promise<PartyLegalProfile> {
     const existing = await this.findExistingProfile(input);
     const ownerColumns =
       input.ownerType === "organization"
@@ -111,23 +112,14 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       countryCode: profile!.countryCode ?? null,
     });
 
-    return profile!;
+    return profile! as PartyLegalProfile;
   }
 
   async replaceIdentifiers(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: {
-      id?: string;
-      scheme: string;
-      value: string;
-      jurisdictionCode: string | null;
-      issuer: string | null;
-      isPrimary: boolean;
-      validFrom: Date | null;
-      validTo: Date | null;
-    }[];
-  }) {
+    items: PartyLegalIdentifierInput[];
+  }): Promise<PartyLegalIdentifier[]> {
     const profile = await this.requireProfile(input);
 
     await this.db
@@ -138,7 +130,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .insert(partyLegalIdentifiers)
       .values(
         input.items.map((item) => ({
@@ -155,25 +147,15 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         })),
       )
       .returning();
+
+    return rows as PartyLegalIdentifier[];
   }
 
   async replaceAddresses(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: {
-      id?: string;
-      type: string;
-      label: string | null;
-      countryCode: string | null;
-      jurisdictionCode: string | null;
-      postalCode: string | null;
-      city: string | null;
-      line1: string | null;
-      line2: string | null;
-      rawText: string | null;
-      isPrimary: boolean;
-    }[];
-  }) {
+    items: PartyAddressInput[];
+  }): Promise<PartyAddress[]> {
     const profile = await this.requireProfile(input);
 
     await this.db
@@ -184,7 +166,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .insert(partyAddresses)
       .values(
         input.items.map((item) => ({
@@ -203,19 +185,15 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         })),
       )
       .returning();
+
+    return rows as PartyAddress[];
   }
 
   async replaceContacts(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: {
-      id?: string;
-      type: string;
-      label: string | null;
-      value: string;
-      isPrimary: boolean;
-    }[];
-  }) {
+    items: PartyContactInput[];
+  }): Promise<PartyContact[]> {
     const profile = await this.requireProfile(input);
 
     await this.db
@@ -226,7 +204,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .insert(partyContacts)
       .values(
         input.items.map((item) => ({
@@ -239,23 +217,15 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         })),
       )
       .returning();
+
+    return rows as PartyContact[];
   }
 
   async replaceRepresentatives(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: {
-      id?: string;
-      role: string;
-      fullName: string;
-      fullNameI18n: Record<string, string | null> | null;
-      title: string | null;
-      titleI18n: Record<string, string | null> | null;
-      basisDocument: string | null;
-      basisDocumentI18n: Record<string, string | null> | null;
-      isPrimary: boolean;
-    }[];
-  }) {
+    items: PartyRepresentativeInput[];
+  }): Promise<PartyRepresentative[]> {
     const profile = await this.requireProfile(input);
 
     await this.db
@@ -266,7 +236,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .insert(partyRepresentatives)
       .values(
         input.items.map((item) => ({
@@ -283,22 +253,15 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         })),
       )
       .returning();
+
+    return rows as PartyRepresentative[];
   }
 
   async replaceLicenses(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: {
-      id?: string;
-      licenseType: string;
-      licenseNumber: string;
-      issuedBy: string | null;
-      issuedAt: Date | null;
-      expiresAt: Date | null;
-      activityCode: string | null;
-      activityText: string | null;
-    }[];
-  }) {
+    items: PartyLicenseInput[];
+  }): Promise<PartyLicense[]> {
     const profile = await this.requireProfile(input);
 
     await this.db
@@ -309,7 +272,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .insert(partyLicenses)
       .values(
         input.items.map((item) => ({
@@ -325,10 +288,12 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         })),
       )
       .returning();
+
+    return rows as PartyLicense[];
   }
 
   private async findExistingProfile(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
   }) {
     const [row] = await this.db
@@ -341,7 +306,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
   }
 
   private async requireProfile(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
   }) {
     const profile = await this.findExistingProfile(input);
@@ -356,7 +321,7 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
   }
 
   private async refreshOwnerProjection(input: {
-    ownerType: "organization" | "counterparty";
+    ownerType: PartyLegalOwnerType;
     ownerId: string;
     shortName: string;
     fullName: string;

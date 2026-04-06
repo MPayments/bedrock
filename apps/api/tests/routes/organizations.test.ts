@@ -20,6 +20,8 @@ vi.mock("../../src/auth", () => ({
 function createOrganization(overrides?: Partial<Record<string, unknown>>) {
   return {
     id: "11111111-1111-4111-8111-111111111111",
+    kind: "legal_entity",
+    legalEntity: null,
     sealKey: null,
     signatureKey: null,
     ...overrides,
@@ -34,6 +36,9 @@ function createTestApp() {
   const organizationsCommands = {
     remove: vi.fn(),
     update: vi.fn(),
+  };
+  const legalEntitiesCommands = {
+    replaceBundle: vi.fn(),
   };
   const requisitesQueries = {
     list: vi.fn().mockResolvedValue({
@@ -63,6 +68,9 @@ function createTestApp() {
           commands: organizationsCommands,
           queries: organizationsQueries,
         },
+        legalEntities: {
+          commands: legalEntitiesCommands,
+        },
         requisites: {
           queries: requisitesQueries,
         },
@@ -75,6 +83,7 @@ function createTestApp() {
     objectStorage,
     organizationsCommands,
     organizationsQueries,
+    legalEntitiesCommands,
     requisitesQueries,
   };
 }
@@ -225,5 +234,97 @@ describe("organization file routes", () => {
     });
     expect(objectStorage.upload).not.toHaveBeenCalled();
     expect(organizationsCommands.update).not.toHaveBeenCalled();
+  });
+
+  it("replaces organization legal entity data through the aggregate route", async () => {
+    const { app, legalEntitiesCommands, organizationsQueries } = createTestApp();
+    organizationsQueries.findById.mockResolvedValue(createOrganization());
+    legalEntitiesCommands.replaceBundle.mockResolvedValue({
+      profile: {
+        id: "22222222-2222-4222-8222-222222222222",
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        counterpartyId: null,
+        fullName: "Acme LLC",
+        shortName: "Acme",
+        fullNameI18n: null,
+        shortNameI18n: null,
+        legalFormCode: null,
+        legalFormLabel: null,
+        legalFormLabelI18n: null,
+        countryCode: "US",
+        jurisdictionCode: null,
+        registrationAuthority: null,
+        registeredAt: null,
+        businessActivityCode: null,
+        businessActivityText: null,
+        status: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      identifiers: [],
+      addresses: [],
+      contacts: [],
+      representatives: [],
+      licenses: [],
+    });
+
+    const response = await app.request(
+      "http://localhost/organizations/11111111-1111-4111-8111-111111111111/legal-entity",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          profile: {
+            fullName: "Acme LLC",
+            shortName: "Acme",
+            countryCode: "us",
+          },
+          identifiers: [],
+          addresses: [],
+          contacts: [],
+          representatives: [],
+          licenses: [],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(legalEntitiesCommands.replaceBundle).toHaveBeenCalledWith({
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      ownerType: "organization",
+      bundle: {
+        profile: {
+          fullName: "Acme LLC",
+          shortName: "Acme",
+          fullNameI18n: null,
+          shortNameI18n: null,
+          legalFormCode: null,
+          legalFormLabel: null,
+          legalFormLabelI18n: null,
+          countryCode: "US",
+          jurisdictionCode: null,
+          registrationAuthority: null,
+          registeredAt: null,
+          businessActivityCode: null,
+          businessActivityText: null,
+          status: null,
+        },
+        identifiers: [],
+        addresses: [],
+        contacts: [],
+        representatives: [],
+        licenses: [],
+      },
+    });
+  });
+
+  it("does not expose the legacy organization legal-profile route", async () => {
+    const { app } = createTestApp();
+
+    const response = await app.request(
+      "http://localhost/organizations/11111111-1111-4111-8111-111111111111/legal-profile",
+    );
+
+    expect(response.status).toBe(404);
   });
 });

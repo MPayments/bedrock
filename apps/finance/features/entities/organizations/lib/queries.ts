@@ -19,6 +19,7 @@ const OrganizationApiSchema = z.object({
   description: z.string().nullable(),
   country: z.string().nullable(),
   kind: z.enum(["legal_entity", "individual"]),
+  legalEntity: z.any().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

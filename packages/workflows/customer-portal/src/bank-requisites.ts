@@ -2,11 +2,12 @@ import type { CurrenciesService } from "@bedrock/currencies";
 import {
   findRequisiteProviderIdentifier,
   formatRequisiteProviderAddress,
-  projectLegacyRequisiteRouting,
   resolveRequisiteProviderDisplayName,
   type PartiesModule,
 } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
+
+import { projectLegacyRequisiteRouting } from "./legacy-projections";
 
 type RequisitesApi = PartiesModule["requisites"];
 

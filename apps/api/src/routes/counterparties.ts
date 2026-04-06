@@ -13,18 +13,8 @@ import {
   CreateRequisiteInputSchema,
   ListCounterpartiesQuerySchema,
   ListRequisitesQuerySchema,
-  PartyAddressInputSchema,
-  PartyAddressSchema,
-  PartyContactInputSchema,
-  PartyContactSchema,
-  PartyLegalIdentifierInputSchema,
-  PartyLegalIdentifierSchema,
-  PartyLegalProfileInputSchema,
-  PartyLegalProfileSchema,
-  PartyLicenseInputSchema,
-  PartyLicenseSchema,
-  PartyRepresentativeInputSchema,
-  PartyRepresentativeSchema,
+  PartyLegalEntityBundleInputSchema,
+  PartyLegalEntityBundleSchema,
   PaginatedCounterpartiesSchema,
   RequisiteListItemSchema,
   RequisiteSchema,
@@ -43,6 +33,10 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
+import {
+  mapPartyLegalEntityMutationError,
+  replacePartyLegalEntityBundle,
+} from "./party-legal-entity";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -247,27 +241,6 @@ export function counterpartiesRoutes(ctx: AppContext) {
     },
   });
 
-  const getLegalProfileRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/legal-profile",
-    tags: ["Counterparties"],
-    summary: "Get counterparty legal profile",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: PartyLegalProfileSchema.nullable() },
-        },
-        description: "Counterparty legal profile",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
   const listRequisitesRoute = createRoute({
     middleware: [requirePermission({ requisites: ["list"] })],
     method: "get",
@@ -331,17 +304,17 @@ export function counterpartiesRoutes(ctx: AppContext) {
     },
   });
 
-  const putLegalProfileRoute = createRoute({
+  const putLegalEntityRoute = createRoute({
     middleware: [requirePermission({ counterparties: ["update"] })],
     method: "put",
-    path: "/{id}/legal-profile",
+    path: "/{id}/legal-entity",
     tags: ["Counterparties"],
-    summary: "Replace counterparty legal profile",
+    summary: "Replace counterparty legal entity master data",
     request: {
       params: IdParamSchema,
       body: {
         content: {
-          "application/json": { schema: PartyLegalProfileInputSchema },
+          "application/json": { schema: PartyLegalEntityBundleInputSchema },
         },
         required: true,
       },
@@ -349,267 +322,9 @@ export function counterpartiesRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: {
-          "application/json": { schema: PartyLegalProfileSchema },
+          "application/json": { schema: PartyLegalEntityBundleSchema },
         },
-        description: "Counterparty legal profile updated",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const getIdentifiersRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/identifiers",
-    tags: ["Counterparties"],
-    summary: "List counterparty legal identifiers",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: PartyLegalIdentifierSchema.array() },
-        },
-        description: "Counterparty legal identifiers",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const putIdentifiersRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["update"] })],
-    method: "put",
-    path: "/{id}/identifiers",
-    tags: ["Counterparties"],
-    summary: "Replace counterparty legal identifiers",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": { schema: PartyLegalIdentifierInputSchema.array() },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: PartyLegalIdentifierSchema.array() },
-        },
-        description: "Counterparty legal identifiers updated",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const getAddressesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/addresses",
-    tags: ["Counterparties"],
-    summary: "List counterparty addresses",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyAddressSchema.array() } },
-        description: "Counterparty addresses",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const putAddressesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["update"] })],
-    method: "put",
-    path: "/{id}/addresses",
-    tags: ["Counterparties"],
-    summary: "Replace counterparty addresses",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": { schema: PartyAddressInputSchema.array() },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyAddressSchema.array() } },
-        description: "Counterparty addresses updated",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const getContactsRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/contacts",
-    tags: ["Counterparties"],
-    summary: "List counterparty contacts",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyContactSchema.array() } },
-        description: "Counterparty contacts",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const putContactsRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["update"] })],
-    method: "put",
-    path: "/{id}/contacts",
-    tags: ["Counterparties"],
-    summary: "Replace counterparty contacts",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": { schema: PartyContactInputSchema.array() },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyContactSchema.array() } },
-        description: "Counterparty contacts updated",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const getRepresentativesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/representatives",
-    tags: ["Counterparties"],
-    summary: "List counterparty representatives",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: PartyRepresentativeSchema.array() },
-        },
-        description: "Counterparty representatives",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const putRepresentativesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["update"] })],
-    method: "put",
-    path: "/{id}/representatives",
-    tags: ["Counterparties"],
-    summary: "Replace counterparty representatives",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": { schema: PartyRepresentativeInputSchema.array() },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: PartyRepresentativeSchema.array() },
-        },
-        description: "Counterparty representatives updated",
-      },
-      400: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Validation error",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const getLicensesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/{id}/licenses",
-    tags: ["Counterparties"],
-    summary: "List counterparty licenses",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyLicenseSchema.array() } },
-        description: "Counterparty licenses",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty not found",
-      },
-    },
-  });
-
-  const putLicensesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["update"] })],
-    method: "put",
-    path: "/{id}/licenses",
-    tags: ["Counterparties"],
-    summary: "Replace counterparty licenses",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": { schema: PartyLicenseInputSchema.array() },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: PartyLicenseSchema.array() } },
-        description: "Counterparty licenses updated",
+        description: "Counterparty legal entity bundle updated",
       },
       400: {
         content: { "application/json": { schema: ErrorSchema } },
@@ -758,235 +473,27 @@ export function counterpartiesRoutes(ctx: AppContext) {
         throw err;
       }
     })
-    .openapi(getLegalProfileRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const profile =
-          await ctx.partiesModule.legalEntities.queries.findProfileByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(profile, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putLegalProfileRoute, async (c) => {
+    .openapi(putLegalEntityRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
-        await ensureCounterpartyExists(id);
-        const profile = await ctx.partiesModule.legalEntities.commands.upsertProfile({
-          ownerType: "counterparty",
+        const counterparty =
+          await ctx.partiesModule.counterparties.queries.findById(id);
+        const bundle = await replacePartyLegalEntityBundle({
+          bundle: input,
+          ctx,
           ownerId: id,
-          profile: input,
+          ownerType: "counterparty",
+          party: counterparty,
         });
-        return c.json(profile, 200);
+        return c.json(bundle, 200);
       } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
-        }
-        throw err;
-      }
-    })
-    .openapi(getIdentifiersRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const identifiers =
-          await ctx.partiesModule.legalEntities.queries.listIdentifiersByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(identifiers, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putIdentifiersRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      try {
-        await ensureCounterpartyExists(id);
-        const identifiers =
-          await ctx.partiesModule.legalEntities.commands.replaceIdentifiers({
-            ownerType: "counterparty",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(identifiers, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
-        }
-        throw err;
-      }
-    })
-    .openapi(getAddressesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const addresses =
-          await ctx.partiesModule.legalEntities.queries.listAddressesByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(addresses, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putAddressesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      try {
-        await ensureCounterpartyExists(id);
-        const addresses =
-          await ctx.partiesModule.legalEntities.commands.replaceAddresses({
-            ownerType: "counterparty",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(addresses, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
-        }
-        throw err;
-      }
-    })
-    .openapi(getContactsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const contacts =
-          await ctx.partiesModule.legalEntities.queries.listContactsByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(contacts, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putContactsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      try {
-        await ensureCounterpartyExists(id);
-        const contacts =
-          await ctx.partiesModule.legalEntities.commands.replaceContacts({
-            ownerType: "counterparty",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(contacts, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
-        }
-        throw err;
-      }
-    })
-    .openapi(getRepresentativesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const representatives =
-          await ctx.partiesModule.legalEntities.queries.listRepresentativesByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(representatives, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putRepresentativesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      try {
-        await ensureCounterpartyExists(id);
-        const representatives =
-          await ctx.partiesModule.legalEntities.commands.replaceRepresentatives({
-            ownerType: "counterparty",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(representatives, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
-        }
-        throw err;
-      }
-    })
-    .openapi(getLicensesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      try {
-        await ensureCounterpartyExists(id);
-        const licenses =
-          await ctx.partiesModule.legalEntities.queries.listLicensesByOwner({
-            ownerType: "counterparty",
-            ownerId: id,
-          });
-        return c.json(licenses, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        throw err;
-      }
-    })
-    .openapi(putLicensesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-      try {
-        await ensureCounterpartyExists(id);
-        const licenses =
-          await ctx.partiesModule.legalEntities.commands.replaceLicenses({
-            ownerType: "counterparty",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(licenses, 200);
-      } catch (err) {
-        if (err instanceof CounterpartyNotFoundError) {
-          return c.json({ error: err.message }, 404);
-        }
-        if (err instanceof ValidationError) {
-          return c.json({ error: err.message }, 400);
+        const handled = mapPartyLegalEntityMutationError(
+          err,
+          CounterpartyNotFoundError,
+        );
+        if (handled) {
+          return c.json(handled.body, handled.status);
         }
         throw err;
       }

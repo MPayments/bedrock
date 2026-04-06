@@ -1,11 +1,7 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
-import {
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
-  type PartiesModule,
-} from "@bedrock/parties";
+import { type PartiesModule } from "@bedrock/parties";
 import type {
   Counterparty,
   Organization,
@@ -40,6 +36,10 @@ import {
   bufferToImageContent,
 } from "./data-assembly";
 import type { DocumentFormat, DocumentLang, OrgFiles } from "./data-assembly";
+import {
+  projectLegacyPartyLegalEntity,
+  projectLegacyRequisiteRouting,
+} from "./legacy-projections";
 import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,

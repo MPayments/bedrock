@@ -10,7 +10,6 @@ import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 import {
   findRequisiteIdentifier,
-  projectLegacyRequisiteRouting,
   resolveRequisiteProviderDisplayName,
 } from "@bedrock/parties";
 import {
@@ -32,6 +31,7 @@ import {
 import { ErrorSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
+import { projectLegacyRequisiteRouting } from "./legacy-party-projections";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";

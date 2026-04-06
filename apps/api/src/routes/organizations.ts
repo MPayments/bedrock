@@ -11,18 +11,8 @@ import {
   CreateRequisiteInputSchema,
   ListOrganizationsQuerySchema,
   ListRequisitesQuerySchema,
-  PartyAddressInputSchema,
-  PartyAddressSchema,
-  PartyContactInputSchema,
-  PartyContactSchema,
-  PartyLegalIdentifierInputSchema,
-  PartyLegalIdentifierSchema,
-  PartyLegalProfileInputSchema,
-  PartyLegalProfileSchema,
-  PartyLicenseInputSchema,
-  PartyLicenseSchema,
-  PartyRepresentativeInputSchema,
-  PartyRepresentativeSchema,
+  PartyLegalEntityBundleInputSchema,
+  PartyLegalEntityBundleSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
   OrganizationListItemSchema,
@@ -42,6 +32,10 @@ import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import { countOrganizationBankRequisites } from "./organization-requisites";
+import {
+  mapPartyLegalEntityMutationError,
+  replacePartyLegalEntityBundle,
+} from "./party-legal-entity";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -353,43 +347,18 @@ export function organizationsRoutes(ctx: AppContext) {
     },
   });
 
-  const getLegalProfileRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/legal-profile",
-    tags: ["Organizations"],
-    summary: "Get organization legal profile",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyLegalProfileSchema.nullable(),
-          },
-        },
-        description: "Organization legal profile",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putLegalProfileRoute = createRoute({
+  const putLegalEntityRoute = createRoute({
     middleware: [requirePermission({ organizations: ["update"] })],
     method: "put",
-    path: "/{id}/legal-profile",
+    path: "/{id}/legal-entity",
     tags: ["Organizations"],
-    summary: "Replace organization legal profile",
+    summary: "Replace organization legal entity master data",
     request: {
       params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: PartyLegalProfileInputSchema,
+            schema: PartyLegalEntityBundleInputSchema,
           },
         },
         required: true,
@@ -399,340 +368,10 @@ export function organizationsRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: PartyLegalProfileSchema,
+            schema: PartyLegalEntityBundleSchema,
           },
         },
-        description: "Organization legal profile updated",
-      },
-      400: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const getIdentifiersRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/identifiers",
-    tags: ["Organizations"],
-    summary: "List organization legal identifiers",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyLegalIdentifierSchema.array(),
-          },
-        },
-        description: "Organization legal identifiers",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putIdentifiersRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["update"] })],
-    method: "put",
-    path: "/{id}/identifiers",
-    tags: ["Organizations"],
-    summary: "Replace organization legal identifiers",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: PartyLegalIdentifierInputSchema.array(),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyLegalIdentifierSchema.array(),
-          },
-        },
-        description: "Organization legal identifiers updated",
-      },
-      400: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const getAddressesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/addresses",
-    tags: ["Organizations"],
-    summary: "List organization addresses",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyAddressSchema.array(),
-          },
-        },
-        description: "Organization addresses",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putAddressesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["update"] })],
-    method: "put",
-    path: "/{id}/addresses",
-    tags: ["Organizations"],
-    summary: "Replace organization addresses",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: PartyAddressInputSchema.array(),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyAddressSchema.array(),
-          },
-        },
-        description: "Organization addresses updated",
-      },
-      400: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const getContactsRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/contacts",
-    tags: ["Organizations"],
-    summary: "List organization contacts",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyContactSchema.array(),
-          },
-        },
-        description: "Organization contacts",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putContactsRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["update"] })],
-    method: "put",
-    path: "/{id}/contacts",
-    tags: ["Organizations"],
-    summary: "Replace organization contacts",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: PartyContactInputSchema.array(),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyContactSchema.array(),
-          },
-        },
-        description: "Organization contacts updated",
-      },
-      400: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const getRepresentativesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/representatives",
-    tags: ["Organizations"],
-    summary: "List organization representatives",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyRepresentativeSchema.array(),
-          },
-        },
-        description: "Organization representatives",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putRepresentativesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["update"] })],
-    method: "put",
-    path: "/{id}/representatives",
-    tags: ["Organizations"],
-    summary: "Replace organization representatives",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: PartyRepresentativeInputSchema.array(),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyRepresentativeSchema.array(),
-          },
-        },
-        description: "Organization representatives updated",
-      },
-      400: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const getLicensesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["list"] })],
-    method: "get",
-    path: "/{id}/licenses",
-    tags: ["Organizations"],
-    summary: "List organization licenses",
-    request: { params: IdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyLicenseSchema.array(),
-          },
-        },
-        description: "Organization licenses",
-      },
-      404: {
-        content: {
-          "application/json": { schema: ErrorSchema },
-        },
-        description: "Organization not found",
-      },
-    },
-  });
-
-  const putLicensesRoute = createRoute({
-    middleware: [requirePermission({ organizations: ["update"] })],
-    method: "put",
-    path: "/{id}/licenses",
-    tags: ["Organizations"],
-    summary: "Replace organization licenses",
-    request: {
-      params: IdParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: PartyLicenseInputSchema.array(),
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PartyLicenseSchema.array(),
-          },
-        },
-        description: "Organization licenses updated",
+        description: "Organization legal entity bundle updated",
       },
       400: {
         content: {
@@ -891,247 +530,28 @@ export function organizationsRoutes(ctx: AppContext) {
         throw error;
       }
     })
-    .openapi(getLegalProfileRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const profile =
-          await ctx.partiesModule.legalEntities.queries.findProfileByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(profile, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putLegalProfileRoute, async (c) => {
+    .openapi(putLegalEntityRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
 
       try {
-        await ensureOrganizationExists(id);
-        const profile = await ctx.partiesModule.legalEntities.commands.upsertProfile({
-          ownerType: "organization",
+        const organization =
+          await ctx.partiesModule.organizations.queries.findById(id);
+        const bundle = await replacePartyLegalEntityBundle({
+          bundle: input,
+          ctx,
           ownerId: id,
-          profile: input,
+          ownerType: "organization",
+          party: organization,
         });
-        return c.json(profile, 200);
+        return c.json(bundle, 200);
       } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
-      }
-    })
-    .openapi(getIdentifiersRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const identifiers =
-          await ctx.partiesModule.legalEntities.queries.listIdentifiersByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(identifiers, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putIdentifiersRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await ensureOrganizationExists(id);
-        const identifiers =
-          await ctx.partiesModule.legalEntities.commands.replaceIdentifiers({
-            ownerType: "organization",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(identifiers, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
-      }
-    })
-    .openapi(getAddressesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const addresses =
-          await ctx.partiesModule.legalEntities.queries.listAddressesByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(addresses, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putAddressesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await ensureOrganizationExists(id);
-        const addresses =
-          await ctx.partiesModule.legalEntities.commands.replaceAddresses({
-            ownerType: "organization",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(addresses, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
-      }
-    })
-    .openapi(getContactsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const contacts =
-          await ctx.partiesModule.legalEntities.queries.listContactsByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(contacts, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putContactsRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await ensureOrganizationExists(id);
-        const contacts =
-          await ctx.partiesModule.legalEntities.commands.replaceContacts({
-            ownerType: "organization",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(contacts, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
-      }
-    })
-    .openapi(getRepresentativesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const representatives =
-          await ctx.partiesModule.legalEntities.queries.listRepresentativesByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(representatives, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putRepresentativesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await ensureOrganizationExists(id);
-        const representatives =
-          await ctx.partiesModule.legalEntities.commands.replaceRepresentatives({
-            ownerType: "organization",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(representatives, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
-      }
-    })
-    .openapi(getLicensesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-
-      try {
-        await ensureOrganizationExists(id);
-        const licenses =
-          await ctx.partiesModule.legalEntities.queries.listLicensesByOwner({
-            ownerType: "organization",
-            ownerId: id,
-          });
-        return c.json(licenses, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        throw error;
-      }
-    })
-    .openapi(putLicensesRoute, async (c) => {
-      const { id } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await ensureOrganizationExists(id);
-        const licenses =
-          await ctx.partiesModule.legalEntities.commands.replaceLicenses({
-            ownerType: "organization",
-            ownerId: id,
-            items: input,
-          });
-        return c.json(licenses, 200);
-      } catch (error) {
-        if (error instanceof OrganizationNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
+        const handled = mapPartyLegalEntityMutationError(
+          error,
+          OrganizationNotFoundError,
+        );
+        if (handled) {
+          return c.json(handled.body, handled.status);
         }
         throw error;
       }

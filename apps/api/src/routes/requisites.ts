@@ -4,7 +4,6 @@ import { CurrencyNotFoundError } from "@bedrock/currencies";
 import {
   CounterpartyNotFoundError,
   OrganizationNotFoundError,
-  projectLegacyRequisiteRouting,
 } from "@bedrock/parties";
 import {
   RequisiteAccountingBindingNotFoundError,
@@ -36,6 +35,7 @@ import {
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
+import { projectLegacyRequisiteRouting } from "./legacy-party-projections";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 

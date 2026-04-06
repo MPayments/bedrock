@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Field,
   FieldDescription,
@@ -60,6 +61,13 @@ const DEFAULT_VALUES: RequisiteProviderFormValues = {
   bic: "",
   swift: "",
 };
+
+const REQUISITE_PROVIDER_KIND_OPTIONS = [
+  { value: "bank", label: "Банк" },
+  { value: "blockchain", label: "Блокчейн" },
+  { value: "exchange", label: "Биржа" },
+  { value: "custodian", label: "Кастодиан" },
+] as const;
 
 type RequisiteProviderFormProps = {
   initialValues?: Partial<RequisiteProviderFormValues>;
@@ -163,13 +171,20 @@ export function RequisiteProviderForm({
                       disabled={submitting || deleting}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите вид" />
+                        <SelectValue placeholder="Выберите вид">
+                          {
+                            REQUISITE_PROVIDER_KIND_OPTIONS.find(
+                              (option) => option.value === field.value,
+                            )?.label
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bank">Банк</SelectItem>
-                        <SelectItem value="blockchain">Блокчейн</SelectItem>
-                        <SelectItem value="exchange">Биржа</SelectItem>
-                        <SelectItem value="custodian">Кастодиан</SelectItem>
+                        {REQUISITE_PROVIDER_KIND_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -185,14 +200,32 @@ export function RequisiteProviderForm({
                 <FieldError>{form.formState.errors.name?.message}</FieldError>
               </Field>
 
-              <Field>
-                <FieldLabel>Страна</FieldLabel>
-                <Input
-                  {...form.register("country")}
-                  placeholder="AE"
-                  disabled={submitting || deleting}
-                />
-              </Field>
+              <Controller
+                control={form.control}
+                name="country"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="requisite-provider-country">
+                      Страна
+                    </FieldLabel>
+                    <CountrySelect
+                      id="requisite-provider-country"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={submitting || deleting}
+                      invalid={fieldState.invalid}
+                      placeholder="Выберите страну"
+                      searchPlaceholder="Поиск страны..."
+                      emptyLabel="Страна не найдена"
+                      clearable
+                      clearLabel="Очистить"
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : null}
+                  </Field>
+                )}
+              />
 
               <Field>
                 <FieldLabel>BIC</FieldLabel>

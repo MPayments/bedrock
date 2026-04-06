@@ -11,6 +11,7 @@ import {
 } from "./organization-form";
 import type { SerializedOrganization } from "../lib/types";
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
+import { buildOrganizationLegalEntityPayload } from "../lib/legal-entity-payload";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -18,45 +19,6 @@ type EditOrganizationFormClientProps = {
   organization: SerializedOrganization;
   listPath?: string;
 };
-
-type OrganizationLegalProfileResponse = {
-  fullName: string;
-  shortName: string;
-  fullNameI18n: Record<string, string | null> | null;
-  shortNameI18n: Record<string, string | null> | null;
-  legalFormCode: string | null;
-  legalFormLabel: string | null;
-  legalFormLabelI18n: Record<string, string | null> | null;
-  countryCode: string | null;
-  jurisdictionCode: string | null;
-  registrationAuthority: string | null;
-  registeredAt: string | null;
-  businessActivityCode: string | null;
-  businessActivityText: string | null;
-  status: string | null;
-} | null;
-
-function buildLegalProfilePayload(
-  values: OrganizationGeneralFormValues,
-  current: OrganizationLegalProfileResponse,
-) {
-  return {
-    fullName: values.fullName,
-    shortName: values.shortName,
-    fullNameI18n: current?.fullNameI18n ?? null,
-    shortNameI18n: current?.shortNameI18n ?? null,
-    legalFormCode: current?.legalFormCode ?? null,
-    legalFormLabel: current?.legalFormLabel ?? null,
-    legalFormLabelI18n: current?.legalFormLabelI18n ?? null,
-    countryCode: values.country || null,
-    jurisdictionCode: current?.jurisdictionCode ?? null,
-    registrationAuthority: current?.registrationAuthority ?? null,
-    registeredAt: current?.registeredAt ?? null,
-    businessActivityCode: current?.businessActivityCode ?? null,
-    businessActivityText: current?.businessActivityText ?? null,
-    status: current?.status ?? null,
-  };
-}
 
 function toFormValues(
   organization: SerializedOrganization,
@@ -120,25 +82,17 @@ export function EditOrganizationFormClient({
             return patchResponse;
           }
 
-          const legalProfileResponse =
-            await apiClient.v1.organizations[":id"]["legal-profile"].$get({
+          const putLegalEntityResponse =
+            await apiClient.v1.organizations[":id"]["legal-entity"].$put({
               param: { id: current.id },
+              json: buildOrganizationLegalEntityPayload(
+                values,
+                current.legalEntity,
+              ),
             });
 
-          if (!legalProfileResponse.ok) {
-            return legalProfileResponse;
-          }
-
-          const currentLegalProfile =
-            (await legalProfileResponse.json()) as OrganizationLegalProfileResponse;
-          const putLegalProfileResponse =
-            await apiClient.v1.organizations[":id"]["legal-profile"].$put({
-              param: { id: current.id },
-              json: buildLegalProfilePayload(values, currentLegalProfile),
-            });
-
-          if (!putLegalProfileResponse.ok) {
-            return putLegalProfileResponse;
+          if (!putLegalEntityResponse.ok) {
+            return putLegalEntityResponse;
           }
 
           return apiClient.v1.organizations[":id"].$get({

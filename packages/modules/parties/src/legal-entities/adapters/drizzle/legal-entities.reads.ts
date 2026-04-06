@@ -2,7 +2,20 @@ import { asc, eq } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import type { LegalEntitiesReads } from "../../application/ports/legal-entities.reads";
+import type {
+  PartyAddress,
+  PartyContact,
+  PartyLegalEntityBundle,
+  PartyLegalIdentifier,
+  PartyLegalOwnerType,
+  PartyLegalProfile,
+  PartyLicense,
+  PartyRepresentative,
+} from "../../application/contracts";
+import type {
+  LegalEntitiesReads,
+  LegalEntityOwnerRef,
+} from "../../application/ports/legal-entities.reads";
 import {
   partyAddresses,
   partyContacts,
@@ -13,7 +26,7 @@ import {
 } from "./schema";
 
 function profileOwnerWhere(input: {
-  ownerType: "organization" | "counterparty";
+  ownerType: PartyLegalOwnerType;
   ownerId: string;
 }) {
   return input.ownerType === "organization"
@@ -24,10 +37,9 @@ function profileOwnerWhere(input: {
 export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
   constructor(private readonly db: Queryable) {}
 
-  async findBundleByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async findBundleByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyLegalEntityBundle | null> {
     const profile = await this.findProfileByOwner(input);
 
     if (!profile) {
@@ -58,29 +70,27 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
     };
   }
 
-  async findProfileByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async findProfileByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyLegalProfile | null> {
     const [row] = await this.db
       .select()
       .from(partyLegalProfiles)
       .where(profileOwnerWhere(input))
       .limit(1);
 
-    return row ?? null;
+    return (row ?? null) as PartyLegalProfile | null;
   }
 
-  async listIdentifiersByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async listIdentifiersByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyLegalIdentifier[]> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(partyLegalIdentifiers)
       .where(eq(partyLegalIdentifiers.partyLegalProfileId, profile.id))
@@ -88,50 +98,53 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
         asc(partyLegalIdentifiers.scheme),
         asc(partyLegalIdentifiers.createdAt),
       );
+
+    return rows as PartyLegalIdentifier[];
   }
 
-  async listAddressesByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async listAddressesByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyAddress[]> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(partyAddresses)
       .where(eq(partyAddresses.partyLegalProfileId, profile.id))
       .orderBy(asc(partyAddresses.type), asc(partyAddresses.createdAt));
+
+    return rows as PartyAddress[];
   }
 
-  async listContactsByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async listContactsByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyContact[]> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(partyContacts)
       .where(eq(partyContacts.partyLegalProfileId, profile.id))
       .orderBy(asc(partyContacts.type), asc(partyContacts.createdAt));
+
+    return rows as PartyContact[];
   }
 
-  async listRepresentativesByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async listRepresentativesByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyRepresentative[]> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(partyRepresentatives)
       .where(eq(partyRepresentatives.partyLegalProfileId, profile.id))
@@ -139,22 +152,24 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
         asc(partyRepresentatives.role),
         asc(partyRepresentatives.createdAt),
       );
+
+    return rows as PartyRepresentative[];
   }
 
-  async listLicensesByOwner(input: {
-    ownerType: "organization" | "counterparty";
-    ownerId: string;
-  }) {
+  async listLicensesByOwner(
+    input: LegalEntityOwnerRef,
+  ): Promise<PartyLicense[]> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
       return [];
     }
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(partyLicenses)
       .where(eq(partyLicenses.partyLegalProfileId, profile.id))
       .orderBy(asc(partyLicenses.licenseType), asc(partyLicenses.createdAt));
+
+    return rows as PartyLicense[];
   }
 }
-

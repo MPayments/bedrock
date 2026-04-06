@@ -4,6 +4,7 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 import type {
   PartyAddressInput,
   PartyContactInput,
+  PartyLegalEntityBundleInput,
   PartyLegalIdentifierInput,
   PartyLegalOwnerType,
   PartyLegalProfileInput,
@@ -61,6 +62,13 @@ export interface LegalEntitiesServiceDeps {
 }
 
 export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
+  function validateBundle(bundle: PartyLegalEntityBundleInput) {
+    validateIdentifierInputs(bundle.identifiers);
+    validateAddressInputs(bundle.addresses);
+    validateContactInputs(bundle.contacts);
+    validateRepresentativeInputs(bundle.representatives);
+  }
+
   async function upsertProfile(input: {
     ownerType: PartyLegalOwnerType;
     ownerId: string;
@@ -119,8 +127,63 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
     return deps.commandUow.run((tx) => tx.legalEntities.replaceLicenses(input));
   }
 
+  async function replaceBundle(input: {
+    ownerType: PartyLegalOwnerType;
+    ownerId: string;
+    bundle: PartyLegalEntityBundleInput;
+  }) {
+    validateBundle(input.bundle);
+
+    return deps.commandUow.run(async (tx) => {
+      await tx.legalEntities.upsertProfile({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        profile: input.bundle.profile,
+      });
+      await tx.legalEntities.replaceIdentifiers({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        items: input.bundle.identifiers,
+      });
+      await tx.legalEntities.replaceAddresses({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        items: input.bundle.addresses,
+      });
+      await tx.legalEntities.replaceContacts({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        items: input.bundle.contacts,
+      });
+      await tx.legalEntities.replaceRepresentatives({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        items: input.bundle.representatives,
+      });
+      await tx.legalEntities.replaceLicenses({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        items: input.bundle.licenses,
+      });
+
+      const bundle = await tx.legalEntities.findBundleByOwner({
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+      });
+
+      if (!bundle) {
+        throw new Error(
+          `Legal entity bundle not found after replace: ${input.ownerType}:${input.ownerId}`,
+        );
+      }
+
+      return bundle;
+    });
+  }
+
   return {
     commands: {
+      replaceBundle,
       upsertProfile,
       replaceIdentifiers,
       replaceAddresses,
@@ -142,4 +205,3 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
 }
 
 export type LegalEntitiesService = ReturnType<typeof createLegalEntitiesService>;
-

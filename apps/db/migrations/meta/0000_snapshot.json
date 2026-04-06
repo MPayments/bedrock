@@ -9638,6 +9638,19 @@
         }
       },
       "foreignKeys": {
+        "organization_requisite_bindings_requisite_id_requisites_id_fk": {
+          "name": "organization_requisite_bindings_requisite_id_requisites_id_fk",
+          "tableFrom": "organization_requisite_bindings",
+          "tableTo": "requisites",
+          "columnsFrom": [
+            "requisite_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "organization_requisite_bindings_book_id_books_id_fk": {
           "name": "organization_requisite_bindings_book_id_books_id_fk",
           "tableFrom": "organization_requisite_bindings",

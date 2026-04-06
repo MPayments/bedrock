@@ -12,10 +12,7 @@ import type {
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
-import {
-  projectLegacyPartyLegalEntity,
-  type PartiesModule as PartiesModuleRoot,
-} from "@bedrock/parties";
+import { type PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
 import type {
   Counterparty,
   Customer,
@@ -63,6 +60,7 @@ import type {
   PortalDealProjection,
 } from "./contracts";
 import { CrmDealsListQuerySchema } from "./contracts";
+import { projectLegacyPartyLegalEntity } from "./legacy-projections";
 
 const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =

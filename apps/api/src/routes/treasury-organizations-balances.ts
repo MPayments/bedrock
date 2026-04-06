@@ -2,13 +2,13 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
 import {
   findRequisiteIdentifier,
-  projectLegacyRequisiteRouting,
 } from "@bedrock/parties";
 import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
+import { projectLegacyRequisiteRouting } from "./legacy-party-projections";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 

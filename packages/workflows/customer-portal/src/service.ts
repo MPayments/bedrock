@@ -17,11 +17,7 @@ import {
   type PortalAccessGrantsService,
   UserNotFoundError,
 } from "@bedrock/iam";
-import {
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
-  type PartiesModule,
-} from "@bedrock/parties";
+import { type PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { isUuidLike, MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { formatFractionDecimal } from "@bedrock/shared/money";
@@ -30,6 +26,10 @@ import {
   createCustomerBankingService,
   type BankProviderSearchResult,
 } from "./bank-requisites";
+import {
+  projectLegacyPartyLegalEntity,
+  projectLegacyRequisiteRouting,
+} from "./legacy-projections";
 
 interface LocalizedText {
   [key: string]: string | null | undefined;

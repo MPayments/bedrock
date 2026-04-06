@@ -7,6 +7,19 @@ import {
   LocaleTextMapSchema,
   type LocaleTextMap,
 } from "../../shared/domain/locale-map";
+import {
+  LEGAL_IDENTIFIER_SCHEME_VALUES,
+  PARTY_ADDRESS_TYPE_VALUES,
+  PARTY_CONTACT_TYPE_VALUES,
+  PARTY_LICENSE_TYPE_VALUES,
+  PARTY_REPRESENTATIVE_ROLE_VALUES,
+  normalizePartyTaxonomyValue,
+  type LegalIdentifierScheme,
+  type PartyAddressType,
+  type PartyContactType,
+  type PartyLicenseType,
+  type PartyRepresentativeRole,
+} from "../domain/taxonomies";
 
 const nullableText = z
   .string()
@@ -16,12 +29,47 @@ const nullableText = z
 
 const nullableDate = z.coerce.date().nullish().transform((value) => value ?? null);
 
+function createTaxonomySchema<const TValues extends readonly [string, ...string[]]>(
+  values: TValues,
+) {
+  return z.preprocess(
+    (value) =>
+      typeof value === "string" ? normalizePartyTaxonomyValue(value) : value,
+    z.enum(values),
+  );
+}
+
 export const PartyLegalOwnerTypeSchema = z.enum([
   "organization",
   "counterparty",
 ]);
 
 export type PartyLegalOwnerType = z.infer<typeof PartyLegalOwnerTypeSchema>;
+
+export const LegalIdentifierSchemeSchema = createTaxonomySchema(
+  LEGAL_IDENTIFIER_SCHEME_VALUES,
+);
+export type LegalIdentifierSchemeValue = LegalIdentifierScheme;
+
+export const PartyAddressTypeSchema = createTaxonomySchema(
+  PARTY_ADDRESS_TYPE_VALUES,
+);
+export type PartyAddressTypeValue = PartyAddressType;
+
+export const PartyContactTypeSchema = createTaxonomySchema(
+  PARTY_CONTACT_TYPE_VALUES,
+);
+export type PartyContactTypeValue = PartyContactType;
+
+export const PartyRepresentativeRoleSchema = createTaxonomySchema(
+  PARTY_REPRESENTATIVE_ROLE_VALUES,
+);
+export type PartyRepresentativeRoleValue = PartyRepresentativeRole;
+
+export const PartyLicenseTypeSchema = createTaxonomySchema(
+  PARTY_LICENSE_TYPE_VALUES,
+);
+export type PartyLicenseTypeValue = PartyLicenseType;
 
 export const PartyLegalProfileSchema = z.object({
   id: z.uuid(),
@@ -71,7 +119,7 @@ export type PartyLegalProfileInput = z.infer<
 export const PartyLegalIdentifierSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  scheme: z.string(),
+  scheme: LegalIdentifierSchemeSchema,
   value: z.string(),
   normalizedValue: z.string(),
   jurisdictionCode: z.string().nullable(),
@@ -87,7 +135,7 @@ export type PartyLegalIdentifier = z.infer<typeof PartyLegalIdentifierSchema>;
 
 export const PartyLegalIdentifierInputSchema = z.object({
   id: z.uuid().optional(),
-  scheme: z.string().trim().min(1),
+  scheme: LegalIdentifierSchemeSchema,
   value: z.string().trim().min(1),
   jurisdictionCode: nullableText,
   issuer: nullableText,
@@ -103,7 +151,7 @@ export type PartyLegalIdentifierInput = z.infer<
 export const PartyAddressSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  type: z.string(),
+  type: PartyAddressTypeSchema,
   label: z.string().nullable(),
   countryCode: CountryCodeSchema.nullable(),
   jurisdictionCode: z.string().nullable(),
@@ -121,7 +169,7 @@ export type PartyAddress = z.infer<typeof PartyAddressSchema>;
 
 export const PartyAddressInputSchema = z.object({
   id: z.uuid().optional(),
-  type: z.string().trim().min(1),
+  type: PartyAddressTypeSchema,
   label: nullableText,
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
   jurisdictionCode: nullableText,
@@ -138,7 +186,7 @@ export type PartyAddressInput = z.infer<typeof PartyAddressInputSchema>;
 export const PartyContactSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  type: z.string(),
+  type: PartyContactTypeSchema,
   label: z.string().nullable(),
   value: z.string(),
   isPrimary: z.boolean(),
@@ -150,7 +198,7 @@ export type PartyContact = z.infer<typeof PartyContactSchema>;
 
 export const PartyContactInputSchema = z.object({
   id: z.uuid().optional(),
-  type: z.string().trim().min(1),
+  type: PartyContactTypeSchema,
   label: nullableText,
   value: z.string().trim().min(1),
   isPrimary: z.boolean().default(false),
@@ -161,7 +209,7 @@ export type PartyContactInput = z.infer<typeof PartyContactInputSchema>;
 export const PartyRepresentativeSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  role: z.string(),
+  role: PartyRepresentativeRoleSchema,
   fullName: z.string(),
   fullNameI18n: LocaleTextMapSchema,
   title: z.string().nullable(),
@@ -177,7 +225,7 @@ export type PartyRepresentative = z.infer<typeof PartyRepresentativeSchema>;
 
 export const PartyRepresentativeInputSchema = z.object({
   id: z.uuid().optional(),
-  role: z.string().trim().min(1),
+  role: PartyRepresentativeRoleSchema,
   fullName: z.string().trim().min(1),
   fullNameI18n: LocaleTextMapSchema.optional().default(null),
   title: nullableText,
@@ -194,7 +242,7 @@ export type PartyRepresentativeInput = z.infer<
 export const PartyLicenseSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  licenseType: z.string(),
+  licenseType: PartyLicenseTypeSchema,
   licenseNumber: z.string(),
   issuedBy: z.string().nullable(),
   issuedAt: z.date().nullable(),
@@ -209,7 +257,7 @@ export type PartyLicense = z.infer<typeof PartyLicenseSchema>;
 
 export const PartyLicenseInputSchema = z.object({
   id: z.uuid().optional(),
-  licenseType: z.string().trim().min(1),
+  licenseType: PartyLicenseTypeSchema,
   licenseNumber: z.string().trim().min(1),
   issuedBy: nullableText,
   issuedAt: nullableDate,
@@ -247,4 +295,3 @@ export type PartyLegalEntityBundleInput = z.infer<
 >;
 
 export type PartyLegalLocaleTextMap = LocaleTextMap;
-

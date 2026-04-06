@@ -2,6 +2,7 @@ import { cache } from "react";
 import { z } from "zod";
 
 import {
+  CounterpartyListItemSchema,
   CounterpartyGroupOptionsResponseSchema,
   CounterpartySchema,
   type CounterpartyGroupOption,
@@ -20,6 +21,14 @@ import { createResourceListQuery } from "@/lib/resources/search-params";
 import type { CounterpartiesListResult } from "./types";
 import { type CounterpartiesSearchParams } from "./validations";
 
+const CounterpartyListItemResponseSchema = CounterpartyListItemSchema.omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 const CounterpartyResponseSchema = CounterpartySchema.omit({
   createdAt: true,
   updatedAt: true,
@@ -29,7 +38,7 @@ const CounterpartyResponseSchema = CounterpartySchema.omit({
 });
 
 const CounterpartiesListResponseSchema = createPaginatedResponseSchema(
-  CounterpartyResponseSchema,
+  CounterpartyListItemResponseSchema,
 );
 
 function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {
