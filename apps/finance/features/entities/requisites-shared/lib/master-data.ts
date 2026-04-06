@@ -72,6 +72,8 @@ export function buildRequisiteIdentifiers(values: RequisiteFormValues) {
 export function toLegacyRequisiteValues(input: {
   kind: RequisiteKind;
   beneficiaryName: string | null;
+  beneficiaryNameLocal?: string | null;
+  beneficiaryAddress?: string | null;
   paymentPurposeTemplate: string | null;
   notes: string | null;
   identifiers: RequisiteIdentifier[];
@@ -79,6 +81,8 @@ export function toLegacyRequisiteValues(input: {
   return {
     description: input.paymentPurposeTemplate ?? "",
     beneficiaryName: input.beneficiaryName ?? "",
+    beneficiaryNameLocal: input.beneficiaryNameLocal ?? "",
+    beneficiaryAddress: input.beneficiaryAddress ?? "",
     accountNo: findRequisiteIdentifier(input.identifiers, "local_account_number"),
     corrAccount: findRequisiteIdentifier(input.identifiers, "corr_account"),
     iban: findRequisiteIdentifier(input.identifiers, "iban"),

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -71,6 +72,14 @@ export function CreateCounterpartyFormClient({
       description: values.description.trim() || undefined,
       customerId: customerId || null,
       groupIds: values.groupIds,
+      legalEntity:
+        values.kind === "legal_entity"
+          ? createSeededLegalEntityBundle({
+              fullName: values.fullName.trim(),
+              shortName: values.shortName.trim(),
+              countryCode: values.country.trim() || null,
+            })
+          : undefined,
     };
 
     const result = await executeMutation<CreatedCounterparty>({

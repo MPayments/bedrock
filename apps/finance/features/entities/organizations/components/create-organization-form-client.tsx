@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -30,32 +31,6 @@ const EMPTY_ORGANIZATION_VALUES: OrganizationGeneralFormValues = {
   description: "",
 };
 
-function buildLegalEntityBundle(values: OrganizationGeneralFormValues) {
-  return {
-    profile: {
-      fullName: values.fullName,
-      shortName: values.shortName,
-      fullNameI18n: null,
-      shortNameI18n: null,
-      legalFormCode: null,
-      legalFormLabel: null,
-      legalFormLabelI18n: null,
-      countryCode: values.country || null,
-      jurisdictionCode: null,
-      registrationAuthority: null,
-      registeredAt: null,
-      businessActivityCode: null,
-      businessActivityText: null,
-      status: null,
-    },
-    identifiers: [],
-    addresses: [],
-    contacts: [],
-    representatives: [],
-    licenses: [],
-  };
-}
-
 export function CreateOrganizationFormClient({
   detailsBasePath = "/treasury/organizations",
 }: CreateOrganizationFormClientProps) {
@@ -80,7 +55,11 @@ export function CreateOrganizationFormClient({
             description: values.description || undefined,
             legalEntity:
               values.kind === "legal_entity"
-                ? buildLegalEntityBundle(values)
+                ? createSeededLegalEntityBundle({
+                    fullName: values.fullName,
+                    shortName: values.shortName,
+                    countryCode: values.country || null,
+                  })
                 : undefined,
           },
         }),

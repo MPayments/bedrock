@@ -9,15 +9,12 @@ import {
   FileType,
   Loader2,
   Paperclip,
-  Save,
   Trash2,
   UserRound,
   Wallet,
-  X,
   Upload as UploadIcon,
 } from "lucide-react";
 import { useState } from "react";
-import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -26,9 +23,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { Label } from "@bedrock/sdk-ui/components/label";
 import {
   Select,
   SelectContent,
@@ -41,13 +35,12 @@ import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 import type {
   ClientDocument,
   CustomerLegalEntity,
-  LegalEntityFormData,
 } from "../_lib/customer-detail";
 import {
   isPrimaryLegalEntity,
-  legalEntityToFormValues,
 } from "../_lib/customer-detail";
 import { CounterpartyBankRequisitesWorkspace } from "./counterparty-bank-requisites-workspace";
+import { CustomerCounterpartyLegalEntityEditor } from "./customer-counterparty-legal-entity-editor";
 import { CustomerLegalEntitySelect } from "./customer-legal-entity-select";
 
 type CustomerLegalEntityPanelProps = {
@@ -55,18 +48,18 @@ type CustomerLegalEntityPanelProps = {
   deletingDocumentId: string | null;
   documents: ClientDocument[];
   downloadingContract: boolean;
-  form: UseFormReturn<LegalEntityFormData>;
+  legalEntityResetSignal: number;
   loadingDocuments: boolean;
   onContractLangChange: (value: "ru" | "en") => void;
   onDeleteDocument: (documentId: string) => void;
   onDownloadContract: (format: "docx" | "pdf") => void;
   onDownloadDocument: (document: ClientDocument) => void;
   onEntityChange: (counterpartyId: string) => void;
+  onLegalEntityDirtyChange: (dirty: boolean) => void;
+  onLegalEntitySaved?: () => void;
   onRequisitesDirtyChange: (dirty: boolean) => void;
-  onSave: (data: LegalEntityFormData) => void;
   onUploadDocument: () => void;
   requisitesResetSignal: number;
-  saving: boolean;
   selectedLegalEntity: CustomerLegalEntity;
   workspaceLegalEntities: CustomerLegalEntity[];
   workspacePrimaryCounterpartyId: string | null;
@@ -111,18 +104,18 @@ export function CustomerLegalEntityPanel({
   deletingDocumentId,
   documents,
   downloadingContract,
-  form,
+  legalEntityResetSignal,
   loadingDocuments,
   onContractLangChange,
   onDeleteDocument,
   onDownloadContract,
   onDownloadDocument,
   onEntityChange,
+  onLegalEntityDirtyChange,
+  onLegalEntitySaved,
   onRequisitesDirtyChange,
-  onSave,
   onUploadDocument,
   requisitesResetSignal,
-  saving,
   selectedLegalEntity,
   workspaceLegalEntities,
   workspacePrimaryCounterpartyId,
@@ -136,7 +129,6 @@ export function CustomerLegalEntityPanel({
   );
   const [activeSection, setActiveSection] =
     useState<CustomerLegalEntitySection>("organization");
-  const isOrganizationDirty = form.formState.isDirty;
 
   return (
     <div className="space-y-4">
@@ -190,129 +182,29 @@ export function CustomerLegalEntityPanel({
         aria-hidden={activeSection !== "organization"}
         className="space-y-4"
       >
-        <form
-          id="customer-legal-entity-form"
-          className="space-y-4"
-          onSubmit={form.handleSubmit(onSave)}
-        >
-          <Card>
-            <CardHeader className="border-b">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">Данные юр. лица</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Управление данными юридического лица
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {isOrganizationDirty ? (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="submit"
-                        form="customer-legal-entity-form"
-                        disabled={saving}
-                      >
-                        {saving ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Save className="size-4" />
-                        )}
-                        Сохранить
-                      </Button>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        disabled={saving}
-                        onClick={() =>
-                          form.reset(
-                            legalEntityToFormValues(selectedLegalEntity),
-                          )
-                        }
-                      >
-                        <X className="size-4" />
-                        Отменить
-                      </Button>
-                    </div>
-                  ) : null}
-                  <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
-                    <span>
-                      {selectedLegalEntity.inn
-                        ? `ИНН: ${selectedLegalEntity.inn}`
-                        : "ИНН не указан"}
-                    </span>
-                    <span>
-                      {formatRelationshipKind(
-                        selectedLegalEntity.relationshipKind,
-                      )}
-                    </span>
-                    {isPrimary ? (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                        Основное
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field
-                disabled={saving}
-                form={form}
-                label="Название юр. лица"
-                name="orgName"
-                required
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Тип организации"
-                name="orgType"
-              />
-              <Field disabled={saving} form={form} label="ИНН" name="inn" />
-              <Field disabled={saving} form={form} label="КПП" name="kpp" />
-              <Field disabled={saving} form={form} label="ОГРН" name="ogrn" />
-              <Field disabled={saving} form={form} label="ОКПО" name="okpo" />
-              <Field disabled={saving} form={form} label="ОКТМО" name="oktmo" />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Email"
-                name="email"
-                type="email"
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Телефон"
-                name="phone"
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Директор"
-                name="directorName"
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Должность"
-                name="position"
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Основание полномочий"
-                name="directorBasis"
-              />
-              <Field
-                disabled={saving}
-                form={form}
-                label="Адрес"
-                name="address"
-              />
-            </CardContent>
-          </Card>
-        </form>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
+            <span>
+              {selectedLegalEntity.inn
+                ? `ИНН: ${selectedLegalEntity.inn}`
+                : "ИНН не указан"}
+            </span>
+            <span>
+              {formatRelationshipKind(selectedLegalEntity.relationshipKind)}
+            </span>
+            {isPrimary ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                Основное
+              </span>
+            ) : null}
+          </div>
+          <CustomerCounterpartyLegalEntityEditor
+            counterpartyId={selectedLegalEntity.counterpartyId}
+            onDirtyChange={onLegalEntityDirtyChange}
+            onSaved={onLegalEntitySaved}
+            resetSignal={legalEntityResetSignal}
+          />
+        </div>
       </div>
 
       <div
@@ -532,84 +424,3 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-function Field<TFieldValues extends FieldValues>({
-  disabled,
-  form,
-  label,
-  name,
-  required = false,
-  type = "text",
-}: {
-  disabled: boolean;
-  form: UseFormReturn<TFieldValues>;
-  label: string;
-  name: Path<TFieldValues>;
-  required?: boolean;
-  type?: string;
-}) {
-  const error =
-    (form.formState.errors[name] as { message?: string } | undefined)
-      ?.message ?? null;
-  const value = (form.watch(name) as unknown as string | undefined) ?? "";
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>
-        {label}
-        {required ? <span className="text-destructive"> *</span> : null}
-      </Label>
-      <Input
-        disabled={disabled}
-        id={name}
-        onChange={(event) =>
-          form.setValue(name, event.target.value as TFieldValues[typeof name], {
-            shouldDirty: true,
-            shouldValidate: true,
-          })
-        }
-        type={type}
-        value={value}
-      />
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function CountryField<TFieldValues extends FieldValues>({
-  disabled,
-  form,
-  label,
-  name,
-}: {
-  disabled: boolean;
-  form: UseFormReturn<TFieldValues>;
-  label: string;
-  name: Path<TFieldValues>;
-}) {
-  const value = (form.watch(name) as unknown as string | undefined) ?? "";
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      <CountrySelect
-        id={name}
-        value={value}
-        onValueChange={(nextValue) =>
-          form.setValue(name, nextValue as TFieldValues[typeof name], {
-            shouldDirty: true,
-            shouldValidate: true,
-          })
-        }
-        disabled={disabled}
-        placeholder="Не выбрано"
-        searchPlaceholder="Поиск страны..."
-        emptyLabel="Страна не найдена"
-        clearable
-        clearLabel="Очистить"
-      />
-    </div>
-  );
-}
-
-export { CountryField, Field };

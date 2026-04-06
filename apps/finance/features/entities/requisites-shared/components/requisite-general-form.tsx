@@ -72,6 +72,7 @@ type RequisiteFormProps = {
   ownerOptions: RelationOption[];
   ownerTypeReadonly?: boolean;
   providerOptions: RelationOption[];
+  loadProviderBranches?: (providerId: string) => Promise<RelationOption[]>;
   currencyOptions: RelationOption[];
   initialValues?: Partial<RequisiteFormValues>;
   createdAt?: string | null;
@@ -95,11 +96,14 @@ type RequisiteFormProps = {
 const DEFAULT_VALUES: RequisiteFormValues = {
   ownerId: "",
   providerId: "",
+  providerBranchId: "",
   currencyId: "",
   kind: "bank",
   label: "",
   description: "",
   beneficiaryName: "",
+  beneficiaryNameLocal: "",
+  beneficiaryAddress: "",
   accountNo: "",
   corrAccount: "",
   iban: "",
@@ -125,11 +129,14 @@ function createSchema() {
     .object({
       ownerId: z.string().trim().min(1, "Владелец обязателен"),
       providerId: z.string().trim().min(1, "Провайдер обязателен"),
+      providerBranchId: z.string(),
       currencyId: z.string().trim().min(1, "Валюта обязательна"),
       kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
       label: z.string().trim().min(1, "Название обязательно"),
       description: z.string(),
       beneficiaryName: z.string(),
+      beneficiaryNameLocal: z.string(),
+      beneficiaryAddress: z.string(),
       accountNo: z.string(),
       corrAccount: z.string(),
       iban: z.string(),
@@ -201,11 +208,14 @@ function normalizeValues(values: RequisiteFormValues): RequisiteFormValues {
   return {
     ownerId: values.ownerId.trim(),
     providerId: values.providerId.trim(),
+    providerBranchId: values.providerBranchId.trim(),
     currencyId: values.currencyId.trim(),
     kind: values.kind,
     label: values.label.trim(),
     description: values.description.trim(),
     beneficiaryName: values.beneficiaryName.trim(),
+    beneficiaryNameLocal: values.beneficiaryNameLocal.trim(),
+    beneficiaryAddress: values.beneficiaryAddress.trim(),
     accountNo: values.accountNo.trim(),
     corrAccount: values.corrAccount.trim(),
     iban: values.iban.trim(),
@@ -334,6 +344,7 @@ export function RequisiteGeneralForm({
   ownerOptions,
   ownerTypeReadonly = false,
   providerOptions,
+  loadProviderBranches,
   currencyOptions,
   initialValues,
   createdAt,
@@ -359,6 +370,9 @@ export function RequisiteGeneralForm({
     [initialValues],
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [providerBranchOptions, setProviderBranchOptions] = useState<
+    SearchablePickerOption[]
+  >([]);
   const ownerSelectOptions = useMemo(
     () => toSearchableRelationOptions(ownerOptions),
     [ownerOptions],
@@ -400,10 +414,59 @@ export function RequisiteGeneralForm({
 
   const label = useWatch({ control: form.control, name: "label" });
   const kind = useWatch({ control: form.control, name: "kind" });
+  const providerId = useWatch({ control: form.control, name: "providerId" });
 
   useEffect(() => {
     onLabelChange?.(label ?? "");
   }, [label, onLabelChange]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchProviderBranches() {
+      if (!loadProviderBranches || !providerId.trim()) {
+        setProviderBranchOptions([]);
+        form.setValue("providerBranchId", "", {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        return;
+      }
+
+      try {
+        const nextOptions = toSearchableRelationOptions(
+          await loadProviderBranches(providerId),
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setProviderBranchOptions(nextOptions);
+
+        const currentBranchId = form.getValues("providerBranchId");
+        if (
+          currentBranchId &&
+          !nextOptions.some((option) => option.value === currentBranchId)
+        ) {
+          form.setValue("providerBranchId", "", {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setProviderBranchOptions([]);
+        }
+      }
+    }
+
+    void fetchProviderBranches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form, loadProviderBranches, providerId]);
 
   async function handleFormSubmit(values: RequisiteFormValues) {
     const normalized = normalizeValues(values);
@@ -688,6 +751,13 @@ export function RequisiteGeneralForm({
                   </FieldError>
                 </Field>
                 <Field>
+                  <FieldLabel>Получатель (локальное имя)</FieldLabel>
+                  <Input
+                    {...form.register("beneficiaryNameLocal")}
+                    disabled={submitting || deleting}
+                  />
+                </Field>
+                <Field>
                   <FieldLabel>Номер счёта</FieldLabel>
                   <Input
                     {...form.register("accountNo")}
@@ -710,6 +780,40 @@ export function RequisiteGeneralForm({
                     {...form.register("iban")}
                     disabled={submitting || deleting}
                   />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel>Адрес получателя</FieldLabel>
+                  <Textarea
+                    {...form.register("beneficiaryAddress")}
+                    rows={3}
+                    disabled={submitting || deleting}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>Филиал провайдера</FieldLabel>
+                  <Controller
+                    control={form.control}
+                    name="providerBranchId"
+                    render={({ field }) => (
+                      <SearchablePicker
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        options={providerBranchOptions}
+                        placeholder="Выберите филиал"
+                        searchPlaceholder="Поиск филиала..."
+                        emptyLabel="Филиал не найден"
+                        disabled={
+                          submitting ||
+                          deleting ||
+                          providerBranchOptions.length === 0
+                        }
+                        clearable
+                      />
+                    )}
+                  />
+                  <FieldDescription>
+                    Необязательно. Используется, если routing принадлежит конкретному филиалу.
+                  </FieldDescription>
                 </Field>
               </FieldGroup>
             </FieldSet>

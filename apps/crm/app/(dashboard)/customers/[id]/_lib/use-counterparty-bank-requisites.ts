@@ -3,18 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
-import {
-  BankRequisiteWorkspaceResponseSchema,
-  RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/parties/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
 
-import { API_BASE_URL } from "@/lib/constants";
+import { apiClient } from "@/lib/api-client";
+import { readJsonWithSchema } from "@/lib/api/response";
+
+import {
+  CounterpartyBankRequisiteSchema,
+  CounterpartyBankRequisitesListResponseSchema,
+} from "./counterparty-bank-requisites";
 
 import type { CurrencyOption } from "@bedrock/currencies/contracts";
-import type {
-  CounterpartyBankRequisite,
-} from "./counterparty-bank-requisites";
 import type { RequisiteProviderOption } from "@bedrock/parties/contracts";
+import type { CounterpartyBankRequisite } from "./counterparty-bank-requisites";
 
 type UseCounterpartyBankRequisitesResult = {
   currencyOptions: CurrencyOption[];
@@ -42,33 +43,47 @@ export function useCounterpartyBankRequisites(
       return [];
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${counterpartyId}`,
-      {
-        cache: "no-store",
-        credentials: "include",
+    const response = await apiClient.v1.counterparties[":id"].requisites.$get({
+      param: { id: counterpartyId },
+      query: {
+        limit: 100,
+        offset: 0,
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error(`Не удалось загрузить реквизиты: ${response.status}`);
     }
 
-    const payload = BankRequisiteWorkspaceResponseSchema.parse(
-      await response.json(),
+    const payload = await readJsonWithSchema(
+      response,
+      CounterpartyBankRequisitesListResponseSchema,
     );
-    setRequisites(payload.data);
-    return payload.data;
+    const bankItems = payload.data.filter((item) => item.kind === "bank");
+    const details = await Promise.all(
+      bankItems.map(async (item) => {
+        const detailResponse = await apiClient.v1.requisites[":id"].$get({
+          param: { id: item.id },
+        });
+
+        if (!detailResponse.ok) {
+          throw new Error(
+            `Не удалось загрузить реквизит ${item.label}: ${detailResponse.status}`,
+          );
+        }
+
+        return readJsonWithSchema(detailResponse, CounterpartyBankRequisiteSchema);
+      }),
+    );
+
+    setRequisites(details);
+    return details;
   }, [counterpartyId]);
 
   const fetchOptions = useCallback(async () => {
     const [providersResponse, currenciesResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/requisites/providers/options`, {
-        credentials: "include",
-      }),
-      fetch(`${API_BASE_URL}/currencies/options`, {
-        credentials: "include",
-      }),
+      apiClient.v1.requisites.providers.options.$get({}),
+      apiClient.v1.currencies.options.$get({}),
     ]);
 
     if (!providersResponse.ok) {
@@ -83,11 +98,13 @@ export function useCounterpartyBankRequisites(
       );
     }
 
-    const providersPayload = RequisiteProviderOptionsResponseSchema.parse(
-      await providersResponse.json(),
+    const providersPayload = await readJsonWithSchema(
+      providersResponse,
+      RequisiteProviderOptionsResponseSchema,
     );
-    const currenciesPayload = CurrencyOptionsResponseSchema.parse(
-      await currenciesResponse.json(),
+    const currenciesPayload = await readJsonWithSchema(
+      currenciesResponse,
+      CurrencyOptionsResponseSchema,
     );
 
     setProviderOptions(
@@ -117,7 +134,10 @@ export function useCounterpartyBankRequisites(
         }
       } catch (fetchError) {
         if (!cancelled) {
-          console.error("Failed to load counterparty bank requisites", fetchError);
+          console.error(
+            "Failed to load counterparty bank requisites",
+            fetchError,
+          );
           setError(
             fetchError instanceof Error
               ? fetchError.message

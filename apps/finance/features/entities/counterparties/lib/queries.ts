@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
+import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import {
   CounterpartyListItemSchema,
   CounterpartyGroupOptionsResponseSchema,
@@ -30,9 +31,11 @@ const CounterpartyListItemResponseSchema = CounterpartyListItemSchema.omit({
 });
 
 const CounterpartyResponseSchema = CounterpartySchema.omit({
+  legalEntity: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
+  legalEntity: z.custom<PartyLegalEntityBundleSource | null>().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

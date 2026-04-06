@@ -9,11 +9,13 @@ import {
   useSearchParams,
 } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
+import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import {
   Dialog,
   DialogContent,
@@ -22,15 +24,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@bedrock/sdk-ui/components/dialog";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Label } from "@bedrock/sdk-ui/components/label";
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
+import { executeApiMutation } from "@/lib/api/mutation";
+import { apiClient } from "@/lib/api-client";
 import { API_BASE_URL } from "@/lib/constants";
 import { CustomerDetailHeader } from "./_components/customer-detail-header";
-import {
-  CustomerLegalEntityPanel,
-  CountryField,
-  Field,
-} from "./_components/customer-legal-entity-panel";
+import { CustomerLegalEntityPanel } from "./_components/customer-legal-entity-panel";
 import { CustomerSummaryCard } from "./_components/customer-summary-card";
 import { PendingEntitySwitchDialog } from "./_components/pending-entity-switch-dialog";
 import {
@@ -41,11 +43,7 @@ import {
   type ClientDocument,
   type CustomerFormData,
   type CreateLegalEntityFormData,
-  type CustomerLegalEntity,
   type CustomerWorkspaceDetail,
-  legalEntityFormSchema,
-  legalEntityToFormValues,
-  type LegalEntityFormData,
   resolveActiveLegalEntityId,
 } from "./_lib/customer-detail";
 
@@ -98,7 +96,7 @@ export default function CustomerDetailPage() {
   const [entitySwitchDialogOpen, setEntitySwitchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerSaving, setCustomerSaving] = useState(false);
-  const [legalEntitySaving, setLegalEntitySaving] = useState(false);
+  const [legalEntityDirty, setLegalEntityDirty] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -126,11 +124,6 @@ export default function CustomerDetailPage() {
   const customerForm = useForm<CustomerFormData>({
     defaultValues: customerToFormValues(null),
     resolver: zodResolver(customerFormSchema) as never,
-  });
-
-  const legalEntityForm = useForm<LegalEntityFormData>({
-    defaultValues: legalEntityToFormValues(null),
-    resolver: zodResolver(legalEntityFormSchema) as never,
   });
 
   const createLegalEntityForm = useForm<CreateLegalEntityFormData>({
@@ -174,7 +167,6 @@ export default function CustomerDetailPage() {
   }, [activeCounterpartyId, resolvedActiveCounterpartyId, workspace]);
 
   const customerDirty = customerForm.formState.isDirty;
-  const legalEntityDirty = legalEntityForm.formState.isDirty;
   const hasUnsavedChanges =
     customerDirty || legalEntityDirty || requisitesDirty;
   const hasCustomerAgreement = workspace?.hasActiveAgreement ?? false;
@@ -206,14 +198,14 @@ export default function CustomerDetailPage() {
   );
 
   const resetDraftsFromWorkspace = useCallback(
-    (legalEntity: CustomerLegalEntity | null) => {
+    () => {
       customerForm.reset(customerToFormValues(workspace));
-      legalEntityForm.reset(legalEntityToFormValues(legalEntity));
+      setLegalEntityDirty(false);
       setRequisitesDirty(false);
       setRequisitesResetSignal((current) => current + 1);
       setError(null);
     },
-    [customerForm, legalEntityForm, workspace],
+    [customerForm, workspace],
   );
 
   const requestEntityChange = useCallback(
@@ -369,14 +361,6 @@ export default function CustomerDetailPage() {
   }, [customerDirty, customerForm, workspace]);
 
   useEffect(() => {
-    if (legalEntityDirty) {
-      return;
-    }
-
-    legalEntityForm.reset(legalEntityToFormValues(selectedLegalEntity));
-  }, [legalEntityDirty, legalEntityForm, selectedLegalEntity]);
-
-  useEffect(() => {
     if (workspace?.legalEntities.length) {
       setEmptyAlertDismissed(false);
     }
@@ -434,79 +418,6 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleSaveLegalEntity(data: LegalEntityFormData) {
-    if (!selectedLegalEntity) {
-      return;
-    }
-
-    try {
-      setLegalEntitySaving(true);
-      setError(null);
-
-      const legalEntityPayload = {
-        address: normalizeOptionalText(data.address),
-        directorBasis: normalizeOptionalText(data.directorBasis),
-        directorName: normalizeOptionalText(data.directorName),
-        email: normalizeOptionalText(data.email),
-        inn: normalizeOptionalText(data.inn),
-        kpp: normalizeOptionalText(data.kpp),
-        ogrn: normalizeOptionalText(data.ogrn),
-        okpo: normalizeOptionalText(data.okpo),
-        oktmo: normalizeOptionalText(data.oktmo),
-        orgName: data.orgName.trim(),
-        orgType: normalizeOptionalText(data.orgType),
-        phone: normalizeOptionalText(data.phone),
-        position: normalizeOptionalText(data.position),
-      };
-
-      const legalEntityResponse = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}`,
-        {
-          body: JSON.stringify(legalEntityPayload),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "PATCH",
-        },
-      );
-
-      if (!legalEntityResponse.ok) {
-        const message = await legalEntityResponse
-          .json()
-          .catch(() => ({ error: "Ошибка сохранения юридического лица" }));
-        throw new Error(message.error ?? "Ошибка сохранения юридического лица");
-      }
-
-      const updatedLegalEntity: CustomerLegalEntity =
-        await legalEntityResponse.json();
-      setWorkspace((currentWorkspace) =>
-        currentWorkspace
-          ? {
-              ...currentWorkspace,
-              legalEntities: currentWorkspace.legalEntities.map(
-                (legalEntity) =>
-                  legalEntity.counterpartyId ===
-                  updatedLegalEntity.counterpartyId
-                    ? updatedLegalEntity
-                    : legalEntity,
-              ),
-            }
-          : currentWorkspace,
-      );
-      legalEntityForm.reset(legalEntityToFormValues(updatedLegalEntity));
-    } catch (saveError) {
-      console.error("Failed to save legal entity", saveError);
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Не удалось сохранить юридическое лицо",
-      );
-    } finally {
-      setLegalEntitySaving(false);
-    }
-  }
-
   async function handleArchive() {
     try {
       setDeleting(true);
@@ -542,51 +453,103 @@ export default function CustomerDetailPage() {
       return;
     }
 
-    try {
-      setCreatingLegalEntity(true);
-      setError(null);
+    setCreatingLegalEntity(true);
+    setError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities`,
-        {
-          body: JSON.stringify({
-            address: normalizeOptionalText(values.address),
-            country:
-              normalizeOptionalText(values.country)?.toUpperCase() ?? null,
-            directorName: normalizeOptionalText(values.directorName),
-            email: normalizeOptionalText(values.email),
-            inn: normalizeOptionalText(values.inn),
-            orgName: values.orgName.trim(),
-            phone: normalizeOptionalText(values.phone),
-          }),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
+    const countryCode = normalizeOptionalText(values.country)?.toUpperCase() ?? null;
+    const orgName = values.orgName.trim();
+    const legalEntity = createSeededLegalEntityBundle({
+      fullName: orgName,
+      shortName: orgName,
+      countryCode,
+    });
+
+    if (values.address?.trim()) {
+      legalEntity.addresses.push({
+        type: "registered",
+        label: null,
+        countryCode,
+        jurisdictionCode: null,
+        postalCode: null,
+        city: null,
+        line1: null,
+        line2: null,
+        rawText: normalizeOptionalText(values.address),
+        isPrimary: true,
+      });
+    }
+
+    if (values.email?.trim()) {
+      legalEntity.contacts.push({
+        type: "email",
+        label: null,
+        value: values.email.trim(),
+        isPrimary: true,
+      });
+    }
+
+    if (values.phone?.trim()) {
+      legalEntity.contacts.push({
+        type: "phone",
+        label: null,
+        value: values.phone.trim(),
+        isPrimary: !values.email?.trim(),
+      });
+    }
+
+    if (values.directorName?.trim()) {
+      legalEntity.representatives.push({
+        role: "director",
+        fullName: values.directorName.trim(),
+        fullNameI18n: null,
+        title: null,
+        titleI18n: null,
+        basisDocument: null,
+        basisDocumentI18n: null,
+        isPrimary: true,
+      });
+    }
+
+    if (values.inn?.trim()) {
+      legalEntity.identifiers.push({
+        scheme: "inn",
+        value: values.inn.trim(),
+        jurisdictionCode: countryCode,
+        issuer: null,
+        isPrimary: true,
+        validFrom: null,
+        validTo: null,
+      });
+    }
+
+    const result = await executeApiMutation<{ id: string }>({
+      request: () =>
+        apiClient.v1.counterparties.$post({
+          json: {
+            shortName: orgName,
+            fullName: orgName,
+            kind: "legal_entity",
+            country: countryCode,
+            customerId,
+            relationshipKind: "customer_owned",
+            legalEntity,
           },
-          method: "POST",
-        },
-      );
+        }),
+      fallbackMessage: "Ошибка создания юридического лица",
+      parseData: async (response) => (await response.json()) as { id: string },
+    });
 
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка создания юридического лица" }));
-        throw new Error(message.error ?? "Ошибка создания юридического лица");
-      }
+    if (!result.ok) {
+      setError(result.message);
+      setCreatingLegalEntity(false);
+      return;
+    }
 
-      const created: CustomerLegalEntity = await response.json();
+    try {
       createLegalEntityForm.reset();
       setNewLegalEntityOpen(false);
-      setWorkspace((currentWorkspace) =>
-        currentWorkspace
-          ? {
-              ...currentWorkspace,
-              legalEntities: [...currentWorkspace.legalEntities, created],
-              legalEntityCount: currentWorkspace.legalEntityCount + 1,
-            }
-          : currentWorkspace,
-      );
-      navigateToEntity(created.counterpartyId, "push");
+      await fetchWorkspace();
+      navigateToEntity(result.data.id, "push");
     } catch (createError) {
       console.error("Failed to create legal entity", createError);
       setError(
@@ -752,7 +715,7 @@ export default function CustomerDetailPage() {
 
     setEntitySwitchDialogOpen(false);
     setPendingEntitySwitch(null);
-    resetDraftsFromWorkspace(selectedLegalEntity);
+    resetDraftsFromWorkspace();
 
     if (!nextSwitch) {
       return;
@@ -871,7 +834,7 @@ export default function CustomerDetailPage() {
             deletingDocumentId={deletingDocumentId}
             documents={documents}
             downloadingContract={downloadingContract}
-            form={legalEntityForm}
+            legalEntityResetSignal={requisitesResetSignal}
             loadingDocuments={loadingDocuments}
             onContractLangChange={setContractLang}
             onDeleteDocument={(documentId) => {
@@ -886,13 +849,14 @@ export default function CustomerDetailPage() {
             onEntityChange={(counterpartyId) => {
               requestEntityChange(counterpartyId, "push");
             }}
+            onLegalEntityDirtyChange={setLegalEntityDirty}
+            onLegalEntitySaved={() => {
+              setLegalEntityDirty(false);
+              void fetchWorkspace();
+            }}
             onRequisitesDirtyChange={setRequisitesDirty}
             requisitesResetSignal={requisitesResetSignal}
-            onSave={(data) => {
-              void handleSaveLegalEntity(data);
-            }}
             onUploadDocument={() => setUploadDialogOpen(true)}
-            saving={legalEntitySaving}
             selectedLegalEntity={selectedLegalEntity}
             workspaceLegalEntities={workspace.legalEntities}
             workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
@@ -984,7 +948,7 @@ export default function CustomerDetailPage() {
               handleCreateLegalEntity,
             )}
           >
-            <Field
+            <DialogField
               disabled={creatingLegalEntity}
               form={createLegalEntityForm}
               label="Название юр. лица"
@@ -992,39 +956,39 @@ export default function CustomerDetailPage() {
               required
             />
             <div className="grid gap-4 md:grid-cols-2">
-              <Field
+              <DialogField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="ИНН"
                 name="inn"
               />
-              <Field
+              <DialogField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="Email"
                 name="email"
                 type="email"
               />
-              <Field
+              <DialogField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="Телефон"
                 name="phone"
               />
-              <Field
+              <DialogField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="Директор"
                 name="directorName"
               />
-              <CountryField
+              <DialogCountryField
                 disabled={creatingLegalEntity}
                 form={createLegalEntityForm}
                 label="Страна"
                 name="country"
               />
             </div>
-            <Field
+            <DialogField
               disabled={creatingLegalEntity}
               form={createLegalEntityForm}
               label="Адрес"
@@ -1072,6 +1036,77 @@ export default function CustomerDetailPage() {
           }}
           open={contractDialogOpen}
         />
+      ) : null}
+    </div>
+  );
+}
+
+type DialogFieldProps = {
+  disabled?: boolean;
+  form: UseFormReturn<CreateLegalEntityFormData>;
+  label: string;
+  name: keyof CreateLegalEntityFormData;
+  required?: boolean;
+  type?: "email" | "text";
+};
+
+function DialogField({
+  disabled,
+  form,
+  label,
+  name,
+  required = false,
+  type = "text",
+}: DialogFieldProps) {
+  const error = form.formState.errors[name]?.message;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`create-legal-entity-${name}`}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </Label>
+      <Input
+        id={`create-legal-entity-${name}`}
+        type={type}
+        disabled={disabled}
+        {...form.register(name)}
+      />
+      {typeof error === "string" ? (
+        <p className="text-xs text-destructive">{error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function DialogCountryField(props: {
+  disabled?: boolean;
+  form: UseFormReturn<CreateLegalEntityFormData>;
+  label: string;
+  name: "country";
+}) {
+  const error = props.form.formState.errors[props.name]?.message;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`create-legal-entity-${props.name}`}>{props.label}</Label>
+      <CountrySelect
+        value={props.form.watch(props.name) ?? ""}
+        onValueChange={(value) =>
+          props.form.setValue(props.name, value, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+        disabled={props.disabled}
+        clearable
+        placeholder="Выберите страну"
+        searchPlaceholder="Поиск страны..."
+        emptyLabel="Страна не найдена"
+        clearLabel="Очистить"
+      />
+      {typeof error === "string" ? (
+        <p className="text-xs text-destructive">{error}</p>
       ) : null}
     </div>
   );

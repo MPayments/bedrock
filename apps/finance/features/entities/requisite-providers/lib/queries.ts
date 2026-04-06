@@ -40,7 +40,10 @@ const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
   branches: z.array(
     z.object({
       id: z.uuid(),
+      code: z.string().nullable(),
       name: z.string(),
+      country: z.string().nullable(),
+      jurisdictionCode: z.string().nullable(),
       rawAddress: z.string().nullable(),
       line1: z.string().nullable(),
       line2: z.string().nullable(),
@@ -59,6 +62,8 @@ const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
     }),
   ),
 });
+
+export type RequisiteProviderDetails = z.infer<typeof RequisiteProviderApiSchema>;
 
 const RequisiteProvidersResponseSchema = createPaginatedResponseSchema(
   RequisiteProviderListItemApiSchema,
@@ -120,7 +125,7 @@ export async function getRequisiteProviders(
 
 const getRequisiteProviderByIdUncached = async (
   id: string,
-): Promise<SerializedRequisiteProvider | null> => {
+): Promise<RequisiteProviderDetails | null> => {
   return readEntityById({
     id,
     resourceName: "провайдера реквизитов",
@@ -131,7 +136,7 @@ const getRequisiteProviderByIdUncached = async (
         { init: { cache: "no-store" } },
       );
     },
-    schema: RequisiteProviderApiSchema.transform(serializeProvider),
+    schema: RequisiteProviderApiSchema,
   });
 };
 

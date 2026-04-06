@@ -49,11 +49,14 @@ export type RelationOption = {
 export type RequisiteFormValues = {
   ownerId: string;
   providerId: string;
+  providerBranchId: string;
   currencyId: string;
   kind: RequisiteKind;
   label: string;
   description: string;
   beneficiaryName: string;
+  beneficiaryNameLocal: string;
+  beneficiaryAddress: string;
   accountNo: string;
   corrAccount: string;
   iban: string;

@@ -52,11 +52,14 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
-import { API_BASE_URL } from "@/lib/constants";
+import { apiClient } from "@/lib/api-client";
+import { executeApiMutation } from "@/lib/api/mutation";
+import { readJsonWithSchema } from "@/lib/api/response";
 import { PendingRequisiteSwitchDialog } from "./pending-requisite-switch-dialog";
 import {
   bankRequisiteEditorFormSchema,
   bankRequisiteToFormValues,
+  CounterpartyBankRequisiteSchema,
   createCounterpartyBankRequisitePatch,
   createCounterpartyBankRequisitePayload,
   createEmptyBankRequisiteValues,
@@ -64,8 +67,10 @@ import {
   getBankProviderLabel,
   getCurrencyLabel,
   groupBankRequisitesByCurrency,
+  RequisiteProviderDetailsSchema,
   resolveInitialBankRequisiteId,
   type BankRequisiteEditorFormData,
+  type RequisiteProviderDetails,
 } from "../_lib/counterparty-bank-requisites";
 import { useCounterpartyBankRequisites } from "../_lib/use-counterparty-bank-requisites";
 
@@ -134,6 +139,55 @@ function ProviderCombobox(props: {
   );
 }
 
+function findPrimaryIdentifier(
+  provider: RequisiteProviderDetails | null,
+  scheme: string,
+) {
+  if (!provider) {
+    return null;
+  }
+
+  const branchValue =
+    provider.branches
+      .flatMap((branch) =>
+        branch.isPrimary ? branch.identifiers : [],
+      )
+      .find((identifier) => identifier.scheme === scheme)?.value ?? null;
+
+  if (branchValue) {
+    return branchValue;
+  }
+
+  return (
+    provider.identifiers.find((identifier) => identifier.scheme === scheme)
+      ?.value ?? null
+  );
+}
+
+function formatProviderAddress(provider: RequisiteProviderDetails | null) {
+  if (!provider) {
+    return null;
+  }
+
+  const primaryBranch =
+    provider.branches.find((branch) => branch.isPrimary) ?? provider.branches[0];
+
+  if (!primaryBranch) {
+    return null;
+  }
+
+  const fallbackAddress = [
+    primaryBranch.line1,
+    primaryBranch.line2,
+    primaryBranch.city,
+    primaryBranch.postalCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return primaryBranch.rawAddress ?? (fallbackAddress || null);
+}
+
 export function CounterpartyBankRequisitesWorkspace({
   counterpartyId,
   legalEntityName,
@@ -156,6 +210,9 @@ export function CounterpartyBankRequisitesWorkspace({
   const [archiving, setArchiving] = useState(false);
   const [settingDefault, setSettingDefault] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [providerDetail, setProviderDetail] =
+    useState<RequisiteProviderDetails | null>(null);
+  const [providerDetailLoading, setProviderDetailLoading] = useState(false);
   const legalEntityNameRef = useRef(legalEntityName);
 
   const form = useForm<BankRequisiteEditorFormData>({
@@ -164,8 +221,8 @@ export function CounterpartyBankRequisitesWorkspace({
   });
 
   const groupedRequisites = useMemo(
-    () => groupBankRequisitesByCurrency(requisites),
-    [requisites],
+    () => groupBankRequisitesByCurrency(requisites, currencyOptions),
+    [currencyOptions, requisites],
   );
   const selectedRequisiteId =
     editorState.kind === "existing" ? editorState.requisiteId : null;
@@ -174,14 +231,24 @@ export function CounterpartyBankRequisitesWorkspace({
       ? (requisites.find((requisite) => requisite.id === selectedRequisiteId) ??
         null)
       : null;
+  const selectedProviderId = form.watch("providerId");
+  const selectedProviderBranchId = form.watch("providerBranchId");
   const selectedCurrencyLabel =
     currencyOptions.find((option) => option.id === form.watch("currencyId"))
       ?.label ?? undefined;
-  const currentProviderLabel = selectedRequisite
-    ? getBankProviderLabel(selectedRequisite, providerOptions)
-    : (providerOptions.find((option) => option.id === form.watch("providerId"))
-        ?.label ?? "Банк не выбран");
-  const isEditorBusy = saving || archiving || settingDefault;
+  const currentProviderLabel =
+    providerDetail?.displayName ??
+    (selectedProviderId
+      ? (providerOptions.find((option) => option.id === selectedProviderId)
+          ?.label ?? "Банк не выбран")
+      : selectedRequisite
+        ? getBankProviderLabel(selectedRequisite, providerOptions)
+        : "Банк не выбран");
+  const selectedBranch =
+    providerDetail?.branches.find((branch) => branch.id === selectedProviderBranchId) ??
+    null;
+  const isEditorBusy =
+    saving || archiving || settingDefault || providerDetailLoading;
   const hasUnsavedEditorState =
     editorState.kind === "create" || form.formState.isDirty;
   const showEditorSaveActions = hasUnsavedEditorState;
@@ -199,6 +266,7 @@ export function CounterpartyBankRequisitesWorkspace({
     setPendingEditorState(null);
     setSwitchDialogOpen(false);
     setMutationError(null);
+    setProviderDetail(null);
     form.reset(createEmptyBankRequisiteValues(legalEntityNameRef.current));
   }, [counterpartyId, form, resetSignal]);
 
@@ -207,10 +275,7 @@ export function CounterpartyBankRequisitesWorkspace({
       return;
     }
 
-    const nextId = resolveInitialBankRequisiteId(
-      requisites,
-      selectedRequisiteId,
-    );
+    const nextId = resolveInitialBankRequisiteId(requisites, selectedRequisiteId);
 
     if (!nextId) {
       setEditorState({ kind: "idle" });
@@ -233,10 +298,7 @@ export function CounterpartyBankRequisitesWorkspace({
 
     if (editorState.kind === "existing") {
       form.reset(
-        bankRequisiteToFormValues(
-          selectedRequisite,
-          legalEntityNameRef.current,
-        ),
+        bankRequisiteToFormValues(selectedRequisite, legalEntityNameRef.current),
       );
       setMutationError(null);
       return;
@@ -245,6 +307,73 @@ export function CounterpartyBankRequisitesWorkspace({
     form.reset(createEmptyBankRequisiteValues(legalEntityNameRef.current));
     setMutationError(null);
   }, [editorState, form, selectedRequisite]);
+
+  useEffect(() => {
+    if (!selectedProviderId) {
+      setProviderDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadProviderDetail() {
+      try {
+        setProviderDetailLoading(true);
+        const response = await apiClient.v1.requisites.providers[":id"].$get({
+          param: { id: selectedProviderId },
+        });
+
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить данные банка");
+        }
+
+        const payload = await readJsonWithSchema(
+          response,
+          RequisiteProviderDetailsSchema,
+        );
+
+        if (!cancelled) {
+          setProviderDetail(payload);
+        }
+      } catch (loadProviderError) {
+        if (!cancelled) {
+          setProviderDetail(null);
+          setMutationError(
+            loadProviderError instanceof Error
+              ? loadProviderError.message
+              : "Не удалось загрузить данные банка",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setProviderDetailLoading(false);
+        }
+      }
+    }
+
+    void loadProviderDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProviderId]);
+
+  useEffect(() => {
+    if (!providerDetail || !selectedProviderBranchId) {
+      return;
+    }
+
+    const branchExists = providerDetail.branches.some(
+      (branch) => branch.id === selectedProviderBranchId,
+    );
+
+    if (!branchExists) {
+      form.setValue("providerBranchId", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [form, providerDetail, selectedProviderBranchId]);
 
   function applyEditorState(nextState: EditorState) {
     setEditorState(nextState);
@@ -295,53 +424,40 @@ export function CounterpartyBankRequisitesWorkspace({
   }
 
   async function handleSave(values: BankRequisiteEditorFormData) {
-    try {
-      setSaving(true);
-      setMutationError(null);
+    setSaving(true);
+    setMutationError(null);
 
-      const response = await fetch(
+    const result = await executeApiMutation({
+      request: () =>
         editorState.kind === "existing"
-          ? `${API_BASE_URL}/requisites/${editorState.requisiteId}`
-          : `${API_BASE_URL}/requisites`,
-        {
-          body: JSON.stringify(
-            editorState.kind === "existing"
-              ? createCounterpartyBankRequisitePatch(values)
-              : createCounterpartyBankRequisitePayload({
-                  counterpartyId,
-                  values,
-                }),
-          ),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: editorState.kind === "existing" ? "PATCH" : "POST",
-        },
-      );
+          ? apiClient.v1.requisites[":id"].$patch({
+              param: { id: editorState.requisiteId },
+              json: createCounterpartyBankRequisitePatch(values),
+            })
+          : apiClient.v1.counterparties[":id"].requisites.$post({
+              param: { id: counterpartyId },
+              json: createCounterpartyBankRequisitePayload({
+                counterpartyId,
+                values,
+              }),
+            }),
+      fallbackMessage: "Не удалось сохранить реквизит",
+      parseData: async (response) =>
+        readJsonWithSchema(response, CounterpartyBankRequisiteSchema),
+    });
 
-      if (!response.ok) {
-        const payload = await response
-          .json()
-          .catch(() => ({ error: "Не удалось сохранить реквизит" }));
-        throw new Error(payload.error ?? "Не удалось сохранить реквизит");
-      }
+    setSaving(false);
 
-      const saved = (await response.json()) as { id: string };
-      const nextRequisites = await refresh();
-      const nextId =
-        resolveInitialBankRequisiteId(nextRequisites, saved.id) ?? saved.id;
-      applyEditorState({ kind: "existing", requisiteId: nextId });
-    } catch (saveError) {
-      console.error("Failed to save counterparty bank requisite", saveError);
-      setMutationError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Не удалось сохранить реквизит",
-      );
-    } finally {
-      setSaving(false);
+    if (!result.ok) {
+      setMutationError(result.message);
+      return;
     }
+
+    const nextRequisites = await refresh();
+    const nextId =
+      resolveInitialBankRequisiteId(nextRequisites, result.data.id) ??
+      result.data.id;
+    applyEditorState({ kind: "existing", requisiteId: nextId });
   }
 
   async function handleArchive() {
@@ -349,43 +465,30 @@ export function CounterpartyBankRequisitesWorkspace({
       return;
     }
 
-    try {
-      setArchiving(true);
-      setMutationError(null);
+    setArchiving(true);
+    setMutationError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/requisites/${editorState.requisiteId}`,
-        {
-          credentials: "include",
-          method: "DELETE",
-        },
-      );
+    const result = await executeApiMutation({
+      request: () =>
+        apiClient.v1.requisites[":id"].$delete({
+          param: { id: editorState.requisiteId },
+        }),
+      fallbackMessage: "Не удалось архивировать реквизит",
+      parseData: async () => ({ deleted: true }),
+    });
 
-      if (!response.ok) {
-        const payload = await response
-          .json()
-          .catch(() => ({ error: "Не удалось архивировать реквизит" }));
-        throw new Error(payload.error ?? "Не удалось архивировать реквизит");
-      }
+    setArchiving(false);
 
-      const nextRequisites = await refresh();
-      const nextId = resolveInitialBankRequisiteId(nextRequisites, null);
-      applyEditorState(
-        nextId ? { kind: "existing", requisiteId: nextId } : { kind: "idle" },
-      );
-    } catch (archiveError) {
-      console.error(
-        "Failed to archive counterparty bank requisite",
-        archiveError,
-      );
-      setMutationError(
-        archiveError instanceof Error
-          ? archiveError.message
-          : "Не удалось архивировать реквизит",
-      );
-    } finally {
-      setArchiving(false);
+    if (!result.ok) {
+      setMutationError(result.message);
+      return;
     }
+
+    const nextRequisites = await refresh();
+    const nextId = resolveInitialBankRequisiteId(nextRequisites, null);
+    applyEditorState(
+      nextId ? { kind: "existing", requisiteId: nextId } : { kind: "idle" },
+    );
   }
 
   async function handleMakeDefault() {
@@ -393,48 +496,34 @@ export function CounterpartyBankRequisitesWorkspace({
       return;
     }
 
-    try {
-      setSettingDefault(true);
-      setMutationError(null);
+    setSettingDefault(true);
+    setMutationError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/requisites/${editorState.requisiteId}`,
-        {
-          body: JSON.stringify({ isDefault: true }),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "PATCH",
-        },
-      );
+    const result = await executeApiMutation({
+      request: () =>
+        apiClient.v1.requisites[":id"].$patch({
+          param: { id: editorState.requisiteId },
+          json: { isDefault: true },
+        }),
+      fallbackMessage: "Не удалось обновить основной реквизит",
+      parseData: async (response) =>
+        readJsonWithSchema(response, CounterpartyBankRequisiteSchema),
+    });
 
-      if (!response.ok) {
-        const payload = await response
-          .json()
-          .catch(() => ({ error: "Не удалось обновить основной реквизит" }));
-        throw new Error(
-          payload.error ?? "Не удалось обновить основной реквизит",
-        );
-      }
+    setSettingDefault(false);
 
-      await refresh();
-    } catch (defaultError) {
-      console.error(
-        "Failed to promote counterparty bank requisite",
-        defaultError,
-      );
-      setMutationError(
-        defaultError instanceof Error
-          ? defaultError.message
-          : "Не удалось обновить основной реквизит",
-      );
-    } finally {
-      setSettingDefault(false);
+    if (!result.ok) {
+      setMutationError(result.message);
+      return;
     }
+
+    await refresh();
   }
 
   const effectiveError = mutationError ?? loadError;
+  const providerSwift = findPrimaryIdentifier(providerDetail, "swift");
+  const providerBic = findPrimaryIdentifier(providerDetail, "bic");
+  const providerAddress = formatProviderAddress(providerDetail);
 
   return (
     <>
@@ -526,10 +615,7 @@ export function CounterpartyBankRequisitesWorkspace({
                                   {requisite.label}
                                 </p>
                                 <p className="truncate text-sm text-muted-foreground">
-                                  {getBankProviderLabel(
-                                    requisite,
-                                    providerOptions,
-                                  )}
+                                  {getBankProviderLabel(requisite, providerOptions)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {formatBankRequisiteIdentity(requisite)}
@@ -622,9 +708,7 @@ export function CounterpartyBankRequisitesWorkspace({
                               })
                             }
                           />
-                          <FieldError
-                            message={form.formState.errors.label?.message}
-                          />
+                          <FieldError message={form.formState.errors.label?.message} />
                         </div>
 
                         <div className="space-y-2">
@@ -670,44 +754,87 @@ export function CounterpartyBankRequisitesWorkspace({
                         </Label>
                         <ProviderCombobox
                           disabled={isEditorBusy}
-                          onSelect={(providerId) =>
+                          onSelect={(providerId) => {
                             form.setValue("providerId", providerId, {
                               shouldDirty: true,
                               shouldValidate: true,
-                            })
-                          }
+                            });
+                            form.setValue("providerBranchId", "", {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                          }}
                           options={providerOptions.map((option) => ({
                             id: option.id,
                             label: option.label,
                           }))}
-                          value={form.watch("providerId")}
+                          value={selectedProviderId}
                         />
                         <FieldError
                           message={form.formState.errors.providerId?.message}
                         />
                       </div>
 
-                      {selectedRequisite?.provider ? (
+                      {providerDetail ? (
                         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                          <p className="font-medium">
-                            {selectedRequisite.provider.name}
-                          </p>
+                          <p className="font-medium">{providerDetail.displayName}</p>
                           <div className="mt-1 space-y-1 text-muted-foreground">
-                            {selectedRequisite.provider.country ? (
-                              <p>
-                                Страна: {selectedRequisite.provider.country}
-                              </p>
+                            {providerDetail.country ? (
+                              <p>Страна: {providerDetail.country}</p>
                             ) : null}
-                            {selectedRequisite.provider.address ? (
-                              <p>{selectedRequisite.provider.address}</p>
-                            ) : null}
-                            {selectedRequisite.provider.bic ? (
-                              <p>BIC: {selectedRequisite.provider.bic}</p>
-                            ) : null}
-                            {selectedRequisite.provider.swift ? (
-                              <p>SWIFT: {selectedRequisite.provider.swift}</p>
-                            ) : null}
+                            {providerAddress ? <p>{providerAddress}</p> : null}
+                            {providerBic ? <p>BIC: {providerBic}</p> : null}
+                            {providerSwift ? <p>SWIFT: {providerSwift}</p> : null}
                           </div>
+                        </div>
+                      ) : null}
+
+                      {providerDetail?.branches.length ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="requisite-provider-branch">Филиал банка</Label>
+                          <Select
+                            value={selectedProviderBranchId}
+                            onValueChange={(value) =>
+                              form.setValue("providerBranchId", value ?? "", {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                            disabled={isEditorBusy}
+                          >
+                            <SelectTrigger id="requisite-provider-branch">
+                              <SelectValue placeholder="Выберите филиал" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {providerDetail.branches.map((branch) => (
+                                <SelectItem key={branch.id} value={branch.id}>
+                                  {branch.name}
+                                  {branch.isPrimary ? " · основной" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : null}
+
+                      {selectedBranch ? (
+                        <div className="rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground">
+                            {selectedBranch.name}
+                          </p>
+                          {selectedBranch.rawAddress ? (
+                            <p className="mt-1">{selectedBranch.rawAddress}</p>
+                          ) : null}
+                          {selectedBranch.contactPhone ? (
+                            <p className="mt-1">
+                              Телефон: {selectedBranch.contactPhone}
+                            </p>
+                          ) : null}
+                          {selectedBranch.contactEmail ? (
+                            <p className="mt-1">
+                              Email: {selectedBranch.contactEmail}
+                            </p>
+                          ) : null}
                         </div>
                       ) : null}
 
@@ -735,6 +862,27 @@ export function CounterpartyBankRequisitesWorkspace({
                           <FieldError
                             message={
                               form.formState.errors.beneficiaryName?.message
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="requisite-beneficiary-local">
+                            Получатель (локальное имя)
+                          </Label>
+                          <Input
+                            id="requisite-beneficiary-local"
+                            disabled={isEditorBusy}
+                            value={form.watch("beneficiaryNameLocal")}
+                            onChange={(event) =>
+                              form.setValue(
+                                "beneficiaryNameLocal",
+                                event.target.value,
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                },
+                              )
                             }
                           />
                         </div>
@@ -799,37 +947,44 @@ export function CounterpartyBankRequisitesWorkspace({
                         </div>
                       </div>
 
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="requisite-description">
-                            Описание
-                          </Label>
-                          <Input
-                            id="requisite-description"
-                            disabled={isEditorBusy}
-                            value={form.watch("description")}
-                            onChange={(event) =>
-                              form.setValue("description", event.target.value, {
+                      <div className="space-y-2">
+                        <Label htmlFor="requisite-beneficiary-address">
+                          Адрес получателя
+                        </Label>
+                        <Textarea
+                          id="requisite-beneficiary-address"
+                          disabled={isEditorBusy}
+                          value={form.watch("beneficiaryAddress")}
+                          onChange={(event) =>
+                            form.setValue("beneficiaryAddress", event.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="requisite-payment-purpose">
+                          Шаблон назначения платежа
+                        </Label>
+                        <Textarea
+                          id="requisite-payment-purpose"
+                          disabled={isEditorBusy}
+                          value={form.watch("paymentPurposeTemplate")}
+                          onChange={(event) =>
+                            form.setValue(
+                              "paymentPurposeTemplate",
+                              event.target.value,
+                              {
                                 shouldDirty: true,
                                 shouldValidate: true,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="requisite-contact">Контакт</Label>
-                          <Input
-                            id="requisite-contact"
-                            disabled={isEditorBusy}
-                            value={form.watch("contact")}
-                            onChange={(event) =>
-                              form.setValue("contact", event.target.value, {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              })
-                            }
-                          />
-                        </div>
+                              },
+                            )
+                          }
+                          rows={3}
+                        />
                       </div>
 
                       <div className="space-y-2">
@@ -853,7 +1008,7 @@ export function CounterpartyBankRequisitesWorkspace({
                           checked={form.watch("isDefault")}
                           disabled={isEditorBusy}
                           onCheckedChange={(checked) =>
-                            form.setValue("isDefault", Boolean(checked), {
+                            form.setValue("isDefault", checked === true, {
                               shouldDirty: true,
                               shouldValidate: true,
                             })

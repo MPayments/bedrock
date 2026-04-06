@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createCompactProviderInput } from "@bedrock/sdk-parties-ui/lib/requisite-provider-master-data";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
@@ -12,10 +13,6 @@ import {
   RequisiteProviderForm,
   type RequisiteProviderFormValues,
 } from "./requisite-provider-form";
-import {
-  buildPrimaryProviderBranch,
-  buildProviderIdentifiers,
-} from "../lib/master-data";
 
 type CreatedRequisiteProvider = {
   id: string;
@@ -33,15 +30,16 @@ export function CreateRequisiteProviderFormClient() {
     const result = await executeMutation<CreatedRequisiteProvider>({
       request: () =>
         apiClient.v1.requisites.providers.$post({
-          json: {
+          json: createCompactProviderInput({
             kind: values.kind,
             legalName: values.name,
-            displayName: values.name,
-            description: values.description || undefined,
-            country: values.country || undefined,
-            identifiers: buildProviderIdentifiers(values),
-            branches: buildPrimaryProviderBranch(values),
-          },
+            description: values.description,
+            country: values.country,
+            address: values.address,
+            contact: values.contact,
+            bic: values.bic,
+            swift: values.swift,
+          }),
         }),
       fallbackMessage: "Не удалось создать провайдера реквизитов",
       parseData: async (response) =>

@@ -3,6 +3,9 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
+import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
+import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -11,7 +14,6 @@ import {
 } from "./organization-form";
 import type { SerializedOrganization } from "../lib/types";
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
-import { buildOrganizationLegalEntityPayload } from "../lib/legal-entity-payload";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -44,6 +46,7 @@ export function EditOrganizationFormClient({
     toFormValues(organization),
   );
   const [submitting, setSubmitting] = useState(false);
+  const [savingLegalEntity, setSavingLegalEntity] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,36 +72,13 @@ export function EditOrganizationFormClient({
 
     const result = await executeMutation<SerializedOrganization>({
       request: () =>
-        (async () => {
-          const patchResponse = await apiClient.v1.organizations[":id"].$patch({
-            param: { id: current.id },
-            json: {
-              externalId: values.externalId || null,
-              description: values.description || null,
-            },
-          });
-
-          if (!patchResponse.ok || values.kind !== "legal_entity") {
-            return patchResponse;
-          }
-
-          const putLegalEntityResponse =
-            await apiClient.v1.organizations[":id"]["legal-entity"].$put({
-              param: { id: current.id },
-              json: buildOrganizationLegalEntityPayload(
-                values,
-                current.legalEntity,
-              ),
-            });
-
-          if (!putLegalEntityResponse.ok) {
-            return putLegalEntityResponse;
-          }
-
-          return apiClient.v1.organizations[":id"].$get({
-            param: { id: current.id },
-          });
-        })(),
+        apiClient.v1.organizations[":id"].$patch({
+          param: { id: current.id },
+          json: {
+            externalId: values.externalId || null,
+            description: values.description || null,
+          },
+        }),
       fallbackMessage: "Не удалось обновить организацию",
       parseData: async (response) => (await response.json()) as SerializedOrganization,
     });
@@ -118,6 +98,48 @@ export function EditOrganizationFormClient({
     router.refresh();
 
     return nextValues;
+  }
+
+  async function handleLegalEntitySubmit(
+    bundle: PartyLegalEntityBundleInput,
+  ) {
+    setError(null);
+    setSavingLegalEntity(true);
+
+    const result = await executeMutation<SerializedOrganization>({
+      request: async () => {
+        const response =
+          await apiClient.v1.organizations[":id"]["legal-entity"].$put({
+            param: { id: current.id },
+            json: bundle,
+          });
+
+        if (!response.ok) {
+          return response;
+        }
+
+        return apiClient.v1.organizations[":id"].$get({
+          param: { id: current.id },
+        });
+      },
+      fallbackMessage: "Не удалось обновить юридические данные организации",
+      parseData: async (response) => (await response.json()) as SerializedOrganization,
+    });
+
+    setSavingLegalEntity(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
+    }
+
+    setCurrent(result.data);
+    setInitialValues(toFormValues(result.data));
+    toast.success("Юридические данные организации обновлены");
+    router.refresh();
+
+    return (result.data.legalEntity as PartyLegalEntityBundleSource | null) ?? bundle;
   }
 
   async function handleDelete() {
@@ -148,16 +170,32 @@ export function EditOrganizationFormClient({
   }
 
   return (
-    <OrganizationEditGeneralForm
-      initialValues={initialValues}
-      createdAt={current.createdAt}
-      updatedAt={current.updatedAt}
-      submitting={submitting}
-      deleting={deleting}
-      error={error}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-      onShortNameChange={handleShortNameChange}
-    />
+    <div className="space-y-6">
+      <OrganizationEditGeneralForm
+        initialValues={initialValues}
+        createdAt={current.createdAt}
+        updatedAt={current.updatedAt}
+        submitting={submitting}
+        deleting={deleting}
+        error={error}
+        onSubmit={handleSubmit}
+        onDelete={handleDelete}
+        onShortNameChange={handleShortNameChange}
+      />
+      {current.kind === "legal_entity" ? (
+        <LegalEntityBundleEditor
+          bundle={current.legalEntity as PartyLegalEntityBundleSource | null}
+          seed={{
+            fullName: current.fullName,
+            shortName: current.shortName,
+            countryCode: current.country,
+          }}
+          submitting={savingLegalEntity}
+          error={error}
+          onSubmit={handleLegalEntitySubmit}
+          title="Мастер-данные организации"
+        />
+      ) : null}
+    </div>
   );
 }

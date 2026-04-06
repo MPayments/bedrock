@@ -23,6 +23,8 @@
     "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",
+    "@bedrock/sdk-api-client": "workspace:*",
+    "@bedrock/sdk-parties-ui": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",

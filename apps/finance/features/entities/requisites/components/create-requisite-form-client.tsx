@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { RequisiteProviderSchema } from "@bedrock/parties/contracts";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { z } from "zod";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type {
@@ -49,6 +51,33 @@ export function CreateRequisiteFormClient({
   const ownerOptions = getRequisiteOwnerOptions(options, ownerType);
   const ownerPresentation = getRequisiteOwnerPresentation(ownerType);
 
+  async function loadProviderBranches(providerId: string) {
+    const response = await apiClient.v1.requisites.providers[":id"].$get({
+      param: { id: providerId },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const provider = RequisiteProviderSchema.omit({
+      createdAt: true,
+      updatedAt: true,
+      archivedAt: true,
+    })
+      .extend({
+        createdAt: z.iso.datetime(),
+        updatedAt: z.iso.datetime(),
+        archivedAt: z.iso.datetime().nullable(),
+      })
+      .parse(await response.json());
+
+    return provider.branches.map((branch) => ({
+      id: branch.id,
+      label: branch.name,
+    }));
+  }
+
   async function handleSubmit(values: RequisiteFormValues) {
     if (!ownerType) {
       return;
@@ -61,12 +90,13 @@ export function CreateRequisiteFormClient({
       request: () => {
         const json = {
           providerId: values.providerId,
+          providerBranchId: values.providerBranchId || null,
           currencyId: values.currencyId,
           kind: values.kind,
           label: values.label,
           beneficiaryName: values.beneficiaryName || null,
-          beneficiaryNameLocal: null,
-          beneficiaryAddress: null,
+          beneficiaryNameLocal: values.beneficiaryNameLocal || null,
+          beneficiaryAddress: values.beneficiaryAddress || null,
           paymentPurposeTemplate: values.description || null,
           notes: values.notes || null,
           identifiers: buildRequisiteIdentifiers(values),
@@ -107,6 +137,7 @@ export function CreateRequisiteFormClient({
       ownerOptions={ownerOptions}
       ownerTypeReadonly={ownerTypeReadonly}
       providerOptions={options.providers}
+      loadProviderBranches={loadProviderBranches}
       currencyOptions={options.currencies}
       initialValues={initialValues}
       ownerReadonly={ownerReadonly}

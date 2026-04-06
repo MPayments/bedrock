@@ -71,6 +71,8 @@ const RequisiteDetailsSchema = RequisiteApiSchema.transform<
   ...toLegacyRequisiteValues({
     kind: row.kind,
     beneficiaryName: row.beneficiaryName,
+    beneficiaryNameLocal: row.beneficiaryNameLocal,
+    beneficiaryAddress: row.beneficiaryAddress,
     paymentPurposeTemplate: row.paymentPurposeTemplate,
     notes: row.notes,
     identifiers: row.identifiers,
@@ -78,6 +80,7 @@ const RequisiteDetailsSchema = RequisiteApiSchema.transform<
   id: row.id,
   ownerId: row.ownerId,
   providerId: row.providerId,
+  providerBranchId: row.providerBranchId ?? "",
   currencyId: row.currencyId,
   kind: row.kind,
   label: row.label,
