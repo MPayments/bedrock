@@ -1,8 +1,8 @@
-import type { CurrenciesService } from "@bedrock/currencies";
 import type { CalculationDetails } from "@bedrock/calculations/contracts";
+import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
-import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
+import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,

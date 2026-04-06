@@ -82,7 +82,7 @@ export interface CommercialDealFxContext {
   calculationId: string | null;
   dealId: string;
   dealType: string;
-  financialLines: Array<{
+  financialLines: {
     amountMinor: bigint;
     bucket:
       | "adjustment"
@@ -96,7 +96,7 @@ export interface CommercialDealFxContext {
     metadata?: Record<string, string>;
     settlementMode: "in_ledger";
     source: "rule";
-  }>;
+  }[];
   fundingResolution: DealFundingResolution;
   hasConvertLeg: boolean;
   originalAmountMinor: string | null;

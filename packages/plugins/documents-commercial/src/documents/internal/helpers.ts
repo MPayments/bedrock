@@ -27,7 +27,6 @@ import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
   AcceptancePayloadSchema,
   ExchangePayloadSchema,
-  InvoiceCurrentPayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
   type ExchangePayload,

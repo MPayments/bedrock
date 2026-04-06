@@ -1141,7 +1141,7 @@ function sumCalculationLineAmountsByCurrency(
 }
 
 function mergeProfitabilityAmountsByCurrency(
-  ...groups: Array<Map<string, bigint>>
+  ...groups: Map<string, bigint>[]
 ) {
   const totals = new Map<string, bigint>();
 

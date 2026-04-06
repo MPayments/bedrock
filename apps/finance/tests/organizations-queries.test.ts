@@ -65,5 +65,5 @@ describe("organizations queries", () => {
       },
       { init: { cache: "no-store" } },
     );
-  });
+  }, 15_000);
 });

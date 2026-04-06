@@ -1,7 +1,6 @@
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -56,11 +55,11 @@ interface DadataResponse {
   resultCode?: string;
 }
 
-type JsonRequestResponse = {
+interface JsonRequestResponse {
   body: unknown;
   status: number;
   statusText: string;
-};
+}
 
 async function postJsonWithTimeout(input: {
   body: unknown;

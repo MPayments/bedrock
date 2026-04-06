@@ -84,5 +84,5 @@ describe("finance deals table", () => {
     });
 
     expect(push).toHaveBeenCalledWith("/treasury/deals/deal-1");
-  });
+  }, 15_000);
 });

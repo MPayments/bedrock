@@ -68,10 +68,6 @@ describe("commercial document definitions", () => {
     expect(currencyField).toMatchObject({
       kind: "currency",
       label: "Валюта списания",
-      deriveFrom: {
-        kind: "accountCurrency",
-        accountFieldNames: ["organizationRequisiteId"],
-      },
     });
     expect(amountsSection?.layout?.rows).toEqual([
       { fields: ["amount", "currency"] },

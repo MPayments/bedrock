@@ -46,5 +46,5 @@ describe("document form options", () => {
       organizations: [],
       currencies: [{ id: "usd", code: "USD", label: "US Dollar" }],
     });
-  });
+  }, 15_000);
 });

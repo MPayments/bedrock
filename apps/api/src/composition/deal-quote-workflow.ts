@@ -31,11 +31,11 @@ type ExpiredQuoteRecord = Awaited<
   ReturnType<TreasuryModule["quotes"]["commands"]["expireQuotes"]>
 >[number];
 
-type CalculationFeeOverrides = {
+interface CalculationFeeOverrides {
   agentFeePercent?: string | null;
   fixedFeeAmount?: string | null;
   fixedFeeCurrencyCode?: string | null;
-};
+}
 
 export interface DealQuoteWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
@@ -62,7 +62,7 @@ function normalizeOptionalDecimalString(
     return null;
   }
 
-  if (!/^\d+(?:\.\d+)?$/u.test(normalized)) {
+  if (!/^(?:\d+|\d+\.\d+)$/u.test(normalized)) {
     throw new ValidationError(`${field} must be a non-negative decimal string`);
   }
 

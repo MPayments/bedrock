@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   AcceptancePayloadSchema,
   InvoiceInputSchema,
-  InvoicePayloadSchema,
   compileInvoiceDirectFinancialLines,
 } from "../src/validation";
 

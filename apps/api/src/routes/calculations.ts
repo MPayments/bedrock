@@ -18,11 +18,11 @@ import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
-type CalculationCurrencyMetadata = {
+interface CalculationCurrencyMetadata {
   code: string;
   id: string;
   precision: number;
-};
+}
 
 function minorToDecimalString(amountMinor: bigint | string, precision: number) {
   const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;

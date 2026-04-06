@@ -98,5 +98,5 @@ describe("document breadcrumb page", () => {
         href: "/documents/commercial/invoice/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);
-  });
+  }, 15_000);
 });

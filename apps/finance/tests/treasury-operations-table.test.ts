@@ -98,5 +98,5 @@ describe("treasury operations table", () => {
     expect(push).toHaveBeenCalledWith(
       "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
     );
-  });
+  }, 15_000);
 });

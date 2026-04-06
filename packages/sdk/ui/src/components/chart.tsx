@@ -5,8 +5,10 @@ import * as RechartsPrimitive from "recharts"
 import type {
   DefaultLegendContentProps,
   DefaultTooltipContentProps,
+  NameType,
   ResponsiveContainerProps,
   TooltipProps,
+  ValueType,
 } from "recharts"
 
 import { cn } from "@bedrock/sdk-ui/lib/utils"
@@ -29,24 +31,24 @@ type ChartContextProps = {
 }
 
 export type ChartTooltipPayload = NonNullable<
-  NonNullable<DefaultTooltipContentProps<any, any>["payload"]>[number]
+  NonNullable<DefaultTooltipContentProps<ValueType, NameType>["payload"]>[number]
 >
 
 export type ChartTooltipFormatter = NonNullable<
-  DefaultTooltipContentProps<any, any>["formatter"]
+  DefaultTooltipContentProps<ValueType, NameType>["formatter"]
 >
 
 export type ChartTooltipLabelFormatter = NonNullable<
-  DefaultTooltipContentProps<any, any>["labelFormatter"]
+  DefaultTooltipContentProps<ValueType, NameType>["labelFormatter"]
 >
 
 type ChartTooltipContentProps = React.ComponentProps<"div"> &
   Pick<
-    TooltipProps<any, any>,
+    TooltipProps<ValueType, NameType>,
     "active"
   > &
   Pick<
-    DefaultTooltipContentProps<any, any>,
+    DefaultTooltipContentProps<ValueType, NameType>,
     "formatter" | "label" | "labelFormatter" | "payload"
   > & {
     labelClassName?: string
