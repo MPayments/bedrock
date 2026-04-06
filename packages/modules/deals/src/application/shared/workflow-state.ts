@@ -15,6 +15,7 @@ import type {
   DealQuoteAcceptance,
   DealWorkflowLeg,
 } from "../contracts/dto";
+import type { DealStatus } from "../contracts/zod";
 import type {
   CreateDealLegStoredInput,
   ReplaceDealOperationalPositionStoredInput,
@@ -102,7 +103,7 @@ export async function deriveDealRootState(input: {
   calculationId: string | null;
   intake: DealIntakeDraft;
   references: DealReferencesPort;
-  status: string;
+  status: DealStatus;
 }) {
   const sourceCurrency = input.intake.moneyRequest.sourceCurrencyId
     ? await input.references.findCurrencyById(

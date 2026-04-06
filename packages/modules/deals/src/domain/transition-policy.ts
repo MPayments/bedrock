@@ -195,19 +195,24 @@ function collectPreparingDocumentsBlockers(input: {
         code: "accepted_quote_missing",
         message: "An accepted quote is required for convert deals",
       });
-    } else if (
-      input.acceptance.quoteStatus !== "active" ||
-      (input.acceptance.expiresAt &&
-        input.acceptance.expiresAt.getTime() <= input.now.getTime())
-    ) {
-      blockers.push({
-        code: "accepted_quote_inactive",
-        message: "The accepted quote is no longer executable",
-        meta: {
-          quoteId: input.acceptance.quoteId,
-          quoteStatus: input.acceptance.quoteStatus,
-        },
-      });
+    } else {
+      const quoteLockedForExecution =
+        input.acceptance.quoteStatus === "used";
+      const quoteActiveAndUnexpired =
+        input.acceptance.quoteStatus === "active" &&
+        (!input.acceptance.expiresAt ||
+          input.acceptance.expiresAt.getTime() > input.now.getTime());
+
+      if (!quoteLockedForExecution && !quoteActiveAndUnexpired) {
+        blockers.push({
+          code: "accepted_quote_inactive",
+          message: "The accepted quote is no longer executable",
+          meta: {
+            quoteId: input.acceptance.quoteId,
+            quoteStatus: input.acceptance.quoteStatus,
+          },
+        });
+      }
     }
 
     if (!input.calculationId) {
@@ -529,12 +534,6 @@ export function evaluateDealTransitionReadiness(input: {
         docType: OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type],
         messagePrefix: "Opening",
       }),
-      ...collectPositionBlockers({
-        minimum: "ready",
-        positions: input.operationalState.positions,
-        requiredKinds: listRequiredOperationalPositionKinds(input.intake.type),
-      }),
-      ...collectLegReadyBlockers(input.executionPlan),
     );
   }
 
