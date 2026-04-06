@@ -21,7 +21,6 @@ import { API_BASE_URL } from "@/lib/constants";
 interface DealsStats {
   totalCount: number;
   byStatus: Record<string, number>;
-  totalAmount: string;
 }
 
 export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
@@ -79,13 +78,6 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
       isCancelled = true;
     };
   }, [timeRange]);
-
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat("ru-RU", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   return (
     <Card className={cn("pt-0 flex flex-col", className)}>
@@ -145,14 +137,6 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
                   Всего сделок
                 </span>
                 <span className="text-xl font-bold">{stats.totalCount}</span>
-              </div>
-              <div className="flex items-center justify-between border-b pb-2">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Общая сумма
-                </span>
-                <span className="text-xl font-bold">
-                  {formatAmount(Number(stats.totalAmount))} ₽
-                </span>
               </div>
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm font-medium text-muted-foreground">

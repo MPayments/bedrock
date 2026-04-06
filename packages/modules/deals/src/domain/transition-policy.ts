@@ -7,6 +7,7 @@ import {
 import { dealIntakeHasConvertLeg } from "./workflow";
 import type {
   DealApproval,
+  DealIntakeDraft,
   DealOperationalState,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
@@ -67,6 +68,8 @@ const CLOSING_AND_LATER_STATUSES: DealStatus[] = [
   "done",
 ];
 
+type TransitionPolicyIntake = DealIntakeDraft;
+
 function pushOnce(
   blockers: DealTransitionBlocker[],
   blocker: DealTransitionBlocker,
@@ -96,11 +99,7 @@ function hasParticipant(
 
 function collectSubmittedBlockers(input: {
   completeness: DealSectionCompleteness[];
-  intake: {
-    externalBeneficiary: { beneficiarySnapshot: unknown | null };
-    incomingReceipt: { payerSnapshot: unknown | null };
-    type: DealType;
-  };
+  intake: TransitionPolicyIntake;
   participants: DealWorkflowParticipant[];
 }): DealTransitionBlocker[] {
   const blockers: DealTransitionBlocker[] = [];
@@ -454,11 +453,7 @@ export function evaluateDealTransitionReadiness(input: {
   completeness: DealSectionCompleteness[];
   documents: DealRelatedFormalDocument[];
   executionPlan: DealWorkflowLeg[];
-  intake: {
-    externalBeneficiary: { beneficiarySnapshot: unknown | null };
-    incomingReceipt: { payerSnapshot: unknown | null };
-    type: DealType;
-  };
+  intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
   participants: DealWorkflowParticipant[];
@@ -466,7 +461,7 @@ export function evaluateDealTransitionReadiness(input: {
   targetStatus: DealStatus;
 }): DealTransitionReadiness {
   const blockers: DealTransitionBlocker[] = [];
-  const hasConvert = dealIntakeHasConvertLeg(input.intake as any);
+  const hasConvert = dealIntakeHasConvertLeg(input.intake);
 
   if (
     !DEAL_STATUS_TRANSITIONS[input.status].includes(input.targetStatus) &&
@@ -614,11 +609,7 @@ export function listDealTransitionReadiness(input: {
   completeness: DealSectionCompleteness[];
   documents: DealRelatedFormalDocument[];
   executionPlan: DealWorkflowLeg[];
-  intake: {
-    externalBeneficiary: { beneficiarySnapshot: unknown | null };
-    incomingReceipt: { payerSnapshot: unknown | null };
-    type: DealType;
-  };
+  intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
   participants: DealWorkflowParticipant[];

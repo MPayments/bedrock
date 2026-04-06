@@ -32,6 +32,44 @@ import {
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
 
+function assertDealLinkedInvoiceMatchesCalculation(input: {
+  dealFxContext: NonNullable<
+    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
+  >;
+  payload: {
+    amountMinor: string;
+    currency: string;
+  };
+}) {
+  if (!input.dealFxContext.hasConvertLeg) {
+    return;
+  }
+
+  if (!input.dealFxContext.calculationCurrency) {
+    throw new DocumentValidationError(
+      "linked FX deal does not have a resolved calculation currency",
+    );
+  }
+
+  if (!input.dealFxContext.totalAmountMinor) {
+    throw new DocumentValidationError(
+      "linked FX deal does not have a resolved invoice total amount",
+    );
+  }
+
+  if (input.payload.currency !== input.dealFxContext.calculationCurrency) {
+    throw new DocumentValidationError(
+      `Currency mismatch: invoice=${input.payload.currency}, expected=${input.dealFxContext.calculationCurrency}`,
+    );
+  }
+
+  if (input.payload.amountMinor !== input.dealFxContext.totalAmountMinor) {
+    throw new DocumentValidationError(
+      `Amount mismatch: invoice=${input.payload.amountMinor}, expected=${input.dealFxContext.totalAmountMinor}`,
+    );
+  }
+}
+
 export function createInvoiceDocumentModule(
   deps: CommercialModuleDeps,
 ): DocumentModule<InvoiceInput, InvoiceInput> {
@@ -146,6 +184,14 @@ export function createInvoiceDocumentModule(
         payload.organizationRequisiteId,
       );
       const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+
+      if (dealFxContext?.hasConvertLeg) {
+        assertDealLinkedInvoiceMatchesCalculation({
+          dealFxContext,
+          payload,
+        });
+      }
+
       const expectedCurrency =
         dealFxContext?.hasConvertLeg && dealFxContext.calculationCurrency
           ? dealFxContext.calculationCurrency
@@ -178,6 +224,11 @@ export function createInvoiceDocumentModule(
       const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
 
       if (dealFxContext?.hasConvertLeg) {
+        assertDealLinkedInvoiceMatchesCalculation({
+          dealFxContext,
+          payload,
+        });
+
         if (
           dealFxContext.fundingResolution.state !== "resolved" ||
           !dealFxContext.fundingResolution.strategy

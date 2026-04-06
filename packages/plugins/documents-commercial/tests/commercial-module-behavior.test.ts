@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
+
 import { createAcceptanceDocumentModule } from "../src/documents/acceptance";
 import { createExchangeDocumentModule } from "../src/documents/exchange";
 import { createInvoiceDocumentModule } from "../src/documents/invoice";
@@ -101,6 +103,23 @@ function createDealFxContext() {
     originalAmountMinor: "10000",
     quoteSnapshot: createQuoteSnapshot(),
     totalAmountMinor: "10150",
+  };
+}
+
+function createInventoryFundedDealFxContext() {
+  return {
+    ...createDealFxContext(),
+    fundingResolution: {
+      availableMinor: "9200",
+      fundingOrganizationId: "00000000-0000-4000-8000-000000000113",
+      fundingRequisiteId: "00000000-0000-4000-8000-000000000111",
+      reasonCode: "inventory_available",
+      requiredAmountMinor: "9200",
+      state: "resolved" as const,
+      strategy: "existing_inventory" as const,
+      targetCurrency: "EUR",
+      targetCurrencyId: "00000000-0000-4000-8000-000000000410",
+    },
   };
 }
 
@@ -254,6 +273,110 @@ describe("commercial document modules", () => {
         quoteId: "00000000-0000-4000-8000-000000000010",
       }),
     });
+  });
+
+  it("rejects posting a linked invoice when the face amount does not match the linked calculation total", async () => {
+    const deps = createDeps();
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(async () => createDealFxContext());
+
+    const module = createInvoiceDocumentModule(deps as any);
+
+    await expect(
+      module.canPost?.(
+        { runtime: {} } as any,
+        {
+          ...createPostedInvoice(),
+          payload: {
+            ...createPostedInvoice().payload,
+            amount: "99.99",
+            amountMinor: "9999",
+          },
+        } as any,
+      ),
+    ).rejects.toThrow("Amount mismatch: invoice=9999, expected=10150");
+  });
+
+  it("posts inventory-funded linked invoices through the dedicated inventory-finalize accounting branch", async () => {
+    const deps = createDeps();
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(
+      async () => createInventoryFundedDealFxContext(),
+    );
+
+    const module = createInvoiceDocumentModule(deps as any);
+    const plan = await module.buildPostingPlan?.(
+      {
+        now: new Date("2026-03-03T10:00:00.000Z"),
+        runtime: {},
+      } as any,
+      {
+        ...createPostedInvoice(),
+        postingStatus: "submitted",
+      } as any,
+    );
+
+    expect(plan?.operationCode).toBe("COMMERCIAL_INVOICE_INVENTORY_FINALIZE");
+    expect(
+      plan?.requests.some(
+        (request) => request.templateKey === "payment.fx.payout_obligation",
+      ),
+    ).toBe(true);
+    expect(
+      plan?.requests.some(
+        (request) =>
+          request.templateKey === "payment.fx.leg_in" ||
+          request.templateKey === "payment.fx.leg_out",
+      ),
+    ).toBe(false);
+  });
+
+  it("resolves inventory-funded linked invoices to the inventory-finalize accounting source", async () => {
+    const deps = createDeps();
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(
+      async () => createInventoryFundedDealFxContext(),
+    );
+
+    const module = createInvoiceDocumentModule(deps as any);
+    const accountingSourceId = await module.resolveAccountingSourceId?.(
+      { runtime: {} } as any,
+      createPostedInvoice() as any,
+    );
+
+    expect(accountingSourceId).toBe(ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE);
+  });
+
+  it("allows acceptance without exchange when the linked invoice is funded from existing inventory", async () => {
+    const deps = createDeps();
+    const invoice = createPostedInvoice();
+    deps.documentRelations.loadInvoice = vi.fn(async () => invoice);
+    deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
+      async () => "00000000-0000-4000-8000-000000000402",
+    );
+    deps.dealFx.resolveDealFxContext = vi.fn(
+      async () => createInventoryFundedDealFxContext(),
+    );
+
+    const module = createAcceptanceDocumentModule(deps as any);
+    const draft = await module.createDraft?.(
+      {
+        runtime: {},
+      } as any,
+      {
+        occurredAt: new Date("2026-03-04T10:00:00.000Z"),
+        invoiceDocumentId: invoice.id,
+        memo: "acceptance",
+      },
+    );
+
+    expect(draft?.payload.exchangeDocumentId).toBeUndefined();
   });
 
   it("builds an exchange parent link from the draft payload", async () => {

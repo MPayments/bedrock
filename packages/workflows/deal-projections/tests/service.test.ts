@@ -809,6 +809,8 @@ describe("createDealProjectionsWorkflow", () => {
     expect(buckets.done).toEqual([
       expect.objectContaining({
         amount: 1000,
+        amountInBase: 1000,
+        baseCurrencyCode: "USD",
         client: "Customer One",
         currency: "USD",
         id: "deal-1",
@@ -820,6 +822,26 @@ describe("createDealProjectionsWorkflow", () => {
         amount: 1000,
         closedAmount: 1000,
         closedCount: 1,
+        count: 1,
+        date: "2026-04-01",
+      }),
+    ]);
+  });
+
+  it("returns day aggregates in the selected report currency without relabeling mixed totals", async () => {
+    const workflow = createWorkflow();
+
+    const byDay = await workflow.listCrmDealsByDay({
+      dateFrom: "2026-04-01",
+      reportCurrencyCode: "USD",
+    });
+
+    expect(byDay).toEqual([
+      expect.objectContaining({
+        USD: 1000,
+        amount: 1000,
+        closedAmount: 0,
+        closedCount: 0,
         count: 1,
         date: "2026-04-01",
       }),
