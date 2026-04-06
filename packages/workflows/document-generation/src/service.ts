@@ -1,7 +1,11 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { PartiesModule } from "@bedrock/parties";
+import {
+  projectLegacyPartyLegalEntity,
+  projectLegacyRequisiteRouting,
+  type PartiesModule,
+} from "@bedrock/parties";
 import type {
   Counterparty,
   Organization,
@@ -211,27 +215,32 @@ function mapClientContractClient(input: {
   provider: RequisiteProvider | null;
 }): ClientContractClient {
   const { bankRequisite, counterparty, provider } = input;
+  const legal = projectLegacyPartyLegalEntity(counterparty);
+  const routing = projectLegacyRequisiteRouting({
+    provider,
+    requisite: bankRequisite,
+  });
 
   return {
     id: counterparty.id,
     orgName: counterparty.shortName,
-    orgNameI18n: counterparty.orgNameI18n ?? null,
-    orgType: counterparty.orgType ?? null,
-    orgTypeI18n: counterparty.orgTypeI18n ?? null,
-    directorName: counterparty.directorName ?? null,
-    directorNameI18n: counterparty.directorNameI18n ?? null,
-    directorBasis: counterparty.directorBasis ?? null,
-    directorBasisI18n: counterparty.directorBasisI18n ?? null,
-    address: counterparty.address ?? null,
-    addressI18n: counterparty.addressI18n ?? null,
-    inn: counterparty.inn ?? counterparty.externalId ?? null,
-    kpp: counterparty.kpp ?? null,
-    account: bankRequisite?.accountNo ?? null,
-    corrAccount: bankRequisite?.corrAccount ?? null,
-    bic: provider?.bic ?? null,
-    bankName: provider?.name ?? null,
+    orgNameI18n: legal.orgNameI18n,
+    orgType: legal.orgType,
+    orgTypeI18n: legal.orgTypeI18n,
+    directorName: legal.directorName,
+    directorNameI18n: legal.directorNameI18n,
+    directorBasis: legal.directorBasis,
+    directorBasisI18n: legal.directorBasisI18n,
+    address: legal.address,
+    addressI18n: legal.addressI18n,
+    inn: legal.inn ?? counterparty.externalId ?? null,
+    kpp: legal.kpp,
+    account: routing.accountNo,
+    corrAccount: routing.corrAccount,
+    bic: routing.bic,
+    bankName: routing.bankName,
     bankNameI18n: null,
-    bankAddress: provider?.address ?? null,
+    bankAddress: routing.bankAddress,
     bankAddressI18n: null,
   };
 }
@@ -239,16 +248,18 @@ function mapClientContractClient(input: {
 function mapClientContractOrganization(
   organization: Organization,
 ): ClientContractOrganization {
+  const legal = projectLegacyPartyLegalEntity(organization);
+
   return {
     id: organization.id,
-    nameI18n: organization.nameI18n ?? null,
-    addressI18n: organization.addressI18n ?? null,
-    countryI18n: organization.countryI18n ?? null,
-    cityI18n: organization.cityI18n ?? null,
-    directorNameI18n: organization.directorNameI18n ?? null,
-    inn: organization.inn ?? null,
-    taxId: organization.taxId ?? null,
-    kpp: organization.kpp ?? null,
+    nameI18n: legal.orgNameI18n,
+    addressI18n: legal.addressI18n,
+    countryI18n: null,
+    cityI18n: null,
+    directorNameI18n: legal.directorNameI18n,
+    inn: legal.inn,
+    taxId: legal.taxId,
+    kpp: legal.kpp,
     signatureKey: organization.signatureKey ?? null,
     sealKey: organization.sealKey ?? null,
   };
@@ -260,16 +271,20 @@ function mapClientContractOrganizationRequisite(input: {
   requisite: Requisite;
 }): ClientContractOrganizationBankRequisite {
   const { currencyCode, provider, requisite } = input;
+  const routing = projectLegacyRequisiteRouting({
+    provider,
+    requisite,
+  });
 
   return {
     id: requisite.id,
-    accountNo: requisite.accountNo ?? null,
-    bic: provider?.bic ?? null,
-    corrAccount: requisite.corrAccount ?? null,
+    accountNo: routing.accountNo,
+    bic: routing.bic,
+    corrAccount: routing.corrAccount,
     currencyCode,
-    institutionName: provider?.name ?? null,
+    institutionName: routing.bankName,
     ownerId: requisite.ownerId,
-    swift: provider?.swift ?? null,
+    swift: routing.swift,
   };
 }
 

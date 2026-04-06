@@ -13,6 +13,7 @@ import {
   CounterpartyNotFoundError,
   rethrowCounterpartyMembershipDomainError,
 } from "../errors";
+import { toCounterpartyDto } from "../to-counterparty-dto";
 import type { CounterpartiesCommandUnitOfWork } from "../ports/counterparties.uow";
 
 export class UpdateCounterpartyCommand {
@@ -42,24 +43,6 @@ export class UpdateCounterpartyCommand {
           relationshipKind: snapshot.relationshipKind,
           shortName: snapshot.shortName,
           fullName: snapshot.fullName,
-          orgNameI18n: snapshot.orgNameI18n,
-          orgType: snapshot.orgType,
-          orgTypeI18n: snapshot.orgTypeI18n,
-          directorName: snapshot.directorName,
-          directorNameI18n: snapshot.directorNameI18n,
-          position: snapshot.position,
-          positionI18n: snapshot.positionI18n,
-          directorBasis: snapshot.directorBasis,
-          directorBasisI18n: snapshot.directorBasisI18n,
-          address: snapshot.address,
-          addressI18n: snapshot.addressI18n,
-          email: snapshot.email,
-          phone: snapshot.phone,
-          inn: snapshot.inn,
-          kpp: snapshot.kpp,
-          ogrn: snapshot.ogrn,
-          oktmo: snapshot.oktmo,
-          okpo: snapshot.okpo,
           description: snapshot.description,
           country: snapshot.country,
           kind: snapshot.kind,
@@ -109,9 +92,17 @@ export class UpdateCounterpartyCommand {
       }
 
       const updated = await tx.counterparties.save(next);
+      const updatedSnapshot = updated.toSnapshot();
+      const legalEntity =
+        updatedSnapshot.kind === "legal_entity"
+          ? await tx.legalEntities.findBundleByOwner({
+              ownerType: "counterparty",
+              ownerId: updatedSnapshot.id,
+            })
+          : null;
 
       this.runtime.log.info("Counterparty updated", { id });
-      return updated.toSnapshot();
+      return toCounterpartyDto(updatedSnapshot, legalEntity);
     });
   }
 }

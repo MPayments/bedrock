@@ -39,8 +39,10 @@ async function upsertCounterparties(db: SeedDb) {
         id: counterparty.id,
         externalId: counterparty.externalId,
         customerId: counterparty.customerId,
+        relationshipKind: "customer_owned",
         shortName: counterparty.shortName,
         fullName: counterparty.fullName,
+        description: null,
         kind: counterparty.kind,
         country: counterparty.country,
       })
@@ -49,12 +51,71 @@ async function upsertCounterparties(db: SeedDb) {
         set: {
           externalId: counterparty.externalId,
           customerId: counterparty.customerId,
+          relationshipKind: "customer_owned",
           shortName: counterparty.shortName,
           fullName: counterparty.fullName,
+          description: null,
           kind: counterparty.kind,
           country: counterparty.country,
         },
       });
+
+    await db
+      .insert(schema.partyLegalProfiles)
+      .values({
+        organizationId: null,
+        counterpartyId: counterparty.id,
+        fullName: counterparty.fullName,
+        shortName: counterparty.shortName,
+        fullNameI18n: null,
+        shortNameI18n: null,
+        legalFormCode: null,
+        legalFormLabel: null,
+        legalFormLabelI18n: null,
+        countryCode: counterparty.country ?? null,
+        jurisdictionCode: null,
+        registrationAuthority: null,
+        registeredAt: null,
+        businessActivityCode: null,
+        businessActivityText: null,
+        status: null,
+      })
+      .onConflictDoUpdate({
+        target: schema.partyLegalProfiles.counterpartyId,
+        set: {
+          fullName: counterparty.fullName,
+          shortName: counterparty.shortName,
+          countryCode: counterparty.country ?? null,
+          updatedAt: new Date(),
+        },
+      });
+
+    const [profile] = await db
+      .select({ id: schema.partyLegalProfiles.id })
+      .from(schema.partyLegalProfiles)
+      .where(eq(schema.partyLegalProfiles.counterpartyId, counterparty.id));
+    const profileId = profile?.id;
+    if (!profileId) {
+      throw new Error(
+        `[seed:counterparties] Failed to upsert legal profile for ${counterparty.id}`,
+      );
+    }
+
+    await db
+      .delete(schema.partyLegalIdentifiers)
+      .where(eq(schema.partyLegalIdentifiers.partyLegalProfileId, profileId));
+    await db
+      .delete(schema.partyAddresses)
+      .where(eq(schema.partyAddresses.partyLegalProfileId, profileId));
+    await db
+      .delete(schema.partyContacts)
+      .where(eq(schema.partyContacts.partyLegalProfileId, profileId));
+    await db
+      .delete(schema.partyRepresentatives)
+      .where(eq(schema.partyRepresentatives.partyLegalProfileId, profileId));
+    await db
+      .delete(schema.partyLicenses)
+      .where(eq(schema.partyLicenses.partyLegalProfileId, profileId));
   }
 }
 

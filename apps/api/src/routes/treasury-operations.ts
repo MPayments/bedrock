@@ -9,6 +9,11 @@ import {
 import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 import {
+  findRequisiteIdentifier,
+  projectLegacyRequisiteRouting,
+  resolveRequisiteProviderDisplayName,
+} from "@bedrock/parties";
+import {
   ListTreasuryOperationsQuerySchema,
   RecordTreasuryInstructionOutcomeInputSchema,
   RequestTreasuryReturnInputSchema,
@@ -304,22 +309,31 @@ function buildRequisiteAccountSummary(requisite: RequisiteRecord | null | undefi
     return null;
   }
 
+  const routing = projectLegacyRequisiteRouting({
+    provider: null,
+    requisite,
+  });
+
   const identity =
     resolveRequisiteIdentity({
-      accountNo: requisite.accountNo,
-      accountRef: requisite.accountRef,
-      address: requisite.address,
-      assetCode: requisite.assetCode,
+      accountNo: routing.accountNo,
+      accountRef:
+        findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+      address:
+        findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
+      assetCode: null,
       beneficiaryName: requisite.beneficiaryName,
       bic: null,
-      contact: requisite.contact,
-      corrAccount: requisite.corrAccount,
-      iban: requisite.iban,
+      contact: null,
+      corrAccount: routing.corrAccount,
+      iban: routing.iban,
       kind: requisite.kind,
-      memoTag: requisite.memoTag,
-      network: requisite.network,
+      memoTag:
+        findRequisiteIdentifier(requisite, "memo_tag")?.value ?? null,
+      network: null,
       notes: requisite.notes,
-      subaccountRef: requisite.subaccountRef,
+      subaccountRef:
+        findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
     }) || null;
 
   return {
@@ -340,7 +354,13 @@ function resolveProviderName(
     return null;
   }
 
-  return providerById.get(requisite.providerId)?.name ?? null;
+  const provider = providerById.get(requisite.providerId);
+  return provider
+    ? resolveRequisiteProviderDisplayName({
+        provider,
+        branchId: requisite.providerBranchId,
+      })
+    : null;
 }
 
 function resolveInternalEntityOrganizationId(

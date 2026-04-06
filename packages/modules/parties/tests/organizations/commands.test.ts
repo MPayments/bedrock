@@ -17,6 +17,32 @@ function createRuntime(overrides?: Record<string, unknown>) {
   } as any;
 }
 
+function createLegalEntityBundle() {
+  return {
+    profile: {
+      fullName: "Acme Incorporated",
+      shortName: "Acme",
+      fullNameI18n: null,
+      shortNameI18n: null,
+      legalFormCode: null,
+      legalFormLabel: null,
+      legalFormLabelI18n: null,
+      countryCode: null,
+      jurisdictionCode: null,
+      registrationAuthority: null,
+      registeredAt: null,
+      businessActivityCode: null,
+      businessActivityText: null,
+      status: null,
+    },
+    identifiers: [],
+    addresses: [],
+    contacts: [],
+    representatives: [],
+    licenses: [],
+  };
+}
+
 describe("organization command handlers", () => {
   it("creates an organization", async () => {
     const create = new CreateOrganizationCommand(
@@ -31,6 +57,15 @@ describe("organization command handlers", () => {
                 updatedAt: new Date("2026-01-01T00:00:00.000Z"),
               })),
             },
+            legalEntities: {
+              findBundleByOwner: vi.fn(async () => null),
+              upsertProfile: vi.fn(),
+              replaceIdentifiers: vi.fn(),
+              replaceAddresses: vi.fn(),
+              replaceContacts: vi.fn(),
+              replaceRepresentatives: vi.fn(),
+              replaceLicenses: vi.fn(),
+            },
           } as any)),
       } as any,
     );
@@ -38,6 +73,7 @@ describe("organization command handlers", () => {
     const created = await create.execute({
       shortName: "Acme",
       fullName: "Acme Incorporated",
+      legalEntity: createLegalEntityBundle(),
     });
 
     expect(created.shortName).toBe("Acme");
@@ -57,7 +93,7 @@ describe("organization command handlers", () => {
     );
 
     await expect(
-      update.execute("missing", { shortName: "Acme Updated" }),
+      update.execute("missing", { externalId: "ext-updated" }),
     ).rejects.toBeInstanceOf(OrganizationNotFoundError);
   });
 

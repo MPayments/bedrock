@@ -4,6 +4,7 @@ import {
   createRequisiteProviderSnapshot,
   type RequisiteProviderSnapshot,
 } from "../../domain/requisite-provider";
+import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import {
   CreateRequisiteProviderInputSchema,
   type CreateRequisiteProviderInput,
@@ -18,22 +19,52 @@ export class CreateRequisiteProviderCommand {
 
   async execute(input: CreateRequisiteProviderInput) {
     const validated = CreateRequisiteProviderInputSchema.parse(input);
+    validatePaymentIdentifiers({
+      owner: "provider",
+      identifiers: validated.identifiers,
+    });
+    for (const branch of validated.branches) {
+      validatePaymentIdentifiers({
+        owner: "provider_branch",
+        identifiers: branch.identifiers,
+      });
+    }
 
     return this.uow.run(async (tx) => {
       const created = await tx.requisiteProviderStore.create(
         createRequisiteProviderSnapshot({
           id: this.runtime.generateUuid(),
           now: this.runtime.now(),
-          ...validated,
+          kind: validated.kind,
+          legalName: validated.legalName,
+          displayName: validated.displayName,
+          description: validated.description,
+          country: validated.country,
+          jurisdictionCode: validated.jurisdictionCode,
+          website: validated.website,
         }) satisfies RequisiteProviderSnapshot,
       );
 
+      await tx.requisiteProviderStore.replaceIdentifiers({
+        providerId: created.id,
+        items: validated.identifiers,
+      });
+      await tx.requisiteProviderStore.replaceBranches({
+        providerId: created.id,
+        items: validated.branches,
+      });
+      const provider = await tx.requisiteProviderStore.findDetailById(created.id);
+
+      if (!provider) {
+        throw new Error(`Requisite provider not found after create: ${created.id}`);
+      }
+
       this.runtime.log.info("Requisite provider created", {
-        id: created.id,
-        name: created.name,
+        id: provider.id,
+        displayName: provider.displayName,
       });
 
-      return created;
+      return provider;
     });
   }
 }

@@ -12,6 +12,10 @@ import {
   RequisiteProviderForm,
   type RequisiteProviderFormValues,
 } from "./requisite-provider-form";
+import {
+  buildPrimaryProviderBranch,
+  buildProviderIdentifiers,
+} from "../lib/master-data";
 
 type CreatedRequisiteProvider = {
   id: string;
@@ -31,13 +35,12 @@ export function CreateRequisiteProviderFormClient() {
         apiClient.v1.requisites.providers.$post({
           json: {
             kind: values.kind,
-            name: values.name,
+            legalName: values.name,
+            displayName: values.name,
             description: values.description || undefined,
             country: values.country || undefined,
-            address: values.address || undefined,
-            contact: values.contact || undefined,
-            bic: values.bic || undefined,
-            swift: values.swift || undefined,
+            identifiers: buildProviderIdentifiers(values),
+            branches: buildPrimaryProviderBranch(values),
           },
         }),
       fallbackMessage: "Не удалось создать провайдера реквизитов",

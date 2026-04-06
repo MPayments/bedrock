@@ -19,13 +19,19 @@ describe("requisites contracts", () => {
       currencyId: "00000000-0000-4000-8000-000000000113",
       kind: "bank",
       label: "  Main bank  ",
-      description: "   ",
+      paymentPurposeTemplate: "   ",
       beneficiaryName: "  Acme Ltd  ",
-      accountNo: "  12345  ",
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "  12345  ",
+          isPrimary: true,
+        },
+      ],
     });
 
     expect(parsed.label).toBe("Main bank");
-    expect(parsed.description).toBeNull();
+    expect(parsed.paymentPurposeTemplate).toBeNull();
     expect(parsed.beneficiaryName).toBe("Acme Ltd");
     expect(parsed.isDefault).toBe(false);
   });
@@ -39,21 +45,24 @@ describe("requisites contracts", () => {
   it("parses create provider input", () => {
     const parsed = CreateRequisiteProviderInputSchema.parse({
       kind: "bank",
-      name: "  JPM  ",
+      legalName: "  JPM Chase Bank  ",
+      displayName: "  JPM  ",
       country: "us",
-      bic: "  044525225  ",
-      swift: "  CHASUS33  ",
+      identifiers: [
+        { scheme: "bic", value: "  044525225  ", isPrimary: true },
+        { scheme: "swift", value: "  CHASUS33  ", isPrimary: true },
+      ],
     });
 
-    expect(parsed.name).toBe("JPM");
+    expect(parsed.legalName).toBe("JPM Chase Bank");
+    expect(parsed.displayName).toBe("JPM");
     expect(parsed.country).toBe("US");
-    expect(parsed.bic).toBe("044525225");
-    expect(parsed.swift).toBe("CHASUS33");
+    expect(parsed.identifiers).toHaveLength(2);
   });
 
   it("rejects explicit undefined in update provider input", () => {
     expect(
-      UpdateRequisiteProviderInputSchema.safeParse({ name: undefined }).success,
+      UpdateRequisiteProviderInputSchema.safeParse({ legalName: undefined }).success,
     ).toBe(false);
   });
 
@@ -63,15 +72,13 @@ describe("requisites contracts", () => {
       kind: "bank,exchange",
     });
     const providers = ListRequisiteProvidersQuerySchema.parse({
-      bic: "044525225, 044525974",
       country: "US, DE",
-      swift: "BOFAUS3N, CHASUS33",
+      legalName: "Chase",
     });
 
     expect(requisites.kind).toEqual(["bank", "exchange"]);
-    expect(providers.bic).toEqual(["044525225", "044525974"]);
     expect(providers.country).toEqual(["US", "DE"]);
-    expect(providers.swift).toEqual(["BOFAUS3N", "CHASUS33"]);
+    expect(providers.legalName).toBe("Chase");
   });
 
   it("requires ownerType when ownerId is set in options query", () => {

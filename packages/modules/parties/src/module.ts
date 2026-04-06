@@ -12,6 +12,9 @@ import type { CounterpartyReads } from "./counterparties/application/ports/count
 import { createCustomersService } from "./customers/application";
 import type { CustomerReads } from "./customers/application/ports/customer.reads";
 import type { CustomersCommandUnitOfWork } from "./customers/application/ports/customers.uow";
+import { createLegalEntitiesService } from "./legal-entities/application";
+import type { LegalEntitiesReads } from "./legal-entities/application/ports/legal-entities.reads";
+import type { LegalEntitiesCommandUnitOfWork } from "./legal-entities/application/ports/legal-entities.uow";
 import { createOrganizationsService } from "./organizations/application";
 import type { OrganizationReads } from "./organizations/application/ports/organization.reads";
 import type { OrganizationsCommandUnitOfWork } from "./organizations/application/ports/organizations.uow";
@@ -28,6 +31,7 @@ import type { SubAgentProfilesCommandUnitOfWork } from "./sub-agent-profiles/app
 
 export type PartiesModuleUnitOfWork = CounterpartiesCommandUnitOfWork &
   CustomersCommandUnitOfWork &
+  LegalEntitiesCommandUnitOfWork &
   OrganizationsCommandUnitOfWork &
   RequisitesCommandUnitOfWork &
   SubAgentProfilesCommandUnitOfWork;
@@ -41,6 +45,7 @@ export interface PartiesModuleDeps {
   customerReads: CustomerReads;
   counterpartyReads: CounterpartyReads;
   counterpartyGroupReads: CounterpartyGroupReads;
+  legalEntityReads: LegalEntitiesReads;
   organizationReads: OrganizationReads;
   requisiteReads: RequisiteReads;
   requisiteProviderReads: RequisiteProviderReads;
@@ -72,6 +77,11 @@ export function createPartiesModule(deps: PartiesModuleDeps) {
       runtime: createRuntime("parties.counterparties"),
       reads: deps.counterpartyReads,
       groupReads: deps.counterpartyGroupReads,
+    }),
+    legalEntities: createLegalEntitiesService({
+      commandUow: deps.unitOfWork,
+      runtime: createRuntime("parties.legal-entities"),
+      reads: deps.legalEntityReads,
     }),
     organizations: createOrganizationsService({
       commandUow: deps.unitOfWork,

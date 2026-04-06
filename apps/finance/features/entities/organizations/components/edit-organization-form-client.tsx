@@ -19,6 +19,45 @@ type EditOrganizationFormClientProps = {
   listPath?: string;
 };
 
+type OrganizationLegalProfileResponse = {
+  fullName: string;
+  shortName: string;
+  fullNameI18n: Record<string, string | null> | null;
+  shortNameI18n: Record<string, string | null> | null;
+  legalFormCode: string | null;
+  legalFormLabel: string | null;
+  legalFormLabelI18n: Record<string, string | null> | null;
+  countryCode: string | null;
+  jurisdictionCode: string | null;
+  registrationAuthority: string | null;
+  registeredAt: string | null;
+  businessActivityCode: string | null;
+  businessActivityText: string | null;
+  status: string | null;
+} | null;
+
+function buildLegalProfilePayload(
+  values: OrganizationGeneralFormValues,
+  current: OrganizationLegalProfileResponse,
+) {
+  return {
+    fullName: values.fullName,
+    shortName: values.shortName,
+    fullNameI18n: current?.fullNameI18n ?? null,
+    shortNameI18n: current?.shortNameI18n ?? null,
+    legalFormCode: current?.legalFormCode ?? null,
+    legalFormLabel: current?.legalFormLabel ?? null,
+    legalFormLabelI18n: current?.legalFormLabelI18n ?? null,
+    countryCode: values.country || null,
+    jurisdictionCode: current?.jurisdictionCode ?? null,
+    registrationAuthority: current?.registrationAuthority ?? null,
+    registeredAt: current?.registeredAt ?? null,
+    businessActivityCode: current?.businessActivityCode ?? null,
+    businessActivityText: current?.businessActivityText ?? null,
+    status: current?.status ?? null,
+  };
+}
+
 function toFormValues(
   organization: SerializedOrganization,
 ): OrganizationGeneralFormValues {
@@ -56,22 +95,56 @@ export function EditOrganizationFormClient({
   async function handleSubmit(
     values: OrganizationGeneralFormValues,
   ): Promise<OrganizationGeneralFormValues | void> {
+    if (values.kind !== current.kind) {
+      const message = "Смена типа организации в этой форме не поддерживается";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setError(null);
     setSubmitting(true);
 
     const result = await executeMutation<SerializedOrganization>({
       request: () =>
-        apiClient.v1.organizations[":id"].$patch({
-          param: { id: current.id },
-          json: {
-            shortName: values.shortName,
-            fullName: values.fullName,
-            kind: values.kind,
-            country: values.country || null,
-            externalId: values.externalId || null,
-            description: values.description || null,
-          },
-        }),
+        (async () => {
+          const patchResponse = await apiClient.v1.organizations[":id"].$patch({
+            param: { id: current.id },
+            json: {
+              externalId: values.externalId || null,
+              description: values.description || null,
+            },
+          });
+
+          if (!patchResponse.ok || values.kind !== "legal_entity") {
+            return patchResponse;
+          }
+
+          const legalProfileResponse =
+            await apiClient.v1.organizations[":id"]["legal-profile"].$get({
+              param: { id: current.id },
+            });
+
+          if (!legalProfileResponse.ok) {
+            return legalProfileResponse;
+          }
+
+          const currentLegalProfile =
+            (await legalProfileResponse.json()) as OrganizationLegalProfileResponse;
+          const putLegalProfileResponse =
+            await apiClient.v1.organizations[":id"]["legal-profile"].$put({
+              param: { id: current.id },
+              json: buildLegalProfilePayload(values, currentLegalProfile),
+            });
+
+          if (!putLegalProfileResponse.ok) {
+            return putLegalProfileResponse;
+          }
+
+          return apiClient.v1.organizations[":id"].$get({
+            param: { id: current.id },
+          });
+        })(),
       fallbackMessage: "Не удалось обновить организацию",
       parseData: async (response) => (await response.json()) as SerializedOrganization,
     });

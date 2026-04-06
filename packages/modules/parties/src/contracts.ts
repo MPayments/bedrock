@@ -27,11 +27,13 @@ export {
   type UpdateCounterpartyInput,
 } from "./counterparties/application/contracts/counterparty.commands";
 export {
+  CounterpartyListItemSchema,
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
   CounterpartySchema,
   PaginatedCounterpartiesSchema,
   type Counterparty,
+  type CounterpartyListItem,
   type CounterpartyOption,
   type PaginatedCounterparties,
 } from "./counterparties/application/contracts/counterparty.dto";
@@ -58,6 +60,42 @@ export {
   type ListCounterpartyGroupsQuery,
 } from "./counterparties/application/contracts/counterparty-group.queries";
 export {
+  PartyAddressInputSchema,
+  PartyAddressSchema,
+  PartyContactInputSchema,
+  PartyContactSchema,
+  PartyLegalEntityBundleInputSchema,
+  PartyLegalEntityBundleSchema,
+  PartyLegalIdentifierInputSchema,
+  PartyLegalIdentifierSchema,
+  PartyLegalOwnerTypeSchema,
+  PartyLegalProfileInputSchema,
+  PartyLegalProfileSchema,
+  PartyLicenseInputSchema,
+  PartyLicenseSchema,
+  PartyRepresentativeInputSchema,
+  PartyRepresentativeSchema,
+  type PartyAddress,
+  type PartyAddressInput,
+  type PartyContact,
+  type PartyContactInput,
+  type PartyLegalEntityBundle,
+  type PartyLegalEntityBundleInput,
+  type PartyLegalIdentifier,
+  type PartyLegalIdentifierInput,
+  type PartyLegalOwnerType,
+  type PartyLegalProfile,
+  type PartyLegalProfileInput,
+  type PartyLicense,
+  type PartyLicenseInput,
+  type PartyRepresentative,
+  type PartyRepresentativeInput,
+} from "./legal-entities/application/contracts";
+export {
+  LocaleTextMapSchema,
+  type LocaleTextMap,
+} from "./shared/domain/locale-map";
+export {
   CountryCodeSchema,
   PARTY_KIND_VALUES,
   type CountryCode,
@@ -71,11 +109,13 @@ export {
   type UpdateOrganizationInput,
 } from "./organizations/application/contracts/commands";
 export {
+  OrganizationListItemSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
   OrganizationSchema,
   PaginatedOrganizationsSchema,
   type Organization,
+  type OrganizationListItem,
   type OrganizationKind,
   type OrganizationOption,
   type PaginatedOrganizations,
@@ -87,8 +127,13 @@ export {
 } from "./organizations/application/contracts/queries";
 export {
   CreateRequisiteProviderInputSchema,
+  RequisiteProviderBranchIdentifierInputSchema,
+  RequisiteProviderBranchInputSchema,
+  RequisiteProviderIdentifierInputSchema,
   UpdateRequisiteProviderInputSchema,
   type CreateRequisiteProviderInput,
+  type RequisiteProviderBranchInput,
+  type RequisiteProviderIdentifierInput,
   type UpdateRequisiteProviderInput,
 } from "./requisites/application/contracts/commands";
 export {
@@ -98,10 +143,15 @@ export {
   type UpdateSubAgentProfileInput,
 } from "./sub-agent-profiles/application/contracts/commands";
 export {
+  RequisiteProviderBranchIdentifierSchema,
+  RequisiteProviderBranchSchema,
+  RequisiteProviderIdentifierSchema,
+  RequisiteProviderListItemSchema,
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
   type RequisiteProvider,
+  type RequisiteProviderListItem,
   type RequisiteProviderOption,
 } from "./requisites/application/contracts/dto";
 export {
@@ -124,6 +174,9 @@ export {
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
+  RequisiteIdentifierInputSchema,
+  RequisiteIdentifierSchema,
+  RequisiteListItemSchema,
   RequisiteOptionSchema,
   RequisiteOptionsResponseSchema,
   RequisiteSchema,
@@ -135,6 +188,9 @@ export {
   type ListRequisitesQuery,
   type Requisite,
   type RequisiteAccountingBinding,
+  type RequisiteIdentifier,
+  type RequisiteIdentifierInput,
+  type RequisiteListItem,
   type RequisiteOption,
   type UpdateRequisiteInput,
   type UpsertRequisiteAccountingBindingInput,

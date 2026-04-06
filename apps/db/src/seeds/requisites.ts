@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+
 import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import {
   DrizzleBookAccountStore,
@@ -64,22 +66,15 @@ async function upsertRequisites(
         counterpartyId:
           requisite.ownerType === "counterparty" ? requisite.ownerId : null,
         providerId: requisite.providerId,
+        providerBranchId: null,
         currencyId,
         kind: requisite.kind,
         label: requisite.label,
-        description: requisite.description ?? null,
         beneficiaryName: requisite.beneficiaryName ?? null,
-        accountNo: requisite.accountNo ?? null,
-        corrAccount: requisite.corrAccount ?? null,
-        iban: requisite.iban ?? null,
-        network: requisite.network ?? null,
-        assetCode: requisite.assetCode ?? null,
-        address: requisite.address ?? null,
-        memoTag: requisite.memoTag ?? null,
-        accountRef: requisite.accountRef ?? null,
-        subaccountRef: requisite.subaccountRef ?? null,
-        contact: requisite.contact ?? null,
-        notes: requisite.notes ?? null,
+        beneficiaryNameLocal: null,
+        beneficiaryAddress: null,
+        paymentPurposeTemplate: null,
+        notes: requisite.notes ?? requisite.description ?? null,
         isDefault: requisite.isDefault ?? false,
       })
       .onConflictDoUpdate({
@@ -91,26 +86,120 @@ async function upsertRequisites(
           counterpartyId:
             requisite.ownerType === "counterparty" ? requisite.ownerId : null,
           providerId: requisite.providerId,
+          providerBranchId: null,
           currencyId,
           kind: requisite.kind,
           label: requisite.label,
-          description: requisite.description ?? null,
           beneficiaryName: requisite.beneficiaryName ?? null,
-          accountNo: requisite.accountNo ?? null,
-          corrAccount: requisite.corrAccount ?? null,
-          iban: requisite.iban ?? null,
-          network: requisite.network ?? null,
-          assetCode: requisite.assetCode ?? null,
-          address: requisite.address ?? null,
-          memoTag: requisite.memoTag ?? null,
-          accountRef: requisite.accountRef ?? null,
-          subaccountRef: requisite.subaccountRef ?? null,
-          contact: requisite.contact ?? null,
-          notes: requisite.notes ?? null,
+          beneficiaryNameLocal: null,
+          beneficiaryAddress: null,
+          paymentPurposeTemplate: null,
+          notes: requisite.notes ?? requisite.description ?? null,
           isDefault: requisite.isDefault ?? false,
           archivedAt: null,
         },
       });
+
+    await db
+      .delete(requisitesSchema.requisiteIdentifiers)
+      .where(eq(requisitesSchema.requisiteIdentifiers.requisiteId, requisite.id));
+
+    const identifiers = [
+      requisite.accountNo
+        ? {
+            requisiteId: requisite.id,
+            scheme: "local_account_number",
+            value: requisite.accountNo,
+            normalizedValue: requisite.accountNo,
+            isPrimary: true,
+          }
+        : null,
+      requisite.corrAccount
+        ? {
+            requisiteId: requisite.id,
+            scheme: "corr_account",
+            value: requisite.corrAccount,
+            normalizedValue: requisite.corrAccount,
+            isPrimary: true,
+          }
+        : null,
+      requisite.iban
+        ? {
+            requisiteId: requisite.id,
+            scheme: "iban",
+            value: requisite.iban,
+            normalizedValue: requisite.iban,
+            isPrimary: true,
+          }
+        : null,
+      requisite.address
+        ? {
+            requisiteId: requisite.id,
+            scheme: "wallet_address",
+            value: requisite.address,
+            normalizedValue: requisite.address,
+            isPrimary: true,
+          }
+        : null,
+      requisite.memoTag
+        ? {
+            requisiteId: requisite.id,
+            scheme: "memo_tag",
+            value: requisite.memoTag,
+            normalizedValue: requisite.memoTag,
+            isPrimary: true,
+          }
+        : null,
+      requisite.accountRef
+        ? {
+            requisiteId: requisite.id,
+            scheme: "account_ref",
+            value: requisite.accountRef,
+            normalizedValue: requisite.accountRef,
+            isPrimary: true,
+          }
+        : null,
+      requisite.subaccountRef
+        ? {
+            requisiteId: requisite.id,
+            scheme: "subaccount_ref",
+            value: requisite.subaccountRef,
+            normalizedValue: requisite.subaccountRef,
+            isPrimary: true,
+          }
+        : null,
+      requisite.network
+        ? {
+            requisiteId: requisite.id,
+            scheme: "network",
+            value: requisite.network,
+            normalizedValue: requisite.network,
+            isPrimary: true,
+          }
+        : null,
+      requisite.assetCode
+        ? {
+            requisiteId: requisite.id,
+            scheme: "asset_code",
+            value: requisite.assetCode,
+            normalizedValue: requisite.assetCode,
+            isPrimary: true,
+          }
+        : null,
+      requisite.contact
+        ? {
+            requisiteId: requisite.id,
+            scheme: "contact",
+            value: requisite.contact,
+            normalizedValue: requisite.contact,
+            isPrimary: true,
+          }
+        : null,
+    ].filter((item) => item !== null);
+
+    if (identifiers.length > 0) {
+      await db.insert(requisitesSchema.requisiteIdentifiers).values(identifiers);
+    }
   }
 }
 

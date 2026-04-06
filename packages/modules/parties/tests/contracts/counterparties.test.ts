@@ -17,6 +17,18 @@ describe("counterparties contracts", () => {
       country: "us",
       externalId: "  ext-1  ",
       description: "   ",
+      legalEntity: {
+        profile: {
+          fullName: "  Acme Incorporated  ",
+          shortName: "  Acme ",
+          countryCode: "us",
+        },
+        identifiers: [],
+        addresses: [],
+        contacts: [],
+        representatives: [],
+        licenses: [],
+      },
     });
 
     expect(parsed.shortName).toBe("Acme");
@@ -31,7 +43,7 @@ describe("counterparties contracts", () => {
 
   it("rejects explicit undefined in update counterparty input", () => {
     expect(
-      UpdateCounterpartyInputSchema.safeParse({ shortName: undefined }).success,
+      UpdateCounterpartyInputSchema.safeParse({ externalId: undefined }).success,
     ).toBe(false);
   });
 

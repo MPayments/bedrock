@@ -5,20 +5,13 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
+import { PartyLegalEntityBundleSchema } from "../../../legal-entities/application/contracts";
 import {
   PartyKindSchema,
   type PartyKind,
 } from "../../domain/party-kind";
 
-export const OrganizationLocalizedTextSchema = z
-  .object({
-    ru: z.string().nullable().optional(),
-    en: z.string().nullable().optional(),
-  })
-  .nullable()
-  .optional();
-
-export const OrganizationSchema = z.object({
+export const OrganizationListItemSchema = z.object({
   id: z.uuid(),
   externalId: z.string().nullable(),
   shortName: z.string(),
@@ -27,39 +20,24 @@ export const OrganizationSchema = z.object({
   country: z.string().nullable(),
   kind: PartyKindSchema,
   isActive: z.boolean(),
-  nameI18n: OrganizationLocalizedTextSchema,
-  orgType: z.string().nullable(),
-  orgTypeI18n: OrganizationLocalizedTextSchema,
-  countryI18n: OrganizationLocalizedTextSchema,
-  city: z.string().nullable(),
-  cityI18n: OrganizationLocalizedTextSchema,
-  address: z.string().nullable(),
-  addressI18n: OrganizationLocalizedTextSchema,
-  inn: z.string().nullable(),
-  taxId: z.string().nullable(),
-  kpp: z.string().nullable(),
-  ogrn: z.string().nullable(),
-  oktmo: z.string().nullable(),
-  okpo: z.string().nullable(),
-  directorName: z.string().nullable(),
-  directorNameI18n: OrganizationLocalizedTextSchema,
-  directorPosition: z.string().nullable(),
-  directorPositionI18n: OrganizationLocalizedTextSchema,
-  directorBasis: z.string().nullable(),
-  directorBasisI18n: OrganizationLocalizedTextSchema,
   signatureKey: z.string().nullable(),
   sealKey: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
 
+export const OrganizationSchema = OrganizationListItemSchema.extend({
+  legalEntity: PartyLegalEntityBundleSchema.nullable(),
+});
+
 export type Organization = z.output<typeof OrganizationSchema>;
 export type OrganizationKind = PartyKind;
 
 export const PaginatedOrganizationsSchema =
-  createPaginatedListSchema(OrganizationSchema);
+  createPaginatedListSchema(OrganizationListItemSchema);
 
-export type PaginatedOrganizations = PaginatedList<Organization>;
+export type OrganizationListItem = z.output<typeof OrganizationListItemSchema>;
+export type PaginatedOrganizations = PaginatedList<OrganizationListItem>;
 
 export const OrganizationOptionSchema = z.object({
   id: z.uuid(),

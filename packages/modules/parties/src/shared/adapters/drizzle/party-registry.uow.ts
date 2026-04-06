@@ -13,6 +13,7 @@ import type {
   CounterpartiesCommandUnitOfWork,
 } from "../../../counterparties/application/ports/counterparties.uow";
 import { DrizzleCustomerStore } from "../../../customers/adapters/drizzle/customer.store";
+import { DrizzleLegalEntitiesStore } from "../../../legal-entities/adapters/drizzle/legal-entities.store";
 import type {
   CustomersCommandTx,
   CustomersCommandUnitOfWork,
@@ -47,6 +48,7 @@ function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
 
   return {
     customerStore: new DrizzleCustomerStore(tx),
+    legalEntities: new DrizzleLegalEntitiesStore(tx),
     organizationStore: new DrizzleOrganizationStore(tx),
     counterparties: new DrizzleCounterpartyRepository(tx),
     counterpartyGroupHierarchy: new DrizzleCounterpartyGroupHierarchyReads(tx),

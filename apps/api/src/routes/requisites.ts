@@ -4,6 +4,7 @@ import { CurrencyNotFoundError } from "@bedrock/currencies";
 import {
   CounterpartyNotFoundError,
   OrganizationNotFoundError,
+  projectLegacyRequisiteRouting,
 } from "@bedrock/parties";
 import {
   RequisiteAccountingBindingNotFoundError,
@@ -14,11 +15,11 @@ import {
 } from "@bedrock/parties";
 import {
   BankRequisiteWorkspaceResponseSchema,
-  CreateRequisiteInputSchema,
   ListBankRequisiteWorkspaceQuerySchema,
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
+  RequisiteListItemSchema,
   RequisiteOptionsResponseSchema,
   RequisiteOptionSchema,
   RequisiteProviderSchema,
@@ -38,7 +39,9 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const PaginatedRequisitesSchema = createPaginatedListSchema(RequisiteSchema);
+const PaginatedRequisitesSchema = createPaginatedListSchema(
+  RequisiteListItemSchema,
+);
 
 async function findBankWorkspaceProvider(
   ctx: AppContext,
@@ -135,50 +138,6 @@ export function requisitesRoutes(ctx: AppContext) {
           },
         },
         description: "Bank requisites workspace data",
-      },
-    },
-  });
-
-  const createRoute_ = createRoute({
-    middleware: [requirePermission({ requisites: ["create"] })],
-    method: "post",
-    path: "/",
-    tags: ["Requisites"],
-    summary: "Create requisite",
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: CreateRequisiteInputSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      201: {
-        content: {
-          "application/json": {
-            schema: RequisiteSchema,
-          },
-        },
-        description: "Requisite created",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Owner not found",
       },
     },
   });
@@ -434,7 +393,13 @@ export function requisitesRoutes(ctx: AppContext) {
         sortBy: "createdAt",
         sortOrder: "desc",
       });
-      const activeRows = result.data.filter((row) => row.archivedAt === null);
+      const activeRows = (
+        await Promise.all(
+          result.data
+            .filter((row) => row.archivedAt === null)
+            .map((row) => ctx.partiesModule.requisites.queries.findById(row.id)),
+        )
+      ).filter((row) => row !== null);
       const providerIds = [...new Set(activeRows.map((row) => row.providerId))];
       const currencyIds = [...new Set(activeRows.map((row) => row.currencyId))];
       const [providerEntries, currencyEntries] = await Promise.all([
@@ -459,12 +424,16 @@ export function requisitesRoutes(ctx: AppContext) {
           data: activeRows.map((row) => {
             const provider = providerById.get(row.providerId) ?? null;
             const currency = currencyById.get(row.currencyId);
+            const routing = projectLegacyRequisiteRouting({
+              provider,
+              requisite: row,
+            });
 
             return {
-              accountNo: row.accountNo,
+              accountNo: routing.accountNo,
               beneficiaryName: row.beneficiaryName,
-              contact: row.contact,
-              corrAccount: row.corrAccount,
+              contact: null,
+              corrAccount: routing.corrAccount,
               createdAt: row.createdAt.toISOString(),
               currency: {
                 code: currency?.code ?? row.currencyId,
@@ -474,8 +443,8 @@ export function requisitesRoutes(ctx: AppContext) {
                   : row.currencyId,
                 name: currency?.name ?? row.currencyId,
               },
-              description: row.description,
-              iban: row.iban,
+              description: row.notes,
+              iban: routing.iban,
               id: row.id,
               isDefault: row.isDefault,
               kind: "bank" as const,
@@ -485,12 +454,12 @@ export function requisitesRoutes(ctx: AppContext) {
               ownerType: row.ownerType,
               provider: provider
                 ? {
-                    address: provider.address,
-                    bic: provider.bic,
+                    address: routing.bankAddress,
+                    bic: routing.bic,
                     country: provider.country,
                     id: provider.id,
-                    name: provider.name,
-                    swift: provider.swift,
+                    name: routing.bankName ?? provider.displayName,
+                    swift: routing.swift,
                   }
                 : null,
               providerId: row.providerId,
@@ -513,20 +482,6 @@ export function requisitesRoutes(ctx: AppContext) {
         ),
         200,
       );
-    })
-    .openapi(createRoute_, async (c) => {
-      const input = c.req.valid("json");
-
-      try {
-        const requisite = await ctx.requisiteAccountingWorkflow.create(input);
-        return c.json(requisite, 201);
-      } catch (error) {
-        const handled = handleMutationError(error);
-        if (handled) {
-          return c.json(handled.body, handled.status);
-        }
-        throw error;
-      }
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");

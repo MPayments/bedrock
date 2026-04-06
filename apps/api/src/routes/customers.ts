@@ -4,6 +4,8 @@ import ExcelJS from "exceljs";
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
+  projectLegacyPartyLegalEntity,
+  projectLegacyRequisiteRouting,
 } from "@bedrock/parties";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
@@ -44,6 +46,7 @@ const LocalizedTextSchema = z
   })
   .nullable()
   .optional();
+type LocalizedText = z.infer<typeof LocalizedTextSchema>;
 
 const CustomerWorkspaceSummarySchema = z.object({
   id: z.string().uuid(),
@@ -278,9 +281,13 @@ type CustomerWorkspaceSummary = z.infer<typeof CustomerWorkspaceSummarySchema>;
 type CanonicalCustomer = Awaited<
   ReturnType<AppContext["partiesModule"]["customers"]["queries"]["findById"]>
 >;
-type CanonicalCounterpartyListItem = Awaited<
-  ReturnType<AppContext["partiesModule"]["counterparties"]["queries"]["list"]>
->["data"][number];
+type CanonicalCounterpartyListItem = NonNullable<
+  Awaited<
+    ReturnType<
+      AppContext["partiesModule"]["counterparties"]["queries"]["findById"]
+    >
+  >
+>;
 type CounterpartyBankRequisite = Awaited<
   ReturnType<AppContext["partiesModule"]["requisites"]["queries"]["findById"]>
 > | null;
@@ -331,6 +338,14 @@ function normalizeNullableText(
 function normalizeCountryCode(value: string | null | undefined): string | null {
   const normalized = normalizeNullableText(value)?.toUpperCase() ?? null;
   return normalized && normalized.length === 2 ? normalized : null;
+}
+
+function toLocaleMap(value: LocalizedText): Record<string, string | null> | null {
+  if (!value) {
+    return null;
+  }
+
+  return { ...value };
 }
 
 function deriveRoutingCode(input: {
@@ -462,39 +477,121 @@ function extractCanonicalUpdateInput(
   return result;
 }
 
-function buildCounterpartyPayload(input: {
+function buildCounterpartyLegalEntityBundle(input: {
+  customerId: string;
+  values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
+}) {
+  const country = normalizeCountryCode(
+    input.values.country ?? input.values.bankCountry,
+  );
+
+  const identifiers = [
+    ["inn", normalizeNullableText(input.values.inn)],
+    ["kpp", normalizeNullableText(input.values.kpp)],
+    ["ogrn", normalizeNullableText(input.values.ogrn)],
+    ["okpo", normalizeNullableText(input.values.okpo)],
+    ["oktmo", normalizeNullableText(input.values.oktmo)],
+  ]
+    .filter(([, value]) => value)
+    .map(([scheme, value]) => ({
+      scheme: scheme!,
+      value: value!,
+      jurisdictionCode: null,
+      issuer: null,
+      isPrimary: true,
+      validFrom: null,
+      validTo: null,
+    }));
+  const contacts = [
+    ["email", normalizeNullableText(input.values.email)],
+    ["phone", normalizeNullableText(input.values.phone)],
+  ]
+    .filter(([, value]) => value)
+    .map(([type, value]) => ({
+      type: type!,
+      label: null,
+      value: value!,
+      isPrimary: true,
+    }));
+  const addresses = normalizeNullableText(input.values.address)
+    ? [
+        {
+          type: "legal",
+          label: null,
+          countryCode: country,
+          jurisdictionCode: null,
+          postalCode: null,
+          city: null,
+          line1: null,
+          line2: null,
+          rawText: normalizeNullableText(input.values.address),
+          isPrimary: true,
+        },
+      ]
+    : [];
+  const representatives = normalizeNullableText(input.values.directorName)
+    ? [
+        {
+          role: "director",
+          fullName: normalizeNullableText(input.values.directorName)!,
+          fullNameI18n: toLocaleMap(input.values.directorNameI18n),
+          title: normalizeNullableText(input.values.position),
+          titleI18n: toLocaleMap(input.values.positionI18n),
+          basisDocument: normalizeNullableText(input.values.directorBasis),
+          basisDocumentI18n: toLocaleMap(input.values.directorBasisI18n),
+          isPrimary: true,
+        },
+      ]
+    : [];
+
+  return {
+    profile: {
+      fullName: input.values.orgName,
+      shortName: input.values.orgName,
+      fullNameI18n: null,
+      shortNameI18n: toLocaleMap(input.values.orgNameI18n),
+      legalFormCode: null,
+      legalFormLabel: normalizeNullableText(input.values.orgType),
+      legalFormLabelI18n: toLocaleMap(input.values.orgTypeI18n),
+      countryCode: country,
+      jurisdictionCode: null,
+      registrationAuthority: null,
+      registeredAt: null,
+      businessActivityCode: null,
+      businessActivityText: null,
+      status: null,
+    },
+    identifiers,
+    addresses,
+    contacts,
+    representatives,
+    licenses: [],
+  };
+}
+
+function buildCounterpartyCreatePayload(input: {
   customerId: string;
   values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
 }) {
   return {
-    address: normalizeNullableText(input.values.address),
-    addressI18n: input.values.addressI18n ?? null,
-    country: normalizeCountryCode(
-      input.values.country ?? input.values.bankCountry,
-    ),
     customerId: input.customerId,
     description: null,
-    directorBasis: normalizeNullableText(input.values.directorBasis),
-    directorBasisI18n: input.values.directorBasisI18n ?? null,
-    directorName: normalizeNullableText(input.values.directorName),
-    directorNameI18n: input.values.directorNameI18n ?? null,
-    email: normalizeNullableText(input.values.email),
     externalId: normalizeNullableText(input.values.inn),
-    fullName: input.values.orgName,
-    inn: normalizeNullableText(input.values.inn),
     kind: "legal_entity" as const,
-    kpp: normalizeNullableText(input.values.kpp),
-    ogrn: normalizeNullableText(input.values.ogrn),
-    okpo: normalizeNullableText(input.values.okpo),
-    oktmo: normalizeNullableText(input.values.oktmo),
-    orgNameI18n: input.values.orgNameI18n ?? null,
-    orgType: normalizeNullableText(input.values.orgType),
-    orgTypeI18n: input.values.orgTypeI18n ?? null,
-    phone: normalizeNullableText(input.values.phone),
-    position: normalizeNullableText(input.values.position),
-    positionI18n: input.values.positionI18n ?? null,
+    legalEntity: buildCounterpartyLegalEntityBundle(input),
     relationshipKind: "customer_owned" as const,
-    shortName: input.values.orgName,
+  };
+}
+
+function buildCounterpartyUpdatePayload(input: {
+  customerId: string;
+  values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
+}) {
+  return {
+    customerId: input.customerId,
+    description: null,
+    externalId: normalizeNullableText(input.values.inn),
+    relationshipKind: "customer_owned" as const,
   };
 }
 
@@ -513,7 +610,15 @@ async function listCustomerOwnedCounterpartiesByCustomerId(
         sortBy: "createdAt",
         sortOrder: "desc",
       });
-      return [customerId, result.data] as const;
+      const counterparties = (
+        await Promise.all(
+          result.data.map((item) =>
+            ctx.partiesModule.counterparties.queries.findById(item.id),
+          ),
+        )
+      ).filter((item): item is CanonicalCounterpartyListItem => item !== null);
+
+      return [customerId, counterparties] as const;
     }),
   );
 
@@ -550,7 +655,11 @@ async function listCounterpartyBankRequisites(
         ) ??
         result.data.find((item) => item.archivedAt === null) ??
         null;
-      return [counterpartyId, preferred] as const;
+      const requisite = preferred
+        ? await ctx.partiesModule.requisites.queries.findById(preferred.id)
+        : null;
+
+      return [counterpartyId, requisite] as const;
     }),
   );
 
@@ -588,49 +697,54 @@ async function mapCustomerLegalEntity(input: {
         input.bankRequisite.providerId,
       )
     : null;
+  const legal = projectLegacyPartyLegalEntity(input.counterparty);
+  const routing = projectLegacyRequisiteRouting({
+    provider,
+    requisite: input.bankRequisite,
+  });
 
   return {
-    account: input.bankRequisite?.accountNo ?? null,
-    address: input.counterparty.address ?? null,
-    addressI18n: input.counterparty.addressI18n ?? null,
-    bankAddress: provider?.address ?? null,
+    account: routing.accountNo,
+    address: legal.address,
+    addressI18n: legal.addressI18n,
+    bankAddress: routing.bankAddress,
     bankAddressI18n: null,
     bankCountry: provider?.country ?? null,
-    bankName: provider?.name ?? null,
+    bankName: routing.bankName,
     bankNameI18n: null,
     bankProviderId: provider?.id ?? null,
-    bic: provider?.bic ?? null,
+    bic: routing.bic,
     beneficiaryName: input.bankRequisite?.beneficiaryName ?? null,
     contractNumber: input.contract?.contractNumber ?? null,
-    corrAccount: input.bankRequisite?.corrAccount ?? null,
+    corrAccount: routing.corrAccount,
     counterpartyId: input.counterparty.id,
     country: input.counterparty.country ?? null,
     createdAt: serializeDate(input.counterparty.createdAt),
-    directorBasis: input.counterparty.directorBasis ?? null,
-    directorBasisI18n: input.counterparty.directorBasisI18n ?? null,
-    directorName: input.counterparty.directorName ?? null,
-    directorNameI18n: input.counterparty.directorNameI18n ?? null,
-    email: input.counterparty.email ?? null,
+    directorBasis: legal.directorBasis,
+    directorBasisI18n: legal.directorBasisI18n,
+    directorName: legal.directorName,
+    directorNameI18n: legal.directorNameI18n,
+    email: legal.email,
     externalId: input.counterparty.externalId,
     fullName: input.counterparty.fullName,
-    inn: input.counterparty.inn ?? input.counterparty.externalId ?? null,
-    iban: input.bankRequisite?.iban ?? null,
-    kpp: input.counterparty.kpp ?? null,
-    ogrn: input.counterparty.ogrn ?? null,
-    okpo: input.counterparty.okpo ?? null,
-    oktmo: input.counterparty.oktmo ?? null,
+    inn: legal.inn ?? input.counterparty.externalId ?? null,
+    iban: routing.iban,
+    kpp: legal.kpp,
+    ogrn: legal.ogrn,
+    okpo: legal.okpo,
+    oktmo: legal.oktmo,
     orgName: input.counterparty.shortName,
-    orgNameI18n: input.counterparty.orgNameI18n ?? null,
-    orgType: input.counterparty.orgType ?? null,
-    orgTypeI18n: input.counterparty.orgTypeI18n ?? null,
-    phone: input.counterparty.phone ?? null,
-    position: input.counterparty.position ?? null,
-    positionI18n: input.counterparty.positionI18n ?? null,
+    orgNameI18n: legal.orgNameI18n,
+    orgType: legal.orgType,
+    orgTypeI18n: legal.orgTypeI18n,
+    phone: legal.phone,
+    position: legal.position,
+    positionI18n: legal.positionI18n,
     relationshipKind: input.counterparty.relationshipKind,
     shortName: input.counterparty.shortName,
     subAgent,
     subAgentCounterpartyId: input.assignment?.subAgentCounterpartyId ?? null,
-    swift: provider?.swift ?? null,
+    swift: routing.swift,
     updatedAt: serializeDate(input.counterparty.updatedAt),
   };
 }
@@ -641,18 +755,19 @@ async function mapCustomerWorkspaceSummary(
 ) {
   const counterparties = counterpartiesByCustomerId.get(customer.id) ?? [];
   const primaryCounterparty = counterparties[0] ?? null;
+  const legal = projectLegacyPartyLegalEntity(primaryCounterparty);
 
   return {
     createdAt: serializeDate(customer.createdAt),
     description: customer.description,
-    directorName: primaryCounterparty?.directorName ?? null,
+    directorName: legal.directorName,
     displayName: customer.displayName,
-    email: primaryCounterparty?.email ?? null,
+    email: legal.email,
     externalRef: customer.externalRef,
     id: customer.id,
-    inn: primaryCounterparty?.inn ?? primaryCounterparty?.externalId ?? null,
+    inn: legal.inn ?? primaryCounterparty?.externalId ?? null,
     legalEntityCount: counterparties.length,
-    phone: primaryCounterparty?.phone ?? null,
+    phone: legal.phone,
     primaryCounterpartyId: primaryCounterparty?.id ?? null,
     updatedAt: serializeDate(customer.updatedAt),
   } satisfies CustomerWorkspaceSummary;
@@ -718,7 +833,13 @@ async function getCustomerOwnedCounterparties(
     sortOrder: "desc",
   });
 
-  return result.data;
+  return (
+    await Promise.all(
+      result.data.map((item) =>
+        ctx.partiesModule.counterparties.queries.findById(item.id),
+      ),
+    )
+  ).filter((item): item is CanonicalCounterpartyListItem => item !== null);
 }
 
 async function ensureCustomerOwnedCounterparty(
@@ -753,6 +874,10 @@ async function upsertLegalEntity(
     requisites: ctx.partiesModule.requisites,
   });
   let counterpartyId = input.counterpartyId ?? null;
+  const legalEntityBundle = buildCounterpartyLegalEntityBundle({
+    customerId: input.customerId,
+    values: input.values,
+  });
 
   if (counterpartyId) {
     await ensureCustomerOwnedCounterparty(ctx, {
@@ -761,15 +886,45 @@ async function upsertLegalEntity(
     });
     await ctx.partiesModule.counterparties.commands.update(
       counterpartyId,
-      buildCounterpartyPayload({
+      buildCounterpartyUpdatePayload({
         customerId: input.customerId,
         values: input.values,
       }),
     );
+    await ctx.partiesModule.legalEntities.commands.upsertProfile({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      profile: legalEntityBundle.profile,
+    });
+    await ctx.partiesModule.legalEntities.commands.replaceIdentifiers({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      items: legalEntityBundle.identifiers,
+    });
+    await ctx.partiesModule.legalEntities.commands.replaceAddresses({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      items: legalEntityBundle.addresses,
+    });
+    await ctx.partiesModule.legalEntities.commands.replaceContacts({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      items: legalEntityBundle.contacts,
+    });
+    await ctx.partiesModule.legalEntities.commands.replaceRepresentatives({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      items: legalEntityBundle.representatives,
+    });
+    await ctx.partiesModule.legalEntities.commands.replaceLicenses({
+      ownerId: counterpartyId,
+      ownerType: "counterparty",
+      items: legalEntityBundle.licenses,
+    });
   } else {
     const createdCounterparty =
       await ctx.partiesModule.counterparties.commands.create(
-        buildCounterpartyPayload({
+        buildCounterpartyCreatePayload({
           customerId: input.customerId,
           values: input.values,
         }),
@@ -1533,16 +1688,20 @@ export function customersRoutes(ctx: AppContext) {
               currentBankRequisite.providerId,
             )
           : null;
+        const currentLegal = projectLegacyPartyLegalEntity(current);
+        const currentRouting = projectLegacyRequisiteRouting({
+          provider: currentBankProvider,
+          requisite: currentBankRequisite,
+        });
         const currentRoutingCode =
           currentBankProvider?.country === "RU"
-            ? (currentBankProvider?.bic ?? null)
-            : (currentBankProvider?.swift ?? currentBankProvider?.bic ?? null);
+            ? currentRouting.bic
+            : (currentRouting.swift ?? currentRouting.bic);
         const values: CustomerLegalEntityInput = {
-          account: patch.account ?? currentBankRequisite?.accountNo ?? null,
-          address: patch.address ?? current.address ?? null,
-          addressI18n: patch.addressI18n ?? current.addressI18n ?? null,
-          bankAddress:
-            patch.bankAddress ?? currentBankProvider?.address ?? null,
+          account: patch.account ?? currentRouting.accountNo ?? null,
+          address: patch.address ?? currentLegal.address ?? null,
+          addressI18n: patch.addressI18n ?? currentLegal.addressI18n ?? null,
+          bankAddress: patch.bankAddress ?? currentRouting.bankAddress ?? null,
           bankAddressI18n: patch.bankAddressI18n ?? null,
           bankMode:
             patch.bankMode ??
@@ -1555,7 +1714,7 @@ export function customersRoutes(ctx: AppContext) {
             address:
               patch.bankProvider?.address ??
               patch.bankAddress ??
-              currentBankProvider?.address ??
+              currentRouting.bankAddress ??
               null,
             country:
               patch.bankProvider?.country ??
@@ -1567,7 +1726,7 @@ export function customersRoutes(ctx: AppContext) {
             name:
               patch.bankProvider?.name ??
               patch.bankName ??
-              currentBankProvider?.name ??
+              currentRouting.bankName ??
               null,
             routingCode: patch.bankProvider?.routingCode ?? currentRoutingCode,
           },
@@ -1577,13 +1736,13 @@ export function customersRoutes(ctx: AppContext) {
             currentBankProvider?.country ??
             current.country ??
             null,
-          bankName: patch.bankName ?? currentBankProvider?.name ?? null,
+          bankName: patch.bankName ?? currentRouting.bankName ?? null,
           bankNameI18n: patch.bankNameI18n ?? null,
           bankRequisite: {
             accountNo:
               patch.bankRequisite?.accountNo ??
               patch.account ??
-              currentBankRequisite?.accountNo ??
+              currentRouting.accountNo ??
               null,
             beneficiaryName:
               patch.bankRequisite?.beneficiaryName ??
@@ -1593,47 +1752,47 @@ export function customersRoutes(ctx: AppContext) {
             corrAccount:
               patch.bankRequisite?.corrAccount ??
               patch.corrAccount ??
-              currentBankRequisite?.corrAccount ??
+              currentRouting.corrAccount ??
               null,
             iban:
               patch.bankRequisite?.iban ??
               patch.iban ??
-              currentBankRequisite?.iban ??
+              currentRouting.iban ??
               null,
           },
-          bic: patch.bic ?? currentBankProvider?.bic ?? null,
+          bic: patch.bic ?? currentRouting.bic ?? null,
           beneficiaryName:
             patch.beneficiaryName ??
             currentBankRequisite?.beneficiaryName ??
             null,
-          corrAccount:
-            patch.corrAccount ?? currentBankRequisite?.corrAccount ?? null,
+          corrAccount: patch.corrAccount ?? currentRouting.corrAccount ?? null,
           country: patch.country ?? current.country ?? null,
-          directorBasis: patch.directorBasis ?? current.directorBasis ?? null,
+          directorBasis:
+            patch.directorBasis ?? currentLegal.directorBasis ?? null,
           directorBasisI18n:
-            patch.directorBasisI18n ?? current.directorBasisI18n ?? null,
-          directorName: patch.directorName ?? current.directorName ?? null,
+            patch.directorBasisI18n ?? currentLegal.directorBasisI18n ?? null,
+          directorName: patch.directorName ?? currentLegal.directorName ?? null,
           directorNameI18n:
-            patch.directorNameI18n ?? current.directorNameI18n ?? null,
-          email: patch.email ?? current.email ?? null,
-          inn: patch.inn ?? current.inn ?? current.externalId ?? null,
-          iban: patch.iban ?? currentBankRequisite?.iban ?? null,
-          kpp: patch.kpp ?? current.kpp ?? null,
-          ogrn: patch.ogrn ?? current.ogrn ?? null,
-          okpo: patch.okpo ?? current.okpo ?? null,
-          oktmo: patch.oktmo ?? current.oktmo ?? null,
+            patch.directorNameI18n ?? currentLegal.directorNameI18n ?? null,
+          email: patch.email ?? currentLegal.email ?? null,
+          inn: patch.inn ?? currentLegal.inn ?? current.externalId ?? null,
+          iban: patch.iban ?? currentRouting.iban ?? null,
+          kpp: patch.kpp ?? currentLegal.kpp ?? null,
+          ogrn: patch.ogrn ?? currentLegal.ogrn ?? null,
+          okpo: patch.okpo ?? currentLegal.okpo ?? null,
+          oktmo: patch.oktmo ?? currentLegal.oktmo ?? null,
           orgName: patch.orgName ?? current.shortName,
-          orgNameI18n: patch.orgNameI18n ?? current.orgNameI18n ?? null,
-          orgType: patch.orgType ?? current.orgType ?? null,
-          orgTypeI18n: patch.orgTypeI18n ?? current.orgTypeI18n ?? null,
-          phone: patch.phone ?? current.phone ?? null,
-          position: patch.position ?? current.position ?? null,
-          positionI18n: patch.positionI18n ?? current.positionI18n ?? null,
+          orgNameI18n: patch.orgNameI18n ?? currentLegal.orgNameI18n ?? null,
+          orgType: patch.orgType ?? currentLegal.orgType ?? null,
+          orgTypeI18n: patch.orgTypeI18n ?? currentLegal.orgTypeI18n ?? null,
+          phone: patch.phone ?? currentLegal.phone ?? null,
+          position: patch.position ?? currentLegal.position ?? null,
+          positionI18n: patch.positionI18n ?? currentLegal.positionI18n ?? null,
           subAgentCounterpartyId:
             patch.subAgentCounterpartyId ??
             currentAssignment?.subAgentCounterpartyId ??
             null,
-          swift: patch.swift ?? currentBankProvider?.swift ?? null,
+          swift: patch.swift ?? currentRouting.swift ?? null,
         };
 
         const result = await upsertLegalEntity(ctx, {

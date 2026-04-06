@@ -7,6 +7,8 @@ export { DrizzleCounterpartyRepository } from "../counterparties/adapters/drizzl
 export { DrizzleCustomerReads } from "../customers/adapters/drizzle/customer.reads";
 export { DrizzleCustomersQueries } from "../customers/adapters/drizzle/customers.queries";
 export { DrizzleCustomerStore } from "../customers/adapters/drizzle/customer.store";
+export { DrizzleLegalEntitiesReads } from "../legal-entities/adapters/drizzle/legal-entities.reads";
+export { DrizzleLegalEntitiesStore } from "../legal-entities/adapters/drizzle/legal-entities.store";
 export { DrizzleOrganizationReads } from "../organizations/adapters/drizzle/organization.reads";
 export { DrizzleOrganizationsQueries } from "../organizations/adapters/drizzle/organizations.queries";
 export { DrizzleOrganizationStore } from "../organizations/adapters/drizzle/organization.store";

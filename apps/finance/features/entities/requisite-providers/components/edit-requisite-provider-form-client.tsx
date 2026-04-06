@@ -12,6 +12,11 @@ import {
   RequisiteProviderForm,
   type RequisiteProviderFormValues,
 } from "./requisite-provider-form";
+import {
+  buildPrimaryProviderBranch,
+  buildProviderIdentifiers,
+  serializeLegacyProvider,
+} from "../lib/master-data";
 import type { SerializedRequisiteProvider } from "../lib/types";
 
 type EditRequisiteProviderFormClientProps = {
@@ -39,18 +44,19 @@ export function EditRequisiteProviderFormClient({
           param: { id: current.id },
           json: {
             kind: values.kind,
-            name: values.name,
+            legalName: values.name,
+            displayName: values.name,
             description: values.description || null,
             country: values.country || null,
-            address: values.address || null,
-            contact: values.contact || null,
-            bic: values.bic || null,
-            swift: values.swift || null,
+            identifiers: buildProviderIdentifiers(values),
+            branches: buildPrimaryProviderBranch(values, current),
           },
         }),
       fallbackMessage: "Не удалось обновить провайдера реквизитов",
       parseData: async (response) =>
-        (await response.json()) as SerializedRequisiteProvider,
+        serializeLegacyProvider(
+          (await response.json()) as Parameters<typeof serializeLegacyProvider>[0],
+        ),
     });
 
     setSubmitting(false);
@@ -68,12 +74,12 @@ export function EditRequisiteProviderFormClient({
     return {
       kind: result.data.kind,
       name: result.data.name,
-      description: result.data.description ?? "",
-      country: result.data.country ?? "",
-      address: result.data.address ?? "",
-      contact: result.data.contact ?? "",
-      bic: result.data.bic ?? "",
-      swift: result.data.swift ?? "",
+      description: result.data.description,
+      country: result.data.country,
+      address: result.data.address,
+      contact: result.data.contact,
+      bic: result.data.bic,
+      swift: result.data.swift,
     };
   }
 

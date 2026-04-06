@@ -17,12 +17,20 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { requisiteProviders } from "./schema";
-import type { RequisiteProvider } from "../../application/contracts/dto";
+import {
+  requisiteProviderBranchIdentifiers,
+  requisiteProviderBranches,
+  requisiteProviderIdentifiers,
+  requisiteProviders,
+} from "./schema";
+import type {
+  RequisiteProvider,
+  RequisiteProviderListItem,
+} from "../../application/contracts/dto";
 import type { RequisiteProviderReads } from "../../application/ports/requisite-provider.reads";
 
 const PROVIDERS_SORT_COLUMN_MAP = {
-  name: requisiteProviders.name,
+  displayName: requisiteProviders.displayName,
   kind: requisiteProviders.kind,
   country: requisiteProviders.country,
   createdAt: requisiteProviders.createdAt,
@@ -39,54 +47,95 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
       .where(eq(requisiteProviders.id, id))
       .limit(1);
 
-    return row ?? null;
+    if (!row) {
+      return null;
+    }
+
+    const [identifiers, branchRows] = await Promise.all([
+      this.db
+        .select()
+        .from(requisiteProviderIdentifiers)
+        .where(eq(requisiteProviderIdentifiers.providerId, row.id))
+        .orderBy(
+          asc(requisiteProviderIdentifiers.scheme),
+          asc(requisiteProviderIdentifiers.createdAt),
+        ),
+      this.db
+        .select()
+        .from(requisiteProviderBranches)
+        .where(eq(requisiteProviderBranches.providerId, row.id))
+        .orderBy(
+          asc(requisiteProviderBranches.createdAt),
+          asc(requisiteProviderBranches.name),
+        ),
+    ]);
+    const branchIds = branchRows.map((branch) => branch.id);
+    const branchIdentifierRows = branchIds.length
+      ? await this.db
+          .select()
+          .from(requisiteProviderBranchIdentifiers)
+          .where(inArray(requisiteProviderBranchIdentifiers.branchId, branchIds))
+          .orderBy(
+            asc(requisiteProviderBranchIdentifiers.branchId),
+            asc(requisiteProviderBranchIdentifiers.createdAt),
+          )
+      : [];
+    const identifiersByBranchId = new Map<string, typeof branchIdentifierRows>();
+
+    for (const identifier of branchIdentifierRows) {
+      const items = identifiersByBranchId.get(identifier.branchId) ?? [];
+      items.push(identifier);
+      identifiersByBranchId.set(identifier.branchId, items);
+    }
+
+    return {
+      ...row,
+      identifiers,
+      branches: branchRows.map((branch) => ({
+        ...branch,
+        identifiers: identifiersByBranchId.get(branch.id) ?? [],
+      })),
+    };
   }
 
   async findActiveById(id: string): Promise<RequisiteProvider | null> {
-    const [row] = await this.db
-      .select()
-      .from(requisiteProviders)
-      .where(
-        and(eq(requisiteProviders.id, id), isNull(requisiteProviders.archivedAt)),
-      )
-      .limit(1);
-
-    return row ?? null;
+    const provider = await this.findById(id);
+    return provider?.archivedAt ? null : provider;
   }
 
   async list(input: {
     limit: number;
     offset: number;
-    sortBy?: "name" | "kind" | "country" | "createdAt" | "updatedAt";
+    sortBy?: "displayName" | "kind" | "country" | "createdAt" | "updatedAt";
     sortOrder?: "asc" | "desc";
-    bic?: string[];
     kind?: string[];
     country?: string[];
-    name?: string;
-    swift?: string[];
-  }): Promise<PaginatedList<RequisiteProvider>> {
+    displayName?: string;
+    legalName?: string;
+  }): Promise<PaginatedList<RequisiteProviderListItem>> {
     const conditions: SQL[] = [isNull(requisiteProviders.archivedAt)];
 
-    if (input.name) {
-      conditions.push(ilike(requisiteProviders.name, `%${input.name}%`));
+    if (input.displayName) {
+      conditions.push(
+        ilike(requisiteProviders.displayName, `%${input.displayName}%`),
+      );
+    }
+
+    if (input.legalName) {
+      conditions.push(ilike(requisiteProviders.legalName, `%${input.legalName}%`));
     }
 
     if (input.kind?.length) {
       conditions.push(
-        inArray(requisiteProviders.kind, input.kind as RequisiteProvider["kind"][]),
+        inArray(
+          requisiteProviders.kind,
+          input.kind as RequisiteProviderListItem["kind"][],
+        ),
       );
     }
 
     if (input.country?.length) {
       conditions.push(inArray(requisiteProviders.country, input.country));
-    }
-
-    if (input.bic?.length) {
-      conditions.push(inArray(requisiteProviders.bic, input.bic));
-    }
-
-    if (input.swift?.length) {
-      conditions.push(inArray(requisiteProviders.swift, input.swift));
     }
 
     const where = and(...conditions);

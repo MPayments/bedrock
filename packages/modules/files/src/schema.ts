@@ -1,4 +1,6 @@
 import {
+  fileAttachmentPurposeEnum,
+  fileAttachmentVisibilityEnum,
   fileAssetOriginEnum,
   fileAssets,
   fileGeneratedFormatEnum,
@@ -9,6 +11,8 @@ import {
 } from "./adapters/drizzle/schema";
 
 export {
+  fileAttachmentPurposeEnum,
+  fileAttachmentVisibilityEnum,
   fileAssetOriginEnum,
   fileAssets,
   fileGeneratedFormatEnum,
@@ -22,6 +26,8 @@ export const schema = {
   fileAssets,
   fileVersions,
   fileLinks,
+  fileAttachmentPurposeEnum,
+  fileAttachmentVisibilityEnum,
   fileAssetOriginEnum,
   fileLinkKindEnum,
   fileGeneratedFormatEnum,

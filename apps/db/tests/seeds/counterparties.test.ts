@@ -69,9 +69,9 @@ describe("seedCounterparties", () => {
         isSystem: false,
       })),
     );
-    expect(deleteTables).toEqual(
-      COUNTERPARTIES.map(() => schema.counterpartyGroupMemberships),
-    );
+    expect(
+      deleteTables.filter((table) => table === schema.counterpartyGroupMemberships),
+    ).toEqual(COUNTERPARTIES.map(() => schema.counterpartyGroupMemberships));
     expect(membershipValues).toEqual(
       COUNTERPARTIES.map((counterparty) => ({
         counterpartyId: counterparty.id,

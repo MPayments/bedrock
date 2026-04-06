@@ -6,7 +6,7 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 const REQUISITE_PROVIDERS_SORTABLE_COLUMNS = [
-  "name",
+  "displayName",
   "kind",
   "country",
   "createdAt",
@@ -16,9 +16,8 @@ const REQUISITE_PROVIDERS_SORTABLE_COLUMNS = [
 interface RequisiteProvidersListFilters {
   kind: { kind: "string"; cardinality: "multi" };
   country: { kind: "string"; cardinality: "multi" };
-  name: { kind: "string"; cardinality: "single" };
-  bic: { kind: "string"; cardinality: "multi" };
-  swift: { kind: "string"; cardinality: "multi" };
+  displayName: { kind: "string"; cardinality: "single" };
+  legalName: { kind: "string"; cardinality: "single" };
 }
 
 export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
@@ -28,11 +27,10 @@ export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: REQUISITE_PROVIDERS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
-    bic: { kind: "string", cardinality: "multi" },
     kind: { kind: "string", cardinality: "multi" },
     country: { kind: "string", cardinality: "multi" },
-    name: { kind: "string", cardinality: "single" },
-    swift: { kind: "string", cardinality: "multi" },
+    displayName: { kind: "string", cardinality: "single" },
+    legalName: { kind: "string", cardinality: "single" },
   },
 };
 

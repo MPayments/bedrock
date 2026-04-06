@@ -1,20 +1,8 @@
 import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
-import {
-  DomainError,
-} from "@bedrock/shared/core/domain";
 
 import { RequisiteCountryCodeSchema, RequisiteKindSchema } from "./zod";
-import { validateRequisiteProviderDetails } from "../../domain/requisite-provider";
-
-function readCauseString(
-  error: DomainError,
-  key: string,
-): string | undefined {
-  const value = error.meta?.[key];
-  return typeof value === "string" ? value : undefined;
-}
 
 const nullableText = z
   .string()
@@ -50,64 +38,66 @@ const nullableCountryPatch =
 
 const providerFieldsSchema = z.object({
   kind: RequisiteKindSchema,
-  name: z.string().trim().min(1).max(255),
+  legalName: z.string().trim().min(1).max(255),
+  displayName: z.string().trim().min(1).max(255),
   description: nullableText,
   country: nullableCountry,
-  address: nullableText,
-  contact: nullableText,
-  bic: nullableShortText,
-  swift: nullableShortText,
+  jurisdictionCode: nullableShortText,
+  website: nullableText,
 });
+export const RequisiteProviderIdentifierInputSchema = z.object({
+  id: z.uuid().optional(),
+  scheme: z.string().trim().min(1),
+  value: z.string().trim().min(1),
+  isPrimary: z.boolean().default(false),
+});
+export type RequisiteProviderIdentifierInput = z.infer<
+  typeof RequisiteProviderIdentifierInputSchema
+>;
+export const RequisiteProviderBranchIdentifierInputSchema =
+  RequisiteProviderIdentifierInputSchema;
+export type RequisiteProviderBranchIdentifierInput = z.infer<
+  typeof RequisiteProviderBranchIdentifierInputSchema
+>;
 
-function refineProviderRules(
-  value: {
-    kind: string;
-    country: string | null;
-    bic: string | null;
-    swift: string | null;
-  },
-  ctx: z.RefinementCtx,
-) {
-  try {
-    validateRequisiteProviderDetails({
-      kind: value.kind as never,
-      name: "validated",
-      description: null,
-      country: value.country,
-      address: null,
-      contact: null,
-      bic: value.bic,
-      swift: value.swift,
-    });
-  } catch (error) {
-    if (error instanceof DomainError) {
-      ctx.addIssue({
-        code: "custom",
-        path: [readCauseString(error, "field") ?? "kind"],
-        message: error.message,
-      });
-      return;
-    }
+export const RequisiteProviderBranchInputSchema = z.object({
+  id: z.uuid().optional(),
+  code: nullableShortText,
+  name: z.string().trim().min(1).max(255),
+  country: nullableCountry,
+  jurisdictionCode: nullableShortText,
+  postalCode: nullableShortText,
+  city: nullableShortText,
+  line1: nullableText,
+  line2: nullableText,
+  rawAddress: nullableText,
+  contactEmail: nullableShortText,
+  contactPhone: nullableShortText,
+  isPrimary: z.boolean().default(false),
+  identifiers: z.array(RequisiteProviderBranchIdentifierInputSchema).default([]),
+});
+export type RequisiteProviderBranchInput = z.infer<
+  typeof RequisiteProviderBranchInputSchema
+>;
 
-    throw error;
-  }
-}
-
-export const CreateRequisiteProviderInputSchema =
-  providerFieldsSchema.superRefine(refineProviderRules);
+export const CreateRequisiteProviderInputSchema = providerFieldsSchema.extend({
+  identifiers: z.array(RequisiteProviderIdentifierInputSchema).default([]),
+  branches: z.array(RequisiteProviderBranchInputSchema).default([]),
+});
 export type CreateRequisiteProviderInput = z.input<
   typeof CreateRequisiteProviderInputSchema
 >;
 
 export const UpdateRequisiteProviderInputSchema = z.object({
   kind: RequisiteKindSchema.exactOptional(),
-  name: z.string().trim().min(1).max(255).exactOptional(),
+  legalName: z.string().trim().min(1).max(255).exactOptional(),
+  displayName: z.string().trim().min(1).max(255).exactOptional(),
   description: nullableTextPatch,
   country: nullableCountryPatch,
-  address: nullableTextPatch,
-  contact: nullableTextPatch,
-  bic: nullableShortTextPatch,
-  swift: nullableShortTextPatch,
+  jurisdictionCode: nullableShortTextPatch,
+  website: nullableTextPatch,
+  identifiers: z.array(RequisiteProviderIdentifierInputSchema).exactOptional(),
+  branches: z.array(RequisiteProviderBranchInputSchema).exactOptional(),
 });
 export type UpdateRequisiteProviderInput = z.input<
   typeof UpdateRequisiteProviderInputSchema

@@ -1,6 +1,9 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
-import type { RequisiteProvider } from "../contracts/dto";
+import type {
+  RequisiteProvider,
+  RequisiteProviderListItem,
+} from "../contracts/dto";
 import type { ListRequisiteProvidersQuery } from "../contracts/queries";
 
 export interface RequisiteProviderReads {
@@ -8,5 +11,5 @@ export interface RequisiteProviderReads {
   findActiveById(id: string): Promise<RequisiteProvider | null>;
   list(
     query: ListRequisiteProvidersQuery,
-  ): Promise<PaginatedList<RequisiteProvider>>;
+  ): Promise<PaginatedList<RequisiteProviderListItem>>;
 }

@@ -12,7 +12,10 @@ import type {
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
-import type { PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
+import {
+  projectLegacyPartyLegalEntity,
+  type PartiesModule as PartiesModuleRoot,
+} from "@bedrock/parties";
 import type {
   Counterparty,
   Customer,
@@ -1035,14 +1038,16 @@ function isDealOwnedByCustomer(
 function toCustomerLegalEntitySummary(
   counterparty: Counterparty,
 ): CustomerLegalEntitySummary {
+  const legal = projectLegacyPartyLegalEntity(counterparty);
+
   return {
     counterpartyId: counterparty.id,
-    email: counterparty.email,
+    email: legal.email,
     fullName: counterparty.fullName,
-    inn: counterparty.inn,
+    inn: legal.inn,
     orgName: counterparty.shortName,
-    phone: counterparty.phone,
-    position: counterparty.position,
+    phone: legal.phone,
+    position: legal.position,
     relationshipKind: counterparty.relationshipKind,
     shortName: counterparty.shortName,
   };
@@ -1930,13 +1935,24 @@ export function createDealProjectionsWorkflow(
       quotesResult,
     ] = await Promise.all([
       customerId
-        ? deps.parties.counterparties.queries.list({
-            customerId,
-            limit: MAX_QUERY_LIST_LIMIT,
-            offset: 0,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-          })
+        ? (async () => {
+            const result = await deps.parties.counterparties.queries.list({
+              customerId,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            });
+            const data = (
+              await Promise.all(
+                result.data.map((item) =>
+                  deps.parties.counterparties.queries.findById(item.id),
+                ),
+              )
+            ).filter((item): item is Counterparty => item !== null);
+
+            return { ...result, data };
+          })()
         : Promise.resolve(null),
       workflow.summary.calculationId
         ? deps.calculations.calculations.queries.findById(

@@ -13,30 +13,86 @@ import type {
   SerializedRequisiteProvider,
 } from "./types";
 import type { RequisiteProvidersSearchParams } from "./validations";
+import { serializeLegacyProvider } from "./master-data";
 
-const RequisiteProviderApiSchema = z.object({
+const RequisiteProviderListItemApiSchema = z.object({
   id: z.uuid(),
   kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
-  name: z.string(),
+  legalName: z.string(),
+  displayName: z.string(),
   description: z.string().nullable(),
   country: z.string().nullable(),
-  address: z.string().nullable(),
-  contact: z.string().nullable(),
-  bic: z.string().nullable(),
-  swift: z.string().nullable(),
+  jurisdictionCode: z.string().nullable(),
+  website: z.string().nullable(),
   archivedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
 
+const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
+  identifiers: z.array(
+    z.object({
+      scheme: z.string(),
+      value: z.string(),
+      isPrimary: z.boolean(),
+    }),
+  ),
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      rawAddress: z.string().nullable(),
+      line1: z.string().nullable(),
+      line2: z.string().nullable(),
+      city: z.string().nullable(),
+      postalCode: z.string().nullable(),
+      contactEmail: z.string().nullable(),
+      contactPhone: z.string().nullable(),
+      isPrimary: z.boolean(),
+      identifiers: z.array(
+        z.object({
+          scheme: z.string(),
+          value: z.string(),
+          isPrimary: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+});
+
 const RequisiteProvidersResponseSchema = createPaginatedResponseSchema(
-  RequisiteProviderApiSchema,
+  RequisiteProviderListItemApiSchema,
 );
 
 function serializeProvider(
   row: z.infer<typeof RequisiteProviderApiSchema>,
 ): SerializedRequisiteProvider {
-  return row;
+  return serializeLegacyProvider(row);
+}
+
+function serializeProviderListItem(
+  row: z.infer<typeof RequisiteProviderListItemApiSchema>,
+): SerializedRequisiteProvider {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.displayName,
+    legalName: row.legalName,
+    displayName: row.displayName,
+    description: row.description ?? "",
+    country: row.country ?? "",
+    address: "",
+    contact: "",
+    bic: "",
+    swift: "",
+    jurisdictionCode: row.jurisdictionCode,
+    website: row.website,
+    primaryBranchId: null,
+    primaryBranchName: null,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 function createListQuery(search: RequisiteProvidersSearchParams) {
@@ -58,7 +114,7 @@ export async function getRequisiteProviders(
 
   return {
     ...data,
-    data: data.data.map(serializeProvider),
+    data: data.data.map(serializeProviderListItem),
   };
 }
 

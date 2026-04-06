@@ -1,6 +1,7 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { applyPatch } from "@bedrock/shared/core";
 
+import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import type { UpdateRequisiteProps } from "../../domain/requisite";
 import {
   UpdateRequisiteInputSchema,
@@ -44,11 +45,33 @@ export class UpdateRequisiteCommand {
       }
 
       const current = existing.toSnapshot();
-      const nextInput = applyPatch<UpdateRequisiteProps>(current, validated);
+      const nextInput = applyPatch<UpdateRequisiteProps>(
+        {
+          providerId: current.providerId,
+          providerBranchId: current.providerBranchId,
+          currencyId: current.currencyId,
+          kind: current.kind,
+          label: current.label,
+          beneficiaryName: current.beneficiaryName,
+          beneficiaryNameLocal: current.beneficiaryNameLocal,
+          beneficiaryAddress: current.beneficiaryAddress,
+          paymentPurposeTemplate: current.paymentPurposeTemplate,
+          notes: current.notes,
+          isDefault: current.isDefault,
+        },
+        validated,
+      );
       const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await this.currencies.assertCurrencyExists(nextInput.currencyId);
       await assertProviderActive(this.providerReads, nextInput.providerId);
+      if (validated.identifiers !== undefined) {
+        validatePaymentIdentifiers({
+          owner: "requisite",
+          identifiers: validated.identifiers,
+          requisiteKind: nextInput.kind,
+        });
+      }
 
       const sourceSet = await tx.requisites.findSetByOwnerCurrency({
         ownerType: current.ownerType,
@@ -79,13 +102,25 @@ export class UpdateRequisiteCommand {
         updated = next.requisite;
       }
 
+      if (validated.identifiers !== undefined) {
+        await tx.requisites.replaceIdentifiers({
+          requisiteId: updated.id,
+          items: validated.identifiers,
+        });
+      }
+      const requisite = await tx.requisites.findDetailById(updated.id);
+
+      if (!requisite) {
+        throw new Error(`Requisite not found after update: ${updated.id}`);
+      }
+
       this.runtime.log.info("Requisite updated", {
         id,
         ownerType: current.ownerType,
         ownerId: current.ownerId,
       });
 
-      return updated.toSnapshot();
+      return requisite;
     });
   }
 }

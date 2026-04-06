@@ -21,6 +21,32 @@ function createRuntime(overrides?: Record<string, unknown>) {
   } as any;
 }
 
+function createLegalEntityBundle() {
+  return {
+    profile: {
+      fullName: "Acme Incorporated",
+      shortName: "Acme",
+      fullNameI18n: null,
+      shortNameI18n: null,
+      legalFormCode: null,
+      legalFormLabel: null,
+      legalFormLabelI18n: null,
+      countryCode: null,
+      jurisdictionCode: null,
+      registrationAuthority: null,
+      registeredAt: null,
+      businessActivityCode: null,
+      businessActivityText: null,
+      status: null,
+    },
+    identifiers: [],
+    addresses: [],
+    contacts: [],
+    representatives: [],
+    licenses: [],
+  };
+}
+
 describe("counterparty command handlers", () => {
   it("creates a customer-linked counterparty with the managed group", async () => {
     const customerId = "00000000-0000-4000-8000-000000000901";
@@ -73,6 +99,15 @@ describe("counterparty command handlers", () => {
               ),
               save: vi.fn(async (group: CounterpartyGroup) => group),
             },
+            legalEntities: {
+              findBundleByOwner: vi.fn(async () => null),
+              upsertProfile: vi.fn(),
+              replaceIdentifiers: vi.fn(),
+              replaceAddresses: vi.fn(),
+              replaceContacts: vi.fn(),
+              replaceRepresentatives: vi.fn(),
+              replaceLicenses: vi.fn(),
+            },
           } as any)),
       } as any,
     );
@@ -82,6 +117,7 @@ describe("counterparty command handlers", () => {
       fullName: "Acme Incorporated",
       customerId,
       groupIds: [sharedGroupId],
+      legalEntity: createLegalEntityBundle(),
     });
 
     expect(created.groupIds).toEqual([sharedGroupId, managedGroupId]);
@@ -100,6 +136,15 @@ describe("counterparty command handlers", () => {
             },
             counterparties: {},
             counterpartyGroups: {},
+            legalEntities: {
+              findBundleByOwner: vi.fn(async () => null),
+              upsertProfile: vi.fn(),
+              replaceIdentifiers: vi.fn(),
+              replaceAddresses: vi.fn(),
+              replaceContacts: vi.fn(),
+              replaceRepresentatives: vi.fn(),
+              replaceLicenses: vi.fn(),
+            },
           } as any)),
       } as any,
     );
@@ -109,6 +154,7 @@ describe("counterparty command handlers", () => {
         shortName: "Acme",
         fullName: "Acme Incorporated",
         customerId,
+        legalEntity: createLegalEntityBundle(),
       }),
     ).rejects.toBeInstanceOf(CounterpartyCustomerNotFoundError);
   });
@@ -165,6 +211,9 @@ describe("counterparty command handlers", () => {
             },
             counterpartyGroups: {
               save: vi.fn(async (group: CounterpartyGroup) => group),
+            },
+            legalEntities: {
+              findBundleByOwner: vi.fn(async () => null),
             },
           } as any)),
       } as any,

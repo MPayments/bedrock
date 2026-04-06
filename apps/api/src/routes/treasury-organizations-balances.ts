@@ -1,5 +1,9 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
+import {
+  findRequisiteIdentifier,
+  projectLegacyRequisiteRouting,
+} from "@bedrock/parties";
 import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 
@@ -87,18 +91,34 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
     for (const [organizationId, options] of optionsByOrganization) {
       optionsByOrganizationId.set(organizationId, options);
 
-      for (const option of options) {
+      const optionRequisites = (
+        await Promise.all(
+          options.map((option) =>
+            ctx.partiesReadRuntime.requisitesQueries.findById(option.id),
+          ),
+        )
+      ).filter((requisite) => requisite !== null);
+
+      for (const option of optionRequisites) {
+        const routing = projectLegacyRequisiteRouting({
+          provider: null,
+          requisite: option,
+        });
         metaById.set(
           option.id,
           createRequisiteMeta({
-            accountNo: option.accountNo,
-            accountRef: option.accountRef,
-            address: option.address,
-            currency: option.currencyCode,
-            iban: option.iban,
+            accountNo: routing.accountNo,
+            accountRef:
+              findRequisiteIdentifier(option, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(option, "wallet_address")?.value ?? null,
+            currency:
+              options.find((item) => item.id === option.id)?.currencyCode ?? "",
+            iban: routing.iban,
             kind: option.kind,
             label: option.label,
-            subaccountRef: option.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(option, "subaccount_ref")?.value ?? null,
           }),
         );
       }
@@ -117,17 +137,25 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
           continue;
         }
 
+        const routing = projectLegacyRequisiteRouting({
+          provider: null,
+          requisite,
+        });
+
         metaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: requisite.accountNo,
-            accountRef: requisite.accountRef,
-            address: requisite.address,
+            accountNo: routing.accountNo,
+            accountRef:
+              findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: requisite.iban,
+            iban: routing.iban,
             kind: requisite.kind,
             label: requisite.label,
-            subaccountRef: requisite.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
           }),
         );
       }
@@ -213,17 +241,25 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
           continue;
         }
 
+        const routing = projectLegacyRequisiteRouting({
+          provider: null,
+          requisite,
+        });
+
         requisiteMetaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: requisite.accountNo,
-            accountRef: requisite.accountRef,
-            address: requisite.address,
+            accountNo: routing.accountNo,
+            accountRef:
+              findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: requisite.iban,
+            iban: routing.iban,
             kind: requisite.kind,
             label: requisite.label,
-            subaccountRef: requisite.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
           }),
         );
       }

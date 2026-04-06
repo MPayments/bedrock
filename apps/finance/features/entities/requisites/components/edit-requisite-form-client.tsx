@@ -7,6 +7,10 @@ import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type { RequisiteFormValues } from "@/features/entities/requisites-shared/lib/constants";
+import {
+  buildRequisiteIdentifiers,
+  toLegacyRequisiteValues,
+} from "@/features/entities/requisites-shared/lib/master-data";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -28,23 +32,23 @@ type EditRequisiteFormClientProps = {
 type UpdatedRequisiteResponse = {
   id: string;
   ownerId: string;
+  organizationId: string | null;
+  counterpartyId: string | null;
   providerId: string;
+  providerBranchId: string | null;
   currencyId: string;
   kind: RequisiteFormValues["kind"];
   label: string;
-  description: string | null;
   beneficiaryName: string | null;
-  accountNo: string | null;
-  corrAccount: string | null;
-  iban: string | null;
-  network: string | null;
-  assetCode: string | null;
-  address: string | null;
-  memoTag: string | null;
-  accountRef: string | null;
-  subaccountRef: string | null;
-  contact: string | null;
+  beneficiaryNameLocal: string | null;
+  beneficiaryAddress: string | null;
+  paymentPurposeTemplate: string | null;
   notes: string | null;
+  identifiers: Array<{
+    scheme: string;
+    value: string;
+    isPrimary: boolean;
+  }>;
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
@@ -80,6 +84,14 @@ function toUpdatedRequisite(
   ownerType: RequisiteDetailsWithOwnerType["ownerType"],
   payload: UpdatedRequisiteResponse,
 ): RequisiteDetailsWithOwnerType {
+  const legacyValues = toLegacyRequisiteValues({
+    kind: payload.kind,
+    beneficiaryName: payload.beneficiaryName,
+    paymentPurposeTemplate: payload.paymentPurposeTemplate,
+    notes: payload.notes,
+    identifiers: payload.identifiers,
+  });
+
   return {
     id: payload.id,
     ownerType,
@@ -88,19 +100,19 @@ function toUpdatedRequisite(
     currencyId: payload.currencyId,
     kind: payload.kind,
     label: payload.label,
-    description: payload.description ?? "",
-    beneficiaryName: payload.beneficiaryName ?? "",
-    accountNo: payload.accountNo ?? "",
-    corrAccount: payload.corrAccount ?? "",
-    iban: payload.iban ?? "",
-    network: payload.network ?? "",
-    assetCode: payload.assetCode ?? "",
-    address: payload.address ?? "",
-    memoTag: payload.memoTag ?? "",
-    accountRef: payload.accountRef ?? "",
-    subaccountRef: payload.subaccountRef ?? "",
-    contact: payload.contact ?? "",
-    notes: payload.notes ?? "",
+    description: legacyValues.description,
+    beneficiaryName: legacyValues.beneficiaryName,
+    accountNo: legacyValues.accountNo,
+    corrAccount: legacyValues.corrAccount,
+    iban: legacyValues.iban,
+    network: legacyValues.network,
+    assetCode: legacyValues.assetCode,
+    address: legacyValues.address,
+    memoTag: legacyValues.memoTag,
+    accountRef: legacyValues.accountRef,
+    subaccountRef: legacyValues.subaccountRef,
+    contact: legacyValues.contact,
+    notes: legacyValues.notes,
     isDefault: payload.isDefault,
     createdAt: payload.createdAt,
     updatedAt: payload.updatedAt,
@@ -136,19 +148,12 @@ export function EditRequisiteFormClient({
             currencyId: values.currencyId,
             kind: values.kind,
             label: values.label,
-            description: values.description || null,
             beneficiaryName: values.beneficiaryName || null,
-            accountNo: values.accountNo || null,
-            corrAccount: values.corrAccount || null,
-            iban: values.iban || null,
-            network: values.network || null,
-            assetCode: values.assetCode || null,
-            address: values.address || null,
-            memoTag: values.memoTag || null,
-            accountRef: values.accountRef || null,
-            subaccountRef: values.subaccountRef || null,
-            contact: values.contact || null,
+            beneficiaryNameLocal: null,
+            beneficiaryAddress: null,
+            paymentPurposeTemplate: values.description || null,
             notes: values.notes || null,
+            identifiers: buildRequisiteIdentifiers(values),
             isDefault: values.isDefault,
           },
         }),

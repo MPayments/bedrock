@@ -10,11 +10,15 @@ import {
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 
 import { counterpartyGroupMemberships, counterparties } from "./schema";
+import { DrizzleLegalEntitiesReads } from "../../../legal-entities/adapters/drizzle/legal-entities.reads";
 import {
   CountryCodeSchema,
   PartyKindSchema,
 } from "../../../shared/domain/party-kind";
-import type { Counterparty } from "../../application/contracts/counterparty.dto";
+import type {
+  Counterparty,
+  CounterpartyListItem,
+} from "../../application/contracts/counterparty.dto";
 import type { ListCounterpartiesQuery } from "../../application/contracts/counterparty.queries";
 import type { CounterpartyReads } from "../../application/ports/counterparty.reads";
 import {
@@ -45,20 +49,28 @@ export class DrizzleCounterpartyReads implements CounterpartyReads {
       return null;
     }
 
+    const legalEntitiesReads = new DrizzleLegalEntitiesReads(this.db);
+
     return {
       ...row,
       groupIds: await this.readMembershipIds(id),
+      legalEntity: await legalEntitiesReads.findBundleByOwner({
+        ownerType: "counterparty",
+        ownerId: row.id,
+      }),
     };
   }
 
-  async list(input: ListCounterpartiesQuery): Promise<PaginatedList<Counterparty>> {
+  async list(
+    input: ListCounterpartiesQuery,
+  ): Promise<PaginatedList<CounterpartyListItem>> {
     const conditions: SQL[] = [];
     const emptyResult = {
       data: [],
       total: 0,
       limit: input.limit,
       offset: input.offset,
-    } satisfies PaginatedList<Counterparty>;
+    } satisfies PaginatedList<CounterpartyListItem>;
 
     if (input.customerId) {
       if (!isUuidLike(input.customerId)) {

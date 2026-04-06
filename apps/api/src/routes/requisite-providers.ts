@@ -1,10 +1,17 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { RequisiteProviderNotFoundError } from "@bedrock/parties";
 import {
   CreateRequisiteProviderInputSchema,
   ListRequisiteProvidersQuerySchema,
+  RequisiteProviderBranchIdentifierInputSchema,
+  RequisiteProviderBranchIdentifierSchema,
+  RequisiteProviderBranchInputSchema,
+  RequisiteProviderBranchSchema,
+  RequisiteProviderIdentifierInputSchema,
+  RequisiteProviderIdentifierSchema,
   RequisiteProviderOptionSchema,
+  RequisiteProviderListItemSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
@@ -22,8 +29,11 @@ import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
 const PaginatedRequisiteProvidersSchema = createPaginatedListSchema(
-  RequisiteProviderSchema,
+  RequisiteProviderListItemSchema,
 );
+const ProviderBranchParamSchema = IdParamSchema.extend({
+  branchId: z.uuid(),
+});
 export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -205,6 +215,192 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
     },
   });
 
+  const getIdentifiersRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
+    method: "get",
+    path: "/{id}/identifiers",
+    tags: ["Requisite Providers"],
+    summary: "List provider identifiers",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderIdentifierSchema.array(),
+          },
+        },
+        description: "Provider identifiers",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider not found",
+      },
+    },
+  });
+
+  const putIdentifiersRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_update"] })],
+    method: "put",
+    path: "/{id}/identifiers",
+    tags: ["Requisite Providers"],
+    summary: "Replace provider identifiers",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderIdentifierInputSchema.array(),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderIdentifierSchema.array(),
+          },
+        },
+        description: "Provider identifiers updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider not found",
+      },
+    },
+  });
+
+  const getBranchesRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
+    method: "get",
+    path: "/{id}/branches",
+    tags: ["Requisite Providers"],
+    summary: "List provider branches",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchSchema.array(),
+          },
+        },
+        description: "Provider branches",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider not found",
+      },
+    },
+  });
+
+  const putBranchesRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_update"] })],
+    method: "put",
+    path: "/{id}/branches",
+    tags: ["Requisite Providers"],
+    summary: "Replace provider branches",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchInputSchema.array(),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchSchema.array(),
+          },
+        },
+        description: "Provider branches updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider not found",
+      },
+    },
+  });
+
+  const getBranchIdentifiersRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
+    method: "get",
+    path: "/{id}/branches/{branchId}/identifiers",
+    tags: ["Requisite Providers"],
+    summary: "List provider branch identifiers",
+    request: {
+      params: ProviderBranchParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchIdentifierSchema.array(),
+          },
+        },
+        description: "Provider branch identifiers",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider or branch not found",
+      },
+    },
+  });
+
+  const putBranchIdentifiersRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["providers_update"] })],
+    method: "put",
+    path: "/{id}/branches/{branchId}/identifiers",
+    tags: ["Requisite Providers"],
+    summary: "Replace provider branch identifiers",
+    request: {
+      params: ProviderBranchParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchIdentifierInputSchema.array(),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RequisiteProviderBranchIdentifierSchema.array(),
+          },
+        },
+        description: "Provider branch identifiers updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Requisite provider or branch not found",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
@@ -217,7 +413,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const result = await ctx.partiesModule.requisites.queries.listProviders({
         limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
-        sortBy: "name",
+        sortBy: "displayName",
         sortOrder: "asc",
       });
 
@@ -226,8 +422,8 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
           RequisiteProviderOptionSchema.parse({
             id: item.id,
             kind: item.kind,
-            name: item.name,
-            label: item.name,
+            displayName: item.displayName,
+            label: item.displayName,
           }),
         ),
         200,
@@ -292,6 +488,136 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {
           return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(getIdentifiersRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        const provider = await ctx.partiesModule.requisites.queries.findProviderById(
+          id,
+        );
+        return c.json(provider.identifiers, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(putIdentifiersRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        const provider = await ctx.partiesModule.requisites.commands.updateProvider(
+          id,
+          { identifiers: input },
+        );
+        return c.json(provider.identifiers, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        if (error instanceof ValidationError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    })
+    .openapi(getBranchesRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        const provider = await ctx.partiesModule.requisites.queries.findProviderById(
+          id,
+        );
+        return c.json(provider.branches, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(putBranchesRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        const provider = await ctx.partiesModule.requisites.commands.updateProvider(
+          id,
+          { branches: input },
+        );
+        return c.json(provider.branches, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        if (error instanceof ValidationError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    })
+    .openapi(getBranchIdentifiersRoute, async (c) => {
+      const { id, branchId } = c.req.valid("param");
+
+      try {
+        const provider = await ctx.partiesModule.requisites.queries.findProviderById(
+          id,
+        );
+        const branch = provider.branches.find((item) => item.id === branchId);
+
+        if (!branch) {
+          return c.json({ error: `Requisite provider branch not found: ${branchId}` }, 404);
+        }
+
+        return c.json(branch.identifiers, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(putBranchIdentifiersRoute, async (c) => {
+      const { id, branchId } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        const current = await ctx.partiesModule.requisites.queries.findProviderById(
+          id,
+        );
+        const branch = current.branches.find((item) => item.id === branchId);
+
+        if (!branch) {
+          return c.json({ error: `Requisite provider branch not found: ${branchId}` }, 404);
+        }
+
+        const provider = await ctx.partiesModule.requisites.commands.updateProvider(
+          id,
+          {
+            branches: current.branches.map((item) =>
+              item.id === branchId ? { ...item, identifiers: input } : item,
+            ),
+          },
+        );
+        const updatedBranch = provider.branches.find((item) => item.id === branchId);
+
+        if (!updatedBranch) {
+          return c.json({ error: `Requisite provider branch not found: ${branchId}` }, 404);
+        }
+
+        return c.json(updatedBranch.identifiers, 200);
+      } catch (error) {
+        if (error instanceof RequisiteProviderNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        if (error instanceof ValidationError) {
+          return c.json({ error: error.message }, 400);
         }
         throw error;
       }
