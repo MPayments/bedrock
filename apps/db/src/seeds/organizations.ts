@@ -50,12 +50,8 @@ export async function seedOrganizations(db: Database | Transaction) {
         legalFormLabel: organization.orgType ?? null,
         legalFormLabelI18n: null,
         countryCode: organization.country ?? null,
-        jurisdictionCode: null,
-        registrationAuthority: null,
-        registeredAt: null,
         businessActivityCode: null,
         businessActivityText: organization.description ?? null,
-        status: null,
       })
       .onConflictDoUpdate({
         target: schema.partyLegalProfiles.organizationId,
@@ -68,12 +64,8 @@ export async function seedOrganizations(db: Database | Transaction) {
           legalFormLabel: organization.orgType ?? null,
           legalFormLabelI18n: null,
           countryCode: organization.country ?? null,
-          jurisdictionCode: null,
-          registrationAuthority: null,
-          registeredAt: null,
           businessActivityCode: null,
           businessActivityText: organization.description ?? null,
-          status: null,
         },
       })
       .returning({ id: schema.partyLegalProfiles.id });
@@ -107,11 +99,6 @@ export async function seedOrganizations(db: Database | Transaction) {
             scheme: "inn",
             value: organization.inn,
             normalizedValue: organization.inn,
-            jurisdictionCode: null,
-            issuer: null,
-            isPrimary: true,
-            validFrom: null,
-            validTo: null,
           }
         : null,
       organization.taxId
@@ -120,11 +107,6 @@ export async function seedOrganizations(db: Database | Transaction) {
             scheme: "tax_id",
             value: organization.taxId,
             normalizedValue: organization.taxId,
-            jurisdictionCode: null,
-            issuer: null,
-            isPrimary: true,
-            validFrom: null,
-            validTo: null,
           }
         : null,
       organization.kpp
@@ -133,11 +115,6 @@ export async function seedOrganizations(db: Database | Transaction) {
             scheme: "kpp",
             value: organization.kpp,
             normalizedValue: organization.kpp,
-            jurisdictionCode: null,
-            issuer: null,
-            isPrimary: true,
-            validFrom: null,
-            validTo: null,
           }
         : null,
     ].filter((item) => item !== null);
@@ -149,10 +126,8 @@ export async function seedOrganizations(db: Database | Transaction) {
     if (organization.address) {
       await db.insert(schema.partyAddresses).values({
         partyLegalProfileId: profileId,
-        type: "legal",
         label: null,
         countryCode: organization.country ?? null,
-        jurisdictionCode: null,
         postalCode: null,
         city: organization.city ?? null,
         line1: null,

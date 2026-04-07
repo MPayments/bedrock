@@ -9,13 +9,11 @@ import {
 } from "../../shared/domain/locale-map";
 import {
   LEGAL_IDENTIFIER_SCHEME_VALUES,
-  PARTY_ADDRESS_TYPE_VALUES,
   PARTY_CONTACT_TYPE_VALUES,
   PARTY_LICENSE_TYPE_VALUES,
   PARTY_REPRESENTATIVE_ROLE_VALUES,
   normalizePartyTaxonomyValue,
   type LegalIdentifierScheme,
-  type PartyAddressType,
   type PartyContactType,
   type PartyLicenseType,
   type PartyRepresentativeRole,
@@ -51,11 +49,6 @@ export const LegalIdentifierSchemeSchema = createTaxonomySchema(
 );
 export type LegalIdentifierSchemeValue = LegalIdentifierScheme;
 
-export const PartyAddressTypeSchema = createTaxonomySchema(
-  PARTY_ADDRESS_TYPE_VALUES,
-);
-export type PartyAddressTypeValue = PartyAddressType;
-
 export const PartyContactTypeSchema = createTaxonomySchema(
   PARTY_CONTACT_TYPE_VALUES,
 );
@@ -83,12 +76,8 @@ export const PartyLegalProfileSchema = z.object({
   legalFormLabel: z.string().nullable(),
   legalFormLabelI18n: LocaleTextMapSchema,
   countryCode: CountryCodeSchema.nullable(),
-  jurisdictionCode: z.string().nullable(),
-  registrationAuthority: z.string().nullable(),
-  registeredAt: z.date().nullable(),
   businessActivityCode: z.string().nullable(),
   businessActivityText: z.string().nullable(),
-  status: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -104,12 +93,8 @@ export const PartyLegalProfileInputSchema = z.object({
   legalFormLabel: nullableText,
   legalFormLabelI18n: LocaleTextMapSchema.optional().default(null),
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
-  jurisdictionCode: nullableText,
-  registrationAuthority: nullableText,
-  registeredAt: nullableDate,
   businessActivityCode: nullableText,
   businessActivityText: nullableText,
-  status: nullableText,
 });
 
 export type PartyLegalProfileInput = z.infer<
@@ -122,11 +107,6 @@ export const PartyLegalIdentifierSchema = z.object({
   scheme: LegalIdentifierSchemeSchema,
   value: z.string(),
   normalizedValue: z.string(),
-  jurisdictionCode: z.string().nullable(),
-  issuer: z.string().nullable(),
-  isPrimary: z.boolean(),
-  validFrom: z.date().nullable(),
-  validTo: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -137,11 +117,6 @@ export const PartyLegalIdentifierInputSchema = z.object({
   id: z.uuid().optional(),
   scheme: LegalIdentifierSchemeSchema,
   value: z.string().trim().min(1),
-  jurisdictionCode: nullableText,
-  issuer: nullableText,
-  isPrimary: z.boolean().default(false),
-  validFrom: nullableDate,
-  validTo: nullableDate,
 });
 
 export type PartyLegalIdentifierInput = z.infer<
@@ -151,10 +126,8 @@ export type PartyLegalIdentifierInput = z.infer<
 export const PartyAddressSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  type: PartyAddressTypeSchema,
   label: z.string().nullable(),
   countryCode: CountryCodeSchema.nullable(),
-  jurisdictionCode: z.string().nullable(),
   postalCode: z.string().nullable(),
   city: z.string().nullable(),
   line1: z.string().nullable(),
@@ -169,10 +142,8 @@ export type PartyAddress = z.infer<typeof PartyAddressSchema>;
 
 export const PartyAddressInputSchema = z.object({
   id: z.uuid().optional(),
-  type: PartyAddressTypeSchema,
   label: nullableText,
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
-  jurisdictionCode: nullableText,
   postalCode: nullableText,
   city: nullableText,
   line1: nullableText,

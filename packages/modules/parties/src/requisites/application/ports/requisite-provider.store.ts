@@ -33,7 +33,6 @@ export interface RequisiteProviderStore {
       code: string | null;
       name: string;
       country: string | null;
-      jurisdictionCode: string | null;
       postalCode: string | null;
       city: string | null;
       line1: string | null;

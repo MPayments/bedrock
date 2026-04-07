@@ -25,7 +25,6 @@ type ProviderShape = {
   displayName: string;
   description: string | null;
   country: string | null;
-  jurisdictionCode: string | null;
   website: string | null;
   archivedAt: string | null;
   createdAt: string;
@@ -88,7 +87,6 @@ export function serializeLegacyProvider(
   id: string;
   legalName: string;
   displayName: string;
-  jurisdictionCode: string | null;
   website: string | null;
   archivedAt: string | null;
   createdAt: string;
@@ -118,7 +116,6 @@ export function serializeLegacyProvider(
     contact: resolveBranchContact(primaryBranch),
     bic,
     swift,
-    jurisdictionCode: provider.jurisdictionCode,
     website: provider.website,
     archivedAt: provider.archivedAt,
     createdAt: provider.createdAt,
@@ -176,7 +173,6 @@ export function buildPrimaryProviderBranch(
       id: current?.primaryBranchId ?? undefined,
       name: current?.primaryBranchName ?? values.name.trim(),
       country: values.country.trim() || null,
-      jurisdictionCode: null,
       postalCode: null,
       city: null,
       line1: null,

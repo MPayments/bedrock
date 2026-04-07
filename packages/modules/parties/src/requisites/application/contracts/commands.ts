@@ -42,7 +42,6 @@ const providerFieldsSchema = z.object({
   displayName: z.string().trim().min(1).max(255),
   description: nullableText,
   country: nullableCountry,
-  jurisdictionCode: nullableShortText,
   website: nullableText,
 });
 export const RequisiteProviderIdentifierInputSchema = z.object({
@@ -65,7 +64,6 @@ export const RequisiteProviderBranchInputSchema = z.object({
   code: nullableShortText,
   name: z.string().trim().min(1).max(255),
   country: nullableCountry,
-  jurisdictionCode: nullableShortText,
   postalCode: nullableShortText,
   city: nullableShortText,
   line1: nullableText,
@@ -94,7 +92,6 @@ export const UpdateRequisiteProviderInputSchema = z.object({
   displayName: z.string().trim().min(1).max(255).exactOptional(),
   description: nullableTextPatch,
   country: nullableCountryPatch,
-  jurisdictionCode: nullableShortTextPatch,
   website: nullableTextPatch,
   identifiers: z.array(RequisiteProviderIdentifierInputSchema).exactOptional(),
   branches: z.array(RequisiteProviderBranchInputSchema).exactOptional(),

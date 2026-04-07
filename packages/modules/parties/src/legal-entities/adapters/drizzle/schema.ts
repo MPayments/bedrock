@@ -36,12 +36,8 @@ export const partyLegalProfiles = pgTable(
     legalFormLabel: text("legal_form_label"),
     legalFormLabelI18n: jsonb("legal_form_label_i18n").$type<LocaleTextMap>(),
     countryCode: partyCountryCodeEnum("country_code"),
-    jurisdictionCode: text("jurisdiction_code"),
-    registrationAuthority: text("registration_authority"),
-    registeredAt: timestamp("registered_at", { withTimezone: true }),
     businessActivityCode: text("business_activity_code"),
     businessActivityText: text("business_activity_text"),
-    status: text("status"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -80,11 +76,6 @@ export const partyLegalIdentifiers = pgTable(
     scheme: text("scheme").notNull(),
     value: text("value").notNull(),
     normalizedValue: text("normalized_value").notNull(),
-    jurisdictionCode: text("jurisdiction_code"),
-    issuer: text("issuer"),
-    isPrimary: boolean("is_primary").notNull().default(false),
-    validFrom: timestamp("valid_from", { withTimezone: true }),
-    validTo: timestamp("valid_to", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -95,14 +86,10 @@ export const partyLegalIdentifiers = pgTable(
   },
   (table) => [
     index("party_legal_identifiers_profile_idx").on(table.partyLegalProfileId),
-    uniqueIndex("party_legal_identifiers_value_uq").on(
+    uniqueIndex("party_legal_identifiers_scheme_uq").on(
       table.partyLegalProfileId,
       table.scheme,
-      table.normalizedValue,
     ),
-    uniqueIndex("party_legal_identifiers_primary_uq")
-      .on(table.partyLegalProfileId, table.scheme)
-      .where(sql`${table.isPrimary} = true`),
   ],
 );
 
@@ -113,10 +100,8 @@ export const partyAddresses = pgTable(
     partyLegalProfileId: uuid("party_legal_profile_id")
       .notNull()
       .references(() => partyLegalProfiles.id, { onDelete: "cascade" }),
-    type: text("type").notNull(),
     label: text("label"),
     countryCode: partyCountryCodeEnum("country_code"),
-    jurisdictionCode: text("jurisdiction_code"),
     postalCode: text("postal_code"),
     city: text("city"),
     line1: text("line_1"),
@@ -134,7 +119,7 @@ export const partyAddresses = pgTable(
   (table) => [
     index("party_addresses_profile_idx").on(table.partyLegalProfileId),
     uniqueIndex("party_addresses_primary_uq")
-      .on(table.partyLegalProfileId, table.type)
+      .on(table.partyLegalProfileId)
       .where(sql`${table.isPrimary} = true`),
   ],
 );

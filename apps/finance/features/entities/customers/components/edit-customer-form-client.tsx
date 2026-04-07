@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { CustomerRelationHub } from "@bedrock/sdk-parties-ui/components/customer-relation-hub";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -14,6 +15,8 @@ import { apiClient } from "@/lib/api-client";
 import type { CustomerDetails } from "../lib/queries";
 import { executeMutation } from "@/lib/resources/http";
 
+import type { CustomerRelationHubData } from "../lib/relation-hub";
+
 function toFormValues(customer: CustomerDetails): CustomerGeneralFormValues {
   return {
     displayName: customer.displayName,
@@ -24,9 +27,13 @@ function toFormValues(customer: CustomerDetails): CustomerGeneralFormValues {
 
 type EditCustomerFormClientProps = {
   customer: CustomerDetails;
+  relationHub: CustomerRelationHubData;
 };
 
-export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps) {
+export function EditCustomerFormClient({
+  customer,
+  relationHub,
+}: EditCustomerFormClientProps) {
   const router = useRouter();
   const { actions } = useCustomerDraftName();
   const [submitting, setSubmitting] = useState(false);
@@ -108,16 +115,22 @@ export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps
   }
 
   return (
-    <CustomerEditGeneralForm
-      initialValues={initialValues}
-      createdAt={createdAt}
-      updatedAt={updatedAt}
-      submitting={submitting}
-      deleting={deleting}
-      error={error}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-      onDisplayNameChange={handleDisplayNameChange}
-    />
+    <div className="space-y-6">
+      <CustomerEditGeneralForm
+        initialValues={initialValues}
+        createdAt={createdAt}
+        updatedAt={updatedAt}
+        submitting={submitting}
+        deleting={deleting}
+        error={error}
+        onSubmit={handleSubmit}
+        onDelete={handleDelete}
+        onDisplayNameChange={handleDisplayNameChange}
+      />
+      <CustomerRelationHub
+        counterparties={relationHub.counterparties}
+        createCounterpartyHref={relationHub.createCounterpartyHref}
+      />
+    </div>
   );
 }

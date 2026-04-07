@@ -19,29 +19,18 @@ export type PartyLegalEntityBundleSource = {
     legalFormLabel: string | null;
     legalFormLabelI18n: LocaleTextMap;
     countryCode: string | null;
-    jurisdictionCode: string | null;
-    registrationAuthority: string | null;
-    registeredAt: Date | string | null;
     businessActivityCode: string | null;
     businessActivityText: string | null;
-    status: string | null;
   };
   identifiers: Array<{
     id?: string;
     scheme: PartyLegalIdentifierInput["scheme"];
     value: string;
-    jurisdictionCode: string | null;
-    issuer: string | null;
-    isPrimary: boolean;
-    validFrom: Date | string | null;
-    validTo: Date | string | null;
   }>;
   addresses: Array<{
     id?: string;
-    type: PartyAddressInput["type"];
     label: string | null;
     countryCode: string | null;
-    jurisdictionCode: string | null;
     postalCode: string | null;
     city: string | null;
     line1: string | null;
@@ -116,11 +105,6 @@ function cloneIdentifiers(
     id: item.id,
     scheme: item.scheme,
     value: item.value,
-    jurisdictionCode: item.jurisdictionCode ?? null,
-    issuer: item.issuer ?? null,
-    isPrimary: item.isPrimary,
-    validFrom: normalizeDate(item.validFrom ?? null),
-    validTo: normalizeDate(item.validTo ?? null),
   }));
 }
 
@@ -129,10 +113,8 @@ function cloneAddresses(
 ): PartyAddressInput[] {
   return items.map((item) => ({
     id: item.id,
-    type: item.type,
     label: item.label ?? null,
     countryCode: item.countryCode ?? null,
-    jurisdictionCode: item.jurisdictionCode ?? null,
     postalCode: item.postalCode ?? null,
     city: item.city ?? null,
     line1: item.line1 ?? null,
@@ -198,12 +180,8 @@ export function createSeededLegalEntityBundle(
       legalFormLabel: null,
       legalFormLabelI18n: null,
       countryCode: seed.countryCode ?? null,
-      jurisdictionCode: null,
-      registrationAuthority: null,
-      registeredAt: null,
       businessActivityCode: null,
       businessActivityText: null,
-      status: null,
     },
     identifiers: [],
     addresses: [],
@@ -239,12 +217,8 @@ export function toLegalEntityBundleInput(
         source.profile.legalFormLabelI18n ?? null,
       ),
       countryCode: source.profile.countryCode ?? null,
-      jurisdictionCode: source.profile.jurisdictionCode ?? null,
-      registrationAuthority: source.profile.registrationAuthority ?? null,
-      registeredAt: normalizeDate(source.profile.registeredAt ?? null),
       businessActivityCode: source.profile.businessActivityCode ?? null,
       businessActivityText: source.profile.businessActivityText ?? null,
-      status: source.profile.status ?? null,
     },
     identifiers: cloneIdentifiers(source.identifiers),
     addresses: cloneAddresses(source.addresses),

@@ -14,18 +14,6 @@ export const LEGAL_IDENTIFIER_SCHEME_VALUES = [
 export type LegalIdentifierScheme =
   (typeof LEGAL_IDENTIFIER_SCHEME_VALUES)[number];
 
-export const PARTY_ADDRESS_TYPE_VALUES = [
-  "legal",
-  "registered",
-  "mailing",
-  "billing",
-  "operating",
-  "branch",
-  "other",
-] as const;
-
-export type PartyAddressType = (typeof PARTY_ADDRESS_TYPE_VALUES)[number];
-
 export const PARTY_CONTACT_TYPE_VALUES = [
   "email",
   "phone",

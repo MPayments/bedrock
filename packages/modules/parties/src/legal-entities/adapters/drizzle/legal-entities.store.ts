@@ -85,12 +85,8 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
       legalFormLabel: input.profile.legalFormLabel,
       legalFormLabelI18n: normalizeLocaleMap(input.profile.legalFormLabelI18n),
       countryCode: input.profile.countryCode,
-      jurisdictionCode: input.profile.jurisdictionCode,
-      registrationAuthority: input.profile.registrationAuthority,
-      registeredAt: input.profile.registeredAt,
       businessActivityCode: input.profile.businessActivityCode,
       businessActivityText: input.profile.businessActivityText,
-      status: input.profile.status,
     };
 
     const [profile] = existing
@@ -139,11 +135,6 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
           scheme: item.scheme,
           value: item.value,
           normalizedValue: normalizeIdentifierValue(item.value),
-          jurisdictionCode: item.jurisdictionCode,
-          issuer: item.issuer,
-          isPrimary: item.isPrimary,
-          validFrom: item.validFrom,
-          validTo: item.validTo,
         })),
       )
       .returning();
@@ -172,10 +163,8 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
         input.items.map((item) => ({
           id: item.id,
           partyLegalProfileId: profile.id,
-          type: item.type,
           label: item.label,
           countryCode: item.countryCode,
-          jurisdictionCode: item.jurisdictionCode,
           postalCode: item.postalCode,
           city: item.city,
           line1: item.line1,

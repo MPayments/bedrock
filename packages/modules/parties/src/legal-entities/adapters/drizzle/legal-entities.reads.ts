@@ -2,6 +2,14 @@ import { asc, eq } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
+import {
+  partyAddresses,
+  partyContacts,
+  partyLegalIdentifiers,
+  partyLegalProfiles,
+  partyLicenses,
+  partyRepresentatives,
+} from "./schema";
 import type {
   PartyAddress,
   PartyContact,
@@ -16,14 +24,6 @@ import type {
   LegalEntitiesReads,
   LegalEntityOwnerRef,
 } from "../../application/ports/legal-entities.reads";
-import {
-  partyAddresses,
-  partyContacts,
-  partyLegalIdentifiers,
-  partyLegalProfiles,
-  partyLicenses,
-  partyRepresentatives,
-} from "./schema";
 
 function profileOwnerWhere(input: {
   ownerType: PartyLegalOwnerType;
@@ -114,7 +114,7 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
       .select()
       .from(partyAddresses)
       .where(eq(partyAddresses.partyLegalProfileId, profile.id))
-      .orderBy(asc(partyAddresses.type), asc(partyAddresses.createdAt));
+      .orderBy(asc(partyAddresses.createdAt));
 
     return rows as PartyAddress[];
   }

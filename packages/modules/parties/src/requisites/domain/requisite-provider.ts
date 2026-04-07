@@ -15,7 +15,6 @@ export interface RequisiteProviderSnapshot {
   displayName: string;
   description: string | null;
   country: string | null;
-  jurisdictionCode: string | null;
   website: string | null;
   archivedAt: Date | null;
   createdAt: Date;
@@ -28,7 +27,6 @@ export interface RequisiteProviderDetails {
   displayName: string;
   description: string | null;
   country: string | null;
-  jurisdictionCode: string | null;
   website: string | null;
 }
 
@@ -88,7 +86,6 @@ export function normalizeRequisiteProviderDetails(
     ),
     description: normalizeOptionalText(input.description),
     country: normalizeCountryCode(input.country),
-    jurisdictionCode: normalizeOptionalText(input.jurisdictionCode),
     website: normalizeOptionalText(input.website),
   };
 }

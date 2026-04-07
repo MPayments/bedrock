@@ -9975,12 +9975,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "label": {
           "name": "label",
           "type": "text",
@@ -9991,12 +9985,6 @@
           "name": "country_code",
           "type": "party_country_code",
           "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "jurisdiction_code": {
-          "name": "jurisdiction_code",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -10073,12 +10061,6 @@
           "columns": [
             {
               "expression": "party_legal_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10264,37 +10246,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "jurisdiction_code": {
-          "name": "jurisdiction_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "issuer": {
-          "name": "issuer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "valid_to": {
-          "name": "valid_to",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -10326,35 +10277,8 @@
           "method": "btree",
           "with": {}
         },
-        "party_legal_identifiers_value_uq": {
-          "name": "party_legal_identifiers_value_uq",
-          "columns": [
-            {
-              "expression": "party_legal_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scheme",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "normalized_value",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "party_legal_identifiers_primary_uq": {
-          "name": "party_legal_identifiers_primary_uq",
+        "party_legal_identifiers_scheme_uq": {
+          "name": "party_legal_identifiers_scheme_uq",
           "columns": [
             {
               "expression": "party_legal_profile_id",
@@ -10370,7 +10294,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"party_legal_identifiers\".\"is_primary\" = true",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10469,24 +10392,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "jurisdiction_code": {
-          "name": "jurisdiction_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registration_authority": {
-          "name": "registration_authority",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registered_at": {
-          "name": "registered_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "business_activity_code": {
           "name": "business_activity_code",
           "type": "text",
@@ -10495,12 +10400,6 @@
         },
         "business_activity_text": {
           "name": "business_activity_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -12089,12 +11988,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "jurisdiction_code": {
-          "name": "jurisdiction_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "postal_code": {
           "name": "postal_code",
           "type": "text",
@@ -12401,12 +12294,6 @@
         },
         "country": {
           "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "jurisdiction_code": {
-          "name": "jurisdiction_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false

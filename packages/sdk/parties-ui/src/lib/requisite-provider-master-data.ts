@@ -20,7 +20,6 @@ export type RequisiteProviderMasterDataSource = {
   displayName: string;
   description: string | null;
   country: string | null;
-  jurisdictionCode: string | null;
   website: string | null;
   identifiers: Array<{
     id?: string;
@@ -33,7 +32,6 @@ export type RequisiteProviderMasterDataSource = {
     code: string | null;
     name: string;
     country: string | null;
-    jurisdictionCode: string | null;
     postalCode: string | null;
     city: string | null;
     line1: string | null;
@@ -57,11 +55,23 @@ export type RequisiteProviderMasterDataInput = {
   displayName: string;
   description: string | null;
   country: string | null;
-  jurisdictionCode: string | null;
   website: string | null;
   identifiers: RequisiteProviderIdentifierInput[];
   branches: RequisiteProviderBranchInput[];
 };
+
+export function createEmptyRequisiteProviderMasterDataSource(): RequisiteProviderMasterDataSource {
+  return {
+    kind: "bank",
+    legalName: "",
+    displayName: "",
+    description: null,
+    country: null,
+    website: null,
+    identifiers: [],
+    branches: [],
+  };
+}
 
 function trimToNull(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -115,7 +125,6 @@ export function buildCompactProviderBranches(
       code: currentPrimaryBranch?.code ?? null,
       name: currentPrimaryBranch?.name ?? values.legalName.trim(),
       country: trimToNull(values.country),
-      jurisdictionCode: currentPrimaryBranch?.jurisdictionCode ?? null,
       postalCode: currentPrimaryBranch?.postalCode ?? null,
       city: currentPrimaryBranch?.city ?? null,
       line1: currentPrimaryBranch?.line1 ?? null,
@@ -145,7 +154,6 @@ export function createCompactProviderInput(
     displayName: values.legalName.trim(),
     description: trimToNull(values.description),
     country: trimToNull(values.country)?.toUpperCase() ?? null,
-    jurisdictionCode: current?.jurisdictionCode ?? null,
     website: current?.website ?? null,
     identifiers: buildCompactProviderIdentifiers(values),
     branches: buildCompactProviderBranches(values, current),
@@ -161,7 +169,6 @@ export function toRequisiteProviderMasterDataInput(
     displayName: provider.displayName,
     description: provider.description ?? null,
     country: provider.country ?? null,
-    jurisdictionCode: provider.jurisdictionCode ?? null,
     website: provider.website ?? null,
     identifiers: provider.identifiers.map((identifier) => ({
       id: identifier.id,
@@ -174,7 +181,6 @@ export function toRequisiteProviderMasterDataInput(
       code: branch.code ?? null,
       name: branch.name,
       country: branch.country ?? null,
-      jurisdictionCode: branch.jurisdictionCode ?? null,
       postalCode: branch.postalCode ?? null,
       city: branch.city ?? null,
       line1: branch.line1 ?? null,
@@ -202,7 +208,6 @@ export function cloneRequisiteProviderMasterDataInput(
     displayName: input.displayName,
     description: input.description ?? null,
     country: input.country ?? null,
-    jurisdictionCode: input.jurisdictionCode ?? null,
     website: input.website ?? null,
     identifiers: input.identifiers.map((identifier) => ({
       id: identifier.id,
@@ -215,7 +220,6 @@ export function cloneRequisiteProviderMasterDataInput(
       code: branch.code ?? null,
       name: branch.name,
       country: branch.country ?? null,
-      jurisdictionCode: branch.jurisdictionCode ?? null,
       postalCode: branch.postalCode ?? null,
       city: branch.city ?? null,
       line1: branch.line1 ?? null,

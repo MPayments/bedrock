@@ -40,13 +40,7 @@ export function findPartyLegalIdentifier(
     return null;
   }
 
-  return (
-    bundle.identifiers.find(
-      (identifier) => identifier.scheme === scheme && identifier.isPrimary,
-    ) ??
-    bundle.identifiers.find((identifier) => identifier.scheme === scheme) ??
-    null
-  );
+  return bundle.identifiers.find((identifier) => identifier.scheme === scheme) ?? null;
 }
 
 export function findPartyContact(
@@ -63,20 +57,10 @@ export function findPartyContact(
 
 export function findPartyAddress(
   partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
-  preferredTypes: string[] = ["legal", "registered", "primary"],
 ): PartyAddress | null {
   const bundle = getBundle(partyOrBundle);
   if (!bundle) {
     return null;
-  }
-
-  for (const type of preferredTypes) {
-    const item = pickPrimary(
-      bundle.addresses.filter((address) => address.type === type),
-    );
-    if (item) {
-      return item;
-    }
   }
 
   return pickPrimary(bundle.addresses);

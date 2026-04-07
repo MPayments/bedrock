@@ -17,7 +17,6 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
         displayName: provider.name,
         description: provider.description,
         country: provider.country,
-        jurisdictionCode: null,
         website: provider.contact?.startsWith("http") ? provider.contact : null,
       })
       .onConflictDoUpdate({
@@ -28,7 +27,6 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
           displayName: provider.name,
           description: provider.description,
           country: provider.country,
-          jurisdictionCode: null,
           website: provider.contact?.startsWith("http") ? provider.contact : null,
           archivedAt: null,
         },
@@ -72,7 +70,6 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
         code: null,
         name: provider.name,
         country: provider.country,
-        jurisdictionCode: null,
         postalCode: null,
         city: null,
         line1: null,

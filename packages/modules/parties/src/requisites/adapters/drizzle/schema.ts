@@ -39,7 +39,6 @@ export const requisiteProviders = pgTable(
     displayName: text("display_name").notNull(),
     description: text("description"),
     country: text("country"),
-    jurisdictionCode: text("jurisdiction_code"),
     website: text("website"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -98,7 +97,6 @@ export const requisiteProviderBranches = pgTable(
     code: text("code"),
     name: text("name").notNull(),
     country: text("country"),
-    jurisdictionCode: text("jurisdiction_code"),
     postalCode: text("postal_code"),
     city: text("city"),
     line1: text("line_1"),

@@ -17,7 +17,6 @@ describe("requisite provider domain helpers", () => {
       displayName: "  JPM  ",
       description: "   ",
       country: "us",
-      jurisdictionCode: null,
       website: null,
     });
 
@@ -43,7 +42,6 @@ describe("requisite provider domain helpers", () => {
         displayName: "JPM",
         description: null,
         country: null,
-        jurisdictionCode: null,
         website: null,
       }),
     ).toThrow(DomainError);

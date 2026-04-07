@@ -32,7 +32,6 @@ export function EditRequisiteProviderFormClient({
     displayName: string;
     description: string | null;
     country: string | null;
-    jurisdictionCode: string | null;
     website: string | null;
     identifiers: Array<{ id?: string; scheme: string; value: string; isPrimary: boolean }>;
     branches: Array<{
@@ -40,7 +39,6 @@ export function EditRequisiteProviderFormClient({
       code: string | null;
       name: string;
       country: string | null;
-      jurisdictionCode: string | null;
       postalCode: string | null;
       city: string | null;
       line1: string | null;
@@ -65,7 +63,6 @@ export function EditRequisiteProviderFormClient({
             displayName: values.displayName,
             description: values.description,
             country: values.country,
-            jurisdictionCode: values.jurisdictionCode,
             website: values.website,
             identifiers: values.identifiers,
             branches: values.branches,

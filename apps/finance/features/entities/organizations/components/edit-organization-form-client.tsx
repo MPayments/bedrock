@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
+import {
+  OrganizationGeneralEditor,
+  type OrganizationGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  OrganizationEditGeneralForm,
-  type OrganizationGeneralFormValues,
-} from "./organization-form";
+import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
 import type { SerializedOrganization } from "../lib/types";
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
@@ -48,6 +50,7 @@ export function EditOrganizationFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [savingLegalEntity, setSavingLegalEntity] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleShortNameChange = useCallback(
@@ -55,6 +58,14 @@ export function EditOrganizationFormClient({
       actions.setEditName(current.id, name);
     },
     [actions, current.id],
+  );
+  const legalEntitySeed = useMemo(
+    () => ({
+      fullName: current.fullName,
+      shortName: current.shortName,
+      countryCode: current.country,
+    }),
+    [current.country, current.fullName, current.shortName],
   );
 
   async function handleSubmit(
@@ -171,25 +182,33 @@ export function EditOrganizationFormClient({
 
   return (
     <div className="space-y-6">
-      <OrganizationEditGeneralForm
+      <OrganizationGeneralEditor
         initialValues={initialValues}
         createdAt={current.createdAt}
         updatedAt={current.updatedAt}
         submitting={submitting}
-        deleting={deleting}
         error={error}
         onSubmit={handleSubmit}
-        onDelete={handleDelete}
         onShortNameChange={handleShortNameChange}
+        headerActions={
+          <EntityDeleteDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            deleting={deleting}
+            onDelete={handleDelete}
+            disableDelete={submitting}
+            title="Удалить организацию?"
+            description="Организация будет удалена без возможности восстановления."
+            trigger={
+              <Button variant="destructive" type="button" disabled={submitting} />
+            }
+          />
+        }
       />
       {current.kind === "legal_entity" ? (
         <LegalEntityBundleEditor
           bundle={current.legalEntity as PartyLegalEntityBundleSource | null}
-          seed={{
-            fullName: current.fullName,
-            shortName: current.shortName,
-            countryCode: current.country,
-          }}
+          seed={legalEntitySeed}
           submitting={savingLegalEntity}
           error={error}
           onSubmit={handleLegalEntitySubmit}

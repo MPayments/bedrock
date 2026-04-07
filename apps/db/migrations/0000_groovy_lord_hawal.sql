@@ -1023,10 +1023,8 @@ CREATE TABLE "outbox" (
 CREATE TABLE "party_addresses" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"party_legal_profile_id" uuid NOT NULL,
-	"type" text NOT NULL,
 	"label" text,
 	"country_code" "party_country_code",
-	"jurisdiction_code" text,
 	"postal_code" text,
 	"city" text,
 	"line_1" text,
@@ -1054,11 +1052,6 @@ CREATE TABLE "party_legal_identifiers" (
 	"scheme" text NOT NULL,
 	"value" text NOT NULL,
 	"normalized_value" text NOT NULL,
-	"jurisdiction_code" text,
-	"issuer" text,
-	"is_primary" boolean DEFAULT false NOT NULL,
-	"valid_from" timestamp with time zone,
-	"valid_to" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1075,12 +1068,8 @@ CREATE TABLE "party_legal_profiles" (
 	"legal_form_label" text,
 	"legal_form_label_i18n" jsonb,
 	"country_code" "party_country_code",
-	"jurisdiction_code" text,
-	"registration_authority" text,
-	"registered_at" timestamp with time zone,
 	"business_activity_code" text,
 	"business_activity_text" text,
-	"status" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "party_legal_profiles_owner_chk" CHECK ((
@@ -1232,7 +1221,6 @@ CREATE TABLE "requisite_provider_branches" (
 	"code" text,
 	"name" text NOT NULL,
 	"country" text,
-	"jurisdiction_code" text,
 	"postal_code" text,
 	"city" text,
 	"line_1" text,
@@ -1264,7 +1252,6 @@ CREATE TABLE "requisite_providers" (
 	"display_name" text NOT NULL,
 	"description" text,
 	"country" text,
-	"jurisdiction_code" text,
 	"website" text,
 	"archived_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1731,12 +1718,11 @@ CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","availa
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint
 CREATE INDEX "outbox_status_avail_idx" ON "outbox" USING btree ("status","available_at");--> statement-breakpoint
 CREATE INDEX "party_addresses_profile_idx" ON "party_addresses" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_addresses_primary_uq" ON "party_addresses" USING btree ("party_legal_profile_id","type") WHERE "party_addresses"."is_primary" = true;--> statement-breakpoint
+CREATE UNIQUE INDEX "party_addresses_primary_uq" ON "party_addresses" USING btree ("party_legal_profile_id") WHERE "party_addresses"."is_primary" = true;--> statement-breakpoint
 CREATE INDEX "party_contacts_profile_idx" ON "party_contacts" USING btree ("party_legal_profile_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "party_contacts_primary_uq" ON "party_contacts" USING btree ("party_legal_profile_id","type") WHERE "party_contacts"."is_primary" = true;--> statement-breakpoint
 CREATE INDEX "party_legal_identifiers_profile_idx" ON "party_legal_identifiers" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_legal_identifiers_value_uq" ON "party_legal_identifiers" USING btree ("party_legal_profile_id","scheme","normalized_value");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_legal_identifiers_primary_uq" ON "party_legal_identifiers" USING btree ("party_legal_profile_id","scheme") WHERE "party_legal_identifiers"."is_primary" = true;--> statement-breakpoint
+CREATE UNIQUE INDEX "party_legal_identifiers_scheme_uq" ON "party_legal_identifiers" USING btree ("party_legal_profile_id","scheme");--> statement-breakpoint
 CREATE UNIQUE INDEX "party_legal_profiles_organization_uq" ON "party_legal_profiles" USING btree ("organization_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "party_legal_profiles_counterparty_uq" ON "party_legal_profiles" USING btree ("counterparty_id");--> statement-breakpoint
 CREATE INDEX "party_licenses_profile_idx" ON "party_licenses" USING btree ("party_legal_profile_id");--> statement-breakpoint

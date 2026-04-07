@@ -12,7 +12,6 @@ export type SerializedRequisiteProvider = {
   contact: string;
   bic: string;
   swift: string;
-  jurisdictionCode: string | null;
   website: string | null;
   primaryBranchId: string | null;
   primaryBranchName: string | null;

@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  CounterpartyGeneralEditor,
+  type CounterpartyGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  CounterpartyEditGeneralForm,
-  type CounterpartyGeneralFormValues,
-} from "./organization-general-form";
+import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
 import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
 import type {
@@ -55,6 +57,7 @@ export function CounterpartyEditForm({
   const [submitting, setSubmitting] = useState(false);
   const [savingLegalEntity, setSavingLegalEntity] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
   const [initialValues, setInitialValues] = useState(() =>
     toFormValues(current),
@@ -65,6 +68,14 @@ export function CounterpartyEditForm({
       actions.setEditName(current.id, name);
     },
     [actions, current.id],
+  );
+  const legalEntitySeed = useMemo(
+    () => ({
+      fullName: current.fullName,
+      shortName: current.shortName,
+      countryCode: current.country,
+    }),
+    [current.country, current.fullName, current.shortName],
   );
 
   async function handleSubmit(
@@ -142,25 +153,33 @@ export function CounterpartyEditForm({
 
   return (
     <div className="space-y-6">
-      <CounterpartyEditGeneralForm
+      <CounterpartyGeneralEditor
         initialValues={initialValues}
         groupOptions={initialGroupOptions}
         lockedGroupIds={lockedGroupIds}
         submitting={submitting}
-        deleting={deleting}
         error={error}
         onSubmit={disableSubmit ? undefined : handleSubmit}
-        onDelete={handleDelete}
         onShortNameChange={handleShortNameChange}
+        createdAt={current.createdAt}
+        updatedAt={current.updatedAt}
+        headerActions={
+          <CounterpartyDeleteDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            deleting={deleting}
+            onDelete={handleDelete}
+            disableDelete={submitting}
+            trigger={
+              <Button variant="destructive" type="button" disabled={submitting} />
+            }
+          />
+        }
       />
       {current.kind === "legal_entity" ? (
         <LegalEntityBundleEditor
           bundle={current.legalEntity}
-          seed={{
-            fullName: current.fullName,
-            shortName: current.shortName,
-            countryCode: current.country,
-          }}
+          seed={legalEntitySeed}
           submitting={savingLegalEntity}
           error={error}
           onSubmit={async (bundle) => {

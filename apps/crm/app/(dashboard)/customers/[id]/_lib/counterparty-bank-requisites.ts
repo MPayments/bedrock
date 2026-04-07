@@ -79,7 +79,6 @@ export const RequisiteProviderDetailsSchema = z.object({
   displayName: z.string(),
   description: z.string().nullable(),
   country: z.string().nullable(),
-  jurisdictionCode: z.string().nullable(),
   website: z.string().nullable(),
   identifiers: z.array(
     z.object({
@@ -94,7 +93,6 @@ export const RequisiteProviderDetailsSchema = z.object({
       code: z.string().nullable(),
       name: z.string(),
       country: z.string().nullable(),
-      jurisdictionCode: z.string().nullable(),
       postalCode: z.string().nullable(),
       city: z.string().nullable(),
       line1: z.string().nullable(),

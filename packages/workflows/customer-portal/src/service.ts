@@ -306,11 +306,6 @@ function buildCounterpartyLegalEntityBundle(
     .map(([scheme, value]) => ({
       scheme: scheme!,
       value: value!,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     }));
   const contacts = [
     ["email", normalizeNullableText(input.email)],
@@ -326,10 +321,8 @@ function buildCounterpartyLegalEntityBundle(
   const addresses = normalizeNullableText(input.address)
     ? [
         {
-          type: "legal",
           label: null,
           countryCode: country,
-          jurisdictionCode: null,
           postalCode: null,
           city: null,
           line1: null,
@@ -364,12 +357,8 @@ function buildCounterpartyLegalEntityBundle(
       legalFormLabel: normalizeNullableText(input.orgType),
       legalFormLabelI18n: toLocaleMap(input.orgTypeI18n),
       countryCode: country,
-      jurisdictionCode: null,
-      registrationAuthority: null,
-      registeredAt: null,
       businessActivityCode: null,
       businessActivityText: null,
-      status: null,
     },
     identifiers,
     addresses,

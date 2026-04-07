@@ -40,7 +40,6 @@ export class CreateRequisiteProviderCommand {
           displayName: validated.displayName,
           description: validated.description,
           country: validated.country,
-          jurisdictionCode: validated.jurisdictionCode,
           website: validated.website,
         }) satisfies RequisiteProviderSnapshot,
       );

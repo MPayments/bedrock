@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
-import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
+import { CounterpartyGroupOptionsResponseSchema } from "@bedrock/parties/contracts";
+import {
+  CounterpartyGeneralEditor,
+  type CounterpartyGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
+import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
+import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 
 import { apiClient } from "@/lib/api-client";
@@ -16,9 +22,14 @@ const CounterpartyEditorSchema = z.object({
   id: z.uuid(),
   shortName: z.string(),
   fullName: z.string(),
+  description: z.string().nullable(),
   country: z.string().nullable(),
   kind: z.enum(["legal_entity", "individual"]),
-  legalEntity: z.custom<PartyLegalEntityBundleSource | null>(),
+  customerId: z.uuid().nullable(),
+  groupIds: z.array(z.uuid()),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  legalEntity: z.custom<PartyLegalEntityBundleSource | null>().nullable(),
 });
 
 type CounterpartyEditorPayload = z.infer<typeof CounterpartyEditorSchema>;
@@ -30,6 +41,20 @@ type CustomerCounterpartyLegalEntityEditorProps = {
   resetSignal: number;
 };
 
+function toGeneralFormValues(
+  counterparty: CounterpartyEditorPayload,
+): CounterpartyGeneralFormValues {
+  return {
+    shortName: counterparty.shortName,
+    fullName: counterparty.fullName,
+    kind: counterparty.kind,
+    country: counterparty.country ?? "",
+    description: counterparty.description ?? "",
+    customerId: counterparty.customerId ?? "",
+    groupIds: counterparty.groupIds,
+  };
+}
+
 export function CustomerCounterpartyLegalEntityEditor({
   counterpartyId,
   onDirtyChange,
@@ -38,9 +63,19 @@ export function CustomerCounterpartyLegalEntityEditor({
 }: CustomerCounterpartyLegalEntityEditorProps) {
   const [counterparty, setCounterparty] =
     useState<CounterpartyEditorPayload | null>(null);
+  const [groupOptions, setGroupOptions] = useState<
+    z.infer<typeof CounterpartyGroupOptionsResponseSchema>["data"]
+  >([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  const [savingLegal, setSavingLegal] = useState(false);
+  const [generalDirty, setGeneralDirty] = useState(false);
+  const [legalDirty, setLegalDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onDirtyChange(generalDirty || legalDirty);
+  }, [generalDirty, legalDirty, onDirtyChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,18 +85,33 @@ export function CustomerCounterpartyLegalEntityEditor({
         setLoading(true);
         setError(null);
 
-        const response = await apiClient.v1.counterparties[":id"].$get({
-          param: { id: counterpartyId },
-        });
+        const [counterpartyResponse, groupOptionsResponse] = await Promise.all([
+          apiClient.v1.counterparties[":id"].$get({
+            param: { id: counterpartyId },
+          }),
+          apiClient.v1["counterparty-groups"].options.$get({}),
+        ]);
 
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить юридические данные");
+        if (!counterpartyResponse.ok) {
+          throw new Error("Не удалось загрузить данные контрагента");
+        }
+        if (!groupOptionsResponse.ok) {
+          throw new Error("Не удалось загрузить группы контрагентов");
         }
 
-        const payload = await readJsonWithSchema(response, CounterpartyEditorSchema);
+        const [counterpartyPayload, groupPayload] = await Promise.all([
+          readJsonWithSchema(counterpartyResponse, CounterpartyEditorSchema),
+          readJsonWithSchema(
+            groupOptionsResponse,
+            CounterpartyGroupOptionsResponseSchema,
+          ),
+        ]);
 
         if (!cancelled) {
-          setCounterparty(payload);
+          setCounterparty(counterpartyPayload);
+          setGroupOptions(groupPayload.data);
+          setGeneralDirty(false);
+          setLegalDirty(false);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -85,6 +135,30 @@ export function CustomerCounterpartyLegalEntityEditor({
     };
   }, [counterpartyId, resetSignal]);
 
+  const lockedGroupIds = useMemo(() => {
+    if (!counterparty?.customerId) {
+      return [];
+    }
+
+    const managedGroupId = groupOptions.find(
+      (group) => group.code === `customer:${counterparty.customerId}`,
+    )?.id;
+
+    return managedGroupId ? [managedGroupId] : [];
+  }, [counterparty?.customerId, groupOptions]);
+
+  const legalEntitySeed = useMemo(
+    () =>
+      counterparty
+        ? {
+            fullName: counterparty.fullName,
+            shortName: counterparty.shortName,
+            countryCode: counterparty.country,
+          }
+        : undefined,
+    [counterparty],
+  );
+
   if (loading) {
     return (
       <Card>
@@ -95,65 +169,152 @@ export function CustomerCounterpartyLegalEntityEditor({
     );
   }
 
-  if (!counterparty || counterparty.kind !== "legal_entity") {
+  if (!counterparty) {
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          У выбранного контрагента нет редактируемого юридического профиля.
+          Не удалось загрузить данные контрагента.
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <LegalEntityBundleEditor
-      bundle={counterparty.legalEntity}
-      seed={{
-        fullName: counterparty.fullName,
-        shortName: counterparty.shortName,
-        countryCode: counterparty.country,
-      }}
-      submitting={saving}
-      error={error}
-      onDirtyChange={onDirtyChange}
-      onSubmit={async (bundle: PartyLegalEntityBundleInput) => {
-        setError(null);
-        setSaving(true);
+    <div className="space-y-6">
+      <CounterpartyGeneralEditor
+        initialValues={toGeneralFormValues(counterparty)}
+        groupOptions={groupOptions}
+        lockedGroupIds={lockedGroupIds}
+        createdAt={counterparty.createdAt}
+        updatedAt={counterparty.updatedAt}
+        submitting={savingGeneral}
+        error={error}
+        onDirtyChange={setGeneralDirty}
+        onSubmit={async (values) => {
+          if (values.kind !== counterparty.kind) {
+            setError("Смена типа контрагента в CRM не поддерживается");
+            return;
+          }
 
-        const result = await executeApiMutation<CounterpartyEditorPayload>({
-          request: async () => {
-            const response =
-              await apiClient.v1.counterparties[":id"]["legal-entity"].$put({
+          setError(null);
+          setSavingGeneral(true);
+
+          const result = await executeApiMutation<CounterpartyEditorPayload>({
+            request: async () => {
+              const patchResponse = await apiClient.v1.counterparties[":id"].$patch({
                 param: { id: counterpartyId },
-                json: bundle,
+                json: {
+                  description: values.description.trim() || null,
+                  customerId: values.customerId.trim() || null,
+                  groupIds: values.groupIds,
+                },
               });
 
-            if (!response.ok) {
-              return response;
+              if (!patchResponse.ok) {
+                return patchResponse;
+              }
+
+              if (counterparty.kind === "legal_entity") {
+                const bundle =
+                  counterparty.legalEntity
+                    ? {
+                        ...counterparty.legalEntity,
+                        profile: {
+                          ...counterparty.legalEntity.profile,
+                          fullName: values.fullName.trim(),
+                          shortName: values.shortName.trim(),
+                          countryCode: values.country.trim() || null,
+                        },
+                      }
+                    : createSeededLegalEntityBundle({
+                        fullName: values.fullName.trim(),
+                        shortName: values.shortName.trim(),
+                        countryCode: values.country.trim() || null,
+                      });
+
+                const legalEntityResponse =
+                  await apiClient.v1.counterparties[":id"]["legal-entity"].$put({
+                    param: { id: counterpartyId },
+                    json: bundle,
+                  });
+
+                if (!legalEntityResponse.ok) {
+                  return legalEntityResponse;
+                }
+              }
+
+              return apiClient.v1.counterparties[":id"].$get({
+                param: { id: counterpartyId },
+              });
+            },
+            fallbackMessage: "Не удалось сохранить данные контрагента",
+            parseData: async (response) =>
+              readJsonWithSchema(response, CounterpartyEditorSchema),
+          });
+
+          setSavingGeneral(false);
+
+          if (!result.ok) {
+            setError(result.message);
+            return;
+          }
+
+          setCounterparty(result.data);
+          setGeneralDirty(false);
+          onSaved?.();
+          return toGeneralFormValues(result.data);
+        }}
+        submitLabel="Сохранить контрагента"
+        submittingLabel="Сохранение..."
+      />
+      {counterparty.kind === "legal_entity" ? (
+        <LegalEntityBundleEditor
+          bundle={counterparty.legalEntity}
+          seed={legalEntitySeed}
+          submitting={savingLegal}
+          error={error}
+          onDirtyChange={setLegalDirty}
+          onSubmit={async (bundle: PartyLegalEntityBundleInput) => {
+            setError(null);
+            setSavingLegal(true);
+
+            const result = await executeApiMutation<CounterpartyEditorPayload>({
+              request: async () => {
+                const response =
+                  await apiClient.v1.counterparties[":id"]["legal-entity"].$put({
+                    param: { id: counterpartyId },
+                    json: bundle,
+                  });
+
+                if (!response.ok) {
+                  return response;
+                }
+
+                return apiClient.v1.counterparties[":id"].$get({
+                  param: { id: counterpartyId },
+                });
+              },
+              fallbackMessage: "Не удалось сохранить юридические данные",
+              parseData: async (response) =>
+                readJsonWithSchema(response, CounterpartyEditorSchema),
+            });
+
+            setSavingLegal(false);
+
+            if (!result.ok) {
+              setError(result.message);
+              return;
             }
 
-            return apiClient.v1.counterparties[":id"].$get({
-              param: { id: counterpartyId },
-            });
-          },
-          fallbackMessage: "Не удалось сохранить юридические данные",
-          parseData: async (response) =>
-            readJsonWithSchema(response, CounterpartyEditorSchema),
-        });
+            setCounterparty(result.data);
+            setLegalDirty(false);
+            onSaved?.();
 
-        setSaving(false);
-
-        if (!result.ok) {
-          setError(result.message);
-          return;
-        }
-
-        setCounterparty(result.data);
-        onSaved?.();
-
-        return result.data.legalEntity ?? bundle;
-      }}
-      title="Юридическое лицо"
-    />
+            return result.data.legalEntity ?? bundle;
+          }}
+          title="Юридическое лицо"
+        />
+      ) : null}
+    </div>
   );
 }

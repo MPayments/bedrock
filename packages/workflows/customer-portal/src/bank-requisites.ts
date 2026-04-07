@@ -334,7 +334,6 @@ export function createCustomerBankingService(
         ...(bic ? [{ scheme: "bic", value: bic, isPrimary: true }] : []),
         ...(swift ? [{ scheme: "swift", value: swift, isPrimary: true }] : []),
       ],
-      jurisdictionCode: null,
       kind: "bank",
       legalName: providerName,
       branches: normalizeNullableText(input.bankProvider?.address)
@@ -343,7 +342,6 @@ export function createCustomerBankingService(
               code: null,
               name: providerName,
               country,
-              jurisdictionCode: null,
               postalCode: null,
               city: null,
               line1: null,

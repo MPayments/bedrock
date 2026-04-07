@@ -73,12 +73,8 @@ async function upsertCounterparties(db: SeedDb) {
         legalFormLabel: null,
         legalFormLabelI18n: null,
         countryCode: counterparty.country ?? null,
-        jurisdictionCode: null,
-        registrationAuthority: null,
-        registeredAt: null,
         businessActivityCode: null,
         businessActivityText: null,
-        status: null,
       })
       .onConflictDoUpdate({
         target: schema.partyLegalProfiles.counterpartyId,

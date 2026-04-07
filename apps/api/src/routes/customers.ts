@@ -499,55 +499,30 @@ function buildCounterpartyLegalEntityBundle(input: {
     identifiers.push({
       scheme: "inn",
       value: inn,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     });
   }
   if (kpp) {
     identifiers.push({
       scheme: "kpp",
       value: kpp,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     });
   }
   if (ogrn) {
     identifiers.push({
       scheme: "ogrn",
       value: ogrn,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     });
   }
   if (okpo) {
     identifiers.push({
       scheme: "okpo",
       value: okpo,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     });
   }
   if (oktmo) {
     identifiers.push({
       scheme: "oktmo",
       value: oktmo,
-      jurisdictionCode: null,
-      issuer: null,
-      isPrimary: true,
-      validFrom: null,
-      validTo: null,
     });
   }
 
@@ -575,10 +550,8 @@ function buildCounterpartyLegalEntityBundle(input: {
     normalizeNullableText(input.values.address)
     ? [
         {
-          type: "legal",
           label: null,
           countryCode: country,
-          jurisdictionCode: null,
           postalCode: null,
           city: null,
           line1: null,
@@ -615,12 +588,8 @@ function buildCounterpartyLegalEntityBundle(input: {
       legalFormLabel: normalizeNullableText(input.values.orgType),
       legalFormLabelI18n: toLocaleMap(input.values.orgTypeI18n),
       countryCode: country,
-      jurisdictionCode: null,
-      registrationAuthority: null,
-      registeredAt: null,
       businessActivityCode: null,
       businessActivityText: null,
-      status: null,
     },
     identifiers,
     addresses,

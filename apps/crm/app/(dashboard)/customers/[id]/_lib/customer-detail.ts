@@ -1,75 +1,87 @@
 import { z } from "zod";
 
-export type SubAgent = {
-  commissionRate: number;
-  counterpartyId: string;
-  country: string | null;
-  fullName: string;
-  isActive: boolean;
-  kind: "individual" | "legal_entity";
-  shortName: string;
-};
+export const SubAgentSchema = z.object({
+  commissionRate: z.number(),
+  counterpartyId: z.string(),
+  country: z.string().nullable(),
+  fullName: z.string(),
+  isActive: z.boolean(),
+  kind: z.enum(["individual", "legal_entity"]),
+  shortName: z.string(),
+});
 
-export type CustomerLegalEntity = {
-  account: string | null;
-  address: string | null;
-  bankAddress: string | null;
-  bankCountry: string | null;
-  bankName: string | null;
-  bankProviderId: string | null;
-  bic: string | null;
-  beneficiaryName: string | null;
-  contractNumber: string | null;
-  corrAccount: string | null;
-  counterpartyId: string;
-  country: string | null;
-  createdAt: string;
-  directorBasis: string | null;
-  directorName: string | null;
-  email: string | null;
-  externalId: string | null;
-  fullName: string;
-  inn: string | null;
-  iban: string | null;
-  kpp: string | null;
-  ogrn: string | null;
-  okpo: string | null;
-  oktmo: string | null;
-  orgName: string;
-  orgType: string | null;
-  phone: string | null;
-  position: string | null;
-  relationshipKind: "customer_owned" | "external";
-  shortName: string;
-  subAgent: SubAgent | null;
-  subAgentCounterpartyId: string | null;
-  swift: string | null;
-  updatedAt: string;
-};
+export type SubAgent = z.infer<typeof SubAgentSchema>;
 
-export type CustomerWorkspaceDetail = {
-  createdAt: string;
-  description: string | null;
-  displayName: string;
-  externalRef: string | null;
-  hasActiveAgreement: boolean;
-  id: string;
-  legalEntities: CustomerLegalEntity[];
-  legalEntityCount: number;
-  primaryCounterpartyId: string | null;
-  updatedAt: string;
-};
+export const CustomerLegalEntitySchema = z.object({
+  account: z.string().nullable(),
+  address: z.string().nullable(),
+  bankAddress: z.string().nullable(),
+  bankCountry: z.string().nullable(),
+  bankName: z.string().nullable(),
+  bankProviderId: z.string().nullable(),
+  bic: z.string().nullable(),
+  beneficiaryName: z.string().nullable(),
+  contractNumber: z.string().nullable(),
+  corrAccount: z.string().nullable(),
+  counterpartyId: z.string(),
+  country: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  directorBasis: z.string().nullable(),
+  directorName: z.string().nullable(),
+  email: z.string().nullable(),
+  externalId: z.string().nullable(),
+  fullName: z.string(),
+  inn: z.string().nullable(),
+  iban: z.string().nullable(),
+  kpp: z.string().nullable(),
+  ogrn: z.string().nullable(),
+  okpo: z.string().nullable(),
+  oktmo: z.string().nullable(),
+  orgName: z.string(),
+  orgType: z.string().nullable(),
+  phone: z.string().nullable(),
+  position: z.string().nullable(),
+  relationshipKind: z.enum(["customer_owned", "external"]),
+  shortName: z.string(),
+  subAgent: SubAgentSchema.nullable(),
+  subAgentCounterpartyId: z.string().nullable(),
+  swift: z.string().nullable(),
+  updatedAt: z.iso.datetime(),
+});
 
-export type ClientDocument = {
-  createdAt: string;
-  description: string | null;
-  fileName: string;
-  fileSize: number;
-  id: string;
-  mimeType: string;
-  updatedAt: string;
-  uploadedBy: string | null;
-};
+export type CustomerLegalEntity = z.infer<typeof CustomerLegalEntitySchema>;
+
+export const CustomerWorkspaceDetailSchema = z.object({
+  createdAt: z.iso.datetime(),
+  description: z.string().nullable(),
+  displayName: z.string(),
+  externalRef: z.string().nullable(),
+  hasActiveAgreement: z.boolean(),
+  id: z.string(),
+  legalEntities: z.array(CustomerLegalEntitySchema),
+  legalEntityCount: z.number().int().nonnegative(),
+  primaryCounterpartyId: z.string().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type CustomerWorkspaceDetail = z.infer<
+  typeof CustomerWorkspaceDetailSchema
+>;
+
+export const ClientDocumentSchema = z.object({
+  createdAt: z.iso.datetime(),
+  description: z.string().nullable(),
+  fileName: z.string(),
+  fileSize: z.number(),
+  id: z.union([z.number(), z.string()]),
+  mimeType: z.string(),
+  updatedAt: z.iso.datetime().optional().default(""),
+  uploadedBy: z.string().nullable(),
+});
+
+export const ClientDocumentsSchema = z.array(ClientDocumentSchema);
+
+export type ClientDocument = z.infer<typeof ClientDocumentSchema>;
 
 export const customerFormSchema = z.object({
   description: z.string(),
@@ -96,18 +108,6 @@ export const legalEntityFormSchema = z.object({
 });
 
 export type LegalEntityFormData = z.infer<typeof legalEntityFormSchema>;
-
-export const createLegalEntitySchema = z.object({
-  address: z.string().optional(),
-  country: z.string().max(2).optional(),
-  directorName: z.string().optional(),
-  email: z.string().optional(),
-  inn: z.string().optional(),
-  orgName: z.string().min(1, "Название юридического лица обязательно"),
-  phone: z.string().optional(),
-});
-
-export type CreateLegalEntityFormData = z.infer<typeof createLegalEntitySchema>;
 
 export function customerToFormValues(
   workspace: CustomerWorkspaceDetail | null,

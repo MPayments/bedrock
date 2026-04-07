@@ -40,21 +40,26 @@ import {
   isPrimaryLegalEntity,
 } from "../_lib/customer-detail";
 import { CounterpartyBankRequisitesWorkspace } from "./counterparty-bank-requisites-workspace";
+import { CustomerCounterpartyLegalEntityCreateEditor } from "./customer-counterparty-legal-entity-create-editor";
 import { CustomerCounterpartyLegalEntityEditor } from "./customer-counterparty-legal-entity-editor";
 import { CustomerLegalEntitySelect } from "./customer-legal-entity-select";
 
 type CustomerLegalEntityPanelProps = {
+  createMode: boolean;
+  customerId: string;
   contractLang: "ru" | "en";
-  deletingDocumentId: string | null;
+  deletingDocumentId: ClientDocument["id"] | null;
   documents: ClientDocument[];
   downloadingContract: boolean;
   legalEntityResetSignal: number;
   loadingDocuments: boolean;
   onContractLangChange: (value: "ru" | "en") => void;
-  onDeleteDocument: (documentId: string) => void;
+  onDeleteDocument: (documentId: ClientDocument["id"]) => void;
   onDownloadContract: (format: "docx" | "pdf") => void;
   onDownloadDocument: (document: ClientDocument) => void;
   onEntityChange: (counterpartyId: string) => void;
+  onCancelCreate: () => void;
+  onCreated: (counterpartyId: string) => void;
   onLegalEntityDirtyChange: (dirty: boolean) => void;
   onLegalEntitySaved?: () => void;
   onRequisitesDirtyChange: (dirty: boolean) => void;
@@ -100,6 +105,8 @@ function getFileIcon(mimeType: string) {
 }
 
 export function CustomerLegalEntityPanel({
+  createMode,
+  customerId,
   contractLang,
   deletingDocumentId,
   documents,
@@ -111,6 +118,8 @@ export function CustomerLegalEntityPanel({
   onDownloadContract,
   onDownloadDocument,
   onEntityChange,
+  onCancelCreate,
+  onCreated,
   onLegalEntityDirtyChange,
   onLegalEntitySaved,
   onRequisitesDirtyChange,
@@ -183,27 +192,21 @@ export function CustomerLegalEntityPanel({
         className="space-y-4"
       >
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
-            <span>
-              {selectedLegalEntity.inn
-                ? `ИНН: ${selectedLegalEntity.inn}`
-                : "ИНН не указан"}
-            </span>
-            <span>
-              {formatRelationshipKind(selectedLegalEntity.relationshipKind)}
-            </span>
-            {isPrimary ? (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                Основное
-              </span>
-            ) : null}
-          </div>
-          <CustomerCounterpartyLegalEntityEditor
-            counterpartyId={selectedLegalEntity.counterpartyId}
-            onDirtyChange={onLegalEntityDirtyChange}
-            onSaved={onLegalEntitySaved}
-            resetSignal={legalEntityResetSignal}
-          />
+          {createMode ? (
+            <CustomerCounterpartyLegalEntityCreateEditor
+              customerId={customerId}
+              onCancel={onCancelCreate}
+              onCreated={onCreated}
+              onDirtyChange={onLegalEntityDirtyChange}
+            />
+          ) : (
+            <CustomerCounterpartyLegalEntityEditor
+              counterpartyId={selectedLegalEntity.counterpartyId}
+              onDirtyChange={onLegalEntityDirtyChange}
+              onSaved={onLegalEntitySaved}
+              resetSignal={legalEntityResetSignal}
+            />
+          )}
         </div>
       </div>
 

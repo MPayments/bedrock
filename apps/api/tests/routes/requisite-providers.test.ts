@@ -25,7 +25,6 @@ function createProvider() {
     displayName: "Core Bank",
     description: null,
     country: "US",
-    jurisdictionCode: null,
     website: null,
     identifiers: [
       {

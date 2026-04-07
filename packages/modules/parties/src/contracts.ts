@@ -61,13 +61,11 @@ export {
 } from "./counterparties/application/contracts/counterparty-group.queries";
 export {
   LEGAL_IDENTIFIER_SCHEME_VALUES,
-  PARTY_ADDRESS_TYPE_VALUES,
   PARTY_CONTACT_TYPE_VALUES,
   PARTY_LICENSE_TYPE_VALUES,
   PARTY_REPRESENTATIVE_ROLE_VALUES,
   normalizePartyTaxonomyValue,
   type LegalIdentifierScheme,
-  type PartyAddressType,
   type PartyContactType,
   type PartyLicenseType,
   type PartyRepresentativeRole,
@@ -75,7 +73,6 @@ export {
 export {
   LegalIdentifierSchemeSchema,
   PartyAddressInputSchema,
-  PartyAddressTypeSchema,
   PartyAddressSchema,
   PartyContactInputSchema,
   PartyContactTypeSchema,
@@ -96,7 +93,6 @@ export {
   type LegalIdentifierSchemeValue,
   type PartyAddress,
   type PartyAddressInput,
-  type PartyAddressTypeValue,
   type PartyContact,
   type PartyContactInput,
   type PartyContactTypeValue,

@@ -140,7 +140,6 @@ function emptyBranch(): RequisiteProviderBranchInput {
     code: null,
     name: "",
     country: null,
-    jurisdictionCode: null,
     postalCode: null,
     city: null,
     line1: null,
@@ -327,19 +326,6 @@ export function RequisiteProviderMasterDataEditor({
                 searchPlaceholder="Поиск страны..."
                 emptyLabel="Страна не найдена"
                 clearLabel="Очистить"
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Юрисдикция</FieldLabel>
-              <Input
-                value={draft.jurisdictionCode ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    jurisdictionCode: event.target.value || null,
-                  }))
-                }
-                disabled={submitting}
               />
             </Field>
             <Field>
@@ -536,23 +522,6 @@ export function RequisiteProviderMasterDataEditor({
                     searchPlaceholder="Поиск страны..."
                     emptyLabel="Страна не найдена"
                     clearLabel="Очистить"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Юрисдикция</FieldLabel>
-                  <Input
-                    value={branch.jurisdictionCode ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, jurisdictionCode: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
                   />
                 </Field>
                 <Field>

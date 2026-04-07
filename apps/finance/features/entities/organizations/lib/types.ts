@@ -15,12 +15,8 @@ export type SerializedOrganizationLegalEntity = {
     legalFormLabel: string | null;
     legalFormLabelI18n: LocaleTextMap;
     countryCode: string | null;
-    jurisdictionCode: string | null;
-    registrationAuthority: string | null;
-    registeredAt: string | Date | null;
     businessActivityCode: string | null;
     businessActivityText: string | null;
-    status: string | null;
     createdAt: string | Date;
     updatedAt: string | Date;
   };
@@ -30,21 +26,14 @@ export type SerializedOrganizationLegalEntity = {
     scheme: string;
     value: string;
     normalizedValue: string;
-    jurisdictionCode: string | null;
-    issuer: string | null;
-    isPrimary: boolean;
-    validFrom: string | Date | null;
-    validTo: string | Date | null;
     createdAt: string | Date;
     updatedAt: string | Date;
   }>;
   addresses: Array<{
     id: string;
     partyLegalProfileId: string;
-    type: string;
     label: string | null;
     countryCode: string | null;
-    jurisdictionCode: string | null;
     postalCode: string | null;
     city: string | null;
     line1: string | null;

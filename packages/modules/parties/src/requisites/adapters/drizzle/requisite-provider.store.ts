@@ -41,7 +41,6 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
     displayName: string;
     description: string | null;
     country: string | null;
-    jurisdictionCode: string | null;
     website: string | null;
     archivedAt: Date | null;
   }) {
@@ -62,7 +61,6 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
     displayName: string;
     description: string | null;
     country: string | null;
-    jurisdictionCode: string | null;
     website: string | null;
     archivedAt: Date | null;
   }) {
@@ -74,7 +72,6 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
         displayName: provider.displayName,
         description: provider.description,
         country: provider.country,
-        jurisdictionCode: provider.jurisdictionCode,
         website: provider.website,
         archivedAt: provider.archivedAt,
       })
@@ -124,7 +121,6 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
       code: string | null;
       name: string;
       country: string | null;
-      jurisdictionCode: string | null;
       postalCode: string | null;
       city: string | null;
       line1: string | null;
@@ -154,7 +150,6 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
         code: item.code,
         name: item.name,
         country: item.country,
-        jurisdictionCode: item.jurisdictionCode,
         postalCode: item.postalCode,
         city: item.city,
         line1: item.line1,

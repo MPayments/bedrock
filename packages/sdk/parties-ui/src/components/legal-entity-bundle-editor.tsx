@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 
 import {
   LEGAL_IDENTIFIER_SCHEME_VALUES,
-  PARTY_ADDRESS_TYPE_VALUES,
   PARTY_CONTACT_TYPE_VALUES,
   PARTY_LICENSE_TYPE_VALUES,
   PARTY_REPRESENTATIVE_ROLE_VALUES,
@@ -57,6 +56,7 @@ type LocaleTextMap = Record<string, string | null> | null;
 type LegalEntityBundleEditorProps = {
   bundle: PartyLegalEntityBundleSource | PartyLegalEntityBundleInput | null;
   error?: string | null;
+  onChange?: (bundle: PartyLegalEntityBundleInput, dirty: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSubmit?: (
     bundle: PartyLegalEntityBundleInput,
@@ -66,6 +66,7 @@ type LegalEntityBundleEditorProps = {
     | PartyLegalEntityBundleSource
     | void;
   seed?: PartyLegalEntitySeed;
+  showActions?: boolean;
   submitLabel?: string;
   submitting?: boolean;
   submittingLabel?: string;
@@ -253,20 +254,30 @@ function emptyIdentifier(): PartyLegalIdentifierInput {
   return {
     scheme: LEGAL_IDENTIFIER_SCHEME_VALUES[0],
     value: "",
-    jurisdictionCode: null,
-    issuer: null,
-    isPrimary: false,
-    validFrom: null,
-    validTo: null,
   };
+}
+
+function getAvailableIdentifierSchemes(
+  items: PartyLegalIdentifierInput[],
+  currentIndex?: number,
+) {
+  const currentScheme =
+    currentIndex === undefined ? null : items[currentIndex]?.scheme ?? null;
+  const usedSchemes = new Set(
+    items
+      .filter((_, index) => index !== currentIndex)
+      .map((item) => item.scheme),
+  );
+
+  return LEGAL_IDENTIFIER_SCHEME_VALUES.filter(
+    (scheme) => scheme === currentScheme || !usedSchemes.has(scheme),
+  );
 }
 
 function emptyAddress(): PartyAddressInput {
   return {
-    type: PARTY_ADDRESS_TYPE_VALUES[0],
     label: null,
     countryCode: null,
-    jurisdictionCode: null,
     postalCode: null,
     city: null,
     line1: null,
@@ -313,9 +324,11 @@ function emptyLicense(): PartyLicenseInput {
 export function LegalEntityBundleEditor({
   bundle,
   error,
+  onChange,
   onDirtyChange,
   onSubmit,
   seed,
+  showActions = true,
   submitLabel = "Сохранить мастер-данные",
   submitting = false,
   submittingLabel = "Сохранение...",
@@ -325,15 +338,29 @@ export function LegalEntityBundleEditor({
     () => toLegalEntityBundleInput(bundle, seed),
     [bundle, seed],
   );
+  const initialDraftSerialized = useMemo(
+    () => serializeBundleForCompare(initialDraft),
+    [initialDraft],
+  );
   const [draft, setDraft] = useState<PartyLegalEntityBundleInput>(() =>
     cloneLegalEntityBundleInput(initialDraft),
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const lastInitialDraftSerializedRef = useRef(initialDraftSerialized);
+  const availableIdentifierSchemes = useMemo(
+    () => getAvailableIdentifierSchemes(draft.identifiers),
+    [draft.identifiers],
+  );
 
   useEffect(() => {
+    if (lastInitialDraftSerializedRef.current === initialDraftSerialized) {
+      return;
+    }
+
+    lastInitialDraftSerializedRef.current = initialDraftSerialized;
     setDraft(cloneLegalEntityBundleInput(initialDraft));
     setLocalError(null);
-  }, [initialDraft]);
+  }, [initialDraft, initialDraftSerialized]);
 
   const isDirty = useMemo(
     () =>
@@ -345,6 +372,10 @@ export function LegalEntityBundleEditor({
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    onChange?.(cloneLegalEntityBundleInput(draft), isDirty);
+  }, [draft, isDirty, onChange]);
 
   async function handleSubmit() {
     if (!onSubmit) {
@@ -374,6 +405,7 @@ export function LegalEntityBundleEditor({
         title={title}
         description="Канонические юридические данные, идентификаторы, адреса, контакты, представители и лицензии."
         actions={
+          showActions ? (
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -389,6 +421,7 @@ export function LegalEntityBundleEditor({
               {submitting ? submittingLabel : submitLabel}
             </Button>
           </div>
+          ) : null
         }
       >
         {error || localError ? (
@@ -512,55 +545,6 @@ export function LegalEntityBundleEditor({
               />
             </Field>
             <Field>
-              <FieldLabel>Юрисдикция</FieldLabel>
-              <Input
-                value={draft.profile.jurisdictionCode ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      jurisdictionCode: event.target.value || null,
-                    },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Орган регистрации</FieldLabel>
-              <Input
-                value={draft.profile.registrationAuthority ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      registrationAuthority: event.target.value || null,
-                    },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Дата регистрации</FieldLabel>
-              <Input
-                type="date"
-                value={formatDateInput(draft.profile.registeredAt)}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      registeredAt: parseDateInput(event.target.value),
-                    },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <Field>
               <FieldLabel>Код деятельности</FieldLabel>
               <Input
                 value={draft.profile.businessActivityCode ?? ""}
@@ -593,22 +577,6 @@ export function LegalEntityBundleEditor({
                 disabled={submitting}
               />
             </Field>
-            <Field>
-              <FieldLabel>Статус</FieldLabel>
-              <Input
-                value={draft.profile.status ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      status: event.target.value || null,
-                    },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
           </FieldGroup>
         </FieldSet>
       </SectionCard>
@@ -621,10 +589,18 @@ export function LegalEntityBundleEditor({
             onAdd={() =>
               setDraft((current) => ({
                 ...current,
-                identifiers: [...current.identifiers, emptyIdentifier()],
+                identifiers: [
+                  ...current.identifiers,
+                  {
+                    ...emptyIdentifier(),
+                    scheme:
+                      getAvailableIdentifierSchemes(current.identifiers)[0] ??
+                      LEGAL_IDENTIFIER_SCHEME_VALUES[0],
+                  },
+                ],
               }))
             }
-            disabled={submitting}
+            disabled={submitting || availableIdentifierSchemes.length === 0}
           />
         }
       >
@@ -633,7 +609,10 @@ export function LegalEntityBundleEditor({
             <p className="text-sm text-muted-foreground">Идентификаторы пока не добавлены.</p>
           ) : null}
           {draft.identifiers.map((identifier, index) => (
-            <div key={identifier.id ?? `${identifier.scheme}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div
+              key={identifier.id ?? `${identifier.scheme}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
@@ -664,11 +643,13 @@ export function LegalEntityBundleEditor({
                       <SelectValue placeholder="Выберите схему" />
                     </SelectTrigger>
                     <SelectContent>
-                      {LEGAL_IDENTIFIER_SCHEME_VALUES.map((value) => (
+                      {getAvailableIdentifierSchemes(draft.identifiers, index).map(
+                        (value) => (
                         <SelectItem key={value} value={value}>
                           {value}
                         </SelectItem>
-                      ))}
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </Field>
@@ -687,89 +668,6 @@ export function LegalEntityBundleEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>Юрисдикция</FieldLabel>
-                  <Input
-                    value={identifier.jurisdictionCode ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, jurisdictionCode: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Issuer</FieldLabel>
-                  <Input
-                    value={identifier.issuer ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, issuer: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Valid from</FieldLabel>
-                  <Input
-                    type="date"
-                    value={formatDateInput(identifier.validFrom ?? null)}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, validFrom: parseDateInput(event.target.value) }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Valid to</FieldLabel>
-                  <Input
-                    type="date"
-                    value={formatDateInput(identifier.validTo ?? null)}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, validTo: parseDateInput(event.target.value) }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <BooleanField
-                  checked={identifier.isPrimary}
-                  onChange={(nextValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      identifiers: current.identifiers.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
-                      ),
-                    }))
-                  }
-                  label="Основной идентификатор"
-                  disabled={submitting}
-                />
               </FieldGroup>
             </div>
           ))}
@@ -796,7 +694,7 @@ export function LegalEntityBundleEditor({
             <p className="text-sm text-muted-foreground">Адреса пока не добавлены.</p>
           ) : null}
           {draft.addresses.map((address, index) => (
-            <div key={address.id ?? `${address.type}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div key={address.id ?? `address-${index}`} className="space-y-4 rounded-md border p-4">
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
@@ -809,32 +707,6 @@ export function LegalEntityBundleEditor({
                 />
               </div>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Тип</FieldLabel>
-                  <Select
-                    value={address.type}
-                    onValueChange={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, type: value as PartyAddressInput["type"] } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите тип" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARTY_ADDRESS_TYPE_VALUES.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
                 <Field>
                   <FieldLabel>Label</FieldLabel>
                   <Input
@@ -868,23 +740,6 @@ export function LegalEntityBundleEditor({
                     searchPlaceholder="Поиск страны..."
                     emptyLabel="Страна не найдена"
                     clearLabel="Очистить"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Юрисдикция</FieldLabel>
-                  <Input
-                    value={address.jurisdictionCode ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, jurisdictionCode: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
                   />
                 </Field>
                 <Field>

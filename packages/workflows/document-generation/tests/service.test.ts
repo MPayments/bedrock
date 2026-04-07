@@ -260,7 +260,6 @@ function createWorkflow(overrides?: {
     displayName: "Org Bank",
     description: null,
     country: "RU",
-    jurisdictionCode: null,
     website: null,
     identifiers: [
       {
@@ -289,7 +288,6 @@ function createWorkflow(overrides?: {
         code: null,
         name: "Org Bank",
         country: "RU",
-        jurisdictionCode: null,
         postalCode: null,
         city: null,
         line1: null,
@@ -316,7 +314,6 @@ function createWorkflow(overrides?: {
     displayName: "Client Bank",
     description: null,
     country: "RU",
-    jurisdictionCode: null,
     website: null,
     identifiers: [
       {
@@ -345,7 +342,6 @@ function createWorkflow(overrides?: {
         code: null,
         name: "Client Bank",
         country: "RU",
-        jurisdictionCode: null,
         postalCode: null,
         city: null,
         line1: null,

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   LegalIdentifierSchemeSchema,
-  PartyAddressInputSchema,
   PartyContactInputSchema,
   PartyLicenseInputSchema,
   PartyRepresentativeInputSchema,
@@ -11,12 +10,6 @@ import {
 describe("legal entity taxonomies", () => {
   it("normalizes supported registry values", () => {
     expect(LegalIdentifierSchemeSchema.parse(" VAT-ID ")).toBe("vat_id");
-    expect(
-      PartyAddressInputSchema.parse({
-        type: " Registered ",
-        isPrimary: true,
-      }).type,
-    ).toBe("registered");
     expect(
       PartyContactInputSchema.parse({
         type: " PHONE ",
