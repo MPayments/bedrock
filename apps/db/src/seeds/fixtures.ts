@@ -147,11 +147,11 @@ const CUSTOMER_REQUISITE_ID_BY_KEY = {
 } as const;
 
 const PROVIDER_NAME_BY_KEY: Record<CustomerContractProviderKey, string> = {
-  gazprombank: "Gazprombank",
-  sberbank_northwest: "PJSC Sberbank, North-West Bank",
-  sberbank_moscow: "PJSC Sberbank, Moscow",
+  gazprombank: "Газпромбанк",
+  sberbank_northwest: "ПАО Сбербанк, Северо-Западный банк",
+  sberbank_moscow: "ПАО Сбербанк, Москва",
   bank_tochka: 'ООО "Банк Точка"',
-  mts_bank: "MTS-BANK PJSC",
+  mts_bank: 'ПАО "МТС-Банк"',
   expobank: 'АО "Экспобанк"',
   vtb_bank: 'Филиал "Центральный" Банка ВТБ (ПАО)',
 };
@@ -270,10 +270,14 @@ export interface SeedOrganizationFixture {
 export interface SeedRequisiteProviderFixture {
   id: string;
   kind: "bank" | "exchange" | "custodian";
-  name: string;
+  legalName: string;
+  legalNameI18n?: SeedLocaleTextMap;
+  displayName: string;
+  displayNameI18n?: SeedLocaleTextMap;
   description?: string | null;
   country: string | null;
   address?: string | null;
+  addressI18n?: SeedLocaleTextMap;
   contact?: string | null;
   bic?: string | null;
   swift?: string | null;
@@ -520,10 +524,14 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.GAZPROMBANK,
     kind: "bank",
-    name: "Gazprombank",
+    legalName: "Газпромбанк",
+    legalNameI18n: { en: "Gazprombank", ru: "Газпромбанк" },
+    displayName: "Газпромбанк",
+    displayNameI18n: { en: "Gazprombank", ru: "Газпромбанк" },
     description: "Settlement bank captured from RUHA customer contracts.",
     country: "RU",
     address: null,
+    addressI18n: null,
     contact: null,
     bic: "044525823",
     swift: "GAZPRUMM",
@@ -531,12 +539,25 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.ABU_DHABI_COMMERCIAL_BANK,
     kind: "bank",
-    name: "Abu Dhabi Commercial Bank",
+    legalName: "Abu Dhabi Commercial Bank",
+    legalNameI18n: {
+      en: "Abu Dhabi Commercial Bank",
+      ru: "Абу-Даби Коммершиал Банк",
+    },
+    displayName: "Abu Dhabi Commercial Bank",
+    displayNameI18n: {
+      en: "Abu Dhabi Commercial Bank",
+      ru: "Абу-Даби Коммершиал Банк",
+    },
     description:
       "Business Bay Branch settlement bank for MULTIHANSA BROKERS - FZCO",
     country: "AE",
     address:
       "22nd Floor, Conrad Business Tower, Sheikh Zayed Road, Dubai, United Arab Emirates, Branch 265 - Business Bay Branch",
+    addressI18n: {
+      en: "22nd Floor, Conrad Business Tower, Sheikh Zayed Road, Dubai, United Arab Emirates, Branch 265 - Business Bay Branch",
+      ru: "22-й этаж, Conrad Business Tower, Sheikh Zayed Road, Дубай, Объединенные Арабские Эмираты, филиал 265 - Business Bay Branch",
+    },
     contact: "https://www.adcb.com/",
     bic: null,
     swift: "ADCBAEAA",
@@ -544,10 +565,23 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.SBERBANK_NORTHWEST,
     kind: "bank",
-    name: "PJSC Sberbank, North-West Bank",
+    legalName: "ПАО Сбербанк, Северо-Западный банк",
+    legalNameI18n: {
+      en: "PJSC Sberbank, North-West Bank",
+      ru: "ПАО Сбербанк, Северо-Западный банк",
+    },
+    displayName: "ПАО Сбербанк, Северо-Западный банк",
+    displayNameI18n: {
+      en: "PJSC Sberbank, North-West Bank",
+      ru: "ПАО Сбербанк, Северо-Западный банк",
+    },
     description: "North-West Sberbank branch used by individual customer contracts.",
     country: "RU",
     address: "191124, Saint Petersburg, Krasnogo Tekstilshchika Street, 2",
+    addressI18n: {
+      en: "191124, Saint Petersburg, Krasnogo Tekstilshchika Street, 2",
+      ru: "191124, Санкт-Петербург, улица Красного Текстильщика, 2",
+    },
     contact: null,
     bic: "044030653",
     swift: "SABRRU2P",
@@ -555,10 +589,14 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.BANK_TOCHKA,
     kind: "bank",
-    name: 'ООО "Банк Точка"',
+    legalName: 'ООО "Банк Точка"',
+    legalNameI18n: { en: 'Bank Tochka LLC', ru: 'ООО "Банк Точка"' },
+    displayName: 'ООО "Банк Точка"',
+    displayNameI18n: { en: 'Bank Tochka LLC', ru: 'ООО "Банк Точка"' },
     description: "Settlement bank captured from the Coinex contract.",
     country: "RU",
     address: null,
+    addressI18n: null,
     contact: null,
     bic: "044525104",
     swift: null,
@@ -566,11 +604,18 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.EXPOBANK,
     kind: "bank",
-    name: 'AO "Expobank"',
+    legalName: 'АО "Экспобанк"',
+    legalNameI18n: { en: 'AO "Expobank"', ru: 'АО "Экспобанк"' },
+    displayName: 'АО "Экспобанк"',
+    displayNameI18n: { en: 'AO "Expobank"', ru: 'АО "Экспобанк"' },
     description:
       "RUB settlement bank for MULTIHANSA BROKERS - FZCO and Xintatrade.",
     country: "RU",
     address: "115054, Moscow, Kosmodamianskaya Embankment, 52, building 7",
+    addressI18n: {
+      en: "115054, Moscow, Kosmodamianskaya Embankment, 52, building 7",
+      ru: "115054, Москва, Космодамианская набережная, 52, строение 7",
+    },
     contact: null,
     bic: "044525460",
     swift: null,
@@ -578,11 +623,18 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.EXI_BANK,
     kind: "bank",
-    name: "EXI-Bank",
+    legalName: 'АО "ЭКСИ-Банк"',
+    legalNameI18n: { en: "EXI-Bank", ru: 'АО "ЭКСИ-Банк"' },
+    displayName: 'АО "ЭКСИ-Банк"',
+    displayNameI18n: { en: "EXI-Bank", ru: 'АО "ЭКСИ-Банк"' },
     description:
       "Settlement bank used by MULTIHANSA BROKERS - FZCO and ARABIAN FUEL ALLIANCE DMCC",
     country: "RU",
     address: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
+    addressI18n: {
+      en: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
+      ru: "Россия, 199178, Санкт-Петербург, Малый проспект В.О., 54/4Б",
+    },
     contact: null,
     bic: "044030889",
     swift: "JXIBRU2P",
@@ -590,11 +642,21 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.VTB_BANK,
     kind: "bank",
-    name: 'Филиал "Центральный" Банка ВТБ (ПАО)',
+    legalName: 'Филиал "Центральный" Банка ВТБ (ПАО)',
+    legalNameI18n: {
+      en: "VTB Bank PJSC, Central Branch",
+      ru: 'Филиал "Центральный" Банка ВТБ (ПАО)',
+    },
+    displayName: 'Филиал "Центральный" Банка ВТБ (ПАО)',
+    displayNameI18n: {
+      en: "VTB Bank PJSC, Central Branch",
+      ru: 'Филиал "Центральный" Банка ВТБ (ПАО)',
+    },
     description:
       "VTB Central Branch used by Multimodal, RSI Capital and Prime Trade contracts.",
     country: "RU",
     address: "Russian Federation",
+    addressI18n: { en: "Russian Federation", ru: "Российская Федерация" },
     contact: null,
     bic: "044525411",
     swift: "VTBRRUM2MS2",
@@ -602,10 +664,23 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.DUBAI_ISLAMIC_BANK,
     kind: "bank",
-    name: "Dubai Islamic Bank",
+    legalName: "Dubai Islamic Bank",
+    legalNameI18n: {
+      en: "Dubai Islamic Bank",
+      ru: "Дубай Исламик Банк",
+    },
+    displayName: "Dubai Islamic Bank",
+    displayNameI18n: {
+      en: "Dubai Islamic Bank",
+      ru: "Дубай Исламик Банк",
+    },
     description: "Primary settlement bank for ARABIAN FUEL ALLIANCE DMCC",
     country: "AE",
     address: "P.O. Box 1080, Shaikh Zayed Road Branch, Dubai, United Arab Emirates",
+    addressI18n: {
+      en: "P.O. Box 1080, Shaikh Zayed Road Branch, Dubai, United Arab Emirates",
+      ru: "P.O. Box 1080, филиал Shaikh Zayed Road, Дубай, Объединенные Арабские Эмираты",
+    },
     contact: "Branch Code: 097",
     bic: null,
     swift: "DUIBAEAD",
@@ -613,11 +688,24 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.EMIRATES_ISLAMIC_BANK,
     kind: "bank",
-    name: "Emirates Islamic Bank",
+    legalName: "Emirates Islamic Bank",
+    legalNameI18n: {
+      en: "Emirates Islamic Bank",
+      ru: "Эмирейтс Исламик Банк",
+    },
+    displayName: "Emirates Islamic Bank",
+    displayNameI18n: {
+      en: "Emirates Islamic Bank",
+      ru: "Эмирейтс Исламик Банк",
+    },
     description: "Secondary settlement bank for ARABIAN FUEL ALLIANCE DMCC",
     country: "AE",
     address:
       "I-Rise Towers, C01, 32nd Floor, Barsha Heights, Dubai, United Arab Emirates",
+    addressI18n: {
+      en: "I-Rise Towers, C01, 32nd Floor, Barsha Heights, Dubai, United Arab Emirates",
+      ru: "I-Rise Towers, C01, 32-й этаж, Barsha Heights, Дубай, Объединенные Арабские Эмираты",
+    },
     contact: "Branch Code: 3161",
     bic: null,
     swift: "MEBLAEAD",
@@ -625,10 +713,23 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.SBERBANK_MOSCOW,
     kind: "bank",
-    name: "PJSC Sberbank, Moscow",
+    legalName: "ПАО Сбербанк, Москва",
+    legalNameI18n: {
+      en: "PJSC Sberbank, Moscow",
+      ru: "ПАО Сбербанк, Москва",
+    },
+    displayName: "ПАО Сбербанк, Москва",
+    displayNameI18n: {
+      en: "PJSC Sberbank, Moscow",
+      ru: "ПАО Сбербанк, Москва",
+    },
     description: "Sberbank branch used by ONEY FINANSAL.",
     country: "RU",
     address: "19 Vavilova Street, Moscow, 117997, Russia",
+    addressI18n: {
+      en: "19 Vavilova Street, Moscow, 117997, Russia",
+      ru: "Россия, 117997, Москва, улица Вавилова, 19",
+    },
     contact: null,
     bic: "044525225",
     swift: null,
@@ -636,10 +737,14 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
     id: REQUISITE_PROVIDER_IDS.MTS_BANK,
     kind: "bank",
-    name: "MTS-BANK PJSC",
+    legalName: 'ПАО "МТС-Банк"',
+    legalNameI18n: { en: "MTS-BANK PJSC", ru: 'ПАО "МТС-Банк"' },
+    displayName: 'ПАО "МТС-Банк"',
+    displayNameI18n: { en: "MTS-BANK PJSC", ru: 'ПАО "МТС-Банк"' },
     description: "Settlement bank captured from the RSI Capital service agreement.",
     country: "RU",
     address: null,
+    addressI18n: null,
     contact: null,
     bic: "044525232",
     swift: null,

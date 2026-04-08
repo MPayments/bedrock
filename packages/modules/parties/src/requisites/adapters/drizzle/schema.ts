@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -16,6 +17,7 @@ import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
 import { organizations } from "../../../organizations/adapters/drizzle/schema";
+import type { LocaleTextMap } from "../../../shared/domain/locale-map";
 import { REQUISITE_OWNER_TYPE_VALUES } from "../../domain/owner";
 import { REQUISITE_KIND_VALUES } from "../../domain/requisite-kind";
 
@@ -36,7 +38,9 @@ export const requisiteProviders = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     kind: requisiteKindEnum("kind").notNull(),
     legalName: text("legal_name").notNull(),
+    legalNameI18n: jsonb("legal_name_i18n").$type<LocaleTextMap>(),
     displayName: text("display_name").notNull(),
+    displayNameI18n: jsonb("display_name_i18n").$type<LocaleTextMap>(),
     description: text("description"),
     country: text("country"),
     website: text("website"),
@@ -96,12 +100,17 @@ export const requisiteProviderBranches = pgTable(
       .references(() => requisiteProviders.id, { onDelete: "cascade" }),
     code: text("code"),
     name: text("name").notNull(),
+    nameI18n: jsonb("name_i18n").$type<LocaleTextMap>(),
     country: text("country"),
     postalCode: text("postal_code"),
     city: text("city"),
+    cityI18n: jsonb("city_i18n").$type<LocaleTextMap>(),
     line1: text("line_1"),
+    line1I18n: jsonb("line_1_i18n").$type<LocaleTextMap>(),
     line2: text("line_2"),
+    line2I18n: jsonb("line_2_i18n").$type<LocaleTextMap>(),
     rawAddress: text("raw_address"),
+    rawAddressI18n: jsonb("raw_address_i18n").$type<LocaleTextMap>(),
     contactEmail: text("contact_email"),
     contactPhone: text("contact_phone"),
     isPrimary: boolean("is_primary").notNull().default(false),

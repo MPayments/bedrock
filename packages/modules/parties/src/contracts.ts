@@ -147,11 +147,14 @@ export {
 } from "./organizations/application/contracts/queries";
 export {
   CreateRequisiteProviderInputSchema,
+  RequisiteProviderBranchIdentifierSchemeSchema,
   RequisiteProviderBranchIdentifierInputSchema,
   RequisiteProviderBranchInputSchema,
+  RequisiteProviderIdentifierSchemeSchema,
   RequisiteProviderIdentifierInputSchema,
   UpdateRequisiteProviderInputSchema,
   type CreateRequisiteProviderInput,
+  type RequisiteProviderBranchIdentifierInput,
   type RequisiteProviderBranchInput,
   type RequisiteProviderIdentifierInput,
   type UpdateRequisiteProviderInput,
@@ -216,6 +219,12 @@ export {
   SUB_AGENT_PROFILES_LIST_CONTRACT,
   type ListSubAgentProfilesQuery,
 } from "./sub-agent-profiles/application/contracts/queries";
+export {
+  REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
+  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
+  type RequisiteProviderBranchIdentifierSchemeValue,
+  type RequisiteProviderIdentifierSchemeValue,
+} from "./requisites/domain/identifier-schemes";
 export {
   REQUISITE_KIND_VALUES,
   REQUISITE_OWNER_TYPE_VALUES,

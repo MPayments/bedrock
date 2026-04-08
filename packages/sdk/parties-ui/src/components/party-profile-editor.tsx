@@ -430,8 +430,8 @@ export function PartyProfileEditor({
         title={title}
         description={
           partyKind === "individual"
-            ? "Канонические данные контрагента: имена, идентификаторы, адрес и контакты."
-            : "Канонические данные контрагента: профиль, идентификаторы, адрес, контакты, представители и лицензии."
+            ? "Данные контрагента: имена, идентификаторы, адрес и контакты."
+            : "Данные контрагента: профиль, идентификаторы, адрес, контакты, представители и лицензии."
         }
         actions={
           showActions ? (
@@ -473,7 +473,7 @@ export function PartyProfileEditor({
           <div className="space-y-0.5">
             <p className="text-sm font-medium">Режим локализуемых полей</p>
             <p className="text-xs text-muted-foreground">
-              Переключает все локализуемые текстовые поля формы сразу.
+              Переключает все локализуемые текстовые поля формы.
             </p>
           </div>
           <LocalizedTextModeSwitcher
@@ -1038,12 +1038,9 @@ export function PartyProfileEditor({
             </p>
           ) : null}
           {draft.contacts.map((contact, index) => (
-            <div
-              key={contact.id ?? `${contact.type}-${index}`}
-              className="space-y-4 rounded-md border p-4"
-            >
-              <FieldGroup>
-                <div className="flex flex-row items-end gap-4 justify-between">
+            <div key={contact.id ?? `${contact.type}-${index}`}>
+              <FieldGroup className="space-y-3">
+                <div className="flex flex-row items-end justify-between gap-4">
                   <Field>
                     <FieldLabel>Тип</FieldLabel>
                     <Select
@@ -1080,7 +1077,7 @@ export function PartyProfileEditor({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field className="">
+                  <Field>
                     <FieldLabel>Значение</FieldLabel>
                     <Input
                       value={contact.value}
@@ -1109,21 +1106,23 @@ export function PartyProfileEditor({
                     disabled={submitting}
                   />
                 </div>
-                <BooleanField
-                  checked={contact.isPrimary}
-                  onChange={(nextValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      contacts: current.contacts.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, isPrimary: nextValue }
-                          : item,
-                      ),
-                    }))
-                  }
-                  label="Основной контакт"
-                  disabled={submitting}
-                />
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={contact.isPrimary}
+                    onCheckedChange={(checked) =>
+                      setDraft((current) => ({
+                        ...current,
+                        contacts: current.contacts.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, isPrimary: checked === true }
+                            : item,
+                        ),
+                      }))
+                    }
+                    disabled={submitting}
+                  />
+                  <FieldLabel className="text-sm">Основной контакт</FieldLabel>
+                </div>
               </FieldGroup>
             </div>
           ))}

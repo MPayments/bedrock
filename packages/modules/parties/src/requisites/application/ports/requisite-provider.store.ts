@@ -32,12 +32,17 @@ export interface RequisiteProviderStore {
       id?: string;
       code: string | null;
       name: string;
+      nameI18n: Record<string, string | null> | null;
       country: string | null;
       postalCode: string | null;
       city: string | null;
+      cityI18n: Record<string, string | null> | null;
       line1: string | null;
+      line1I18n: Record<string, string | null> | null;
       line2: string | null;
+      line2I18n: Record<string, string | null> | null;
       rawAddress: string | null;
+      rawAddressI18n: Record<string, string | null> | null;
       contactEmail: string | null;
       contactPhone: string | null;
       isPrimary: boolean;

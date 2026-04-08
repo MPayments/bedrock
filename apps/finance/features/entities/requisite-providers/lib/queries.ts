@@ -15,11 +15,15 @@ import type {
 import type { RequisiteProvidersSearchParams } from "./validations";
 import { serializeLegacyProvider } from "./master-data";
 
+const LocaleTextMapSchema = z.record(z.string(), z.string().nullable()).nullable();
+
 const RequisiteProviderListItemApiSchema = z.object({
   id: z.uuid(),
   kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
   legalName: z.string(),
+  legalNameI18n: LocaleTextMapSchema,
   displayName: z.string(),
+  displayNameI18n: LocaleTextMapSchema,
   description: z.string().nullable(),
   country: z.string().nullable(),
   website: z.string().nullable(),
@@ -41,11 +45,16 @@ const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
       id: z.uuid(),
       code: z.string().nullable(),
       name: z.string(),
+      nameI18n: LocaleTextMapSchema,
       country: z.string().nullable(),
       rawAddress: z.string().nullable(),
+      rawAddressI18n: LocaleTextMapSchema,
       line1: z.string().nullable(),
+      line1I18n: LocaleTextMapSchema,
       line2: z.string().nullable(),
+      line2I18n: LocaleTextMapSchema,
       city: z.string().nullable(),
+      cityI18n: LocaleTextMapSchema,
       postalCode: z.string().nullable(),
       contactEmail: z.string().nullable(),
       contactPhone: z.string().nullable(),

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 
 import type {
+  RequisiteProviderBranchIdentifierInput,
   RequisiteProviderBranchInput,
   RequisiteProviderIdentifierInput,
 } from "@bedrock/parties/contracts";
@@ -35,12 +36,21 @@ import {
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
+import { LocalizedTextInputField } from "./localized-text-input-field";
+import { LocalizedTextModeSwitcher } from "./localized-text-mode-switcher";
 import {
   cloneRequisiteProviderMasterDataInput,
   type RequisiteProviderMasterDataSource,
   toRequisiteProviderMasterDataInput,
   type RequisiteProviderMasterDataInput,
 } from "../lib/requisite-provider-master-data";
+import { type LocalizedTextVariant } from "../lib/localized-text";
+import {
+  REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_LABELS,
+  REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_OPTIONS,
+  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_LABELS,
+  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS,
+} from "../lib/requisite-provider-identifier-schemes";
 
 type RequisiteProviderMasterDataEditorProps = {
   error?: string | null;
@@ -82,6 +92,13 @@ function updateItemAtIndex<T>(
   return items.map((item, itemIndex) =>
     itemIndex === index ? updater(item) : item,
   );
+}
+
+function findOptionLabel(
+  options: readonly { label: string; value: string }[],
+  value: string | null | undefined,
+) {
+  return options.find((option) => option.value === value)?.label;
 }
 
 function SectionCard(props: {
@@ -144,6 +161,14 @@ function emptyIdentifier(): RequisiteProviderIdentifierInput {
   return {
     scheme: "swift",
     value: "",
+    isPrimary: true,
+  };
+}
+
+function emptyBranchIdentifier(): RequisiteProviderBranchIdentifierInput {
+  return {
+    scheme: "swift",
+    value: "",
     isPrimary: false,
   };
 }
@@ -152,17 +177,32 @@ function emptyBranch(): RequisiteProviderBranchInput {
   return {
     code: null,
     name: "",
+    nameI18n: null,
     country: null,
     postalCode: null,
     city: null,
+    cityI18n: null,
     line1: null,
+    line1I18n: null,
     line2: null,
+    line2I18n: null,
     rawAddress: null,
+    rawAddressI18n: null,
     contactEmail: null,
     contactPhone: null,
     isPrimary: false,
     identifiers: [],
   };
+}
+
+function getNextScheme<TScheme extends string>(
+  options: readonly { value: TScheme }[],
+  usedSchemes: readonly TScheme[],
+) {
+  return (
+    options.find((option) => !usedSchemes.includes(option.value))?.value ??
+    options[0]?.value
+  );
 }
 
 function BooleanField(props: {
@@ -193,7 +233,7 @@ export function RequisiteProviderMasterDataEditor({
   error,
   onSubmit,
   provider,
-  submitLabel = "Сохранить провайдера",
+  submitLabel = "Сохранить",
   submitting = false,
   submittingLabel = "Сохранение...",
 }: RequisiteProviderMasterDataEditorProps) {
@@ -205,6 +245,8 @@ export function RequisiteProviderMasterDataEditor({
     cloneRequisiteProviderMasterDataInput(initialDraft),
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const [localizedTextVariant, setLocalizedTextVariant] =
+    useState<LocalizedTextVariant>("base");
 
   useEffect(() => {
     setDraft(cloneRequisiteProviderMasterDataInput(initialDraft));
@@ -241,7 +283,7 @@ export function RequisiteProviderMasterDataEditor({
   function updateBranchIdentifier(
     branchIndex: number,
     identifierIndex: number,
-    updater: ItemUpdater<RequisiteProviderIdentifierInput>,
+    updater: ItemUpdater<RequisiteProviderBranchIdentifierInput>,
   ) {
     updateBranch(branchIndex, (branch) => ({
       ...branch,
@@ -251,6 +293,29 @@ export function RequisiteProviderMasterDataEditor({
         updater,
       ),
     }));
+  }
+
+  function getProviderIdentifierSchemeOptions(currentIndex: number) {
+    const usedSchemes = draft.identifiers
+      .filter((_, index) => index !== currentIndex)
+      .map((identifier) => identifier.scheme);
+
+    return REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS.filter(
+      (option) => !usedSchemes.includes(option.value),
+    );
+  }
+
+  function getBranchIdentifierSchemeOptions(
+    branchIndex: number,
+    identifierIndex: number,
+  ) {
+    const usedSchemes = draft.branches[branchIndex]?.identifiers
+      .filter((_, index) => index !== identifierIndex)
+      .map((identifier) => identifier.scheme) ?? [];
+
+    return REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_OPTIONS.filter(
+      (option) => !usedSchemes.includes(option.value),
+    );
   }
 
   async function handleSubmit() {
@@ -287,7 +352,7 @@ export function RequisiteProviderMasterDataEditor({
     <div className="space-y-6">
       <SectionCard
         title="Провайдер реквизитов"
-        description="Канонический редактор института, идентификаторов и филиалов."
+        description="Редактор института, идентификаторов и филиалов."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -322,6 +387,13 @@ export function RequisiteProviderMasterDataEditor({
           </div>
         ) : null}
         <FieldSet>
+          <div className="mb-4 flex justify-end">
+            <LocalizedTextModeSwitcher
+              value={localizedTextVariant}
+              onChange={setLocalizedTextVariant}
+              disabled={submitting}
+            />
+          </div>
           <FieldGroup className="grid gap-4 md:grid-cols-2">
             <Field>
               <FieldLabel>Вид</FieldLabel>
@@ -336,7 +408,9 @@ export function RequisiteProviderMasterDataEditor({
                 disabled={submitting}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите вид" />
+                  <SelectValue placeholder="Выберите вид">
+                    {findOptionLabel(PROVIDER_KIND_OPTIONS, draft.kind)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {PROVIDER_KIND_OPTIONS.map((option) => (
@@ -347,32 +421,34 @@ export function RequisiteProviderMasterDataEditor({
                 </SelectContent>
               </Select>
             </Field>
-            <Field>
-              <FieldLabel>Юридическое название</FieldLabel>
-              <Input
-                value={draft.legalName}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    legalName: event.target.value,
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Display name</FieldLabel>
-              <Input
-                value={draft.displayName}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    displayName: event.target.value,
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
+            <LocalizedTextInputField
+              label="Юридическое название"
+              value={draft.legalName}
+              localeMap={draft.legalNameI18n}
+              variant={localizedTextVariant}
+              onChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  legalName: value.value,
+                  legalNameI18n: value.localeMap,
+                }))
+              }
+              disabled={submitting}
+            />
+            <LocalizedTextInputField
+              label="Отображаемое название"
+              value={draft.displayName}
+              localeMap={draft.displayNameI18n}
+              variant={localizedTextVariant}
+              onChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  displayName: value.value,
+                  displayNameI18n: value.localeMap,
+                }))
+              }
+              disabled={submitting}
+            />
             <Field>
               <FieldLabel>Страна</FieldLabel>
               <CountrySelect
@@ -428,12 +504,33 @@ export function RequisiteProviderMasterDataEditor({
           <RowActions
             addLabel="Добавить идентификатор"
             onAdd={() =>
-              setDraft((current) => ({
-                ...current,
-                identifiers: [...current.identifiers, emptyIdentifier()],
-              }))
+              setDraft((current) => {
+                const nextScheme = getNextScheme(
+                  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS,
+                  current.identifiers.map((identifier) => identifier.scheme),
+                );
+
+                if (!nextScheme) {
+                  return current;
+                }
+
+                return {
+                  ...current,
+                  identifiers: [
+                    ...current.identifiers,
+                    {
+                      ...emptyIdentifier(),
+                      scheme: nextScheme,
+                    },
+                  ],
+                };
+              })
             }
-            disabled={submitting}
+            disabled={
+              submitting ||
+              draft.identifiers.length >=
+                REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS.length
+            }
           />
         }
       >
@@ -444,36 +541,39 @@ export function RequisiteProviderMasterDataEditor({
             </p>
           ) : null}
           {draft.identifiers.map((identifier, index) => (
-            <div
-              key={identifier.id ?? `${identifier.scheme}-${index}`}
-              className="space-y-4 rounded-md border p-4"
-            >
-              <div className="flex justify-end">
-                <RemoveButton
-                  onRemove={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      identifiers: current.identifiers.filter(
-                        (_, itemIndex) => itemIndex !== index,
-                      ),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-              </div>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <div key={identifier.id ?? `${identifier.scheme}-${index}`}>
+              <FieldGroup className="flex flex-row items-end justify-between">
                 <Field>
                   <FieldLabel>Схема</FieldLabel>
-                  <Input
+                  <Select
                     value={identifier.scheme}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       updateIdentifier(index, (item) => ({
                         ...item,
-                        scheme: event.target.value,
+                        scheme: value as RequisiteProviderIdentifierInput["scheme"],
                       }))
                     }
                     disabled={submitting}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите схему">
+                        {findOptionLabel(
+                          REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS,
+                          identifier.scheme,
+                        ) ??
+                          REQUISITE_PROVIDER_IDENTIFIER_SCHEME_LABELS[
+                            identifier.scheme
+                          ]}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getProviderIdentifierSchemeOptions(index).map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field>
                   <FieldLabel>Значение</FieldLabel>
@@ -488,15 +588,15 @@ export function RequisiteProviderMasterDataEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <BooleanField
-                  checked={identifier.isPrimary}
-                  onChange={(nextValue) =>
-                    updateIdentifier(index, (item) => ({
-                      ...item,
-                      isPrimary: nextValue,
+                <RemoveButton
+                  onRemove={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      identifiers: current.identifiers.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
                     }))
                   }
-                  label="Основной идентификатор"
                   disabled={submitting}
                 />
               </FieldGroup>
@@ -545,19 +645,20 @@ export function RequisiteProviderMasterDataEditor({
                 />
               </div>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Название филиала</FieldLabel>
-                  <Input
-                    value={branch.name}
-                    onChange={(event) =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        name: event.target.value,
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  label="Название филиала"
+                  value={branch.name}
+                  localeMap={branch.nameI18n}
+                  variant={localizedTextVariant}
+                  onChange={(value) =>
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      name: value.value,
+                      nameI18n: value.localeMap,
+                    }))
+                  }
+                  disabled={submitting}
+                />
                 <Field>
                   <FieldLabel>Код филиала</FieldLabel>
                   <Input
@@ -589,19 +690,20 @@ export function RequisiteProviderMasterDataEditor({
                     clearLabel="Очистить"
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>Город</FieldLabel>
-                  <Input
-                    value={branch.city ?? ""}
-                    onChange={(event) =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        city: event.target.value || null,
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  label="Город"
+                  value={branch.city ?? ""}
+                  localeMap={branch.cityI18n}
+                  variant={localizedTextVariant}
+                  onChange={(value) =>
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      city: value.value || null,
+                      cityI18n: value.localeMap,
+                    }))
+                  }
+                  disabled={submitting}
+                />
                 <Field>
                   <FieldLabel>Индекс</FieldLabel>
                   <Input
@@ -615,46 +717,51 @@ export function RequisiteProviderMasterDataEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>Line 1</FieldLabel>
-                  <Input
-                    value={branch.line1 ?? ""}
-                    onChange={(event) =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        line1: event.target.value || null,
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Line 2</FieldLabel>
-                  <Input
-                    value={branch.line2 ?? ""}
-                    onChange={(event) =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        line2: event.target.value || null,
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Raw address</FieldLabel>
-                  <Textarea
-                    value={branch.rawAddress ?? ""}
-                    onChange={(event) =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        rawAddress: event.target.value || null,
-                      }))
-                    }
-                    rows={3}
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  label="Адрес, строка 1"
+                  value={branch.line1 ?? ""}
+                  localeMap={branch.line1I18n}
+                  variant={localizedTextVariant}
+                  onChange={(value) =>
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      line1: value.value || null,
+                      line1I18n: value.localeMap,
+                    }))
+                  }
+                  disabled={submitting}
+                />
+                <LocalizedTextInputField
+                  label="Адрес, строка 2"
+                  value={branch.line2 ?? ""}
+                  localeMap={branch.line2I18n}
+                  variant={localizedTextVariant}
+                  onChange={(value) =>
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      line2: value.value || null,
+                      line2I18n: value.localeMap,
+                    }))
+                  }
+                  disabled={submitting}
+                />
+                <LocalizedTextInputField
+                  className="md:col-span-2"
+                  label="Полный адрес"
+                  value={branch.rawAddress ?? ""}
+                  localeMap={branch.rawAddressI18n}
+                  variant={localizedTextVariant}
+                  onChange={(value) =>
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      rawAddress: value.value || null,
+                      rawAddressI18n: value.localeMap,
+                    }))
+                  }
+                  multiline
+                  rows={3}
+                  disabled={submitting}
+                />
                 <Field>
                   <FieldLabel>Contact email</FieldLabel>
                   <Input
@@ -701,18 +808,39 @@ export function RequisiteProviderMasterDataEditor({
                       Идентификаторы филиала
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      SWIFT, branch code и другие branch-owned идентификаторы.
+                      SWIFT, код филиала банка и другие идентификаторы филиала.
                     </p>
                   </div>
                   <RowActions
                     addLabel="Добавить"
                     onAdd={() =>
-                      updateBranch(index, (item) => ({
-                        ...item,
-                        identifiers: [...item.identifiers, emptyIdentifier()],
-                      }))
+                      updateBranch(index, (item) => {
+                        const nextScheme = getNextScheme(
+                          REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_OPTIONS,
+                          item.identifiers.map((identifier) => identifier.scheme),
+                        );
+
+                        if (!nextScheme) {
+                          return item;
+                        }
+
+                        return {
+                          ...item,
+                          identifiers: [
+                            ...item.identifiers,
+                            {
+                              ...emptyBranchIdentifier(),
+                              scheme: nextScheme,
+                            },
+                          ],
+                        };
+                      })
                     }
-                    disabled={submitting}
+                    disabled={
+                      submitting ||
+                      branch.identifiers.length >=
+                        REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_OPTIONS.length
+                    }
                   />
                 </div>
                 {branch.identifiers.length === 0 ? (
@@ -744,20 +872,43 @@ export function RequisiteProviderMasterDataEditor({
                     <FieldGroup className="grid gap-4 md:grid-cols-2">
                       <Field>
                         <FieldLabel>Схема</FieldLabel>
-                        <Input
+                        <Select
                           value={identifier.scheme}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             updateBranchIdentifier(
                               index,
                               identifierIndex,
                               (branchIdentifier) => ({
                                 ...branchIdentifier,
-                                scheme: event.target.value,
+                                scheme:
+                                  value as RequisiteProviderBranchIdentifierInput["scheme"],
                               }),
                             )
                           }
                           disabled={submitting}
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите схему">
+                              {findOptionLabel(
+                                REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_OPTIONS,
+                                identifier.scheme,
+                              ) ??
+                                REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_LABELS[
+                                  identifier.scheme
+                                ]}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getBranchIdentifierSchemeOptions(
+                              index,
+                              identifierIndex,
+                            ).map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </Field>
                       <Field>
                         <FieldLabel>Значение</FieldLabel>

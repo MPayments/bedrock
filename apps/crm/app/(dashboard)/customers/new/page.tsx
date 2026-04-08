@@ -1090,7 +1090,7 @@ export default function NewCustomerPage() {
             <div className="space-y-1">
               <CardTitle>Данные клиента</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Канонические поля клиента в CRM.
+                Поля клиента в CRM.
               </p>
             </div>
           </CardHeader>

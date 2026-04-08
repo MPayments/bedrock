@@ -1,4 +1,4 @@
-import { Download, File, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Download, Paperclip, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
@@ -131,7 +131,7 @@ export function AttachmentsCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
-            <File className="h-5 w-5 text-muted-foreground" />
+            <Paperclip className="h-5 w-5 text-muted-foreground" />
             Подтверждающие файлы
           </CardTitle>
           <Button onClick={onUpload} size="sm" variant="outline">

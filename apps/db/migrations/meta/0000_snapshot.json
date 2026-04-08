@@ -11989,6 +11989,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "name_i18n": {
+          "name": "name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "country": {
           "name": "country",
           "type": "text",
@@ -12007,9 +12013,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "city_i18n": {
+          "name": "city_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "line_1": {
           "name": "line_1",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_1_i18n": {
+          "name": "line_1_i18n",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -12019,9 +12037,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "line_2_i18n": {
+          "name": "line_2_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "raw_address": {
           "name": "raw_address",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_address_i18n": {
+          "name": "raw_address_i18n",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -12287,11 +12317,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "legal_name_i18n": {
+          "name": "legal_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "display_name": {
           "name": "display_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "display_name_i18n": {
+          "name": "display_name_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "description": {
           "name": "description",

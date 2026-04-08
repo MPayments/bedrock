@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
+import { normalizeLocaleTextMap } from "../../../shared/domain/locale-map";
 import {
   requisiteProviderBranchIdentifiers,
   requisiteProviderBranches,
@@ -17,6 +18,12 @@ import {
 
 export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
   constructor(private readonly db: Queryable) {}
+
+  private normalizeLocaleMap(
+    value: Record<string, string | null> | null | undefined,
+  ) {
+    return normalizeLocaleTextMap(value) ?? null;
+  }
 
   findDetailById(id: string) {
     return new DrizzleRequisiteProviderReads(this.db).findById(id);
@@ -38,7 +45,9 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
     id: string;
     kind: "bank" | "exchange" | "blockchain" | "custodian";
     legalName: string;
+    legalNameI18n: Record<string, string | null> | null;
     displayName: string;
+    displayNameI18n: Record<string, string | null> | null;
     description: string | null;
     country: string | null;
     website: string | null;
@@ -48,6 +57,8 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
       .insert(requisiteProviders)
       .values({
         ...provider,
+        legalNameI18n: this.normalizeLocaleMap(provider.legalNameI18n),
+        displayNameI18n: this.normalizeLocaleMap(provider.displayNameI18n),
       })
       .returning();
 
@@ -58,7 +69,9 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
     id: string;
     kind: "bank" | "exchange" | "blockchain" | "custodian";
     legalName: string;
+    legalNameI18n: Record<string, string | null> | null;
     displayName: string;
+    displayNameI18n: Record<string, string | null> | null;
     description: string | null;
     country: string | null;
     website: string | null;
@@ -69,7 +82,9 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
       .set({
         kind: provider.kind,
         legalName: provider.legalName,
+        legalNameI18n: this.normalizeLocaleMap(provider.legalNameI18n),
         displayName: provider.displayName,
+        displayNameI18n: this.normalizeLocaleMap(provider.displayNameI18n),
         description: provider.description,
         country: provider.country,
         website: provider.website,
@@ -120,12 +135,17 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
       id?: string;
       code: string | null;
       name: string;
+      nameI18n: Record<string, string | null> | null;
       country: string | null;
       postalCode: string | null;
       city: string | null;
+      cityI18n: Record<string, string | null> | null;
       line1: string | null;
+      line1I18n: Record<string, string | null> | null;
       line2: string | null;
+      line2I18n: Record<string, string | null> | null;
       rawAddress: string | null;
+      rawAddressI18n: Record<string, string | null> | null;
       contactEmail: string | null;
       contactPhone: string | null;
       isPrimary: boolean;
@@ -149,12 +169,17 @@ export class DrizzleRequisiteProviderStore implements RequisiteProviderStore {
         providerId: input.providerId,
         code: item.code,
         name: item.name,
+        nameI18n: this.normalizeLocaleMap(item.nameI18n),
         country: item.country,
         postalCode: item.postalCode,
         city: item.city,
+        cityI18n: this.normalizeLocaleMap(item.cityI18n),
         line1: item.line1,
+        line1I18n: this.normalizeLocaleMap(item.line1I18n),
         line2: item.line2,
+        line2I18n: this.normalizeLocaleMap(item.line2I18n),
         rawAddress: item.rawAddress,
+        rawAddressI18n: this.normalizeLocaleMap(item.rawAddressI18n),
         contactEmail: item.contactEmail,
         contactPhone: item.contactPhone,
         isPrimary: item.isPrimary,

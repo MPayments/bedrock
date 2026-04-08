@@ -103,8 +103,9 @@ export function OrganizationBankRequisitesWorkspace({
 
   const selectedRequisite =
     editorState.kind === "existing"
-      ? (requisites.find((requisite) => requisite.id === editorState.requisiteId) ??
-        null)
+      ? (requisites.find(
+          (requisite) => requisite.id === editorState.requisiteId,
+        ) ?? null)
       : null;
 
   const syncEditorState = useCallback(
@@ -159,7 +160,12 @@ export function OrganizationBankRequisitesWorkspace({
     if (editorState.kind === "idle" && initialSelectedRequisiteId) {
       onSelectedRequisiteChange(null);
     }
-  }, [editorDirty, editorState, initialSelectedRequisiteId, onSelectedRequisiteChange]);
+  }, [
+    editorDirty,
+    editorState,
+    initialSelectedRequisiteId,
+    onSelectedRequisiteChange,
+  ]);
 
   function requestEditorState(nextState: EditorState) {
     if (editorDirty) {
@@ -365,13 +371,18 @@ export function OrganizationBankRequisitesWorkspace({
                                 {requisite.label}
                               </p>
                               <p className="truncate text-sm text-muted-foreground">
-                                {getBankProviderLabel(requisite, providerOptions)}
+                                {getBankProviderLabel(
+                                  requisite,
+                                  providerOptions,
+                                )}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatBankRequisiteIdentity(requisite)}
                               </p>
                             </div>
-                            {requisite.isDefault ? <Badge>Основной</Badge> : null}
+                            {requisite.isDefault ? (
+                              <Badge>Основной</Badge>
+                            ) : null}
                           </div>
                         </button>
                       );
@@ -386,7 +397,10 @@ export function OrganizationBankRequisitesWorkspace({
                 {selectedRequisite && editorState.kind === "existing" ? (
                   <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
                     {getBankProviderLabel(selectedRequisite, providerOptions)} ·{" "}
-                    {getCurrencyLabel(selectedRequisite.currencyId, currencyOptions)}
+                    {getCurrencyLabel(
+                      selectedRequisite.currencyId,
+                      currencyOptions,
+                    )}
                   </div>
                 ) : null}
                 <RequisiteEditor
@@ -416,11 +430,11 @@ export function OrganizationBankRequisitesWorkspace({
                   error={effectiveError}
                   onDirtyChange={setEditorDirty}
                   onSubmit={handleSubmit}
-                  onDelete={editorState.kind === "existing" ? handleDelete : undefined}
+                  onDelete={
+                    editorState.kind === "existing" ? handleDelete : undefined
+                  }
                   submitLabel={
-                    editorState.kind === "create"
-                      ? "Создать реквизит"
-                      : "Сохранить реквизит"
+                    editorState.kind === "create" ? "Создать" : "Сохрпнить"
                   }
                   submittingLabel="Сохранение..."
                   showDelete={editorState.kind === "existing"}

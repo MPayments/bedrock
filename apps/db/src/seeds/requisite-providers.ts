@@ -13,8 +13,10 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
       .values({
         id: provider.id,
         kind: provider.kind,
-        legalName: provider.name,
-        displayName: provider.name,
+        legalName: provider.legalName,
+        legalNameI18n: provider.legalNameI18n ?? null,
+        displayName: provider.displayName,
+        displayNameI18n: provider.displayNameI18n ?? null,
         description: provider.description,
         country: provider.country,
         website: provider.contact?.startsWith("http") ? provider.contact : null,
@@ -23,8 +25,10 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
         target: schema.requisiteProviders.id,
         set: {
           kind: provider.kind,
-          legalName: provider.name,
-          displayName: provider.name,
+          legalName: provider.legalName,
+          legalNameI18n: provider.legalNameI18n ?? null,
+          displayName: provider.displayName,
+          displayNameI18n: provider.displayNameI18n ?? null,
           description: provider.description,
           country: provider.country,
           website: provider.contact?.startsWith("http") ? provider.contact : null,
@@ -68,13 +72,18 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
       await db.insert(schema.requisiteProviderBranches).values({
         providerId: provider.id,
         code: null,
-        name: provider.name,
+        name: provider.displayName,
+        nameI18n: provider.displayNameI18n ?? null,
         country: provider.country,
         postalCode: null,
         city: null,
+        cityI18n: null,
         line1: null,
+        line1I18n: null,
         line2: null,
+        line2I18n: null,
         rawAddress: provider.address,
+        rawAddressI18n: provider.addressI18n ?? null,
         contactEmail:
           provider.contact && provider.contact.includes("@")
             ? provider.contact

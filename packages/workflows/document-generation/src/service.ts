@@ -9,7 +9,9 @@ import {
   findRequisiteProviderIdentifier,
   formatPartyAddress,
   formatRequisiteProviderAddress,
+  formatRequisiteProviderAddressI18n,
   resolveRequisiteProviderDisplayName,
+  resolveRequisiteProviderDisplayNameI18n,
   type PartiesModule,
 } from "@bedrock/parties";
 import type {
@@ -317,13 +319,23 @@ function mapContractClientData(input: {
         branchId: bankRequisite?.providerBranchId,
         provider,
       }) ?? null,
-    bankNameI18n: null,
+    bankNameI18n: toDocumentLocalizedText(
+      resolveRequisiteProviderDisplayNameI18n({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+      }),
+    ),
     bankAddress:
       formatRequisiteProviderAddress({
         branchId: bankRequisite?.providerBranchId,
         provider,
       }) ?? null,
-    bankAddressI18n: null,
+    bankAddressI18n: toDocumentLocalizedText(
+      formatRequisiteProviderAddressI18n({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+      }),
+    ),
   };
 }
 
@@ -382,6 +394,12 @@ function mapContractOrganizationRequisiteData(input: {
         branchId: requisite.providerBranchId,
         provider,
       }) ?? null,
+    institutionNameI18n: toDocumentLocalizedText(
+      resolveRequisiteProviderDisplayNameI18n({
+        branchId: requisite.providerBranchId,
+        provider,
+      }),
+    ),
     ownerId: requisite.ownerId,
     swift:
       findRequisiteProviderIdentifier({

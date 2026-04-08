@@ -22,7 +22,9 @@ function createProvider() {
     id: "11111111-1111-4111-8111-111111111111",
     kind: "bank" as const,
     legalName: "Core Bank LLC",
+    legalNameI18n: { en: "Core Bank LLC", ru: "Банк Core LLC" },
     displayName: "Core Bank",
+    displayNameI18n: { en: "Core Bank", ru: "Банк Core" },
     description: null,
     country: "US",
     website: null,
@@ -109,7 +111,9 @@ describe("requisite provider routes", () => {
       "11111111-1111-4111-8111-111111111111",
       {
         displayName: "Core Bank",
+        displayNameI18n: null,
         identifiers: [{ scheme: "swift", value: "coreus33", isPrimary: true }],
+        legalNameI18n: null,
         branches: [],
       },
     );

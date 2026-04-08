@@ -27,6 +27,10 @@ import type {
   RequisiteProvider,
   RequisiteProviderListItem,
 } from "../../application/contracts/dto";
+import {
+  RequisiteProviderBranchIdentifierSchema,
+  RequisiteProviderIdentifierSchema,
+} from "../../application/contracts/dto";
 import type { RequisiteProviderReads } from "../../application/ports/requisite-provider.reads";
 
 const PROVIDERS_SORT_COLUMN_MAP = {
@@ -90,10 +94,14 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
 
     return {
       ...row,
-      identifiers,
+      identifiers: identifiers.map((identifier) =>
+        RequisiteProviderIdentifierSchema.parse(identifier),
+      ),
       branches: branchRows.map((branch) => ({
         ...branch,
-        identifiers: identifiersByBranchId.get(branch.id) ?? [],
+        identifiers: (identifiersByBranchId.get(branch.id) ?? []).map(
+          (identifier) => RequisiteProviderBranchIdentifierSchema.parse(identifier),
+        ),
       })),
     };
   }

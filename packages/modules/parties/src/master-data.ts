@@ -1,5 +1,6 @@
 import type {
   Counterparty,
+  LocaleTextMap,
   Organization,
   Requisite,
   RequisiteProvider,
@@ -139,6 +140,16 @@ export function findRequisiteProviderBranch(
   return (provider.branches ?? []).find((branch) => branch.id === branchId) ?? null;
 }
 
+function findPrimaryRequisiteProviderBranch(
+  provider: RequisiteProvider | null | undefined,
+) {
+  if (!provider) {
+    return null;
+  }
+
+  return pickPrimary(provider.branches ?? []);
+}
+
 export function findRequisiteProviderIdentifier(input: {
   provider: RequisiteProvider | null | undefined;
   scheme: string;
@@ -179,7 +190,9 @@ export function formatRequisiteProviderAddress(input: {
   provider: RequisiteProvider | null | undefined;
   branchId?: string | null;
 }) {
-  const branch = findRequisiteProviderBranch(input.provider, input.branchId);
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
 
   if (!branch) {
     return null;
@@ -200,10 +213,52 @@ export function formatRequisiteProviderAddress(input: {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+export function formatRequisiteProviderAddressI18n(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}): LocaleTextMap | null {
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
+
+  if (!branch) {
+    return null;
+  }
+
+  if (branch.rawAddressI18n) {
+    return branch.rawAddressI18n;
+  }
+
+  const buildLocaleAddress = (locale: "ru" | "en") => {
+    const parts = [
+      branch.line1I18n?.[locale] ?? branch.line1,
+      branch.line2I18n?.[locale] ?? branch.line2,
+      branch.cityI18n?.[locale] ?? branch.city,
+      branch.postalCode,
+      branch.country,
+    ].filter(Boolean);
+
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  const ru = buildLocaleAddress("ru");
+  const en = buildLocaleAddress("en");
+
+  return ru || en ? { ru, en } : null;
+}
+
 export function resolveRequisiteProviderDisplayName(input: {
   provider: RequisiteProvider | null | undefined;
   branchId?: string | null;
 }) {
   const branch = findRequisiteProviderBranch(input.provider, input.branchId);
   return branch?.name ?? input.provider?.displayName ?? null;
+}
+
+export function resolveRequisiteProviderDisplayNameI18n(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}): LocaleTextMap | null {
+  const branch = findRequisiteProviderBranch(input.provider, input.branchId);
+  return branch?.nameI18n ?? input.provider?.displayNameI18n ?? null;
 }

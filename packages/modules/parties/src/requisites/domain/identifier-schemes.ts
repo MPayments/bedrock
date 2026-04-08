@@ -14,6 +14,20 @@ export interface PaymentIdentifierInput {
   isPrimary: boolean;
 }
 
+export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES = [
+  "swift",
+  "bic",
+] as const;
+export type RequisiteProviderIdentifierSchemeValue =
+  (typeof REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES)[number];
+
+export const REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES = [
+  ...REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
+  "branch_code",
+] as const;
+export type RequisiteProviderBranchIdentifierSchemeValue =
+  (typeof REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES)[number];
+
 type SchemeDefinition = {
   owners: PaymentIdentifierOwnerKind[];
   kinds?: RequisiteKind[];
@@ -31,10 +45,6 @@ const PAYMENT_IDENTIFIER_SCHEMES: Record<string, SchemeDefinition> = {
     normalize: compactUpper,
   },
   bic: {
-    owners: ["provider", "provider_branch"],
-    normalize: compactUpper,
-  },
-  routing_code: {
     owners: ["provider", "provider_branch"],
     normalize: compactUpper,
   },

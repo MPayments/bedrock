@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { RequisiteProviderMasterDataEditor } from "@bedrock/sdk-parties-ui/components/requisite-provider-master-data-editor";
+import { type RequisiteProviderMasterDataInput } from "@bedrock/sdk-parties-ui/lib/requisite-provider-master-data";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
@@ -26,30 +27,7 @@ export function EditRequisiteProviderFormClient({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(values: {
-    kind: RequisiteProviderDetails["kind"];
-    legalName: string;
-    displayName: string;
-    description: string | null;
-    country: string | null;
-    website: string | null;
-    identifiers: Array<{ id?: string; scheme: string; value: string; isPrimary: boolean }>;
-    branches: Array<{
-      id?: string;
-      code: string | null;
-      name: string;
-      country: string | null;
-      postalCode: string | null;
-      city: string | null;
-      line1: string | null;
-      line2: string | null;
-      rawAddress: string | null;
-      contactEmail: string | null;
-      contactPhone: string | null;
-      isPrimary: boolean;
-      identifiers: Array<{ id?: string; scheme: string; value: string; isPrimary: boolean }>;
-    }>;
-  }) {
+  async function handleSubmit(values: RequisiteProviderMasterDataInput) {
     setError(null);
     setSubmitting(true);
 

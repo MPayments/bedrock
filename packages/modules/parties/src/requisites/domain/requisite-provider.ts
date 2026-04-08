@@ -5,6 +5,10 @@ import {
   normalizeRequiredText,
 } from "@bedrock/shared/core/domain";
 
+import {
+  normalizeLocaleTextMap,
+  type LocaleTextMap,
+} from "../../shared/domain/locale-map";
 import { normalizeCountryCode } from "./country-code";
 import { isBankLikeRequisiteKind, type RequisiteKind } from "./requisite-kind";
 
@@ -12,7 +16,9 @@ export interface RequisiteProviderSnapshot {
   id: string;
   kind: RequisiteKind;
   legalName: string;
+  legalNameI18n: LocaleTextMap | null;
   displayName: string;
+  displayNameI18n: LocaleTextMap | null;
   description: string | null;
   country: string | null;
   website: string | null;
@@ -24,7 +30,9 @@ export interface RequisiteProviderSnapshot {
 export interface RequisiteProviderDetails {
   kind: RequisiteKind;
   legalName: string;
+  legalNameI18n: LocaleTextMap | null;
   displayName: string;
+  displayNameI18n: LocaleTextMap | null;
   description: string | null;
   country: string | null;
   website: string | null;
@@ -79,11 +87,13 @@ export function normalizeRequisiteProviderDetails(
       "requisite_provider.legal_name.required",
       "legalName",
     ),
+    legalNameI18n: normalizeLocaleTextMap(input.legalNameI18n) ?? null,
     displayName: normalizeRequiredText(
       input.displayName,
       "requisite_provider.display_name.required",
       "displayName",
     ),
+    displayNameI18n: normalizeLocaleTextMap(input.displayNameI18n) ?? null,
     description: normalizeOptionalText(input.description),
     country: normalizeCountryCode(input.country),
     website: normalizeOptionalText(input.website),

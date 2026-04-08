@@ -58,6 +58,7 @@ export interface ContractOrganizationRequisiteData {
   currencyCode: string;
   id: string;
   institutionName: string | null;
+  institutionNameI18n?: DocumentLocalizedText | null;
   ownerId: string;
   swift: string | null;
 }
@@ -152,6 +153,13 @@ export function assembleClientContractData(
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
+  applyLocalizedTemplateField(
+    raw,
+    "agentBankName",
+    organizationRequisite,
+    "institutionName",
+    lang,
+  );
 
   withLocalizedTemplateFields(raw, "agentDirectorName", {
     ru: formatDirector(
