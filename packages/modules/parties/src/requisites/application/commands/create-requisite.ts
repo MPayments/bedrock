@@ -10,10 +10,10 @@ import {
   CreateRequisiteInputSchema,
   type CreateRequisiteInput,
 } from "../contracts/requisites";
-import { RequisiteProviderNotActiveError } from "../errors";
 import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
 import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
+import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 
 async function assertOwnerExists(input: {
   owner: RequisiteOwner;
@@ -31,17 +31,6 @@ async function assertOwnerExists(input: {
   const counterparty = await input.counterpartyReads.findById(input.owner.id);
   if (!counterparty) {
     throw new CounterpartyNotFoundError(input.owner.id);
-  }
-}
-
-async function assertProviderActive(
-  reads: RequisiteProviderReads,
-  providerId: string,
-) {
-  const provider = await reads.findActiveById(providerId);
-
-  if (!provider) {
-    throw new RequisiteProviderNotActiveError(providerId);
   }
 }
 
@@ -73,7 +62,11 @@ export class CreateRequisiteCommand {
       counterpartyReads: this.counterpartyReads,
     });
     await this.currencies.assertCurrencyExists(validated.currencyId);
-    await assertProviderActive(this.providerReads, validated.providerId);
+    await assertRequisiteProviderSelection(
+      this.providerReads,
+      validated.providerId,
+      validated.providerBranchId,
+    );
 
     return this.uow.run(async (tx) => {
       const set = await tx.requisites.findSetByOwnerCurrency({

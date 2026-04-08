@@ -9,22 +9,11 @@ import {
 } from "../contracts/requisites";
 import {
   RequisiteNotFoundError,
-  RequisiteProviderNotActiveError,
 } from "../errors";
 import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
 import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
-
-async function assertProviderActive(
-  reads: RequisiteProviderReads,
-  providerId: string,
-) {
-  const provider = await reads.findActiveById(providerId);
-
-  if (!provider) {
-    throw new RequisiteProviderNotActiveError(providerId);
-  }
-}
+import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 
 export class UpdateRequisiteCommand {
   constructor(
@@ -64,7 +53,11 @@ export class UpdateRequisiteCommand {
       const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await this.currencies.assertCurrencyExists(nextInput.currencyId);
-      await assertProviderActive(this.providerReads, nextInput.providerId);
+      await assertRequisiteProviderSelection(
+        this.providerReads,
+        nextInput.providerId,
+        nextInput.providerBranchId,
+      );
       if (validated.identifiers !== undefined) {
         validatePaymentIdentifiers({
           owner: "requisite",

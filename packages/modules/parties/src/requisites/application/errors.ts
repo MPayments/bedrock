@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/shared/core/errors";
+import { ServiceError, ValidationError } from "@bedrock/shared/core/errors";
 
 export class RequisiteError extends ServiceError {}
 
@@ -19,6 +19,14 @@ export class RequisiteProviderNotFoundError extends RequisiteProviderError {
 export class RequisiteProviderNotActiveError extends RequisiteProviderError {
   constructor(id: string) {
     super(`Requisite provider is not active: ${id}`);
+  }
+}
+
+export class RequisiteProviderBranchMismatchError extends ValidationError {
+  constructor(providerId: string, branchId: string) {
+    super(
+      `Requisite provider branch ${branchId} does not belong to provider ${providerId}`,
+    );
   }
 }
 
