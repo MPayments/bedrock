@@ -28,11 +28,11 @@ export const REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES = [
 export type RequisiteProviderBranchIdentifierSchemeValue =
   (typeof REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES)[number];
 
-type SchemeDefinition = {
+interface SchemeDefinition {
   owners: PaymentIdentifierOwnerKind[];
   kinds?: RequisiteKind[];
   normalize: (value: string) => string;
-};
+}
 
 const compactUpper = (value: string) =>
   value.trim().replace(/\s+/g, "").toUpperCase();

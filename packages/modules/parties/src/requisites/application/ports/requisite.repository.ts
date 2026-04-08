@@ -1,7 +1,7 @@
 import type { RequisiteOwnerType } from "../../domain/owner";
-import type { Requisite as RequisiteDetail } from "../contracts/requisites";
 import type { Requisite } from "../../domain/requisite";
 import type { RequisiteSet } from "../../domain/requisite-set";
+import type { Requisite as RequisiteDetail } from "../contracts/requisites";
 
 export interface RequisiteRepository {
   findDetailById(id: string): Promise<RequisiteDetail | null>;

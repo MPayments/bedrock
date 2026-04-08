@@ -1,11 +1,9 @@
-import type {
-  RequisiteProviderBranchIdentifierSchemeValue,
-  RequisiteProviderIdentifierSchemeValue,
-} from "@bedrock/parties/contracts";
 import {
   REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
-} from "@bedrock/parties/contracts";
+  type RequisiteProviderBranchIdentifierSchemeValue,
+  type RequisiteProviderIdentifierSchemeValue,
+} from "./contracts";
 
 export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_LABELS: Record<
   RequisiteProviderIdentifierSchemeValue,

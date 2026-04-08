@@ -23,7 +23,6 @@ import { readJsonWithSchema } from "@/lib/api/response";
 
 import {
   bankRequisiteToFormValues,
-  createEmptyBankRequisiteValues,
   createOrganizationBankRequisitePatch,
   createOrganizationBankRequisitePayload,
   formatBankRequisiteIdentity,

@@ -11,12 +11,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { LocaleTextMap } from "../../../shared/domain/locale-map";
+import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
 import {
   organizations,
   partyCountryCodeEnum,
 } from "../../../organizations/adapters/drizzle/schema";
-import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
+import type { LocaleTextMap } from "../../../shared/domain/locale-map";
 
 export const partyProfiles = pgTable(
   "party_profiles",

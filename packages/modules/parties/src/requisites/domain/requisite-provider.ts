@@ -5,12 +5,12 @@ import {
   normalizeRequiredText,
 } from "@bedrock/shared/core/domain";
 
+import { normalizeCountryCode } from "./country-code";
+import { isBankLikeRequisiteKind, type RequisiteKind } from "./requisite-kind";
 import {
   normalizeLocaleTextMap,
   type LocaleTextMap,
 } from "../../shared/domain/locale-map";
-import { normalizeCountryCode } from "./country-code";
-import { isBankLikeRequisiteKind, type RequisiteKind } from "./requisite-kind";
 
 export interface RequisiteProviderSnapshot {
   id: string;

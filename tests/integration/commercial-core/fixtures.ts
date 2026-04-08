@@ -14,6 +14,33 @@ function uniqueLabel(prefix: string) {
   return `${prefix}-${randomUUID().slice(0, 8)}`;
 }
 
+function createLegalEntityPartyProfileBundle(input: {
+  countryCode?: string | null;
+  fullName: string;
+  shortName: string;
+}) {
+  return {
+    profile: {
+      fullName: input.fullName,
+      shortName: input.shortName,
+      fullNameI18n: null,
+      shortNameI18n: null,
+      legalFormCode: null,
+      legalFormLabel: null,
+      legalFormLabelI18n: null,
+      countryCode: input.countryCode ?? null,
+      businessActivityCode: null,
+      businessActivityText: null,
+      businessActivityTextI18n: null,
+    },
+    identifiers: [],
+    address: null,
+    contacts: [],
+    representatives: [],
+    licenses: [],
+  };
+}
+
 export async function findCurrencyByCode(code: string) {
   const runtime = createCommercialCoreRuntime();
   const result = await runtime.pool.query<{ code: string; id: string }>(
@@ -34,42 +61,85 @@ export async function createCommercialPartiesFixture() {
   const { modules } = runtime;
   const usd = await findCurrencyByCode("USD");
   const eur = await findCurrencyByCode("EUR");
+  const rub = await findCurrencyByCode("RUB");
+  const customerName = uniqueLabel("Customer");
+  const organizationShortName = uniqueLabel("Internal Org");
+  const organizationFullName = `${organizationShortName} LLC`;
+  const applicantShortName = uniqueLabel("Applicant");
+  const applicantFullName = `${applicantShortName} LLC`;
+  const beneficiaryShortName = uniqueLabel("Beneficiary");
+  const beneficiaryFullName = `${beneficiaryShortName} GmbH`;
+  const payerShortName = uniqueLabel("Payer");
+  const payerFullName = `${payerShortName} LLC`;
+  const providerDisplayName = uniqueLabel("Provider");
 
   const customer = await modules.parties.customers.commands.create({
     description: null,
-    displayName: uniqueLabel("Customer"),
+    name: customerName,
     externalRef: null,
   });
   const organization = await modules.parties.organizations.commands.create({
-    fullName: `${uniqueLabel("Internal Org")} LLC`,
-    shortName: uniqueLabel("Internal Org"),
+    fullName: organizationFullName,
+    shortName: organizationShortName,
+    partyProfile: createLegalEntityPartyProfileBundle({
+      fullName: organizationFullName,
+      shortName: organizationShortName,
+    }),
   });
   const applicant = await modules.parties.counterparties.commands.create({
     country: "US",
     customerId: customer.id,
-    fullName: `${uniqueLabel("Applicant")} LLC`,
-    shortName: uniqueLabel("Applicant"),
+    fullName: applicantFullName,
+    shortName: applicantShortName,
+    partyProfile: createLegalEntityPartyProfileBundle({
+      countryCode: "US",
+      fullName: applicantFullName,
+      shortName: applicantShortName,
+    }),
   });
   const externalBeneficiary = await modules.parties.counterparties.commands.create({
     country: "DE",
-    fullName: `${uniqueLabel("Beneficiary")} GmbH`,
-    shortName: uniqueLabel("Beneficiary"),
+    fullName: beneficiaryFullName,
+    shortName: beneficiaryShortName,
+    partyProfile: createLegalEntityPartyProfileBundle({
+      countryCode: "DE",
+      fullName: beneficiaryFullName,
+      shortName: beneficiaryShortName,
+    }),
   });
   const externalPayer = await modules.parties.counterparties.commands.create({
     country: "AE",
-    fullName: `${uniqueLabel("Payer")} LLC`,
-    shortName: uniqueLabel("Payer"),
+    fullName: payerFullName,
+    shortName: payerShortName,
+    partyProfile: createLegalEntityPartyProfileBundle({
+      countryCode: "AE",
+      fullName: payerFullName,
+      shortName: payerShortName,
+    }),
   });
   const provider = await modules.parties.requisites.commands.createProvider({
     country: "US",
+    displayName: providerDisplayName,
+    identifiers: [
+      {
+        scheme: "swift",
+        value: "BOFAUS3N",
+        isPrimary: true,
+      },
+    ],
     kind: "bank",
-    name: uniqueLabel("Provider"),
-    swift: "BOFAUS3N",
+    legalName: `${providerDisplayName} Bank`,
   });
   const organizationRequisite = await modules.parties.requisites.commands.create({
-    accountNo: "40802810000000000001",
     beneficiaryName: organization.fullName,
     currencyId: usd.id,
+    identifiers: [
+      {
+        scheme: "local_account_number",
+        value: "40802810000000000001",
+        isPrimary: true,
+      },
+    ],
     kind: "bank",
     label: uniqueLabel("Org Requisite"),
     ownerId: organization.id,
@@ -108,7 +178,7 @@ export async function createCommercialPartiesFixture() {
 
   return {
     applicant,
-    currencies: { eur, usd },
+    currencies: { eur, rub, usd },
     customer,
     externalBeneficiary,
     externalPayer,
@@ -152,6 +222,9 @@ export function createPaymentIntakeDraft(input: {
   sourceCurrencyId: string;
   targetCurrencyId?: string | null;
 }) {
+  const sourceAmount = input.sourceAmount ?? "1000.00";
+  const targetCurrencyId = input.targetCurrencyId ?? input.sourceCurrencyId;
+
   return {
     common: {
       applicantCounterpartyId: input.applicantCounterpartyId,
@@ -176,18 +249,18 @@ export function createPaymentIntakeDraft(input: {
     },
     incomingReceipt: {
       contractNumber: null,
-      expectedAmount: null,
+      expectedAmount: sourceAmount,
       expectedAt: null,
-      expectedCurrencyId: null,
+      expectedCurrencyId: targetCurrencyId,
       invoiceNumber: null,
       payerCounterpartyId: null,
       payerSnapshot: null,
     },
     moneyRequest: {
       purpose: "Supplier payment",
-      sourceAmount: input.sourceAmount ?? "1000.00",
+      sourceAmount,
       sourceCurrencyId: input.sourceCurrencyId,
-      targetCurrencyId: input.targetCurrencyId ?? null,
+      targetCurrencyId,
     },
     settlementDestination: {
       bankInstructionSnapshot: null,

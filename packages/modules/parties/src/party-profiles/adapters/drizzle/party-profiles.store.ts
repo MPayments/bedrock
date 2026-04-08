@@ -2,12 +2,21 @@ import { eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
+import { DrizzlePartyProfilesReads } from "./party-profiles.reads";
+import {
+  partyAddresses,
+  partyContacts,
+  partyIdentifiers,
+  partyProfiles,
+  partyLicenses,
+  partyRepresentatives,
+} from "./schema";
+import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
+import { organizations } from "../../../organizations/adapters/drizzle/schema";
 import {
   normalizeLocaleTextMap,
   type LocaleTextMap,
 } from "../../../shared/domain/locale-map";
-import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
-import { organizations } from "../../../organizations/adapters/drizzle/schema";
 import type {
   PartyAddress,
   PartyAddressInput,
@@ -25,15 +34,6 @@ import type {
   PartyRepresentativeInput,
 } from "../../application/contracts";
 import type { PartyProfilesStore } from "../../application/ports/party-profiles.store";
-import { DrizzlePartyProfilesReads } from "./party-profiles.reads";
-import {
-  partyAddresses,
-  partyContacts,
-  partyIdentifiers,
-  partyProfiles,
-  partyLicenses,
-  partyRepresentatives,
-} from "./schema";
 
 function normalizeIdentifierValue(value: string): string {
   return value.trim().replace(/\s+/g, "").toUpperCase();

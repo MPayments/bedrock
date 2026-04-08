@@ -25,11 +25,11 @@ import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/parties/contracts";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   createPaginatedListSchema,
   MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
-import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

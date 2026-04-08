@@ -36,9 +36,6 @@ import type {
   ClientDocument,
   CustomerCounterparty,
 } from "../_lib/customer-detail";
-import {
-  isPrimaryCounterparty,
-} from "../_lib/customer-detail";
 import { CounterpartyBankRequisitesWorkspace } from "./counterparty-bank-requisites-workspace";
 import { CustomerCounterpartyCreateEditor } from "./customer-counterparty-create-editor";
 import { CustomerCounterpartyEditor } from "./customer-counterparty-editor";
@@ -75,10 +72,6 @@ type CustomerCounterpartySection =
   | "subagent"
   | "requisites"
   | "documents";
-
-function formatRelationshipKind(value: "customer_owned" | "external"): string {
-  return value === "customer_owned" ? "Клиент" : "Внешний контрагент";
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -129,13 +122,6 @@ export function CustomerCounterpartyPanel({
   workspaceCounterparties,
   workspacePrimaryCounterpartyId,
 }: CustomerCounterpartyPanelProps) {
-  const isPrimary = isPrimaryCounterparty(
-    {
-      counterparties: workspaceCounterparties,
-      primaryCounterpartyId: workspacePrimaryCounterpartyId,
-    },
-    selectedCounterparty.counterpartyId,
-  );
   const [activeSection, setActiveSection] =
     useState<CustomerCounterpartySection>("organization");
 

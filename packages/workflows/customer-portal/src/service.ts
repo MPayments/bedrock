@@ -353,10 +353,6 @@ function canAccessCrm(role: string | null, banned: boolean | null): boolean {
   return role === "admin" || role === "agent";
 }
 
-function serializeDate(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-}
-
 async function resolvePortalCurrencyId(
   deps: CustomerPortalWorkflowDeps,
   value: string | null | undefined,

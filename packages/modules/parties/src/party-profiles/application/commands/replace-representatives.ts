@@ -2,8 +2,8 @@ import type {
   PartyRepresentative,
   PartyRepresentativeInput,
 } from "../contracts";
-import type { PartyProfilesCommandUnitOfWork } from "../ports/party-profiles.uow";
 import type { PartyProfileOwnerRef } from "../ports/party-profiles.store";
+import type { PartyProfilesCommandUnitOfWork } from "../ports/party-profiles.uow";
 import { validateRepresentativeInputs } from "../validation";
 
 export class ReplacePartyProfileRepresentativesCommand {

@@ -13,7 +13,6 @@ import type {
   CounterpartiesCommandUnitOfWork,
 } from "../../../counterparties/application/ports/counterparties.uow";
 import { DrizzleCustomerStore } from "../../../customers/adapters/drizzle/customer.store";
-import { DrizzlePartyProfilesStore } from "../../../party-profiles/adapters/drizzle/party-profiles.store";
 import type {
   CustomersCommandTx,
   CustomersCommandUnitOfWork,
@@ -23,6 +22,7 @@ import type {
   OrganizationsCommandTx,
   OrganizationsCommandUnitOfWork,
 } from "../../../organizations/application/ports/organizations.uow";
+import { DrizzlePartyProfilesStore } from "../../../party-profiles/adapters/drizzle/party-profiles.store";
 import { DrizzleRequisiteBindingStore } from "../../../requisites/adapters/drizzle/requisite-binding.store";
 import { DrizzleRequisiteProviderStore } from "../../../requisites/adapters/drizzle/requisite-provider.store";
 import { DrizzleRequisiteRepository } from "../../../requisites/adapters/drizzle/requisite.repository";

@@ -6,6 +6,8 @@ import {
   OrganizationNotFoundError,
   RequisiteProviderNotActiveError,
 } from "@bedrock/parties";
+import type {
+  OrganizationListItemSchema} from "@bedrock/parties/contracts";
 import {
   CreateOrganizationInputSchema,
   CreateRequisiteInputSchema,
@@ -15,7 +17,6 @@ import {
   PartyProfileBundleSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
-  OrganizationListItemSchema,
   PaginatedOrganizationsSchema,
   OrganizationSchema,
   RequisiteListItemSchema,

@@ -1,7 +1,6 @@
+import { eq } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-
-import { eq } from "drizzle-orm";
 
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import { noopLogger } from "@bedrock/platform/observability";

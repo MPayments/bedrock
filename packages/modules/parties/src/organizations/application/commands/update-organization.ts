@@ -6,8 +6,8 @@ import {
   type UpdateOrganizationInput,
 } from "../contracts/commands";
 import { OrganizationNotFoundError } from "../errors";
-import { toOrganizationDto } from "../to-organization-dto";
 import type { OrganizationsCommandUnitOfWork } from "../ports/organizations.uow";
+import { toOrganizationDto } from "../to-organization-dto";
 
 export class UpdateOrganizationCommand {
   constructor(

@@ -1,7 +1,11 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { REQUISITE_PROVIDERS_LIST_CONTRACT } from "@bedrock/parties/contracts";
+import {
+  REQUISITE_PROVIDERS_LIST_CONTRACT,
+  RequisiteProviderBranchIdentifierSchemeSchema,
+  RequisiteProviderIdentifierSchemeSchema,
+} from "@bedrock/parties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
@@ -13,7 +17,6 @@ import type {
   SerializedRequisiteProvider,
 } from "./types";
 import type { RequisiteProvidersSearchParams } from "./validations";
-import { serializeLegacyProvider } from "./master-data";
 
 const LocaleTextMapSchema = z.record(z.string(), z.string().nullable()).nullable();
 
@@ -35,7 +38,7 @@ const RequisiteProviderListItemApiSchema = z.object({
 const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
   identifiers: z.array(
     z.object({
-      scheme: z.string(),
+      scheme: RequisiteProviderIdentifierSchemeSchema,
       value: z.string(),
       isPrimary: z.boolean(),
     }),
@@ -61,7 +64,7 @@ const RequisiteProviderApiSchema = RequisiteProviderListItemApiSchema.extend({
       isPrimary: z.boolean(),
       identifiers: z.array(
         z.object({
-          scheme: z.string(),
+          scheme: RequisiteProviderBranchIdentifierSchemeSchema,
           value: z.string(),
           isPrimary: z.boolean(),
         }),
@@ -75,12 +78,6 @@ export type RequisiteProviderDetails = z.infer<typeof RequisiteProviderApiSchema
 const RequisiteProvidersResponseSchema = createPaginatedResponseSchema(
   RequisiteProviderListItemApiSchema,
 );
-
-function serializeProvider(
-  row: z.infer<typeof RequisiteProviderApiSchema>,
-): SerializedRequisiteProvider {
-  return serializeLegacyProvider(row);
-}
 
 function serializeProviderListItem(
   row: z.infer<typeof RequisiteProviderListItemApiSchema>,

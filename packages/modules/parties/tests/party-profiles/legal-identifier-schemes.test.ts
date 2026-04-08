@@ -1,5 +1,6 @@
-import { ValidationError } from "@bedrock/shared/core/errors";
 import { describe, expect, it } from "vitest";
+
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { assertUniqueLegalIdentifierSchemes } from "../../src/party-profiles/domain/legal-identifier-schemes";
 

@@ -1,5 +1,5 @@
-import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 import type { Counterparty } from "./contracts/counterparty.dto";
+import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 
 export function toCounterpartyDto(
   counterparty: {

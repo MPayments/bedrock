@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { books } from "@bedrock/ledger/schema";
 
+import { createLegalEntityPartyProfileBundle } from "./party-profile.fixture";
 import { createIntegrationRuntime } from "./runtime";
 import { db } from "./setup";
 import { schema as partiesSchema } from "../../src/schema";
@@ -15,10 +16,16 @@ function uniqueLabel(prefix: string) {
 describe("parties organizations integration", () => {
   it("creates, lists, finds, updates, and removes organizations", async () => {
     const { module, queries } = createIntegrationRuntime();
+    const shortName = uniqueLabel("Acme");
     const created = await module.organizations.commands.create({
-      shortName: uniqueLabel("Acme"),
+      shortName,
       fullName: "Acme Incorporated",
       country: "US",
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName,
+        fullName: "Acme Incorporated",
+        countryCode: "US",
+      }),
     });
 
     const listed = await module.organizations.queries.list({

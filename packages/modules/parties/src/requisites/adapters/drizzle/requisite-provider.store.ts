@@ -2,14 +2,14 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import { normalizeLocaleTextMap } from "../../../shared/domain/locale-map";
+import { DrizzleRequisiteProviderReads } from "./requisite-provider.reads";
 import {
   requisiteProviderBranchIdentifiers,
   requisiteProviderBranches,
   requisiteProviderIdentifiers,
   requisiteProviders,
 } from "./schema";
-import { DrizzleRequisiteProviderReads } from "./requisite-provider.reads";
+import { normalizeLocaleTextMap } from "../../../shared/domain/locale-map";
 import type { RequisiteProviderStore } from "../../application/ports/requisite-provider.store";
 import {
   normalizePaymentIdentifierScheme,

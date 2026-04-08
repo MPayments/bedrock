@@ -2,12 +2,12 @@ import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
 
+import { RequisiteCountryCodeSchema, RequisiteKindSchema } from "./zod";
 import { LocaleTextMapSchema } from "../../../shared/domain/locale-map";
 import {
   REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
 } from "../../domain/identifier-schemes";
-import { RequisiteCountryCodeSchema, RequisiteKindSchema } from "./zod";
 
 const nullableText = z
   .string()
@@ -28,13 +28,6 @@ const nullableTextPatch = z
   .string()
   .trim()
   .max(500)
-  .nullable()
-  .transform((value) => trimToNull(value))
-  .exactOptional();
-const nullableShortTextPatch = z
-  .string()
-  .trim()
-  .max(255)
   .nullable()
   .transform((value) => trimToNull(value))
   .exactOptional();

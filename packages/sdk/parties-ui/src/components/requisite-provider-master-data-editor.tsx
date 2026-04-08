@@ -7,7 +7,7 @@ import type {
   RequisiteProviderBranchIdentifierInput,
   RequisiteProviderBranchInput,
   RequisiteProviderIdentifierInput,
-} from "@bedrock/parties/contracts";
+} from "../lib/contracts";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,

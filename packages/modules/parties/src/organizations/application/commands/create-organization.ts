@@ -1,12 +1,12 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
 import {
   CreateOrganizationInputSchema,
   type CreateOrganizationInput,
 } from "../contracts/commands";
-import { toOrganizationDto } from "../to-organization-dto";
 import type { OrganizationsCommandUnitOfWork } from "../ports/organizations.uow";
-import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
+import { toOrganizationDto } from "../to-organization-dto";
 
 export class CreateOrganizationCommand {
   constructor(

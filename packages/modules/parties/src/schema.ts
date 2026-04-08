@@ -9,6 +9,11 @@ import {
 } from "./counterparties/adapters/drizzle/schema";
 import { customers } from "./customers/adapters/drizzle/schema";
 import {
+  organizations,
+  partyCountryCodeEnum,
+  partyKindEnum,
+} from "./organizations/adapters/drizzle/schema";
+import {
   partyAddresses,
   partyContacts,
   partyIdentifiers,
@@ -16,11 +21,6 @@ import {
   partyLicenses,
   partyRepresentatives,
 } from "./party-profiles/adapters/drizzle/schema";
-import {
-  organizations,
-  partyCountryCodeEnum,
-  partyKindEnum,
-} from "./organizations/adapters/drizzle/schema";
 import {
   organizationRequisiteBindings,
   requisiteKindEnum,

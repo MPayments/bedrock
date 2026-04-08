@@ -7,9 +7,9 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type { AppContext } from "../context";
 
-type PartyOwnerRecord = {
+interface PartyOwnerRecord {
   kind: "individual" | "legal_entity";
-};
+}
 
 type PartyOwnerType = "counterparty" | "organization";
 

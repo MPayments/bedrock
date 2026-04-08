@@ -13,8 +13,8 @@ import {
   CounterpartyNotFoundError,
   rethrowCounterpartyMembershipDomainError,
 } from "../errors";
-import { toCounterpartyDto } from "../to-counterparty-dto";
 import type { CounterpartiesCommandUnitOfWork } from "../ports/counterparties.uow";
+import { toCounterpartyDto } from "../to-counterparty-dto";
 
 export class UpdateCounterpartyCommand {
   constructor(

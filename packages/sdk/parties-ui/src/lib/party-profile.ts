@@ -5,7 +5,7 @@ import type {
   PartyIdentifierInput,
   PartyLicenseInput,
   PartyRepresentativeInput,
-} from "@bedrock/parties/contracts";
+} from "./contracts";
 
 type LocaleTextMap = Record<string, string | null> | null;
 

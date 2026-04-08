@@ -2,7 +2,7 @@ import type {
   RequisiteProviderBranchIdentifierInput,
   RequisiteProviderBranchInput,
   RequisiteProviderIdentifierInput,
-} from "@bedrock/parties/contracts";
+} from "./contracts";
 
 import type { LocaleTextMap } from "./localized-text";
 

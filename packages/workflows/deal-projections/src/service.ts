@@ -1036,7 +1036,7 @@ function toCrmDealCustomerContext(
   counterparties: Counterparty[],
 ): CrmDealCustomerContext {
   return {
-    counterparties: counterparties,
+    counterparties,
     customer,
   };
 }

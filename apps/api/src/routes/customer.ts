@@ -21,8 +21,8 @@ import {
   PortalDealProjectionSchema,
 } from "@bedrock/workflow-deal-projections/contracts";
 
-import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
 import { lookupCompanyByInn } from "./counterparty-directory";
+import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
 import { DeletedSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { withStoredResultRouteIdempotency } from "../common/route-idempotency";

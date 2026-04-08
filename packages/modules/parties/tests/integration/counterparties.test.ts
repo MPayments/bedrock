@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { createLegalEntityPartyProfileBundle } from "./party-profile.fixture";
 import { createIntegrationRuntime } from "./runtime";
 import { db } from "./setup";
 import { schema as partiesSchema } from "../../src/schema";
@@ -37,6 +38,10 @@ describe("parties counterparties integration", () => {
       fullName: "Acme Counterparty",
       customerId: customer.id,
       groupIds: [sharedGroup.id, nestedGroup.id],
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName: "Acme CP",
+        fullName: "Acme Counterparty",
+      }),
     });
 
     expect(created.groupIds).toEqual([
@@ -142,6 +147,10 @@ describe("parties counterparties integration", () => {
       fullName: "Query Counterparty",
       customerId: customer.id,
       groupIds: [leafGroup.id],
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName: "Query CP",
+        fullName: "Query Counterparty",
+      }),
     });
 
     const [names, directMembers, nestedMembers] = await Promise.all([

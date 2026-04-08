@@ -37,6 +37,7 @@ vi.mock("lucide-react", () => ({
   History: () => null,
   Info: () => null,
   ListChecks: () => null,
+  Paperclip: () => null,
   ShieldCheck: () => null,
   Trash2: () => null,
   Upload: () => null,

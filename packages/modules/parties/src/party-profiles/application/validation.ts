@@ -1,12 +1,12 @@
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { assertUniqueLegalIdentifierSchemes } from "../domain/legal-identifier-schemes";
 import type {
   PartyContactInput,
   PartyProfileBundleInput,
   PartyIdentifierInput,
   PartyRepresentativeInput,
 } from "./contracts";
+import { assertUniqueLegalIdentifierSchemes } from "../domain/legal-identifier-schemes";
 
 type PartyProfileKind = "individual" | "legal_entity";
 

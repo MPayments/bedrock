@@ -1,11 +1,11 @@
 import { z } from "zod";
 
+import { RequisiteKindSchema } from "./zod";
 import { LocaleTextMapSchema } from "../../../shared/domain/locale-map";
 import {
   REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
 } from "../../domain/identifier-schemes";
-import { RequisiteKindSchema } from "./zod";
 
 export const RequisiteProviderIdentifierSchemeSchema = z.enum(
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,

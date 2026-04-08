@@ -1,5 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
 import { ensureManagedCustomerGroup } from "../../../shared/application/managed-customer-group";
 import { GroupHierarchy } from "../../../shared/domain/group-hierarchy";
 import { Counterparty } from "../../domain/counterparty";
@@ -11,9 +12,8 @@ import {
   CounterpartyCustomerNotFoundError,
   rethrowCounterpartyMembershipDomainError,
 } from "../errors";
-import { toCounterpartyDto } from "../to-counterparty-dto";
 import type { CounterpartiesCommandUnitOfWork } from "../ports/counterparties.uow";
-import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
+import { toCounterpartyDto } from "../to-counterparty-dto";
 
 export class CreateCounterpartyCommand {
   constructor(

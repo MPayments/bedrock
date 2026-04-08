@@ -3,7 +3,7 @@
 import { ArrowRight, Building2, CreditCard, Plus } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Button, buttonVariants } from "@bedrock/sdk-ui/components/button";
+import { buttonVariants } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,

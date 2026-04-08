@@ -2,8 +2,8 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import { requisiteIdentifiers, requisites } from "./schema";
 import { DrizzleRequisiteReads } from "./requisite.reads";
+import { requisiteIdentifiers, requisites } from "./schema";
 import type { RequisiteRepository } from "../../application/ports/requisite.repository";
 import {
   normalizePaymentIdentifierScheme,

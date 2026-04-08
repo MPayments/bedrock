@@ -1,5 +1,5 @@
-import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 import type { Organization } from "./contracts/dto";
+import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 
 export function toOrganizationDto(
   organization: {

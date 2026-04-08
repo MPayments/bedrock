@@ -1,10 +1,10 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import {
   createRequisiteProviderSnapshot,
   type RequisiteProviderSnapshot,
 } from "../../domain/requisite-provider";
-import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import {
   CreateRequisiteProviderInputSchema,
   type CreateRequisiteProviderInput,

@@ -13,15 +13,15 @@ import type { Database } from "@bedrock/platform/persistence";
 import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 
 import {
-  partyIdentifiers,
-  partyProfiles,
-} from "../../../party-profiles/adapters/drizzle/schema";
-import {
   counterpartyGroupMemberships,
   counterpartyGroups,
   customerCounterpartyAssignments,
   counterparties,
 } from "./schema";
+import {
+  partyIdentifiers,
+  partyProfiles,
+} from "../../../party-profiles/adapters/drizzle/schema";
 
 export class DrizzleCounterpartiesQueries {
   constructor(private readonly db: Database) {}

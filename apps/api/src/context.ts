@@ -29,8 +29,8 @@ import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organizati
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
-import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import { createCoreServices } from "./composition/core";
+import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
 const EnvSchema = z.object({

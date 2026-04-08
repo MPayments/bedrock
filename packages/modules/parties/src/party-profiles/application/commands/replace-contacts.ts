@@ -1,6 +1,6 @@
 import type { PartyContact, PartyContactInput } from "../contracts";
-import type { PartyProfilesCommandUnitOfWork } from "../ports/party-profiles.uow";
 import type { PartyProfileOwnerRef } from "../ports/party-profiles.store";
+import type { PartyProfilesCommandUnitOfWork } from "../ports/party-profiles.uow";
 import { validateContactInputs } from "../validation";
 
 export class ReplacePartyProfileContactsCommand {

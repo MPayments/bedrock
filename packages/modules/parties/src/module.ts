@@ -12,12 +12,12 @@ import type { CounterpartyReads } from "./counterparties/application/ports/count
 import { createCustomersService } from "./customers/application";
 import type { CustomerReads } from "./customers/application/ports/customer.reads";
 import type { CustomersCommandUnitOfWork } from "./customers/application/ports/customers.uow";
-import { createPartyProfilesService } from "./party-profiles/application";
-import type { PartyProfilesReads } from "./party-profiles/application/ports/party-profiles.reads";
-import type { PartyProfilesCommandUnitOfWork } from "./party-profiles/application/ports/party-profiles.uow";
 import { createOrganizationsService } from "./organizations/application";
 import type { OrganizationReads } from "./organizations/application/ports/organization.reads";
 import type { OrganizationsCommandUnitOfWork } from "./organizations/application/ports/organizations.uow";
+import { createPartyProfilesService } from "./party-profiles/application";
+import type { PartyProfilesReads } from "./party-profiles/application/ports/party-profiles.reads";
+import type { PartyProfilesCommandUnitOfWork } from "./party-profiles/application/ports/party-profiles.uow";
 import { createRequisitesService } from "./requisites/application";
 import type { RequisitesCurrenciesPort } from "./requisites/application/ports/currencies.port";
 import type { RequisiteBindingReads } from "./requisites/application/ports/requisite-binding.reads";

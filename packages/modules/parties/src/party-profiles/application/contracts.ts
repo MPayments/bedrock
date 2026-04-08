@@ -2,11 +2,11 @@ import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
 
-import { CountryCodeSchema } from "../../shared/domain/party-kind";
 import {
   LocaleTextMapSchema,
   type LocaleTextMap,
 } from "../../shared/domain/locale-map";
+import { CountryCodeSchema } from "../../shared/domain/party-kind";
 import {
   LEGAL_IDENTIFIER_SCHEME_VALUES,
   PARTY_CONTACT_TYPE_VALUES,
