@@ -14,6 +14,7 @@ const SOURCE_LOGO_BY_ID: Partial<Record<string, string>> = {
   cbr: "/images/cbr.png",
   investing: "/images/investing.png",
   xe: "/images/xe.png",
+  grinex: "/images/grinex.png",
 };
 
 const SOURCE_ICON_BY_ID: Partial<Record<string, typeof Stone>> = {

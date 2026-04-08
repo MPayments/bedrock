@@ -15,6 +15,7 @@ import {
   RateSourceStatusesResponseSchema,
   RateSourceStatusSchema,
   SetManualRateResponseSchema,
+  type RateSource,
 } from "@bedrock/treasury/contracts";
 
 import { ErrorSchema } from "../common";
@@ -364,7 +365,7 @@ function serializeSourceRate(rate: {
 }
 
 function serializeSourceStatus(status: {
-  source: "cbr" | "investing" | "xe";
+  source: RateSource;
   ttlSeconds: number;
   lastSyncedAt: Date | null;
   lastPublishedAt: Date | null;

@@ -82,6 +82,33 @@ function createXeProvider(publishedAt: Date) {
     };
 }
 
+function createGrinexProvider(publishedAt: Date) {
+    return {
+        source: "grinex" as const,
+        fetchLatest: vi.fn(async () => ({
+            source: "grinex" as const,
+            fetchedAt: publishedAt,
+            publishedAt,
+            rates: [
+                {
+                    base: "USDT",
+                    quote: "RUB",
+                    rateNum: 81n,
+                    rateDen: 1n,
+                    asOf: publishedAt,
+                },
+                {
+                    base: "RUB",
+                    quote: "USDT",
+                    rateNum: 1n,
+                    rateDen: 81n,
+                    asOf: publishedAt,
+                },
+            ],
+        })),
+    };
+}
+
 describe("Treasury worker integration", () => {
     it("syncs expired sources in runOnce()", async () => {
         const now = new Date("2026-02-19T12:00:00.000Z");
@@ -98,6 +125,12 @@ describe("Treasury worker integration", () => {
                 throw new Error("xe unavailable in this test");
             }),
         };
+        const grinexProvider = {
+            source: "grinex" as const,
+            fetchLatest: vi.fn(async () => {
+                throw new Error("grinex unavailable in this test");
+            }),
+        };
 
         const { treasuryModule } = createTreasuryTestHarness({
             persistence: createPersistenceContext(db),
@@ -107,6 +140,7 @@ describe("Treasury worker integration", () => {
                 cbr: provider,
                 investing: investingProvider,
                 xe: xeProvider,
+                grinex: grinexProvider,
             },
         });
         const worker = createTreasuryRatesWorkerDefinition({ treasuryModule: treasuryModule as any });
@@ -116,6 +150,7 @@ describe("Treasury worker integration", () => {
         expect(provider.fetchLatest).toHaveBeenCalledTimes(1);
         expect(investingProvider.fetchLatest).toHaveBeenCalledTimes(1);
         expect(xeProvider.fetchLatest).toHaveBeenCalledTimes(1);
+        expect(grinexProvider.fetchLatest).toHaveBeenCalledTimes(1);
 
         const [status] = await db
             .select()
@@ -135,6 +170,7 @@ describe("Treasury worker integration", () => {
         const provider = createProvider(initialNow);
         const investingProvider = createInvestingProvider(initialNow);
         const xeProvider = createXeProvider(initialNow);
+        const grinexProvider = createGrinexProvider(initialNow);
 
         const { treasuryModule, service } = createTreasuryTestHarness({
             persistence: createPersistenceContext(db),
@@ -144,6 +180,7 @@ describe("Treasury worker integration", () => {
                 cbr: provider,
                 investing: investingProvider,
                 xe: xeProvider,
+                grinex: grinexProvider,
             },
         });
         const worker = createTreasuryRatesWorkerDefinition({ treasuryModule: treasuryModule as any });
@@ -163,14 +200,21 @@ describe("Treasury worker integration", () => {
             force: true,
             now: initialNow,
         });
+        await service.rates.syncRatesFromSource({
+            source: "grinex",
+            force: true,
+            now: initialNow,
+        });
         provider.fetchLatest.mockClear();
         investingProvider.fetchLatest.mockClear();
         xeProvider.fetchLatest.mockClear();
+        grinexProvider.fetchLatest.mockClear();
 
         const processed = await runWorkerOnce(worker, workerNow);
         expect(processed).toBe(0);
         expect(provider.fetchLatest).not.toHaveBeenCalled();
         expect(investingProvider.fetchLatest).not.toHaveBeenCalled();
         expect(xeProvider.fetchLatest).not.toHaveBeenCalled();
+        expect(grinexProvider.fetchLatest).not.toHaveBeenCalled();
     });
 });

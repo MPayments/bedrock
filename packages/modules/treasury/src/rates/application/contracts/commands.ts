@@ -30,8 +30,9 @@ export const SetManualRateInputSchema = z
       .min(1)
       .max(100)
       .refine(
-        (source) => !["cbr", "investing", "xe"].includes(source.toLowerCase()),
-        "source 'cbr', 'investing' and 'xe' are reserved for external provider sync",
+        (source) =>
+          !["cbr", "investing", "xe", "grinex"].includes(source.toLowerCase()),
+        "source 'cbr', 'investing', 'xe' and 'grinex' are reserved for external provider sync",
       )
       .optional(),
   })

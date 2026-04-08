@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { formatFractionDecimal } from "@bedrock/shared/money";
@@ -19,6 +19,7 @@ import type {
   SourceSuccessWriteModel,
 } from "../../application/ports";
 import { RateBook } from "../../domain/rate-book";
+import { TREASURY_RATE_SOURCES } from "../../domain/rate-source";
 
 function computeRate(num: bigint, den: bigint): number {
   return Number(
@@ -121,9 +122,10 @@ export class DrizzleTreasuryRatesRepository implements RatesRepository {
       .from(fxSchema.fxRates)
       .where(
         and(
-          ne(fxSchema.fxRates.source, "cbr"),
-          ne(fxSchema.fxRates.source, "investing"),
-          ne(fxSchema.fxRates.source, "xe"),
+          notInArray(
+            fxSchema.fxRates.source,
+            TREASURY_RATE_SOURCES as unknown as string[],
+          ),
           eq(fxSchema.fxRates.baseCurrencyId, baseCurrencyId),
           eq(fxSchema.fxRates.quoteCurrencyId, quoteCurrencyId),
         ),

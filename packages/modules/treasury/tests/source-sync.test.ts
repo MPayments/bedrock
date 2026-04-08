@@ -145,7 +145,7 @@ describe("treasury source sync", () => {
 
     const statuses = await service.rates.getRateSourceStatuses(now);
 
-    expect(statuses).toHaveLength(3);
+    expect(statuses).toHaveLength(4);
     for (const status of statuses) {
       expect(status.lastStatus).toBe("idle");
       expect(status.isExpired).toBe(true);
