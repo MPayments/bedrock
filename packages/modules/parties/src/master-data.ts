@@ -63,7 +63,7 @@ export function findPartyAddress(
     return null;
   }
 
-  return pickPrimary(bundle.addresses);
+  return bundle.address;
 }
 
 export function findPartyRepresentative(
@@ -94,13 +94,13 @@ export function formatPartyAddress(
     return null;
   }
 
-  if (address.rawText) {
-    return address.rawText;
+  if (address.fullAddress) {
+    return address.fullAddress;
   }
 
   const parts = [
-    address.line1,
-    address.line2,
+    address.streetAddress,
+    address.addressDetails,
     address.city,
     address.postalCode,
     address.countryCode,

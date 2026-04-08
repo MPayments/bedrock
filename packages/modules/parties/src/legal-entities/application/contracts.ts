@@ -126,14 +126,12 @@ export type PartyLegalIdentifierInput = z.infer<
 export const PartyAddressSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
-  label: z.string().nullable(),
   countryCode: CountryCodeSchema.nullable(),
   postalCode: z.string().nullable(),
   city: z.string().nullable(),
-  line1: z.string().nullable(),
-  line2: z.string().nullable(),
-  rawText: z.string().nullable(),
-  isPrimary: z.boolean(),
+  streetAddress: z.string().nullable(),
+  addressDetails: z.string().nullable(),
+  fullAddress: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -142,14 +140,12 @@ export type PartyAddress = z.infer<typeof PartyAddressSchema>;
 
 export const PartyAddressInputSchema = z.object({
   id: z.uuid().optional(),
-  label: nullableText,
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
   postalCode: nullableText,
   city: nullableText,
-  line1: nullableText,
-  line2: nullableText,
-  rawText: nullableText,
-  isPrimary: z.boolean().default(false),
+  streetAddress: nullableText,
+  addressDetails: nullableText,
+  fullAddress: nullableText,
 });
 
 export type PartyAddressInput = z.infer<typeof PartyAddressInputSchema>;
@@ -158,7 +154,6 @@ export const PartyContactSchema = z.object({
   id: z.uuid(),
   partyLegalProfileId: z.uuid(),
   type: PartyContactTypeSchema,
-  label: z.string().nullable(),
   value: z.string(),
   isPrimary: z.boolean(),
   createdAt: z.date(),
@@ -170,7 +165,6 @@ export type PartyContact = z.infer<typeof PartyContactSchema>;
 export const PartyContactInputSchema = z.object({
   id: z.uuid().optional(),
   type: PartyContactTypeSchema,
-  label: nullableText,
   value: z.string().trim().min(1),
   isPrimary: z.boolean().default(false),
 });
@@ -242,7 +236,7 @@ export type PartyLicenseInput = z.infer<typeof PartyLicenseInputSchema>;
 export const PartyLegalEntityBundleSchema = z.object({
   profile: PartyLegalProfileSchema,
   identifiers: z.array(PartyLegalIdentifierSchema),
-  addresses: z.array(PartyAddressSchema),
+  address: PartyAddressSchema.nullable(),
   contacts: z.array(PartyContactSchema),
   representatives: z.array(PartyRepresentativeSchema),
   licenses: z.array(PartyLicenseSchema),
@@ -255,7 +249,7 @@ export type PartyLegalEntityBundle = z.infer<
 export const PartyLegalEntityBundleInputSchema = z.object({
   profile: PartyLegalProfileInputSchema,
   identifiers: z.array(PartyLegalIdentifierInputSchema).default([]),
-  addresses: z.array(PartyAddressInputSchema).default([]),
+  address: PartyAddressInputSchema.nullable().default(null),
   contacts: z.array(PartyContactInputSchema).default([]),
   representatives: z.array(PartyRepresentativeInputSchema).default([]),
   licenses: z.array(PartyLicenseInputSchema).default([]),

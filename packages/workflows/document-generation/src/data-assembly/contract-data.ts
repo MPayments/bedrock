@@ -1,9 +1,4 @@
-import type {
-  ClientContractAgreement,
-  ClientContractClient,
-  ClientContractOrganization,
-  ClientContractOrganizationBankRequisite,
-} from "../contracts";
+import type { ClientContractAgreement, DocumentLocalizedText } from "../contracts";
 import {
   applyLocalizedTemplateField,
   getLocalizedValue,
@@ -14,11 +9,64 @@ import { resolveDocumentNumber } from "./document-number";
 import type { DocumentLang, OrgFiles } from "./types";
 import { prune } from "./types";
 
+export interface ContractClientData {
+  account: string | null;
+  address: string | null;
+  addressI18n?: DocumentLocalizedText | null;
+  bankAddress: string | null;
+  bankAddressI18n?: DocumentLocalizedText | null;
+  bankName: string | null;
+  bankNameI18n?: DocumentLocalizedText | null;
+  bic: string | null;
+  corrAccount: string | null;
+  directorBasis: string | null;
+  directorBasisI18n?: DocumentLocalizedText | null;
+  directorName: string | null;
+  directorNameI18n?: DocumentLocalizedText | null;
+  id: string;
+  inn: string | null;
+  kpp: string | null;
+  orgName: string;
+  orgNameI18n?: DocumentLocalizedText | null;
+  orgType: string | null;
+  orgTypeI18n?: DocumentLocalizedText | null;
+}
+
+export interface ContractOrganizationData {
+  address: string | null;
+  addressI18n?: DocumentLocalizedText | null;
+  city: string | null;
+  cityI18n?: DocumentLocalizedText | null;
+  country: string | null;
+  countryI18n?: DocumentLocalizedText | null;
+  directorName: string | null;
+  directorNameI18n?: DocumentLocalizedText | null;
+  id: string;
+  inn: string | null;
+  kpp: string | null;
+  name: string | null;
+  nameI18n?: DocumentLocalizedText | null;
+  sealKey: string | null;
+  signatureKey: string | null;
+  taxId: string | null;
+}
+
+export interface ContractOrganizationRequisiteData {
+  accountNo: string | null;
+  bic: string | null;
+  corrAccount: string | null;
+  currencyCode: string;
+  id: string;
+  institutionName: string | null;
+  ownerId: string;
+  swift: string | null;
+}
+
 export function assembleClientContractData(
-  client: ClientContractClient,
+  client: ContractClientData,
   agreement: ClientContractAgreement,
-  organization: ClientContractOrganization,
-  organizationRequisite: ClientContractOrganizationBankRequisite,
+  organization: ContractOrganizationData,
+  organizationRequisite: ContractOrganizationRequisiteData,
   orgFiles: OrgFiles,
   lang: DocumentLang,
 ): Record<string, unknown> {
@@ -56,6 +104,10 @@ export function assembleClientContractData(
     agentFee: agreement.agentFee,
     fixedFee: agreement.fixedFee,
     date: contractDate,
+    agentAddress: organization.address,
+    agentCity: organization.city,
+    agentCountry: organization.country,
+    agentName: organization.name,
     agentTaxId: organization.taxId,
     agentKpp: organization.kpp,
     agentInn: organization.inn,

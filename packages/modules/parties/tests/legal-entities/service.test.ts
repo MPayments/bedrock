@@ -13,7 +13,7 @@ describe("legal entities service", () => {
         findBundleByOwner: vi.fn(),
         findProfileByOwner: vi.fn(),
         listIdentifiersByOwner: vi.fn(),
-        listAddressesByOwner: vi.fn(),
+        findAddressByOwner: vi.fn(),
         listContactsByOwner: vi.fn(),
         listRepresentativesByOwner: vi.fn(),
         listLicensesByOwner: vi.fn(),

@@ -126,14 +126,12 @@ export async function seedOrganizations(db: Database | Transaction) {
     if (organization.address) {
       await db.insert(schema.partyAddresses).values({
         partyLegalProfileId: profileId,
-        label: null,
         countryCode: organization.country ?? null,
         postalCode: null,
         city: organization.city ?? null,
-        line1: null,
-        line2: null,
-        rawText: organization.address,
-        isPrimary: true,
+        streetAddress: null,
+        addressDetails: null,
+        fullAddress: organization.address,
       });
     }
 

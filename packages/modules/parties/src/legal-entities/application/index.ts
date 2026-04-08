@@ -1,6 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { ReplaceLegalEntityAddressesCommand } from "./commands/replace-addresses";
+import { ReplaceLegalEntityAddressCommand } from "./commands/replace-addresses";
 import { ReplaceLegalEntityBundleCommand } from "./commands/replace-bundle";
 import { ReplaceLegalEntityContactsCommand } from "./commands/replace-contacts";
 import { ReplaceLegalEntityIdentifiersCommand } from "./commands/replace-identifiers";
@@ -11,7 +11,7 @@ import type { LegalEntitiesReads } from "./ports/legal-entities.reads";
 import type { LegalEntitiesCommandUnitOfWork } from "./ports/legal-entities.uow";
 import { FindLegalEntityBundleByOwnerQuery } from "./queries/find-bundle-by-owner";
 import { FindLegalEntityProfileByOwnerQuery } from "./queries/find-profile-by-owner";
-import { ListLegalEntityAddressesByOwnerQuery } from "./queries/list-addresses-by-owner";
+import { FindLegalEntityAddressByOwnerQuery } from "./queries/list-addresses-by-owner";
 import { ListLegalEntityContactsByOwnerQuery } from "./queries/list-contacts-by-owner";
 import { ListLegalEntityIdentifiersByOwnerQuery } from "./queries/list-identifiers-by-owner";
 import { ListLegalEntityLicensesByOwnerQuery } from "./queries/list-licenses-by-owner";
@@ -28,7 +28,7 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
   const replaceIdentifiers = new ReplaceLegalEntityIdentifiersCommand(
     deps.commandUow,
   );
-  const replaceAddresses = new ReplaceLegalEntityAddressesCommand(
+  const replaceAddress = new ReplaceLegalEntityAddressCommand(
     deps.commandUow,
   );
   const replaceContacts = new ReplaceLegalEntityContactsCommand(
@@ -44,7 +44,7 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
   const listIdentifiersByOwner = new ListLegalEntityIdentifiersByOwnerQuery(
     deps.reads,
   );
-  const listAddressesByOwner = new ListLegalEntityAddressesByOwnerQuery(
+  const findAddressByOwner = new FindLegalEntityAddressByOwnerQuery(
     deps.reads,
   );
   const listContactsByOwner = new ListLegalEntityContactsByOwnerQuery(
@@ -62,7 +62,7 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
       replaceBundle: replaceBundle.execute.bind(replaceBundle),
       upsertProfile: upsertProfile.execute.bind(upsertProfile),
       replaceIdentifiers: replaceIdentifiers.execute.bind(replaceIdentifiers),
-      replaceAddresses: replaceAddresses.execute.bind(replaceAddresses),
+      replaceAddress: replaceAddress.execute.bind(replaceAddress),
       replaceContacts: replaceContacts.execute.bind(replaceContacts),
       replaceRepresentatives:
         replaceRepresentatives.execute.bind(replaceRepresentatives),
@@ -73,8 +73,7 @@ export function createLegalEntitiesService(deps: LegalEntitiesServiceDeps) {
       findProfileByOwner: findProfileByOwner.execute.bind(findProfileByOwner),
       listIdentifiersByOwner:
         listIdentifiersByOwner.execute.bind(listIdentifiersByOwner),
-      listAddressesByOwner:
-        listAddressesByOwner.execute.bind(listAddressesByOwner),
+      findAddressByOwner: findAddressByOwner.execute.bind(findAddressByOwner),
       listContactsByOwner:
         listContactsByOwner.execute.bind(listContactsByOwner),
       listRepresentativesByOwner:

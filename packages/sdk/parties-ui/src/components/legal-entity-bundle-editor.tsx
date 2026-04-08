@@ -28,7 +28,6 @@ import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
@@ -44,14 +43,15 @@ import {
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
+import { LocalizedTextInputField } from "./localized-text-input-field";
+import { LocalizedTextModeSwitcher } from "./localized-text-mode-switcher";
 import {
   cloneLegalEntityBundleInput,
   type PartyLegalEntityBundleSource,
   toLegalEntityBundleInput,
   type PartyLegalEntitySeed,
 } from "../lib/legal-entity";
-
-type LocaleTextMap = Record<string, string | null> | null;
+import { type LocalizedTextVariant } from "../lib/localized-text";
 
 type LegalEntityBundleEditorProps = {
   bundle: PartyLegalEntityBundleSource | PartyLegalEntityBundleInput | null;
@@ -73,35 +73,64 @@ type LegalEntityBundleEditorProps = {
   title?: string;
 };
 
-type LocaleTextEntry = {
-  key: string;
-  value: string;
-};
+const LEGAL_IDENTIFIER_SCHEME_OPTIONS: {
+  label: string;
+  value: (typeof LEGAL_IDENTIFIER_SCHEME_VALUES)[number];
+}[] = [
+  { value: "registration_number", label: "Регистрационный номер" },
+  { value: "tax_id", label: "Налоговый номер" },
+  { value: "vat_id", label: "VAT номер" },
+  { value: "inn", label: "ИНН" },
+  { value: "kpp", label: "КПП" },
+  { value: "ogrn", label: "ОГРН" },
+  { value: "okpo", label: "ОКПО" },
+  { value: "oktmo", label: "ОКТМО" },
+  { value: "license_number", label: "Номер лицензии" },
+  { value: "other", label: "Другое" },
+];
 
-function serializeLocaleTextMap(value: LocaleTextMap): string {
-  if (!value || Object.keys(value).length === 0) {
-    return "";
-  }
+const PARTY_CONTACT_TYPE_OPTIONS: {
+  label: string;
+  value: (typeof PARTY_CONTACT_TYPE_VALUES)[number];
+}[] = [
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Телефон" },
+  { value: "website", label: "Сайт" },
+  { value: "fax", label: "Факс" },
+  { value: "other", label: "Другое" },
+];
 
-  return JSON.stringify(value, null, 2);
-}
+const PARTY_REPRESENTATIVE_ROLE_OPTIONS: {
+  label: string;
+  value: (typeof PARTY_REPRESENTATIVE_ROLE_VALUES)[number];
+}[] = [
+  { value: "director", label: "Директор" },
+  { value: "signatory", label: "Подписант" },
+  { value: "contact", label: "Контактное лицо" },
+  { value: "authorized_person", label: "Уполномоченное лицо" },
+  { value: "other", label: "Другое" },
+];
 
-function parseLocaleTextMap(value: string): LocaleTextMap {
-  const trimmed = value.trim();
+const PARTY_LICENSE_TYPE_OPTIONS: {
+  label: string;
+  value: (typeof PARTY_LICENSE_TYPE_VALUES)[number];
+}[] = [
+  { value: "company_license", label: "Лицензия компании" },
+  { value: "broker_license", label: "Брокерская лицензия" },
+  {
+    value: "financial_service_license",
+    label: "Лицензия на финансовые услуги",
+  },
+  { value: "trade_license", label: "Торговая лицензия" },
+  { value: "customs_license", label: "Таможенная лицензия" },
+  { value: "other", label: "Другое" },
+];
 
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.entries(parsed)
-      .map(([locale, text]) => [
-        String(locale).trim(),
-        text == null ? null : String(text),
-      ])
-      .filter((entry) => String(entry[0]).length > 0),
-  );
+function findOptionLabel(
+  options: { label: string; value: string }[],
+  value: string | null | undefined,
+) {
+  return options.find((option) => option.value === value)?.label;
 }
 
 function serializeBundleForCompare(bundle: PartyLegalEntityBundleInput) {
@@ -152,45 +181,6 @@ function SectionCard(props: {
   );
 }
 
-function LocaleTextMapField(props: {
-  disabled?: boolean;
-  label: string;
-  onChange: (value: LocaleTextMap) => void;
-  value: LocaleTextMap;
-}) {
-  const [text, setText] = useState(() => serializeLocaleTextMap(props.value));
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setText(serializeLocaleTextMap(props.value));
-    setError(null);
-  }, [props.value]);
-
-  return (
-    <Field>
-      <FieldLabel>{props.label}</FieldLabel>
-      <Textarea
-        value={text}
-        onChange={(event) => {
-          const nextValue = event.target.value;
-          setText(nextValue);
-
-          try {
-            props.onChange(parseLocaleTextMap(nextValue));
-            setError(null);
-          } catch {
-            setError("Введите корректный JSON-объект вида {\"ru\":\"...\"}");
-          }
-        }}
-        rows={4}
-        disabled={props.disabled}
-        placeholder='{"ru":"Русский текст","en":"English text"}'
-      />
-      {error ? <FieldError>{error}</FieldError> : null}
-    </Field>
-  );
-}
-
 function BooleanField(props: {
   checked: boolean;
   description?: string;
@@ -233,10 +223,7 @@ function RowActions(props: {
   );
 }
 
-function RemoveButton(props: {
-  disabled?: boolean;
-  onRemove: () => void;
-}) {
+function RemoveButton(props: { disabled?: boolean; onRemove: () => void }) {
   return (
     <Button
       type="button"
@@ -262,7 +249,7 @@ function getAvailableIdentifierSchemes(
   currentIndex?: number,
 ) {
   const currentScheme =
-    currentIndex === undefined ? null : items[currentIndex]?.scheme ?? null;
+    currentIndex === undefined ? null : (items[currentIndex]?.scheme ?? null);
   const usedSchemes = new Set(
     items
       .filter((_, index) => index !== currentIndex)
@@ -276,21 +263,33 @@ function getAvailableIdentifierSchemes(
 
 function emptyAddress(): PartyAddressInput {
   return {
-    label: null,
     countryCode: null,
     postalCode: null,
     city: null,
-    line1: null,
-    line2: null,
-    rawText: null,
-    isPrimary: false,
+    streetAddress: null,
+    addressDetails: null,
+    fullAddress: null,
   };
+}
+
+function normalizeAddress(address: PartyAddressInput): PartyAddressInput | null {
+  if (
+    !address.countryCode &&
+    !address.postalCode &&
+    !address.city &&
+    !address.streetAddress &&
+    !address.addressDetails &&
+    !address.fullAddress
+  ) {
+    return null;
+  }
+
+  return address;
 }
 
 function emptyContact(): PartyContactInput {
   return {
     type: PARTY_CONTACT_TYPE_VALUES[0],
-    label: null,
     value: "",
     isPrimary: false,
   };
@@ -329,7 +328,7 @@ export function LegalEntityBundleEditor({
   onSubmit,
   seed,
   showActions = true,
-  submitLabel = "Сохранить мастер-данные",
+  submitLabel = "Сохранить",
   submitting = false,
   submittingLabel = "Сохранение...",
   title = "Юридическое лицо",
@@ -346,6 +345,8 @@ export function LegalEntityBundleEditor({
     cloneLegalEntityBundleInput(initialDraft),
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const [localizedTextVariant, setLocalizedTextVariant] =
+    useState<LocalizedTextVariant>("base");
   const lastInitialDraftSerializedRef = useRef(initialDraftSerialized);
   const availableIdentifierSchemes = useMemo(
     () => getAvailableIdentifierSchemes(draft.identifiers),
@@ -389,14 +390,25 @@ export function LegalEntityBundleEditor({
         return;
       }
 
-      setDraft(cloneLegalEntityBundleInput(toLegalEntityBundleInput(nextValue)));
+      setDraft(
+        cloneLegalEntityBundleInput(toLegalEntityBundleInput(nextValue)),
+      );
     } catch (submitError) {
       setLocalError(
         submitError instanceof Error
           ? submitError.message
-          : "Не удалось сохранить мастер-данные",
+          : "Не удалось сохранить",
       );
     }
+  }
+
+  function updateAddress(
+    updater: (currentAddress: PartyAddressInput) => PartyAddressInput,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      address: normalizeAddress(updater(current.address ?? emptyAddress())),
+    }));
   }
 
   return (
@@ -406,21 +418,31 @@ export function LegalEntityBundleEditor({
         description="Канонические юридические данные, идентификаторы, адреса, контакты, представители и лицензии."
         actions={
           showActions ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDraft(cloneLegalEntityBundleInput(initialDraft))}
-              disabled={!isDirty || submitting}
-            >
-              <X className="size-4" />
-              Отменить
-            </Button>
-            <Button type="button" onClick={() => void handleSubmit()} disabled={!isDirty || submitting}>
-              {submitting ? <Spinner className="size-4" /> : <Save className="size-4" />}
-              {submitting ? submittingLabel : submitLabel}
-            </Button>
-          </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setDraft(cloneLegalEntityBundleInput(initialDraft))
+                }
+                disabled={!isDirty || submitting}
+              >
+                <X className="size-4" />
+                Отменить
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void handleSubmit()}
+                disabled={!isDirty || submitting}
+              >
+                {submitting ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {submitting ? submittingLabel : submitLabel}
+              </Button>
+            </div>
           ) : null
         }
       >
@@ -430,52 +452,52 @@ export function LegalEntityBundleEditor({
           </div>
         ) : null}
 
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium">Режим локализуемых полей</p>
+            <p className="text-xs text-muted-foreground">
+              Переключает все локализуемые текстовые поля формы сразу.
+            </p>
+          </div>
+          <LocalizedTextModeSwitcher
+            value={localizedTextVariant}
+            onChange={setLocalizedTextVariant}
+            disabled={submitting}
+          />
+        </div>
+
         <FieldSet>
           <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel>Полное наименование</FieldLabel>
-              <Input
-                value={draft.profile.fullName}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: { ...current.profile, fullName: event.target.value },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Краткое наименование</FieldLabel>
-              <Input
-                value={draft.profile.shortName}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: { ...current.profile, shortName: event.target.value },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <LocaleTextMapField
-              label="Полное наименование (I18N JSON)"
-              value={draft.profile.fullNameI18n}
+            <LocalizedTextInputField
+              label="Полное наименование"
+              variant={localizedTextVariant}
+              value={draft.profile.fullName}
+              localeMap={draft.profile.fullNameI18n}
               onChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  profile: { ...current.profile, fullNameI18n: value },
+                  profile: {
+                    ...current.profile,
+                    fullName: value.value,
+                    fullNameI18n: value.localeMap,
+                  },
                 }))
               }
               disabled={submitting}
             />
-            <LocaleTextMapField
-              label="Краткое наименование (I18N JSON)"
-              value={draft.profile.shortNameI18n}
+            <LocalizedTextInputField
+              label="Краткое наименование"
+              variant={localizedTextVariant}
+              value={draft.profile.shortName}
+              localeMap={draft.profile.shortNameI18n}
               onChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  profile: { ...current.profile, shortNameI18n: value },
+                  profile: {
+                    ...current.profile,
+                    shortName: value.value,
+                    shortNameI18n: value.localeMap,
+                  },
                 }))
               }
               disabled={submitting}
@@ -496,29 +518,19 @@ export function LegalEntityBundleEditor({
                 disabled={submitting}
               />
             </Field>
-            <Field>
-              <FieldLabel>Наименование формы</FieldLabel>
-              <Input
-                value={draft.profile.legalFormLabel ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      legalFormLabel: event.target.value || null,
-                    },
-                  }))
-                }
-                disabled={submitting}
-              />
-            </Field>
-            <LocaleTextMapField
-              label="Наименование формы (I18N JSON)"
-              value={draft.profile.legalFormLabelI18n}
+            <LocalizedTextInputField
+              label="Наименование формы"
+              variant={localizedTextVariant}
+              value={draft.profile.legalFormLabel ?? ""}
+              localeMap={draft.profile.legalFormLabelI18n}
               onChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  profile: { ...current.profile, legalFormLabelI18n: value },
+                  profile: {
+                    ...current.profile,
+                    legalFormLabel: value.value || null,
+                    legalFormLabelI18n: value.localeMap,
+                  },
                 }))
               }
               disabled={submitting}
@@ -606,25 +618,13 @@ export function LegalEntityBundleEditor({
       >
         <div className="space-y-4">
           {draft.identifiers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Идентификаторы пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Идентификаторы пока не добавлены.
+            </p>
           ) : null}
           {draft.identifiers.map((identifier, index) => (
-            <div
-              key={identifier.id ?? `${identifier.scheme}-${index}`}
-              className="space-y-4 rounded-md border p-4"
-            >
-              <div className="flex justify-end">
-                <RemoveButton
-                  onRemove={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      identifiers: current.identifiers.filter((_, itemIndex) => itemIndex !== index),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-              </div>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <div key={identifier.id ?? `${identifier.scheme}-${index}`}>
+              <FieldGroup className="flex flex-row items-end justify-between">
                 <Field>
                   <FieldLabel>Схема</FieldLabel>
                   <Select
@@ -632,24 +632,40 @@ export function LegalEntityBundleEditor({
                     onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, scheme: value as PartyLegalIdentifierInput["scheme"] } : item,
+                        identifiers: current.identifiers.map(
+                          (item, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...item,
+                                  scheme:
+                                    value as PartyLegalIdentifierInput["scheme"],
+                                }
+                              : item,
                         ),
                       }))
                     }
                     disabled={submitting}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите схему" />
+                      <SelectValue placeholder="Выберите схему">
+                        {findOptionLabel(
+                          LEGAL_IDENTIFIER_SCHEME_OPTIONS,
+                          identifier.scheme,
+                        )}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableIdentifierSchemes(draft.identifiers, index).map(
-                        (value) => (
+                      {getAvailableIdentifierSchemes(
+                        draft.identifiers,
+                        index,
+                      ).map((value) => (
                         <SelectItem key={value} value={value}>
-                          {value}
+                          {findOptionLabel(
+                            LEGAL_IDENTIFIER_SCHEME_OPTIONS,
+                            value,
+                          ) ?? value}
                         </SelectItem>
-                        ),
-                      )}
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>
@@ -660,14 +676,29 @@ export function LegalEntityBundleEditor({
                     onChange={(event) =>
                       setDraft((current) => ({
                         ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, value: event.target.value } : item,
+                        identifiers: current.identifiers.map(
+                          (item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, value: event.target.value }
+                              : item,
                         ),
                       }))
                     }
                     disabled={submitting}
                   />
                 </Field>
+
+                <RemoveButton
+                  onRemove={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      identifiers: current.identifiers.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
+                    }))
+                  }
+                  disabled={submitting}
+                />
               </FieldGroup>
             </div>
           ))}
@@ -675,168 +706,110 @@ export function LegalEntityBundleEditor({
       </SectionCard>
 
       <SectionCard
-        title="Адреса"
+        title="Адрес"
         actions={
-          <RowActions
-            addLabel="Добавить адрес"
-            onAdd={() =>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
               setDraft((current) => ({
                 ...current,
-                addresses: [...current.addresses, emptyAddress()],
+                address: null,
               }))
             }
-            disabled={submitting}
-          />
+            disabled={submitting || !draft.address}
+          >
+            <X className="size-4" />
+            Очистить адрес
+          </Button>
         }
       >
-        <div className="space-y-4">
-          {draft.addresses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Адреса пока не добавлены.</p>
-          ) : null}
-          {draft.addresses.map((address, index) => (
-            <div key={address.id ?? `address-${index}`} className="space-y-4 rounded-md border p-4">
-              <div className="flex justify-end">
-                <RemoveButton
-                  onRemove={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      addresses: current.addresses.filter((_, itemIndex) => itemIndex !== index),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-              </div>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Label</FieldLabel>
-                  <Input
-                    value={address.label ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, label: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Страна</FieldLabel>
-                  <CountrySelect
-                    value={address.countryCode ?? ""}
-                    onValueChange={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, countryCode: value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                    clearable
-                    placeholder="Выберите страну"
-                    searchPlaceholder="Поиск страны..."
-                    emptyLabel="Страна не найдена"
-                    clearLabel="Очистить"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Город</FieldLabel>
-                  <Input
-                    value={address.city ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, city: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Индекс</FieldLabel>
-                  <Input
-                    value={address.postalCode ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, postalCode: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Line 1</FieldLabel>
-                  <Input
-                    value={address.line1 ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, line1: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Line 2</FieldLabel>
-                  <Input
-                    value={address.line2 ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, line2: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Raw text</FieldLabel>
-                  <Textarea
-                    value={address.rawText ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        addresses: current.addresses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, rawText: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    rows={3}
-                    disabled={submitting}
-                  />
-                </Field>
-                <BooleanField
-                  checked={address.isPrimary}
-                  onChange={(nextValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      addresses: current.addresses.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
-                      ),
-                    }))
-                  }
-                  label="Основной адрес"
-                  disabled={submitting}
-                />
-              </FieldGroup>
-            </div>
-          ))}
-        </div>
+        <FieldGroup className="grid gap-4 md:grid-cols-2">
+          <Field>
+            <FieldLabel>Страна</FieldLabel>
+            <CountrySelect
+              value={(draft.address ?? emptyAddress()).countryCode ?? ""}
+              onValueChange={(value) =>
+                updateAddress((address) => ({
+                  ...address,
+                  countryCode: value || null,
+                }))
+              }
+              disabled={submitting}
+              clearable
+              placeholder="Выберите страну"
+              searchPlaceholder="Поиск страны..."
+              emptyLabel="Страна не найдена"
+              clearLabel="Очистить"
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Город</FieldLabel>
+            <Input
+              value={(draft.address ?? emptyAddress()).city ?? ""}
+              onChange={(event) =>
+                updateAddress((address) => ({
+                  ...address,
+                  city: event.target.value || null,
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Индекс</FieldLabel>
+            <Input
+              value={(draft.address ?? emptyAddress()).postalCode ?? ""}
+              onChange={(event) =>
+                updateAddress((address) => ({
+                  ...address,
+                  postalCode: event.target.value || null,
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Улица и дом</FieldLabel>
+            <Input
+              value={(draft.address ?? emptyAddress()).streetAddress ?? ""}
+              onChange={(event) =>
+                updateAddress((address) => ({
+                  ...address,
+                  streetAddress: event.target.value || null,
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Дополнение к адресу</FieldLabel>
+            <Input
+              value={(draft.address ?? emptyAddress()).addressDetails ?? ""}
+              onChange={(event) =>
+                updateAddress((address) => ({
+                  ...address,
+                  addressDetails: event.target.value || null,
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+          <Field className="md:col-span-2">
+            <FieldLabel>Полный адрес</FieldLabel>
+            <Textarea
+              value={(draft.address ?? emptyAddress()).fullAddress ?? ""}
+              onChange={(event) =>
+                updateAddress((address) => ({
+                  ...address,
+                  fullAddress: event.target.value || null,
+                }))
+              }
+              rows={3}
+              disabled={submitting}
+            />
+          </Field>
+        </FieldGroup>
       </SectionCard>
 
       <SectionCard
@@ -856,85 +829,91 @@ export function LegalEntityBundleEditor({
       >
         <div className="space-y-4">
           {draft.contacts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Контакты пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Контакты пока не добавлены.
+            </p>
           ) : null}
           {draft.contacts.map((contact, index) => (
-            <div key={contact.id ?? `${contact.type}-${index}`} className="space-y-4 rounded-md border p-4">
-              <div className="flex justify-end">
-                <RemoveButton
-                  onRemove={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      contacts: current.contacts.filter((_, itemIndex) => itemIndex !== index),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-              </div>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Тип</FieldLabel>
-                  <Select
-                    value={contact.type}
-                    onValueChange={(value) =>
+            <div
+              key={contact.id ?? `${contact.type}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
+              <FieldGroup>
+                <div className="flex flex-row items-end gap-4 justify-between">
+                  <Field>
+                    <FieldLabel>Тип</FieldLabel>
+                    <Select
+                      value={contact.type}
+                      onValueChange={(value) =>
+                        setDraft((current) => ({
+                          ...current,
+                          contacts: current.contacts.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...item,
+                                  type: value as PartyContactInput["type"],
+                                }
+                              : item,
+                          ),
+                        }))
+                      }
+                      disabled={submitting}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите тип">
+                          {findOptionLabel(
+                            PARTY_CONTACT_TYPE_OPTIONS,
+                            contact.type,
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PARTY_CONTACT_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field className="">
+                    <FieldLabel>Значение</FieldLabel>
+                    <Input
+                      value={contact.value}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          contacts: current.contacts.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, value: event.target.value }
+                              : item,
+                          ),
+                        }))
+                      }
+                      disabled={submitting}
+                    />
+                  </Field>
+                  <RemoveButton
+                    onRemove={() =>
                       setDraft((current) => ({
                         ...current,
-                        contacts: current.contacts.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, type: value as PartyContactInput["type"] } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите тип" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARTY_CONTACT_TYPE_VALUES.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Label</FieldLabel>
-                  <Input
-                    value={contact.label ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        contacts: current.contacts.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, label: event.target.value || null } : item,
+                        contacts: current.contacts.filter(
+                          (_, itemIndex) => itemIndex !== index,
                         ),
                       }))
                     }
                     disabled={submitting}
                   />
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Значение</FieldLabel>
-                  <Input
-                    value={contact.value}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        contacts: current.contacts.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, value: event.target.value } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
+                </div>
                 <BooleanField
                   checked={contact.isPrimary}
                   onChange={(nextValue) =>
                     setDraft((current) => ({
                       ...current,
                       contacts: current.contacts.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
+                        itemIndex === index
+                          ? { ...item, isPrimary: nextValue }
+                          : item,
                       ),
                     }))
                   }
@@ -955,7 +934,10 @@ export function LegalEntityBundleEditor({
             onAdd={() =>
               setDraft((current) => ({
                 ...current,
-                representatives: [...current.representatives, emptyRepresentative()],
+                representatives: [
+                  ...current.representatives,
+                  emptyRepresentative(),
+                ],
               }))
             }
             disabled={submitting}
@@ -964,16 +946,23 @@ export function LegalEntityBundleEditor({
       >
         <div className="space-y-4">
           {draft.representatives.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Представители пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Представители пока не добавлены.
+            </p>
           ) : null}
           {draft.representatives.map((representative, index) => (
-            <div key={representative.id ?? `${representative.role}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div
+              key={representative.id ?? `${representative.role}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
                     setDraft((current) => ({
                       ...current,
-                      representatives: current.representatives.filter((_, itemIndex) => itemIndex !== index),
+                      representatives: current.representatives.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
                     }))
                   }
                   disabled={submitting}
@@ -987,108 +976,97 @@ export function LegalEntityBundleEditor({
                     onValueChange={(value) =>
                       setDraft((current) => ({
                         ...current,
-                        representatives: current.representatives.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, role: value as PartyRepresentativeInput["role"] }
-                            : item,
+                        representatives: current.representatives.map(
+                          (item, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...item,
+                                  role: value as PartyRepresentativeInput["role"],
+                                }
+                              : item,
                         ),
                       }))
                     }
                     disabled={submitting}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите роль" />
+                      <SelectValue placeholder="Выберите роль">
+                        {findOptionLabel(
+                          PARTY_REPRESENTATIVE_ROLE_OPTIONS,
+                          representative.role,
+                        )}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {PARTY_REPRESENTATIVE_ROLE_VALUES.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
+                      {PARTY_REPRESENTATIVE_ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field>
-                  <FieldLabel>ФИО</FieldLabel>
-                  <Input
-                    value={representative.fullName}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        representatives: current.representatives.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, fullName: event.target.value } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <LocaleTextMapField
-                  label="ФИО (I18N JSON)"
-                  value={representative.fullNameI18n}
+                <LocalizedTextInputField
+                  label="ФИО"
+                  variant={localizedTextVariant}
+                  value={representative.fullName}
+                  localeMap={representative.fullNameI18n}
                   onChange={(value) =>
                     setDraft((current) => ({
                       ...current,
-                      representatives: current.representatives.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, fullNameI18n: value } : item,
-                      ),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-                <Field>
-                  <FieldLabel>Должность</FieldLabel>
-                  <Input
-                    value={representative.title ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        representatives: current.representatives.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, title: event.target.value || null } : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <LocaleTextMapField
-                  label="Должность (I18N JSON)"
-                  value={representative.titleI18n}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      representatives: current.representatives.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, titleI18n: value } : item,
-                      ),
-                    }))
-                  }
-                  disabled={submitting}
-                />
-                <Field>
-                  <FieldLabel>Основание полномочий</FieldLabel>
-                  <Input
-                    value={representative.basisDocument ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        representatives: current.representatives.map((item, itemIndex) =>
+                      representatives: current.representatives.map(
+                        (item, itemIndex) =>
                           itemIndex === index
-                            ? { ...item, basisDocument: event.target.value || null }
+                            ? {
+                                ...item,
+                                fullName: value.value,
+                                fullNameI18n: value.localeMap,
+                              }
                             : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <LocaleTextMapField
-                  label="Основание полномочий (I18N JSON)"
-                  value={representative.basisDocumentI18n}
+                      ),
+                    }))
+                  }
+                  disabled={submitting}
+                />
+                <LocalizedTextInputField
+                  label="Должность"
+                  variant={localizedTextVariant}
+                  value={representative.title ?? ""}
+                  localeMap={representative.titleI18n}
                   onChange={(value) =>
                     setDraft((current) => ({
                       ...current,
-                      representatives: current.representatives.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, basisDocumentI18n: value } : item,
+                      representatives: current.representatives.map(
+                        (item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                title: value.value || null,
+                                titleI18n: value.localeMap,
+                              }
+                            : item,
+                      ),
+                    }))
+                  }
+                  disabled={submitting}
+                />
+                <LocalizedTextInputField
+                  label="Основание полномочий"
+                  variant={localizedTextVariant}
+                  value={representative.basisDocument ?? ""}
+                  localeMap={representative.basisDocumentI18n}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      representatives: current.representatives.map(
+                        (item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                basisDocument: value.value || null,
+                                basisDocumentI18n: value.localeMap,
+                              }
+                            : item,
                       ),
                     }))
                   }
@@ -1099,8 +1077,11 @@ export function LegalEntityBundleEditor({
                   onChange={(nextValue) =>
                     setDraft((current) => ({
                       ...current,
-                      representatives: current.representatives.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
+                      representatives: current.representatives.map(
+                        (item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, isPrimary: nextValue }
+                            : item,
                       ),
                     }))
                   }
@@ -1130,16 +1111,23 @@ export function LegalEntityBundleEditor({
       >
         <div className="space-y-4">
           {draft.licenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Лицензии пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Лицензии пока не добавлены.
+            </p>
           ) : null}
           {draft.licenses.map((license, index) => (
-            <div key={license.id ?? `${license.licenseType}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div
+              key={license.id ?? `${license.licenseType}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
                     setDraft((current) => ({
                       ...current,
-                      licenses: current.licenses.filter((_, itemIndex) => itemIndex !== index),
+                      licenses: current.licenses.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
                     }))
                   }
                   disabled={submitting}
@@ -1154,19 +1142,30 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, licenseType: value as PartyLicenseInput["licenseType"] } : item,
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                licenseType:
+                                  value as PartyLicenseInput["licenseType"],
+                              }
+                            : item,
                         ),
                       }))
                     }
                     disabled={submitting}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите тип" />
+                      <SelectValue placeholder="Выберите тип">
+                        {findOptionLabel(
+                          PARTY_LICENSE_TYPE_OPTIONS,
+                          license.licenseType,
+                        )}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {PARTY_LICENSE_TYPE_VALUES.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
+                      {PARTY_LICENSE_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1180,7 +1179,9 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, licenseNumber: event.target.value } : item,
+                          itemIndex === index
+                            ? { ...item, licenseNumber: event.target.value }
+                            : item,
                         ),
                       }))
                     }
@@ -1195,7 +1196,9 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, issuedBy: event.target.value || null } : item,
+                          itemIndex === index
+                            ? { ...item, issuedBy: event.target.value || null }
+                            : item,
                         ),
                       }))
                     }
@@ -1211,7 +1214,12 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, issuedAt: parseDateInput(event.target.value) } : item,
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                issuedAt: parseDateInput(event.target.value),
+                              }
+                            : item,
                         ),
                       }))
                     }
@@ -1227,7 +1235,12 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, expiresAt: parseDateInput(event.target.value) } : item,
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                expiresAt: parseDateInput(event.target.value),
+                              }
+                            : item,
                         ),
                       }))
                     }
@@ -1242,7 +1255,12 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, activityCode: event.target.value || null } : item,
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                activityCode: event.target.value || null,
+                              }
+                            : item,
                         ),
                       }))
                     }
@@ -1257,7 +1275,12 @@ export function LegalEntityBundleEditor({
                       setDraft((current) => ({
                         ...current,
                         licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, activityText: event.target.value || null } : item,
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                activityText: event.target.value || null,
+                              }
+                            : item,
                         ),
                       }))
                     }

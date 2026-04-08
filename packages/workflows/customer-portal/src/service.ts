@@ -26,10 +26,6 @@ import {
   createCustomerBankingService,
   type BankProviderSearchResult,
 } from "./bank-requisites";
-import {
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
-} from "./legacy-projections";
 
 interface LocalizedText {
   [key: string]: string | null | undefined;
@@ -121,8 +117,17 @@ type CanonicalCalculation = Awaited<
 type CanonicalCounterparty = Awaited<
   ReturnType<PartiesModule["counterparties"]["queries"]["findById"]>
 >;
-type CanonicalCounterpartyListItem = NonNullable<Awaited<
+type CanonicalCounterpartyRecord = NonNullable<Awaited<
   ReturnType<PartiesModule["counterparties"]["queries"]["findById"]>
+>>;
+type CanonicalCustomerRecord = NonNullable<Awaited<
+  ReturnType<PartiesModule["customers"]["queries"]["findById"]>
+>>;
+type CanonicalRequisiteRecord = NonNullable<Awaited<
+  ReturnType<PartiesModule["requisites"]["queries"]["findById"]>
+>>;
+type CanonicalRequisiteProviderRecord = NonNullable<Awaited<
+  ReturnType<PartiesModule["requisites"]["queries"]["findProviderById"]>
 >>;
 type CustomerMembership = Awaited<
   ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
@@ -158,32 +163,9 @@ interface CustomerPortalCalculation {
   totalWithExpensesInBase: string;
 }
 
-export interface CustomerPortalLegalEntity {
-  address: string | null;
-  counterpartyId: string;
-  country: string | null;
-  createdAt: string;
-  directorName: string | null;
-  externalId: string | null;
-  fullName: string;
-  inn: string | null;
-  phone: string | null;
-  relationshipKind: "customer_owned" | "external";
-  shortName: string;
-  updatedAt: string;
-  email: string | null;
-}
-
 export interface CustomerPortalCustomerContext {
-  createdAt: string;
-  customerId: string;
-  description: string | null;
-  displayName: string;
-  externalRef: string | null;
-  legalEntities: CustomerPortalLegalEntity[];
-  legalEntityCount: number;
-  primaryCounterpartyId: string | null;
-  updatedAt: string;
+  customer: CanonicalCustomerRecord;
+  legalEntities: CanonicalCounterpartyRecord[];
 }
 
 export interface CustomerPortalWorkflow {
@@ -193,42 +175,10 @@ export interface CustomerPortalWorkflow {
     ctx: CustomerContext,
     input: CustomerPortalCreateLegalEntityInput,
   ): Promise<{
-    account: string | null;
-    address: string | null;
-    addressI18n: LocalizedText | null;
-    bankAddress: string | null;
-    bankAddressI18n: LocalizedText | null;
-    bankCountry: string | null;
-    bankName: string | null;
-    bankNameI18n: LocalizedText | null;
-    bic: string | null;
-    corrAccount: string | null;
-    counterpartyId: string;
-    createdAt: string;
-    customerId: string;
-    directorBasis: string | null;
-    directorBasisI18n: LocalizedText | null;
-    directorName: string | null;
-    directorNameI18n: LocalizedText | null;
-    email: string | null;
-    id: number;
-    inn: string | null;
-    isDeleted: boolean;
-    kpp: string | null;
-    ogrn: string | null;
-    okpo: string | null;
-    oktmo: string | null;
-    orgName: string;
-    orgNameI18n: LocalizedText | null;
-    orgType: string | null;
-    orgTypeI18n: LocalizedText | null;
-    phone: string | null;
-    position: string | null;
-    positionI18n: LocalizedText | null;
-    subAgentCounterpartyId: string | null;
-    swift: string | null;
-    updatedAt: string;
-    userId: string | null;
+    counterparty: CanonicalCounterpartyRecord;
+    customer: CanonicalCustomerRecord;
+    provider: CanonicalRequisiteProviderRecord | null;
+    requisite: CanonicalRequisiteRecord | null;
   }>;
   searchBankProviders(
     ctx: CustomerContext,
@@ -314,24 +264,19 @@ function buildCounterpartyLegalEntityBundle(
     .filter(([, value]) => value)
     .map(([type, value]) => ({
       type: type!,
-      label: null,
       value: value!,
       isPrimary: true,
     }));
-  const addresses = normalizeNullableText(input.address)
-    ? [
-        {
-          label: null,
-          countryCode: country,
-          postalCode: null,
-          city: null,
-          line1: null,
-          line2: null,
-          rawText: normalizeNullableText(input.address),
-          isPrimary: true,
-        },
-      ]
-    : [];
+  const address = normalizeNullableText(input.address)
+    ? {
+        countryCode: country,
+        postalCode: null,
+        city: null,
+        streetAddress: null,
+        addressDetails: null,
+        fullAddress: normalizeNullableText(input.address),
+      }
+    : null;
   const representatives = normalizeNullableText(input.directorName)
     ? [
         {
@@ -361,7 +306,7 @@ function buildCounterpartyLegalEntityBundle(
       businessActivityText: null,
     },
     identifiers,
-    addresses,
+    address,
     contacts,
     representatives,
     licenses: [],
@@ -631,28 +576,6 @@ interface CustomerPortalDealDetailResponse {
   organizationName: string | null;
 }
 
-function mapLegalEntity(
-  counterparty: CanonicalCounterpartyListItem,
-): CustomerPortalLegalEntity {
-  const legal = projectLegacyPartyLegalEntity(counterparty);
-
-  return {
-    address: legal.address,
-    counterpartyId: counterparty.id,
-    country: counterparty.country ?? null,
-    createdAt: serializeDate(counterparty.createdAt),
-    directorName: legal.directorName,
-    email: legal.email,
-    externalId: counterparty.externalId,
-    fullName: counterparty.fullName,
-    inn: legal.inn ?? counterparty.externalId ?? null,
-    phone: legal.phone,
-    relationshipKind: counterparty.relationshipKind,
-    shortName: counterparty.shortName,
-    updatedAt: serializeDate(counterparty.updatedAt),
-  };
-}
-
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ): CustomerPortalWorkflow {
@@ -721,21 +644,21 @@ export function createCustomerPortalWorkflow(
           sortBy: "createdAt",
           sortOrder: "desc",
         });
-        const counterparties = (
+      const counterparties = (
           await Promise.all(
             result.data.map((item) =>
               deps.parties.counterparties.queries.findById(item.id),
             ),
           )
         ).filter(
-          (item): item is CanonicalCounterpartyListItem => item !== null,
+          (item): item is CanonicalCounterpartyRecord => item !== null,
         );
 
         return [customerId, counterparties] as const;
       }),
     );
 
-    return new Map<string, CanonicalCounterpartyListItem[]>(rows);
+    return new Map<string, CanonicalCounterpartyRecord[]>(rows);
   }
 
   async function ensureCustomerOwnedCounterpartyRecord(
@@ -770,25 +693,14 @@ export function createCustomerPortalWorkflow(
 
     return customers
       .map((customer) => {
-        const legalEntities = (
-          counterpartiesByCustomerId.get(customer.id) ?? []
-        ).map((counterparty) => mapLegalEntity(counterparty));
-
         return {
-          createdAt: serializeDate(customer.createdAt),
-          customerId: customer.id,
-          description: customer.description,
-          displayName: customer.displayName,
-          externalRef: customer.externalRef,
-          legalEntities,
-          legalEntityCount: legalEntities.length,
-          primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
-          updatedAt: serializeDate(customer.updatedAt),
+          customer,
+          legalEntities: counterpartiesByCustomerId.get(customer.id) ?? [],
         } satisfies CustomerPortalCustomerContext;
       })
       .sort(
         (left, right) =>
-          new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+          right.customer.createdAt.getTime() - left.customer.createdAt.getTime(),
       );
   }
 
@@ -1004,51 +916,12 @@ export function createCustomerPortalWorkflow(
           counterpartyId: counterparty.id,
           values: input,
         });
-      const legal = projectLegacyPartyLegalEntity(counterparty);
-      const routing = projectLegacyRequisiteRouting({
-        provider,
-        requisite,
-      });
 
       return {
-        account: routing.accountNo,
-        address: legal.address,
-        addressI18n: legal.addressI18n,
-        bankAddress: routing.bankAddress,
-        bankAddressI18n: input.bankProviderI18n?.address ?? null,
-        bankCountry: provider?.country ?? null,
-        bankName: routing.bankName,
-        bankNameI18n: input.bankProviderI18n?.name ?? null,
-        bic: routing.bic,
-        corrAccount: routing.corrAccount,
-        counterpartyId: counterparty.id,
-        createdAt: counterparty.createdAt.toISOString(),
-        customerId: customer.id,
-        directorBasis: legal.directorBasis,
-        directorBasisI18n: legal.directorBasisI18n,
-        directorName: legal.directorName,
-        directorNameI18n: legal.directorNameI18n,
-        email: legal.email,
-        id: 0,
-        inn: legal.inn,
-        isDeleted: false,
-        kpp: legal.kpp,
-        ogrn: legal.ogrn,
-        okpo: legal.okpo,
-        oktmo: legal.oktmo,
-        orgName: counterparty.shortName,
-        orgNameI18n: legal.orgNameI18n,
-        orgType: legal.orgType,
-        orgTypeI18n: legal.orgTypeI18n,
-        phone: legal.phone,
-        position: legal.position,
-        positionI18n: legal.positionI18n,
-        subAgentCounterpartyId: normalizeNullableText(
-          input.subAgentCounterpartyId,
-        ),
-        swift: routing.swift,
-        updatedAt: counterparty.updatedAt.toISOString(),
-        userId: null,
+        counterparty,
+        customer,
+        provider,
+        requisite,
       };
     },
 

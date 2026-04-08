@@ -48,13 +48,13 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
 
     const [
       identifiers,
-      addresses,
+      address,
       contacts,
       representatives,
       licenses,
     ] = await Promise.all([
       this.listIdentifiersByOwner(input),
-      this.listAddressesByOwner(input),
+      this.findAddressByOwner(input),
       this.listContactsByOwner(input),
       this.listRepresentativesByOwner(input),
       this.listLicensesByOwner(input),
@@ -63,7 +63,7 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
     return {
       profile,
       identifiers,
-      addresses,
+      address,
       contacts,
       representatives,
       licenses,
@@ -102,21 +102,21 @@ export class DrizzleLegalEntitiesReads implements LegalEntitiesReads {
     return rows as PartyLegalIdentifier[];
   }
 
-  async listAddressesByOwner(
+  async findAddressByOwner(
     input: LegalEntityOwnerRef,
-  ): Promise<PartyAddress[]> {
+  ): Promise<PartyAddress | null> {
     const profile = await this.findProfileByOwner(input);
     if (!profile) {
-      return [];
+      return null;
     }
 
-    const rows = await this.db
+    const [row] = await this.db
       .select()
       .from(partyAddresses)
       .where(eq(partyAddresses.partyLegalProfileId, profile.id))
-      .orderBy(asc(partyAddresses.createdAt));
+      .limit(1);
 
-    return rows as PartyAddress[];
+    return (row ?? null) as PartyAddress | null;
   }
 
   async listContactsByOwner(

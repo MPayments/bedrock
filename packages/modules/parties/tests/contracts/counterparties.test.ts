@@ -24,7 +24,7 @@ describe("counterparties contracts", () => {
           countryCode: "us",
         },
         identifiers: [],
-        addresses: [],
+        address: null,
         contacts: [],
         representatives: [],
         licenses: [],

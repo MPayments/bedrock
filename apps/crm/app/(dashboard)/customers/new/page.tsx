@@ -24,7 +24,9 @@ import {
   type PathValue,
   type UseFormReturn,
 } from "react-hook-form";
+import { z } from "zod";
 
+import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import {
   Accordion,
   AccordionContent,
@@ -55,6 +57,8 @@ import {
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
+import { apiClient } from "@/lib/api-client";
+import { readJsonWithSchema } from "@/lib/api/response";
 import { API_BASE_URL } from "@/lib/constants";
 import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
@@ -62,9 +66,14 @@ import type { CustomerBankingFormData } from "@/lib/validation";
 import { CustomerCreateHeader } from "./_components/customer-create-header";
 import { PendingCreateLeaveDialog } from "./_components/pending-create-leave-dialog";
 import {
+  buildCounterpartyAssignmentPayload,
+  buildCounterpartyBankRequisiteCreatePayload,
+  buildCustomerCounterpartyCreatePayload,
   buildCustomerCreatePayload,
+  buildManualBankProviderCreatePayload,
   customerCreateSchema,
   getCustomerCreateDefaultValues,
+  resolveDefaultRequisiteCurrencyCode,
   type CustomerCreateFormData,
 } from "./_lib/customer-create";
 
@@ -83,6 +92,42 @@ type SubAgentProfileResponse = {
   kind: "individual" | "legal_entity";
   shortName: string;
 };
+
+const CreatedCustomerSchema = z.object({
+  id: z.uuid(),
+});
+
+const CreatedCounterpartySchema = z.object({
+  id: z.uuid(),
+});
+
+const RequisiteProviderDetailSchema = z.object({
+  id: z.uuid(),
+  country: z.string().nullable(),
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      isPrimary: z.boolean(),
+    }),
+  ),
+});
+
+function getResponseErrorMessage(
+  payload: unknown,
+  fallback: string,
+) {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  return (
+    (typeof record.message === "string" && record.message) ||
+    (typeof record.error === "string" && record.error) ||
+    fallback
+  );
+}
 
 function mapSubAgentProfileToOption(
   profile: SubAgentProfileResponse,
@@ -356,7 +401,10 @@ export default function NewCustomerPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка поиска: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка поиска: ${response.status}`,
+          ),
         );
       }
 
@@ -483,7 +531,10 @@ export default function NewCustomerPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка распознавания: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка распознавания: ${response.status}`,
+          ),
         );
       }
 
@@ -628,7 +679,9 @@ export default function NewCustomerPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Ошибка создания субагента");
+        throw new Error(
+          getResponseErrorMessage(errorData, "Ошибка создания субагента"),
+        );
       }
 
       const newSubAgent = mapSubAgentProfileToOption(
@@ -657,24 +710,175 @@ export default function NewCustomerPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/customers`, {
-        body: JSON.stringify(buildCustomerCreatePayload(data)),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
+      const customerResponse = await apiClient.v1.customers.$post({
+        json: buildCustomerCreatePayload(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка создания: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка создания клиента: ${customerResponse.status}`,
+          ),
         );
       }
 
-      const customer = await response.json();
-      router.push(`/customers/${customer.id}`);
+      const customer = await readJsonWithSchema(
+        customerResponse,
+        CreatedCustomerSchema,
+      );
+
+      const counterpartyResponse = await apiClient.v1.counterparties.$post({
+        json: buildCustomerCounterpartyCreatePayload({
+          customerId: customer.id,
+          values: data,
+        }),
+      });
+
+      if (!counterpartyResponse.ok) {
+        const errorData = await counterpartyResponse.json().catch(() => ({}));
+        throw new Error(
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка создания юридического лица: ${counterpartyResponse.status}`,
+          ),
+        );
+      }
+
+      const counterparty = await readJsonWithSchema(
+        counterpartyResponse,
+        CreatedCounterpartySchema,
+      );
+
+      const assignmentPayload = buildCounterpartyAssignmentPayload(data);
+      if (assignmentPayload.subAgentCounterpartyId) {
+        const assignmentResponse =
+          await apiClient.v1.counterparties[":id"].assignment.$patch({
+            param: { id: counterparty.id },
+            json: assignmentPayload,
+          });
+
+        if (!assignmentResponse.ok) {
+          const errorData = await assignmentResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка назначения субагента: ${assignmentResponse.status}`,
+            ),
+          );
+        }
+      }
+
+      const manualProviderPayload = buildManualBankProviderCreatePayload(data);
+      let providerId = data.bankProviderId || null;
+      let providerBranchId: string | null = null;
+      let providerCountry = data.bankProvider.country?.trim().toUpperCase() || null;
+
+      if (manualProviderPayload) {
+        const providerResponse = await apiClient.v1.requisites.providers.$post({
+          json: manualProviderPayload,
+        });
+
+        if (!providerResponse.ok) {
+          const errorData = await providerResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка создания банка: ${providerResponse.status}`,
+            ),
+          );
+        }
+
+        const provider = await readJsonWithSchema(
+          providerResponse,
+          RequisiteProviderDetailSchema,
+        );
+        providerId = provider.id;
+        providerCountry = provider.country;
+        providerBranchId =
+          provider.branches.find((branch) => branch.isPrimary)?.id ?? null;
+      } else if (providerId) {
+        const providerResponse =
+          await apiClient.v1.requisites.providers[":id"].$get({
+            param: { id: providerId },
+          });
+
+        if (!providerResponse.ok) {
+          const errorData = await providerResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка загрузки банка: ${providerResponse.status}`,
+            ),
+          );
+        }
+
+        const provider = await readJsonWithSchema(
+          providerResponse,
+          RequisiteProviderDetailSchema,
+        );
+        providerCountry = provider.country;
+        providerBranchId =
+          provider.branches.find((branch) => branch.isPrimary)?.id ?? null;
+      }
+
+      if (providerId) {
+        const currenciesResponse = await apiClient.v1.currencies.options.$get({});
+        if (!currenciesResponse.ok) {
+          const errorData = await currenciesResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка загрузки валют: ${currenciesResponse.status}`,
+            ),
+          );
+        }
+
+        const currencies = await readJsonWithSchema(
+          currenciesResponse,
+          CurrencyOptionsResponseSchema,
+        );
+        const defaultCurrencyCode =
+          providerCountry === "RU"
+            ? "RUB"
+            : resolveDefaultRequisiteCurrencyCode(data);
+        const currency = currencies.data.find(
+          (item) => item.code === defaultCurrencyCode,
+        );
+
+        if (!currency) {
+          throw new Error(`Валюта ${defaultCurrencyCode} не найдена`);
+        }
+
+        const requisitePayload = buildCounterpartyBankRequisiteCreatePayload({
+          counterpartyId: counterparty.id,
+          currencyId: currency.id,
+          providerBranchId,
+          providerId,
+          values: data,
+        });
+
+        if (requisitePayload) {
+          const requisiteResponse =
+            await apiClient.v1.counterparties[":id"].requisites.$post({
+              param: { id: counterparty.id },
+              json: requisitePayload,
+            });
+
+          if (!requisiteResponse.ok) {
+            const errorData = await requisiteResponse.json().catch(() => ({}));
+            throw new Error(
+              getResponseErrorMessage(
+                errorData,
+                `Ошибка создания реквизитов: ${requisiteResponse.status}`,
+              ),
+            );
+          }
+        }
+      }
+
+      router.push(`/customers/${customer.id}?entity=${counterparty.id}`);
     } catch (submitError) {
       console.error("Create customer error:", submitError);
       setError(

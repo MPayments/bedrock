@@ -19,6 +19,7 @@ import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { API_BASE_URL } from "@/lib/constants";
+import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { AgreementCard } from "./_components/agreement-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CreateCalculationDialog } from "./_components/create-calculation-dialog";
@@ -58,9 +59,11 @@ import type {
   ApiAgreementDetails,
   ApiAttachment,
   ApiCalculationDetails,
+  ApiCanonicalCounterparty,
   ApiCrmDealWorkbenchProjection,
   ApiCurrency,
   ApiCurrencyOption,
+  ApiDealCustomerContext,
   ApiCustomerLegalEntity,
   ApiCustomerWorkspace,
   ApiDealDetails,
@@ -225,6 +228,89 @@ function buildQuoteRequestContext(workbench: ApiCrmDealWorkbenchProjection) {
     amountSide: "source" as const,
     sourceCurrencyId: workbench.intake.moneyRequest.sourceCurrencyId,
     targetCurrencyId: workbench.intake.moneyRequest.targetCurrencyId,
+  };
+}
+
+function pickPrimary<T extends { isPrimary: boolean }>(items: T[]) {
+  return items.find((item) => item.isPrimary) ?? items[0] ?? null;
+}
+
+function findCounterpartyIdentifier(
+  counterparty: ApiCanonicalCounterparty,
+  scheme: string,
+) {
+  return (
+    counterparty.legalEntity?.identifiers.find(
+      (identifier) => identifier.scheme === scheme,
+    )?.value ?? null
+  );
+}
+
+function findCounterpartyContact(
+  counterparty: ApiCanonicalCounterparty,
+  type: string,
+) {
+  return (
+    pickPrimary(
+      (counterparty.legalEntity?.contacts ?? []).filter(
+        (contact) => contact.type === type,
+      ),
+    )?.value ?? null
+  );
+}
+
+function findCounterpartyRepresentative(
+  counterparty: ApiCanonicalCounterparty,
+  roles: string[] = ["director", "signatory", "contact"],
+) {
+  for (const role of roles) {
+    const representative = pickPrimary(
+      (counterparty.legalEntity?.representatives ?? []).filter(
+        (item) => item.role === role,
+      ),
+    );
+
+    if (representative) {
+      return representative;
+    }
+  }
+
+  return pickPrimary(counterparty.legalEntity?.representatives ?? []);
+}
+
+function mapCustomerLegalEntity(
+  counterparty: ApiCanonicalCounterparty,
+): ApiCustomerLegalEntity {
+  const representative = findCounterpartyRepresentative(counterparty);
+
+  return {
+    counterpartyId: counterparty.id,
+    directorBasis: representative?.basisDocument ?? null,
+    directorName: representative?.fullName ?? null,
+    email: findCounterpartyContact(counterparty, "email"),
+    fullName: counterparty.fullName,
+    inn:
+      findCounterpartyIdentifier(counterparty, "inn") ??
+      counterparty.externalId ??
+      null,
+    kpp: findCounterpartyIdentifier(counterparty, "kpp"),
+    orgName: counterparty.shortName,
+    phone: findCounterpartyContact(counterparty, "phone"),
+    position: representative?.title ?? null,
+    relationshipKind: counterparty.relationshipKind,
+    shortName: counterparty.shortName,
+  };
+}
+
+function mapCustomerWorkspace(
+  context: ApiDealCustomerContext,
+): ApiCustomerWorkspace {
+  return {
+    description: context.customer.description,
+    displayName: context.customer.displayName,
+    externalRef: context.customer.externalRef,
+    id: context.customer.id,
+    legalEntities: context.counterparties.map(mapCustomerLegalEntity),
   };
 }
 
@@ -623,7 +709,7 @@ export default function DealDetailPage() {
       }
 
       const customerId =
-        workbench.context.customer?.id ??
+        workbench.context.customer?.customer.id ??
         workbench.participants.find(
           (participant) => participant.role === "customer",
         )?.customerId ??
@@ -661,31 +747,9 @@ export default function DealDetailPage() {
             )
           : Promise.resolve({ data: [] }),
         applicantCounterpartyId
-          ? fetchJson<{
-              data: Array<{
-                accountNo: string | null;
-                beneficiaryName: string | null;
-                iban: string | null;
-                id: string;
-                label: string;
-                provider: { name: string } | null;
-              }>;
-            }>(
-              `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${applicantCounterpartyId}`,
-            )
-          : Promise.resolve({ data: [] }),
+          ? loadApplicantRequisiteOptions(applicantCounterpartyId)
+          : Promise.resolve([]),
       ]);
-
-      const nextApplicantRequisites = applicantRequisitesPayload.data.map(
-        (requisite) => ({
-          accountNo: requisite.accountNo,
-          beneficiaryName: requisite.beneficiaryName,
-          iban: requisite.iban,
-          id: requisite.id,
-          label: requisite.label,
-          providerLabel: requisite.provider?.name ?? null,
-        }),
-      );
 
       setData({
         agreement: workbench.context.agreement,
@@ -701,13 +765,15 @@ export default function DealDetailPage() {
           }),
         ),
         currencyOptions,
-        customer: workbench.context.customer,
+        customer: mapCustomerWorkspace(workbench.context.customer),
         deal,
         formalDocuments: mapRelatedDocumentsToFormalDocuments(
           workbench.relatedResources.formalDocuments,
           workbench.summary.createdAt,
         ),
-        legalEntity: workbench.context.applicant,
+        legalEntity: workbench.context.applicant
+          ? mapCustomerLegalEntity(workbench.context.applicant)
+          : null,
         organization: workbench.context.internalEntity,
         organizationRequisite: workbench.context.internalEntityRequisite,
         organizationRequisiteProvider:
@@ -718,7 +784,7 @@ export default function DealDetailPage() {
         workflow: workbench.workflow,
       });
       setAgreementOptions(agreementsPayload.data);
-      setApplicantRequisites(nextApplicantRequisites);
+      setApplicantRequisites(applicantRequisitesPayload);
       setDraftIntake(workbench.intake);
       setBaselineIntake(workbench.intake);
     } catch (nextError) {
@@ -745,37 +811,21 @@ export default function DealDetailPage() {
       return;
     }
 
+    const currentApplicantCounterpartyId = applicantCounterpartyId;
+
     let cancelled = false;
 
     async function loadApplicantRequisites() {
       try {
-        const payload = await fetchJson<{
-          data: Array<{
-            accountNo: string | null;
-            beneficiaryName: string | null;
-            iban: string | null;
-            id: string;
-            label: string;
-            provider: { name: string } | null;
-          }>;
-        }>(
-          `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${applicantCounterpartyId}`,
+        const payload = await loadApplicantRequisiteOptions(
+          currentApplicantCounterpartyId,
         );
 
         if (cancelled) {
           return;
         }
 
-        setApplicantRequisites(
-          payload.data.map((requisite) => ({
-            accountNo: requisite.accountNo,
-            beneficiaryName: requisite.beneficiaryName,
-            iban: requisite.iban,
-            id: requisite.id,
-            label: requisite.label,
-            providerLabel: requisite.provider?.name ?? null,
-          })),
-        );
+        setApplicantRequisites(payload);
       } catch (fetchError) {
         if (!cancelled) {
           console.error("Failed to load applicant requisites", fetchError);

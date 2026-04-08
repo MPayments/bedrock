@@ -38,6 +38,7 @@ import type {
   CrmDealByStatusItem,
   CrmDealBoardProjection,
   CrmDealBoardStage,
+  CrmDealCustomerContext,
   CrmDealListItem,
   CrmDealWorkbenchProjection,
   CrmDealsByDayItem,
@@ -47,8 +48,6 @@ import type {
   CrmDealsListQuery,
   CrmDealsStats,
   CrmDealsStatsQuery,
-  CustomerLegalEntitySummary,
-  CustomerWorkspaceSummary,
   FinanceDealQueue,
   FinanceDealQueueFilters,
   FinanceDealQueueProjection,
@@ -60,7 +59,6 @@ import type {
   PortalDealProjection,
 } from "./contracts";
 import { CrmDealsListQuerySchema } from "./contracts";
-import { projectLegacyPartyLegalEntity } from "./legacy-projections";
 
 const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
@@ -1033,34 +1031,13 @@ function isDealOwnedByCustomer(
   return getCustomerParticipant(workflow)?.customerId === customerId;
 }
 
-function toCustomerLegalEntitySummary(
-  counterparty: Counterparty,
-): CustomerLegalEntitySummary {
-  const legal = projectLegacyPartyLegalEntity(counterparty);
-
-  return {
-    counterpartyId: counterparty.id,
-    email: legal.email,
-    fullName: counterparty.fullName,
-    inn: legal.inn,
-    orgName: counterparty.shortName,
-    phone: legal.phone,
-    position: legal.position,
-    relationshipKind: counterparty.relationshipKind,
-    shortName: counterparty.shortName,
-  };
-}
-
-function toCustomerWorkspaceSummary(
+function toCrmDealCustomerContext(
   customer: Customer,
   legalEntities: Counterparty[],
-): CustomerWorkspaceSummary {
+): CrmDealCustomerContext {
   return {
-    description: customer.description,
-    displayName: customer.displayName,
-    externalRef: customer.externalRef,
-    id: customer.id,
-    legalEntities: legalEntities.map(toCustomerLegalEntitySummary),
+    counterparties: legalEntities,
+    customer,
   };
 }
 
@@ -2003,7 +1980,7 @@ export function createDealProjectionsWorkflow(
         applicant,
         customer:
           customer && legalEntitiesResult
-            ? toCustomerWorkspaceSummary(customer, legalEntitiesResult.data)
+            ? toCrmDealCustomerContext(customer, legalEntitiesResult.data)
             : null,
         internalEntity,
         internalEntityRequisite,

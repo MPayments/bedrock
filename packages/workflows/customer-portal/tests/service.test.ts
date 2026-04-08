@@ -511,28 +511,28 @@ describe("customer portal workflow", () => {
     ).resolves.toEqual({
       data: [
         expect.objectContaining({
-          customerId: "customer-1",
-          displayName: "Customer customer-1",
+          customer: expect.objectContaining({
+            id: "customer-1",
+            displayName: "Customer customer-1",
+          }),
           legalEntities: [
             expect.objectContaining({
-              counterpartyId: "counterparty-1",
+              id: "counterparty-1",
               shortName: "Acme RU",
             }),
           ],
-          legalEntityCount: 1,
-          primaryCounterpartyId: "counterparty-1",
         }),
         expect.objectContaining({
-          customerId: "customer-2",
-          displayName: "Customer customer-2",
+          customer: expect.objectContaining({
+            id: "customer-2",
+            displayName: "Customer customer-2",
+          }),
           legalEntities: [
             expect.objectContaining({
-              counterpartyId: "counterparty-2",
+              id: "counterparty-2",
               shortName: "Acme EU",
             }),
           ],
-          legalEntityCount: 1,
-          primaryCounterpartyId: "counterparty-2",
         }),
       ],
       total: 2,
@@ -615,14 +615,37 @@ describe("customer portal workflow", () => {
     expect(parties.requisites.commands.create).toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
-        account: "40702810900000000001",
-        bankCountry: "RU",
-        bankName: "АО Банк",
-        bic: "044525225",
-        counterpartyId: "counterparty-created",
-        customerId: "customer-created",
-        id: 0,
-        orgName: "Acme Corp",
+        counterparty: expect.objectContaining({
+          id: "counterparty-created",
+          customerId: "customer-created",
+          fullName: "Acme Corp",
+          shortName: "Acme Corp",
+        }),
+        customer: expect.objectContaining({
+          id: "customer-created",
+          displayName: "Acme Corp",
+        }),
+        provider: expect.objectContaining({
+          country: "RU",
+          displayName: "АО Банк",
+          legalName: "АО Банк",
+          identifiers: expect.arrayContaining([
+            expect.objectContaining({
+              scheme: "bic",
+              value: "044525225",
+            }),
+          ]),
+        }),
+        requisite: expect.objectContaining({
+          counterpartyId: "counterparty-created",
+          beneficiaryName: "Acme Corp",
+          identifiers: expect.arrayContaining([
+            expect.objectContaining({
+              scheme: "local_account_number",
+              value: "40702810900000000001",
+            }),
+          ]),
+        }),
       }),
     );
   });
@@ -646,8 +669,17 @@ describe("customer portal workflow", () => {
       ),
     ).resolves.toEqual(
       expect.objectContaining({
-        customerId: "customer-created",
-        orgName: "CRM only",
+        counterparty: expect.objectContaining({
+          customerId: "customer-created",
+          fullName: "CRM only",
+          shortName: "CRM only",
+        }),
+        customer: expect.objectContaining({
+          id: "customer-created",
+          displayName: "CRM only",
+        }),
+        provider: null,
+        requisite: null,
       }),
     );
   });

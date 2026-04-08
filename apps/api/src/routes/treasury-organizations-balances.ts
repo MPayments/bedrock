@@ -8,7 +8,6 @@ import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
-import { projectLegacyRequisiteRouting } from "./legacy-party-projections";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -100,21 +99,19 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
       ).filter((requisite) => requisite !== null);
 
       for (const option of optionRequisites) {
-        const routing = projectLegacyRequisiteRouting({
-          provider: null,
-          requisite: option,
-        });
         metaById.set(
           option.id,
           createRequisiteMeta({
-            accountNo: routing.accountNo,
+            accountNo:
+              findRequisiteIdentifier(option, "local_account_number")?.value ??
+              null,
             accountRef:
               findRequisiteIdentifier(option, "account_ref")?.value ?? null,
             address:
               findRequisiteIdentifier(option, "wallet_address")?.value ?? null,
             currency:
               options.find((item) => item.id === option.id)?.currencyCode ?? "",
-            iban: routing.iban,
+            iban: findRequisiteIdentifier(option, "iban")?.value ?? null,
             kind: option.kind,
             label: option.label,
             subaccountRef:
@@ -137,21 +134,18 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
           continue;
         }
 
-        const routing = projectLegacyRequisiteRouting({
-          provider: null,
-          requisite,
-        });
-
         metaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: routing.accountNo,
+            accountNo:
+              findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+              null,
             accountRef:
               findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
             address:
               findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: routing.iban,
+            iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
             kind: requisite.kind,
             label: requisite.label,
             subaccountRef:
@@ -241,21 +235,18 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
           continue;
         }
 
-        const routing = projectLegacyRequisiteRouting({
-          provider: null,
-          requisite,
-        });
-
         requisiteMetaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: routing.accountNo,
+            accountNo:
+              findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+              null,
             accountRef:
               findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
             address:
               findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: routing.iban,
+            iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
             kind: requisite.kind,
             label: requisite.label,
             subaccountRef:

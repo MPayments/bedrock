@@ -100,14 +100,12 @@ export const partyAddresses = pgTable(
     partyLegalProfileId: uuid("party_legal_profile_id")
       .notNull()
       .references(() => partyLegalProfiles.id, { onDelete: "cascade" }),
-    label: text("label"),
     countryCode: partyCountryCodeEnum("country_code"),
     postalCode: text("postal_code"),
     city: text("city"),
-    line1: text("line_1"),
-    line2: text("line_2"),
-    rawText: text("raw_text"),
-    isPrimary: boolean("is_primary").notNull().default(false),
+    streetAddress: text("street_address"),
+    addressDetails: text("address_details"),
+    fullAddress: text("full_address"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -116,12 +114,7 @@ export const partyAddresses = pgTable(
       .default(sql`now()`)
       .$onUpdateFn(() => new Date()),
   },
-  (table) => [
-    index("party_addresses_profile_idx").on(table.partyLegalProfileId),
-    uniqueIndex("party_addresses_primary_uq")
-      .on(table.partyLegalProfileId)
-      .where(sql`${table.isPrimary} = true`),
-  ],
+  (table) => [uniqueIndex("party_addresses_profile_uq").on(table.partyLegalProfileId)],
 );
 
 export const partyContacts = pgTable(
@@ -132,7 +125,6 @@ export const partyContacts = pgTable(
       .notNull()
       .references(() => partyLegalProfiles.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
-    label: text("label"),
     value: text("value").notNull(),
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })

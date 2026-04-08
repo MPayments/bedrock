@@ -4,12 +4,12 @@ import type {
   LegalEntityOwnerRef,
 } from "../ports/legal-entities.reads";
 
-export class ListLegalEntityAddressesByOwnerQuery {
+export class FindLegalEntityAddressByOwnerQuery {
   constructor(private readonly reads: LegalEntitiesReads) {}
 
   async execute(
     input: LegalEntityOwnerRef,
-  ): Promise<PartyAddress[]> {
-    return this.reads.listAddressesByOwner(input);
+  ): Promise<PartyAddress | null> {
+    return this.reads.findAddressByOwner(input);
   }
 }

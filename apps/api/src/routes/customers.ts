@@ -5,13 +5,13 @@ import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
 } from "@bedrock/parties";
-import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
-import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
-  createPaginatedListSchema,
-  MAX_QUERY_LIST_LIMIT,
-} from "@bedrock/shared/core/pagination";
-import { createCustomerBankingService } from "@bedrock/workflow-customer-portal";
+  CreateCustomerInputSchema,
+  CustomerSchema,
+  ListCustomersQuerySchema,
+  PaginatedCustomersSchema,
+  UpdateCustomerInputSchema,
+} from "@bedrock/parties/contracts";
 
 import { DeletedSchema, ErrorSchema } from "../common";
 import {
@@ -23,10 +23,6 @@ import {
 } from "./customer-agreements";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
-import {
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
-} from "./legacy-party-projections";
 import {
   CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
@@ -42,109 +38,7 @@ const HEADER_STYLE: Partial<ExcelJS.Style> = {
   fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E0E0" } },
 };
 
-const LocalizedTextSchema = z
-  .object({
-    ru: z.string().nullable().optional(),
-    en: z.string().nullable().optional(),
-  })
-  .nullable()
-  .optional();
-type LocalizedText = z.infer<typeof LocalizedTextSchema>;
-
-const CustomerWorkspaceSummarySchema = z.object({
-  id: z.string().uuid(),
-  createdAt: z.string(),
-  description: z.string().nullable(),
-  directorName: z.string().nullable(),
-  displayName: z.string(),
-  email: z.string().nullable(),
-  externalRef: z.string().nullable(),
-  inn: z.string().nullable(),
-  legalEntityCount: z.number().int(),
-  phone: z.string().nullable(),
-  primaryCounterpartyId: z.string().uuid().nullable(),
-  updatedAt: z.string(),
-});
-
-const CustomerLegalEntitySchema = z.object({
-  account: z.string().nullable(),
-  address: z.string().nullable(),
-  addressI18n: LocalizedTextSchema,
-  bankAddress: z.string().nullable(),
-  bankAddressI18n: LocalizedTextSchema,
-  bankCountry: z.string().nullable(),
-  bankName: z.string().nullable(),
-  bankNameI18n: LocalizedTextSchema,
-  bankProviderId: z.string().uuid().nullable().optional(),
-  bic: z.string().nullable(),
-  beneficiaryName: z.string().nullable(),
-  contractNumber: z.string().nullable(),
-  corrAccount: z.string().nullable(),
-  counterpartyId: z.string().uuid(),
-  country: z.string().nullable(),
-  createdAt: z.string(),
-  directorBasis: z.string().nullable(),
-  directorBasisI18n: LocalizedTextSchema,
-  directorName: z.string().nullable(),
-  directorNameI18n: LocalizedTextSchema,
-  email: z.string().nullable(),
-  externalId: z.string().nullable(),
-  fullName: z.string(),
-  inn: z.string().nullable(),
-  iban: z.string().nullable(),
-  kpp: z.string().nullable(),
-  ogrn: z.string().nullable(),
-  okpo: z.string().nullable(),
-  oktmo: z.string().nullable(),
-  orgName: z.string(),
-  orgNameI18n: LocalizedTextSchema,
-  orgType: z.string().nullable(),
-  orgTypeI18n: LocalizedTextSchema,
-  phone: z.string().nullable(),
-  position: z.string().nullable(),
-  positionI18n: LocalizedTextSchema,
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  shortName: z.string(),
-  subAgent: z.any().nullable(),
-  subAgentCounterpartyId: z.string().uuid().nullable(),
-  swift: z.string().nullable(),
-  updatedAt: z.string(),
-});
-
-const CustomerBankProviderInputSchema = z.object({
-  address: z.string().trim().nullable().optional(),
-  country: z.string().trim().nullable().optional(),
-  name: z.string().trim().nullable().optional(),
-  routingCode: z.string().trim().nullable().optional(),
-});
-
-const CustomerBankRequisiteInputSchema = z.object({
-  accountNo: z.string().trim().nullable().optional(),
-  beneficiaryName: z.string().trim().nullable().optional(),
-  corrAccount: z.string().trim().nullable().optional(),
-  iban: z.string().trim().nullable().optional(),
-});
-
-const CustomerWorkspaceDetailSchema = z.object({
-  createdAt: z.string(),
-  description: z.string().nullable(),
-  displayName: z.string(),
-  externalRef: z.string().nullable(),
-  hasActiveAgreement: z.boolean(),
-  id: z.string().uuid(),
-  legalEntities: z.array(CustomerLegalEntitySchema),
-  legalEntityCount: z.number().int(),
-  primaryCounterpartyId: z.string().uuid().nullable(),
-  updatedAt: z.string(),
-});
-
-const CustomerWorkspaceListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(50000).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-  q: z.string().trim().optional(),
-});
-
-const CustomerWorkspaceParamSchema = z.object({
+const CustomerIdParamSchema = z.object({
   id: z
     .string()
     .uuid()
@@ -156,7 +50,7 @@ const CustomerWorkspaceParamSchema = z.object({
     }),
 });
 
-const CustomerLegalEntityParamsSchema = z.object({
+const CustomerCounterpartyParamsSchema = z.object({
   counterpartyId: z
     .string()
     .uuid()
@@ -177,8 +71,8 @@ const CustomerLegalEntityParamsSchema = z.object({
     }),
 });
 
-const CustomerLegalEntityDocumentParamsSchema =
-  CustomerLegalEntityParamsSchema.extend({
+const CustomerCounterpartyDocumentParamsSchema =
+  CustomerCounterpartyParamsSchema.extend({
     documentId: z
       .string()
       .uuid()
@@ -190,903 +84,83 @@ const CustomerLegalEntityDocumentParamsSchema =
       }),
   });
 
-const CustomerLegalEntityInputSchema = z.object({
-  account: z.string().trim().nullable().optional(),
-  address: z.string().trim().nullable().optional(),
-  addressI18n: LocalizedTextSchema,
-  bankAddress: z.string().trim().nullable().optional(),
-  bankAddressI18n: LocalizedTextSchema,
-  bankCountry: z.string().trim().nullable().optional(),
-  bankMode: z.enum(["existing", "manual"]).optional(),
-  bankName: z.string().trim().nullable().optional(),
-  bankNameI18n: LocalizedTextSchema,
-  bankProvider: CustomerBankProviderInputSchema.optional(),
-  bankProviderId: z.string().uuid().nullable().optional(),
-  bankRequisite: CustomerBankRequisiteInputSchema.optional(),
-  bic: z.string().trim().nullable().optional(),
-  beneficiaryName: z.string().trim().nullable().optional(),
-  corrAccount: z.string().trim().nullable().optional(),
-  country: z.string().trim().nullable().optional(),
-  directorBasis: z.string().trim().nullable().optional(),
-  directorBasisI18n: LocalizedTextSchema,
-  directorName: z.string().trim().nullable().optional(),
-  directorNameI18n: LocalizedTextSchema,
-  email: z
-    .preprocess(
-      (value) => (value === "" ? null : value),
-      z.string().email().nullable().optional(),
-    )
-    .nullable()
-    .optional(),
-  inn: z.string().trim().nullable().optional(),
-  iban: z.string().trim().nullable().optional(),
-  kpp: z.string().trim().nullable().optional(),
-  ogrn: z.string().trim().nullable().optional(),
-  okpo: z.string().trim().nullable().optional(),
-  oktmo: z.string().trim().nullable().optional(),
-  orgName: z.string().trim().min(1),
-  orgNameI18n: LocalizedTextSchema,
-  orgType: z.string().trim().nullable().optional(),
-  orgTypeI18n: LocalizedTextSchema,
-  phone: z.string().trim().nullable().optional(),
-  position: z.string().trim().nullable().optional(),
-  positionI18n: LocalizedTextSchema,
-  subAgentCounterpartyId: z.string().uuid().nullable().optional(),
-  swift: z.string().trim().nullable().optional(),
+const CustomerAgreementUpsertInputSchema = z.object({
+  agentFee: z.string().optional(),
+  contractDate: z.string().optional(),
+  contractNumber: z.string().optional(),
+  fixedFee: z.string().optional(),
+  organizationId: z.string().uuid(),
+  organizationRequisiteId: z.string().uuid(),
 });
 
-const CustomerLegalEntityPatchInputSchema =
-  CustomerLegalEntityInputSchema.partial();
-
-const CustomerWorkspaceUpsertInputSchema =
-  CustomerLegalEntityInputSchema.extend({
-    description: z.string().trim().nullable().optional(),
-    displayName: z.string().trim().min(1).optional(),
-    externalRef: z.string().trim().nullable().optional(),
-  });
-
-const CustomerWorkspacePatchInputSchema = z.object({
-  description: z.string().trim().nullable().optional(),
-  displayName: z.string().trim().min(1).optional(),
-  externalRef: z.string().trim().nullable().optional(),
-});
-
-const CustomerBankProviderSearchQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(20).default(8),
-  query: z.string().trim().min(1),
-});
-
-const CustomerBankProviderSearchResultSchema = z.object({
-  address: z.string().nullable(),
-  bic: z.string().nullable(),
-  country: z.string().nullable(),
-  displayLabel: z.string(),
-  id: z.string().uuid(),
-  name: z.string(),
-  swift: z.string().nullable(),
-});
-
-const PaginatedCustomerWorkspacesSchema = createPaginatedListSchema(
-  CustomerWorkspaceSummarySchema,
-);
-
-type CustomerWorkspaceListQuery = z.infer<
-  typeof CustomerWorkspaceListQuerySchema
->;
-type CustomerWorkspaceUpsertInput = z.infer<
-  typeof CustomerWorkspaceUpsertInputSchema
->;
-type CustomerWorkspacePatchInput = z.infer<
-  typeof CustomerWorkspacePatchInputSchema
->;
-type CustomerLegalEntityInput = z.infer<typeof CustomerLegalEntityInputSchema>;
-type CustomerWorkspaceSummary = z.infer<typeof CustomerWorkspaceSummarySchema>;
-type CanonicalCustomer = Awaited<
-  ReturnType<AppContext["partiesModule"]["customers"]["queries"]["findById"]>
->;
-type CanonicalCounterpartyListItem = NonNullable<
-  Awaited<
-    ReturnType<
-      AppContext["partiesModule"]["counterparties"]["queries"]["findById"]
-    >
-  >
->;
-type CounterpartyBankRequisite = Awaited<
-  ReturnType<AppContext["partiesModule"]["requisites"]["queries"]["findById"]>
-> | null;
-
-const CUSTOMER_WORKSPACE_EXPORT_COLUMNS = [
+const CUSTOMER_EXPORT_COLUMNS: {
+  header: string;
+  key: keyof CustomerExportRow;
+}[] = [
   { header: "ID", key: "id" },
-  { header: "Организация", key: "displayName" },
-  { header: "Внешний код", key: "externalRef" },
+  { header: "Название", key: "displayName" },
+  { header: "Внешний референс", key: "externalRef" },
   { header: "Описание", key: "description" },
-  { header: "ИНН", key: "inn" },
-  { header: "Директор", key: "directorName" },
-  { header: "Email", key: "email" },
-  { header: "Телефон", key: "phone" },
-  { header: "Юр. лиц", key: "legalEntityCount" },
-  { header: "Primary Counterparty", key: "primaryCounterpartyId" },
   { header: "Создан", key: "createdAt" },
-] as const;
+  { header: "Обновлен", key: "updatedAt" },
+];
+
+interface CustomerExportRow {
+  id: string;
+  displayName: string;
+  externalRef: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function formatDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function toExportRow(customer: z.infer<typeof CustomerSchema>): CustomerExportRow {
+  return {
+    id: customer.id,
+    displayName: customer.displayName,
+    externalRef: customer.externalRef,
+    description: customer.description,
+    createdAt: customer.createdAt.toISOString(),
+    updatedAt: customer.updatedAt.toISOString(),
+  };
+}
 
 function applyWorksheetDefaults(worksheet: ExcelJS.Worksheet) {
+  if (HEADER_STYLE.font) {
+    worksheet.getRow(1).font = HEADER_STYLE.font;
+  }
+
+  if (HEADER_STYLE.fill) {
+    worksheet.getRow(1).fill = HEADER_STYLE.fill;
+  }
+
   worksheet.columns.forEach((column) => {
-    column.width = 24;
-  });
-
-  const headerRow = worksheet.getRow(1);
-  headerRow.eachCell((cell) => {
-    cell.style = HEADER_STYLE;
+    column.width = Math.max(column.header?.toString().length ?? 0, 20);
   });
 }
 
-function formatDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function normalizeNullableText(
-  value: string | null | undefined,
-): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeCountryCode(value: string | null | undefined): string | null {
-  const normalized = normalizeNullableText(value)?.toUpperCase() ?? null;
-  return normalized && normalized.length === 2 ? normalized : null;
-}
-
-function toLocaleMap(value: LocalizedText): Record<string, string | null> | null {
-  if (!value) {
-    return null;
-  }
-
-  return { ...value };
-}
-
-function deriveRoutingCode(input: {
-  bankProvider?: z.infer<typeof CustomerBankProviderInputSchema>;
-  bankCountry?: string | null | undefined;
-  bic?: string | null | undefined;
-  country?: string | null | undefined;
-  swift?: string | null | undefined;
-}) {
-  const routingCode =
-    normalizeNullableText(input.bankProvider?.routingCode)?.toUpperCase() ??
-    null;
-  const bic = normalizeNullableText(input.bic);
-  const swift = normalizeNullableText(input.swift)?.toUpperCase() ?? null;
-  const country = normalizeCountryCode(
-    input.bankProvider?.country ?? input.bankCountry ?? input.country,
-  );
-
-  if (routingCode) {
-    return routingCode;
-  }
-
-  if (bic || swift) {
-    return bic ?? swift;
-  }
-
-  return country === "RU" ? bic : swift;
-}
-
-function buildCustomerBankingInput(input: CustomerLegalEntityInput) {
-  const providerCountry = normalizeCountryCode(
-    input.bankProvider?.country ?? input.bankCountry ?? input.country,
-  );
-
-  return {
-    bankProvider: {
-      address:
-        normalizeNullableText(input.bankProvider?.address) ??
-        normalizeNullableText(input.bankAddress),
-      country: providerCountry,
-      name:
-        normalizeNullableText(input.bankProvider?.name) ??
-        normalizeNullableText(input.bankName),
-      routingCode: deriveRoutingCode(input),
-    },
-    bankProviderId: normalizeNullableText(input.bankProviderId),
-    bankRequisite: {
-      accountNo:
-        normalizeNullableText(input.bankRequisite?.accountNo) ??
-        normalizeNullableText(input.account),
-      beneficiaryName:
-        normalizeNullableText(input.bankRequisite?.beneficiaryName) ??
-        normalizeNullableText(input.beneficiaryName),
-      corrAccount:
-        normalizeNullableText(input.bankRequisite?.corrAccount) ??
-        normalizeNullableText(input.corrAccount),
-      iban:
-        normalizeNullableText(input.bankRequisite?.iban) ??
-        normalizeNullableText(input.iban),
-    },
-    country: normalizeCountryCode(input.country ?? input.bankCountry),
-    orgName: input.orgName,
-  };
-}
-
-function serializeDate(value: Date | string): string {
-  return value instanceof Date
-    ? value.toISOString()
-    : new Date(value).toISOString();
-}
-
-function resolveDisplayName(
-  input: Pick<CustomerWorkspaceUpsertInput, "displayName" | "orgName">,
-  fallback: string,
-) {
-  const explicitName = normalizeNullableText(input.displayName);
-  if (explicitName) {
-    return explicitName;
-  }
-
-  const orgName = normalizeNullableText(input.orgName);
-  if (orgName) {
-    return orgName;
-  }
-
-  return fallback;
-}
-
-function extractCanonicalCreateInput(
-  input: Pick<
-    CustomerWorkspaceUpsertInput,
-    "description" | "displayName" | "externalRef" | "orgName"
-  >,
-  fallbackDisplayName: string,
-) {
-  return {
-    description: normalizeNullableText(input.description),
-    displayName: resolveDisplayName(input, fallbackDisplayName),
-    externalRef: normalizeNullableText(input.externalRef),
-  };
-}
-
-function extractCanonicalUpdateInput(
-  input: Pick<
-    CustomerWorkspacePatchInput & { orgName?: string },
-    "description" | "displayName" | "externalRef" | "orgName"
-  >,
-  fallbackDisplayName: string,
-) {
-  const result: {
-    description?: string | null;
-    displayName?: string;
-    externalRef?: string | null;
-  } = {};
-
-  if ("description" in input) {
-    result.description = normalizeNullableText(input.description);
-  }
-  if ("externalRef" in input) {
-    result.externalRef = normalizeNullableText(input.externalRef);
-  }
-  if ("displayName" in input || "orgName" in input) {
-    result.displayName = resolveDisplayName(
-      input as Pick<CustomerWorkspaceUpsertInput, "displayName" | "orgName">,
-      fallbackDisplayName,
-    );
-  }
-
-  return result;
-}
-
-function buildCounterpartyLegalEntityBundle(input: {
-  customerId: string;
-  values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
-}): PartyLegalEntityBundleInput {
-  const country = normalizeCountryCode(
-    input.values.country ?? input.values.bankCountry,
-  );
-
-  const identifiers: PartyLegalEntityBundleInput["identifiers"] = [];
-  const inn = normalizeNullableText(input.values.inn);
-  const kpp = normalizeNullableText(input.values.kpp);
-  const ogrn = normalizeNullableText(input.values.ogrn);
-  const okpo = normalizeNullableText(input.values.okpo);
-  const oktmo = normalizeNullableText(input.values.oktmo);
-
-  if (inn) {
-    identifiers.push({
-      scheme: "inn",
-      value: inn,
-    });
-  }
-  if (kpp) {
-    identifiers.push({
-      scheme: "kpp",
-      value: kpp,
-    });
-  }
-  if (ogrn) {
-    identifiers.push({
-      scheme: "ogrn",
-      value: ogrn,
-    });
-  }
-  if (okpo) {
-    identifiers.push({
-      scheme: "okpo",
-      value: okpo,
-    });
-  }
-  if (oktmo) {
-    identifiers.push({
-      scheme: "oktmo",
-      value: oktmo,
-    });
-  }
-
-  const contacts: PartyLegalEntityBundleInput["contacts"] = [];
-  const email = normalizeNullableText(input.values.email);
-  const phone = normalizeNullableText(input.values.phone);
-
-  if (email) {
-    contacts.push({
-      type: "email",
-      label: null,
-      value: email,
-      isPrimary: true,
-    });
-  }
-  if (phone) {
-    contacts.push({
-      type: "phone",
-      label: null,
-      value: phone,
-      isPrimary: true,
-    });
-  }
-  const addresses: PartyLegalEntityBundleInput["addresses"] =
-    normalizeNullableText(input.values.address)
-    ? [
-        {
-          label: null,
-          countryCode: country,
-          postalCode: null,
-          city: null,
-          line1: null,
-          line2: null,
-          rawText: normalizeNullableText(input.values.address),
-          isPrimary: true,
-        },
-      ]
-    : [];
-  const representatives: PartyLegalEntityBundleInput["representatives"] =
-    normalizeNullableText(input.values.directorName)
-    ? [
-        {
-          role: "director",
-          fullName: normalizeNullableText(input.values.directorName)!,
-          fullNameI18n: toLocaleMap(input.values.directorNameI18n),
-          title: normalizeNullableText(input.values.position),
-          titleI18n: toLocaleMap(input.values.positionI18n),
-          basisDocument: normalizeNullableText(input.values.directorBasis),
-          basisDocumentI18n: toLocaleMap(input.values.directorBasisI18n),
-          isPrimary: true,
-        },
-      ]
-    : [];
-  const licenses: PartyLegalEntityBundleInput["licenses"] = [];
-
-  return {
-    profile: {
-      fullName: input.values.orgName,
-      shortName: input.values.orgName,
-      fullNameI18n: null,
-      shortNameI18n: toLocaleMap(input.values.orgNameI18n),
-      legalFormCode: null,
-      legalFormLabel: normalizeNullableText(input.values.orgType),
-      legalFormLabelI18n: toLocaleMap(input.values.orgTypeI18n),
-      countryCode: country,
-      businessActivityCode: null,
-      businessActivityText: null,
-    },
-    identifiers,
-    addresses,
-    contacts,
-    representatives,
-    licenses,
-  };
-}
-
-function buildCounterpartyCreatePayload(input: {
-  customerId: string;
-  values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
-}) {
-  return {
-    customerId: input.customerId,
-    description: null,
-    externalId: normalizeNullableText(input.values.inn),
-    kind: "legal_entity" as const,
-    legalEntity: buildCounterpartyLegalEntityBundle(input),
-    relationshipKind: "customer_owned" as const,
-  };
-}
-
-function buildCounterpartyUpdatePayload(input: {
-  customerId: string;
-  values: Pick<CustomerLegalEntityInput, keyof CustomerLegalEntityInput>;
-}) {
-  return {
-    customerId: input.customerId,
-    description: null,
-    externalId: normalizeNullableText(input.values.inn),
-    relationshipKind: "customer_owned" as const,
-  };
-}
-
-async function listCustomerOwnedCounterpartiesByCustomerId(
-  ctx: AppContext,
-  customerIds: string[],
-) {
-  const uniqueCustomerIds = Array.from(new Set(customerIds));
-  const rows = await Promise.all(
-    uniqueCustomerIds.map(async (customerId) => {
-      const result = await ctx.partiesModule.counterparties.queries.list({
-        customerId,
-        relationshipKind: ["customer_owned"],
-        limit: MAX_QUERY_LIST_LIMIT,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-      const counterparties = (
-        await Promise.all(
-          result.data.map((item) =>
-            ctx.partiesModule.counterparties.queries.findById(item.id),
-          ),
-        )
-      ).filter((item): item is CanonicalCounterpartyListItem => item !== null);
-
-      return [customerId, counterparties] as const;
-    }),
-  );
-
-  return new Map<string, CanonicalCounterpartyListItem[]>(rows);
-}
-
-async function listCounterpartyAssignments(
-  ctx: AppContext,
-  counterpartyIds: string[],
-) {
-  return ctx.partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds(
-    counterpartyIds,
-  );
-}
-
-async function listCounterpartyBankRequisites(
-  ctx: AppContext,
-  counterpartyIds: string[],
-) {
-  const rows = await Promise.all(
-    counterpartyIds.map(async (counterpartyId) => {
-      const result = await ctx.partiesModule.requisites.queries.list({
-        kind: ["bank"],
-        limit: 50,
-        offset: 0,
-        ownerId: counterpartyId,
-        ownerType: "counterparty",
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-      const preferred =
-        result.data.find(
-          (item) => item.isDefault && item.archivedAt === null,
-        ) ??
-        result.data.find((item) => item.archivedAt === null) ??
-        null;
-      const requisite = preferred
-        ? await ctx.partiesModule.requisites.queries.findById(preferred.id)
-        : null;
-
-      return [counterpartyId, requisite] as const;
-    }),
-  );
-
-  return new Map<string, CounterpartyBankRequisite>(rows);
-}
-
-async function upsertCounterpartyAssignment(input: {
-  ctx: AppContext;
-  counterpartyId: string;
-  subAgentCounterpartyId: string | null;
-}) {
-  await input.ctx.partiesReadRuntime.counterpartiesQueries.upsertAssignment({
-    counterpartyId: input.counterpartyId,
-    subAgentCounterpartyId: input.subAgentCounterpartyId,
-  });
-}
-
-async function mapCustomerLegalEntity(input: {
-  assignment: {
-    counterpartyId: string;
-    subAgentCounterpartyId: string | null;
-  } | null;
-  bankRequisite: CounterpartyBankRequisite;
-  contract?: z.infer<typeof CustomerAgreementSchema> | null;
-  counterparty: CanonicalCounterpartyListItem;
-  ctx: AppContext;
-}) {
-  const subAgent = input.assignment?.subAgentCounterpartyId
-    ? await input.ctx.partiesModule.subAgentProfiles.queries.findById(
-        input.assignment.subAgentCounterpartyId,
-      )
-    : null;
-  const provider = input.bankRequisite?.providerId
-    ? await input.ctx.partiesModule.requisites.queries.findProviderById(
-        input.bankRequisite.providerId,
-      )
-    : null;
-  const legal = projectLegacyPartyLegalEntity(input.counterparty);
-  const routing = projectLegacyRequisiteRouting({
-    provider,
-    requisite: input.bankRequisite,
-  });
-
-  return {
-    account: routing.accountNo,
-    address: legal.address,
-    addressI18n: legal.addressI18n,
-    bankAddress: routing.bankAddress,
-    bankAddressI18n: null,
-    bankCountry: provider?.country ?? null,
-    bankName: routing.bankName,
-    bankNameI18n: null,
-    bankProviderId: provider?.id ?? null,
-    bic: routing.bic,
-    beneficiaryName: input.bankRequisite?.beneficiaryName ?? null,
-    contractNumber: input.contract?.contractNumber ?? null,
-    corrAccount: routing.corrAccount,
-    counterpartyId: input.counterparty.id,
-    country: input.counterparty.country ?? null,
-    createdAt: serializeDate(input.counterparty.createdAt),
-    directorBasis: legal.directorBasis,
-    directorBasisI18n: legal.directorBasisI18n,
-    directorName: legal.directorName,
-    directorNameI18n: legal.directorNameI18n,
-    email: legal.email,
-    externalId: input.counterparty.externalId,
-    fullName: input.counterparty.fullName,
-    inn: legal.inn ?? input.counterparty.externalId ?? null,
-    iban: routing.iban,
-    kpp: legal.kpp,
-    ogrn: legal.ogrn,
-    okpo: legal.okpo,
-    oktmo: legal.oktmo,
-    orgName: input.counterparty.shortName,
-    orgNameI18n: legal.orgNameI18n,
-    orgType: legal.orgType,
-    orgTypeI18n: legal.orgTypeI18n,
-    phone: legal.phone,
-    position: legal.position,
-    positionI18n: legal.positionI18n,
-    relationshipKind: input.counterparty.relationshipKind,
-    shortName: input.counterparty.shortName,
-    subAgent,
-    subAgentCounterpartyId: input.assignment?.subAgentCounterpartyId ?? null,
-    swift: routing.swift,
-    updatedAt: serializeDate(input.counterparty.updatedAt),
-  };
-}
-
-async function mapCustomerWorkspaceSummary(
-  customer: CanonicalCustomer,
-  counterpartiesByCustomerId: Map<string, CanonicalCounterpartyListItem[]>,
-) {
-  const counterparties = counterpartiesByCustomerId.get(customer.id) ?? [];
-  const primaryCounterparty = counterparties[0] ?? null;
-  const legal = projectLegacyPartyLegalEntity(primaryCounterparty);
-
-  return {
-    createdAt: serializeDate(customer.createdAt),
-    description: customer.description,
-    directorName: legal.directorName,
-    displayName: customer.displayName,
-    email: legal.email,
-    externalRef: customer.externalRef,
-    id: customer.id,
-    inn: legal.inn ?? primaryCounterparty?.externalId ?? null,
-    legalEntityCount: counterparties.length,
-    phone: legal.phone,
-    primaryCounterpartyId: primaryCounterparty?.id ?? null,
-    updatedAt: serializeDate(customer.updatedAt),
-  } satisfies CustomerWorkspaceSummary;
-}
-
-async function mapCustomerWorkspaceDetail(
-  ctx: AppContext,
-  customer: CanonicalCustomer,
-  counterpartiesList: CanonicalCounterpartyListItem[],
-) {
-  const assignments = await listCounterpartyAssignments(
-    ctx,
-    counterpartiesList.map((counterparty) => counterparty.id),
-  );
-  const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
-    ctx,
-    counterpartiesList.map((counterparty) => counterparty.id),
-  );
-  const contract = await resolveEffectiveCustomerAgreementByCustomerId(
-    ctx,
-    customer.id,
-  );
-  const legalEntities = await Promise.all(
-    counterpartiesList.map((counterparty) =>
-      mapCustomerLegalEntity({
-        assignment: assignments.get(counterparty.id) ?? null,
-        bankRequisite: requisitesByCounterpartyId.get(counterparty.id) ?? null,
-        contract,
-        counterparty,
-        ctx,
-      }),
-    ),
-  );
-
-  return {
-    createdAt: serializeDate(customer.createdAt),
-    description: customer.description,
-    displayName: customer.displayName,
-    externalRef: customer.externalRef,
-    hasActiveAgreement: contract !== null,
-    id: customer.id,
-    legalEntities,
-    legalEntityCount: legalEntities.length,
-    primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
-    updatedAt: serializeDate(customer.updatedAt),
-  };
-}
-
-async function getCustomerOrThrow(ctx: AppContext, customerId: string) {
-  return ctx.partiesModule.customers.queries.findById(customerId);
-}
-
-async function getCustomerOwnedCounterparties(
-  ctx: AppContext,
-  customerId: string,
-) {
-  const result = await ctx.partiesModule.counterparties.queries.list({
-    customerId,
-    relationshipKind: ["customer_owned"],
-    limit: MAX_QUERY_LIST_LIMIT,
+async function exportCustomersXlsx(ctx: AppContext) {
+  const result = await ctx.partiesModule.customers.queries.list({
+    limit: 50000,
     offset: 0,
     sortBy: "createdAt",
     sortOrder: "desc",
   });
 
-  return (
-    await Promise.all(
-      result.data.map((item) =>
-        ctx.partiesModule.counterparties.queries.findById(item.id),
-      ),
-    )
-  ).filter((item): item is CanonicalCounterpartyListItem => item !== null);
-}
-
-async function ensureCustomerOwnedCounterparty(
-  ctx: AppContext,
-  input: { counterpartyId: string; customerId: string },
-) {
-  const counterparty = await ctx.partiesModule.counterparties.queries.findById(
-    input.counterpartyId,
-  );
-  if (
-    !counterparty ||
-    counterparty.customerId !== input.customerId ||
-    counterparty.relationshipKind !== "customer_owned"
-  ) {
-    throw new NotFoundError("Customer counterparty", input.counterpartyId);
-  }
-
-  return counterparty;
-}
-
-async function upsertLegalEntity(
-  ctx: AppContext,
-  input: {
-    counterpartyId?: string;
-    customerId: string;
-    values: CustomerLegalEntityInput;
-  },
-) {
-  const customerBankingService = createCustomerBankingService({
-    currencies: ctx.currenciesService,
-    logger: ctx.logger,
-    requisites: ctx.partiesModule.requisites,
-  });
-  let counterpartyId = input.counterpartyId ?? null;
-  const legalEntityBundle = buildCounterpartyLegalEntityBundle({
-    customerId: input.customerId,
-    values: input.values,
-  });
-
-  if (counterpartyId) {
-    await ensureCustomerOwnedCounterparty(ctx, {
-      counterpartyId,
-      customerId: input.customerId,
-    });
-    await ctx.partiesModule.counterparties.commands.update(
-      counterpartyId,
-      buildCounterpartyUpdatePayload({
-        customerId: input.customerId,
-        values: input.values,
-      }),
-    );
-    await ctx.partiesModule.legalEntities.commands.replaceBundle({
-      ownerId: counterpartyId,
-      ownerType: "counterparty",
-      bundle: legalEntityBundle,
-    });
-  } else {
-    const createdCounterparty =
-      await ctx.partiesModule.counterparties.commands.create(
-        buildCounterpartyCreatePayload({
-          customerId: input.customerId,
-          values: input.values,
-        }),
-      );
-    counterpartyId = createdCounterparty.id;
-  }
-
-  await upsertCounterpartyAssignment({
-    ctx,
-    counterpartyId,
-    subAgentCounterpartyId:
-      normalizeNullableText(input.values.subAgentCounterpartyId) ?? null,
-  });
-  await customerBankingService.upsertCounterpartyBankRequisite({
-    counterpartyId,
-    values: buildCustomerBankingInput(input.values),
-  });
-
-  const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
-    counterpartyId,
-    customerId: input.customerId,
-  });
-  const contract = await resolveEffectiveCustomerAgreementByCustomerId(
-    ctx,
-    input.customerId,
-  );
-  const assignments = await listCounterpartyAssignments(ctx, [counterpartyId]);
-  const requisitesByCounterpartyId = await listCounterpartyBankRequisites(ctx, [
-    counterpartyId,
-  ]);
-
-  return mapCustomerLegalEntity({
-    assignment: assignments.get(counterpartyId) ?? null,
-    bankRequisite: requisitesByCounterpartyId.get(counterpartyId) ?? null,
-    contract,
-    counterparty,
-    ctx,
-  });
-}
-
-async function listCustomerWorkspaces(
-  ctx: AppContext,
-  query: CustomerWorkspaceListQuery,
-) {
-  if (!query.q) {
-    const customers = await ctx.partiesModule.customers.queries.list({
-      limit: query.limit,
-      offset: query.offset,
-      sortBy: "createdAt",
-      sortOrder: "desc",
-    });
-    const counterpartiesByCustomerId =
-      await listCustomerOwnedCounterpartiesByCustomerId(
-        ctx,
-        customers.data.map((customer) => customer.id),
-      );
-
-    return {
-      data: await Promise.all(
-        customers.data.map((customer) =>
-          mapCustomerWorkspaceSummary(customer, counterpartiesByCustomerId),
-        ),
-      ),
-      limit: query.limit,
-      offset: query.offset,
-      total: customers.total,
-    };
-  }
-
-  const [displayNameMatches, externalRefMatches, counterpartyMatches] =
-    await Promise.all([
-      ctx.partiesModule.customers.queries.list({
-        displayName: query.q,
-        limit: 1000,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      }),
-      ctx.partiesModule.customers.queries.list({
-        externalRef: query.q,
-        limit: 1000,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      }),
-      ctx.partiesReadRuntime.counterpartiesQueries.listCustomerIdsByCustomerOwnedCounterpartySearch(
-        {
-          limit: 1000,
-          q: query.q,
-        },
-      ),
-    ]);
-
-  const customerMap = new Map<string, CanonicalCustomer>();
-  for (const customer of [
-    ...displayNameMatches.data,
-    ...externalRefMatches.data,
-  ]) {
-    customerMap.set(customer.id, customer);
-  }
-
-  if (counterpartyMatches.length > 0) {
-    const customers =
-      await ctx.partiesModule.customers.queries.listByIds(counterpartyMatches);
-    for (const customer of customers) {
-      customerMap.set(customer.id, customer);
-    }
-  }
-
-  const customers = [...customerMap.values()].sort(
-    (left, right) =>
-      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  );
-  const counterpartiesByCustomerId =
-    await listCustomerOwnedCounterpartiesByCustomerId(
-      ctx,
-      customers.map((customer) => customer.id),
-    );
-  const rows = await Promise.all(
-    customers.map((customer) =>
-      mapCustomerWorkspaceSummary(customer, counterpartiesByCustomerId),
-    ),
-  );
-
-  return {
-    data: rows.slice(query.offset, query.offset + query.limit),
-    limit: query.limit,
-    offset: query.offset,
-    total: rows.length,
-  };
-}
-
-async function getCustomerWorkspace(ctx: AppContext, customerId: string) {
-  const customer = await getCustomerOrThrow(ctx, customerId);
-  const counterpartiesList = await getCustomerOwnedCounterparties(
-    ctx,
-    customerId,
-  );
-  return mapCustomerWorkspaceDetail(ctx, customer, counterpartiesList);
-}
-
-async function exportCustomerWorkspacesXlsx(ctx: AppContext) {
-  const result = await listCustomerWorkspaces(ctx, {
-    limit: 50000,
-    offset: 0,
-  });
-
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Клиенты");
 
-  worksheet.columns = CUSTOMER_WORKSPACE_EXPORT_COLUMNS.map((column) => ({
+  worksheet.columns = CUSTOMER_EXPORT_COLUMNS.map((column) => ({
     header: column.header,
     key: column.key,
   }));
 
-  for (const row of result.data) {
-    worksheet.addRow(row);
+  for (const customer of result.data) {
+    worksheet.addRow(toExportRow(customer));
   }
 
   applyWorksheetDefaults(worksheet);
@@ -1106,16 +180,16 @@ export function customersRoutes(ctx: AppContext) {
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/",
-    request: { query: CustomerWorkspaceListQuerySchema },
+    request: { query: ListCustomersQuerySchema },
     responses: {
       200: {
         content: {
-          "application/json": { schema: PaginatedCustomerWorkspacesSchema },
+          "application/json": { schema: PaginatedCustomersSchema },
         },
-        description: "Customer-rooted workspace list",
+        description: "Paginated list of customers",
       },
     },
-    summary: "List customer workspaces",
+    summary: "List customers",
     tags: ["Customers"],
   });
 
@@ -1123,8 +197,8 @@ export function customersRoutes(ctx: AppContext) {
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/export/xlsx",
-    responses: { 200: { description: "Customer workspace XLSX file" } },
-    summary: "Export customer workspaces to XLSX",
+    responses: { 200: { description: "Customers XLSX file" } },
+    summary: "Export customers to XLSX",
     tags: ["Customers"],
   });
 
@@ -1132,20 +206,20 @@ export function customersRoutes(ctx: AppContext) {
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/{id}",
-    request: { params: CustomerWorkspaceParamSchema },
+    request: { params: CustomerIdParamSchema },
     responses: {
       200: {
         content: {
-          "application/json": { schema: CustomerWorkspaceDetailSchema },
+          "application/json": { schema: CustomerSchema },
         },
-        description: "Customer workspace detail",
+        description: "Customer detail",
       },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
         description: "Customer not found",
       },
     },
-    summary: "Get a customer workspace by canonical customer ID",
+    summary: "Get customer by id",
     tags: ["Customers"],
   });
 
@@ -1156,7 +230,7 @@ export function customersRoutes(ctx: AppContext) {
     request: {
       body: {
         content: {
-          "application/json": { schema: CustomerWorkspaceUpsertInputSchema },
+          "application/json": { schema: CreateCustomerInputSchema },
         },
         required: true,
       },
@@ -1164,12 +238,12 @@ export function customersRoutes(ctx: AppContext) {
     responses: {
       201: {
         content: {
-          "application/json": { schema: CustomerWorkspaceDetailSchema },
+          "application/json": { schema: CustomerSchema },
         },
-        description: "Customer workspace created",
+        description: "Customer created",
       },
     },
-    summary: "Create a canonical customer and initial legal entity",
+    summary: "Create customer",
     tags: ["Customers"],
   });
 
@@ -1180,25 +254,25 @@ export function customersRoutes(ctx: AppContext) {
     request: {
       body: {
         content: {
-          "application/json": { schema: CustomerWorkspacePatchInputSchema },
+          "application/json": { schema: UpdateCustomerInputSchema },
         },
         required: true,
       },
-      params: CustomerWorkspaceParamSchema,
+      params: CustomerIdParamSchema,
     },
     responses: {
       200: {
         content: {
-          "application/json": { schema: CustomerWorkspaceDetailSchema },
+          "application/json": { schema: CustomerSchema },
         },
-        description: "Customer workspace updated",
+        description: "Customer updated",
       },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
         description: "Customer not found",
       },
     },
-    summary: "Update canonical customer identity",
+    summary: "Update customer",
     tags: ["Customers"],
   });
 
@@ -1206,7 +280,7 @@ export function customersRoutes(ctx: AppContext) {
     middleware: [requirePermission({ customers: ["delete"] })],
     method: "delete",
     path: "/{id}",
-    request: { params: CustomerWorkspaceParamSchema },
+    request: { params: CustomerIdParamSchema },
     responses: {
       200: {
         content: { "application/json": { schema: DeletedSchema } },
@@ -1221,134 +295,15 @@ export function customersRoutes(ctx: AppContext) {
         description: "Customer delete conflict",
       },
     },
-    summary: "Delete canonical customer",
+    summary: "Delete customer",
     tags: ["Customers"],
   });
 
-  const listLegalEntitiesRoute = createRoute({
-    middleware: [requirePermission({ customers: ["list"] })],
-    method: "get",
-    path: "/{customerId}/legal-entities",
-    request: {
-      params: CustomerLegalEntityParamsSchema.omit({ counterpartyId: true }),
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: z.array(CustomerLegalEntitySchema) },
-        },
-        description: "Customer-owned legal entities",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Customer not found",
-      },
-    },
-    summary: "List legal entities for a customer workspace",
-    tags: ["Customers"],
-  });
-
-  const searchBankProvidersRoute = createRoute({
-    middleware: [requirePermission({ customers: ["create", "update"] })],
-    method: "get",
-    path: "/bank-providers",
-    request: {
-      query: CustomerBankProviderSearchQuerySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: z.object({
-              data: z.array(CustomerBankProviderSearchResultSchema),
-            }),
-          },
-        },
-        description: "Bank provider matches",
-      },
-    },
-    summary: "Search bank providers for CRM customer forms",
-    tags: ["Customers"],
-  });
-
-  const createLegalEntityRoute = createRoute({
-    middleware: [requirePermission({ customers: ["update"] })],
-    method: "post",
-    path: "/{customerId}/legal-entities",
-    request: {
-      body: {
-        content: {
-          "application/json": { schema: CustomerLegalEntityInputSchema },
-        },
-        required: true,
-      },
-      params: CustomerLegalEntityParamsSchema.omit({ counterpartyId: true }),
-    },
-    responses: {
-      201: {
-        content: { "application/json": { schema: CustomerLegalEntitySchema } },
-        description: "Legal entity created",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Customer not found",
-      },
-    },
-    summary: "Create a customer-owned legal entity",
-    tags: ["Customers"],
-  });
-
-  const getLegalEntityRoute = createRoute({
-    middleware: [requirePermission({ customers: ["list"] })],
-    method: "get",
-    path: "/{customerId}/legal-entities/{counterpartyId}",
-    request: { params: CustomerLegalEntityParamsSchema },
-    responses: {
-      200: {
-        content: { "application/json": { schema: CustomerLegalEntitySchema } },
-        description: "Legal entity detail",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Legal entity not found",
-      },
-    },
-    summary: "Get a customer-owned legal entity",
-    tags: ["Customers"],
-  });
-
-  const updateLegalEntityRoute = createRoute({
-    middleware: [requirePermission({ customers: ["update"] })],
-    method: "patch",
-    path: "/{customerId}/legal-entities/{counterpartyId}",
-    request: {
-      body: {
-        content: {
-          "application/json": { schema: CustomerLegalEntityPatchInputSchema },
-        },
-        required: true,
-      },
-      params: CustomerLegalEntityParamsSchema,
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: CustomerLegalEntitySchema } },
-        description: "Legal entity updated",
-      },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Legal entity not found",
-      },
-    },
-    summary: "Update a customer-owned legal entity",
-    tags: ["Customers"],
-  });
-
-  const listLegalEntityDocumentsRoute = createRoute({
+  const listCounterpartyDocumentsRoute = createRoute({
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/{customerId}/legal-entities/{counterpartyId}/documents",
-    request: { params: CustomerLegalEntityParamsSchema },
+    request: { params: CustomerCounterpartyParamsSchema },
     responses: {
       200: {
         content: {
@@ -1356,18 +311,18 @@ export function customersRoutes(ctx: AppContext) {
             schema: z.array(CustomerFileAttachmentSchema),
           },
         },
-        description: "Legal entity documents",
+        description: "Counterparty documents",
       },
     },
-    summary: "List documents for a legal entity",
+    summary: "List documents for a customer-owned counterparty",
     tags: ["Customers"],
   });
 
-  const uploadLegalEntityDocumentRoute = createRoute({
+  const uploadCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["update"] })],
     method: "post",
     path: "/{customerId}/legal-entities/{counterpartyId}/documents",
-    request: { params: CustomerLegalEntityParamsSchema },
+    request: { params: CustomerCounterpartyParamsSchema },
     responses: {
       201: {
         content: {
@@ -1378,15 +333,15 @@ export function customersRoutes(ctx: AppContext) {
         description: "Document uploaded",
       },
     },
-    summary: "Upload document for a legal entity",
+    summary: "Upload document for a customer-owned counterparty",
     tags: ["Customers"],
   });
 
-  const downloadLegalEntityDocumentRoute = createRoute({
+  const downloadCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
     path: "/{customerId}/legal-entities/{counterpartyId}/documents/{documentId}/download",
-    request: { params: CustomerLegalEntityDocumentParamsSchema },
+    request: { params: CustomerCounterpartyDocumentParamsSchema },
     responses: {
       200: { description: "Redirect to signed URL" },
       404: {
@@ -1394,31 +349,31 @@ export function customersRoutes(ctx: AppContext) {
         description: "Document not found",
       },
     },
-    summary: "Download a legal-entity document",
+    summary: "Download a customer-owned counterparty document",
     tags: ["Customers"],
   });
 
-  const deleteLegalEntityDocumentRoute = createRoute({
+  const deleteCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["update"] })],
     method: "delete",
     path: "/{customerId}/legal-entities/{counterpartyId}/documents/{documentId}",
-    request: { params: CustomerLegalEntityDocumentParamsSchema },
+    request: { params: CustomerCounterpartyDocumentParamsSchema },
     responses: {
       200: {
         content: { "application/json": { schema: DeletedSchema } },
         description: "Document deleted",
       },
     },
-    summary: "Delete a legal-entity document",
+    summary: "Delete a customer-owned counterparty document",
     tags: ["Customers"],
   });
 
-  const generateLegalEntityContractRoute = createRoute({
+  const generateCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
     path: "/{customerId}/legal-entities/{counterpartyId}/contract",
     request: {
-      params: CustomerLegalEntityParamsSchema,
+      params: CustomerCounterpartyParamsSchema,
       query: z.object({
         format: GeneratedDocumentFormatSchema,
         lang: GeneratedDocumentLangSchema,
@@ -1428,14 +383,14 @@ export function customersRoutes(ctx: AppContext) {
       200: { description: "Contract document" },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
-        description: "Legal entity or contract not found",
+        description: "Counterparty or contract not found",
       },
     },
-    summary: "Generate contract for a legal entity",
+    summary: "Generate contract for a customer-owned counterparty",
     tags: ["Customers"],
   });
 
-  const upsertLegalEntityContractRoute = createRoute({
+  const upsertCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
     path: "/{customerId}/legal-entities/{counterpartyId}/contract",
@@ -1443,19 +398,12 @@ export function customersRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: z.object({
-              agentFee: z.string().optional(),
-              organizationId: z.string().uuid(),
-              organizationRequisiteId: z.string().uuid(),
-              contractDate: z.string().optional(),
-              contractNumber: z.string().optional(),
-              fixedFee: z.string().optional(),
-            }),
+            schema: CustomerAgreementUpsertInputSchema,
           },
         },
         required: true,
       },
-      params: CustomerLegalEntityParamsSchema,
+      params: CustomerCounterpartyParamsSchema,
     },
     responses: {
       201: {
@@ -1468,16 +416,16 @@ export function customersRoutes(ctx: AppContext) {
       },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
-        description: "Legal entity not found",
+        description: "Counterparty not found",
       },
     },
-    summary: "Create or update contract for a legal entity",
+    summary: "Create or update contract for a customer-owned counterparty",
     tags: ["Customers"],
   });
 
   return app
     .openapi(exportRoute, async () => {
-      const buffer = await exportCustomerWorkspacesXlsx(ctx);
+      const buffer = await exportCustomersXlsx(ctx);
       return new Response(new Uint8Array(buffer), {
         headers: {
           "Content-Disposition": `attachment; filename="${xlsxFilename("customers")}"`,
@@ -1488,72 +436,45 @@ export function customersRoutes(ctx: AppContext) {
       });
     })
     .openapi(listRoute, async (c) => {
-      try {
-        const query = c.req.valid("query");
-        const result = await listCustomerWorkspaces(ctx, query);
-        return c.json(result, 200);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(searchBankProvidersRoute, async (c) => {
       const query = c.req.valid("query");
-      const customerBankingService = createCustomerBankingService({
-        currencies: ctx.currenciesService,
-        logger: ctx.logger,
-        requisites: ctx.partiesModule.requisites,
-      });
-      const data = await customerBankingService.searchBankProviders(query);
-      return c.json({ data }, 200);
+      const result = await ctx.partiesModule.customers.queries.list(query);
+      return c.json(result, 200);
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
 
       try {
-        const result = await getCustomerWorkspace(ctx, id);
-        return c.json(result, 200);
+        const customer = await ctx.partiesModule.customers.queries.findById(id);
+        return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
           return c.json({ error: error.message }, 404);
         }
 
-        return handleRouteError(c, error);
+        throw error;
       }
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
-      const canonical = extractCanonicalCreateInput(input, input.orgName);
-      const customer =
-        await ctx.partiesModule.customers.commands.create(canonical);
-      await upsertLegalEntity(ctx, {
-        customerId: customer.id,
-        values: input,
-      });
-      const result = await getCustomerWorkspace(ctx, customer.id);
-      return c.json(result, 201);
+      const customer = await ctx.partiesModule.customers.commands.create(input);
+      return c.json(customer, 201);
     })
     .openapi(updateRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
 
       try {
-        const currentCustomer = await getCustomerOrThrow(ctx, id);
-        const canonical = extractCanonicalUpdateInput(
+        const customer = await ctx.partiesModule.customers.commands.update(
+          id,
           input,
-          currentCustomer.displayName,
         );
-        if (Object.keys(canonical).length > 0) {
-          await ctx.partiesModule.customers.commands.update(id, canonical);
-        }
-
-        const result = await getCustomerWorkspace(ctx, id);
-        return c.json(result, 200);
+        return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
           return c.json({ error: error.message }, 404);
         }
 
-        return handleRouteError(c, error);
+        throw error;
       }
     })
     .openapi(deleteRoute, async (c) => {
@@ -1570,247 +491,10 @@ export function customersRoutes(ctx: AppContext) {
           return c.json({ error: error.message }, 409);
         }
 
-        return handleRouteError(c, error);
+        throw error;
       }
     })
-    .openapi(listLegalEntitiesRoute, async (c) => {
-      const { customerId } = c.req.valid("param");
-
-      try {
-        await getCustomerOrThrow(ctx, customerId);
-        const counterpartiesList = await getCustomerOwnedCounterparties(
-          ctx,
-          customerId,
-        );
-        const assignments = await listCounterpartyAssignments(
-          ctx,
-          counterpartiesList.map((counterparty) => counterparty.id),
-        );
-        const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
-          ctx,
-          counterpartiesList.map((counterparty) => counterparty.id),
-        );
-        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
-          ctx,
-          customerId,
-        );
-        const result = await Promise.all(
-          counterpartiesList.map((counterparty) =>
-            mapCustomerLegalEntity({
-              assignment: assignments.get(counterparty.id) ?? null,
-              bankRequisite:
-                requisitesByCounterpartyId.get(counterparty.id) ?? null,
-              contract,
-              counterparty,
-              ctx,
-            }),
-          ),
-        );
-
-        return c.json(result, 200);
-      } catch (error) {
-        if (error instanceof CustomerNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(createLegalEntityRoute, async (c) => {
-      const { customerId } = c.req.valid("param");
-      const input = c.req.valid("json");
-
-      try {
-        await getCustomerOrThrow(ctx, customerId);
-        const result = await upsertLegalEntity(ctx, {
-          customerId,
-          values: input,
-        });
-
-        return c.json(result, 201);
-      } catch (error) {
-        if (error instanceof CustomerNotFoundError) {
-          return c.json({ error: error.message }, 404);
-        }
-
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(getLegalEntityRoute, async (c) => {
-      try {
-        const { counterpartyId, customerId } = c.req.valid("param");
-        const counterparty = await ensureCustomerOwnedCounterparty(ctx, {
-          counterpartyId,
-          customerId,
-        });
-        const contract = await resolveEffectiveCustomerAgreementByCustomerId(
-          ctx,
-          customerId,
-        );
-        const assignments = await listCounterpartyAssignments(ctx, [
-          counterpartyId,
-        ]);
-        const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
-          ctx,
-          [counterpartyId],
-        );
-
-        return c.json(
-          await mapCustomerLegalEntity({
-            assignment: assignments.get(counterpartyId) ?? null,
-            bankRequisite:
-              requisitesByCounterpartyId.get(counterpartyId) ?? null,
-            contract,
-            counterparty,
-            ctx,
-          }),
-          200,
-        );
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(updateLegalEntityRoute, async (c) => {
-      try {
-        const { counterpartyId, customerId } = c.req.valid("param");
-        const patch = c.req.valid("json");
-        const current = await ensureCustomerOwnedCounterparty(ctx, {
-          counterpartyId,
-          customerId,
-        });
-        const assignments = await listCounterpartyAssignments(ctx, [
-          counterpartyId,
-        ]);
-        const currentAssignment = assignments.get(counterpartyId) ?? null;
-        const requisitesByCounterpartyId = await listCounterpartyBankRequisites(
-          ctx,
-          [counterpartyId],
-        );
-        const currentBankRequisite =
-          requisitesByCounterpartyId.get(counterpartyId) ?? null;
-        const currentBankProvider = currentBankRequisite?.providerId
-          ? await ctx.partiesModule.requisites.queries.findProviderById(
-              currentBankRequisite.providerId,
-            )
-          : null;
-        const currentLegal = projectLegacyPartyLegalEntity(current);
-        const currentRouting = projectLegacyRequisiteRouting({
-          provider: currentBankProvider,
-          requisite: currentBankRequisite,
-        });
-        const currentRoutingCode =
-          currentBankProvider?.country === "RU"
-            ? currentRouting.bic
-            : (currentRouting.swift ?? currentRouting.bic);
-        const values: CustomerLegalEntityInput = {
-          account: patch.account ?? currentRouting.accountNo ?? null,
-          address: patch.address ?? currentLegal.address ?? null,
-          addressI18n: patch.addressI18n ?? currentLegal.addressI18n ?? null,
-          bankAddress: patch.bankAddress ?? currentRouting.bankAddress ?? null,
-          bankAddressI18n: patch.bankAddressI18n ?? null,
-          bankMode:
-            patch.bankMode ??
-            ((patch.bankProviderId ?? currentBankProvider?.id)
-              ? "existing"
-              : "manual"),
-          bankProviderId:
-            patch.bankProviderId ?? currentBankProvider?.id ?? null,
-          bankProvider: {
-            address:
-              patch.bankProvider?.address ??
-              patch.bankAddress ??
-              currentRouting.bankAddress ??
-              null,
-            country:
-              patch.bankProvider?.country ??
-              patch.bankCountry ??
-              patch.country ??
-              currentBankProvider?.country ??
-              current.country ??
-              null,
-            name:
-              patch.bankProvider?.name ??
-              patch.bankName ??
-              currentRouting.bankName ??
-              null,
-            routingCode: patch.bankProvider?.routingCode ?? currentRoutingCode,
-          },
-          bankCountry:
-            patch.bankCountry ??
-            patch.country ??
-            currentBankProvider?.country ??
-            current.country ??
-            null,
-          bankName: patch.bankName ?? currentRouting.bankName ?? null,
-          bankNameI18n: patch.bankNameI18n ?? null,
-          bankRequisite: {
-            accountNo:
-              patch.bankRequisite?.accountNo ??
-              patch.account ??
-              currentRouting.accountNo ??
-              null,
-            beneficiaryName:
-              patch.bankRequisite?.beneficiaryName ??
-              patch.beneficiaryName ??
-              currentBankRequisite?.beneficiaryName ??
-              null,
-            corrAccount:
-              patch.bankRequisite?.corrAccount ??
-              patch.corrAccount ??
-              currentRouting.corrAccount ??
-              null,
-            iban:
-              patch.bankRequisite?.iban ??
-              patch.iban ??
-              currentRouting.iban ??
-              null,
-          },
-          bic: patch.bic ?? currentRouting.bic ?? null,
-          beneficiaryName:
-            patch.beneficiaryName ??
-            currentBankRequisite?.beneficiaryName ??
-            null,
-          corrAccount: patch.corrAccount ?? currentRouting.corrAccount ?? null,
-          country: patch.country ?? current.country ?? null,
-          directorBasis:
-            patch.directorBasis ?? currentLegal.directorBasis ?? null,
-          directorBasisI18n:
-            patch.directorBasisI18n ?? currentLegal.directorBasisI18n ?? null,
-          directorName: patch.directorName ?? currentLegal.directorName ?? null,
-          directorNameI18n:
-            patch.directorNameI18n ?? currentLegal.directorNameI18n ?? null,
-          email: patch.email ?? currentLegal.email ?? null,
-          inn: patch.inn ?? currentLegal.inn ?? current.externalId ?? null,
-          iban: patch.iban ?? currentRouting.iban ?? null,
-          kpp: patch.kpp ?? currentLegal.kpp ?? null,
-          ogrn: patch.ogrn ?? currentLegal.ogrn ?? null,
-          okpo: patch.okpo ?? currentLegal.okpo ?? null,
-          oktmo: patch.oktmo ?? currentLegal.oktmo ?? null,
-          orgName: patch.orgName ?? current.shortName,
-          orgNameI18n: patch.orgNameI18n ?? currentLegal.orgNameI18n ?? null,
-          orgType: patch.orgType ?? currentLegal.orgType ?? null,
-          orgTypeI18n: patch.orgTypeI18n ?? currentLegal.orgTypeI18n ?? null,
-          phone: patch.phone ?? currentLegal.phone ?? null,
-          position: patch.position ?? currentLegal.position ?? null,
-          positionI18n: patch.positionI18n ?? currentLegal.positionI18n ?? null,
-          subAgentCounterpartyId:
-            patch.subAgentCounterpartyId ??
-            currentAssignment?.subAgentCounterpartyId ??
-            null,
-          swift: patch.swift ?? currentRouting.swift ?? null,
-        };
-
-        const result = await upsertLegalEntity(ctx, {
-          counterpartyId,
-          customerId,
-          values,
-        });
-        return c.json(result, 200);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(listLegalEntityDocumentsRoute, async (c) => {
+    .openapi(listCounterpartyDocumentsRoute, async (c) => {
       try {
         const { counterpartyId, customerId } = c.req.valid("param");
         await assertCustomerOwnsCounterparty(ctx, {
@@ -1826,7 +510,7 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(uploadLegalEntityDocumentRoute, async (c) => {
+    .openapi(uploadCounterpartyDocumentRoute, async (c) => {
       try {
         const { counterpartyId, customerId } = c.req.valid("param");
         await assertCustomerOwnsCounterparty(ctx, {
@@ -1857,7 +541,7 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(downloadLegalEntityDocumentRoute, async (c) => {
+    .openapi(downloadCounterpartyDocumentRoute, async (c) => {
       try {
         const { counterpartyId, customerId, documentId } = c.req.valid("param");
         await assertCustomerOwnsCounterparty(ctx, {
@@ -1877,7 +561,7 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(deleteLegalEntityDocumentRoute, async (c) => {
+    .openapi(deleteCounterpartyDocumentRoute, async (c) => {
       try {
         const { counterpartyId, customerId, documentId } = c.req.valid("param");
         await assertCustomerOwnsCounterparty(ctx, {
@@ -1893,7 +577,7 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(generateLegalEntityContractRoute, async (c) => {
+    .openapi(generateCounterpartyContractRoute, async (c) => {
       try {
         const { counterpartyId, customerId } = c.req.valid("param");
         const { format, lang } = c.req.valid("query");
@@ -1926,7 +610,7 @@ export function customersRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(upsertLegalEntityContractRoute, async (c) => {
+    .openapi(upsertCounterpartyContractRoute, async (c) => {
       try {
         const { counterpartyId, customerId } = c.req.valid("param");
         const input = c.req.valid("json");
@@ -1944,14 +628,7 @@ export function customersRoutes(ctx: AppContext) {
           const updated = await withRequiredIdempotency(c, (idempotencyKey) =>
             updateCustomerAgreement(
               ctx,
-              {
-                agentFee: input.agentFee,
-                contractDate: input.contractDate,
-                contractNumber: input.contractNumber,
-                fixedFee: input.fixedFee,
-                organizationId: input.organizationId,
-                organizationRequisiteId: input.organizationRequisiteId,
-              },
+              input,
               existing.id,
               c.get("user")!.id,
               idempotencyKey,
@@ -1969,13 +646,8 @@ export function customersRoutes(ctx: AppContext) {
           createCustomerAgreementForCustomer(
             ctx,
             {
-              agentFee: input.agentFee,
-              contractDate: input.contractDate,
-              contractNumber: input.contractNumber,
+              ...input,
               customerId,
-              fixedFee: input.fixedFee,
-              organizationId: input.organizationId,
-              organizationRequisiteId: input.organizationRequisiteId,
             },
             c.get("user")!.id,
             idempotencyKey,

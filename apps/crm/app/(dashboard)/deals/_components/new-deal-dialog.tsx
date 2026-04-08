@@ -24,6 +24,8 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
+import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
+import { loadCustomerOwnedCounterparties } from "@/lib/customer-owned-counterparties";
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -197,6 +199,8 @@ export function NewDealDialog({
       return;
     }
 
+    const currentSelectedCustomerId = selectedCustomerId;
+
     let cancelled = false;
 
     async function loadCustomerContext() {
@@ -205,9 +209,16 @@ export function NewDealDialog({
         setError(null);
 
         const [customer, agreementsPayload] = await Promise.all([
-          fetchJson<CustomerDetail>(`${API_BASE_URL}/customers/${selectedCustomerId}`),
+          loadCustomerOwnedCounterparties(currentSelectedCustomerId).then(
+            (legalEntities) =>
+              ({
+                id: currentSelectedCustomerId,
+                legalEntities,
+                primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
+              }) satisfies CustomerDetail,
+          ),
           fetchJson<{ data: AgreementOption[] }>(
-            `${API_BASE_URL}/agreements?customerId=${selectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
+            `${API_BASE_URL}/agreements?customerId=${currentSelectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
           ),
         ]);
 
@@ -268,6 +279,8 @@ export function NewDealDialog({
       return;
     }
 
+    const currentSelectedApplicantId = selectedApplicantId;
+
     setIntake((current) => ({
       ...current,
       common: {
@@ -280,32 +293,12 @@ export function NewDealDialog({
 
     async function loadApplicantRequisites() {
       try {
-        const payload = await fetchJson<{
-          data: Array<{
-            accountNo: string | null;
-            beneficiaryName: string | null;
-            iban: string | null;
-            id: string;
-            label: string;
-            provider: { name: string } | null;
-          }>;
-        }>(
-          `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${selectedApplicantId}`,
-        );
-
         if (cancelled) {
           return;
         }
 
         setApplicantRequisites(
-          payload.data.map((requisite) => ({
-            accountNo: requisite.accountNo,
-            beneficiaryName: requisite.beneficiaryName,
-            iban: requisite.iban,
-            id: requisite.id,
-            label: requisite.label,
-            providerLabel: requisite.provider?.name ?? null,
-          })),
+          await loadApplicantRequisiteOptions(currentSelectedApplicantId),
         );
       } catch (fetchError) {
         if (!cancelled) {

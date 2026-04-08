@@ -27,21 +27,18 @@ export type PartyLegalEntityBundleSource = {
     scheme: PartyLegalIdentifierInput["scheme"];
     value: string;
   }>;
-  addresses: Array<{
+  address: {
     id?: string;
-    label: string | null;
     countryCode: string | null;
     postalCode: string | null;
     city: string | null;
-    line1: string | null;
-    line2: string | null;
-    rawText: string | null;
-    isPrimary: boolean;
-  }>;
+    streetAddress: string | null;
+    addressDetails: string | null;
+    fullAddress: string | null;
+  } | null;
   contacts: Array<{
     id?: string;
     type: PartyContactInput["type"];
-    label: string | null;
     value: string;
     isPrimary: boolean;
   }>;
@@ -108,20 +105,22 @@ function cloneIdentifiers(
   }));
 }
 
-function cloneAddresses(
-  items: PartyLegalEntityBundleSource["addresses"],
-): PartyAddressInput[] {
-  return items.map((item) => ({
+function cloneAddress(
+  item: PartyLegalEntityBundleSource["address"],
+): PartyAddressInput | null {
+  if (!item) {
+    return null;
+  }
+
+  return {
     id: item.id,
-    label: item.label ?? null,
     countryCode: item.countryCode ?? null,
     postalCode: item.postalCode ?? null,
     city: item.city ?? null,
-    line1: item.line1 ?? null,
-    line2: item.line2 ?? null,
-    rawText: item.rawText ?? null,
-    isPrimary: item.isPrimary,
-  }));
+    streetAddress: item.streetAddress ?? null,
+    addressDetails: item.addressDetails ?? null,
+    fullAddress: item.fullAddress ?? null,
+  };
 }
 
 function cloneContacts(
@@ -130,7 +129,6 @@ function cloneContacts(
   return items.map((item) => ({
     id: item.id,
     type: item.type,
-    label: item.label ?? null,
     value: item.value,
     isPrimary: item.isPrimary,
   }));
@@ -184,7 +182,7 @@ export function createSeededLegalEntityBundle(
       businessActivityText: null,
     },
     identifiers: [],
-    addresses: [],
+    address: null,
     contacts: [],
     representatives: [],
     licenses: [],
@@ -221,7 +219,7 @@ export function toLegalEntityBundleInput(
       businessActivityText: source.profile.businessActivityText ?? null,
     },
     identifiers: cloneIdentifiers(source.identifiers),
-    addresses: cloneAddresses(source.addresses),
+    address: cloneAddress(source.address),
     contacts: cloneContacts(source.contacts),
     representatives: cloneRepresentatives(source.representatives),
     licenses: cloneLicenses(source.licenses),

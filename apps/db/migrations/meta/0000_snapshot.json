@@ -9975,12 +9975,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "country_code": {
           "name": "country_code",
           "type": "party_country_code",
@@ -10000,30 +9994,23 @@
           "primaryKey": false,
           "notNull": false
         },
-        "line_1": {
-          "name": "line_1",
+        "street_address": {
+          "name": "street_address",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "line_2": {
-          "name": "line_2",
+        "address_details": {
+          "name": "address_details",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "raw_text": {
-          "name": "raw_text",
+        "full_address": {
+          "name": "full_address",
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -10041,23 +10028,8 @@
         }
       },
       "indexes": {
-        "party_addresses_profile_idx": {
-          "name": "party_addresses_profile_idx",
-          "columns": [
-            {
-              "expression": "party_legal_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "party_addresses_primary_uq": {
-          "name": "party_addresses_primary_uq",
+        "party_addresses_profile_uq": {
+          "name": "party_addresses_profile_uq",
           "columns": [
             {
               "expression": "party_legal_profile_id",
@@ -10067,7 +10039,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"party_addresses\".\"is_primary\" = true",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10116,12 +10087,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "value": {
           "name": "value",

@@ -105,6 +105,16 @@ describe("requisites routes", () => {
     userHasPermission.mockResolvedValue({ success: true });
   });
 
+  it("does not expose the legacy bank workspace route", async () => {
+    const { app } = createTestApp();
+
+    const response = await app.request(
+      "http://localhost/requisites/bank-workspace?counterpartyId=22222222-2222-4222-8222-222222222222",
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("updates requisite identifiers through the top-level patch route", async () => {
     const { app, requisiteAccountingWorkflow } = createTestApp();
     requisiteAccountingWorkflow.update.mockResolvedValue(createRequisite());

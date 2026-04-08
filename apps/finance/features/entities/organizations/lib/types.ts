@@ -29,20 +29,18 @@ export type SerializedOrganizationLegalEntity = {
     createdAt: string | Date;
     updatedAt: string | Date;
   }>;
-  addresses: Array<{
+  address: {
     id: string;
     partyLegalProfileId: string;
-    label: string | null;
     countryCode: string | null;
     postalCode: string | null;
     city: string | null;
-    line1: string | null;
-    line2: string | null;
-    rawText: string | null;
-    isPrimary: boolean;
+    streetAddress: string | null;
+    addressDetails: string | null;
+    fullAddress: string | null;
     createdAt: string | Date;
     updatedAt: string | Date;
-  }>;
+  } | null;
   contacts: Array<{
     id: string;
     partyLegalProfileId: string;

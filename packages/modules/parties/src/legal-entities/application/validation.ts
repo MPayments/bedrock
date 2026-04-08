@@ -2,7 +2,6 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { assertUniqueLegalIdentifierSchemes } from "../domain/legal-identifier-schemes";
 import type {
-  PartyAddressInput,
   PartyContactInput,
   PartyLegalEntityBundleInput,
   PartyLegalIdentifierInput,
@@ -38,10 +37,6 @@ export function validateIdentifierInputs(
   assertUniqueLegalIdentifierSchemes(items);
 }
 
-export function validateAddressInputs(items: readonly PartyAddressInput[]) {
-  assertSinglePrimary(items, () => "address", "address");
-}
-
 export function validateContactInputs(items: readonly PartyContactInput[]) {
   assertSinglePrimary(items, (item) => item.type, "contact");
 }
@@ -56,7 +51,6 @@ export function validateLegalEntityBundleInput(
   bundle: PartyLegalEntityBundleInput,
 ) {
   validateIdentifierInputs(bundle.identifiers);
-  validateAddressInputs(bundle.addresses);
   validateContactInputs(bundle.contacts);
   validateRepresentativeInputs(bundle.representatives);
 }

@@ -55,10 +55,10 @@ export class CreateOrganizationCommand {
           ownerId: id,
           items: validated.legalEntity.identifiers,
         });
-        const addresses = await tx.legalEntities.replaceAddresses({
+        const address = await tx.legalEntities.replaceAddress({
           ownerType: "organization",
           ownerId: id,
-          items: validated.legalEntity.addresses,
+          item: validated.legalEntity.address,
         });
         const contacts = await tx.legalEntities.replaceContacts({
           ownerType: "organization",
@@ -79,7 +79,7 @@ export class CreateOrganizationCommand {
         legalEntity = {
           profile,
           identifiers,
-          addresses,
+          address,
           contacts,
           representatives,
           licenses,

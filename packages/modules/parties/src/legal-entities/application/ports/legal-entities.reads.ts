@@ -22,11 +22,10 @@ export interface LegalEntitiesReads {
   listIdentifiersByOwner(
     input: LegalEntityOwnerRef,
   ): Promise<PartyLegalIdentifier[]>;
-  listAddressesByOwner(input: LegalEntityOwnerRef): Promise<PartyAddress[]>;
+  findAddressByOwner(input: LegalEntityOwnerRef): Promise<PartyAddress | null>;
   listContactsByOwner(input: LegalEntityOwnerRef): Promise<PartyContact[]>;
   listRepresentativesByOwner(
     input: LegalEntityOwnerRef,
   ): Promise<PartyRepresentative[]>;
   listLicensesByOwner(input: LegalEntityOwnerRef): Promise<PartyLicense[]>;
 }
-

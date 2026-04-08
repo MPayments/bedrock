@@ -47,7 +47,11 @@ type RequisiteProviderMasterDataEditorProps = {
   onSubmit?: (
     input: RequisiteProviderMasterDataInput,
   ) =>
-    | Promise<RequisiteProviderMasterDataInput | RequisiteProviderMasterDataSource | void>
+    | Promise<
+        | RequisiteProviderMasterDataInput
+        | RequisiteProviderMasterDataSource
+        | void
+      >
     | RequisiteProviderMasterDataInput
     | RequisiteProviderMasterDataSource
     | void;
@@ -64,8 +68,20 @@ const PROVIDER_KIND_OPTIONS = [
   { value: "custodian", label: "Кастодиан" },
 ] as const;
 
+type ItemUpdater<T> = (item: T) => T;
+
 function serializeProviderForCompare(input: RequisiteProviderMasterDataInput) {
   return JSON.stringify(input);
+}
+
+function updateItemAtIndex<T>(
+  items: T[],
+  index: number,
+  updater: ItemUpdater<T>,
+) {
+  return items.map((item, itemIndex) =>
+    itemIndex === index ? updater(item) : item,
+  );
 }
 
 function SectionCard(props: {
@@ -92,10 +108,7 @@ function SectionCard(props: {
   );
 }
 
-function RemoveButton(props: {
-  disabled?: boolean;
-  onRemove: () => void;
-}) {
+function RemoveButton(props: { disabled?: boolean; onRemove: () => void }) {
   return (
     <Button
       type="button"
@@ -200,9 +213,45 @@ export function RequisiteProviderMasterDataEditor({
 
   const isDirty = useMemo(
     () =>
-      serializeProviderForCompare(draft) !== serializeProviderForCompare(initialDraft),
+      serializeProviderForCompare(draft) !==
+      serializeProviderForCompare(initialDraft),
     [draft, initialDraft],
   );
+
+  function updateIdentifier(
+    index: number,
+    updater: ItemUpdater<RequisiteProviderIdentifierInput>,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      identifiers: updateItemAtIndex(current.identifiers, index, updater),
+    }));
+  }
+
+  function updateBranch(
+    index: number,
+    updater: ItemUpdater<RequisiteProviderBranchInput>,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      branches: updateItemAtIndex(current.branches, index, updater),
+    }));
+  }
+
+  function updateBranchIdentifier(
+    branchIndex: number,
+    identifierIndex: number,
+    updater: ItemUpdater<RequisiteProviderIdentifierInput>,
+  ) {
+    updateBranch(branchIndex, (branch) => ({
+      ...branch,
+      identifiers: updateItemAtIndex(
+        branch.identifiers,
+        identifierIndex,
+        updater,
+      ),
+    }));
+  }
 
   async function handleSubmit() {
     if (!onSubmit) {
@@ -211,13 +260,17 @@ export function RequisiteProviderMasterDataEditor({
 
     try {
       setLocalError(null);
-      const nextValue = await onSubmit(cloneRequisiteProviderMasterDataInput(draft));
+      const nextValue = await onSubmit(
+        cloneRequisiteProviderMasterDataInput(draft),
+      );
       if (!nextValue) {
         return;
       }
 
       const nextDraft =
-        "branches" in nextValue && "identifiers" in nextValue && "displayName" in nextValue
+        "branches" in nextValue &&
+        "identifiers" in nextValue &&
+        "displayName" in nextValue
           ? toRequisiteProviderMasterDataInput(nextValue)
           : nextValue;
       setDraft(cloneRequisiteProviderMasterDataInput(nextDraft));
@@ -240,14 +293,24 @@ export function RequisiteProviderMasterDataEditor({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setDraft(cloneRequisiteProviderMasterDataInput(initialDraft))}
+              onClick={() =>
+                setDraft(cloneRequisiteProviderMasterDataInput(initialDraft))
+              }
               disabled={!isDirty || submitting}
             >
               <X className="size-4" />
               Отменить
             </Button>
-            <Button type="button" onClick={() => void handleSubmit()} disabled={!isDirty || submitting}>
-              {submitting ? <Spinner className="size-4" /> : <Save className="size-4" />}
+            <Button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={!isDirty || submitting}
+            >
+              {submitting ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Save className="size-4" />
+              )}
               {submitting ? submittingLabel : submitLabel}
             </Button>
           </div>
@@ -376,16 +439,23 @@ export function RequisiteProviderMasterDataEditor({
       >
         <div className="space-y-4">
           {draft.identifiers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Идентификаторы пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Идентификаторы пока не добавлены.
+            </p>
           ) : null}
           {draft.identifiers.map((identifier, index) => (
-            <div key={identifier.id ?? `${identifier.scheme}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div
+              key={identifier.id ?? `${identifier.scheme}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
                     setDraft((current) => ({
                       ...current,
-                      identifiers: current.identifiers.filter((_, itemIndex) => itemIndex !== index),
+                      identifiers: current.identifiers.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
                     }))
                   }
                   disabled={submitting}
@@ -397,11 +467,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={identifier.scheme}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, scheme: event.target.value } : item,
-                        ),
+                      updateIdentifier(index, (item) => ({
+                        ...item,
+                        scheme: event.target.value,
                       }))
                     }
                     disabled={submitting}
@@ -412,11 +480,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={identifier.value}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        identifiers: current.identifiers.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, value: event.target.value } : item,
-                        ),
+                      updateIdentifier(index, (item) => ({
+                        ...item,
+                        value: event.target.value,
                       }))
                     }
                     disabled={submitting}
@@ -425,11 +491,9 @@ export function RequisiteProviderMasterDataEditor({
                 <BooleanField
                   checked={identifier.isPrimary}
                   onChange={(nextValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      identifiers: current.identifiers.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
-                      ),
+                    updateIdentifier(index, (item) => ({
+                      ...item,
+                      isPrimary: nextValue,
                     }))
                   }
                   label="Основной идентификатор"
@@ -458,16 +522,23 @@ export function RequisiteProviderMasterDataEditor({
       >
         <div className="space-y-4">
           {draft.branches.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Филиалы пока не добавлены.</p>
+            <p className="text-sm text-muted-foreground">
+              Филиалы пока не добавлены.
+            </p>
           ) : null}
           {draft.branches.map((branch, index) => (
-            <div key={branch.id ?? `${branch.name}-${index}`} className="space-y-4 rounded-md border p-4">
+            <div
+              key={branch.id ?? `${branch.name}-${index}`}
+              className="space-y-4 rounded-md border p-4"
+            >
               <div className="flex justify-end">
                 <RemoveButton
                   onRemove={() =>
                     setDraft((current) => ({
                       ...current,
-                      branches: current.branches.filter((_, itemIndex) => itemIndex !== index),
+                      branches: current.branches.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
                     }))
                   }
                   disabled={submitting}
@@ -479,11 +550,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.name}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, name: event.target.value } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        name: event.target.value,
                       }))
                     }
                     disabled={submitting}
@@ -494,11 +563,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.code ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, code: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        code: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -509,11 +576,9 @@ export function RequisiteProviderMasterDataEditor({
                   <CountrySelect
                     value={branch.country ?? ""}
                     onValueChange={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, country: value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        country: value || null,
                       }))
                     }
                     disabled={submitting}
@@ -529,11 +594,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.city ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, city: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        city: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -544,13 +607,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.postalCode ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, postalCode: event.target.value || null }
-                            : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        postalCode: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -561,11 +620,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.line1 ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, line1: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        line1: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -576,11 +633,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.line2 ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, line2: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        line2: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -591,11 +646,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Textarea
                     value={branch.rawAddress ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, rawAddress: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        rawAddress: event.target.value || null,
                       }))
                     }
                     rows={3}
@@ -607,11 +660,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.contactEmail ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, contactEmail: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        contactEmail: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -622,11 +673,9 @@ export function RequisiteProviderMasterDataEditor({
                   <Input
                     value={branch.contactPhone ?? ""}
                     onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, contactPhone: event.target.value || null } : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        contactPhone: event.target.value || null,
                       }))
                     }
                     disabled={submitting}
@@ -635,11 +684,9 @@ export function RequisiteProviderMasterDataEditor({
                 <BooleanField
                   checked={branch.isPrimary}
                   onChange={(nextValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      branches: current.branches.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, isPrimary: nextValue } : item,
-                      ),
+                    updateBranch(index, (item) => ({
+                      ...item,
+                      isPrimary: nextValue,
                     }))
                   }
                   label="Основной филиал"
@@ -650,7 +697,9 @@ export function RequisiteProviderMasterDataEditor({
               <div className="space-y-4 rounded-md border border-dashed p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Идентификаторы филиала</h4>
+                    <h4 className="text-sm font-medium">
+                      Идентификаторы филиала
+                    </h4>
                     <p className="text-sm text-muted-foreground">
                       SWIFT, branch code и другие branch-owned идентификаторы.
                     </p>
@@ -658,41 +707,34 @@ export function RequisiteProviderMasterDataEditor({
                   <RowActions
                     addLabel="Добавить"
                     onAdd={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        branches: current.branches.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? {
-                                ...item,
-                                identifiers: [...item.identifiers, emptyIdentifier()],
-                              }
-                            : item,
-                        ),
+                      updateBranch(index, (item) => ({
+                        ...item,
+                        identifiers: [...item.identifiers, emptyIdentifier()],
                       }))
                     }
                     disabled={submitting}
                   />
                 </div>
                 {branch.identifiers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Идентификаторы филиала пока не добавлены.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Идентификаторы филиала пока не добавлены.
+                  </p>
                 ) : null}
                 {branch.identifiers.map((identifier, identifierIndex) => (
-                  <div key={identifier.id ?? `${identifier.scheme}-${identifierIndex}`} className="space-y-4 rounded-md border p-4">
+                  <div
+                    key={
+                      identifier.id ?? `${identifier.scheme}-${identifierIndex}`
+                    }
+                    className="space-y-4 rounded-md border p-4"
+                  >
                     <div className="flex justify-end">
                       <RemoveButton
                         onRemove={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            branches: current.branches.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? {
-                                    ...item,
-                                    identifiers: item.identifiers.filter(
-                                      (_, itemIdentifierIndex) =>
-                                        itemIdentifierIndex !== identifierIndex,
-                                    ),
-                                  }
-                                : item,
+                          updateBranch(index, (item) => ({
+                            ...item,
+                            identifiers: item.identifiers.filter(
+                              (_, itemIdentifierIndex) =>
+                                itemIdentifierIndex !== identifierIndex,
                             ),
                           }))
                         }
@@ -705,24 +747,14 @@ export function RequisiteProviderMasterDataEditor({
                         <Input
                           value={identifier.scheme}
                           onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              branches: current.branches.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? {
-                                      ...item,
-                                      identifiers: item.identifiers.map((branchIdentifier, branchIdentifierIndex) =>
-                                        branchIdentifierIndex === identifierIndex
-                                          ? {
-                                              ...branchIdentifier,
-                                              scheme: event.target.value,
-                                            }
-                                          : branchIdentifier,
-                                      ),
-                                    }
-                                  : item,
-                              ),
-                            }))
+                            updateBranchIdentifier(
+                              index,
+                              identifierIndex,
+                              (branchIdentifier) => ({
+                                ...branchIdentifier,
+                                scheme: event.target.value,
+                              }),
+                            )
                           }
                           disabled={submitting}
                         />
@@ -732,24 +764,14 @@ export function RequisiteProviderMasterDataEditor({
                         <Input
                           value={identifier.value}
                           onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              branches: current.branches.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? {
-                                      ...item,
-                                      identifiers: item.identifiers.map((branchIdentifier, branchIdentifierIndex) =>
-                                        branchIdentifierIndex === identifierIndex
-                                          ? {
-                                              ...branchIdentifier,
-                                              value: event.target.value,
-                                            }
-                                          : branchIdentifier,
-                                      ),
-                                    }
-                                  : item,
-                              ),
-                            }))
+                            updateBranchIdentifier(
+                              index,
+                              identifierIndex,
+                              (branchIdentifier) => ({
+                                ...branchIdentifier,
+                                value: event.target.value,
+                              }),
+                            )
                           }
                           disabled={submitting}
                         />
@@ -757,24 +779,14 @@ export function RequisiteProviderMasterDataEditor({
                       <BooleanField
                         checked={identifier.isPrimary}
                         onChange={(nextValue) =>
-                          setDraft((current) => ({
-                            ...current,
-                            branches: current.branches.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? {
-                                    ...item,
-                                    identifiers: item.identifiers.map((branchIdentifier, branchIdentifierIndex) =>
-                                      branchIdentifierIndex === identifierIndex
-                                        ? {
-                                            ...branchIdentifier,
-                                            isPrimary: nextValue,
-                                          }
-                                        : branchIdentifier,
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          }))
+                          updateBranchIdentifier(
+                            index,
+                            identifierIndex,
+                            (branchIdentifier) => ({
+                              ...branchIdentifier,
+                              isPrimary: nextValue,
+                            }),
+                          )
                         }
                         label="Основной идентификатор филиала"
                         disabled={submitting}

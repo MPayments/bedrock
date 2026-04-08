@@ -1,72 +1,42 @@
 import { z } from "zod";
 
-export const SubAgentSchema = z.object({
-  commissionRate: z.number(),
-  counterpartyId: z.string(),
-  country: z.string().nullable(),
-  fullName: z.string(),
-  isActive: z.boolean(),
-  kind: z.enum(["individual", "legal_entity"]),
-  shortName: z.string(),
-});
+export type SubAgent = {
+  commissionRate: number;
+  counterpartyId: string;
+  country: string | null;
+  fullName: string;
+  isActive: boolean;
+  kind: "individual" | "legal_entity";
+  shortName: string;
+};
 
-export type SubAgent = z.infer<typeof SubAgentSchema>;
+export type CustomerLegalEntity = {
+  counterpartyId: string;
+  country: string | null;
+  createdAt: string;
+  externalId: string | null;
+  fullName: string;
+  inn: string | null;
+  orgName: string;
+  relationshipKind: "customer_owned" | "external";
+  shortName: string;
+  subAgent: SubAgent | null;
+  subAgentCounterpartyId: string | null;
+  updatedAt: string;
+};
 
-export const CustomerLegalEntitySchema = z.object({
-  account: z.string().nullable(),
-  address: z.string().nullable(),
-  bankAddress: z.string().nullable(),
-  bankCountry: z.string().nullable(),
-  bankName: z.string().nullable(),
-  bankProviderId: z.string().nullable(),
-  bic: z.string().nullable(),
-  beneficiaryName: z.string().nullable(),
-  contractNumber: z.string().nullable(),
-  corrAccount: z.string().nullable(),
-  counterpartyId: z.string(),
-  country: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-  directorBasis: z.string().nullable(),
-  directorName: z.string().nullable(),
-  email: z.string().nullable(),
-  externalId: z.string().nullable(),
-  fullName: z.string(),
-  inn: z.string().nullable(),
-  iban: z.string().nullable(),
-  kpp: z.string().nullable(),
-  ogrn: z.string().nullable(),
-  okpo: z.string().nullable(),
-  oktmo: z.string().nullable(),
-  orgName: z.string(),
-  orgType: z.string().nullable(),
-  phone: z.string().nullable(),
-  position: z.string().nullable(),
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  shortName: z.string(),
-  subAgent: SubAgentSchema.nullable(),
-  subAgentCounterpartyId: z.string().nullable(),
-  swift: z.string().nullable(),
-  updatedAt: z.iso.datetime(),
-});
-
-export type CustomerLegalEntity = z.infer<typeof CustomerLegalEntitySchema>;
-
-export const CustomerWorkspaceDetailSchema = z.object({
-  createdAt: z.iso.datetime(),
-  description: z.string().nullable(),
-  displayName: z.string(),
-  externalRef: z.string().nullable(),
-  hasActiveAgreement: z.boolean(),
-  id: z.string(),
-  legalEntities: z.array(CustomerLegalEntitySchema),
-  legalEntityCount: z.number().int().nonnegative(),
-  primaryCounterpartyId: z.string().nullable(),
-  updatedAt: z.iso.datetime(),
-});
-
-export type CustomerWorkspaceDetail = z.infer<
-  typeof CustomerWorkspaceDetailSchema
->;
+export type CustomerWorkspaceDetail = {
+  createdAt: string;
+  description: string | null;
+  displayName: string;
+  externalRef: string | null;
+  hasActiveAgreement: boolean;
+  id: string;
+  legalEntities: CustomerLegalEntity[];
+  legalEntityCount: number;
+  primaryCounterpartyId: string | null;
+  updatedAt: string;
+};
 
 export const ClientDocumentSchema = z.object({
   createdAt: z.iso.datetime(),
@@ -91,51 +61,16 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormData = z.infer<typeof customerFormSchema>;
 
-export const legalEntityFormSchema = z.object({
-  address: z.string().optional(),
-  directorBasis: z.string().optional(),
-  directorName: z.string().optional(),
-  email: z.string().optional(),
-  inn: z.string().optional(),
-  kpp: z.string().optional(),
-  ogrn: z.string().optional(),
-  okpo: z.string().optional(),
-  oktmo: z.string().optional(),
-  orgName: z.string().min(1, "Название юридического лица обязательно"),
-  orgType: z.string().optional(),
-  phone: z.string().optional(),
-  position: z.string().optional(),
-});
-
-export type LegalEntityFormData = z.infer<typeof legalEntityFormSchema>;
-
 export function customerToFormValues(
-  workspace: CustomerWorkspaceDetail | null,
+  workspace: Pick<
+    CustomerWorkspaceDetail,
+    "description" | "displayName" | "externalRef"
+  > | null,
 ): CustomerFormData {
   return {
     description: workspace?.description ?? "",
     displayName: workspace?.displayName ?? "",
     externalRef: workspace?.externalRef ?? "",
-  };
-}
-
-export function legalEntityToFormValues(
-  legalEntity: CustomerLegalEntity | null,
-): LegalEntityFormData {
-  return {
-    address: legalEntity?.address ?? "",
-    directorBasis: legalEntity?.directorBasis ?? "",
-    directorName: legalEntity?.directorName ?? "",
-    email: legalEntity?.email ?? "",
-    inn: legalEntity?.inn ?? "",
-    kpp: legalEntity?.kpp ?? "",
-    ogrn: legalEntity?.ogrn ?? "",
-    okpo: legalEntity?.okpo ?? "",
-    oktmo: legalEntity?.oktmo ?? "",
-    orgName: legalEntity?.orgName ?? "",
-    orgType: legalEntity?.orgType ?? "",
-    phone: legalEntity?.phone ?? "",
-    position: legalEntity?.position ?? "",
   };
 }
 

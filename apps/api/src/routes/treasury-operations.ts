@@ -31,7 +31,6 @@ import {
 import { ErrorSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
-import { projectLegacyRequisiteRouting } from "./legacy-party-projections";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
@@ -309,14 +308,11 @@ function buildRequisiteAccountSummary(requisite: RequisiteRecord | null | undefi
     return null;
   }
 
-  const routing = projectLegacyRequisiteRouting({
-    provider: null,
-    requisite,
-  });
-
   const identity =
     resolveRequisiteIdentity({
-      accountNo: routing.accountNo,
+      accountNo:
+        findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+        null,
       accountRef:
         findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
       address:
@@ -325,8 +321,9 @@ function buildRequisiteAccountSummary(requisite: RequisiteRecord | null | undefi
       beneficiaryName: requisite.beneficiaryName,
       bic: null,
       contact: null,
-      corrAccount: routing.corrAccount,
-      iban: routing.iban,
+      corrAccount:
+        findRequisiteIdentifier(requisite, "corr_account")?.value ?? null,
+      iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
       kind: requisite.kind,
       memoTag:
         findRequisiteIdentifier(requisite, "memo_tag")?.value ?? null,

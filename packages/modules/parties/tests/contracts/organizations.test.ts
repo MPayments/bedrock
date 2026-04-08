@@ -21,7 +21,7 @@ describe("organizations contracts", () => {
           countryCode: "us",
         },
         identifiers: [],
-        addresses: [],
+        address: null,
         contacts: [],
         representatives: [],
         licenses: [],

@@ -1023,14 +1023,12 @@ CREATE TABLE "outbox" (
 CREATE TABLE "party_addresses" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"party_legal_profile_id" uuid NOT NULL,
-	"label" text,
 	"country_code" "party_country_code",
 	"postal_code" text,
 	"city" text,
-	"line_1" text,
-	"line_2" text,
-	"raw_text" text,
-	"is_primary" boolean DEFAULT false NOT NULL,
+	"street_address" text,
+	"address_details" text,
+	"full_address" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1039,7 +1037,6 @@ CREATE TABLE "party_contacts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"party_legal_profile_id" uuid NOT NULL,
 	"type" text NOT NULL,
-	"label" text,
 	"value" text NOT NULL,
 	"is_primary" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1717,8 +1714,7 @@ CREATE UNIQUE INDEX "outbox_kind_ref_uq" ON "outbox" USING btree ("kind","ref_id
 CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","available_at","created_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint
 CREATE INDEX "outbox_status_avail_idx" ON "outbox" USING btree ("status","available_at");--> statement-breakpoint
-CREATE INDEX "party_addresses_profile_idx" ON "party_addresses" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_addresses_primary_uq" ON "party_addresses" USING btree ("party_legal_profile_id") WHERE "party_addresses"."is_primary" = true;--> statement-breakpoint
+CREATE UNIQUE INDEX "party_addresses_profile_uq" ON "party_addresses" USING btree ("party_legal_profile_id");--> statement-breakpoint
 CREATE INDEX "party_contacts_profile_idx" ON "party_contacts" USING btree ("party_legal_profile_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "party_contacts_primary_uq" ON "party_contacts" USING btree ("party_legal_profile_id","type") WHERE "party_contacts"."is_primary" = true;--> statement-breakpoint
 CREATE INDEX "party_legal_identifiers_profile_idx" ON "party_legal_identifiers" USING btree ("party_legal_profile_id");--> statement-breakpoint

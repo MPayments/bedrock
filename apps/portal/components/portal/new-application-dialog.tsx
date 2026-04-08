@@ -51,6 +51,10 @@ import {
 import {
   type PortalCustomerContext,
   type PortalLegalEntityContext,
+  resolvePortalCustomerDisplayName,
+  resolvePortalCustomerId,
+  resolvePortalLegalEntityInn,
+  resolvePortalPrimaryCounterpartyId,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
 import {
@@ -184,8 +188,8 @@ export function NewDealDialog({
         customer.legalEntities.map((legalEntity) => ({
           agentAgreementStatus: customer.agentAgreement.status,
           ...legalEntity,
-          customerDisplayName: customer.displayName,
-          customerId: customer.customerId,
+          customerDisplayName: resolvePortalCustomerDisplayName(customer),
+          customerId: resolvePortalCustomerId(customer),
         })),
       ),
     [customers],
@@ -200,7 +204,7 @@ export function NewDealDialog({
 
   const selectedLegalEntity =
     legalEntities.find(
-      (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
+      (legalEntity) => legalEntity.id === selectedCounterpartyId,
     ) ?? null;
   const selectedLegalEntityEligible =
     selectedLegalEntity?.agentAgreementStatus === "active";
@@ -240,14 +244,14 @@ export function NewDealDialog({
       customers
         .flatMap((customer) =>
           customer.legalEntities.map((legalEntity) => ({
-            counterpartyId: legalEntity.counterpartyId,
+            counterpartyId: legalEntity.id,
             eligible: customer.agentAgreement.status === "active",
             preferred:
-              customer.primaryCounterpartyId === legalEntity.counterpartyId,
+              resolvePortalPrimaryCounterpartyId(customer) === legalEntity.id,
           })),
         )
         .find((item) => item.preferred && item.eligible)?.counterpartyId ??
-      eligibleLegalEntities[0]?.counterpartyId;
+      eligibleLegalEntities[0]?.id;
 
     if (preferredCounterparty) {
       setSelectedCounterpartyId(preferredCounterparty);
@@ -475,7 +479,7 @@ export function NewDealDialog({
                   <CommandGroup>
                     {legalEntities.map((legalEntity) => (
                       <CommandItem
-                        key={legalEntity.counterpartyId}
+                        key={legalEntity.id}
                         disabled={legalEntity.agentAgreementStatus !== "active"}
                         value={formatCustomerLegalEntityLabel({
                           customerDisplayName: legalEntity.customerDisplayName,
@@ -485,14 +489,14 @@ export function NewDealDialog({
                           if (legalEntity.agentAgreementStatus !== "active") {
                             return;
                           }
-                          setSelectedCounterpartyId(legalEntity.counterpartyId);
+                          setSelectedCounterpartyId(legalEntity.id);
                           setClientsOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4 shrink-0",
-                            selectedCounterpartyId === legalEntity.counterpartyId
+                            selectedCounterpartyId === legalEntity.id
                               ? "opacity-100"
                               : "opacity-0",
                           )}
@@ -507,9 +511,9 @@ export function NewDealDialog({
                               {legalEntity.customerDisplayName}
                             </span>
                           ) : null}
-                          {legalEntity.inn ? (
+                          {resolvePortalLegalEntityInn(legalEntity) ? (
                             <span className="block truncate text-xs text-muted-foreground">
-                              ИНН: {legalEntity.inn}
+                              ИНН: {resolvePortalLegalEntityInn(legalEntity)}
                             </span>
                           ) : null}
                           {legalEntity.agentAgreementStatus !== "active" ? (

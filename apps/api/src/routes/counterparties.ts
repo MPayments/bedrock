@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CounterpartyCustomerNotFoundError,
@@ -18,6 +18,7 @@ import {
   PaginatedCounterpartiesSchema,
   RequisiteListItemSchema,
   RequisiteSchema,
+  SubAgentProfileSchema,
   UpdateCounterpartyInputSchema,
 } from "@bedrock/parties/contracts";
 import {
@@ -51,6 +52,14 @@ const CreateCounterpartyRequisiteInputSchema = CreateRequisiteInputSchema.omit({
 const PaginatedCounterpartyRequisitesSchema = createPaginatedListSchema(
   RequisiteListItemSchema,
 );
+const CounterpartyAssignmentSchema = z.object({
+  counterpartyId: z.uuid(),
+  subAgent: SubAgentProfileSchema.nullable(),
+  subAgentCounterpartyId: z.uuid().nullable(),
+});
+const UpdateCounterpartyAssignmentInputSchema = z.object({
+  subAgentCounterpartyId: z.uuid().nullable(),
+});
 
 export function counterpartiesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -337,8 +346,82 @@ export function counterpartiesRoutes(ctx: AppContext) {
     },
   });
 
+  const getAssignmentRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/{id}/assignment",
+    tags: ["Counterparties"],
+    summary: "Get customer-owned counterparty assignment",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CounterpartyAssignmentSchema },
+        },
+        description: "Counterparty assignment",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  const updateAssignmentRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["update"] })],
+    method: "patch",
+    path: "/{id}/assignment",
+    tags: ["Counterparties"],
+    summary: "Update customer-owned counterparty assignment",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateCounterpartyAssignmentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CounterpartyAssignmentSchema },
+        },
+        description: "Counterparty assignment updated",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
   async function ensureCounterpartyExists(id: string) {
     await ctx.partiesModule.counterparties.queries.findById(id);
+  }
+
+  async function resolveAssignment(counterpartyId: string) {
+    const assignment =
+      (
+        await ctx.partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds(
+          [counterpartyId],
+        )
+      ).get(counterpartyId) ?? null;
+    const subAgent = assignment?.subAgentCounterpartyId
+      ? await ctx.partiesModule.subAgentProfiles.queries.findById(
+          assignment.subAgentCounterpartyId,
+        )
+      : null;
+
+    return {
+      counterpartyId,
+      subAgent,
+      subAgentCounterpartyId: assignment?.subAgentCounterpartyId ?? null,
+    };
   }
 
   return app
@@ -494,6 +577,35 @@ export function counterpartiesRoutes(ctx: AppContext) {
         );
         if (handled) {
           return c.json(handled.body, handled.status);
+        }
+        throw err;
+      }
+    })
+    .openapi(getAssignmentRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        await ensureCounterpartyExists(id);
+        return c.json(await resolveAssignment(id), 200);
+      } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        throw err;
+      }
+    })
+    .openapi(updateAssignmentRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+      try {
+        await ensureCounterpartyExists(id);
+        await ctx.partiesReadRuntime.counterpartiesQueries.upsertAssignment({
+          counterpartyId: id,
+          subAgentCounterpartyId: input.subAgentCounterpartyId,
+        });
+        return c.json(await resolveAssignment(id), 200);
+      } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
         }
         throw err;
       }

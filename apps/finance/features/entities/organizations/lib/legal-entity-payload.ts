@@ -19,7 +19,7 @@ export function buildOrganizationLegalEntityPayload(
       businessActivityText: current?.profile.businessActivityText ?? null,
     },
     identifiers: current?.identifiers ?? [],
-    addresses: current?.addresses ?? [],
+    address: current?.address ?? null,
     contacts: current?.contacts ?? [],
     representatives: current?.representatives ?? [],
     licenses: current?.licenses ?? [],

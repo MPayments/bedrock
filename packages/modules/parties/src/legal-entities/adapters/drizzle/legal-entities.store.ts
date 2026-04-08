@@ -142,40 +142,36 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
     return rows as PartyLegalIdentifier[];
   }
 
-  async replaceAddresses(input: {
+  async replaceAddress(input: {
     ownerType: PartyLegalOwnerType;
     ownerId: string;
-    items: PartyAddressInput[];
-  }): Promise<PartyAddress[]> {
+    item: PartyAddressInput | null;
+  }): Promise<PartyAddress | null> {
     const profile = await this.requireProfile(input);
 
     await this.db
       .delete(partyAddresses)
       .where(eq(partyAddresses.partyLegalProfileId, profile.id));
 
-    if (input.items.length === 0) {
-      return [];
+    if (!input.item) {
+      return null;
     }
 
-    const rows = await this.db
+    const [row] = await this.db
       .insert(partyAddresses)
-      .values(
-        input.items.map((item) => ({
-          id: item.id,
-          partyLegalProfileId: profile.id,
-          label: item.label,
-          countryCode: item.countryCode,
-          postalCode: item.postalCode,
-          city: item.city,
-          line1: item.line1,
-          line2: item.line2,
-          rawText: item.rawText,
-          isPrimary: item.isPrimary,
-        })),
-      )
+      .values({
+        id: input.item.id,
+        partyLegalProfileId: profile.id,
+        countryCode: input.item.countryCode,
+        postalCode: input.item.postalCode,
+        city: input.item.city,
+        streetAddress: input.item.streetAddress,
+        addressDetails: input.item.addressDetails,
+        fullAddress: input.item.fullAddress,
+      })
       .returning();
 
-    return rows as PartyAddress[];
+    return (row ?? null) as PartyAddress | null;
   }
 
   async replaceContacts(input: {
@@ -200,7 +196,6 @@ export class DrizzleLegalEntitiesStore implements LegalEntitiesStore {
           id: item.id,
           partyLegalProfileId: profile.id,
           type: item.type,
-          label: item.label,
           value: item.value,
           isPrimary: item.isPrimary,
         })),

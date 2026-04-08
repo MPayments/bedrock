@@ -22,10 +22,10 @@ export class ReplaceLegalEntityBundleCommand {
         ownerId: input.ownerId,
         items: input.bundle.identifiers,
       });
-      await tx.legalEntities.replaceAddresses({
+      await tx.legalEntities.replaceAddress({
         ownerType: input.ownerType,
         ownerId: input.ownerId,
-        items: input.bundle.addresses,
+        item: input.bundle.address,
       });
       await tx.legalEntities.replaceContacts({
         ownerType: input.ownerType,

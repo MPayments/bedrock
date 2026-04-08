@@ -28,9 +28,9 @@ export interface LegalEntitiesStore {
   replaceIdentifiers(
     input: LegalEntityOwnerRef & { items: PartyLegalIdentifierInput[] },
   ): Promise<PartyLegalIdentifier[]>;
-  replaceAddresses(
-    input: LegalEntityOwnerRef & { items: PartyAddressInput[] },
-  ): Promise<PartyAddress[]>;
+  replaceAddress(
+    input: LegalEntityOwnerRef & { item: PartyAddressInput | null },
+  ): Promise<PartyAddress | null>;
   replaceContacts(
     input: LegalEntityOwnerRef & { items: PartyContactInput[] },
   ): Promise<PartyContact[]>;

@@ -1,7 +1,17 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
-import { type PartiesModule } from "@bedrock/parties";
+import {
+  findPartyAddress,
+  findPartyLegalIdentifier,
+  findPartyRepresentative,
+  findRequisiteIdentifier,
+  findRequisiteProviderIdentifier,
+  formatPartyAddress,
+  formatRequisiteProviderAddress,
+  resolveRequisiteProviderDisplayName,
+  type PartiesModule,
+} from "@bedrock/parties";
 import type {
   Counterparty,
   Organization,
@@ -17,10 +27,8 @@ import {
   GenerateDocumentInputSchema,
   type CalculationDocumentData,
   type ClientContractAgreement,
-  type ClientContractClient,
-  type ClientContractOrganization,
-  type ClientContractOrganizationBankRequisite,
   type ClientContractFormat,
+  type DocumentLocalizedText,
   type DocumentLanguage,
   type GenerateCustomerContractInput,
   type GenerateDocumentInput,
@@ -36,10 +44,11 @@ import {
   bufferToImageContent,
 } from "./data-assembly";
 import type { DocumentFormat, DocumentLang, OrgFiles } from "./data-assembly";
-import {
-  projectLegacyPartyLegalEntity,
-  projectLegacyRequisiteRouting,
-} from "./legacy-projections";
+import type {
+  ContractClientData,
+  ContractOrganizationData,
+  ContractOrganizationRequisiteData,
+} from "./data-assembly/contract-data";
 import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
@@ -209,82 +218,134 @@ function serializeAgreementForClientContract(
   };
 }
 
-function mapClientContractClient(input: {
+function toDocumentLocalizedText(
+  value: Record<string, string | null> | null | undefined,
+): DocumentLocalizedText | null {
+  if (!value) {
+    return null;
+  }
+
+  const ru = typeof value.ru === "string" ? value.ru : null;
+  const en = typeof value.en === "string" ? value.en : null;
+
+  return ru || en ? { en, ru } : null;
+}
+
+function mapContractClientData(input: {
   counterparty: Counterparty;
   bankRequisite: Requisite | null;
   provider: RequisiteProvider | null;
-}): ClientContractClient {
+}): ContractClientData {
   const { bankRequisite, counterparty, provider } = input;
-  const legal = projectLegacyPartyLegalEntity(counterparty);
-  const routing = projectLegacyRequisiteRouting({
-    provider,
-    requisite: bankRequisite,
-  });
+  const profile = counterparty.legalEntity?.profile ?? null;
+  const representative = findPartyRepresentative(counterparty);
 
   return {
     id: counterparty.id,
     orgName: counterparty.shortName,
-    orgNameI18n: legal.orgNameI18n,
-    orgType: legal.orgType,
-    orgTypeI18n: legal.orgTypeI18n,
-    directorName: legal.directorName,
-    directorNameI18n: legal.directorNameI18n,
-    directorBasis: legal.directorBasis,
-    directorBasisI18n: legal.directorBasisI18n,
-    address: legal.address,
-    addressI18n: legal.addressI18n,
-    inn: legal.inn ?? counterparty.externalId ?? null,
-    kpp: legal.kpp,
-    account: routing.accountNo,
-    corrAccount: routing.corrAccount,
-    bic: routing.bic,
-    bankName: routing.bankName,
+    orgNameI18n: toDocumentLocalizedText(profile?.shortNameI18n),
+    orgType: profile?.legalFormLabel ?? null,
+    orgTypeI18n: toDocumentLocalizedText(profile?.legalFormLabelI18n),
+    directorName: representative?.fullName ?? null,
+    directorNameI18n: toDocumentLocalizedText(representative?.fullNameI18n),
+    directorBasis: representative?.basisDocument ?? null,
+    directorBasisI18n: toDocumentLocalizedText(
+      representative?.basisDocumentI18n,
+    ),
+    address: formatPartyAddress(findPartyAddress(counterparty)),
+    addressI18n: null,
+    inn:
+      findPartyLegalIdentifier(counterparty, "inn")?.value ??
+      counterparty.externalId ??
+      null,
+    kpp: findPartyLegalIdentifier(counterparty, "kpp")?.value ?? null,
+    account:
+      findRequisiteIdentifier(bankRequisite, "local_account_number")?.value ??
+      null,
+    corrAccount:
+      findRequisiteIdentifier(bankRequisite, "corr_account")?.value ?? null,
+    bic:
+      findRequisiteProviderIdentifier({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+        scheme: "bic",
+      })?.value ?? null,
+    bankName:
+      resolveRequisiteProviderDisplayName({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+      }) ?? null,
     bankNameI18n: null,
-    bankAddress: routing.bankAddress,
+    bankAddress:
+      formatRequisiteProviderAddress({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+      }) ?? null,
     bankAddressI18n: null,
   };
 }
 
-function mapClientContractOrganization(
+function mapContractOrganizationData(
   organization: Organization,
-): ClientContractOrganization {
-  const legal = projectLegacyPartyLegalEntity(organization);
+): ContractOrganizationData {
+  const profile = organization.legalEntity?.profile ?? null;
+  const representative = findPartyRepresentative(organization);
 
   return {
     id: organization.id,
-    nameI18n: legal.orgNameI18n,
-    addressI18n: legal.addressI18n,
+    name: organization.shortName,
+    nameI18n: toDocumentLocalizedText(profile?.shortNameI18n),
+    address: formatPartyAddress(findPartyAddress(organization)),
+    addressI18n: null,
+    country: organization.country,
     countryI18n: null,
+    city: null,
     cityI18n: null,
-    directorNameI18n: legal.directorNameI18n,
-    inn: legal.inn,
-    taxId: legal.taxId,
-    kpp: legal.kpp,
+    directorName: representative?.fullName ?? null,
+    directorNameI18n: toDocumentLocalizedText(representative?.fullNameI18n),
+    inn:
+      findPartyLegalIdentifier(organization, "inn")?.value ??
+      organization.externalId ??
+      null,
+    taxId: findPartyLegalIdentifier(organization, "tax_id")?.value ?? null,
+    kpp: findPartyLegalIdentifier(organization, "kpp")?.value ?? null,
     signatureKey: organization.signatureKey ?? null,
     sealKey: organization.sealKey ?? null,
   };
 }
 
-function mapClientContractOrganizationRequisite(input: {
+function mapContractOrganizationRequisiteData(input: {
   currencyCode: string;
   provider: RequisiteProvider | null;
   requisite: Requisite;
-}): ClientContractOrganizationBankRequisite {
+}): ContractOrganizationRequisiteData {
   const { currencyCode, provider, requisite } = input;
-  const routing = projectLegacyRequisiteRouting({
-    provider,
-    requisite,
-  });
 
   return {
     id: requisite.id,
-    accountNo: routing.accountNo,
-    bic: routing.bic,
-    corrAccount: routing.corrAccount,
+    accountNo:
+      findRequisiteIdentifier(requisite, "local_account_number")?.value ?? null,
+    bic:
+      findRequisiteProviderIdentifier({
+        branchId: requisite.providerBranchId,
+        provider,
+        scheme: "bic",
+      })?.value ?? null,
+    corrAccount:
+      findRequisiteIdentifier(requisite, "corr_account")?.value ?? null,
     currencyCode,
-    institutionName: routing.bankName,
+    institutionName:
+      resolveRequisiteProviderDisplayName({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
     ownerId: requisite.ownerId,
-    swift: routing.swift,
+    swift:
+      findRequisiteProviderIdentifier({
+        branchId: requisite.providerBranchId,
+        provider,
+        scheme: "swift",
+      })?.value ?? null,
   };
 }
 
@@ -367,7 +428,7 @@ export function createDocumentGenerationWorkflow(
   }
 
   async function fetchConfiguredOrgFiles(
-    organization: ClientContractOrganization,
+    organization: Organization,
   ): Promise<OrgFiles> {
     if (!deps.objectStorage) {
       throw new Error("Object storage not configured");
@@ -401,13 +462,27 @@ export function createDocumentGenerationWorkflow(
   ): Promise<GeneratedDocument> {
     const format = (input.format ?? "docx") as DocumentFormat;
     const lang = (input.lang ?? "ru") as DocumentLang;
-    const orgFiles = await fetchConfiguredOrgFiles(input.organization);
+    const [orgFiles, organizationCurrency] = await Promise.all([
+      fetchConfiguredOrgFiles(input.organization),
+      deps.currencies.findById(input.organizationRequisite.currencyId),
+    ]);
+    const client = mapContractClientData({
+      bankRequisite: input.clientBankRequisite,
+      counterparty: input.clientCounterparty,
+      provider: input.clientBankProvider,
+    });
+    const organization = mapContractOrganizationData(input.organization);
+    const organizationRequisite = mapContractOrganizationRequisiteData({
+      currencyCode: organizationCurrency?.code ?? input.organizationRequisite.currencyId,
+      provider: input.organizationRequisiteProvider,
+      requisite: input.organizationRequisite,
+    });
 
     const data = assembleClientContractData(
-      input.client,
+      client,
       input.agreement,
-      input.organization,
-      input.organizationRequisite,
+      organization,
+      organizationRequisite,
       orgFiles,
       lang,
     );
@@ -417,7 +492,7 @@ export function createDocumentGenerationWorkflow(
       data,
       lang,
       format,
-      input.organization.id,
+      organization.id,
     );
 
     const ext = format === "pdf" ? "pdf" : "docx";
@@ -506,12 +581,7 @@ export function createDocumentGenerationWorkflow(
           validated.counterpartyId,
         );
 
-      const [
-        organizationCurrency,
-        organizationProvider,
-        counterpartyProvider,
-      ] = await Promise.all([
-        deps.currencies.findById(organizationRequisite.currencyId),
+      const [organizationProvider, counterpartyProvider] = await Promise.all([
         findProviderByIdOrNull(
           deps.parties,
           organizationRequisite.providerId,
@@ -524,19 +594,14 @@ export function createDocumentGenerationWorkflow(
 
       return renderClientContractInternal({
         agreement: serializeAgreementForClientContract(agreement),
-        client: mapClientContractClient({
-          counterparty,
-          bankRequisite: counterpartyBankRequisite,
-          provider: counterpartyProvider,
-        }),
+        clientBankProvider: counterpartyProvider,
+        clientBankRequisite: counterpartyBankRequisite,
+        clientCounterparty: counterparty,
         format: validated.format as ClientContractFormat | undefined,
         lang: validated.lang as DocumentLanguage | undefined,
-        organization: mapClientContractOrganization(organization),
-        organizationRequisite: mapClientContractOrganizationRequisite({
-          currencyCode: organizationCurrency.code,
-          provider: organizationProvider,
-          requisite: organizationRequisite,
-        }),
+        organization,
+        organizationRequisite,
+        organizationRequisiteProvider: organizationProvider,
       });
     },
 

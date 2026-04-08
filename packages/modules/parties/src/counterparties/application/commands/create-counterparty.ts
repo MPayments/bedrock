@@ -100,10 +100,10 @@ export class CreateCounterpartyCommand {
           ownerId: createdSnapshot.id,
           items: validated.legalEntity.identifiers,
         });
-        const addresses = await tx.legalEntities.replaceAddresses({
+        const address = await tx.legalEntities.replaceAddress({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          items: validated.legalEntity.addresses,
+          item: validated.legalEntity.address,
         });
         const contacts = await tx.legalEntities.replaceContacts({
           ownerType: "counterparty",
@@ -124,7 +124,7 @@ export class CreateCounterpartyCommand {
         legalEntity = {
           profile,
           identifiers,
-          addresses,
+          address,
           contacts,
           representatives,
           licenses,

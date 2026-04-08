@@ -17,6 +17,12 @@ import {
 
 import {
   type PortalCustomerContext,
+  resolvePortalCustomerDescription,
+  resolvePortalCustomerDisplayName,
+  resolvePortalCustomerExternalRef,
+  resolvePortalCustomerId,
+  resolvePortalLegalEntityInn,
+  resolvePortalLegalEntityPhone,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
 import { isDuplicateCustomerLegalEntityName } from "@/lib/legal-entities";
@@ -81,7 +87,7 @@ export default function PortalClientsPage() {
       <div className="space-y-3">
         {customers.map((customer) => (
           <Card
-            key={customer.customerId}
+            key={resolvePortalCustomerId(customer)}
             className="transition-colors hover:bg-muted/50"
           >
             <CardHeader className="pb-2">
@@ -89,18 +95,18 @@ export default function PortalClientsPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="h-5 w-5 shrink-0 text-primary" />
                   <CardTitle className="truncate text-base">
-                    {customer.displayName}
+                    {resolvePortalCustomerDisplayName(customer)}
                   </CardTitle>
                 </div>
-                {customer.externalRef ? (
+                {resolvePortalCustomerExternalRef(customer) ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    Ref: {customer.externalRef}
+                    Ref: {resolvePortalCustomerExternalRef(customer)}
                   </span>
                 ) : null}
               </div>
-              {customer.description ? (
+              {resolvePortalCustomerDescription(customer) ? (
                 <CardDescription className="mt-1 text-sm">
-                  {customer.description}
+                  {resolvePortalCustomerDescription(customer)}
                 </CardDescription>
               ) : null}
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -126,28 +132,28 @@ export default function PortalClientsPage() {
               <div className="space-y-3">
                 {customer.legalEntities.map((legalEntity) => (
                   <div
-                    key={legalEntity.counterpartyId}
+                    key={legalEntity.id}
                     className="rounded-lg border border-border/60 p-3"
                   >
                     <div className="min-w-0">
                       {!isDuplicateCustomerLegalEntityName({
-                        customerDisplayName: customer.displayName,
+                        customerDisplayName: resolvePortalCustomerDisplayName(customer),
                         legalEntityName: legalEntity.shortName,
                       }) ? (
                         <p className="truncate font-medium">
                           {legalEntity.shortName}
                         </p>
                       ) : null}
-                      {legalEntity.inn ? (
+                      {resolvePortalLegalEntityInn(legalEntity) ? (
                         <p className="text-xs text-muted-foreground">
-                          ИНН: {legalEntity.inn}
+                          ИНН: {resolvePortalLegalEntityInn(legalEntity)}
                         </p>
                       ) : null}
                     </div>
-                    {legalEntity.phone ? (
+                    {resolvePortalLegalEntityPhone(legalEntity) ? (
                       <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="h-3.5 w-3.5" />
-                        <span>{legalEntity.phone}</span>
+                        <span>{resolvePortalLegalEntityPhone(legalEntity)}</span>
                       </div>
                     ) : null}
                   </div>

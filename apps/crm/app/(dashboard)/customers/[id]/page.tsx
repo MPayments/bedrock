@@ -344,13 +344,15 @@ export default function CustomerDetailPage() {
     try {
       setCustomerSaving(true);
       setError(null);
-      const updatedWorkspace = await updateCustomerWorkspace(customerId, {
+      await updateCustomerWorkspace(customerId, {
         description: normalizeOptionalText(data.description),
         displayName: data.displayName.trim(),
         externalRef: normalizeOptionalText(data.externalRef),
       });
-      setWorkspace(updatedWorkspace);
-      customerForm.reset(customerToFormValues(updatedWorkspace));
+      const updatedWorkspace = await fetchWorkspace();
+      if (updatedWorkspace) {
+        customerForm.reset(customerToFormValues(updatedWorkspace));
+      }
     } catch (saveError) {
       console.error("Failed to save customer workspace", saveError);
       setError(
@@ -705,39 +707,17 @@ export default function CustomerDetailPage() {
                 requisitesResetSignal={requisitesResetSignal}
                 onUploadDocument={() => setUploadDialogOpen(true)}
                 selectedLegalEntity={{
-                  account: null,
-                  address: null,
-                  bankAddress: null,
-                  bankCountry: null,
-                  bankName: null,
-                  bankProviderId: null,
-                  bic: null,
-                  beneficiaryName: null,
-                  contractNumber: null,
-                  corrAccount: null,
                   counterpartyId: "00000000-0000-0000-0000-000000000000",
                   country: null,
                   createdAt: workspace.createdAt,
-                  directorBasis: null,
-                  directorName: null,
-                  email: null,
                   externalId: null,
                   fullName: "",
                   inn: null,
-                  iban: null,
-                  kpp: null,
-                  ogrn: null,
-                  okpo: null,
-                  oktmo: null,
                   orgName: "",
-                  orgType: null,
-                  phone: null,
-                  position: null,
                   relationshipKind: "customer_owned",
                   shortName: "",
                   subAgent: null,
                   subAgentCounterpartyId: null,
-                  swift: null,
                   updatedAt: workspace.updatedAt,
                 }}
                 workspaceLegalEntities={workspace.legalEntities}

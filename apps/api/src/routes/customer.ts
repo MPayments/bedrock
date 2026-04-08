@@ -10,7 +10,12 @@ import {
   FileAttachmentPurposeSchema,
 } from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
-import { CustomerSchema } from "@bedrock/parties/contracts";
+import {
+  CounterpartySchema,
+  CustomerSchema,
+  RequisiteProviderSchema,
+  RequisiteSchema,
+} from "@bedrock/parties/contracts";
 import {
   PortalDealListProjectionSchema,
   PortalDealProjectionSchema,
@@ -44,41 +49,25 @@ const CustomerPortalProfileSchema = z.object({
   memberships: z.array(CustomerMembershipSchema),
 });
 
-const CustomerPortalLegalEntitySchema = z.object({
-  address: z.string().nullable(),
-  counterpartyId: z.string().uuid(),
-  country: z.string().nullable(),
-  createdAt: z.string(),
-  directorName: z.string().nullable(),
-  email: z.string().nullable(),
-  externalId: z.string().nullable(),
-  fullName: z.string(),
-  inn: z.string().nullable(),
-  phone: z.string().nullable(),
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  shortName: z.string(),
-  updatedAt: z.string(),
-});
-
 const CustomerPortalCustomerContextSchema = z.object({
   agentAgreement: z.object({
     contractNumber: z.string().nullable(),
     status: z.enum(["active", "missing"]),
   }),
-  createdAt: z.string(),
-  customerId: z.string().uuid(),
-  description: z.string().nullable(),
-  displayName: z.string(),
-  externalRef: z.string().nullable(),
-  legalEntities: z.array(CustomerPortalLegalEntitySchema),
-  legalEntityCount: z.number().int(),
-  primaryCounterpartyId: z.string().uuid().nullable(),
-  updatedAt: z.string(),
+  customer: CustomerSchema,
+  legalEntities: z.array(CounterpartySchema),
 });
 
 const CustomerPortalCustomerContextsSchema = z.object({
   data: z.array(CustomerPortalCustomerContextSchema),
   total: z.number().int(),
+});
+
+const CustomerPortalCreateLegalEntityResponseSchema = z.object({
+  counterparty: CounterpartySchema,
+  customer: CustomerSchema,
+  provider: RequisiteProviderSchema.nullable(),
+  requisite: RequisiteSchema.nullable(),
 });
 
 const CustomerPortalBankProviderInputSchema = z
@@ -479,7 +468,11 @@ export function customerRoutes(ctx: AppContext) {
     },
     responses: {
       201: {
-        content: { "application/json": { schema: z.any() } },
+        content: {
+          "application/json": {
+            schema: CustomerPortalCreateLegalEntityResponseSchema,
+          },
+        },
         description: "Legal entity created",
       },
       400: {
@@ -773,7 +766,7 @@ const getDealProjectionRoute = createRoute({
 
   async function listAuthorizedCustomerIds(userId: string) {
     const result = await ctx.customerPortalWorkflow.getCustomerContexts({ userId });
-    return Array.from(new Set(result.data.map((item) => item.customerId)));
+    return Array.from(new Set(result.data.map((item) => item.customer.id)));
   }
 
   async function findAuthorizedPortalDealProjection(
@@ -852,24 +845,25 @@ const getDealProjectionRoute = createRoute({
             const contract =
               await resolveEffectiveCustomerAgreementByCustomerId(
                 ctx,
-                customerContext.customerId,
+                customerContext.customer.id,
               );
 
-            return [customerContext.customerId, contract] as const;
+            return [customerContext.customer.id, contract] as const;
           }),
         ),
       );
 
       const data = result.data.map((customerContext) => {
         const contract =
-          contractsByCustomerId.get(customerContext.customerId) ?? null;
+          contractsByCustomerId.get(customerContext.customer.id) ?? null;
 
         return {
-          ...customerContext,
+          customer: customerContext.customer,
           agentAgreement: {
             contractNumber: contract?.contractNumber ?? null,
             status: contract?.isActive ? "active" : "missing",
           },
+          legalEntities: customerContext.legalEntities,
         } satisfies z.infer<typeof CustomerPortalCustomerContextSchema>;
       });
 

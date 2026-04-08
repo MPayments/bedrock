@@ -32,13 +32,9 @@ interface ClientRow {
   id: string;
   displayName: string;
   externalRef: string | null;
-  inn: string | null;
-  directorName: string | null;
-  email: string | null;
-  phone: string | null;
+  description: string | null;
   createdAt: string;
-  legalEntityCount: number;
-  primaryCounterpartyId: string | null;
+  updatedAt: string;
 }
 
 interface ClientsResponse {
@@ -111,7 +107,7 @@ export default function ClientsPage() {
         params.set("limit", String(pagination.pageSize));
 
         if (debouncedSearchQuery) {
-          params.set("q", debouncedSearchQuery);
+          params.set("displayName", debouncedSearchQuery);
         }
 
         const url = `${API_BASE_URL}/customers?${params.toString()}`;
@@ -201,40 +197,33 @@ export default function ClientsPage() {
         cell: ({ getValue }) => getValue<string | null>() || "—",
       },
       {
-        accessorKey: "inn",
-        meta: { label: "ИНН" },
+        accessorKey: "description",
+        meta: { label: "Описание" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="ИНН" />
+          <DataTableColumnHeader column={column} title="Описание" />
         ),
         enableSorting: false,
         cell: ({ getValue }) => getValue<string | null>() || "—",
       },
       {
-        accessorKey: "directorName",
-        meta: { label: "Директор" },
+        accessorKey: "createdAt",
+        meta: { label: "Создан" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Директор" />
+          <DataTableColumnHeader column={column} title="Создан" />
         ),
         enableSorting: false,
-        cell: ({ getValue }) => getValue<string | null>() || "—",
+        cell: ({ getValue }) =>
+          new Date(getValue<string>()).toLocaleDateString("ru-RU"),
       },
       {
-        accessorKey: "email",
-        meta: { label: "Email" },
+        accessorKey: "updatedAt",
+        meta: { label: "Обновлен" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Email" />
+          <DataTableColumnHeader column={column} title="Обновлен" />
         ),
         enableSorting: false,
-        cell: ({ getValue }) => getValue<string | null>() || "—",
-      },
-      {
-        accessorKey: "phone",
-        meta: { label: "Телефон" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Телефон" />
-        ),
-        enableSorting: false,
-        cell: ({ getValue }) => getValue<string | null>() || "—",
+        cell: ({ getValue }) =>
+          new Date(getValue<string>()).toLocaleDateString("ru-RU"),
       },
     ],
     []

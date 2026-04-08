@@ -7,8 +7,6 @@ import {
 } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-import { projectLegacyRequisiteRouting } from "./legacy-projections";
-
 type RequisitesApi = PartiesModule["requisites"];
 
 export interface LegalEntityBankingInput {
