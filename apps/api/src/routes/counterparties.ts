@@ -401,7 +401,12 @@ export function counterpartiesRoutes(ctx: AppContext) {
   });
 
   async function ensureCounterpartyExists(id: string) {
-    await ctx.partiesModule.counterparties.queries.findById(id);
+    const counterparty =
+      await ctx.partiesModule.counterparties.queries.findById(id);
+
+    if (!counterparty) {
+      throw new CounterpartyNotFoundError(id);
+    }
   }
 
   async function resolveAssignment(counterpartyId: string) {

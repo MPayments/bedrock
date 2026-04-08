@@ -186,7 +186,7 @@ export function createCustomerBankingService(
     const exactBic = query.replace(/\s+/g, "");
     const upperQuery = query.toUpperCase();
 
-    const [byName, recent] = await Promise.all([
+    const [byName, byBic, bySwift] = await Promise.all([
       deps.requisites.queries.listProviders({
         displayName: query,
         kind: ["bank"],
@@ -196,15 +196,28 @@ export function createCustomerBankingService(
         sortOrder: "asc",
       }),
       deps.requisites.queries.listProviders({
+        bic: [exactBic],
         kind: ["bank"],
-        limit: Math.max(limit * 5, 25),
+        limit,
         offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
+        sortBy: "displayName",
+        sortOrder: "asc",
+      }),
+      deps.requisites.queries.listProviders({
+        kind: ["bank"],
+        limit,
+        offset: 0,
+        sortBy: "displayName",
+        sortOrder: "asc",
+        swift: [upperQuery],
       }),
     ]);
     const providerIds = Array.from(
-      new Set([...byName.data, ...recent.data].map((provider) => provider.id)),
+      new Set(
+        [...byName.data, ...byBic.data, ...bySwift.data].map(
+          (provider) => provider.id,
+        ),
+      ),
     );
     const providers = (
       await Promise.all(

@@ -107,13 +107,17 @@ describe("requisites contracts", () => {
       kind: "bank,exchange",
     });
     const providers = ListRequisiteProvidersQuerySchema.parse({
+      bic: "044525225",
       country: "US, DE",
       legalName: "Chase",
+      swift: "CHASUS33, DEUTDEFF",
     });
 
     expect(requisites.kind).toEqual(["bank", "exchange"]);
+    expect(providers.bic).toEqual(["044525225"]);
     expect(providers.country).toEqual(["US", "DE"]);
     expect(providers.legalName).toBe("Chase");
+    expect(providers.swift).toEqual(["CHASUS33", "DEUTDEFF"]);
   });
 
   it("requires ownerType when ownerId is set in options query", () => {

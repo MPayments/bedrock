@@ -3,9 +3,11 @@ import {
   asc,
   desc,
   eq,
+  exists,
   ilike,
   inArray,
   isNull,
+  or,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -32,6 +34,7 @@ import {
   RequisiteProviderIdentifierSchema,
 } from "../../application/contracts/dto";
 import type { RequisiteProviderReads } from "../../application/ports/requisite-provider.reads";
+import { normalizePaymentIdentifierValue } from "../../domain/identifier-schemes";
 
 const PROVIDERS_SORT_COLUMN_MAP = {
   displayName: requisiteProviders.displayName,
@@ -40,6 +43,23 @@ const PROVIDERS_SORT_COLUMN_MAP = {
   createdAt: requisiteProviders.createdAt,
   updatedAt: requisiteProviders.updatedAt,
 } as const;
+
+function normalizeIdentifierFilterValues(
+  scheme: "bic" | "swift",
+  values: string[],
+) {
+  return Array.from(
+    new Set(
+      values.map((value) =>
+        normalizePaymentIdentifierValue({
+          owner: "provider",
+          scheme,
+          value,
+        }),
+      ),
+    ),
+  );
+}
 
 export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
   constructor(private readonly db: Queryable) {}
@@ -120,6 +140,8 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
     country?: string[];
     displayName?: string;
     legalName?: string;
+    bic?: string[];
+    swift?: string[];
   }): Promise<PaginatedList<RequisiteProviderListItem>> {
     const conditions: SQL[] = [isNull(requisiteProviders.archivedAt)];
 
@@ -144,6 +166,20 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
 
     if (input.country?.length) {
       conditions.push(inArray(requisiteProviders.country, input.country));
+    }
+
+    const bicValues = input.bic?.length
+      ? normalizeIdentifierFilterValues("bic", input.bic)
+      : [];
+    if (bicValues.length > 0) {
+      conditions.push(this.buildIdentifierCondition("bic", bicValues));
+    }
+
+    const swiftValues = input.swift?.length
+      ? normalizeIdentifierFilterValues("swift", input.swift)
+      : [];
+    if (swiftValues.length > 0) {
+      conditions.push(this.buildIdentifierCondition("swift", swiftValues));
     }
 
     const where = and(...conditions);
@@ -174,5 +210,45 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
       limit: input.limit,
       offset: input.offset,
     };
+  }
+
+  private buildIdentifierCondition(
+    scheme: "bic" | "swift",
+    values: string[],
+  ): SQL {
+    return or(
+      exists(
+        this.db
+          .select({ id: requisiteProviderIdentifiers.id })
+          .from(requisiteProviderIdentifiers)
+          .where(
+            and(
+              eq(requisiteProviderIdentifiers.providerId, requisiteProviders.id),
+              eq(requisiteProviderIdentifiers.scheme, scheme),
+              inArray(requisiteProviderIdentifiers.normalizedValue, values),
+            ),
+          ),
+      ),
+      exists(
+        this.db
+          .select({ id: requisiteProviderBranchIdentifiers.id })
+          .from(requisiteProviderBranchIdentifiers)
+          .innerJoin(
+            requisiteProviderBranches,
+            eq(
+              requisiteProviderBranchIdentifiers.branchId,
+              requisiteProviderBranches.id,
+            ),
+          )
+          .where(
+            and(
+              eq(requisiteProviderBranches.providerId, requisiteProviders.id),
+              isNull(requisiteProviderBranches.archivedAt),
+              eq(requisiteProviderBranchIdentifiers.scheme, scheme),
+              inArray(requisiteProviderBranchIdentifiers.normalizedValue, values),
+            ),
+          ),
+      ),
+    )!;
   }
 }

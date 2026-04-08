@@ -18,6 +18,8 @@ interface RequisiteProvidersListFilters {
   country: { kind: "string"; cardinality: "multi" };
   displayName: { kind: "string"; cardinality: "single" };
   legalName: { kind: "string"; cardinality: "single" };
+  bic: { kind: "string"; cardinality: "multi" };
+  swift: { kind: "string"; cardinality: "multi" };
 }
 
 export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
@@ -31,6 +33,8 @@ export const REQUISITE_PROVIDERS_LIST_CONTRACT: ListQueryContract<
     country: { kind: "string", cardinality: "multi" },
     displayName: { kind: "string", cardinality: "single" },
     legalName: { kind: "string", cardinality: "single" },
+    bic: { kind: "string", cardinality: "multi" },
+    swift: { kind: "string", cardinality: "multi" },
   },
 };
 

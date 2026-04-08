@@ -155,7 +155,9 @@ export function findRequisiteProviderIdentifier(input: {
   scheme: string;
   branchId?: string | null;
 }) {
-  const branch = findRequisiteProviderBranch(input.provider, input.branchId);
+  const branch = input.branchId
+    ? findRequisiteProviderBranch(input.provider, input.branchId)
+    : null;
 
   if (branch) {
     const identifiers = branch.identifiers ?? [];
@@ -175,13 +177,31 @@ export function findRequisiteProviderIdentifier(input: {
   }
 
   const identifiers = input.provider.identifiers ?? [];
-
-  return (
+  const providerIdentifier =
     identifiers.find(
       (identifier) =>
         identifier.scheme === input.scheme && identifier.isPrimary,
     ) ??
     identifiers.find((identifier) => identifier.scheme === input.scheme) ??
+    null;
+
+  if (providerIdentifier) {
+    return providerIdentifier;
+  }
+
+  const primaryBranch = findPrimaryRequisiteProviderBranch(input.provider);
+  if (!primaryBranch) {
+    return null;
+  }
+
+  const branchIdentifiers = primaryBranch.identifiers ?? [];
+
+  return (
+    branchIdentifiers.find(
+      (identifier) =>
+        identifier.scheme === input.scheme && identifier.isPrimary,
+    ) ??
+    branchIdentifiers.find((identifier) => identifier.scheme === input.scheme) ??
     null
   );
 }

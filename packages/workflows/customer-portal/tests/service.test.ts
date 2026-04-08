@@ -363,7 +363,9 @@ function createWorkflow(overrides?: {
           id: "provider-created",
           kind: input.kind,
           legalName: input.legalName,
-          name: input.name,
+          legalNameI18n: input.legalNameI18n ?? null,
+          displayName: input.displayName,
+          displayNameI18n: input.displayNameI18n ?? null,
           description: input.description ?? null,
           country: input.country ?? null,
           website: input.website ?? null,
@@ -787,6 +789,97 @@ describe("customer portal workflow", () => {
         swift: "BANKRUMM",
       }),
     ]);
+  });
+
+  it("finds bank providers by exact bic even when the name does not match", async () => {
+    const { parties, workflow } = createWorkflow({
+      memberships: [],
+      hasPendingPortalGrant: true,
+      user: {
+        role: null,
+      },
+    });
+    const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
+      typeof vi.fn
+    >;
+    const findProviderByIdMock = parties.requisites.queries.findProviderById as ReturnType<
+      typeof vi.fn
+    >;
+
+    listProvidersMock.mockImplementation(async (input) => {
+      if (input.bic?.includes("044525225")) {
+        return {
+          data: [
+            {
+              archivedAt: null,
+              country: "RU",
+              createdAt: new Date("2025-01-01T00:00:00.000Z"),
+              description: null,
+              displayName: "АО Банк",
+              id: "provider-by-bic",
+              kind: "bank",
+              legalName: "АО Банк",
+              updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+              website: null,
+            },
+          ],
+          limit: 8,
+          offset: 0,
+          total: 1,
+        };
+      }
+
+      return {
+        data: [],
+        limit: 8,
+        offset: 0,
+        total: 0,
+      };
+    });
+    findProviderByIdMock.mockResolvedValueOnce({
+      archivedAt: null,
+      branches: [],
+      country: "RU",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      description: null,
+      displayName: "АО Банк",
+      displayNameI18n: null,
+      id: "provider-by-bic",
+      identifiers: [
+        {
+          createdAt: new Date("2025-01-01T00:00:00.000Z"),
+          id: "provider-by-bic-bic",
+          isPrimary: true,
+          normalizedValue: "044525225",
+          scheme: "bic",
+          updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+          value: "044525225",
+        },
+      ],
+      kind: "bank",
+      legalName: "АО Банк",
+      legalNameI18n: null,
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      website: null,
+    });
+
+    await expect(
+      workflow.searchBankProviders(
+        { userId: "user-1" },
+        { query: "044525225", limit: 8 },
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        bic: "044525225",
+        id: "provider-by-bic",
+        name: "АО Банк",
+      }),
+    ]);
+    expect(listProvidersMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bic: ["044525225"],
+      }),
+    );
   });
 
   it("allows bank-provider search for mixed-access internal users during onboarding", async () => {

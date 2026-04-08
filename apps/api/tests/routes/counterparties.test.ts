@@ -167,6 +167,44 @@ describe("counterparties routes", () => {
     });
   });
 
+  it("returns 404 for nested routes when the counterparty does not exist", async () => {
+    const { app, counterparties, partyProfiles } = createTestApp();
+    counterparties.queries.findById.mockResolvedValue(null);
+
+    const requisitesResponse = await app.request(
+      "http://localhost/counterparties/11111111-1111-4111-8111-111111111111/requisites",
+    );
+    const profileResponse = await app.request(
+      "http://localhost/counterparties/11111111-1111-4111-8111-111111111111/party-profile",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          profile: {
+            fullName: "Acme LLC",
+            shortName: "Acme",
+            countryCode: "US",
+          },
+          identifiers: [],
+          address: null,
+          contacts: [],
+          representatives: [],
+          licenses: [],
+        }),
+      },
+    );
+
+    expect(requisitesResponse.status).toBe(404);
+    await expect(requisitesResponse.json()).resolves.toEqual({
+      error: "Counterparty not found: 11111111-1111-4111-8111-111111111111",
+    });
+    expect(profileResponse.status).toBe(404);
+    await expect(profileResponse.json()).resolves.toEqual({
+      error: "Counterparty not found: 11111111-1111-4111-8111-111111111111",
+    });
+    expect(partyProfiles.commands.replaceBundle).not.toHaveBeenCalled();
+  });
+
   it("does not expose the legacy counterparty legal-profile route", async () => {
     const { app } = createTestApp();
 

@@ -1,3 +1,7 @@
+import {
+  CounterpartyNotFoundError,
+  OrganizationNotFoundError,
+} from "@bedrock/parties";
 import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
@@ -9,18 +13,36 @@ type PartyOwnerRecord = {
 
 type PartyOwnerType = "counterparty" | "organization";
 
+function requirePartyOwner(input: {
+  ownerId: string;
+  ownerType: PartyOwnerType;
+  party: PartyOwnerRecord | null;
+}) {
+  if (input.party) {
+    return input.party;
+  }
+
+  if (input.ownerType === "counterparty") {
+    throw new CounterpartyNotFoundError(input.ownerId);
+  }
+
+  throw new OrganizationNotFoundError(input.ownerId);
+}
+
 export async function replacePartyProfileBundle(input: {
   bundle: PartyProfileBundleInput;
   ctx: AppContext;
   ownerId: string;
   ownerType: PartyOwnerType;
-  party: PartyOwnerRecord;
+  party: PartyOwnerRecord | null;
 }) {
+  const party = requirePartyOwner(input);
+
   return input.ctx.partiesModule.partyProfiles.commands.replaceBundle({
     ownerId: input.ownerId,
     ownerType: input.ownerType,
     bundle: input.bundle,
-    partyKind: input.party.kind,
+    partyKind: party.kind,
   });
 }
 

@@ -389,7 +389,12 @@ export function organizationsRoutes(ctx: AppContext) {
   });
 
   async function ensureOrganizationExists(id: string) {
-    await ctx.partiesModule.organizations.queries.findById(id);
+    const organization =
+      await ctx.partiesModule.organizations.queries.findById(id);
+
+    if (!organization) {
+      throw new OrganizationNotFoundError(id);
+    }
   }
 
   return app
