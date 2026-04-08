@@ -1,4 +1,4 @@
-import type { PartyLegalEntityBundle } from "../../legal-entities/application/contracts";
+import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 import type { Organization } from "./contracts/dto";
 
 export function toOrganizationDto(
@@ -16,10 +16,10 @@ export function toOrganizationDto(
     createdAt: Date;
     updatedAt: Date;
   },
-  legalEntity: PartyLegalEntityBundle | null,
+  partyProfile: PartyProfileBundle | null,
 ): Organization {
   return {
     ...organization,
-    legalEntity,
+    partyProfile,
   };
 }

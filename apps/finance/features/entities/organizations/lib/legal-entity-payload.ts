@@ -3,7 +3,7 @@ import type { SerializedOrganization } from "./types";
 
 export function buildOrganizationLegalEntityPayload(
   values: OrganizationGeneralFormValues,
-  current: SerializedOrganization["legalEntity"],
+  current: SerializedOrganization["partyProfile"],
 ) {
   return {
     profile: {

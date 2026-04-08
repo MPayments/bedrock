@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import {
   CounterpartyGeneralEditor,
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
-import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
-import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import type { CounterpartyGroupOption } from "../lib/queries";
@@ -56,8 +56,8 @@ export function CreateCounterpartyFormClient({
       groupIds: Array.from(new Set(initialGroupIds)),
     }),
   );
-  const [legalEntityDraft, setLegalEntityDraft] =
-    useState<PartyLegalEntityBundleInput | null>(null);
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
 
   const initialValues = useMemo<CounterpartyGeneralFormValues>(
     () => ({
@@ -71,7 +71,7 @@ export function CreateCounterpartyFormClient({
     }),
     [initialGroupIds],
   );
-  const legalEntitySeed = useMemo(
+  const partyProfileSeed = useMemo(
     () => ({
       fullName: draftValues.fullName,
       shortName: draftValues.shortName,
@@ -80,9 +80,9 @@ export function CreateCounterpartyFormClient({
     [draftValues.country, draftValues.fullName, draftValues.shortName],
   );
 
-  function resolveCreateLegalEntityBundle(
+  function resolveCreatePartyProfileBundle(
     values: CounterpartyGeneralFormValues,
-    bundle: PartyLegalEntityBundleInput | null,
+    bundle: PartyProfileBundleInput | null,
   ) {
     const fallbackCountryCode = values.country.trim() || null;
 
@@ -97,7 +97,7 @@ export function CreateCounterpartyFormClient({
             countryCode: bundle.profile.countryCode ?? fallbackCountryCode,
           },
         }
-      : createSeededLegalEntityBundle({
+      : createSeededPartyProfileBundle({
           fullName: values.fullName.trim(),
           shortName: values.shortName.trim(),
           countryCode: values.country.trim() || null,
@@ -119,9 +119,9 @@ export function CreateCounterpartyFormClient({
       description: values.description.trim() || undefined,
       customerId: customerId || null,
       groupIds: values.groupIds,
-      legalEntity:
+      partyProfile:
         values.kind === "legal_entity"
-          ? resolveCreateLegalEntityBundle(values, legalEntityDraft)
+          ? resolveCreatePartyProfileBundle(values, partyProfileDraft)
           : undefined,
     };
 
@@ -163,15 +163,15 @@ export function CreateCounterpartyFormClient({
         showDates={false}
       />
       {draftValues.kind === "legal_entity" ? (
-        <LegalEntityBundleEditor
-          bundle={legalEntityDraft}
-          seed={legalEntitySeed}
+        <PartyProfileEditor
+          bundle={partyProfileDraft}
+          seed={partyProfileSeed}
           submitting={submitting}
           error={error}
           title="Мастер-данные контрагента"
           showActions={false}
           onChange={(bundle) => {
-            setLegalEntityDraft(bundle);
+            setPartyProfileDraft(bundle);
           }}
         />
       ) : null}

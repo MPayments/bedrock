@@ -78,10 +78,10 @@ describe("customers routes", () => {
     const { app } = createTestApp();
 
     const detailResponse = await app.request(
-      `http://localhost/customers/${IDS.customer}/legal-entities/${IDS.counterparty}`,
+      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}`,
     );
     const listResponse = await app.request(
-      `http://localhost/customers/${IDS.customer}/legal-entities`,
+      `http://localhost/customers/${IDS.customer}/party-profiles`,
     );
     const bankProvidersResponse = await app.request(
       "http://localhost/customers/bank-providers?query=bank",
@@ -96,7 +96,7 @@ describe("customers routes", () => {
     const { app, documentGenerationWorkflow, filesModule } = createTestApp();
 
     const response = await app.request(
-      `http://localhost/customers/${IDS.customer}/legal-entities/${IDS.counterparty}/contract?format=pdf&lang=en`,
+      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=pdf&lang=en`,
     );
 
     expect(response.status).toBe(200);

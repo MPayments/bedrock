@@ -302,7 +302,7 @@ export function customersRoutes(ctx: AppContext) {
   const listCounterpartyDocumentsRoute = createRoute({
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
-    path: "/{customerId}/legal-entities/{counterpartyId}/documents",
+    path: "/{customerId}/counterparties/{counterpartyId}/documents",
     request: { params: CustomerCounterpartyParamsSchema },
     responses: {
       200: {
@@ -321,7 +321,7 @@ export function customersRoutes(ctx: AppContext) {
   const uploadCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["update"] })],
     method: "post",
-    path: "/{customerId}/legal-entities/{counterpartyId}/documents",
+    path: "/{customerId}/counterparties/{counterpartyId}/documents",
     request: { params: CustomerCounterpartyParamsSchema },
     responses: {
       201: {
@@ -340,7 +340,7 @@ export function customersRoutes(ctx: AppContext) {
   const downloadCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["list"] })],
     method: "get",
-    path: "/{customerId}/legal-entities/{counterpartyId}/documents/{documentId}/download",
+    path: "/{customerId}/counterparties/{counterpartyId}/documents/{documentId}/download",
     request: { params: CustomerCounterpartyDocumentParamsSchema },
     responses: {
       200: { description: "Redirect to signed URL" },
@@ -356,7 +356,7 @@ export function customersRoutes(ctx: AppContext) {
   const deleteCounterpartyDocumentRoute = createRoute({
     middleware: [requirePermission({ customers: ["update"] })],
     method: "delete",
-    path: "/{customerId}/legal-entities/{counterpartyId}/documents/{documentId}",
+    path: "/{customerId}/counterparties/{counterpartyId}/documents/{documentId}",
     request: { params: CustomerCounterpartyDocumentParamsSchema },
     responses: {
       200: {
@@ -371,7 +371,7 @@ export function customersRoutes(ctx: AppContext) {
   const generateCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["list"] })],
     method: "get",
-    path: "/{customerId}/legal-entities/{counterpartyId}/contract",
+    path: "/{customerId}/counterparties/{counterpartyId}/contract",
     request: {
       params: CustomerCounterpartyParamsSchema,
       query: z.object({
@@ -393,7 +393,7 @@ export function customersRoutes(ctx: AppContext) {
   const upsertCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
-    path: "/{customerId}/legal-entities/{counterpartyId}/contract",
+    path: "/{customerId}/counterparties/{counterpartyId}/contract",
     request: {
       body: {
         content: {

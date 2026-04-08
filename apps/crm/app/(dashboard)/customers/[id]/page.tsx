@@ -25,7 +25,7 @@ import {
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
 import { CustomerDetailHeader } from "./_components/customer-detail-header";
-import { CustomerLegalEntityPanel } from "./_components/customer-legal-entity-panel";
+import { CustomerCounterpartyPanel } from "./_components/customer-counterparty-panel";
 import { CustomerSummaryCard } from "./_components/customer-summary-card";
 import { PendingEntitySwitchDialog } from "./_components/pending-entity-switch-dialog";
 import {
@@ -35,17 +35,17 @@ import {
   type ClientDocument,
   type CustomerFormData,
   type CustomerWorkspaceDetail,
-  resolveActiveLegalEntityId,
+  resolveActiveCounterpartyId,
 } from "./_lib/customer-detail";
 import {
   archiveCustomer,
-  deleteCustomerLegalEntityDocument,
-  downloadCustomerLegalEntityContract,
-  downloadCustomerLegalEntityDocument,
+  deleteCustomerCounterpartyDocument,
+  downloadCustomerCounterpartyContract,
+  downloadCustomerCounterpartyDocument,
   getCustomerWorkspace,
-  listCustomerLegalEntityDocuments,
+  listCustomerCounterpartyDocuments,
   updateCustomerWorkspace,
-  uploadCustomerLegalEntityDocument,
+  uploadCustomerCounterpartyDocument,
 } from "./_lib/customer-workspace-api";
 
 function normalizeOptionalText(value: string | null | undefined) {
@@ -97,7 +97,7 @@ export default function CustomerDetailPage() {
   const [entitySwitchDialogOpen, setEntitySwitchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerSaving, setCustomerSaving] = useState(false);
-  const [legalEntityDirty, setLegalEntityDirty] = useState(false);
+  const [counterpartyDirty, setCounterpartyDirty] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -115,7 +115,7 @@ export default function CustomerDetailPage() {
   );
   const [uploadDocumentDescription, setUploadDocumentDescription] =
     useState("");
-  const [creatingLegalEntityMode, setCreatingLegalEntityMode] = useState(false);
+  const [creatingCounterpartyMode, setCreatingCounterpartyMode] = useState(false);
   const [emptyAlertDismissed, setEmptyAlertDismissed] = useState(false);
   const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
   const [requisitesDirty, setRequisitesDirty] = useState(false);
@@ -131,14 +131,14 @@ export default function CustomerDetailPage() {
       return null;
     }
 
-    return resolveActiveLegalEntityId({
-      legalEntities: workspace.legalEntities,
+    return resolveActiveCounterpartyId({
+      counterparties: workspace.counterparties,
       primaryCounterpartyId: workspace.primaryCounterpartyId,
       requestedCounterpartyId: entityParam,
     });
   }, [entityParam, workspace]);
 
-  const selectedLegalEntity = useMemo(() => {
+  const selectedCounterparty = useMemo(() => {
     const targetCounterpartyId =
       activeCounterpartyId ?? resolvedActiveCounterpartyId;
 
@@ -147,23 +147,23 @@ export default function CustomerDetailPage() {
     }
 
     return (
-      workspace.legalEntities.find(
-        (legalEntity) => legalEntity.counterpartyId === targetCounterpartyId,
+      workspace.counterparties.find(
+        (partyProfile) => partyProfile.counterpartyId === targetCounterpartyId,
       ) ?? null
     );
   }, [activeCounterpartyId, resolvedActiveCounterpartyId, workspace]);
 
   const customerDirty = customerForm.formState.isDirty;
   const hasUnsavedChanges =
-    customerDirty || legalEntityDirty || requisitesDirty;
+    customerDirty || counterpartyDirty || requisitesDirty;
   const hasCustomerAgreement = workspace?.hasActiveAgreement ?? false;
   const showMissingAgreementAlert =
-    selectedLegalEntity !== null &&
+    selectedCounterparty !== null &&
     !hasCustomerAgreement &&
     !agreementAlertDismissed;
   const showMissingLegalEntitiesAlert =
     workspace !== null &&
-    workspace.legalEntities.length === 0 &&
+    workspace.counterparties.length === 0 &&
     !emptyAlertDismissed;
 
   const navigateToEntity = useCallback(
@@ -187,7 +187,7 @@ export default function CustomerDetailPage() {
   const resetDraftsFromWorkspace = useCallback(
     () => {
       customerForm.reset(customerToFormValues(workspace));
-      setLegalEntityDirty(false);
+      setCounterpartyDirty(false);
       setRequisitesDirty(false);
       setRequisitesResetSignal((current) => current + 1);
       setError(null);
@@ -226,7 +226,7 @@ export default function CustomerDetailPage() {
       try {
         setLoadingDocuments(true);
         setDocuments(
-          await listCustomerLegalEntityDocuments(customerId, counterpartyId),
+          await listCustomerCounterpartyDocuments(customerId, counterpartyId),
         );
       } catch (fetchError) {
         console.error("Failed to fetch documents", fetchError);
@@ -323,18 +323,18 @@ export default function CustomerDetailPage() {
   }, [customerDirty, customerForm, workspace]);
 
   useEffect(() => {
-    if (workspace?.legalEntities.length) {
+    if (workspace?.counterparties.length) {
       setEmptyAlertDismissed(false);
     }
-  }, [workspace?.legalEntities.length]);
+  }, [workspace?.counterparties.length]);
 
   useEffect(() => {
     setAgreementAlertDismissed(false);
   }, [hasCustomerAgreement]);
 
   useEffect(() => {
-    void fetchDocuments(selectedLegalEntity?.counterpartyId ?? null);
-  }, [fetchDocuments, selectedLegalEntity?.counterpartyId]);
+    void fetchDocuments(selectedCounterparty?.counterpartyId ?? null);
+  }, [fetchDocuments, selectedCounterparty?.counterpartyId]);
 
   async function handleSaveCustomer(data: CustomerFormData) {
     if (!workspace) {
@@ -383,40 +383,40 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleLegalEntityCreated(counterpartyId: string) {
+  async function handleCounterpartyCreated(counterpartyId: string) {
     try {
       setError(null);
-      setCreatingLegalEntityMode(false);
-      setLegalEntityDirty(false);
+      setCreatingCounterpartyMode(false);
+      setCounterpartyDirty(false);
       await fetchWorkspace();
       navigateToEntity(counterpartyId, "push");
     } catch (createError) {
-      console.error("Failed to finish legal entity creation", createError);
+      console.error("Failed to finish counterparty creation", createError);
       setError(
         createError instanceof Error
           ? createError.message
-          : "Не удалось создать юридическое лицо",
+          : "Не удалось создать контрагента",
       );
     }
   }
 
   async function handleUploadDocument() {
-    if (!selectedLegalEntity || !uploadDocumentFile) {
+    if (!selectedCounterparty || !uploadDocumentFile) {
       return;
     }
 
     try {
       setUploadingDocument(true);
-      await uploadCustomerLegalEntityDocument({
+      await uploadCustomerCounterpartyDocument({
         customerId,
-        counterpartyId: selectedLegalEntity.counterpartyId,
+        counterpartyId: selectedCounterparty.counterpartyId,
         description: uploadDocumentDescription,
         file: uploadDocumentFile,
       });
       setUploadDialogOpen(false);
       setUploadDocumentDescription("");
       setUploadDocumentFile(null);
-      await fetchDocuments(selectedLegalEntity.counterpartyId);
+      await fetchDocuments(selectedCounterparty.counterpartyId);
     } catch (uploadError) {
       console.error("Failed to upload document", uploadError);
       setError(
@@ -430,15 +430,15 @@ export default function CustomerDetailPage() {
   }
 
   async function handleDownloadDocument(document: ClientDocument) {
-    if (!selectedLegalEntity) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
       await downloadResponseAsFile(
-        await downloadCustomerLegalEntityDocument({
+        await downloadCustomerCounterpartyDocument({
           customerId,
-          counterpartyId: selectedLegalEntity.counterpartyId,
+          counterpartyId: selectedCounterparty.counterpartyId,
           documentId: document.id,
         }),
         document.fileName,
@@ -454,18 +454,18 @@ export default function CustomerDetailPage() {
   }
 
   async function handleDeleteDocument(documentId: ClientDocument["id"]) {
-    if (!selectedLegalEntity) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
       setDeletingDocumentId(documentId);
-      await deleteCustomerLegalEntityDocument({
+      await deleteCustomerCounterpartyDocument({
         customerId,
-        counterpartyId: selectedLegalEntity.counterpartyId,
+        counterpartyId: selectedCounterparty.counterpartyId,
         documentId,
       });
-      await fetchDocuments(selectedLegalEntity.counterpartyId);
+      await fetchDocuments(selectedCounterparty.counterpartyId);
     } catch (deleteError) {
       console.error("Failed to delete document", deleteError);
       setError(
@@ -479,20 +479,20 @@ export default function CustomerDetailPage() {
   }
 
   async function handleDownloadContract(format: "docx" | "pdf") {
-    if (!selectedLegalEntity) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
       setDownloadingContract(true);
       await downloadResponseAsFile(
-        await downloadCustomerLegalEntityContract({
+        await downloadCustomerCounterpartyContract({
           customerId,
-          counterpartyId: selectedLegalEntity.counterpartyId,
+          counterpartyId: selectedCounterparty.counterpartyId,
           format,
           lang: contractLang,
         }),
-        `customer-contract-${selectedLegalEntity.counterpartyId}.${format}`,
+        `customer-contract-${selectedCounterparty.counterpartyId}.${format}`,
       );
     } catch (downloadError) {
       console.error("Failed to download contract", downloadError);
@@ -549,10 +549,10 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-4">
       <CustomerDetailHeader
-        canManageAgreement={selectedLegalEntity !== null}
+        canManageAgreement={selectedCounterparty !== null}
         deleting={deleting}
-        legalEntityCount={workspace.legalEntityCount}
-        onAddLegalEntity={() => setCreatingLegalEntityMode(true)}
+        counterpartyCount={workspace.counterpartyCount}
+        onAddCounterparty={() => setCreatingCounterpartyMode(true)}
         onArchive={handleArchive}
         onBack={() => router.back()}
         onOpenContractDialog={() => setContractDialogOpen(true)}
@@ -569,8 +569,8 @@ export default function CustomerDetailPage() {
         <Alert variant="warning" className="pr-12">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            У клиента пока нет юридических лиц. Добавьте первое юридическое
-            лицо, чтобы продолжить.
+            У клиента пока нет контрагентов. Добавьте первого контрагента,
+            чтобы продолжить.
           </AlertDescription>
           <Button
             type="button"
@@ -624,15 +624,15 @@ export default function CustomerDetailPage() {
       />
 
       <div>
-        {workspace.legalEntities.length > 0 && selectedLegalEntity ? (
-          <CustomerLegalEntityPanel
-            createMode={creatingLegalEntityMode}
+        {workspace.counterparties.length > 0 && selectedCounterparty ? (
+          <CustomerCounterpartyPanel
+            createMode={creatingCounterpartyMode}
             customerId={customerId}
             contractLang={contractLang}
             deletingDocumentId={deletingDocumentId}
             documents={documents}
             downloadingContract={downloadingContract}
-            legalEntityResetSignal={requisitesResetSignal}
+            counterpartyResetSignal={requisitesResetSignal}
             loadingDocuments={loadingDocuments}
             onContractLangChange={setContractLang}
             onDeleteDocument={(documentId) => {
@@ -648,35 +648,35 @@ export default function CustomerDetailPage() {
               requestEntityChange(counterpartyId, "push");
             }}
             onCancelCreate={() => {
-              setCreatingLegalEntityMode(false);
-              setLegalEntityDirty(false);
+              setCreatingCounterpartyMode(false);
+              setCounterpartyDirty(false);
             }}
             onCreated={(counterpartyId) => {
-              void handleLegalEntityCreated(counterpartyId);
+              void handleCounterpartyCreated(counterpartyId);
             }}
-            onLegalEntityDirtyChange={setLegalEntityDirty}
-            onLegalEntitySaved={() => {
-              setLegalEntityDirty(false);
+            onCounterpartyDirtyChange={setCounterpartyDirty}
+            onCounterpartySaved={() => {
+              setCounterpartyDirty(false);
               void fetchWorkspace();
             }}
             onRequisitesDirtyChange={setRequisitesDirty}
             requisitesResetSignal={requisitesResetSignal}
             onUploadDocument={() => setUploadDialogOpen(true)}
-            selectedLegalEntity={selectedLegalEntity}
-            workspaceLegalEntities={workspace.legalEntities}
+            selectedCounterparty={selectedCounterparty}
+            workspaceCounterparties={workspace.counterparties}
             workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
           />
         ) : (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            {creatingLegalEntityMode ? (
-              <CustomerLegalEntityPanel
+            {creatingCounterpartyMode ? (
+              <CustomerCounterpartyPanel
                 createMode
                 customerId={customerId}
                 contractLang={contractLang}
                 deletingDocumentId={deletingDocumentId}
                 documents={documents}
                 downloadingContract={downloadingContract}
-                legalEntityResetSignal={requisitesResetSignal}
+                counterpartyResetSignal={requisitesResetSignal}
                 loadingDocuments={loadingDocuments}
                 onContractLangChange={setContractLang}
                 onDeleteDocument={(documentId) => {
@@ -692,21 +692,21 @@ export default function CustomerDetailPage() {
                   requestEntityChange(counterpartyId, "push");
                 }}
                 onCancelCreate={() => {
-                  setCreatingLegalEntityMode(false);
-                  setLegalEntityDirty(false);
+                  setCreatingCounterpartyMode(false);
+                  setCounterpartyDirty(false);
                 }}
                 onCreated={(counterpartyId) => {
-                  void handleLegalEntityCreated(counterpartyId);
+                  void handleCounterpartyCreated(counterpartyId);
                 }}
-                onLegalEntityDirtyChange={setLegalEntityDirty}
-                onLegalEntitySaved={() => {
-                  setLegalEntityDirty(false);
+                onCounterpartyDirtyChange={setCounterpartyDirty}
+                onCounterpartySaved={() => {
+                  setCounterpartyDirty(false);
                   void fetchWorkspace();
                 }}
                 onRequisitesDirtyChange={setRequisitesDirty}
                 requisitesResetSignal={requisitesResetSignal}
                 onUploadDocument={() => setUploadDialogOpen(true)}
-                selectedLegalEntity={{
+                selectedCounterparty={{
                   counterpartyId: "00000000-0000-0000-0000-000000000000",
                   country: null,
                   createdAt: workspace.createdAt,
@@ -720,11 +720,11 @@ export default function CustomerDetailPage() {
                   subAgentCounterpartyId: null,
                   updatedAt: workspace.updatedAt,
                 }}
-                workspaceLegalEntities={workspace.legalEntities}
+                workspaceCounterparties={workspace.counterparties}
                 workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
               />
             ) : (
-              "У этого клиента пока нет юридических лиц."
+              "У этого клиента пока нет контрагентов."
             )}
           </div>
         )}
@@ -735,7 +735,7 @@ export default function CustomerDetailPage() {
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
-              Документ будет привязан к выбранному юридическому лицу.
+              Документ будет привязан к выбранному контрагенту.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -807,9 +807,9 @@ export default function CustomerDetailPage() {
         onConfirm={handleConfirmEntitySwitch}
       />
 
-      {selectedLegalEntity ? (
+      {selectedCounterparty ? (
         <NewContractDialog
-          counterpartyId={selectedLegalEntity.counterpartyId}
+          counterpartyId={selectedCounterparty.counterpartyId}
           customerId={customerId}
           onOpenChange={setContractDialogOpen}
           onSuccess={() => {

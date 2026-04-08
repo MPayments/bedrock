@@ -256,7 +256,7 @@ export function NewContractDialog({
       setError(null);
 
       const res = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/contract`,
+        `${API_BASE_URL}/customers/${customerId}/counterparties/${counterpartyId}/contract`,
         {
           method: "POST",
           headers: {

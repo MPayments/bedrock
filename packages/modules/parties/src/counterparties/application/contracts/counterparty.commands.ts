@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PartyLegalEntityBundleInputSchema } from "../../../legal-entities/application/contracts";
+import { PartyProfileBundleInputSchema } from "../../../party-profiles/application/contracts";
 import {
   CountryCodeSchema,
   PartyKindSchema,
@@ -45,15 +45,15 @@ export const CreateCounterpartyInputSchema = z.object({
     .nullish()
     .transform((value) => value ?? null),
   groupIds: z.array(z.uuid()).default([]),
-  legalEntity: PartyLegalEntityBundleInputSchema.nullish().transform(
+  partyProfile: PartyProfileBundleInputSchema.nullish().transform(
     (value) => value ?? null,
   ),
 }).superRefine((value, ctx) => {
-  if (value.kind === "legal_entity" && !value.legalEntity) {
+  if (value.kind === "legal_entity" && !value.partyProfile) {
     ctx.addIssue({
       code: "custom",
-      path: ["legalEntity"],
-      message: "legalEntity is required for legal entities",
+      path: ["partyProfile"],
+      message: "partyProfile is required for legal entities",
     });
   }
 

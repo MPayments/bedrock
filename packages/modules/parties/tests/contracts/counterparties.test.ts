@@ -17,7 +17,7 @@ describe("counterparties contracts", () => {
       country: "us",
       externalId: "  ext-1  ",
       description: "   ",
-      legalEntity: {
+      partyProfile: {
         profile: {
           fullName: "  Acme Incorporated  ",
           shortName: "  Acme ",

@@ -1,10 +1,11 @@
 import { API_BASE_URL } from "@/lib/constants";
 
-export interface PortalLegalEntityContext {
+export interface PortalCounterpartyContext {
   externalId: string | null;
   fullName: string;
   id: string;
-  legalEntity: {
+  kind: "individual" | "legal_entity";
+  partyProfile: {
     contacts: {
       isPrimary: boolean;
       type: string;
@@ -30,7 +31,7 @@ export interface PortalCustomerContext {
     externalRef: string | null;
     id: string;
   };
-  legalEntities: PortalLegalEntityContext[];
+  counterparties: PortalCounterpartyContext[];
 }
 
 export interface PortalCustomerContextsResponse {
@@ -71,27 +72,27 @@ export function resolvePortalCustomerExternalRef(
 export function resolvePortalPrimaryCounterpartyId(
   customer: PortalCustomerContext,
 ) {
-  return customer.legalEntities[0]?.id ?? null;
+  return customer.counterparties[0]?.id ?? null;
 }
 
-export function resolvePortalLegalEntityInn(
-  legalEntity: PortalLegalEntityContext,
+export function resolvePortalCounterpartyInn(
+  counterparty: PortalCounterpartyContext,
 ) {
   return (
-    legalEntity.legalEntity?.identifiers.find(
+    counterparty.partyProfile?.identifiers.find(
       (identifier) => identifier.scheme === "inn",
     )?.value ??
-    legalEntity.externalId ??
+    counterparty.externalId ??
     null
   );
 }
 
-export function resolvePortalLegalEntityPhone(
-  legalEntity: PortalLegalEntityContext,
+export function resolvePortalCounterpartyPhone(
+  counterparty: PortalCounterpartyContext,
 ) {
   return (
     pickPrimary(
-      (legalEntity.legalEntity?.contacts ?? []).filter(
+      (counterparty.partyProfile?.contacts ?? []).filter(
         (contact) => contact.type === "phone",
       ),
     )?.value ?? null
@@ -104,7 +105,7 @@ export async function requestCustomerContexts() {
   });
 
   if (!response.ok) {
-    throw new Error(`Ошибка загрузки организаций: ${response.status}`);
+    throw new Error(`Ошибка загрузки контрагентов: ${response.status}`);
   }
 
   return (await response.json()) as PortalCustomerContextsResponse;

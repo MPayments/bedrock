@@ -61,7 +61,7 @@ async function upsertCounterparties(db: SeedDb) {
       });
 
     await db
-      .insert(schema.partyLegalProfiles)
+      .insert(schema.partyProfiles)
       .values({
         organizationId: null,
         counterpartyId: counterparty.id,
@@ -77,7 +77,7 @@ async function upsertCounterparties(db: SeedDb) {
         businessActivityText: null,
       })
       .onConflictDoUpdate({
-        target: schema.partyLegalProfiles.counterpartyId,
+        target: schema.partyProfiles.counterpartyId,
         set: {
           fullName: counterparty.fullName,
           shortName: counterparty.shortName,
@@ -87,9 +87,9 @@ async function upsertCounterparties(db: SeedDb) {
       });
 
     const [profile] = await db
-      .select({ id: schema.partyLegalProfiles.id })
-      .from(schema.partyLegalProfiles)
-      .where(eq(schema.partyLegalProfiles.counterpartyId, counterparty.id));
+      .select({ id: schema.partyProfiles.id })
+      .from(schema.partyProfiles)
+      .where(eq(schema.partyProfiles.counterpartyId, counterparty.id));
     const profileId = profile?.id;
     if (!profileId) {
       throw new Error(
@@ -98,20 +98,20 @@ async function upsertCounterparties(db: SeedDb) {
     }
 
     await db
-      .delete(schema.partyLegalIdentifiers)
-      .where(eq(schema.partyLegalIdentifiers.partyLegalProfileId, profileId));
+      .delete(schema.partyIdentifiers)
+      .where(eq(schema.partyIdentifiers.partyProfileId, profileId));
     await db
       .delete(schema.partyAddresses)
-      .where(eq(schema.partyAddresses.partyLegalProfileId, profileId));
+      .where(eq(schema.partyAddresses.partyProfileId, profileId));
     await db
       .delete(schema.partyContacts)
-      .where(eq(schema.partyContacts.partyLegalProfileId, profileId));
+      .where(eq(schema.partyContacts.partyProfileId, profileId));
     await db
       .delete(schema.partyRepresentatives)
-      .where(eq(schema.partyRepresentatives.partyLegalProfileId, profileId));
+      .where(eq(schema.partyRepresentatives.partyProfileId, profileId));
     await db
       .delete(schema.partyLicenses)
-      .where(eq(schema.partyLicenses.partyLegalProfileId, profileId));
+      .where(eq(schema.partyLicenses.partyProfileId, profileId));
   }
 }
 

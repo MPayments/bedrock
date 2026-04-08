@@ -3,7 +3,7 @@ import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
 import {
   findPartyAddress,
-  findPartyLegalIdentifier,
+  findPartyIdentifier,
   findPartyRepresentative,
   findRequisiteIdentifier,
   findRequisiteProviderIdentifier,
@@ -237,7 +237,7 @@ function mapContractClientData(input: {
   provider: RequisiteProvider | null;
 }): ContractClientData {
   const { bankRequisite, counterparty, provider } = input;
-  const profile = counterparty.legalEntity?.profile ?? null;
+  const profile = counterparty.partyProfile?.profile ?? null;
   const representative = findPartyRepresentative(counterparty);
 
   return {
@@ -255,10 +255,10 @@ function mapContractClientData(input: {
     address: formatPartyAddress(findPartyAddress(counterparty)),
     addressI18n: null,
     inn:
-      findPartyLegalIdentifier(counterparty, "inn")?.value ??
+      findPartyIdentifier(counterparty, "inn")?.value ??
       counterparty.externalId ??
       null,
-    kpp: findPartyLegalIdentifier(counterparty, "kpp")?.value ?? null,
+    kpp: findPartyIdentifier(counterparty, "kpp")?.value ?? null,
     account:
       findRequisiteIdentifier(bankRequisite, "local_account_number")?.value ??
       null,
@@ -288,7 +288,7 @@ function mapContractClientData(input: {
 function mapContractOrganizationData(
   organization: Organization,
 ): ContractOrganizationData {
-  const profile = organization.legalEntity?.profile ?? null;
+  const profile = organization.partyProfile?.profile ?? null;
   const representative = findPartyRepresentative(organization);
 
   return {
@@ -304,11 +304,11 @@ function mapContractOrganizationData(
     directorName: representative?.fullName ?? null,
     directorNameI18n: toDocumentLocalizedText(representative?.fullNameI18n),
     inn:
-      findPartyLegalIdentifier(organization, "inn")?.value ??
+      findPartyIdentifier(organization, "inn")?.value ??
       organization.externalId ??
       null,
-    taxId: findPartyLegalIdentifier(organization, "tax_id")?.value ?? null,
-    kpp: findPartyLegalIdentifier(organization, "kpp")?.value ?? null,
+    taxId: findPartyIdentifier(organization, "tax_id")?.value ?? null,
+    kpp: findPartyIdentifier(organization, "kpp")?.value ?? null,
     signatureKey: organization.signatureKey ?? null,
     sealKey: organization.sealKey ?? null,
   };

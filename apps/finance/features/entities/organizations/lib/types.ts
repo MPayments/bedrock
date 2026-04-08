@@ -88,7 +88,7 @@ export type SerializedOrganization = {
   description: string | null;
   country: string | null;
   kind: "legal_entity" | "individual";
-  legalEntity: SerializedOrganizationLegalEntity | null;
+  partyProfile: SerializedOrganizationLegalEntity | null;
   createdAt: string;
   updatedAt: string;
 };

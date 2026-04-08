@@ -12,9 +12,9 @@ import type { CounterpartyReads } from "./counterparties/application/ports/count
 import { createCustomersService } from "./customers/application";
 import type { CustomerReads } from "./customers/application/ports/customer.reads";
 import type { CustomersCommandUnitOfWork } from "./customers/application/ports/customers.uow";
-import { createLegalEntitiesService } from "./legal-entities/application";
-import type { LegalEntitiesReads } from "./legal-entities/application/ports/legal-entities.reads";
-import type { LegalEntitiesCommandUnitOfWork } from "./legal-entities/application/ports/legal-entities.uow";
+import { createPartyProfilesService } from "./party-profiles/application";
+import type { PartyProfilesReads } from "./party-profiles/application/ports/party-profiles.reads";
+import type { PartyProfilesCommandUnitOfWork } from "./party-profiles/application/ports/party-profiles.uow";
 import { createOrganizationsService } from "./organizations/application";
 import type { OrganizationReads } from "./organizations/application/ports/organization.reads";
 import type { OrganizationsCommandUnitOfWork } from "./organizations/application/ports/organizations.uow";
@@ -31,7 +31,7 @@ import type { SubAgentProfilesCommandUnitOfWork } from "./sub-agent-profiles/app
 
 export type PartiesModuleUnitOfWork = CounterpartiesCommandUnitOfWork &
   CustomersCommandUnitOfWork &
-  LegalEntitiesCommandUnitOfWork &
+  PartyProfilesCommandUnitOfWork &
   OrganizationsCommandUnitOfWork &
   RequisitesCommandUnitOfWork &
   SubAgentProfilesCommandUnitOfWork;
@@ -45,7 +45,7 @@ export interface PartiesModuleDeps {
   customerReads: CustomerReads;
   counterpartyReads: CounterpartyReads;
   counterpartyGroupReads: CounterpartyGroupReads;
-  legalEntityReads: LegalEntitiesReads;
+  partyProfileReads: PartyProfilesReads;
   organizationReads: OrganizationReads;
   requisiteReads: RequisiteReads;
   requisiteProviderReads: RequisiteProviderReads;
@@ -78,10 +78,10 @@ export function createPartiesModule(deps: PartiesModuleDeps) {
       reads: deps.counterpartyReads,
       groupReads: deps.counterpartyGroupReads,
     }),
-    legalEntities: createLegalEntitiesService({
+    partyProfiles: createPartyProfilesService({
       commandUow: deps.unitOfWork,
-      runtime: createRuntime("parties.legal-entities"),
-      reads: deps.legalEntityReads,
+      runtime: createRuntime("parties.party-profiles"),
+      reads: deps.partyProfileReads,
     }),
     organizations: createOrganizationsService({
       commandUow: deps.unitOfWork,

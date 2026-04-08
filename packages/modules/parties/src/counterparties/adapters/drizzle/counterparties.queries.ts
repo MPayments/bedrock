@@ -13,9 +13,9 @@ import type { Database } from "@bedrock/platform/persistence";
 import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 
 import {
-  partyLegalIdentifiers,
-  partyLegalProfiles,
-} from "../../../legal-entities/adapters/drizzle/schema";
+  partyIdentifiers,
+  partyProfiles,
+} from "../../../party-profiles/adapters/drizzle/schema";
 import {
   counterpartyGroupMemberships,
   counterpartyGroups,
@@ -26,7 +26,7 @@ import {
 export class DrizzleCounterpartiesQueries {
   constructor(private readonly db: Database) {}
 
-  async searchCustomerOwnedLegalEntities(input: {
+  async searchCustomerOwnedCounterparties(input: {
     limit: number;
     offset: number;
     q: string;
@@ -43,20 +43,20 @@ export class DrizzleCounterpartiesQueries {
       .select({
         counterpartyId: counterparties.id,
         customerId: counterparties.customerId,
-        inn: partyLegalIdentifiers.value,
+        inn: partyIdentifiers.value,
         orgName: counterparties.fullName,
         shortName: counterparties.shortName,
       })
       .from(counterparties)
       .leftJoin(
-        partyLegalProfiles,
-        eq(partyLegalProfiles.counterpartyId, counterparties.id),
+        partyProfiles,
+        eq(partyProfiles.counterpartyId, counterparties.id),
       )
       .leftJoin(
-        partyLegalIdentifiers,
+        partyIdentifiers,
         and(
-          eq(partyLegalIdentifiers.partyLegalProfileId, partyLegalProfiles.id),
-          eq(partyLegalIdentifiers.scheme, "inn"),
+          eq(partyIdentifiers.partyProfileId, partyProfiles.id),
+          eq(partyIdentifiers.scheme, "inn"),
         ),
       )
       .where(
@@ -66,7 +66,7 @@ export class DrizzleCounterpartiesQueries {
           or(
             ilike(counterparties.shortName, `%${input.q}%`),
             ilike(counterparties.fullName, `%${input.q}%`),
-            like(sql`coalesce(${partyLegalIdentifiers.value}, '')`, `%${input.q}%`),
+            like(sql`coalesce(${partyIdentifiers.value}, '')`, `%${input.q}%`),
           ),
         ),
       )
@@ -110,12 +110,12 @@ export class DrizzleCounterpartiesQueries {
       })
       .from(counterparties)
       .leftJoin(
-        partyLegalProfiles,
-        eq(partyLegalProfiles.counterpartyId, counterparties.id),
+        partyProfiles,
+        eq(partyProfiles.counterpartyId, counterparties.id),
       )
       .leftJoin(
-        partyLegalIdentifiers,
-        eq(partyLegalIdentifiers.partyLegalProfileId, partyLegalProfiles.id),
+        partyIdentifiers,
+        eq(partyIdentifiers.partyProfileId, partyProfiles.id),
       )
       .where(
         and(
@@ -125,7 +125,7 @@ export class DrizzleCounterpartiesQueries {
             ilike(counterparties.shortName, `%${input.q}%`),
             ilike(counterparties.fullName, `%${input.q}%`),
             ilike(counterparties.externalId, `%${input.q}%`),
-            like(sql`coalesce(${partyLegalIdentifiers.value}, '')`, `%${input.q}%`),
+            like(sql`coalesce(${partyIdentifiers.value}, '')`, `%${input.q}%`),
           ),
         ),
       )

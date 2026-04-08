@@ -76,7 +76,7 @@ import { useCounterpartyBankRequisites } from "../_lib/use-counterparty-bank-req
 
 type CounterpartyBankRequisitesWorkspaceProps = {
   counterpartyId: string;
-  legalEntityName: string;
+  counterpartyName: string;
   onDirtyChange: (dirty: boolean) => void;
   resetSignal: number;
 };
@@ -190,7 +190,7 @@ function formatProviderAddress(provider: RequisiteProviderDetails | null) {
 
 export function CounterpartyBankRequisitesWorkspace({
   counterpartyId,
-  legalEntityName,
+  counterpartyName,
   onDirtyChange,
   resetSignal,
 }: CounterpartyBankRequisitesWorkspaceProps) {
@@ -213,10 +213,10 @@ export function CounterpartyBankRequisitesWorkspace({
   const [providerDetail, setProviderDetail] =
     useState<RequisiteProviderDetails | null>(null);
   const [providerDetailLoading, setProviderDetailLoading] = useState(false);
-  const legalEntityNameRef = useRef(legalEntityName);
+  const counterpartyNameRef = useRef(counterpartyName);
 
   const form = useForm<BankRequisiteEditorFormData>({
-    defaultValues: createEmptyBankRequisiteValues(legalEntityName),
+    defaultValues: createEmptyBankRequisiteValues(counterpartyName),
     resolver: zodResolver(bankRequisiteEditorFormSchema),
   });
 
@@ -258,8 +258,8 @@ export function CounterpartyBankRequisitesWorkspace({
   }, [hasUnsavedEditorState, onDirtyChange]);
 
   useEffect(() => {
-    legalEntityNameRef.current = legalEntityName;
-  }, [legalEntityName]);
+    counterpartyNameRef.current = counterpartyName;
+  }, [counterpartyName]);
 
   useEffect(() => {
     setEditorState({ kind: "idle" });
@@ -267,7 +267,7 @@ export function CounterpartyBankRequisitesWorkspace({
     setSwitchDialogOpen(false);
     setMutationError(null);
     setProviderDetail(null);
-    form.reset(createEmptyBankRequisiteValues(legalEntityNameRef.current));
+    form.reset(createEmptyBankRequisiteValues(counterpartyNameRef.current));
   }, [counterpartyId, form, resetSignal]);
 
   useEffect(() => {
@@ -291,20 +291,20 @@ export function CounterpartyBankRequisitesWorkspace({
 
   useEffect(() => {
     if (editorState.kind === "create") {
-      form.reset(createEmptyBankRequisiteValues(legalEntityNameRef.current));
+      form.reset(createEmptyBankRequisiteValues(counterpartyNameRef.current));
       setMutationError(null);
       return;
     }
 
     if (editorState.kind === "existing") {
       form.reset(
-        bankRequisiteToFormValues(selectedRequisite, legalEntityNameRef.current),
+        bankRequisiteToFormValues(selectedRequisite, counterpartyNameRef.current),
       );
       setMutationError(null);
       return;
     }
 
-    form.reset(createEmptyBankRequisiteValues(legalEntityNameRef.current));
+    form.reset(createEmptyBankRequisiteValues(counterpartyNameRef.current));
     setMutationError(null);
   }, [editorState, form, selectedRequisite]);
 
@@ -419,7 +419,7 @@ export function CounterpartyBankRequisitesWorkspace({
     }
 
     form.reset(
-      bankRequisiteToFormValues(selectedRequisite, legalEntityNameRef.current),
+      bankRequisiteToFormValues(selectedRequisite, counterpartyNameRef.current),
     );
   }
 

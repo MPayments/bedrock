@@ -26,6 +26,9 @@ export class UpdateOrganizationCommand {
 
       const next = applyPatch(
         {
+          shortName: existing.shortName,
+          fullName: existing.fullName,
+          country: existing.country,
           externalId: existing.externalId,
           description: existing.description,
           isActive: existing.isActive,
@@ -38,10 +41,10 @@ export class UpdateOrganizationCommand {
       const updated = await tx.organizationStore.update({
         id,
         externalId: next.externalId,
-        shortName: existing.shortName,
-        fullName: existing.fullName,
+        shortName: next.shortName,
+        fullName: next.fullName,
         description: next.description,
-        country: existing.country,
+        country: next.country,
         kind: existing.kind,
         isActive: next.isActive,
         signatureKey: next.signatureKey,
@@ -52,16 +55,13 @@ export class UpdateOrganizationCommand {
         throw new OrganizationNotFoundError(id);
       }
 
-      const legalEntity =
-        updated.kind === "legal_entity"
-          ? await tx.legalEntities.findBundleByOwner({
-              ownerType: "organization",
-              ownerId: updated.id,
-            })
-          : null;
+      const partyProfile = await tx.partyProfiles.findBundleByOwner({
+        ownerType: "organization",
+        ownerId: updated.id,
+      });
 
       this.runtime.log.info("Organization updated", { id });
-      return toOrganizationDto(updated, legalEntity);
+      return toOrganizationDto(updated, partyProfile);
     });
   }
 }

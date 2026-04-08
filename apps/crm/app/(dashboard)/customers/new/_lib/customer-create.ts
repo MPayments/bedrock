@@ -5,7 +5,7 @@ import type {
   CreateCustomerInput,
   CreateRequisiteInput,
   CreateRequisiteProviderInput,
-  PartyLegalEntityBundleInput,
+  PartyProfileBundleInput,
 } from "@bedrock/parties/contracts";
 import {
   getDefaultCustomerBankingValues,
@@ -167,50 +167,52 @@ export const customerCreateCustomerSchema = z.object({
   externalRef: z.string(),
 });
 
-export const customerCreateLegalEntitySchema = z.object({
-  address: z.string(),
-  addressI18n: localizedTextSchema,
-  directorBasis: z.string().trim().min(1, "Основание полномочий обязательно"),
-  directorBasisI18n: localizedTextSchema,
-  directorName: z.string().trim().min(1, "ФИО директора обязательно"),
-  directorNameI18n: localizedTextSchema,
-  email: emailSchema,
-  inn: z
-    .string()
-    .trim()
-    .min(1, "ИНН обязателен")
-    .refine((value) => /^\d{10}$|^\d{12}$/.test(value), {
-      message: "ИНН должен содержать 10 или 12 цифр",
-    }),
-  kpp: z.string().refine((value) => value === "" || /^\d{9}$/.test(value), {
-    message: "КПП должен содержать только цифры (9 символов)",
-  }),
-  ogrn: z
-    .string()
-    .refine((value) => value === "" || /^\d{13}$|^\d{15}$/.test(value), {
-      message: "ОГРН должен содержать только цифры (13 или 15 символов)",
-    }),
-  okpo: z
-    .string()
-    .refine((value) => value === "" || /^\d{8}$|^\d{10}$/.test(value), {
-      message: "ОКПО должен содержать только цифры (8 или 10 символов)",
-    }),
-  oktmo: z
-    .string()
-    .refine((value) => value === "" || /^\d{8}$|^\d{11}$/.test(value), {
-      message: "ОКТМО должен содержать только цифры (8 или 11 символов)",
-    }),
-  orgName: z.string().trim().min(1, "Название организации обязательно"),
-  orgNameI18n: localizedTextSchema,
-  orgType: z.string().trim().min(1, "Тип организации обязателен"),
-  orgTypeI18n: localizedTextSchema,
-  phone: phoneSchema,
-  position: z.string().trim().min(1, "Должность обязательна"),
-  positionI18n: localizedTextSchema,
-});
-
 export const customerCreateSchema = customerCreateCustomerSchema
-  .merge(customerCreateLegalEntitySchema)
+  .extend({
+    counterpartyKind: z
+      .enum(["legal_entity", "individual"])
+      .default("legal_entity"),
+    address: z.string(),
+    addressI18n: localizedTextSchema,
+    directorBasis: z.string(),
+    directorBasisI18n: localizedTextSchema,
+    directorName: z.string(),
+    directorNameI18n: localizedTextSchema,
+    email: emailSchema,
+    inn: z.string().refine(
+      (value) => value === "" || /^\d{10}$|^\d{12}$/.test(value),
+      {
+        message: "ИНН должен содержать 10 или 12 цифр",
+      },
+    ),
+    kpp: z.string().refine((value) => value === "" || /^\d{9}$/.test(value), {
+      message: "КПП должен содержать только цифры (9 символов)",
+    }),
+    ogrn: z
+      .string()
+      .refine((value) => value === "" || /^\d{13}$|^\d{15}$/.test(value), {
+        message: "ОГРН должен содержать только цифры (13 или 15 символов)",
+      }),
+    okpo: z
+      .string()
+      .refine((value) => value === "" || /^\d{8}$|^\d{10}$/.test(value), {
+        message: "ОКПО должен содержать только цифры (8 или 10 символов)",
+      }),
+    oktmo: z
+      .string()
+      .refine((value) => value === "" || /^\d{8}$|^\d{11}$/.test(value), {
+        message: "ОКТМО должен содержать только цифры (8 или 11 символов)",
+      }),
+    orgName: z.string(),
+    orgNameI18n: localizedTextSchema,
+    orgType: z.string(),
+    orgTypeI18n: localizedTextSchema,
+    personFullName: z.string(),
+    personFullNameI18n: localizedTextSchema,
+    phone: phoneSchema,
+    position: z.string(),
+    positionI18n: localizedTextSchema,
+  })
   .extend({
     addSubAgent: z.boolean(),
     bankMode: z.enum(["existing", "manual"]),
@@ -220,6 +222,57 @@ export const customerCreateSchema = customerCreateCustomerSchema
     selectedSubAgentId: z.string(),
   })
   .superRefine((data, ctx) => {
+    if (data.counterpartyKind === "legal_entity") {
+      if (!data.orgName.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["orgName"],
+          message: "Название организации обязательно",
+        });
+      }
+      if (!data.orgType.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["orgType"],
+          message: "Тип организации обязателен",
+        });
+      }
+      if (!data.inn.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["inn"],
+          message: "ИНН обязателен",
+        });
+      }
+      if (!data.directorName.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["directorName"],
+          message: "ФИО директора обязательно",
+        });
+      }
+      if (!data.position.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["position"],
+          message: "Должность обязательна",
+        });
+      }
+      if (!data.directorBasis.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["directorBasis"],
+          message: "Основание полномочий обязательно",
+        });
+      }
+    } else if (!data.personFullName.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["personFullName"],
+        message: "ФИО обязательно",
+      });
+    }
+
     refineCustomerBanking(
       {
         bankMode: data.bankMode,
@@ -248,51 +301,71 @@ function toLocalizedText(
   };
 }
 
-export function getCustomerCreateDefaultValues(): CustomerCreateFormData {
-  return {
-    ...getDefaultCustomerBankingValues(),
-    addSubAgent: false,
-    address: "",
-    addressI18n: { en: "", ru: "" },
-    description: "",
-    directorBasis: "",
-    directorBasisI18n: { en: "", ru: "" },
-    directorName: "",
-    directorNameI18n: { en: "", ru: "" },
-    displayName: "",
-    email: "",
-    externalRef: "",
-    inn: "",
-    kpp: "",
-    ogrn: "",
-    okpo: "",
-    oktmo: "",
-    orgName: "",
-    orgNameI18n: { en: "", ru: "" },
-    orgType: "",
-    orgTypeI18n: { en: "", ru: "" },
-    phone: "",
-    position: "",
-    positionI18n: { en: "", ru: "" },
-    selectedSubAgentId: "",
-  };
+function resolveCounterpartyDisplayName(values: CustomerCreateFormData) {
+  return values.counterpartyKind === "legal_entity"
+    ? values.orgName.trim()
+    : values.personFullName.trim();
 }
 
-function hasBankingSignal(values: CustomerCreateFormData) {
-  return Boolean(
-    values.bankProviderId ||
-      hasText(values.bankProvider.name) ||
-      hasText(values.bankProvider.address) ||
-      hasText(values.bankProvider.routingCode) ||
-      hasText(values.bankRequisite.accountNo) ||
-      hasText(values.bankRequisite.corrAccount) ||
-      hasText(values.bankRequisite.iban),
-  );
-}
-
-function buildLegalEntityBundle(
+function buildPartyProfileBundle(
   values: CustomerCreateFormData,
-): PartyLegalEntityBundleInput {
+): PartyProfileBundleInput {
+  if (values.counterpartyKind === "individual") {
+    const contacts = [
+      values.email.trim()
+        ? {
+            type: "email" as const,
+            value: values.email.trim(),
+            isPrimary: true,
+          }
+        : null,
+      values.phone.trim()
+        ? {
+            type: "phone" as const,
+            value: values.phone.trim(),
+            isPrimary: true,
+          }
+        : null,
+    ].filter((item) => item !== null);
+
+    return {
+      profile: {
+        fullName: values.personFullName.trim(),
+        shortName: values.personFullName.trim(),
+        fullNameI18n: toLocalizedText(
+          values.personFullNameI18n.ru,
+          values.personFullNameI18n.en,
+        ),
+        shortNameI18n: toLocalizedText(
+          values.personFullNameI18n.ru,
+          values.personFullNameI18n.en,
+        ),
+        legalFormCode: null,
+        legalFormLabel: null,
+        legalFormLabelI18n: null,
+        countryCode: null,
+        businessActivityCode: null,
+        businessActivityText: null,
+      },
+      identifiers: values.inn.trim()
+        ? [{ scheme: "inn" as const, value: values.inn.trim() }]
+        : [],
+      address: values.address.trim()
+        ? {
+            countryCode: null,
+            postalCode: null,
+            city: null,
+            streetAddress: null,
+            addressDetails: null,
+            fullAddress: values.address.trim(),
+          }
+        : null,
+      contacts,
+      representatives: [],
+      licenses: [],
+    };
+  }
+
   const identifiers = [
     { scheme: "inn" as const, value: values.inn.trim() },
     values.kpp.trim() ? { scheme: "kpp" as const, value: values.kpp.trim() } : null,
@@ -383,6 +456,93 @@ function buildLegalEntityBundle(
   };
 }
 
+export const customerCreateCounterpartySchema = z.object({
+  address: z.string(),
+  addressI18n: localizedTextSchema,
+  directorBasis: z.string().trim().min(1, "Основание полномочий обязательно"),
+  directorBasisI18n: localizedTextSchema,
+  directorName: z.string().trim().min(1, "ФИО директора обязательно"),
+  directorNameI18n: localizedTextSchema,
+  email: emailSchema,
+  inn: z
+    .string()
+    .trim()
+    .min(1, "ИНН обязателен")
+    .refine((value) => /^\d{10}$|^\d{12}$/.test(value), {
+      message: "ИНН должен содержать 10 или 12 цифр",
+    }),
+  kpp: z.string().refine((value) => value === "" || /^\d{9}$/.test(value), {
+    message: "КПП должен содержать только цифры (9 символов)",
+  }),
+  ogrn: z
+    .string()
+    .refine((value) => value === "" || /^\d{13}$|^\d{15}$/.test(value), {
+      message: "ОГРН должен содержать только цифры (13 или 15 символов)",
+    }),
+  okpo: z
+    .string()
+    .refine((value) => value === "" || /^\d{8}$|^\d{10}$/.test(value), {
+      message: "ОКПО должен содержать только цифры (8 или 10 символов)",
+    }),
+  oktmo: z
+    .string()
+    .refine((value) => value === "" || /^\d{8}$|^\d{11}$/.test(value), {
+      message: "ОКТМО должен содержать только цифры (8 или 11 символов)",
+    }),
+  orgName: z.string().trim().min(1, "Название организации обязательно"),
+  orgNameI18n: localizedTextSchema,
+  orgType: z.string().trim().min(1, "Тип организации обязателен"),
+  orgTypeI18n: localizedTextSchema,
+  phone: phoneSchema,
+  position: z.string().trim().min(1, "Должность обязательна"),
+  positionI18n: localizedTextSchema,
+});
+
+export function getCustomerCreateDefaultValues(): CustomerCreateFormData {
+  return {
+    ...getDefaultCustomerBankingValues(),
+    addSubAgent: false,
+    address: "",
+    addressI18n: { en: "", ru: "" },
+    counterpartyKind: "legal_entity",
+    description: "",
+    directorBasis: "",
+    directorBasisI18n: { en: "", ru: "" },
+    directorName: "",
+    directorNameI18n: { en: "", ru: "" },
+    displayName: "",
+    email: "",
+    externalRef: "",
+    inn: "",
+    kpp: "",
+    ogrn: "",
+    okpo: "",
+    oktmo: "",
+    orgName: "",
+    orgNameI18n: { en: "", ru: "" },
+    orgType: "",
+    orgTypeI18n: { en: "", ru: "" },
+    personFullName: "",
+    personFullNameI18n: { en: "", ru: "" },
+    phone: "",
+    position: "",
+    positionI18n: { en: "", ru: "" },
+    selectedSubAgentId: "",
+  };
+}
+
+function hasBankingSignal(values: CustomerCreateFormData) {
+  return Boolean(
+    values.bankProviderId ||
+      hasText(values.bankProvider.name) ||
+      hasText(values.bankProvider.address) ||
+      hasText(values.bankProvider.routingCode) ||
+      hasText(values.bankRequisite.accountNo) ||
+      hasText(values.bankRequisite.corrAccount) ||
+      hasText(values.bankRequisite.iban),
+  );
+}
+
 export function buildCustomerCreatePayload(
   values: CustomerCreateFormData,
 ): CreateCustomerInput {
@@ -398,18 +558,19 @@ export function buildCustomerCounterpartyCreatePayload(input: {
   values: CustomerCreateFormData;
 }): CreateCounterpartyInput {
   const { customerId, values } = input;
+  const counterpartyName = resolveCounterpartyDisplayName(values);
 
   return {
-    kind: "legal_entity",
-    shortName: values.orgName.trim(),
-    fullName: values.orgName.trim(),
+    kind: values.counterpartyKind,
+    shortName: counterpartyName,
+    fullName: counterpartyName,
     relationshipKind: "customer_owned",
     country: null,
-    externalId: values.inn.trim(),
+    externalId: normalizeOptionalText(values.inn),
     description: null,
     customerId,
     groupIds: [],
-    legalEntity: buildLegalEntityBundle(values),
+    partyProfile: buildPartyProfileBundle(values),
   };
 }
 
@@ -436,7 +597,8 @@ export function buildManualBankProviderCreatePayload(
   });
   const providerAddress = normalizeOptionalText(values.bankProvider.address);
   const providerName =
-    normalizeOptionalText(values.bankProvider.name) ?? values.orgName.trim();
+    normalizeOptionalText(values.bankProvider.name) ??
+    resolveCounterpartyDisplayName(values);
 
   if (!providerName || !country || !routing.routingCode) {
     return null;
@@ -494,7 +656,7 @@ export function buildCounterpartyBankRequisiteCreatePayload(input: {
   const accountNo = normalizeOptionalText(values.bankRequisite.accountNo);
   const beneficiaryName =
     normalizeOptionalText(values.bankRequisite.beneficiaryName) ??
-    values.orgName.trim();
+    resolveCounterpartyDisplayName(values);
 
   if (!accountNo || !beneficiaryName) {
     return null;
@@ -509,7 +671,7 @@ export function buildCounterpartyBankRequisiteCreatePayload(input: {
     kind: "bank",
     label:
       normalizeOptionalText(values.bankProvider.name) ??
-      values.orgName.trim() ??
+      resolveCounterpartyDisplayName(values) ??
       "Bank details",
     beneficiaryName,
     beneficiaryNameLocal: null,

@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
-import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
 import {
   OrganizationGeneralEditor,
   type OrganizationGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
-import { createSeededLegalEntityBundle } from "@bedrock/sdk-parties-ui/lib/legal-entity";
+import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
@@ -43,9 +43,9 @@ export function CreateOrganizationFormClient({
   const [draftValues, setDraftValues] = useState<OrganizationGeneralFormValues>(
     EMPTY_ORGANIZATION_VALUES,
   );
-  const [legalEntityDraft, setLegalEntityDraft] =
-    useState<PartyLegalEntityBundleInput | null>(null);
-  const legalEntitySeed = useMemo(
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
+  const partyProfileSeed = useMemo(
     () => ({
       fullName: draftValues.fullName || EMPTY_ORGANIZATION_VALUES.fullName,
       shortName: draftValues.shortName || EMPTY_ORGANIZATION_VALUES.shortName,
@@ -54,9 +54,9 @@ export function CreateOrganizationFormClient({
     [draftValues.country, draftValues.fullName, draftValues.shortName],
   );
 
-  function resolveCreateLegalEntityBundle(
+  function resolveCreatePartyProfileBundle(
     values: OrganizationGeneralFormValues,
-    bundle: PartyLegalEntityBundleInput | null,
+    bundle: PartyProfileBundleInput | null,
   ) {
     const fallbackCountryCode = values.country.trim() || null;
 
@@ -71,7 +71,7 @@ export function CreateOrganizationFormClient({
             countryCode: bundle.profile.countryCode ?? fallbackCountryCode,
           },
         }
-      : createSeededLegalEntityBundle({
+      : createSeededPartyProfileBundle({
           fullName: values.fullName,
           shortName: values.shortName,
           countryCode: values.country || null,
@@ -94,9 +94,9 @@ export function CreateOrganizationFormClient({
             country: values.country || undefined,
             externalId: values.externalId || undefined,
             description: values.description || undefined,
-            legalEntity:
+            partyProfile:
               values.kind === "legal_entity"
-                ? resolveCreateLegalEntityBundle(values, legalEntityDraft)
+                ? resolveCreatePartyProfileBundle(values, partyProfileDraft)
                 : undefined,
           },
         }),
@@ -131,15 +131,15 @@ export function CreateOrganizationFormClient({
         showDates={false}
       />
       {draftValues.kind === "legal_entity" ? (
-        <LegalEntityBundleEditor
-          bundle={legalEntityDraft}
-          seed={legalEntitySeed}
+        <PartyProfileEditor
+          bundle={partyProfileDraft}
+          seed={partyProfileSeed}
           submitting={submitting}
           error={error}
           title="Мастер-данные организации"
           showActions={false}
           onChange={(bundle) => {
-            setLegalEntityDraft(bundle);
+            setPartyProfileDraft(bundle);
           }}
         />
       ) : null}

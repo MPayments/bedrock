@@ -78,6 +78,7 @@ export type RequisiteEditorProps = {
   submitting?: boolean;
   deleting?: boolean;
   error?: string | null;
+  onDirtyChange?: (dirty: boolean) => void;
   onSubmit?: (values: RequisiteFormValues) => RequisiteFormSubmit;
   onDelete?: () => Promise<boolean | void> | boolean | void;
   onLabelChange?: (label: string) => void;
@@ -361,6 +362,7 @@ export function RequisiteEditor({
   submitting = false,
   deleting = false,
   error,
+  onDirtyChange,
   onSubmit,
   onDelete,
   onLabelChange,
@@ -511,6 +513,10 @@ export function RequisiteEditor({
     ownerOptions.length === 0;
   const submitDisabled = submitting || deleting || ownerTypeMissing;
   const resetDisabled = submitting || deleting || !form.formState.isDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(form.formState.isDirty);
+  }, [form.formState.isDirty, onDirtyChange]);
 
   return (
     <Card className="w-full rounded-sm">

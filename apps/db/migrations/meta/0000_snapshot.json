@@ -9969,8 +9969,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "party_legal_profile_id": {
-          "name": "party_legal_profile_id",
+        "party_profile_id": {
+          "name": "party_profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -10032,7 +10032,7 @@
           "name": "party_addresses_profile_uq",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10045,12 +10045,12 @@
         }
       },
       "foreignKeys": {
-        "party_addresses_party_legal_profile_id_party_legal_profiles_id_fk": {
-          "name": "party_addresses_party_legal_profile_id_party_legal_profiles_id_fk",
+        "party_addresses_party_profile_id_party_profiles_id_fk": {
+          "name": "party_addresses_party_profile_id_party_profiles_id_fk",
           "tableFrom": "party_addresses",
-          "tableTo": "party_legal_profiles",
+          "tableTo": "party_profiles",
           "columnsFrom": [
-            "party_legal_profile_id"
+            "party_profile_id"
           ],
           "columnsTo": [
             "id"
@@ -10076,8 +10076,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "party_legal_profile_id": {
-          "name": "party_legal_profile_id",
+        "party_profile_id": {
+          "name": "party_profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -10121,7 +10121,7 @@
           "name": "party_contacts_profile_idx",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10136,7 +10136,7 @@
           "name": "party_contacts_primary_uq",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10156,12 +10156,12 @@
         }
       },
       "foreignKeys": {
-        "party_contacts_party_legal_profile_id_party_legal_profiles_id_fk": {
-          "name": "party_contacts_party_legal_profile_id_party_legal_profiles_id_fk",
+        "party_contacts_party_profile_id_party_profiles_id_fk": {
+          "name": "party_contacts_party_profile_id_party_profiles_id_fk",
           "tableFrom": "party_contacts",
-          "tableTo": "party_legal_profiles",
+          "tableTo": "party_profiles",
           "columnsFrom": [
-            "party_legal_profile_id"
+            "party_profile_id"
           ],
           "columnsTo": [
             "id"
@@ -10176,8 +10176,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.party_legal_identifiers": {
-      "name": "party_legal_identifiers",
+    "public.party_identifiers": {
+      "name": "party_identifiers",
       "schema": "",
       "columns": {
         "id": {
@@ -10187,8 +10187,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "party_legal_profile_id": {
-          "name": "party_legal_profile_id",
+        "party_profile_id": {
+          "name": "party_profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -10227,11 +10227,11 @@
         }
       },
       "indexes": {
-        "party_legal_identifiers_profile_idx": {
-          "name": "party_legal_identifiers_profile_idx",
+        "party_identifiers_profile_idx": {
+          "name": "party_identifiers_profile_idx",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10242,11 +10242,11 @@
           "method": "btree",
           "with": {}
         },
-        "party_legal_identifiers_scheme_uq": {
-          "name": "party_legal_identifiers_scheme_uq",
+        "party_identifiers_scheme_uq": {
+          "name": "party_identifiers_scheme_uq",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10265,12 +10265,12 @@
         }
       },
       "foreignKeys": {
-        "party_legal_identifiers_party_legal_profile_id_party_legal_profiles_id_fk": {
-          "name": "party_legal_identifiers_party_legal_profile_id_party_legal_profiles_id_fk",
-          "tableFrom": "party_legal_identifiers",
-          "tableTo": "party_legal_profiles",
+        "party_identifiers_party_profile_id_party_profiles_id_fk": {
+          "name": "party_identifiers_party_profile_id_party_profiles_id_fk",
+          "tableFrom": "party_identifiers",
+          "tableTo": "party_profiles",
           "columnsFrom": [
-            "party_legal_profile_id"
+            "party_profile_id"
           ],
           "columnsTo": [
             "id"
@@ -10285,8 +10285,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.party_legal_profiles": {
-      "name": "party_legal_profiles",
+    "public.party_profiles": {
+      "name": "party_profiles",
       "schema": "",
       "columns": {
         "id": {
@@ -10385,8 +10385,8 @@
         }
       },
       "indexes": {
-        "party_legal_profiles_organization_uq": {
-          "name": "party_legal_profiles_organization_uq",
+        "party_profiles_organization_uq": {
+          "name": "party_profiles_organization_uq",
           "columns": [
             {
               "expression": "organization_id",
@@ -10400,8 +10400,8 @@
           "method": "btree",
           "with": {}
         },
-        "party_legal_profiles_counterparty_uq": {
-          "name": "party_legal_profiles_counterparty_uq",
+        "party_profiles_counterparty_uq": {
+          "name": "party_profiles_counterparty_uq",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -10417,9 +10417,9 @@
         }
       },
       "foreignKeys": {
-        "party_legal_profiles_organization_id_organizations_id_fk": {
-          "name": "party_legal_profiles_organization_id_organizations_id_fk",
-          "tableFrom": "party_legal_profiles",
+        "party_profiles_organization_id_organizations_id_fk": {
+          "name": "party_profiles_organization_id_organizations_id_fk",
+          "tableFrom": "party_profiles",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -10430,9 +10430,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "party_legal_profiles_counterparty_id_counterparties_id_fk": {
-          "name": "party_legal_profiles_counterparty_id_counterparties_id_fk",
-          "tableFrom": "party_legal_profiles",
+        "party_profiles_counterparty_id_counterparties_id_fk": {
+          "name": "party_profiles_counterparty_id_counterparties_id_fk",
+          "tableFrom": "party_profiles",
           "tableTo": "counterparties",
           "columnsFrom": [
             "counterparty_id"
@@ -10448,9 +10448,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "party_legal_profiles_owner_chk": {
-          "name": "party_legal_profiles_owner_chk",
-          "value": "(\n        \"party_legal_profiles\".\"organization_id\" is not null\n        and \"party_legal_profiles\".\"counterparty_id\" is null\n      ) or (\n        \"party_legal_profiles\".\"counterparty_id\" is not null\n        and \"party_legal_profiles\".\"organization_id\" is null\n      )"
+        "party_profiles_owner_chk": {
+          "name": "party_profiles_owner_chk",
+          "value": "(\n        \"party_profiles\".\"organization_id\" is not null\n        and \"party_profiles\".\"counterparty_id\" is null\n      ) or (\n        \"party_profiles\".\"counterparty_id\" is not null\n        and \"party_profiles\".\"organization_id\" is null\n      )"
         }
       },
       "isRLSEnabled": false
@@ -10466,8 +10466,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "party_legal_profile_id": {
-          "name": "party_legal_profile_id",
+        "party_profile_id": {
+          "name": "party_profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -10534,7 +10534,7 @@
           "name": "party_licenses_profile_idx",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10549,7 +10549,7 @@
           "name": "party_licenses_value_uq",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10574,12 +10574,12 @@
         }
       },
       "foreignKeys": {
-        "party_licenses_party_legal_profile_id_party_legal_profiles_id_fk": {
-          "name": "party_licenses_party_legal_profile_id_party_legal_profiles_id_fk",
+        "party_licenses_party_profile_id_party_profiles_id_fk": {
+          "name": "party_licenses_party_profile_id_party_profiles_id_fk",
           "tableFrom": "party_licenses",
-          "tableTo": "party_legal_profiles",
+          "tableTo": "party_profiles",
           "columnsFrom": [
-            "party_legal_profile_id"
+            "party_profile_id"
           ],
           "columnsTo": [
             "id"
@@ -10605,8 +10605,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "party_legal_profile_id": {
-          "name": "party_legal_profile_id",
+        "party_profile_id": {
+          "name": "party_profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -10680,7 +10680,7 @@
           "name": "party_representatives_profile_idx",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10695,7 +10695,7 @@
           "name": "party_representatives_primary_uq",
           "columns": [
             {
-              "expression": "party_legal_profile_id",
+              "expression": "party_profile_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10715,12 +10715,12 @@
         }
       },
       "foreignKeys": {
-        "party_representatives_party_legal_profile_id_party_legal_profiles_id_fk": {
-          "name": "party_representatives_party_legal_profile_id_party_legal_profiles_id_fk",
+        "party_representatives_party_profile_id_party_profiles_id_fk": {
+          "name": "party_representatives_party_profile_id_party_profiles_id_fk",
           "tableFrom": "party_representatives",
-          "tableTo": "party_legal_profiles",
+          "tableTo": "party_profiles",
           "columnsFrom": [
-            "party_legal_profile_id"
+            "party_profile_id"
           ],
           "columnsTo": [
             "id"

@@ -297,6 +297,7 @@ export default function NewCustomerPage() {
   });
 
   const addSubAgent = form.watch("addSubAgent");
+  const counterpartyKind = form.watch("counterpartyKind");
   const formDirty = form.formState.isDirty;
 
   const loadSubAgents = useCallback(async () => {
@@ -392,7 +393,7 @@ export default function NewCustomerPage() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -456,23 +457,36 @@ export default function NewCustomerPage() {
 
     try {
       const values = form.getValues();
-      const translated = await translateFieldsToEnglish({
-        address: values.address,
-        directorBasis: values.directorBasis,
-        directorName: values.directorName,
-        orgName: values.orgName,
-        orgType: values.orgType,
-        position: values.position,
-      });
+      const translated = await translateFieldsToEnglish(
+        values.counterpartyKind === "legal_entity"
+          ? {
+              address: values.address,
+              directorBasis: values.directorBasis,
+              directorName: values.directorName,
+              orgName: values.orgName,
+              orgType: values.orgType,
+              position: values.position,
+            }
+          : {
+              address: values.address,
+              personFullName: values.personFullName,
+            },
+      );
 
-      const mapping: Record<string, Path<CustomerCreateFormData>> = {
-        address: "addressI18n.en",
-        directorBasis: "directorBasisI18n.en",
-        directorName: "directorNameI18n.en",
-        orgName: "orgNameI18n.en",
-        orgType: "orgTypeI18n.en",
-        position: "positionI18n.en",
-      };
+      const mapping: Record<string, Path<CustomerCreateFormData>> =
+        values.counterpartyKind === "legal_entity"
+          ? {
+              address: "addressI18n.en",
+              directorBasis: "directorBasisI18n.en",
+              directorName: "directorNameI18n.en",
+              orgName: "orgNameI18n.en",
+              orgType: "orgTypeI18n.en",
+              position: "positionI18n.en",
+            }
+          : {
+              address: "addressI18n.en",
+              personFullName: "personFullNameI18n.en",
+            };
 
       Object.entries(mapping).forEach(([sourceField, targetField]) => {
         const value = translated[sourceField];
@@ -520,7 +534,7 @@ export default function NewCustomerPage() {
       formData.append("file", file);
 
       const response = await fetch(
-        `${API_BASE_URL}/legal-entities/parse-card`,
+        `${API_BASE_URL}/counterparties/parse-card`,
         {
           body: formData,
           credentials: "include",
@@ -741,7 +755,7 @@ export default function NewCustomerPage() {
         throw new Error(
           getResponseErrorMessage(
             errorData,
-            `Ошибка создания юридического лица: ${counterpartyResponse.status}`,
+            `Ошибка создания контрагента: ${counterpartyResponse.status}`,
           ),
         );
       }
@@ -907,103 +921,135 @@ export default function NewCustomerPage() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="h-full">
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Building2 className="h-4 w-4 text-primary" />
-                Автозаполнение по ИНН
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Заполнит данные юридического лица из ЕГРЮЛ/ЕГРИП.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input
-              placeholder="Введите ИНН"
-              value={innSearchValue}
-              onChange={(event) => {
-                setInnSearchValue(event.target.value.replace(/\D/g, ""));
-                setInnSearchSuccess(false);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleInnSearch();
-                }
-              }}
-              disabled={searchingByInn}
-              maxLength={12}
-            />
-            <Button
-              type="button"
-              onClick={() => void handleInnSearch()}
-              disabled={searchingByInn || !innSearchValue.trim()}
-              className="w-full"
-            >
-              {searchingByInn ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Search className="size-4" />
-              )}
-              Найти компанию
-            </Button>
-            {innSearchSuccess ? (
-              <div className="flex items-center gap-2 text-xs text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
-                Данные юридического лица обновлены
+      {counterpartyKind === "legal_entity" ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Автозаполнение по ИНН
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Заполнит данные юрлица из ЕГРЮЛ/ЕГРИП.
+                </p>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                placeholder="Введите ИНН"
+                value={innSearchValue}
+                onChange={(event) => {
+                  setInnSearchValue(event.target.value.replace(/\D/g, ""));
+                  setInnSearchSuccess(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleInnSearch();
+                  }
+                }}
+                disabled={searchingByInn}
+                maxLength={12}
+              />
+              <Button
+                type="button"
+                onClick={() => void handleInnSearch()}
+                disabled={searchingByInn || !innSearchValue.trim()}
+                className="w-full"
+              >
+                {searchingByInn ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Search className="size-4" />
+                )}
+                Найти компанию
+              </Button>
+              {innSearchSuccess ? (
+                <div className="flex items-center gap-2 text-xs text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Данные контрагента обновлены
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <Card className="h-full">
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Автозаполнение из PDF
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Извлечет реквизиты из PDF-карточки клиента.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="application/pdf"
-              className="hidden"
-              disabled={parsingFile}
-            />
-            <Button
-              className="w-full"
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={parsingFile}
-            >
-              {parsingFile ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Upload className="size-4" />
-              )}
-              Загрузить PDF
-            </Button>
-            {uploadedFileName ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                <span className="truncate">{uploadedFileName}</span>
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Автозаполнение из PDF
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Извлечет реквизиты из PDF-карточки клиента.
+                </p>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="application/pdf"
+                className="hidden"
+                disabled={parsingFile}
+              />
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsingFile}
+              >
+                {parsingFile ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                Загрузить PDF
+              </Button>
+              {uploadedFileName ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span className="truncate">{uploadedFileName}</span>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <Card className="h-full">
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Languages className="h-4 w-4 text-primary" />
+                  Перевод на английский
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Заполнит English fields по русским данным контрагента.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={() => void handleTranslateToEnglish()}
+                disabled={translating}
+              >
+                {translating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Languages className="size-4" />
+                )}
+                Заполнить английские поля
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -1011,7 +1057,7 @@ export default function NewCustomerPage() {
                 Перевод на английский
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Заполнит English fields по русским данным юридического лица.
+                Заполнит English fields по данным физлица.
               </p>
             </div>
           </CardHeader>
@@ -1032,7 +1078,7 @@ export default function NewCustomerPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       <form
         id="customer-create-form"
@@ -1076,59 +1122,104 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Данные юр. лица</CardTitle>
+              <CardTitle>Первый контрагент клиента</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Первое юридическое лицо клиента и контактные данные.
+                Тип, профиль и контактные данные первого контрагента клиента.
               </p>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="space-y-2 md:max-w-sm">
+              <Label htmlFor="counterparty-kind">Тип контрагента</Label>
+              <Select
+                value={counterpartyKind}
+                onValueChange={(value) =>
+                  form.setValue(
+                    "counterpartyKind",
+                    value as PathValue<CustomerCreateFormData, "counterpartyKind">,
+                    {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              >
+                <SelectTrigger id="counterparty-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="legal_entity">Юрлицо</SelectItem>
+                  <SelectItem value="individual">Физлицо</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                form={form}
-                label="Название юр. лица"
-                name="orgName"
-                placeholder="ООО «Компания»"
-                required
-              />
-              <Field
-                form={form}
-                label="Тип организации"
-                name="orgType"
-                placeholder="ООО, ИП, АО..."
-                required
-              />
-              <Field
-                form={form}
-                label="ИНН"
-                name="inn"
-                placeholder="1234567890"
-                required
-              />
-              <Field
-                form={form}
-                label="КПП"
-                name="kpp"
-                placeholder="123456789"
-              />
-              <Field
-                form={form}
-                label="ОГРН"
-                name="ogrn"
-                placeholder="1234567890123"
-              />
-              <Field
-                form={form}
-                label="ОКПО"
-                name="okpo"
-                placeholder="12345678"
-              />
-              <Field
-                form={form}
-                label="ОКТМО"
-                name="oktmo"
-                placeholder="12345678901"
-              />
+              {counterpartyKind === "legal_entity" ? (
+                <>
+                  <Field
+                    form={form}
+                    label="Название организации"
+                    name="orgName"
+                    placeholder="ООО «Компания»"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="Тип организации"
+                    name="orgType"
+                    placeholder="ООО, ИП, АО..."
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="ИНН"
+                    name="inn"
+                    placeholder="1234567890"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="КПП"
+                    name="kpp"
+                    placeholder="123456789"
+                  />
+                  <Field
+                    form={form}
+                    label="ОГРН"
+                    name="ogrn"
+                    placeholder="1234567890123"
+                  />
+                  <Field
+                    form={form}
+                    label="ОКПО"
+                    name="okpo"
+                    placeholder="12345678"
+                  />
+                  <Field
+                    form={form}
+                    label="ОКТМО"
+                    name="oktmo"
+                    placeholder="12345678901"
+                  />
+                </>
+              ) : (
+                <>
+                  <Field
+                    form={form}
+                    label="ФИО"
+                    name="personFullName"
+                    placeholder="Иванов Иван Иванович"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="ИНН"
+                    name="inn"
+                    placeholder="123456789012"
+                  />
+                </>
+              )}
               <Field
                 form={form}
                 label="Email"
@@ -1142,27 +1233,31 @@ export default function NewCustomerPage() {
                 name="phone"
                 placeholder="+7 (999) 123-45-67"
               />
-              <Field
-                form={form}
-                label="Директор"
-                name="directorName"
-                placeholder="Иванов Иван Иванович"
-                required
-              />
-              <Field
-                form={form}
-                label="Должность"
-                name="position"
-                placeholder="Генеральный директор"
-                required
-              />
-              <Field
-                form={form}
-                label="Основание полномочий"
-                name="directorBasis"
-                placeholder="Устав"
-                required
-              />
+              {counterpartyKind === "legal_entity" ? (
+                <>
+                  <Field
+                    form={form}
+                    label="Директор"
+                    name="directorName"
+                    placeholder="Иванов Иван Иванович"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="Должность"
+                    name="position"
+                    placeholder="Генеральный директор"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="Основание полномочий"
+                    name="directorBasis"
+                    placeholder="Устав"
+                    required
+                  />
+                </>
+              ) : null}
               <Field
                 form={form}
                 label="Адрес"
@@ -1172,60 +1267,86 @@ export default function NewCustomerPage() {
             </div>
 
             <Accordion defaultValue={[]} multiple>
-              <AccordionItem value="organization-english">
-                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                  English fields: организация
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4 pt-3 md:grid-cols-2">
-                    <Field
-                      form={form}
-                      label="Название организации (EN)"
-                      name="orgNameI18n.en"
-                      placeholder="Company name in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Тип организации (EN)"
-                      name="orgTypeI18n.en"
-                      placeholder="LLC, Ltd..."
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="contacts-english">
-                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                  English fields: контакты и представитель
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4 pt-3 md:grid-cols-2">
-                    <Field
-                      form={form}
-                      label="ФИО директора (EN)"
-                      name="directorNameI18n.en"
-                      placeholder="Director full name in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Должность (EN)"
-                      name="positionI18n.en"
-                      placeholder="Director position in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Основание полномочий (EN)"
-                      name="directorBasisI18n.en"
-                      placeholder="Authority basis in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Адрес (EN)"
-                      name="addressI18n.en"
-                      placeholder="Legal address in English"
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+              {counterpartyKind === "legal_entity" ? (
+                <>
+                  <AccordionItem value="organization-english">
+                    <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                      English fields: организация
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid gap-4 pt-3 md:grid-cols-2">
+                        <Field
+                          form={form}
+                          label="Название организации (EN)"
+                          name="orgNameI18n.en"
+                          placeholder="Company name in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Тип организации (EN)"
+                          name="orgTypeI18n.en"
+                          placeholder="LLC, Ltd..."
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="contacts-english">
+                    <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                      English fields: контакты и представитель
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid gap-4 pt-3 md:grid-cols-2">
+                        <Field
+                          form={form}
+                          label="ФИО директора (EN)"
+                          name="directorNameI18n.en"
+                          placeholder="Director full name in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Должность (EN)"
+                          name="positionI18n.en"
+                          placeholder="Director position in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Основание полномочий (EN)"
+                          name="directorBasisI18n.en"
+                          placeholder="Authority basis in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Адрес (EN)"
+                          name="addressI18n.en"
+                          placeholder="Legal address in English"
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </>
+              ) : (
+                <AccordionItem value="individual-english">
+                  <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                    English fields: физлицо
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid gap-4 pt-3 md:grid-cols-2">
+                      <Field
+                        form={form}
+                        label="ФИО (EN)"
+                        name="personFullNameI18n.en"
+                        placeholder="Full name in English"
+                      />
+                      <Field
+                        form={form}
+                        label="Адрес (EN)"
+                        name="addressI18n.en"
+                        placeholder="Address in English"
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
             </Accordion>
           </CardContent>
         </Card>

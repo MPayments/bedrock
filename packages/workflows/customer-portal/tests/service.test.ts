@@ -196,19 +196,19 @@ function createWorkflow(overrides?: {
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           customerId: input.customerId,
           description: null,
-          country: input.legalEntity?.profile.countryCode ?? null,
+          country: input.partyProfile?.profile.countryCode ?? null,
           externalId: input.externalId ?? null,
           fullName:
-            input.legalEntity?.profile.fullName ??
+            input.partyProfile?.profile.fullName ??
             input.fullName ??
             input.shortName ??
             "Counterparty",
           id: "counterparty-created",
           kind: "legal_entity",
-          legalEntity: input.legalEntity ?? null,
+          partyProfile: input.partyProfile ?? null,
           relationshipKind: "customer_owned",
           shortName:
-            input.legalEntity?.profile.shortName ??
+            input.partyProfile?.profile.shortName ??
             input.shortName ??
             input.fullName ??
             "Counterparty",
@@ -515,7 +515,7 @@ describe("customer portal workflow", () => {
             id: "customer-1",
             displayName: "Customer customer-1",
           }),
-          legalEntities: [
+          counterparties: [
             expect.objectContaining({
               id: "counterparty-1",
               shortName: "Acme RU",
@@ -527,7 +527,7 @@ describe("customer portal workflow", () => {
             id: "customer-2",
             displayName: "Customer customer-2",
           }),
-          legalEntities: [
+          counterparties: [
             expect.objectContaining({
               id: "counterparty-2",
               shortName: "Acme EU",
@@ -539,7 +539,7 @@ describe("customer portal workflow", () => {
     });
   });
 
-  it("creates a canonical customer and legal entity for portal onboarding", async () => {
+  it("creates a canonical customer and counterparty for portal onboarding", async () => {
     const { iam, parties, workflow } = createWorkflow({
       memberships: [],
       hasPendingPortalGrant: true,
@@ -548,7 +548,7 @@ describe("customer portal workflow", () => {
       },
     });
 
-    const result = await workflow.createLegalEntity(
+    const result = await workflow.createCounterparty(
       { userId: "user-1" },
       {
         bankMode: "manual",
@@ -564,6 +564,7 @@ describe("customer portal workflow", () => {
         directorName: "Иван Иванов",
         email: "finance@example.com",
         inn: "7700000000",
+        kind: "legal_entity",
         orgName: "Acme Corp",
         phone: "+79990001122",
       },
@@ -579,7 +580,7 @@ describe("customer portal workflow", () => {
         customerId: "customer-created",
         externalId: "7700000000",
         kind: "legal_entity",
-        legalEntity: expect.objectContaining({
+        partyProfile: expect.objectContaining({
           contacts: expect.arrayContaining([
             expect.objectContaining({
               type: "email",
@@ -650,7 +651,7 @@ describe("customer portal workflow", () => {
     );
   });
 
-  it("allows onboarding legal-entity creation for mixed-access internal users", async () => {
+  it("allows onboarding counterparty creation for mixed-access internal users", async () => {
     const { workflow } = createWorkflow({
       memberships: [],
       hasPendingPortalGrant: true,
@@ -660,10 +661,11 @@ describe("customer portal workflow", () => {
     });
 
     await expect(
-      workflow.createLegalEntity(
+      workflow.createCounterparty(
         { userId: "user-1" },
         {
           bankMode: "existing",
+          kind: "legal_entity",
           orgName: "CRM only",
         },
       ),

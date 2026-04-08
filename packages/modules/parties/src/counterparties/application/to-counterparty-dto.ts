@@ -1,4 +1,4 @@
-import type { PartyLegalEntityBundle } from "../../legal-entities/application/contracts";
+import type { PartyProfileBundle } from "../../party-profiles/application/contracts";
 import type { Counterparty } from "./contracts/counterparty.dto";
 
 export function toCounterpartyDto(
@@ -16,10 +16,10 @@ export function toCounterpartyDto(
     createdAt: Date;
     updatedAt: Date;
   },
-  legalEntity: PartyLegalEntityBundle | null,
+  partyProfile: PartyProfileBundle | null,
 ): Counterparty {
   return {
     ...counterparty,
-    legalEntity,
+    partyProfile,
   };
 }

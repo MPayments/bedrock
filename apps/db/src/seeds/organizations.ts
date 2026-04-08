@@ -38,7 +38,7 @@ export async function seedOrganizations(db: Database | Transaction) {
       });
 
     const [profile] = await db
-      .insert(schema.partyLegalProfiles)
+      .insert(schema.partyProfiles)
       .values({
         organizationId: organization.id,
         counterpartyId: null,
@@ -54,7 +54,7 @@ export async function seedOrganizations(db: Database | Transaction) {
         businessActivityText: organization.description ?? null,
       })
       .onConflictDoUpdate({
-        target: schema.partyLegalProfiles.organizationId,
+        target: schema.partyProfiles.organizationId,
         set: {
           fullName: organization.fullName,
           shortName: organization.shortName,
@@ -68,7 +68,7 @@ export async function seedOrganizations(db: Database | Transaction) {
           businessActivityText: organization.description ?? null,
         },
       })
-      .returning({ id: schema.partyLegalProfiles.id });
+      .returning({ id: schema.partyProfiles.id });
     const profileId = profile?.id;
     if (!profileId) {
       throw new Error(
@@ -77,25 +77,25 @@ export async function seedOrganizations(db: Database | Transaction) {
     }
 
     await db
-      .delete(schema.partyLegalIdentifiers)
-      .where(eq(schema.partyLegalIdentifiers.partyLegalProfileId, profileId));
+      .delete(schema.partyIdentifiers)
+      .where(eq(schema.partyIdentifiers.partyProfileId, profileId));
     await db
       .delete(schema.partyAddresses)
-      .where(eq(schema.partyAddresses.partyLegalProfileId, profileId));
+      .where(eq(schema.partyAddresses.partyProfileId, profileId));
     await db
       .delete(schema.partyContacts)
-      .where(eq(schema.partyContacts.partyLegalProfileId, profileId));
+      .where(eq(schema.partyContacts.partyProfileId, profileId));
     await db
       .delete(schema.partyRepresentatives)
-      .where(eq(schema.partyRepresentatives.partyLegalProfileId, profileId));
+      .where(eq(schema.partyRepresentatives.partyProfileId, profileId));
     await db
       .delete(schema.partyLicenses)
-      .where(eq(schema.partyLicenses.partyLegalProfileId, profileId));
+      .where(eq(schema.partyLicenses.partyProfileId, profileId));
 
     const identifiers = [
       organization.inn
         ? {
-            partyLegalProfileId: profileId,
+            partyProfileId: profileId,
             scheme: "inn",
             value: organization.inn,
             normalizedValue: organization.inn,
@@ -103,7 +103,7 @@ export async function seedOrganizations(db: Database | Transaction) {
         : null,
       organization.taxId
         ? {
-            partyLegalProfileId: profileId,
+            partyProfileId: profileId,
             scheme: "tax_id",
             value: organization.taxId,
             normalizedValue: organization.taxId,
@@ -111,7 +111,7 @@ export async function seedOrganizations(db: Database | Transaction) {
         : null,
       organization.kpp
         ? {
-            partyLegalProfileId: profileId,
+            partyProfileId: profileId,
             scheme: "kpp",
             value: organization.kpp,
             normalizedValue: organization.kpp,
@@ -120,12 +120,12 @@ export async function seedOrganizations(db: Database | Transaction) {
     ].filter((item) => item !== null);
 
     if (identifiers.length > 0) {
-      await db.insert(schema.partyLegalIdentifiers).values(identifiers);
+      await db.insert(schema.partyIdentifiers).values(identifiers);
     }
 
     if (organization.address) {
       await db.insert(schema.partyAddresses).values({
-        partyLegalProfileId: profileId,
+        partyProfileId: profileId,
         countryCode: organization.country ?? null,
         postalCode: null,
         city: organization.city ?? null,
@@ -137,7 +137,7 @@ export async function seedOrganizations(db: Database | Transaction) {
 
     if (organization.directorName) {
       await db.insert(schema.partyRepresentatives).values({
-        partyLegalProfileId: profileId,
+        partyProfileId: profileId,
         role: "director",
         fullName: organization.directorName,
         fullNameI18n: null,

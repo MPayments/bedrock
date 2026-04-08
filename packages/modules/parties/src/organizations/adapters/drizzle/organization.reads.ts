@@ -19,7 +19,7 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import { organizations } from "./schema";
-import { DrizzleLegalEntitiesReads } from "../../../legal-entities/adapters/drizzle/legal-entities.reads";
+import { DrizzlePartyProfilesReads } from "../../../party-profiles/adapters/drizzle/party-profiles.reads";
 import type {
   Organization,
   OrganizationListItem,
@@ -83,11 +83,11 @@ export class DrizzleOrganizationReads implements OrganizationReads {
       return null;
     }
 
-    const legalEntitiesReads = new DrizzleLegalEntitiesReads(this.db);
+    const legalEntitiesReads = new DrizzlePartyProfilesReads(this.db);
 
     return {
       ...row,
-      legalEntity: await legalEntitiesReads.findBundleByOwner({
+      partyProfile: await legalEntitiesReads.findBundleByOwner({
         ownerType: "organization",
         ownerId: row.id,
       }),

@@ -197,16 +197,16 @@ export function resolveInitialBankRequisiteId(
 }
 
 export function createEmptyBankRequisiteValues(
-  legalEntityName: string,
+  counterpartyName: string,
 ): BankRequisiteEditorFormData {
-  return createEmptyCanonicalBankRequisiteValues(legalEntityName);
+  return createEmptyCanonicalBankRequisiteValues(counterpartyName);
 }
 
 export function bankRequisiteToFormValues(
   requisite: CounterpartyBankRequisite | null,
-  legalEntityName: string,
+  counterpartyName: string,
 ): BankRequisiteEditorFormData {
-  return toBankRequisiteFormValues(requisite, legalEntityName);
+  return toBankRequisiteFormValues(requisite, counterpartyName);
 }
 
 export function createCounterpartyBankRequisitePayload(input: {

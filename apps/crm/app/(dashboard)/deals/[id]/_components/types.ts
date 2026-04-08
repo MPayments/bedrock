@@ -405,7 +405,7 @@ export type ApiAgreementDetails = {
   organizationRequisiteId: string;
 };
 
-export type ApiCustomerLegalEntity = {
+export type ApiCustomerCounterparty = {
   counterpartyId: string;
   directorBasis: string | null;
   directorName: string | null;
@@ -425,14 +425,14 @@ export type ApiCustomerWorkspace = {
   displayName: string;
   externalRef: string | null;
   id: string;
-  legalEntities: ApiCustomerLegalEntity[];
+  counterparties: ApiCustomerCounterparty[];
 };
 
 export type ApiCanonicalCounterparty = {
   externalId: string | null;
   fullName: string;
   id: string;
-  legalEntity: {
+  partyProfile: {
     contacts: {
       isPrimary: boolean;
       type: string;
@@ -589,7 +589,7 @@ export type DealPageData = {
   customer: ApiCustomerWorkspace;
   deal: ApiDealDetails;
   formalDocuments: ApiFormalDocument[];
-  legalEntity: ApiCustomerLegalEntity | null;
+  partyProfile: ApiCustomerCounterparty | null;
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;

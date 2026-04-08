@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
 
-import { PartyLegalEntityBundleInputSchema } from "../../../legal-entities/application/contracts";
+import { PartyProfileBundleInputSchema } from "../../../party-profiles/application/contracts";
 import { CountryCodeSchema, PartyKindSchema } from "../../domain/party-kind";
 
 export const CreateOrganizationInputSchema = z.object({
@@ -39,15 +39,15 @@ export const CreateOrganizationInputSchema = z.object({
     .trim()
     .nullish()
     .transform((value) => trimToNull(value) ?? null),
-  legalEntity: PartyLegalEntityBundleInputSchema.nullish().transform(
+  partyProfile: PartyProfileBundleInputSchema.nullish().transform(
     (value) => value ?? null,
   ),
 }).superRefine((value, ctx) => {
-  if (value.kind === "legal_entity" && !value.legalEntity) {
+  if (value.kind === "legal_entity" && !value.partyProfile) {
     ctx.addIssue({
       code: "custom",
-      path: ["legalEntity"],
-      message: "legalEntity is required for legal entities",
+      path: ["partyProfile"],
+      message: "partyProfile is required for legal entities",
     });
   }
 
@@ -68,6 +68,9 @@ export type CreateOrganizationInput = z.input<
 >;
 
 export const UpdateOrganizationInputSchema = z.object({
+  shortName: z.string().trim().min(1).exactOptional(),
+  fullName: z.string().trim().min(1).exactOptional(),
+  country: CountryCodeSchema.nullable().exactOptional(),
   externalId: z
     .string()
     .trim()

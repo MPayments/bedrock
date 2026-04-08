@@ -26,7 +26,7 @@ function createCounterparty(overrides?: Partial<Record<string, unknown>>) {
     country: "US",
     kind: "legal_entity",
     groupIds: [],
-    legalEntity: null,
+    partyProfile: null,
     createdAt: new Date("2026-04-01T00:00:00.000Z"),
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
     ...overrides,
@@ -45,7 +45,7 @@ function createTestApp() {
       list: vi.fn(),
     },
   };
-  const legalEntities = {
+  const partyProfiles = {
     commands: {
       replaceBundle: vi.fn(),
     },
@@ -75,13 +75,13 @@ function createTestApp() {
     counterpartiesRoutes({
       partiesModule: {
         counterparties,
-        legalEntities,
+        partyProfiles,
         requisites,
       },
     } as any),
   );
 
-  return { app, counterparties, legalEntities, requisites };
+  return { app, counterparties, partyProfiles, requisites };
 }
 
 describe("counterparties routes", () => {
@@ -91,9 +91,9 @@ describe("counterparties routes", () => {
   });
 
   it("replaces counterparty legal entity data through the aggregate route", async () => {
-    const { app, counterparties, legalEntities } = createTestApp();
+    const { app, counterparties, partyProfiles } = createTestApp();
     counterparties.queries.findById.mockResolvedValue(createCounterparty());
-    legalEntities.commands.replaceBundle.mockResolvedValue({
+    partyProfiles.commands.replaceBundle.mockResolvedValue({
       profile: {
         id: "22222222-2222-4222-8222-222222222222",
         organizationId: null,
@@ -119,7 +119,7 @@ describe("counterparties routes", () => {
     });
 
     const response = await app.request(
-      "http://localhost/counterparties/11111111-1111-4111-8111-111111111111/legal-entity",
+      "http://localhost/counterparties/11111111-1111-4111-8111-111111111111/party-profile",
       {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -139,9 +139,10 @@ describe("counterparties routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(legalEntities.commands.replaceBundle).toHaveBeenCalledWith({
+    expect(partyProfiles.commands.replaceBundle).toHaveBeenCalledWith({
       ownerId: "11111111-1111-4111-8111-111111111111",
       ownerType: "counterparty",
+      partyKind: "legal_entity",
       bundle: {
         profile: {
           fullName: "Acme LLC",

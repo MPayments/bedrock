@@ -21,7 +21,7 @@ function createOrganization(overrides?: Partial<Record<string, unknown>>) {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     kind: "legal_entity",
-    legalEntity: null,
+    partyProfile: null,
     sealKey: null,
     signatureKey: null,
     ...overrides,
@@ -68,7 +68,7 @@ function createTestApp() {
           commands: organizationsCommands,
           queries: organizationsQueries,
         },
-        legalEntities: {
+        partyProfiles: {
           commands: legalEntitiesCommands,
         },
         requisites: {
@@ -265,7 +265,7 @@ describe("organization file routes", () => {
     });
 
     const response = await app.request(
-      "http://localhost/organizations/11111111-1111-4111-8111-111111111111/legal-entity",
+      "http://localhost/organizations/11111111-1111-4111-8111-111111111111/party-profile",
       {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -288,6 +288,7 @@ describe("organization file routes", () => {
     expect(legalEntitiesCommands.replaceBundle).toHaveBeenCalledWith({
       ownerId: "11111111-1111-4111-8111-111111111111",
       ownerType: "organization",
+      partyKind: "legal_entity",
       bundle: {
         profile: {
           fullName: "Acme LLC",

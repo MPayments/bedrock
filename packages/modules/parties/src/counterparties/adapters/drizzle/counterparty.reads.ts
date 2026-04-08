@@ -10,7 +10,7 @@ import {
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 
 import { counterpartyGroupMemberships, counterparties } from "./schema";
-import { DrizzleLegalEntitiesReads } from "../../../legal-entities/adapters/drizzle/legal-entities.reads";
+import { DrizzlePartyProfilesReads } from "../../../party-profiles/adapters/drizzle/party-profiles.reads";
 import {
   CountryCodeSchema,
   PartyKindSchema,
@@ -49,12 +49,12 @@ export class DrizzleCounterpartyReads implements CounterpartyReads {
       return null;
     }
 
-    const legalEntitiesReads = new DrizzleLegalEntitiesReads(this.db);
+    const legalEntitiesReads = new DrizzlePartyProfilesReads(this.db);
 
     return {
       ...row,
       groupIds: await this.readMembershipIds(id),
-      legalEntity: await legalEntitiesReads.findBundleByOwner({
+      partyProfile: await legalEntitiesReads.findBundleByOwner({
         ownerType: "counterparty",
         ownerId: row.id,
       }),

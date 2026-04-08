@@ -101,6 +101,7 @@ type OrganizationGeneralEditorProps = {
   submitLabel?: string;
   submittingLabel?: string;
   disableSubmitUntilDirty?: boolean;
+  kindReadonly?: boolean;
   headerActions?: ReactNode;
   showDates?: boolean;
   title?: string;
@@ -153,6 +154,7 @@ export function OrganizationGeneralEditor({
   submitLabel = "Сохранить",
   submittingLabel = "Сохранение...",
   disableSubmitUntilDirty = true,
+  kindReadonly = false,
   headerActions,
   showDates = true,
   title = "Общая информация",
@@ -317,6 +319,7 @@ export function OrganizationGeneralEditor({
                           name={field.name}
                           value={field.value}
                           onValueChange={field.onChange}
+                          disabled={kindReadonly || submitting}
                         >
                           <SelectTrigger
                             id="organization-kind"

@@ -10,7 +10,7 @@ export type SubAgent = {
   shortName: string;
 };
 
-export type CustomerLegalEntity = {
+export type CustomerCounterparty = {
   counterpartyId: string;
   country: string | null;
   createdAt: string;
@@ -32,8 +32,8 @@ export type CustomerWorkspaceDetail = {
   externalRef: string | null;
   hasActiveAgreement: boolean;
   id: string;
-  legalEntities: CustomerLegalEntity[];
-  legalEntityCount: number;
+  counterparties: CustomerCounterparty[];
+  counterpartyCount: number;
   primaryCounterpartyId: string | null;
   updatedAt: string;
 };
@@ -74,34 +74,34 @@ export function customerToFormValues(
   };
 }
 
-export function isPrimaryLegalEntity(
+export function isPrimaryCounterparty(
   workspace: Pick<
     CustomerWorkspaceDetail,
-    "legalEntities" | "primaryCounterpartyId"
+    "counterparties" | "primaryCounterpartyId"
   >,
   counterpartyId: string,
 ) {
   return (
     workspace.primaryCounterpartyId === counterpartyId ||
     (!workspace.primaryCounterpartyId &&
-      workspace.legalEntities[0]?.counterpartyId === counterpartyId)
+      workspace.counterparties[0]?.counterpartyId === counterpartyId)
   );
 }
 
-export function resolveActiveLegalEntityId(input: {
-  legalEntities: CustomerLegalEntity[];
+export function resolveActiveCounterpartyId(input: {
+  counterparties: CustomerCounterparty[];
   primaryCounterpartyId: string | null;
   requestedCounterpartyId: string | null;
 }) {
-  if (input.legalEntities.length === 0) {
+  if (input.counterparties.length === 0) {
     return null;
   }
 
   if (
     input.requestedCounterpartyId &&
-    input.legalEntities.some(
-      (legalEntity) =>
-        legalEntity.counterpartyId === input.requestedCounterpartyId,
+    input.counterparties.some(
+      (partyProfile) =>
+        partyProfile.counterpartyId === input.requestedCounterpartyId,
     )
   ) {
     return input.requestedCounterpartyId;
@@ -109,15 +109,15 @@ export function resolveActiveLegalEntityId(input: {
 
   if (
     input.primaryCounterpartyId &&
-    input.legalEntities.some(
-      (legalEntity) =>
-        legalEntity.counterpartyId === input.primaryCounterpartyId,
+    input.counterparties.some(
+      (partyProfile) =>
+        partyProfile.counterpartyId === input.primaryCounterpartyId,
     )
   ) {
     return input.primaryCounterpartyId;
   }
 
-  return input.legalEntities[0]?.counterpartyId ?? null;
+  return input.counterparties[0]?.counterpartyId ?? null;
 }
 
 export function buildCustomerEntityHref(input: {

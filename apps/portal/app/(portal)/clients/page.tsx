@@ -21,11 +21,11 @@ import {
   resolvePortalCustomerDisplayName,
   resolvePortalCustomerExternalRef,
   resolvePortalCustomerId,
-  resolvePortalLegalEntityInn,
-  resolvePortalLegalEntityPhone,
+  resolvePortalCounterpartyInn,
+  resolvePortalCounterpartyPhone,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
-import { isDuplicateCustomerLegalEntityName } from "@/lib/legal-entities";
+import { isDuplicateCustomerCounterpartyName } from "@/lib/counterparties";
 
 export default function PortalClientsPage() {
   const router = useRouter();
@@ -62,14 +62,14 @@ export default function PortalClientsPage() {
         <div className="flex items-center gap-3">
           <Building2 className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Мои организации</h1>
+            <h1 className="text-2xl font-bold">Мои контрагенты</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {customers.length}{" "}
               {customers.length === 1
-                ? "организация"
+                ? "клиент"
                 : customers.length < 5
-                  ? "организации"
-                  : "организаций"}
+                  ? "клиента"
+                  : "клиентов"}
             </p>
           </div>
         </div>
@@ -130,30 +130,30 @@ export default function PortalClientsPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
-                {customer.legalEntities.map((legalEntity) => (
+                {customer.counterparties.map((counterparty) => (
                   <div
-                    key={legalEntity.id}
+                    key={counterparty.id}
                     className="rounded-lg border border-border/60 p-3"
                   >
                     <div className="min-w-0">
-                      {!isDuplicateCustomerLegalEntityName({
+                      {!isDuplicateCustomerCounterpartyName({
                         customerDisplayName: resolvePortalCustomerDisplayName(customer),
-                        legalEntityName: legalEntity.shortName,
+                        counterpartyName: counterparty.shortName,
                       }) ? (
                         <p className="truncate font-medium">
-                          {legalEntity.shortName}
+                          {counterparty.shortName}
                         </p>
                       ) : null}
-                      {resolvePortalLegalEntityInn(legalEntity) ? (
+                      {resolvePortalCounterpartyInn(counterparty) ? (
                         <p className="text-xs text-muted-foreground">
-                          ИНН: {resolvePortalLegalEntityInn(legalEntity)}
+                          ИНН: {resolvePortalCounterpartyInn(counterparty)}
                         </p>
                       ) : null}
                     </div>
-                    {resolvePortalLegalEntityPhone(legalEntity) ? (
+                    {resolvePortalCounterpartyPhone(counterparty) ? (
                       <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="h-3.5 w-3.5" />
-                        <span>{resolvePortalLegalEntityPhone(legalEntity)}</span>
+                        <span>{resolvePortalCounterpartyPhone(counterparty)}</span>
                       </div>
                     ) : null}
                   </div>
@@ -173,9 +173,9 @@ export default function PortalClientsPage() {
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Редактирование данных организации</li>
-            <li>Просмотр заявок по организации</li>
-            <li>Документы организации</li>
+            <li>Редактирование данных контрагента</li>
+            <li>Просмотр заявок по контрагенту</li>
+            <li>Документы контрагента</li>
           </ul>
         </CardContent>
       </Card>

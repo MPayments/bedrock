@@ -6,6 +6,7 @@ import {
 } from "../contracts/commands";
 import { toOrganizationDto } from "../to-organization-dto";
 import type { OrganizationsCommandUnitOfWork } from "../ports/organizations.uow";
+import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
 
 export class CreateOrganizationCommand {
   constructor(
@@ -18,18 +19,16 @@ export class CreateOrganizationCommand {
 
     return this.uow.run(async (tx) => {
       const id = this.runtime.generateUuid();
+      const partyProfileInput = validated.partyProfile;
+      if (partyProfileInput) {
+        validatePartyProfileBundleInput(partyProfileInput, validated.kind);
+      }
       const shortName =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.shortName
-          : validated.shortName!;
+        partyProfileInput?.profile.shortName ?? validated.shortName!;
       const fullName =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.fullName
-          : validated.fullName!;
+        partyProfileInput?.profile.fullName ?? validated.fullName!;
       const country =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.countryCode
-          : validated.country;
+        partyProfileInput?.profile.countryCode ?? validated.country;
       const created = await tx.organizationStore.create({
         id,
         externalId: validated.externalId,
@@ -42,41 +41,41 @@ export class CreateOrganizationCommand {
         signatureKey: validated.signatureKey,
         sealKey: validated.sealKey,
       });
-      let legalEntity = null;
+      let partyProfile = null;
 
-      if (validated.kind === "legal_entity" && validated.legalEntity) {
-        const profile = await tx.legalEntities.upsertProfile({
+      if (partyProfileInput) {
+        const profile = await tx.partyProfiles.upsertProfile({
           ownerType: "organization",
           ownerId: id,
-          profile: validated.legalEntity.profile,
+          profile: partyProfileInput.profile,
         });
-        const identifiers = await tx.legalEntities.replaceIdentifiers({
+        const identifiers = await tx.partyProfiles.replaceIdentifiers({
           ownerType: "organization",
           ownerId: id,
-          items: validated.legalEntity.identifiers,
+          items: partyProfileInput.identifiers,
         });
-        const address = await tx.legalEntities.replaceAddress({
+        const address = await tx.partyProfiles.replaceAddress({
           ownerType: "organization",
           ownerId: id,
-          item: validated.legalEntity.address,
+          item: partyProfileInput.address,
         });
-        const contacts = await tx.legalEntities.replaceContacts({
+        const contacts = await tx.partyProfiles.replaceContacts({
           ownerType: "organization",
           ownerId: id,
-          items: validated.legalEntity.contacts,
+          items: partyProfileInput.contacts,
         });
-        const representatives = await tx.legalEntities.replaceRepresentatives({
+        const representatives = await tx.partyProfiles.replaceRepresentatives({
           ownerType: "organization",
           ownerId: id,
-          items: validated.legalEntity.representatives,
+          items: partyProfileInput.representatives,
         });
-        const licenses = await tx.legalEntities.replaceLicenses({
+        const licenses = await tx.partyProfiles.replaceLicenses({
           ownerType: "organization",
           ownerId: id,
-          items: validated.legalEntity.licenses,
+          items: partyProfileInput.licenses,
         });
 
-        legalEntity = {
+        partyProfile = {
           profile,
           identifiers,
           address,
@@ -91,7 +90,7 @@ export class CreateOrganizationCommand {
         shortName: created.shortName,
       });
 
-      return toOrganizationDto(created, legalEntity);
+      return toOrganizationDto(created, partyProfile);
     });
   }
 }

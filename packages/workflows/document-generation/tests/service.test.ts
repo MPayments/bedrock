@@ -94,7 +94,7 @@ function createWorkflow(overrides?: {
           groupIds: [],
           createdAt: new Date("2026-04-01T00:00:00.000Z"),
           updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          legalEntity: {
+          partyProfile: {
             profile: {
               id: `${IDS.counterparty}-profile`,
               organizationId: null,
@@ -186,7 +186,7 @@ function createWorkflow(overrides?: {
           sealKey: `organizations/${IDS.organization}/seal.png`,
           createdAt: new Date("2026-04-01T00:00:00.000Z"),
           updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          legalEntity: {
+          partyProfile: {
             profile: {
               id: `${IDS.organization}-profile`,
               organizationId: IDS.organization,

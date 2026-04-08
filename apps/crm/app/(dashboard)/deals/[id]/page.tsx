@@ -64,7 +64,7 @@ import type {
   ApiCurrency,
   ApiCurrencyOption,
   ApiDealCustomerContext,
-  ApiCustomerLegalEntity,
+  ApiCustomerCounterparty,
   ApiCustomerWorkspace,
   ApiDealDetails,
   ApiDealPricingQuote,
@@ -88,7 +88,7 @@ type DealPageData = {
   customer: ApiCustomerWorkspace;
   deal: ApiDealDetails;
   formalDocuments: ApiFormalDocument[];
-  legalEntity: ApiCustomerLegalEntity | null;
+  partyProfile: ApiCustomerCounterparty | null;
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
@@ -240,7 +240,7 @@ function findCounterpartyIdentifier(
   scheme: string,
 ) {
   return (
-    counterparty.legalEntity?.identifiers.find(
+    counterparty.partyProfile?.identifiers.find(
       (identifier) => identifier.scheme === scheme,
     )?.value ?? null
   );
@@ -252,7 +252,7 @@ function findCounterpartyContact(
 ) {
   return (
     pickPrimary(
-      (counterparty.legalEntity?.contacts ?? []).filter(
+      (counterparty.partyProfile?.contacts ?? []).filter(
         (contact) => contact.type === type,
       ),
     )?.value ?? null
@@ -265,7 +265,7 @@ function findCounterpartyRepresentative(
 ) {
   for (const role of roles) {
     const representative = pickPrimary(
-      (counterparty.legalEntity?.representatives ?? []).filter(
+      (counterparty.partyProfile?.representatives ?? []).filter(
         (item) => item.role === role,
       ),
     );
@@ -275,12 +275,12 @@ function findCounterpartyRepresentative(
     }
   }
 
-  return pickPrimary(counterparty.legalEntity?.representatives ?? []);
+  return pickPrimary(counterparty.partyProfile?.representatives ?? []);
 }
 
-function mapCustomerLegalEntity(
+function mapCustomerCounterparty(
   counterparty: ApiCanonicalCounterparty,
-): ApiCustomerLegalEntity {
+): ApiCustomerCounterparty {
   const representative = findCounterpartyRepresentative(counterparty);
 
   return {
@@ -310,7 +310,7 @@ function mapCustomerWorkspace(
     displayName: context.customer.displayName,
     externalRef: context.customer.externalRef,
     id: context.customer.id,
-    legalEntities: context.counterparties.map(mapCustomerLegalEntity),
+    counterparties: context.counterparties.map(mapCustomerCounterparty),
   };
 }
 
@@ -771,8 +771,8 @@ export default function DealDetailPage() {
           workbench.relatedResources.formalDocuments,
           workbench.summary.createdAt,
         ),
-        legalEntity: workbench.context.applicant
-          ? mapCustomerLegalEntity(workbench.context.applicant)
+        partyProfile: workbench.context.applicant
+          ? mapCustomerCounterparty(workbench.context.applicant)
           : null,
         organization: workbench.context.internalEntity,
         organizationRequisite: workbench.context.internalEntityRequisite,
@@ -1669,7 +1669,7 @@ export default function DealDetailPage() {
                 deal={data.deal}
                 isEditingComment={isEditingComment}
                 isSavingComment={isSavingComment}
-                legalEntity={data.legalEntity}
+                partyProfile={data.partyProfile}
                 onCancelEdit={handleCancelEditComment}
                 onCommentChange={setCommentValue}
                 onEditComment={handleEditComment}
@@ -1690,7 +1690,7 @@ export default function DealDetailPage() {
                   intake={draftIntake}
                   isDirty={isIntakeDirty}
                   isSaving={isSavingIntake}
-                  legalEntities={data.customer.legalEntities}
+                  counterparties={data.customer.counterparties}
                   onChange={setDraftIntake}
                   onReset={handleResetIntake}
                   onSave={handleSaveIntake}

@@ -15,7 +15,7 @@ vi.mock("@bedrock/parties/adapters/drizzle", () => ({
   DrizzleCounterpartyGroupReads: vi.fn(),
   DrizzleCounterpartyReads: vi.fn(),
   DrizzleCustomerReads: vi.fn(),
-  DrizzleLegalEntitiesReads: vi.fn(),
+  DrizzlePartyProfilesReads: vi.fn(),
   DrizzleOrganizationReads: vi.fn(),
   DrizzlePartyRegistryUnitOfWork: vi.fn(),
   DrizzleRequisiteBindingReads: vi.fn(),

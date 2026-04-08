@@ -7,14 +7,14 @@ import type {
 import type {
   PartyAddress,
   PartyContact,
-  PartyLegalEntityBundle,
-  PartyLegalIdentifier,
+  PartyProfileBundle,
+  PartyIdentifier,
   PartyRepresentative,
-} from "./legal-entities/application/contracts";
+} from "./party-profiles/application/contracts";
 
-type PartyWithLegalEntity = Pick<
+type PartyWithPartyProfile = Pick<
   Counterparty | Organization,
-  "legalEntity"
+  "partyProfile"
 >;
 
 function pickPrimary<T extends { isPrimary: boolean }>(items: T[]): T | null {
@@ -22,19 +22,19 @@ function pickPrimary<T extends { isPrimary: boolean }>(items: T[]): T | null {
 }
 
 function getBundle(
-  partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
 ) {
   if (!partyOrBundle) {
     return null;
   }
 
-  return "profile" in partyOrBundle ? partyOrBundle : partyOrBundle.legalEntity;
+  return "profile" in partyOrBundle ? partyOrBundle : partyOrBundle.partyProfile;
 }
 
-export function findPartyLegalIdentifier(
-  partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
+export function findPartyIdentifier(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
   scheme: string,
-): PartyLegalIdentifier | null {
+): PartyIdentifier | null {
   const bundle = getBundle(partyOrBundle);
   if (!bundle) {
     return null;
@@ -44,7 +44,7 @@ export function findPartyLegalIdentifier(
 }
 
 export function findPartyContact(
-  partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
   type: string,
 ): PartyContact | null {
   const bundle = getBundle(partyOrBundle);
@@ -56,7 +56,7 @@ export function findPartyContact(
 }
 
 export function findPartyAddress(
-  partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
 ): PartyAddress | null {
   const bundle = getBundle(partyOrBundle);
   if (!bundle) {
@@ -67,7 +67,7 @@ export function findPartyAddress(
 }
 
 export function findPartyRepresentative(
-  partyOrBundle: PartyWithLegalEntity | PartyLegalEntityBundle | null,
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
   preferredRoles: string[] = ["director", "signatory", "contact"],
 ): PartyRepresentative | null {
   const bundle = getBundle(partyOrBundle);

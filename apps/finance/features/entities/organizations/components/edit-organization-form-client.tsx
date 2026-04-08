@@ -3,14 +3,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { PartyLegalEntityBundleInput } from "@bedrock/parties/contracts";
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import {
   OrganizationGeneralEditor,
   type OrganizationGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import type { PartyLegalEntityBundleSource } from "@bedrock/sdk-parties-ui/lib/legal-entity";
-import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
+import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
@@ -59,7 +59,7 @@ export function EditOrganizationFormClient({
     },
     [actions, current.id],
   );
-  const legalEntitySeed = useMemo(
+  const partyProfileSeed = useMemo(
     () => ({
       fullName: current.fullName,
       shortName: current.shortName,
@@ -112,7 +112,7 @@ export function EditOrganizationFormClient({
   }
 
   async function handleLegalEntitySubmit(
-    bundle: PartyLegalEntityBundleInput,
+    bundle: PartyProfileBundleInput,
   ) {
     setError(null);
     setSavingLegalEntity(true);
@@ -120,7 +120,7 @@ export function EditOrganizationFormClient({
     const result = await executeMutation<SerializedOrganization>({
       request: async () => {
         const response =
-          await apiClient.v1.organizations[":id"]["legal-entity"].$put({
+          await apiClient.v1.organizations[":id"]["party-profile"].$put({
             param: { id: current.id },
             json: bundle,
           });
@@ -150,7 +150,7 @@ export function EditOrganizationFormClient({
     toast.success("Юридические данные организации обновлены");
     router.refresh();
 
-    return (result.data.legalEntity as PartyLegalEntityBundleSource | null) ?? bundle;
+    return (result.data.partyProfile as PartyProfileBundleSource | null) ?? bundle;
   }
 
   async function handleDelete() {
@@ -206,9 +206,9 @@ export function EditOrganizationFormClient({
         }
       />
       {current.kind === "legal_entity" ? (
-        <LegalEntityBundleEditor
-          bundle={current.legalEntity as PartyLegalEntityBundleSource | null}
-          seed={legalEntitySeed}
+        <PartyProfileEditor
+          bundle={current.partyProfile as PartyProfileBundleSource | null}
+          seed={partyProfileSeed}
           submitting={savingLegalEntity}
           error={error}
           onSubmit={handleLegalEntitySubmit}

@@ -75,23 +75,23 @@ function hasBankSignal(input: {
 
 export const customerOnboardSchema = z
   .object({
+    counterpartyKind: z.enum(["legal_entity", "individual"]),
     name: z.string().min(2, "Имя должно содержать минимум 2 символа").max(255),
-    orgName: z.string().min(1, "Название организации обязательно"),
+    orgName: z.string(),
     orgNameI18n: localizedTextSchema.optional(),
     orgType: z.string().optional(),
     orgTypeI18n: localizedTextSchema.optional(),
-    inn: z
-      .string()
-      .min(1, "ИНН обязателен")
-      .refine(
-        (val) => {
-          if (!val) return false;
-          if (!/^\d+$/.test(val)) return false;
-          return val.length === 10 || val.length === 12;
-        },
-        { message: "ИНН должен содержать 10 или 12 цифр" },
-      ),
-    directorName: z.string().min(1, "ФИО директора обязательно"),
+    personFullName: z.string().optional(),
+    personFullNameI18n: localizedTextSchema.optional(),
+    inn: z.string().refine(
+      (val) => {
+        if (!val) return true;
+        if (!/^\d+$/.test(val)) return false;
+        return val.length === 10 || val.length === 12;
+      },
+      { message: "ИНН должен содержать 10 или 12 цифр" },
+    ),
+    directorName: z.string(),
     directorNameI18n: localizedTextSchema.optional(),
     position: z.string().optional(),
     positionI18n: localizedTextSchema.optional(),
@@ -130,6 +130,38 @@ export const customerOnboardSchema = z
     bankRequisite: bankRequisiteSnapshotSchema,
   })
   .superRefine((data, ctx) => {
+    if (data.counterpartyKind === "legal_entity") {
+      if (!hasText(data.orgName)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["orgName"],
+          message: "Название организации обязательно",
+        });
+      }
+
+      if (!hasText(data.inn)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inn"],
+          message: "ИНН обязателен",
+        });
+      }
+
+      if (!hasText(data.directorName)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["directorName"],
+          message: "ФИО директора обязательно",
+        });
+      }
+    } else if (!hasText(data.personFullName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["personFullName"],
+        message: "ФИО контрагента обязательно",
+      });
+    }
+
     if (!hasBankSignal(data)) {
       return;
     }

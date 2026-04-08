@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiClient } from "@/lib/api-client";
 import { readJsonWithSchema } from "@/lib/api/response";
 
-import type { CrmCustomerLegalEntityOption } from "@/app/(dashboard)/deals/_components/deal-intake-form";
+import type { CrmCustomerCounterpartyOption } from "@/app/(dashboard)/deals/_components/deal-intake-form";
 
 const CounterpartyListResponseSchema = z.object({
   data: z.array(
@@ -17,7 +17,7 @@ const CounterpartyDetailSchema = z.object({
   id: z.uuid(),
   shortName: z.string(),
   fullName: z.string(),
-  legalEntity: z
+  partyProfile: z
     .object({
       identifiers: z.array(
         z.object({
@@ -32,7 +32,7 @@ const CounterpartyDetailSchema = z.object({
 
 function findInn(counterparty: z.infer<typeof CounterpartyDetailSchema>) {
   return (
-    counterparty.legalEntity?.identifiers.find(
+    counterparty.partyProfile?.identifiers.find(
       (identifier) => identifier.scheme === "inn",
     )?.value ?? null
   );
@@ -40,7 +40,7 @@ function findInn(counterparty: z.infer<typeof CounterpartyDetailSchema>) {
 
 export async function loadCustomerOwnedCounterparties(
   customerId: string,
-): Promise<CrmCustomerLegalEntityOption[]> {
+): Promise<CrmCustomerCounterpartyOption[]> {
   const response = await apiClient.v1.counterparties.$get({
     query: {
       customerId,
@@ -54,7 +54,7 @@ export async function loadCustomerOwnedCounterparties(
 
   if (!response.ok) {
     throw new Error(
-      `Не удалось загрузить юридические лица клиента: ${response.status}`,
+      `Не удалось загрузить контрагентов клиента: ${response.status}`,
     );
   }
 
@@ -68,7 +68,7 @@ export async function loadCustomerOwnedCounterparties(
 
       if (!detailResponse.ok) {
         throw new Error(
-          `Не удалось загрузить юридическое лицо ${id}: ${detailResponse.status}`,
+          `Не удалось загрузить контрагента ${id}: ${detailResponse.status}`,
         );
       }
 

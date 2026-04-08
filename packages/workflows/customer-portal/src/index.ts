@@ -10,5 +10,5 @@ export {
   type BankProviderSearchResult,
   type CustomerBankingService,
   type CustomerBankingServiceDeps,
-  type LegalEntityBankingInput,
+  type CounterpartyBankingInput,
 } from "./bank-requisites";

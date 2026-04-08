@@ -12,7 +12,7 @@ export { currenciesRoutes } from "./currencies";
 export { dealsRoutes } from "./deals";
 export { documentsRoutes } from "./documents";
 export { internalDealCapabilitiesRoutes } from "./internal-deal-capabilities";
-export { legalEntitiesRoutes } from "./legal-entities";
+export { counterpartyDirectoryRoutes } from "./counterparty-directory";
 export { organizationsRoutes } from "./organizations";
 export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";

@@ -13,8 +13,8 @@ import {
   CreateRequisiteInputSchema,
   ListCounterpartiesQuerySchema,
   ListRequisitesQuerySchema,
-  PartyLegalEntityBundleInputSchema,
-  PartyLegalEntityBundleSchema,
+  PartyProfileBundleInputSchema,
+  PartyProfileBundleSchema,
   PaginatedCounterpartiesSchema,
   RequisiteListItemSchema,
   RequisiteSchema,
@@ -35,9 +35,9 @@ import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import {
-  mapPartyLegalEntityMutationError,
-  replacePartyLegalEntityBundle,
-} from "./party-legal-entity";
+  mapPartyProfileMutationError,
+  replacePartyProfileBundle,
+} from "./party-profile";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -313,17 +313,17 @@ export function counterpartiesRoutes(ctx: AppContext) {
     },
   });
 
-  const putLegalEntityRoute = createRoute({
+  const putPartyProfileRoute = createRoute({
     middleware: [requirePermission({ counterparties: ["update"] })],
     method: "put",
-    path: "/{id}/legal-entity",
+    path: "/{id}/party-profile",
     tags: ["Counterparties"],
-    summary: "Replace counterparty legal entity master data",
+    summary: "Replace counterparty party profile data",
     request: {
       params: IdParamSchema,
       body: {
         content: {
-          "application/json": { schema: PartyLegalEntityBundleInputSchema },
+          "application/json": { schema: PartyProfileBundleInputSchema },
         },
         required: true,
       },
@@ -331,9 +331,9 @@ export function counterpartiesRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: {
-          "application/json": { schema: PartyLegalEntityBundleSchema },
+          "application/json": { schema: PartyProfileBundleSchema },
         },
-        description: "Counterparty legal entity bundle updated",
+        description: "Counterparty party profile bundle updated",
       },
       400: {
         content: { "application/json": { schema: ErrorSchema } },
@@ -556,13 +556,13 @@ export function counterpartiesRoutes(ctx: AppContext) {
         throw err;
       }
     })
-    .openapi(putLegalEntityRoute, async (c) => {
+    .openapi(putPartyProfileRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
         const counterparty =
           await ctx.partiesModule.counterparties.queries.findById(id);
-        const bundle = await replacePartyLegalEntityBundle({
+        const bundle = await replacePartyProfileBundle({
           bundle: input,
           ctx,
           ownerId: id,
@@ -571,7 +571,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
         });
         return c.json(bundle, 200);
       } catch (err) {
-        const handled = mapPartyLegalEntityMutationError(
+        const handled = mapPartyProfileMutationError(
           err,
           CounterpartyNotFoundError,
         );

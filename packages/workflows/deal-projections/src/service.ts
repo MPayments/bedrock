@@ -1033,10 +1033,10 @@ function isDealOwnedByCustomer(
 
 function toCrmDealCustomerContext(
   customer: Customer,
-  legalEntities: Counterparty[],
+  counterparties: Counterparty[],
 ): CrmDealCustomerContext {
   return {
-    counterparties: legalEntities,
+    counterparties: counterparties,
     customer,
   };
 }

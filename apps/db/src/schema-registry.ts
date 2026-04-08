@@ -36,8 +36,8 @@ import {
   organizations,
   partyAddresses,
   partyContacts,
-  partyLegalIdentifiers,
-  partyLegalProfiles,
+  partyIdentifiers,
+  partyProfiles,
   partyLicenses,
   partyRepresentatives,
   organizationRequisiteBindings,
@@ -81,8 +81,8 @@ const partiesSchema: {
   counterpartyRelationshipKindEnum: typeof counterpartyRelationshipKindEnum;
   customerCounterpartyAssignments: typeof customerCounterpartyAssignments;
   organizations: typeof organizations;
-  partyLegalProfiles: typeof partyLegalProfiles;
-  partyLegalIdentifiers: typeof partyLegalIdentifiers;
+  partyProfiles: typeof partyProfiles;
+  partyIdentifiers: typeof partyIdentifiers;
   partyAddresses: typeof partyAddresses;
   partyContacts: typeof partyContacts;
   partyRepresentatives: typeof partyRepresentatives;
@@ -105,8 +105,8 @@ const partiesSchema: {
   counterpartyRelationshipKindEnum,
   customerCounterpartyAssignments,
   organizations,
-  partyLegalProfiles,
-  partyLegalIdentifiers,
+  partyProfiles,
+  partyIdentifiers,
   partyAddresses,
   partyContacts,
   partyRepresentatives,

@@ -5,7 +5,7 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { PartyLegalEntityBundleSchema } from "../../../legal-entities/application/contracts";
+import { PartyProfileBundleSchema } from "../../../party-profiles/application/contracts";
 import {
   PartyKindSchema,
   type PartyKind,
@@ -27,7 +27,7 @@ export const OrganizationListItemSchema = z.object({
 });
 
 export const OrganizationSchema = OrganizationListItemSchema.extend({
-  legalEntity: PartyLegalEntityBundleSchema.nullable(),
+  partyProfile: PartyProfileBundleSchema.nullable(),
 });
 
 export type Organization = z.output<typeof OrganizationSchema>;

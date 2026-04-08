@@ -9,7 +9,7 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 
 type RequisitesApi = PartiesModule["requisites"];
 
-export interface LegalEntityBankingInput {
+export interface CounterpartyBankingInput {
   bankProviderId?: string | null;
   bankProvider?: {
     address?: string | null;
@@ -40,7 +40,7 @@ export interface CustomerBankingService {
   }): Promise<BankProviderSearchResult[]>;
   upsertCounterpartyBankRequisite(input: {
     counterpartyId: string;
-    values: LegalEntityBankingInput;
+    values: CounterpartyBankingInput;
   }): Promise<{
     provider: Awaited<ReturnType<RequisitesApi["queries"]["findProviderById"]>> | null;
     requisite: Awaited<ReturnType<RequisitesApi["queries"]["findById"]>> | null;
@@ -71,7 +71,7 @@ function normalizeCountryCode(value: string | null | undefined): string | null {
   return normalized && normalized.length === 2 ? normalized : null;
 }
 
-function hasBankSignal(input: LegalEntityBankingInput) {
+function hasBankSignal(input: CounterpartyBankingInput) {
   return Boolean(
     normalizeNullableText(input.bankProvider?.name) ||
       normalizeNullableText(input.bankProvider?.address) ||
@@ -262,7 +262,7 @@ export function createCustomerBankingService(
   }
 
   async function resolveBankProvider(
-    input: LegalEntityBankingInput,
+    input: CounterpartyBankingInput,
     options?: { allowCreate?: boolean },
   ) {
     const selectedProviderId = normalizeNullableText(input.bankProviderId);
@@ -358,7 +358,7 @@ export function createCustomerBankingService(
 
   async function upsertCounterpartyBankRequisite(input: {
     counterpartyId: string;
-    values: LegalEntityBankingInput;
+    values: CounterpartyBankingInput;
   }) {
     const existingMap = await listCounterpartyBankRequisites(deps.requisites, [
       input.counterpartyId,

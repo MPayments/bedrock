@@ -1022,7 +1022,7 @@ CREATE TABLE "outbox" (
 --> statement-breakpoint
 CREATE TABLE "party_addresses" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"party_legal_profile_id" uuid NOT NULL,
+	"party_profile_id" uuid NOT NULL,
 	"country_code" "party_country_code",
 	"postal_code" text,
 	"city" text,
@@ -1035,7 +1035,7 @@ CREATE TABLE "party_addresses" (
 --> statement-breakpoint
 CREATE TABLE "party_contacts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"party_legal_profile_id" uuid NOT NULL,
+	"party_profile_id" uuid NOT NULL,
 	"type" text NOT NULL,
 	"value" text NOT NULL,
 	"is_primary" boolean DEFAULT false NOT NULL,
@@ -1043,9 +1043,9 @@ CREATE TABLE "party_contacts" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "party_legal_identifiers" (
+CREATE TABLE "party_identifiers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"party_legal_profile_id" uuid NOT NULL,
+	"party_profile_id" uuid NOT NULL,
 	"scheme" text NOT NULL,
 	"value" text NOT NULL,
 	"normalized_value" text NOT NULL,
@@ -1053,7 +1053,7 @@ CREATE TABLE "party_legal_identifiers" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "party_legal_profiles" (
+CREATE TABLE "party_profiles" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid,
 	"counterparty_id" uuid,
@@ -1069,18 +1069,18 @@ CREATE TABLE "party_legal_profiles" (
 	"business_activity_text" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "party_legal_profiles_owner_chk" CHECK ((
-        "party_legal_profiles"."organization_id" is not null
-        and "party_legal_profiles"."counterparty_id" is null
+	CONSTRAINT "party_profiles_owner_chk" CHECK ((
+        "party_profiles"."organization_id" is not null
+        and "party_profiles"."counterparty_id" is null
       ) or (
-        "party_legal_profiles"."counterparty_id" is not null
-        and "party_legal_profiles"."organization_id" is null
+        "party_profiles"."counterparty_id" is not null
+        and "party_profiles"."organization_id" is null
       ))
 );
 --> statement-breakpoint
 CREATE TABLE "party_licenses" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"party_legal_profile_id" uuid NOT NULL,
+	"party_profile_id" uuid NOT NULL,
 	"license_type" text NOT NULL,
 	"license_number" text NOT NULL,
 	"issued_by" text,
@@ -1094,7 +1094,7 @@ CREATE TABLE "party_licenses" (
 --> statement-breakpoint
 CREATE TABLE "party_representatives" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"party_legal_profile_id" uuid NOT NULL,
+	"party_profile_id" uuid NOT NULL,
 	"role" text NOT NULL,
 	"full_name" text NOT NULL,
 	"full_name_i18n" jsonb,
@@ -1509,13 +1509,13 @@ ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_quote_id_fx_quotes_id_
 ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_requisite_id_requisites_id_fk" FOREIGN KEY ("requisite_id") REFERENCES "public"."requisites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_requisite_bindings" ADD CONSTRAINT "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk" FOREIGN KEY ("book_account_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_addresses" ADD CONSTRAINT "party_addresses_party_legal_profile_id_party_legal_profiles_id_fk" FOREIGN KEY ("party_legal_profile_id") REFERENCES "public"."party_legal_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_contacts" ADD CONSTRAINT "party_contacts_party_legal_profile_id_party_legal_profiles_id_fk" FOREIGN KEY ("party_legal_profile_id") REFERENCES "public"."party_legal_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_legal_identifiers" ADD CONSTRAINT "party_legal_identifiers_party_legal_profile_id_party_legal_profiles_id_fk" FOREIGN KEY ("party_legal_profile_id") REFERENCES "public"."party_legal_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_legal_profiles" ADD CONSTRAINT "party_legal_profiles_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_legal_profiles" ADD CONSTRAINT "party_legal_profiles_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_licenses" ADD CONSTRAINT "party_licenses_party_legal_profile_id_party_legal_profiles_id_fk" FOREIGN KEY ("party_legal_profile_id") REFERENCES "public"."party_legal_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "party_representatives" ADD CONSTRAINT "party_representatives_party_legal_profile_id_party_legal_profiles_id_fk" FOREIGN KEY ("party_legal_profile_id") REFERENCES "public"."party_legal_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_addresses" ADD CONSTRAINT "party_addresses_party_profile_id_party_profiles_id_fk" FOREIGN KEY ("party_profile_id") REFERENCES "public"."party_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_contacts" ADD CONSTRAINT "party_contacts_party_profile_id_party_profiles_id_fk" FOREIGN KEY ("party_profile_id") REFERENCES "public"."party_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_identifiers" ADD CONSTRAINT "party_identifiers_party_profile_id_party_profiles_id_fk" FOREIGN KEY ("party_profile_id") REFERENCES "public"."party_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_profiles" ADD CONSTRAINT "party_profiles_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_profiles" ADD CONSTRAINT "party_profiles_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_licenses" ADD CONSTRAINT "party_licenses_party_profile_id_party_profiles_id_fk" FOREIGN KEY ("party_profile_id") REFERENCES "public"."party_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "party_representatives" ADD CONSTRAINT "party_representatives_party_profile_id_party_profiles_id_fk" FOREIGN KEY ("party_profile_id") REFERENCES "public"."party_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "portal_access_grants" ADD CONSTRAINT "portal_access_grants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1714,17 +1714,17 @@ CREATE UNIQUE INDEX "outbox_kind_ref_uq" ON "outbox" USING btree ("kind","ref_id
 CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","available_at","created_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint
 CREATE INDEX "outbox_status_avail_idx" ON "outbox" USING btree ("status","available_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_addresses_profile_uq" ON "party_addresses" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE INDEX "party_contacts_profile_idx" ON "party_contacts" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_contacts_primary_uq" ON "party_contacts" USING btree ("party_legal_profile_id","type") WHERE "party_contacts"."is_primary" = true;--> statement-breakpoint
-CREATE INDEX "party_legal_identifiers_profile_idx" ON "party_legal_identifiers" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_legal_identifiers_scheme_uq" ON "party_legal_identifiers" USING btree ("party_legal_profile_id","scheme");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_legal_profiles_organization_uq" ON "party_legal_profiles" USING btree ("organization_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_legal_profiles_counterparty_uq" ON "party_legal_profiles" USING btree ("counterparty_id");--> statement-breakpoint
-CREATE INDEX "party_licenses_profile_idx" ON "party_licenses" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_licenses_value_uq" ON "party_licenses" USING btree ("party_legal_profile_id","license_type","license_number");--> statement-breakpoint
-CREATE INDEX "party_representatives_profile_idx" ON "party_representatives" USING btree ("party_legal_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "party_representatives_primary_uq" ON "party_representatives" USING btree ("party_legal_profile_id","role") WHERE "party_representatives"."is_primary" = true;--> statement-breakpoint
+CREATE UNIQUE INDEX "party_addresses_profile_uq" ON "party_addresses" USING btree ("party_profile_id");--> statement-breakpoint
+CREATE INDEX "party_contacts_profile_idx" ON "party_contacts" USING btree ("party_profile_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_contacts_primary_uq" ON "party_contacts" USING btree ("party_profile_id","type") WHERE "party_contacts"."is_primary" = true;--> statement-breakpoint
+CREATE INDEX "party_identifiers_profile_idx" ON "party_identifiers" USING btree ("party_profile_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_identifiers_scheme_uq" ON "party_identifiers" USING btree ("party_profile_id","scheme");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_profiles_organization_uq" ON "party_profiles" USING btree ("organization_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_profiles_counterparty_uq" ON "party_profiles" USING btree ("counterparty_id");--> statement-breakpoint
+CREATE INDEX "party_licenses_profile_idx" ON "party_licenses" USING btree ("party_profile_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_licenses_value_uq" ON "party_licenses" USING btree ("party_profile_id","license_type","license_number");--> statement-breakpoint
+CREATE INDEX "party_representatives_profile_idx" ON "party_representatives" USING btree ("party_profile_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "party_representatives_primary_uq" ON "party_representatives" USING btree ("party_profile_id","role") WHERE "party_representatives"."is_primary" = true;--> statement-breakpoint
 CREATE INDEX "portal_access_grants_status_idx" ON "portal_access_grants" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "portal_access_grants_user_id_idx" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "portal_access_grants_user_id_unique" ON "portal_access_grants" USING btree ("user_id");--> statement-breakpoint

@@ -17,7 +17,7 @@ function createRuntime(overrides?: Record<string, unknown>) {
   } as any;
 }
 
-function createLegalEntityBundle() {
+function createPartyProfileBundle() {
   return {
     profile: {
       fullName: "Acme Incorporated",
@@ -53,7 +53,7 @@ describe("organization command handlers", () => {
                 updatedAt: new Date("2026-01-01T00:00:00.000Z"),
               })),
             },
-            legalEntities: {
+            partyProfiles: {
               findBundleByOwner: vi.fn(async () => null),
               upsertProfile: vi.fn(),
               replaceIdentifiers: vi.fn(),
@@ -69,7 +69,7 @@ describe("organization command handlers", () => {
     const created = await create.execute({
       shortName: "Acme",
       fullName: "Acme Incorporated",
-      legalEntity: createLegalEntityBundle(),
+      partyProfile: createPartyProfileBundle(),
     });
 
     expect(created.shortName).toBe("Acme");

@@ -93,16 +93,13 @@ export class UpdateCounterpartyCommand {
 
       const updated = await tx.counterparties.save(next);
       const updatedSnapshot = updated.toSnapshot();
-      const legalEntity =
-        updatedSnapshot.kind === "legal_entity"
-          ? await tx.legalEntities.findBundleByOwner({
-              ownerType: "counterparty",
-              ownerId: updatedSnapshot.id,
-            })
-          : null;
+      const partyProfile = await tx.partyProfiles.findBundleByOwner({
+        ownerType: "counterparty",
+        ownerId: updatedSnapshot.id,
+      });
 
       this.runtime.log.info("Counterparty updated", { id });
-      return toCounterpartyDto(updatedSnapshot, legalEntity);
+      return toCounterpartyDto(updatedSnapshot, partyProfile);
     });
   }
 }

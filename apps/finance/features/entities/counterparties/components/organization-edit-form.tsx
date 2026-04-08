@@ -8,7 +8,7 @@ import {
   CounterpartyGeneralEditor,
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
-import { LegalEntityBundleEditor } from "@bedrock/sdk-parties-ui/components/legal-entity-bundle-editor";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
@@ -69,7 +69,7 @@ export function CounterpartyEditForm({
     },
     [actions, current.id],
   );
-  const legalEntitySeed = useMemo(
+  const partyProfileSeed = useMemo(
     () => ({
       fullName: current.fullName,
       shortName: current.shortName,
@@ -177,9 +177,9 @@ export function CounterpartyEditForm({
         }
       />
       {current.kind === "legal_entity" ? (
-        <LegalEntityBundleEditor
-          bundle={current.legalEntity}
-          seed={legalEntitySeed}
+        <PartyProfileEditor
+          bundle={current.partyProfile}
+          seed={partyProfileSeed}
           submitting={savingLegalEntity}
           error={error}
           onSubmit={async (bundle) => {
@@ -189,7 +189,7 @@ export function CounterpartyEditForm({
             const result = await executeMutation<CounterpartyDetails>({
               request: async () => {
                 const response =
-                  await apiClient.v1.counterparties[":id"]["legal-entity"].$put({
+                  await apiClient.v1.counterparties[":id"]["party-profile"].$put({
                     param: { id: current.id },
                     json: bundle,
                   });
@@ -221,7 +221,7 @@ export function CounterpartyEditForm({
             toast.success("Юридические данные контрагента обновлены");
             router.refresh();
 
-            return result.data.legalEntity ?? bundle;
+            return result.data.partyProfile ?? bundle;
           }}
           title="Мастер-данные контрагента"
         />

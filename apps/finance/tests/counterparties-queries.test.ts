@@ -55,7 +55,7 @@ describe("counterparties queries", () => {
     });
   });
 
-  it("parses projection-only counterparty list items without legalEntity", async () => {
+  it("parses projection-only counterparty list items without partyProfile", async () => {
     const { getCounterparties } = await import(
       "@/features/entities/counterparties/lib/queries"
     );
@@ -67,6 +67,6 @@ describe("counterparties queries", () => {
 
     expect(payload.data).toHaveLength(1);
     expect(payload.data[0]?.shortName).toBe("Test Counterparty");
-    expect("legalEntity" in payload.data[0]!).toBe(false);
+    expect("partyProfile" in payload.data[0]!).toBe(false);
   });
 });

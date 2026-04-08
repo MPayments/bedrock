@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { createPaginatedListSchema, type PaginatedList } from "@bedrock/shared/core/pagination";
 
-import { PartyLegalEntityBundleSchema } from "../../../legal-entities/application/contracts";
+import { PartyProfileBundleSchema } from "../../../party-profiles/application/contracts";
 import {
   CountryCodeSchema,
   PartyKindSchema,
@@ -25,7 +25,7 @@ export const CounterpartyListItemSchema = z.object({
 });
 
 export const CounterpartySchema = CounterpartyListItemSchema.extend({
-  legalEntity: PartyLegalEntityBundleSchema.nullable(),
+  partyProfile: PartyProfileBundleSchema.nullable(),
 });
 
 export type Counterparty = z.output<typeof CounterpartySchema>;

@@ -13,6 +13,7 @@ import {
 } from "../errors";
 import { toCounterpartyDto } from "../to-counterparty-dto";
 import type { CounterpartiesCommandUnitOfWork } from "../ports/counterparties.uow";
+import { validatePartyProfileBundleInput } from "../../../party-profiles/application/validation";
 
 export class CreateCounterpartyCommand {
   constructor(
@@ -25,6 +26,7 @@ export class CreateCounterpartyCommand {
 
     return this.uow.run(async (tx) => {
       const now = this.runtime.now();
+      const partyProfileInput = validated.partyProfile;
       let managedGroupId: string | null = null;
 
       if (validated.customerId) {
@@ -48,18 +50,16 @@ export class CreateCounterpartyCommand {
       );
 
       let draft: Counterparty;
+      if (partyProfileInput) {
+        validatePartyProfileBundleInput(partyProfileInput, validated.kind);
+      }
+
       const shortName =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.shortName
-          : validated.shortName!;
+        partyProfileInput?.profile.shortName ?? validated.shortName!;
       const fullName =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.fullName
-          : validated.fullName!;
+        partyProfileInput?.profile.fullName ?? validated.fullName!;
       const country =
-        validated.kind === "legal_entity"
-          ? validated.legalEntity!.profile.countryCode
-          : validated.country;
+        partyProfileInput?.profile.countryCode ?? validated.country;
       const id = this.runtime.generateUuid();
       try {
         draft = Counterparty.create(
@@ -87,41 +87,41 @@ export class CreateCounterpartyCommand {
 
       const created = await tx.counterparties.save(draft);
       const createdSnapshot = created.toSnapshot();
-      let legalEntity = null;
+      let partyProfile = null;
 
-      if (validated.kind === "legal_entity" && validated.legalEntity) {
-        const profile = await tx.legalEntities.upsertProfile({
+      if (partyProfileInput) {
+        const profile = await tx.partyProfiles.upsertProfile({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          profile: validated.legalEntity.profile,
+          profile: partyProfileInput.profile,
         });
-        const identifiers = await tx.legalEntities.replaceIdentifiers({
+        const identifiers = await tx.partyProfiles.replaceIdentifiers({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          items: validated.legalEntity.identifiers,
+          items: partyProfileInput.identifiers,
         });
-        const address = await tx.legalEntities.replaceAddress({
+        const address = await tx.partyProfiles.replaceAddress({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          item: validated.legalEntity.address,
+          item: partyProfileInput.address,
         });
-        const contacts = await tx.legalEntities.replaceContacts({
+        const contacts = await tx.partyProfiles.replaceContacts({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          items: validated.legalEntity.contacts,
+          items: partyProfileInput.contacts,
         });
-        const representatives = await tx.legalEntities.replaceRepresentatives({
+        const representatives = await tx.partyProfiles.replaceRepresentatives({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          items: validated.legalEntity.representatives,
+          items: partyProfileInput.representatives,
         });
-        const licenses = await tx.legalEntities.replaceLicenses({
+        const licenses = await tx.partyProfiles.replaceLicenses({
           ownerType: "counterparty",
           ownerId: createdSnapshot.id,
-          items: validated.legalEntity.licenses,
+          items: partyProfileInput.licenses,
         });
 
-        legalEntity = {
+        partyProfile = {
           profile,
           identifiers,
           address,
@@ -136,7 +136,7 @@ export class CreateCounterpartyCommand {
         shortName: createdSnapshot.shortName,
       });
 
-      return toCounterpartyDto(createdSnapshot, legalEntity);
+      return toCounterpartyDto(createdSnapshot, partyProfile);
     });
   }
 }

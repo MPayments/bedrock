@@ -11,11 +11,11 @@ import { customers } from "./customers/adapters/drizzle/schema";
 import {
   partyAddresses,
   partyContacts,
-  partyLegalIdentifiers,
-  partyLegalProfiles,
+  partyIdentifiers,
+  partyProfiles,
   partyLicenses,
   partyRepresentatives,
-} from "./legal-entities/adapters/drizzle/schema";
+} from "./party-profiles/adapters/drizzle/schema";
 import {
   organizations,
   partyCountryCodeEnum,
@@ -48,8 +48,8 @@ export {
   partyCountryCodeEnum,
   partyContacts,
   partyKindEnum,
-  partyLegalIdentifiers,
-  partyLegalProfiles,
+  partyIdentifiers,
+  partyProfiles,
   partyLicenses,
   partyRepresentatives,
   organizationRequisiteBindings,
@@ -72,8 +72,8 @@ export const schema = {
   counterpartyKindEnum,
   counterpartyCountryCodeEnum,
   counterparties,
-  partyLegalProfiles,
-  partyLegalIdentifiers,
+  partyProfiles,
+  partyIdentifiers,
   partyAddresses,
   partyContacts,
   partyRepresentatives,

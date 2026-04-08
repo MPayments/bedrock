@@ -50,7 +50,8 @@ export interface CustomerContext {
   userId: string;
 }
 
-export interface CustomerPortalCreateLegalEntityInput {
+export interface CustomerPortalCreateCounterpartyInput {
+  kind: "individual" | "legal_entity";
   address?: string | null;
   addressI18n?: LocalizedText | null;
   bankMode: "existing" | "manual";
@@ -86,6 +87,8 @@ export interface CustomerPortalCreateLegalEntityInput {
   orgNameI18n?: LocalizedText | null;
   orgType?: string | null;
   orgTypeI18n?: LocalizedText | null;
+  personFullName?: string | null;
+  personFullNameI18n?: LocalizedText | null;
   phone?: string | null;
   position?: string | null;
   positionI18n?: LocalizedText | null;
@@ -165,15 +168,15 @@ interface CustomerPortalCalculation {
 
 export interface CustomerPortalCustomerContext {
   customer: CanonicalCustomerRecord;
-  legalEntities: CanonicalCounterpartyRecord[];
+  counterparties: CanonicalCounterpartyRecord[];
 }
 
 export interface CustomerPortalWorkflow {
   assertPortalAccess(ctx: CustomerContext): Promise<void>;
   assertOnboardingAccess(ctx: CustomerContext): Promise<CustomerPortalProfile>;
-  createLegalEntity(
+  createCounterparty(
     ctx: CustomerContext,
-    input: CustomerPortalCreateLegalEntityInput,
+    input: CustomerPortalCreateCounterpartyInput,
   ): Promise<{
     counterparty: CanonicalCounterpartyRecord;
     customer: CanonicalCustomerRecord;
@@ -241,22 +244,35 @@ function toLocaleMap(
   return Object.fromEntries(entries);
 }
 
-function buildCounterpartyLegalEntityBundle(
-  input: CustomerPortalCreateLegalEntityInput,
+function resolveCounterpartyName(
+  input: CustomerPortalCreateCounterpartyInput,
+) {
+  return input.kind === "legal_entity"
+    ? input.orgName
+    : normalizeNullableText(input.personFullName) ?? input.orgName;
+}
+
+function buildCounterpartyPartyProfileBundle(
+  input: CustomerPortalCreateCounterpartyInput,
 ) {
   const country = normalizeCountryCode(input.country ?? input.bankProvider?.country);
-  const identifiers = [
-    ["inn", normalizeNullableText(input.inn)],
-    ["kpp", normalizeNullableText(input.kpp)],
-    ["ogrn", normalizeNullableText(input.ogrn)],
-    ["okpo", normalizeNullableText(input.okpo)],
-    ["oktmo", normalizeNullableText(input.oktmo)],
-  ]
-    .filter(([, value]) => value)
-    .map(([scheme, value]) => ({
-      scheme: scheme!,
-      value: value!,
-    }));
+  const identifiers =
+    input.kind === "legal_entity"
+      ? [
+          ["inn", normalizeNullableText(input.inn)],
+          ["kpp", normalizeNullableText(input.kpp)],
+          ["ogrn", normalizeNullableText(input.ogrn)],
+          ["okpo", normalizeNullableText(input.okpo)],
+          ["oktmo", normalizeNullableText(input.oktmo)],
+        ]
+          .filter(([, value]) => value)
+          .map(([scheme, value]) => ({
+            scheme: scheme!,
+            value: value!,
+          }))
+      : normalizeNullableText(input.inn)
+        ? [{ scheme: "inn", value: normalizeNullableText(input.inn)! }]
+        : [];
   const contacts = [
     ["email", normalizeNullableText(input.email)],
     ["phone", normalizeNullableText(input.phone)],
@@ -277,7 +293,8 @@ function buildCounterpartyLegalEntityBundle(
         fullAddress: normalizeNullableText(input.address),
       }
     : null;
-  const representatives = normalizeNullableText(input.directorName)
+  const representatives =
+    input.kind === "legal_entity" && normalizeNullableText(input.directorName)
     ? [
         {
           role: "director",
@@ -292,15 +309,25 @@ function buildCounterpartyLegalEntityBundle(
       ]
     : [];
 
+  const counterpartyName = resolveCounterpartyName(input);
+
   return {
     profile: {
-      fullName: input.orgName,
-      shortName: input.orgName,
-      fullNameI18n: null,
-      shortNameI18n: toLocaleMap(input.orgNameI18n),
+      fullName: counterpartyName,
+      shortName: counterpartyName,
+      fullNameI18n:
+        input.kind === "legal_entity"
+          ? null
+          : toLocaleMap(input.personFullNameI18n),
+      shortNameI18n:
+        input.kind === "legal_entity"
+          ? toLocaleMap(input.orgNameI18n)
+          : toLocaleMap(input.personFullNameI18n),
       legalFormCode: null,
-      legalFormLabel: normalizeNullableText(input.orgType),
-      legalFormLabelI18n: toLocaleMap(input.orgTypeI18n),
+      legalFormLabel:
+        input.kind === "legal_entity" ? normalizeNullableText(input.orgType) : null,
+      legalFormLabelI18n:
+        input.kind === "legal_entity" ? toLocaleMap(input.orgTypeI18n) : null,
       countryCode: country,
       businessActivityCode: null,
       businessActivityText: null,
@@ -672,7 +699,7 @@ export function createCustomerPortalWorkflow(
       counterparty.relationshipKind !== "customer_owned"
     ) {
       throw new CustomerNotAuthorizedError(
-        `Counterparty ${counterpartyId} is not a customer-owned legal entity`,
+        `Counterparty ${counterpartyId} is not a customer-owned counterparty`,
       );
     }
 
@@ -695,7 +722,7 @@ export function createCustomerPortalWorkflow(
       .map((customer) => {
         return {
           customer,
-          legalEntities: counterpartiesByCustomerId.get(customer.id) ?? [],
+          counterparties: counterpartiesByCustomerId.get(customer.id) ?? [],
         } satisfies CustomerPortalCustomerContext;
       })
       .sort(
@@ -875,25 +902,26 @@ export function createCustomerPortalWorkflow(
     assertPortalAccess,
     assertOnboardingAccess,
 
-    async createLegalEntity(
+    async createCounterparty(
       ctx: CustomerContext,
-      input: CustomerPortalCreateLegalEntityInput,
+      input: CustomerPortalCreateCounterpartyInput,
     ) {
       await assertOnboardingAccess(ctx);
 
+      const counterpartyName = resolveCounterpartyName(input);
       const customer = await deps.parties.customers.commands.create({
         description: null,
-        displayName: input.orgName,
+        displayName: counterpartyName,
         externalRef: null,
       });
-      const legalEntityBundle = buildCounterpartyLegalEntityBundle(input);
+      const partyProfile = buildCounterpartyPartyProfileBundle(input);
       const counterparty =
         await deps.parties.counterparties.commands.create({
           customerId: customer.id,
           description: null,
           externalId: normalizeNullableText(input.inn),
-          kind: "legal_entity",
-          legalEntity: legalEntityBundle,
+          kind: input.kind,
+          partyProfile,
           relationshipKind: "customer_owned",
         });
 
@@ -905,7 +933,7 @@ export function createCustomerPortalWorkflow(
         userId: ctx.userId,
       });
 
-      deps.logger.info("Customer created legal entity", {
+      deps.logger.info("Customer created counterparty", {
         counterpartyId: counterparty.id,
         customerId: customer.id,
         userId: ctx.userId,

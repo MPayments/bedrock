@@ -34,8 +34,8 @@ import {
 type CustomerDetailHeaderProps = {
   canManageAgreement: boolean;
   deleting: boolean;
-  legalEntityCount: number;
-  onAddLegalEntity: () => void;
+  counterpartyCount: number;
+  onAddCounterparty: () => void;
   onArchive: () => Promise<void>;
   onBack: () => void;
   onOpenContractDialog: () => void;
@@ -45,8 +45,8 @@ type CustomerDetailHeaderProps = {
 export function CustomerDetailHeader({
   canManageAgreement,
   deleting,
-  legalEntityCount,
-  onAddLegalEntity,
+  counterpartyCount,
+  onAddCounterparty,
   onArchive,
   onBack,
   onOpenContractDialog,
@@ -64,12 +64,12 @@ export function CustomerDetailHeader({
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-sm text-muted-foreground">
-            {legalEntityCount}{" "}
-            {legalEntityCount === 1
-              ? "юридическое лицо"
-              : legalEntityCount < 5
-                ? "юридических лица"
-                : "юридических лиц"}
+            {counterpartyCount}{" "}
+            {counterpartyCount === 1
+              ? "контрагент"
+              : counterpartyCount < 5
+                ? "контрагента"
+                : "контрагентов"}
           </p>
         </div>
       </div>
@@ -84,9 +84,9 @@ export function CustomerDetailHeader({
               <ChevronDown className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onClick={onAddLegalEntity}>
+              <DropdownMenuItem onClick={onAddCounterparty}>
                 <Plus className="h-4 w-4" />
-                <span>Добавить юр. лицо</span>
+                <span>Добавить контрагента</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!canManageAgreement}

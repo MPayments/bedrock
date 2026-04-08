@@ -13,7 +13,7 @@ import {
   ClientDocumentSchema,
   ClientDocumentsSchema,
   type ClientDocument,
-  type CustomerLegalEntity,
+  type CustomerCounterparty,
   type CustomerWorkspaceDetail,
   type SubAgent,
 } from "./customer-detail";
@@ -50,7 +50,7 @@ const CounterpartyDetailSchema = z.object({
   country: z.string().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  legalEntity: z
+  partyProfile: z
     .object({
       contacts: z.array(
         z.object({
@@ -93,11 +93,11 @@ const AgreementsListResponseSchema = z.object({
   ),
 });
 
-function buildLegalEntityDocumentsBasePath(
+function buildCounterpartyDocumentsBasePath(
   customerId: string,
   counterpartyId: string,
 ) {
-  return `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/documents`;
+  return `${API_BASE_URL}/customers/${customerId}/counterparties/${counterpartyId}/documents`;
 }
 
 function buildCustomerContractPath(
@@ -116,7 +116,7 @@ function buildCustomerContractPath(
     query.set("lang", input.lang);
   }
 
-  const basePath = `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/contract`;
+  const basePath = `${API_BASE_URL}/customers/${customerId}/counterparties/${counterpartyId}/contract`;
   const suffix = query.toString();
   return suffix ? `${basePath}?${suffix}` : basePath;
 }
@@ -126,16 +126,16 @@ function findIdentifier(
   scheme: string,
 ) {
   return (
-    counterparty.legalEntity?.identifiers.find(
+    counterparty.partyProfile?.identifiers.find(
       (identifier) => identifier.scheme === scheme,
     )?.value ?? null
   );
 }
 
-function mapCustomerLegalEntity(input: {
+function mapCustomerCounterparty(input: {
   assignment: z.infer<typeof CounterpartyAssignmentSchema>;
   counterparty: z.infer<typeof CounterpartyDetailSchema>;
-}): CustomerLegalEntity {
+}): CustomerCounterparty {
   return {
     counterpartyId: input.counterparty.id,
     country: input.counterparty.country,
@@ -253,7 +253,7 @@ export async function getCustomerWorkspace(
     readJsonWithSchema(agreementsResponse, AgreementsListResponseSchema),
   ]);
 
-  const legalEntities = await Promise.all(
+  const counterparties = await Promise.all(
     counterpartiesList.data.map(async ({ id }) => {
       const [detailResponse, assignmentResponse] = await Promise.all([
         apiClient.v1.counterparties[":id"].$get({
@@ -287,7 +287,7 @@ export async function getCustomerWorkspace(
         readJsonWithSchema(assignmentResponse, CounterpartyAssignmentSchema),
       ]);
 
-      return mapCustomerLegalEntity({
+      return mapCustomerCounterparty({
         assignment,
         counterparty,
       });
@@ -301,9 +301,9 @@ export async function getCustomerWorkspace(
     externalRef: customer.externalRef,
     hasActiveAgreement: agreementsPayload.data.some((agreement) => agreement.isActive),
     id: customer.id,
-    legalEntities,
-    legalEntityCount: legalEntities.length,
-    primaryCounterpartyId: legalEntities[0]?.counterpartyId ?? null,
+    counterparties,
+    counterpartyCount: counterparties.length,
+    primaryCounterpartyId: counterparties[0]?.counterpartyId ?? null,
     updatedAt: customer.updatedAt,
   };
 }
@@ -345,12 +345,12 @@ export async function archiveCustomer(customerId: string) {
   }
 }
 
-export async function listCustomerLegalEntityDocuments(
+export async function listCustomerCounterpartyDocuments(
   customerId: string,
   counterpartyId: string,
 ) {
   const response = await fetch(
-    buildLegalEntityDocumentsBasePath(customerId, counterpartyId),
+    buildCounterpartyDocumentsBasePath(customerId, counterpartyId),
     {
       cache: "no-store",
       credentials: "include",
@@ -366,7 +366,7 @@ export async function listCustomerLegalEntityDocuments(
   return readJsonWithSchema(response, ClientDocumentsSchema);
 }
 
-export async function uploadCustomerLegalEntityDocument(input: {
+export async function uploadCustomerCounterpartyDocument(input: {
   customerId: string;
   counterpartyId: string;
   description?: string | null;
@@ -379,7 +379,7 @@ export async function uploadCustomerLegalEntityDocument(input: {
   }
 
   const response = await fetch(
-    buildLegalEntityDocumentsBasePath(input.customerId, input.counterpartyId),
+    buildCounterpartyDocumentsBasePath(input.customerId, input.counterpartyId),
     {
       body: formData,
       credentials: "include",
@@ -396,13 +396,13 @@ export async function uploadCustomerLegalEntityDocument(input: {
   return readJsonWithSchema(response, ClientDocumentSchema);
 }
 
-export async function deleteCustomerLegalEntityDocument(input: {
+export async function deleteCustomerCounterpartyDocument(input: {
   customerId: string;
   counterpartyId: string;
   documentId: ClientDocument["id"];
 }) {
   const response = await fetch(
-    `${buildLegalEntityDocumentsBasePath(input.customerId, input.counterpartyId)}/${input.documentId}`,
+    `${buildCounterpartyDocumentsBasePath(input.customerId, input.counterpartyId)}/${input.documentId}`,
     {
       credentials: "include",
       method: "DELETE",
@@ -416,19 +416,19 @@ export async function deleteCustomerLegalEntityDocument(input: {
   }
 }
 
-export async function downloadCustomerLegalEntityDocument(input: {
+export async function downloadCustomerCounterpartyDocument(input: {
   customerId: string;
   counterpartyId: string;
   documentId: ClientDocument["id"];
 }) {
   return requestBinaryResource(
-    `${buildLegalEntityDocumentsBasePath(input.customerId, input.counterpartyId)}/${input.documentId}/download`,
+    `${buildCounterpartyDocumentsBasePath(input.customerId, input.counterpartyId)}/${input.documentId}/download`,
     { method: "GET" },
     "Ошибка скачивания документа",
   );
 }
 
-export async function downloadCustomerLegalEntityContract(input: {
+export async function downloadCustomerCounterpartyContract(input: {
   customerId: string;
   counterpartyId: string;
   format: "docx" | "pdf";

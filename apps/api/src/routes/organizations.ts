@@ -11,8 +11,8 @@ import {
   CreateRequisiteInputSchema,
   ListOrganizationsQuerySchema,
   ListRequisitesQuerySchema,
-  PartyLegalEntityBundleInputSchema,
-  PartyLegalEntityBundleSchema,
+  PartyProfileBundleInputSchema,
+  PartyProfileBundleSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
   OrganizationListItemSchema,
@@ -33,9 +33,9 @@ import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import { countOrganizationBankRequisites } from "./organization-requisites";
 import {
-  mapPartyLegalEntityMutationError,
-  replacePartyLegalEntityBundle,
-} from "./party-legal-entity";
+  mapPartyProfileMutationError,
+  replacePartyProfileBundle,
+} from "./party-profile";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
@@ -347,18 +347,18 @@ export function organizationsRoutes(ctx: AppContext) {
     },
   });
 
-  const putLegalEntityRoute = createRoute({
+  const putPartyProfileRoute = createRoute({
     middleware: [requirePermission({ organizations: ["update"] })],
     method: "put",
-    path: "/{id}/legal-entity",
+    path: "/{id}/party-profile",
     tags: ["Organizations"],
-    summary: "Replace organization legal entity master data",
+    summary: "Replace organization party profile data",
     request: {
       params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: PartyLegalEntityBundleInputSchema,
+            schema: PartyProfileBundleInputSchema,
           },
         },
         required: true,
@@ -368,10 +368,10 @@ export function organizationsRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: PartyLegalEntityBundleSchema,
+            schema: PartyProfileBundleSchema,
           },
         },
-        description: "Organization legal entity bundle updated",
+        description: "Organization party profile bundle updated",
       },
       400: {
         content: {
@@ -530,14 +530,14 @@ export function organizationsRoutes(ctx: AppContext) {
         throw error;
       }
     })
-    .openapi(putLegalEntityRoute, async (c) => {
+    .openapi(putPartyProfileRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
 
       try {
         const organization =
           await ctx.partiesModule.organizations.queries.findById(id);
-        const bundle = await replacePartyLegalEntityBundle({
+        const bundle = await replacePartyProfileBundle({
           bundle: input,
           ctx,
           ownerId: id,
@@ -546,7 +546,7 @@ export function organizationsRoutes(ctx: AppContext) {
         });
         return c.json(bundle, 200);
       } catch (error) {
-        const handled = mapPartyLegalEntityMutationError(
+        const handled = mapPartyProfileMutationError(
           error,
           OrganizationNotFoundError,
         );
