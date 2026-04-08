@@ -41,7 +41,6 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
-import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { LocalizedTextInputField } from "./localized-text-input-field";
 import { LocalizedTextModeSwitcher } from "./localized-text-mode-switcher";
@@ -267,9 +266,13 @@ function emptyAddress(): PartyAddressInput {
     countryCode: null,
     postalCode: null,
     city: null,
+    cityI18n: null,
     streetAddress: null,
+    streetAddressI18n: null,
     addressDetails: null,
+    addressDetailsI18n: null,
     fullAddress: null,
+    fullAddressI18n: null,
   };
 }
 
@@ -280,9 +283,13 @@ function normalizeAddress(
     !address.countryCode &&
     !address.postalCode &&
     !address.city &&
+    !address.cityI18n &&
     !address.streetAddress &&
+    !address.streetAddressI18n &&
     !address.addressDetails &&
+    !address.addressDetailsI18n &&
     !address.fullAddress
+    && !address.fullAddressI18n
   ) {
     return null;
   }
@@ -316,10 +323,12 @@ function emptyLicense(): PartyLicenseInput {
     licenseType: PARTY_LICENSE_TYPE_VALUES[0],
     licenseNumber: "",
     issuedBy: null,
+    issuedByI18n: null,
     issuedAt: null,
     expiresAt: null,
     activityCode: null,
     activityText: null,
+    activityTextI18n: null,
   };
 }
 
@@ -586,23 +595,26 @@ export function PartyProfileEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Описание деятельности</FieldLabel>
-                  <Textarea
-                    value={draft.profile.businessActivityText ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        profile: {
-                          ...current.profile,
-                          businessActivityText: event.target.value || null,
-                        },
-                      }))
-                    }
-                    rows={3}
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  className="md:col-span-2"
+                  label="Описание деятельности"
+                  variant={localizedTextVariant}
+                  value={draft.profile.businessActivityText ?? ""}
+                  localeMap={draft.profile.businessActivityTextI18n}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      profile: {
+                        ...current.profile,
+                        businessActivityText: value.value || null,
+                        businessActivityTextI18n: value.localeMap,
+                      },
+                    }))
+                  }
+                  multiline
+                  rows={3}
+                  disabled={submitting}
+                />
               </>
             ) : null}
           </FieldGroup>
@@ -759,19 +771,20 @@ export function PartyProfileEditor({
               clearLabel="Очистить"
             />
           </Field>
-          <Field>
-            <FieldLabel>Город</FieldLabel>
-            <Input
-              value={(draft.address ?? emptyAddress()).city ?? ""}
-              onChange={(event) =>
-                updateAddress((address) => ({
-                  ...address,
-                  city: event.target.value || null,
-                }))
-              }
-              disabled={submitting}
-            />
-          </Field>
+          <LocalizedTextInputField
+            label="Город"
+            variant={localizedTextVariant}
+            value={(draft.address ?? emptyAddress()).city ?? ""}
+            localeMap={(draft.address ?? emptyAddress()).cityI18n}
+            onChange={(value) =>
+              updateAddress((address) => ({
+                ...address,
+                city: value.value || null,
+                cityI18n: value.localeMap,
+              }))
+            }
+            disabled={submitting}
+          />
           <Field>
             <FieldLabel>Индекс</FieldLabel>
             <Input
@@ -785,46 +798,51 @@ export function PartyProfileEditor({
               disabled={submitting}
             />
           </Field>
-          <Field>
-            <FieldLabel>Улица и дом</FieldLabel>
-            <Input
-              value={(draft.address ?? emptyAddress()).streetAddress ?? ""}
-              onChange={(event) =>
-                updateAddress((address) => ({
-                  ...address,
-                  streetAddress: event.target.value || null,
-                }))
-              }
-              disabled={submitting}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Дополнение к адресу</FieldLabel>
-            <Input
-              value={(draft.address ?? emptyAddress()).addressDetails ?? ""}
-              onChange={(event) =>
-                updateAddress((address) => ({
-                  ...address,
-                  addressDetails: event.target.value || null,
-                }))
-              }
-              disabled={submitting}
-            />
-          </Field>
-          <Field className="md:col-span-2">
-            <FieldLabel>Полный адрес</FieldLabel>
-            <Textarea
-              value={(draft.address ?? emptyAddress()).fullAddress ?? ""}
-              onChange={(event) =>
-                updateAddress((address) => ({
-                  ...address,
-                  fullAddress: event.target.value || null,
-                }))
-              }
-              rows={3}
-              disabled={submitting}
-            />
-          </Field>
+          <LocalizedTextInputField
+            label="Улица и дом"
+            variant={localizedTextVariant}
+            value={(draft.address ?? emptyAddress()).streetAddress ?? ""}
+            localeMap={(draft.address ?? emptyAddress()).streetAddressI18n}
+            onChange={(value) =>
+              updateAddress((address) => ({
+                ...address,
+                streetAddress: value.value || null,
+                streetAddressI18n: value.localeMap,
+              }))
+            }
+            disabled={submitting}
+          />
+          <LocalizedTextInputField
+            label="Дополнение к адресу"
+            variant={localizedTextVariant}
+            value={(draft.address ?? emptyAddress()).addressDetails ?? ""}
+            localeMap={(draft.address ?? emptyAddress()).addressDetailsI18n}
+            onChange={(value) =>
+              updateAddress((address) => ({
+                ...address,
+                addressDetails: value.value || null,
+                addressDetailsI18n: value.localeMap,
+              }))
+            }
+            disabled={submitting}
+          />
+          <LocalizedTextInputField
+            className="md:col-span-2"
+            label="Полный адрес"
+            variant={localizedTextVariant}
+            value={(draft.address ?? emptyAddress()).fullAddress ?? ""}
+            localeMap={(draft.address ?? emptyAddress()).fullAddressI18n}
+            onChange={(value) =>
+              updateAddress((address) => ({
+                ...address,
+                fullAddress: value.value || null,
+                fullAddressI18n: value.localeMap,
+              }))
+            }
+            multiline
+            rows={3}
+            disabled={submitting}
+          />
         </FieldGroup>
       </SectionCard>
 
@@ -1207,23 +1225,27 @@ export function PartyProfileEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>Кем выдана</FieldLabel>
-                  <Input
-                    value={license.issuedBy ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, issuedBy: event.target.value || null }
-                            : item,
-                        ),
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  label="Кем выдана"
+                  variant={localizedTextVariant}
+                  value={license.issuedBy ?? ""}
+                  localeMap={license.issuedByI18n}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      licenses: current.licenses.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              issuedBy: value.value || null,
+                              issuedByI18n: value.localeMap,
+                            }
+                          : item,
+                      ),
+                    }))
+                  }
+                  disabled={submitting}
+                />
                 <Field>
                   <FieldLabel>Выдана</FieldLabel>
                   <Input
@@ -1286,27 +1308,30 @@ export function PartyProfileEditor({
                     disabled={submitting}
                   />
                 </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel>Описание деятельности</FieldLabel>
-                  <Textarea
-                    value={license.activityText ?? ""}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        licenses: current.licenses.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? {
-                                ...item,
-                                activityText: event.target.value || null,
-                              }
-                            : item,
-                        ),
-                      }))
-                    }
-                    rows={3}
-                    disabled={submitting}
-                  />
-                </Field>
+                <LocalizedTextInputField
+                  className="md:col-span-2"
+                  label="Описание деятельности"
+                  variant={localizedTextVariant}
+                  value={license.activityText ?? ""}
+                  localeMap={license.activityTextI18n}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      licenses: current.licenses.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              activityText: value.value || null,
+                              activityTextI18n: value.localeMap,
+                            }
+                          : item,
+                      ),
+                    }))
+                  }
+                  multiline
+                  rows={3}
+                  disabled={submitting}
+                />
               </FieldGroup>
             </div>
           ))}

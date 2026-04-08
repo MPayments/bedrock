@@ -17,6 +17,8 @@ export function buildOrganizationLegalEntityPayload(
       countryCode: values.country || null,
       businessActivityCode: current?.profile.businessActivityCode ?? null,
       businessActivityText: current?.profile.businessActivityText ?? null,
+      businessActivityTextI18n:
+        current?.profile.businessActivityTextI18n ?? null,
     },
     identifiers: current?.identifiers ?? [],
     address: current?.address ?? null,

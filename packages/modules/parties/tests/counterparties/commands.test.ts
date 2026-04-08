@@ -34,6 +34,7 @@ function createPartyProfileBundle() {
       countryCode: null,
       businessActivityCode: null,
       businessActivityText: null,
+      businessActivityTextI18n: null,
     },
     identifiers: [],
     address: null,
@@ -57,7 +58,7 @@ describe("counterparty command handlers", () => {
             customerStore: {
               findById: vi.fn(async () => ({
                 id: customerId,
-                displayName: "Acme Corp",
+                name: "Acme Corp",
               })),
             },
             counterparties: {
@@ -158,7 +159,7 @@ describe("counterparty command handlers", () => {
   it("drops customer-scoped memberships when clearing the customer link", async () => {
     const existing = Counterparty.fromSnapshot({
       id: "cp-1",
-      externalId: null,
+      externalRef: null,
       relationshipKind: "customer_owned",
       customerId: "cust-1",
       shortName: "Acme",

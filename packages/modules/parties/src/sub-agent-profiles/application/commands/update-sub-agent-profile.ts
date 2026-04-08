@@ -49,7 +49,7 @@ export class UpdateSubAgentProfileCommand {
         {
           customerId: null,
           description: snapshot.description,
-          externalId: snapshot.externalId,
+          externalRef: snapshot.externalRef,
           fullName: nextFullName,
           groupIds: snapshot.groupIds,
           kind: validated.kind ?? snapshot.kind,

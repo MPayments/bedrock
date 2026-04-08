@@ -87,6 +87,9 @@ export class DrizzlePartyProfilesStore implements PartyProfilesStore {
       countryCode: input.profile.countryCode,
       businessActivityCode: input.profile.businessActivityCode,
       businessActivityText: input.profile.businessActivityText,
+      businessActivityTextI18n: normalizeLocaleMap(
+        input.profile.businessActivityTextI18n,
+      ),
     };
 
     const [profile] = existing
@@ -165,9 +168,13 @@ export class DrizzlePartyProfilesStore implements PartyProfilesStore {
         countryCode: input.item.countryCode,
         postalCode: input.item.postalCode,
         city: input.item.city,
+        cityI18n: normalizeLocaleMap(input.item.cityI18n),
         streetAddress: input.item.streetAddress,
+        streetAddressI18n: normalizeLocaleMap(input.item.streetAddressI18n),
         addressDetails: input.item.addressDetails,
+        addressDetailsI18n: normalizeLocaleMap(input.item.addressDetailsI18n),
         fullAddress: input.item.fullAddress,
+        fullAddressI18n: normalizeLocaleMap(input.item.fullAddressI18n),
       })
       .returning();
 
@@ -265,10 +272,12 @@ export class DrizzlePartyProfilesStore implements PartyProfilesStore {
           licenseType: item.licenseType,
           licenseNumber: item.licenseNumber,
           issuedBy: item.issuedBy,
+          issuedByI18n: normalizeLocaleMap(item.issuedByI18n),
           issuedAt: item.issuedAt,
           expiresAt: item.expiresAt,
           activityCode: item.activityCode,
           activityText: item.activityText,
+          activityTextI18n: normalizeLocaleMap(item.activityTextI18n),
         })),
       )
       .returning();

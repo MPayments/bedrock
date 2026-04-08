@@ -12,7 +12,7 @@ describe("organizations contracts", () => {
       shortName: "  Acme  ",
       fullName: "  Acme Incorporated  ",
       country: "us",
-      externalId: "  ext-1  ",
+      externalRef: "  ext-1  ",
       description: "   ",
       partyProfile: {
         profile: {
@@ -31,13 +31,13 @@ describe("organizations contracts", () => {
     expect(parsed.shortName).toBe("Acme");
     expect(parsed.fullName).toBe("Acme Incorporated");
     expect(parsed.country).toBe("US");
-    expect(parsed.externalId).toBe("ext-1");
+    expect(parsed.externalRef).toBe("ext-1");
     expect(parsed.description).toBeNull();
   });
 
   it("rejects explicit undefined in update organization input", () => {
     expect(
-      UpdateOrganizationInputSchema.safeParse({ externalId: undefined }).success,
+      UpdateOrganizationInputSchema.safeParse({ externalRef: undefined }).success,
     ).toBe(false);
   });
 

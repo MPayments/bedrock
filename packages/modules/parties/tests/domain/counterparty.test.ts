@@ -31,7 +31,7 @@ describe("counterparty domain", () => {
     const counterparty = Counterparty.create(
       {
         id: "cp-1",
-        externalId: null,
+        externalRef: null,
         relationshipKind: "customer_owned",
         customerId: "cust-1",
         shortName: " Acme ",
@@ -61,7 +61,7 @@ describe("counterparty domain", () => {
       Counterparty.create(
         {
           id: "cp-1",
-          externalId: null,
+          externalRef: null,
           relationshipKind: "external",
           customerId: null,
           shortName: "Acme",

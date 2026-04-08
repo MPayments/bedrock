@@ -346,7 +346,7 @@ export default function CustomerDetailPage() {
       setError(null);
       await updateCustomerWorkspace(customerId, {
         description: normalizeOptionalText(data.description),
-        displayName: data.displayName.trim(),
+        name: data.name.trim(),
         externalRef: normalizeOptionalText(data.externalRef),
       });
       const updatedWorkspace = await fetchWorkspace();
@@ -556,7 +556,7 @@ export default function CustomerDetailPage() {
         onArchive={handleArchive}
         onBack={() => router.back()}
         onOpenContractDialog={() => setContractDialogOpen(true)}
-        title={workspace.displayName}
+        title={workspace.name}
       />
 
       {error ? (
@@ -710,7 +710,7 @@ export default function CustomerDetailPage() {
                   counterpartyId: "00000000-0000-0000-0000-000000000000",
                   country: null,
                   createdAt: workspace.createdAt,
-                  externalId: null,
+                  externalRef: null,
                   fullName: "",
                   inn: null,
                   orgName: "",

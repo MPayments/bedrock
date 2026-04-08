@@ -27,7 +27,7 @@ export class DrizzleCustomerStore implements CustomerStore {
       .values({
         id: customer.id,
         externalRef: customer.externalRef,
-        displayName: customer.displayName,
+        name: customer.name,
         description: customer.description,
       })
       .returning();
@@ -40,7 +40,7 @@ export class DrizzleCustomerStore implements CustomerStore {
       .update(customers)
       .set({
         externalRef: customer.externalRef,
-        displayName: customer.displayName,
+        name: customer.name,
         description: customer.description,
         updatedAt: sql`now()`,
       })

@@ -288,9 +288,13 @@ function buildCounterpartyPartyProfileBundle(
         countryCode: country,
         postalCode: null,
         city: null,
+        cityI18n: null,
         streetAddress: null,
+        streetAddressI18n: null,
         addressDetails: null,
+        addressDetailsI18n: null,
         fullAddress: normalizeNullableText(input.address),
+        fullAddressI18n: toLocaleMap(input.addressI18n),
       }
     : null;
   const representatives =
@@ -331,6 +335,7 @@ function buildCounterpartyPartyProfileBundle(
       countryCode: country,
       businessActivityCode: null,
       businessActivityText: null,
+      businessActivityTextI18n: null,
     },
     identifiers,
     address,
@@ -911,7 +916,7 @@ export function createCustomerPortalWorkflow(
       const counterpartyName = resolveCounterpartyName(input);
       const customer = await deps.parties.customers.commands.create({
         description: null,
-        displayName: counterpartyName,
+        name: counterpartyName,
         externalRef: null,
       });
       const partyProfile = buildCounterpartyPartyProfileBundle(input);
@@ -919,7 +924,7 @@ export function createCustomerPortalWorkflow(
         await deps.parties.counterparties.commands.create({
           customerId: customer.id,
           description: null,
-          externalId: normalizeNullableText(input.inn),
+          externalRef: normalizeNullableText(input.inn),
           kind: input.kind,
           partyProfile,
           relationshipKind: "customer_owned",

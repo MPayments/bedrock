@@ -39,7 +39,7 @@ export class CreateCounterpartyCommand {
           generateUuid: this.runtime.generateUuid,
           groups: tx.counterpartyGroups,
           customerId: validated.customerId,
-          displayName: customer.displayName,
+          name: customer.name,
           now,
         });
         managedGroupId = managedGroup.toSnapshot().id;
@@ -65,7 +65,7 @@ export class CreateCounterpartyCommand {
         draft = Counterparty.create(
           {
             id,
-            externalId: validated.externalId,
+            externalRef: validated.externalRef,
             customerId: validated.customerId,
             relationshipKind: validated.relationshipKind,
             shortName,

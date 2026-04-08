@@ -163,7 +163,7 @@ const phoneSchema = z.string().refine(
 
 export const customerCreateCustomerSchema = z.object({
   description: z.string(),
-  displayName: z.string().trim().min(1, "Название клиента обязательно"),
+  name: z.string().trim().min(1, "Название клиента обязательно"),
   externalRef: z.string(),
 });
 
@@ -346,6 +346,7 @@ function buildPartyProfileBundle(
         countryCode: null,
         businessActivityCode: null,
         businessActivityText: null,
+        businessActivityTextI18n: null,
       },
       identifiers: values.inn.trim()
         ? [{ scheme: "inn" as const, value: values.inn.trim() }]
@@ -355,9 +356,16 @@ function buildPartyProfileBundle(
             countryCode: null,
             postalCode: null,
             city: null,
+            cityI18n: null,
             streetAddress: null,
+            streetAddressI18n: null,
             addressDetails: null,
+            addressDetailsI18n: null,
             fullAddress: values.address.trim(),
+            fullAddressI18n: toLocalizedText(
+              values.addressI18n.ru,
+              values.addressI18n.en,
+            ),
           }
         : null,
       contacts,
@@ -418,18 +426,26 @@ function buildPartyProfileBundle(
       countryCode: null,
       businessActivityCode: null,
       businessActivityText: null,
+      businessActivityTextI18n: null,
     },
     identifiers,
     address: values.address.trim()
       ? {
-          countryCode: null,
-          postalCode: null,
-          city: null,
-          streetAddress: null,
-          addressDetails: null,
-          fullAddress: values.address.trim(),
-        }
-      : null,
+        countryCode: null,
+        postalCode: null,
+        city: null,
+        cityI18n: null,
+        streetAddress: null,
+        streetAddressI18n: null,
+        addressDetails: null,
+        addressDetailsI18n: null,
+        fullAddress: values.address.trim(),
+        fullAddressI18n: toLocalizedText(
+          values.addressI18n.ru,
+          values.addressI18n.en,
+        ),
+      }
+    : null,
     contacts,
     representatives: [
       {
@@ -510,7 +526,7 @@ export function getCustomerCreateDefaultValues(): CustomerCreateFormData {
     directorBasisI18n: { en: "", ru: "" },
     directorName: "",
     directorNameI18n: { en: "", ru: "" },
-    displayName: "",
+    name: "",
     email: "",
     externalRef: "",
     inn: "",
@@ -548,7 +564,7 @@ export function buildCustomerCreatePayload(
 ): CreateCustomerInput {
   return {
     description: normalizeOptionalText(values.description),
-    displayName: values.displayName.trim(),
+    name: values.name.trim(),
     externalRef: normalizeOptionalText(values.externalRef),
   };
 }
@@ -566,7 +582,7 @@ export function buildCustomerCounterpartyCreatePayload(input: {
     fullName: counterpartyName,
     relationshipKind: "customer_owned",
     country: null,
-    externalId: normalizeOptionalText(values.inn),
+    externalRef: normalizeOptionalText(values.inn),
     description: null,
     customerId,
     groupIds: [],

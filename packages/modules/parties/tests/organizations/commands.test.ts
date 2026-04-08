@@ -30,6 +30,7 @@ function createPartyProfileBundle() {
       countryCode: null,
       businessActivityCode: null,
       businessActivityText: null,
+      businessActivityTextI18n: null,
     },
     identifiers: [],
     address: null,
@@ -89,7 +90,7 @@ describe("organization command handlers", () => {
     );
 
     await expect(
-      update.execute("missing", { externalId: "ext-updated" }),
+      update.execute("missing", { externalRef: "ext-updated" }),
     ).rejects.toBeInstanceOf(OrganizationNotFoundError);
   });
 

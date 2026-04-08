@@ -422,14 +422,14 @@ export type ApiCustomerCounterparty = {
 
 export type ApiCustomerWorkspace = {
   description: string | null;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   id: string;
   counterparties: ApiCustomerCounterparty[];
 };
 
 export type ApiCanonicalCounterparty = {
-  externalId: string | null;
+  externalRef: string | null;
   fullName: string;
   id: string;
   partyProfile: {
@@ -458,7 +458,7 @@ export type ApiDealCustomerContext = {
   counterparties: ApiCanonicalCounterparty[];
   customer: {
     description: string | null;
-    displayName: string;
+    name: string;
     externalRef: string | null;
     id: string;
   };

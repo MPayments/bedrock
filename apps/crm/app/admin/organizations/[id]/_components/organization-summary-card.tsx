@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Building2, FileSignature, Globe2, Stamp, Wallet } from "lucide-react";
 
+import { getCountryByAlpha2 } from "@bedrock/shared/reference-data/countries";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
@@ -22,6 +23,20 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatCountry(value: string | null) {
+  if (!value) {
+    return "Не указана";
+  }
+
+  const country = getCountryByAlpha2(value);
+  if (!country) {
+    const normalized = value.trim().toUpperCase();
+    return normalized || "Не указана";
+  }
+
+  return `${country.emoji} ${country.name}`;
 }
 
 function SummaryItem(props: {
@@ -71,7 +86,7 @@ export function OrganizationSummaryCard({
         <SummaryItem
           icon={<Building2 className="size-4" />}
           label="Страна"
-          value={organization.country ?? "Не указана"}
+          value={formatCountry(organization.country)}
         />
         <SummaryItem
           icon={<Wallet className="size-4" />}

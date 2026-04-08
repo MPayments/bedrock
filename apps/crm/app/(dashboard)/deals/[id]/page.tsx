@@ -291,7 +291,7 @@ function mapCustomerCounterparty(
     fullName: counterparty.fullName,
     inn:
       findCounterpartyIdentifier(counterparty, "inn") ??
-      counterparty.externalId ??
+      counterparty.externalRef ??
       null,
     kpp: findCounterpartyIdentifier(counterparty, "kpp"),
     orgName: counterparty.shortName,
@@ -307,7 +307,7 @@ function mapCustomerWorkspace(
 ): ApiCustomerWorkspace {
   return {
     description: context.customer.description,
-    displayName: context.customer.displayName,
+    name: context.customer.name,
     externalRef: context.customer.externalRef,
     id: context.customer.id,
     counterparties: context.counterparties.map(mapCustomerCounterparty),

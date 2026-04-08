@@ -75,7 +75,7 @@ export class DrizzleCounterpartyRepository implements CounterpartyRepository {
       .insert(counterparties)
       .values({
         id: counterparty.id,
-        externalId: counterparty.externalId,
+        externalRef: counterparty.externalRef,
         customerId: counterparty.customerId,
         relationshipKind: counterparty.relationshipKind,
         shortName: counterparty.shortName,
@@ -93,7 +93,7 @@ export class DrizzleCounterpartyRepository implements CounterpartyRepository {
     const [updated] = await this.db
       .update(counterparties)
       .set({
-        externalId: counterparty.externalId,
+        externalRef: counterparty.externalRef,
         customerId: counterparty.customerId,
         relationshipKind: counterparty.relationshipKind,
         shortName: counterparty.shortName,

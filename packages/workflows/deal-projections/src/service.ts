@@ -1486,7 +1486,7 @@ export function createDealProjectionsWorkflow(
           amountInBaseMinor: monetary.amountInBaseMinor,
           amountMinor: monetary.amountMinor,
           baseCurrencyCode: monetary.baseCurrencyCode,
-          client: customer?.displayName ?? "—",
+          client: customer?.name ?? "—",
           clientId: deal.customerId,
           closedAt,
           comment,
@@ -1701,7 +1701,7 @@ export function createDealProjectionsWorkflow(
         amount: monetary.amount,
         amountInBase: monetary.amountInBase,
         baseCurrencyCode: monetary.baseCurrencyCode,
-        client: customersById.get(deal.customerId)?.displayName ?? "—",
+        client: customersById.get(deal.customerId)?.name ?? "—",
         createdAt: deal.createdAt.toISOString(),
         currency: monetary.currencyCode,
         id: deal.id,
@@ -2009,7 +2009,7 @@ export function createDealProjectionsWorkflow(
         ...workflow.summary,
         applicantDisplayName:
           getApplicantParticipant(workflow)?.displayName ?? null,
-        customerDisplayName: customer?.displayName ?? null,
+        customerDisplayName: customer?.name ?? null,
         internalEntityDisplayName:
           getInternalEntityParticipant(workflow)?.displayName ??
           internalEntity?.shortName ??
@@ -2050,7 +2050,7 @@ export function createDealProjectionsWorkflow(
           applicantName: getApplicantParticipant(workflow)?.displayName ?? null,
           assigneeUserId: workflow.summary.agentId,
           blockingReasons: stageContext.blockingReasons,
-          customerName: customer?.displayName ?? null,
+          customerName: customer?.name ?? null,
           documentSummary: {
             attachmentCount: attachments.length,
             formalDocumentCount:
@@ -2305,7 +2305,7 @@ export function createDealProjectionsWorkflow(
             ? await deps.parties.customers.queries.findById(customerId)
             : null;
           const applicantName =
-            customer?.displayName ??
+            customer?.name ??
             getApplicantParticipant(workflow)?.displayName ??
             null;
 

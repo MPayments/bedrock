@@ -62,7 +62,8 @@ export function validatePartyProfileBundleInput(
         bundle.profile.legalFormLabel ||
         bundle.profile.legalFormLabelI18n ||
         bundle.profile.businessActivityCode ||
-        bundle.profile.businessActivityText,
+        bundle.profile.businessActivityText ||
+        bundle.profile.businessActivityTextI18n,
     );
 
     if (hasLegalOnlyProfileFields) {

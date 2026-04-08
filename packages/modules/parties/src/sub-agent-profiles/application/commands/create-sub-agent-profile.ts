@@ -28,7 +28,7 @@ export class CreateSubAgentProfileCommand {
           id: this.runtime.generateUuid(),
           customerId: null,
           description: null,
-          externalId: null,
+          externalRef: null,
           fullName: validated.fullName?.trim() || validated.shortName.trim(),
           groupIds: [],
           kind: validated.kind,

@@ -12,6 +12,7 @@ export const CURRENCY_IDS = {
   CNY: "00000000-0000-4000-8000-000000000107",
   GBP: "00000000-0000-4000-8000-000000000108",
   JPY: "00000000-0000-4000-8000-000000000109",
+  TRY: "00000000-0000-4000-8000-000000000110",
 } as const;
 
 export function currencyIdForCode(code: string): string {
@@ -70,6 +71,13 @@ const CURRENCY_SEEDS = [
     name: "Японский йен",
     symbol: "¥",
     precision: 0,
+  },
+  {
+    id: CURRENCY_IDS.TRY,
+    code: "TRY",
+    name: "Турецкая лира",
+    symbol: "₺",
+    precision: 2,
   },
   {
     id: CURRENCY_IDS.USDT,

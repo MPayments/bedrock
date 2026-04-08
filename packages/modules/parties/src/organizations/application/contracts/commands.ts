@@ -18,7 +18,7 @@ export const CreateOrganizationInputSchema = z.object({
     .nullish()
     .transform((value) => trimToNull(value) ?? null),
   country: CountryCodeSchema.nullish().transform((value) => value ?? null),
-  externalId: z
+  externalRef: z
     .string()
     .trim()
     .nullish()
@@ -71,7 +71,7 @@ export const UpdateOrganizationInputSchema = z.object({
   shortName: z.string().trim().min(1).exactOptional(),
   fullName: z.string().trim().min(1).exactOptional(),
   country: CountryCodeSchema.nullable().exactOptional(),
-  externalId: z
+  externalRef: z
     .string()
     .trim()
     .nullable()

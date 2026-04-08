@@ -30,7 +30,7 @@ import { Input } from "@bedrock/sdk-ui/components/input";
 
 interface ClientRow {
   id: string;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   description: string | null;
   createdAt: string;
@@ -107,7 +107,7 @@ export default function ClientsPage() {
         params.set("limit", String(pagination.pageSize));
 
         if (debouncedSearchQuery) {
-          params.set("displayName", debouncedSearchQuery);
+          params.set("name", debouncedSearchQuery);
         }
 
         const url = `${API_BASE_URL}/customers?${params.toString()}`;
@@ -180,7 +180,7 @@ export default function ClientsPage() {
         },
       },
       {
-        accessorKey: "displayName",
+        accessorKey: "name",
         meta: { label: "Организация" },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Организация" />

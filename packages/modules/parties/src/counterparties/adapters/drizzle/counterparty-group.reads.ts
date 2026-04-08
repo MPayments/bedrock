@@ -36,7 +36,7 @@ export class DrizzleCounterpartyGroupReads implements CounterpartyGroupReads {
         description: counterpartyGroups.description,
         parentId: counterpartyGroups.parentId,
         customerId: counterpartyGroups.customerId,
-        customerLabel: customers.displayName,
+        customerLabel: customers.name,
         isSystem: counterpartyGroups.isSystem,
         createdAt: counterpartyGroups.createdAt,
         updatedAt: counterpartyGroups.updatedAt,

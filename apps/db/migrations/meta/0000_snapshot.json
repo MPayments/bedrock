@@ -3430,8 +3430,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "external_id": {
-          "name": "external_id",
+        "external_ref": {
+          "name": "external_ref",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4366,8 +4366,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "display_name": {
-          "name": "display_name",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -9695,8 +9695,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "external_id": {
-          "name": "external_id",
+        "external_ref": {
+          "name": "external_ref",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -9994,9 +9994,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "city_i18n": {
+          "name": "city_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "street_address": {
           "name": "street_address",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "street_address_i18n": {
+          "name": "street_address_i18n",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -10006,9 +10018,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "address_details_i18n": {
+          "name": "address_details_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "full_address": {
           "name": "full_address",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_address_i18n": {
+          "name": "full_address_i18n",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -10369,6 +10393,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "business_activity_text_i18n": {
+          "name": "business_activity_text_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -10490,6 +10520,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "issued_by_i18n": {
+          "name": "issued_by_i18n",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "issued_at": {
           "name": "issued_at",
           "type": "timestamp with time zone",
@@ -10511,6 +10547,12 @@
         "activity_text": {
           "name": "activity_text",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_text_i18n": {
+          "name": "activity_text_i18n",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

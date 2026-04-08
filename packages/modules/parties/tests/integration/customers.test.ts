@@ -18,12 +18,12 @@ describe("parties customers integration", () => {
     const { module } = createIntegrationRuntime();
 
     const created = await module.customers.commands.create({
-      displayName: uniqueLabel("Acme"),
+      name: uniqueLabel("Acme"),
       externalRef: uniqueLabel("crm"),
     });
 
     const listed = await module.customers.queries.list({
-      displayName: created.displayName,
+      name: created.name,
     });
     expect(listed.total).toBe(1);
     expect(listed.data[0]?.id).toBe(created.id);
@@ -37,10 +37,10 @@ describe("parties customers integration", () => {
       .where(eq(partiesSchema.counterpartyGroups.customerId, created.id));
 
     expect(group?.code).toBe(`customer:${created.id}`);
-    expect(group?.name).toBe(created.displayName);
+    expect(group?.name).toBe(created.name);
 
     await module.customers.commands.update(created.id, {
-      displayName: `${created.displayName} Updated`,
+      name: `${created.name} Updated`,
     });
 
     const [renamedGroup] = await db
@@ -54,7 +54,7 @@ describe("parties customers integration", () => {
   it("detaches counterparties and deletes the managed subtree on remove", async () => {
     const { module } = createIntegrationRuntime();
     const customer = await module.customers.commands.create({
-      displayName: uniqueLabel("Detach"),
+      name: uniqueLabel("Detach"),
       externalRef: uniqueLabel("crm"),
     });
 
@@ -137,7 +137,7 @@ describe("parties customers integration", () => {
       hasDocumentsForCustomer: async () => true,
     });
     const customer = await module.customers.commands.create({
-      displayName: uniqueLabel("Blocked"),
+      name: uniqueLabel("Blocked"),
       externalRef: uniqueLabel("crm"),
     });
 
@@ -149,11 +149,11 @@ describe("parties customers integration", () => {
   it("exposes customer display-name queries", async () => {
     const { module, queries } = createIntegrationRuntime();
     const customer = await module.customers.commands.create({
-      displayName: uniqueLabel("Query"),
+      name: uniqueLabel("Query"),
       externalRef: uniqueLabel("crm"),
     });
 
-    const names = await queries.customers.listDisplayNamesById([customer.id]);
-    expect(names.get(customer.id)).toBe(customer.displayName);
+    const names = await queries.customers.listNamesById([customer.id]);
+    expect(names.get(customer.id)).toBe(customer.name);
   });
 });

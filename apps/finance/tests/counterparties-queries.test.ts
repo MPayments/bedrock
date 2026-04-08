@@ -34,7 +34,7 @@ describe("counterparties queries", () => {
           data: [
             {
               id: "00000000-0000-4000-8000-000000000204",
-              externalId: null,
+              externalRef: null,
               customerId: "00000000-0000-4000-8000-000000000201",
               relationshipKind: "customer_owned",
               shortName: "Test Counterparty",

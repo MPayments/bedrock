@@ -79,15 +79,15 @@ export function CustomerSummaryCard({
             <Label htmlFor="customer-display-name">Название клиента</Label>
             <Input
               id="customer-display-name"
-              value={form.watch("displayName")}
+              value={form.watch("name")}
               onChange={(event) =>
-                form.setValue("displayName", event.target.value, {
+                form.setValue("name", event.target.value, {
                   shouldDirty: true,
                   shouldValidate: true,
                 })
               }
             />
-            <FieldError message={form.formState.errors.displayName?.message} />
+            <FieldError message={form.formState.errors.name?.message} />
           </div>
 
           <div className="space-y-2">

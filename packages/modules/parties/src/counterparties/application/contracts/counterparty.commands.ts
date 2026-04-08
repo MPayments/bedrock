@@ -30,7 +30,7 @@ export const CreateCounterpartyInputSchema = z.object({
     .transform((value) => trimToNull(value) ?? null),
   relationshipKind: CounterpartyRelationshipKindSchema.default("external"),
   country: CountryCodeSchema.nullish().transform((value) => value ?? null),
-  externalId: z
+  externalRef: z
     .string()
     .trim()
     .nullish()
@@ -75,7 +75,7 @@ export type CreateCounterpartyInput = z.input<
 
 export const UpdateCounterpartyInputSchema = z.object({
   relationshipKind: CounterpartyRelationshipKindSchema.exactOptional(),
-  externalId: z
+  externalRef: z
     .string()
     .trim()
     .nullable()

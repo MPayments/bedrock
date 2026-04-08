@@ -78,6 +78,7 @@ export const PartyProfileSchema = z.object({
   countryCode: CountryCodeSchema.nullable(),
   businessActivityCode: z.string().nullable(),
   businessActivityText: z.string().nullable(),
+  businessActivityTextI18n: LocaleTextMapSchema,
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -95,6 +96,7 @@ export const PartyProfileInputSchema = z.object({
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
   businessActivityCode: nullableText,
   businessActivityText: nullableText,
+  businessActivityTextI18n: LocaleTextMapSchema.optional().default(null),
 });
 
 export type PartyProfileInput = z.infer<
@@ -129,9 +131,13 @@ export const PartyAddressSchema = z.object({
   countryCode: CountryCodeSchema.nullable(),
   postalCode: z.string().nullable(),
   city: z.string().nullable(),
+  cityI18n: LocaleTextMapSchema,
   streetAddress: z.string().nullable(),
+  streetAddressI18n: LocaleTextMapSchema,
   addressDetails: z.string().nullable(),
+  addressDetailsI18n: LocaleTextMapSchema,
   fullAddress: z.string().nullable(),
+  fullAddressI18n: LocaleTextMapSchema,
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -143,9 +149,13 @@ export const PartyAddressInputSchema = z.object({
   countryCode: CountryCodeSchema.nullish().transform((value) => value ?? null),
   postalCode: nullableText,
   city: nullableText,
+  cityI18n: LocaleTextMapSchema.optional().default(null),
   streetAddress: nullableText,
+  streetAddressI18n: LocaleTextMapSchema.optional().default(null),
   addressDetails: nullableText,
+  addressDetailsI18n: LocaleTextMapSchema.optional().default(null),
   fullAddress: nullableText,
+  fullAddressI18n: LocaleTextMapSchema.optional().default(null),
 });
 
 export type PartyAddressInput = z.infer<typeof PartyAddressInputSchema>;
@@ -210,10 +220,12 @@ export const PartyLicenseSchema = z.object({
   licenseType: PartyLicenseTypeSchema,
   licenseNumber: z.string(),
   issuedBy: z.string().nullable(),
+  issuedByI18n: LocaleTextMapSchema,
   issuedAt: z.date().nullable(),
   expiresAt: z.date().nullable(),
   activityCode: z.string().nullable(),
   activityText: z.string().nullable(),
+  activityTextI18n: LocaleTextMapSchema,
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -225,10 +237,12 @@ export const PartyLicenseInputSchema = z.object({
   licenseType: PartyLicenseTypeSchema,
   licenseNumber: z.string().trim().min(1),
   issuedBy: nullableText,
+  issuedByI18n: LocaleTextMapSchema.optional().default(null),
   issuedAt: nullableDate,
   expiresAt: nullableDate,
   activityCode: nullableText,
   activityText: nullableText,
+  activityTextI18n: LocaleTextMapSchema.optional().default(null),
 });
 
 export type PartyLicenseInput = z.infer<typeof PartyLicenseInputSchema>;

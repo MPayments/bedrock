@@ -29,7 +29,7 @@ export class UpdateOrganizationCommand {
           shortName: existing.shortName,
           fullName: existing.fullName,
           country: existing.country,
-          externalId: existing.externalId,
+          externalRef: existing.externalRef,
           description: existing.description,
           isActive: existing.isActive,
           signatureKey: existing.signatureKey,
@@ -40,7 +40,7 @@ export class UpdateOrganizationCommand {
 
       const updated = await tx.organizationStore.update({
         id,
-        externalId: next.externalId,
+        externalRef: next.externalRef,
         shortName: next.shortName,
         fullName: next.fullName,
         description: next.description,

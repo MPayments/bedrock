@@ -474,7 +474,7 @@ export class DrizzleDealReads implements DealReads {
       counterpartyShortNames,
       organizationShortNames,
     ] = await Promise.all([
-      this.partiesQueries.customers.listDisplayNamesById(customerIds),
+      this.partiesQueries.customers.listNamesById(customerIds),
       this.partiesQueries.counterparties.listShortNamesById(counterpartyIds),
       this.partiesQueries.organizations.listShortNamesById(organizationIds),
     ]);

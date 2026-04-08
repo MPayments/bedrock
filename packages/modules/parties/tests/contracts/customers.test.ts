@@ -9,31 +9,31 @@ import {
 describe("customers contracts", () => {
   it("parses create customer input", () => {
     const parsed = CreateCustomerInputSchema.parse({
-      displayName: "  Acme Corp  ",
+      name: "  Acme Corp  ",
       externalRef: "  crm-123  ",
       description: "   ",
     });
 
-    expect(parsed.displayName).toBe("Acme Corp");
+    expect(parsed.name).toBe("Acme Corp");
     expect(parsed.externalRef).toBe("crm-123");
     expect(parsed.description).toBeNull();
   });
 
   it("parses update customer input with nullable fields", () => {
     const parsed = UpdateCustomerInputSchema.parse({
-      displayName: "Acme Updated",
+      name: "Acme Updated",
       externalRef: null,
       description: null,
     });
 
-    expect(parsed.displayName).toBe("Acme Updated");
+    expect(parsed.name).toBe("Acme Updated");
     expect(parsed.externalRef).toBeNull();
     expect(parsed.description).toBeNull();
   });
 
   it("rejects explicit undefined in update customer input", () => {
     expect(
-      UpdateCustomerInputSchema.safeParse({ displayName: undefined }).success,
+      UpdateCustomerInputSchema.safeParse({ name: undefined }).success,
     ).toBe(false);
   });
 
@@ -41,15 +41,15 @@ describe("customers contracts", () => {
     const parsed = ListCustomersQuerySchema.parse({
       limit: 20,
       offset: 0,
-      sortBy: "displayName",
+      sortBy: "name",
       sortOrder: "asc",
-      displayName: "Acme",
+      name: "Acme",
       externalRef: "crm",
     });
 
     expect(parsed.limit).toBe(20);
-    expect(parsed.sortBy).toBe("displayName");
-    expect(parsed.displayName).toBe("Acme");
+    expect(parsed.sortBy).toBe("name");
+    expect(parsed.name).toBe("Acme");
     expect(parsed.externalRef).toBe("crm");
   });
 });

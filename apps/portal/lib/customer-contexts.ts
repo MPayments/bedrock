@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "@/lib/constants";
 
 export interface PortalCounterpartyContext {
-  externalId: string | null;
+  externalRef: string | null;
   fullName: string;
   id: string;
   kind: "individual" | "legal_entity";
@@ -27,7 +27,7 @@ export interface PortalCustomerContext {
   };
   customer: {
     description: string | null;
-    displayName: string;
+    name: string;
     externalRef: string | null;
     id: string;
   };
@@ -54,7 +54,7 @@ export function resolvePortalCustomerId(customer: PortalCustomerContext) {
 export function resolvePortalCustomerDisplayName(
   customer: PortalCustomerContext,
 ) {
-  return customer.customer.displayName;
+  return customer.customer.name;
 }
 
 export function resolvePortalCustomerDescription(
@@ -82,7 +82,7 @@ export function resolvePortalCounterpartyInn(
     counterparty.partyProfile?.identifiers.find(
       (identifier) => identifier.scheme === "inn",
     )?.value ??
-    counterparty.externalId ??
+    counterparty.externalRef ??
     null
   );
 }

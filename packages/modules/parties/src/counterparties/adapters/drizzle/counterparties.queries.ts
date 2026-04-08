@@ -124,7 +124,7 @@ export class DrizzleCounterpartiesQueries {
           or(
             ilike(counterparties.shortName, `%${input.q}%`),
             ilike(counterparties.fullName, `%${input.q}%`),
-            ilike(counterparties.externalId, `%${input.q}%`),
+            ilike(counterparties.externalRef, `%${input.q}%`),
             like(sql`coalesce(${partyIdentifiers.value}, '')`, `%${input.q}%`),
           ),
         ),

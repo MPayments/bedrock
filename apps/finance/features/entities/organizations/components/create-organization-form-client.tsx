@@ -29,7 +29,7 @@ const EMPTY_ORGANIZATION_VALUES: OrganizationGeneralFormValues = {
   fullName: "",
   kind: "legal_entity",
   country: "",
-  externalId: "",
+  externalRef: "",
   description: "",
 };
 
@@ -92,7 +92,7 @@ export function CreateOrganizationFormClient({
             fullName: values.fullName,
             kind: values.kind,
             country: values.country || undefined,
-            externalId: values.externalId || undefined,
+            externalRef: values.externalRef || undefined,
             description: values.description || undefined,
             partyProfile:
               values.kind === "legal_entity"

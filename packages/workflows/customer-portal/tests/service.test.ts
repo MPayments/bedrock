@@ -14,7 +14,7 @@ function createWorkflow(overrides?: {
       customerId: string;
       directorName?: string | null;
       email?: string | null;
-      externalId?: string | null;
+      externalRef?: string | null;
       fullName?: string;
       id: string;
       inn?: string | null;
@@ -54,7 +54,7 @@ function createWorkflow(overrides?: {
         customerId: "customer-1",
         directorName: "Иван Иванов",
         email: "finance@example.com",
-        externalId: "7700000000",
+        externalRef: "7700000000",
         fullName: "Customer counterparty",
         id: "counterparty-1",
         inn: "7700000000",
@@ -197,7 +197,7 @@ function createWorkflow(overrides?: {
           customerId: input.customerId,
           description: null,
           country: input.partyProfile?.profile.countryCode ?? null,
-          externalId: input.externalId ?? null,
+          externalRef: input.externalRef ?? null,
           fullName:
             input.partyProfile?.profile.fullName ??
             input.fullName ??
@@ -233,7 +233,7 @@ function createWorkflow(overrides?: {
                 directorName: match.directorName ?? null,
                 directorNameI18n: null,
                 email: match.email ?? null,
-                externalId: match.externalId ?? null,
+                externalRef: match.externalRef ?? null,
                 fullName: match.fullName ?? match.shortName ?? counterpartyId,
                 id: match.id,
                 inn: match.inn ?? null,
@@ -274,7 +274,7 @@ function createWorkflow(overrides?: {
                   directorName: item.directorName ?? null,
                   directorNameI18n: null,
                   email: item.email ?? null,
-                  externalId: item.externalId ?? null,
+                  externalRef: item.externalRef ?? null,
                   fullName: item.fullName ?? item.shortName ?? item.id,
                   id: item.id,
                   inn: item.inn ?? null,
@@ -305,7 +305,7 @@ function createWorkflow(overrides?: {
       commands: {
         create: vi.fn(async (input) => ({
           id: "customer-created",
-          displayName: input.displayName,
+          name: input.name,
           externalRef: input.externalRef ?? null,
           description: input.description ?? null,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -315,7 +315,7 @@ function createWorkflow(overrides?: {
       queries: {
         findById: vi.fn(async (customerId: string) => ({
           id: customerId,
-          displayName: `Customer ${customerId}`,
+          name: `Customer ${customerId}`,
           externalRef: null,
           description: null,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -324,7 +324,7 @@ function createWorkflow(overrides?: {
         listByIds: vi.fn(async (customerIds: string[]) =>
           customerIds.map((customerId) => ({
             id: customerId,
-            displayName: `Customer ${customerId}`,
+            name: `Customer ${customerId}`,
             externalRef: null,
             description: null,
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -363,7 +363,7 @@ function createWorkflow(overrides?: {
           id: "provider-created",
           kind: input.kind,
           legalName: input.legalName,
-          displayName: input.displayName,
+          name: input.name,
           description: input.description ?? null,
           country: input.country ?? null,
           website: input.website ?? null,
@@ -487,7 +487,7 @@ describe("customer portal workflow", () => {
             customerId: "customer-1",
             directorName: "Иван Иванов",
             email: "one@example.com",
-            externalId: "7700000000",
+            externalRef: "7700000000",
             id: "counterparty-1",
             inn: "7700000000",
             phone: "+79990001122",
@@ -497,7 +497,7 @@ describe("customer portal workflow", () => {
         "customer-2": [
           {
             customerId: "customer-2",
-            externalId: "8800000000",
+            externalRef: "8800000000",
             id: "counterparty-2",
             inn: "8800000000",
             shortName: "Acme EU",
@@ -513,7 +513,7 @@ describe("customer portal workflow", () => {
         expect.objectContaining({
           customer: expect.objectContaining({
             id: "customer-1",
-            displayName: "Customer customer-1",
+            name: "Customer customer-1",
           }),
           counterparties: [
             expect.objectContaining({
@@ -525,7 +525,7 @@ describe("customer portal workflow", () => {
         expect.objectContaining({
           customer: expect.objectContaining({
             id: "customer-2",
-            displayName: "Customer customer-2",
+            name: "Customer customer-2",
           }),
           counterparties: [
             expect.objectContaining({
@@ -572,13 +572,13 @@ describe("customer portal workflow", () => {
 
     expect(parties.customers.commands.create).toHaveBeenCalledWith({
       description: null,
-      displayName: "Acme Corp",
+      name: "Acme Corp",
       externalRef: null,
     });
     expect(parties.counterparties.commands.create).toHaveBeenCalledWith(
       expect.objectContaining({
         customerId: "customer-created",
-        externalId: "7700000000",
+        externalRef: "7700000000",
         kind: "legal_entity",
         partyProfile: expect.objectContaining({
           contacts: expect.arrayContaining([
@@ -624,7 +624,7 @@ describe("customer portal workflow", () => {
         }),
         customer: expect.objectContaining({
           id: "customer-created",
-          displayName: "Acme Corp",
+          name: "Acme Corp",
         }),
         provider: expect.objectContaining({
           country: "RU",
@@ -678,7 +678,7 @@ describe("customer portal workflow", () => {
         }),
         customer: expect.objectContaining({
           id: "customer-created",
-          displayName: "CRM only",
+          name: "CRM only",
         }),
         provider: null,
         requisite: null,

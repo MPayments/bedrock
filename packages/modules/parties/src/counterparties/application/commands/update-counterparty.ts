@@ -38,7 +38,7 @@ export class UpdateCounterpartyCommand {
       );
       const patchInput = applyPatch(
         {
-          externalId: snapshot.externalId,
+          externalRef: snapshot.externalRef,
           customerId: snapshot.customerId,
           relationshipKind: snapshot.relationshipKind,
           shortName: snapshot.shortName,
@@ -74,7 +74,7 @@ export class UpdateCounterpartyCommand {
           generateUuid: this.runtime.generateUuid,
           groups: tx.counterpartyGroups,
           customerId: nextInput.customerId,
-          displayName: customer.displayName,
+          name: customer.name,
           now,
         });
         managedGroupId = managedGroup.toSnapshot().id;

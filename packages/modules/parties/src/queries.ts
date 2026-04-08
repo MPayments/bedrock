@@ -10,7 +10,7 @@ export interface PartiesQueries {
     listShortNamesById(ids: string[]): Promise<Map<string, string>>;
   };
   customers: {
-    listDisplayNamesById(ids: string[]): Promise<Map<string, string>>;
+    listNamesById(ids: string[]): Promise<Map<string, string>>;
   };
   organizations: {
     assertBooksBelongToInternalLedgerOrganizations(bookIds: string[]): Promise<void>;
@@ -46,8 +46,8 @@ export function createPartiesQueries(input: {
         counterparties.listShortNamesById.bind(counterparties),
     },
     customers: {
-      listDisplayNamesById:
-        customers.listDisplayNamesById.bind(customers),
+      listNamesById:
+        customers.listNamesById.bind(customers),
     },
     organizations: {
       assertBooksBelongToInternalLedgerOrganizations:

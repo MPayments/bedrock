@@ -31,7 +31,7 @@ export class CreateOrganizationCommand {
         partyProfileInput?.profile.countryCode ?? validated.country;
       const created = await tx.organizationStore.create({
         id,
-        externalId: validated.externalId,
+        externalRef: validated.externalRef,
         shortName,
         fullName,
         description: validated.description,

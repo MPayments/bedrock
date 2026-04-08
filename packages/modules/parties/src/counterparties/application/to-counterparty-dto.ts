@@ -4,7 +4,7 @@ import type { Counterparty } from "./contracts/counterparty.dto";
 export function toCounterpartyDto(
   counterparty: {
     id: string;
-    externalId: string | null;
+    externalRef: string | null;
     customerId: string | null;
     relationshipKind: "customer_owned" | "external";
     shortName: string;

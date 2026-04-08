@@ -32,7 +32,7 @@ export type DocumentFormOptions = {
 
 const CustomerOptionSchema = z.object({
   id: z.uuid(),
-  displayName: z.string(),
+  name: z.string(),
 });
 const CustomersListResponseSchema = createPaginatedResponseSchema(
   CustomerOptionSchema,
@@ -108,7 +108,7 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
       customers.status === "fulfilled"
         ? customers.value.data.data.map((item) => ({
             id: item.id,
-            label: item.displayName,
+            label: item.name,
           }))
         : emptyOptions.customers,
     organizations:

@@ -13,7 +13,7 @@ import type { Customer } from "../../application/contracts/dto";
 import type { CustomerReads } from "../../application/ports/customer.reads";
 
 const CUSTOMER_SORT_COLUMN_MAP = {
-  displayName: schema.customers.displayName,
+  name: schema.customers.name,
   externalRef: schema.customers.externalRef,
   createdAt: schema.customers.createdAt,
   updatedAt: schema.customers.updatedAt,
@@ -46,16 +46,16 @@ export class DrizzleCustomerReads implements CustomerReads {
   async list(input: {
     limit: number;
     offset: number;
-    sortBy?: "displayName" | "externalRef" | "createdAt" | "updatedAt";
+    sortBy?: "name" | "externalRef" | "createdAt" | "updatedAt";
     sortOrder?: "asc" | "desc";
-    displayName?: string;
+    name?: string;
     externalRef?: string;
   }): Promise<PaginatedList<Customer>> {
     const conditions: SQL[] = [];
 
-    if (input.displayName) {
+    if (input.name) {
       conditions.push(
-        ilike(schema.customers.displayName, `%${input.displayName}%`),
+        ilike(schema.customers.name, `%${input.name}%`),
       );
     }
 
@@ -95,7 +95,7 @@ export class DrizzleCustomerReads implements CustomerReads {
     } satisfies PaginatedList<Customer>;
   }
 
-  async listDisplayNamesById(ids: string[]) {
+  async listNamesById(ids: string[]) {
     const uniqueIds = dedupeIds(ids);
     if (uniqueIds.length === 0) {
       return new Map();
@@ -104,12 +104,12 @@ export class DrizzleCustomerReads implements CustomerReads {
     const rows = await this.db
       .select({
         id: schema.customers.id,
-        displayName: schema.customers.displayName,
+        name: schema.customers.name,
       })
       .from(schema.customers)
       .where(inArray(schema.customers.id, uniqueIds));
 
-    return new Map(rows.map((row) => [row.id, row.displayName]));
+    return new Map(rows.map((row) => [row.id, row.name]));
   }
 
   async listByIds(ids: string[]) {

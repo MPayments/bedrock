@@ -14,7 +14,7 @@ import type { CustomersSearchParams } from "./validations";
 const CustomerResponseSchema = z.object({
   id: z.uuid(),
   externalRef: z.string().nullable(),
-  displayName: z.string(),
+  name: z.string(),
   description: z.string().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

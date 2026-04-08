@@ -231,6 +231,47 @@ function toDocumentLocalizedText(
   return ru || en ? { en, ru } : null;
 }
 
+function toDocumentLocalizedAddress(
+  address: {
+    city: string | null;
+    cityI18n?: Record<string, string | null> | null;
+    streetAddress: string | null;
+    streetAddressI18n?: Record<string, string | null> | null;
+    addressDetails: string | null;
+    addressDetailsI18n?: Record<string, string | null> | null;
+    postalCode: string | null;
+    fullAddress: string | null;
+    fullAddressI18n?: Record<string, string | null> | null;
+    countryCode: string | null;
+  } | null | undefined,
+): DocumentLocalizedText | null {
+  if (!address) {
+    return null;
+  }
+
+  const fullAddress = toDocumentLocalizedText(address.fullAddressI18n);
+  if (fullAddress) {
+    return fullAddress;
+  }
+
+  const buildLocaleAddress = (locale: "ru" | "en") => {
+    const parts = [
+      address.streetAddressI18n?.[locale] ?? address.streetAddress,
+      address.addressDetailsI18n?.[locale] ?? address.addressDetails,
+      address.cityI18n?.[locale] ?? address.city,
+      address.postalCode,
+      address.countryCode,
+    ].filter(Boolean);
+
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  const ru = buildLocaleAddress("ru");
+  const en = buildLocaleAddress("en");
+
+  return ru || en ? { ru, en } : null;
+}
+
 function mapContractClientData(input: {
   counterparty: Counterparty;
   bankRequisite: Requisite | null;
@@ -238,6 +279,7 @@ function mapContractClientData(input: {
 }): ContractClientData {
   const { bankRequisite, counterparty, provider } = input;
   const profile = counterparty.partyProfile?.profile ?? null;
+  const address = findPartyAddress(counterparty);
   const representative = findPartyRepresentative(counterparty);
 
   return {
@@ -252,11 +294,11 @@ function mapContractClientData(input: {
     directorBasisI18n: toDocumentLocalizedText(
       representative?.basisDocumentI18n,
     ),
-    address: formatPartyAddress(findPartyAddress(counterparty)),
-    addressI18n: null,
+    address: formatPartyAddress(address),
+    addressI18n: toDocumentLocalizedAddress(address),
     inn:
       findPartyIdentifier(counterparty, "inn")?.value ??
-      counterparty.externalId ??
+      counterparty.externalRef ??
       null,
     kpp: findPartyIdentifier(counterparty, "kpp")?.value ?? null,
     account:
@@ -289,23 +331,24 @@ function mapContractOrganizationData(
   organization: Organization,
 ): ContractOrganizationData {
   const profile = organization.partyProfile?.profile ?? null;
+  const address = findPartyAddress(organization);
   const representative = findPartyRepresentative(organization);
 
   return {
     id: organization.id,
     name: organization.shortName,
     nameI18n: toDocumentLocalizedText(profile?.shortNameI18n),
-    address: formatPartyAddress(findPartyAddress(organization)),
-    addressI18n: null,
+    address: formatPartyAddress(address),
+    addressI18n: toDocumentLocalizedAddress(address),
     country: organization.country,
     countryI18n: null,
-    city: null,
-    cityI18n: null,
+    city: address?.city ?? null,
+    cityI18n: toDocumentLocalizedText(address?.cityI18n),
     directorName: representative?.fullName ?? null,
     directorNameI18n: toDocumentLocalizedText(representative?.fullNameI18n),
     inn:
       findPartyIdentifier(organization, "inn")?.value ??
-      organization.externalId ??
+      organization.externalRef ??
       null,
     taxId: findPartyIdentifier(organization, "tax_id")?.value ?? null,
     kpp: findPartyIdentifier(organization, "kpp")?.value ?? null,

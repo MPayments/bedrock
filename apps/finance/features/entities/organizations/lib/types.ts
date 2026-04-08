@@ -17,6 +17,7 @@ export type SerializedOrganizationLegalEntity = {
     countryCode: string | null;
     businessActivityCode: string | null;
     businessActivityText: string | null;
+    businessActivityTextI18n: LocaleTextMap;
     createdAt: string | Date;
     updatedAt: string | Date;
   };
@@ -35,9 +36,13 @@ export type SerializedOrganizationLegalEntity = {
     countryCode: string | null;
     postalCode: string | null;
     city: string | null;
+    cityI18n: LocaleTextMap;
     streetAddress: string | null;
+    streetAddressI18n: LocaleTextMap;
     addressDetails: string | null;
+    addressDetailsI18n: LocaleTextMap;
     fullAddress: string | null;
+    fullAddressI18n: LocaleTextMap;
     createdAt: string | Date;
     updatedAt: string | Date;
   } | null;
@@ -71,10 +76,12 @@ export type SerializedOrganizationLegalEntity = {
     licenseType: string;
     licenseNumber: string;
     issuedBy: string | null;
+    issuedByI18n: LocaleTextMap;
     issuedAt: string | Date | null;
     expiresAt: string | Date | null;
     activityCode: string | null;
     activityText: string | null;
+    activityTextI18n: LocaleTextMap;
     createdAt: string | Date;
     updatedAt: string | Date;
   }>;
@@ -82,7 +89,7 @@ export type SerializedOrganizationLegalEntity = {
 
 export type SerializedOrganization = {
   id: string;
-  externalId: string | null;
+  externalRef: string | null;
   shortName: string;
   fullName: string;
   description: string | null;

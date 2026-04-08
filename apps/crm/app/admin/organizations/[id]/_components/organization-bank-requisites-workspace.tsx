@@ -296,7 +296,7 @@ export function OrganizationBankRequisitesWorkspace({
               Реквизиты
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Управление банковскими реквизитами организации в канонической модели.
+              Управление банковскими реквизитами организации.
             </p>
           </div>
           <Button

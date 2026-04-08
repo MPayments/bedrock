@@ -35,7 +35,7 @@ export const counterpartyRelationshipKindEnum = pgEnum(
 
 export const counterparties = pgTable("counterparties", {
   id: uuid("id").primaryKey().defaultRandom(),
-  externalId: text("external_id"),
+  externalRef: text("external_ref"),
   customerId: uuid("customer_id").references(() => customers.id),
   relationshipKind: counterpartyRelationshipKindEnum("relationship_kind")
     .notNull()

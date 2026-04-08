@@ -20,7 +20,7 @@ import {
 
 export interface CounterpartySnapshot {
   id: string;
-  externalId: string | null;
+  externalRef: string | null;
   customerId: string | null;
   relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
@@ -35,7 +35,7 @@ export interface CounterpartySnapshot {
 
 export interface CreateCounterpartyProps {
   id: string;
-  externalId: string | null;
+  externalRef: string | null;
   customerId: string | null;
   relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
@@ -47,7 +47,7 @@ export interface CreateCounterpartyProps {
 }
 
 export interface UpdateCounterpartyProps {
-  externalId: string | null;
+  externalRef: string | null;
   customerId: string | null;
   relationshipKind: CounterpartyRelationshipKind;
   shortName: string;
@@ -109,7 +109,7 @@ function normalizeCounterpartySnapshot(
 ): CounterpartySnapshot {
   return {
     ...snapshot,
-    externalId: normalizeOptionalText(snapshot.externalId),
+    externalRef: normalizeOptionalText(snapshot.externalRef),
     customerId: snapshot.customerId ?? null,
     relationshipKind: normalizeRelationshipKind(snapshot.relationshipKind),
     shortName: normalizeRequiredText(
@@ -156,7 +156,7 @@ export class Counterparty extends AggregateRoot<string> {
 
     const counterparty = new Counterparty({
       id: input.id,
-      externalId: input.externalId,
+      externalRef: input.externalRef,
       customerId: input.customerId,
       relationshipKind: input.relationshipKind,
       shortName: input.shortName,
@@ -239,7 +239,7 @@ export class Counterparty extends AggregateRoot<string> {
   }): Counterparty {
     return this.update(
       {
-        externalId: this.snapshot.externalId,
+        externalRef: this.snapshot.externalRef,
         customerId: null,
         relationshipKind: "external",
         shortName: this.snapshot.shortName,
@@ -261,7 +261,7 @@ export class Counterparty extends AggregateRoot<string> {
 
   sameState(other: Counterparty): boolean {
     return (
-      this.snapshot.externalId === other.snapshot.externalId &&
+      this.snapshot.externalRef === other.snapshot.externalRef &&
       this.snapshot.customerId === other.snapshot.customerId &&
       this.snapshot.relationshipKind === other.snapshot.relationshipKind &&
       this.snapshot.shortName === other.snapshot.shortName &&

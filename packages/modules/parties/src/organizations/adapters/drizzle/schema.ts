@@ -24,7 +24,7 @@ export const partyCountryCodeEnum = pgEnum(
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  externalId: text("external_id"),
+  externalRef: text("external_ref"),
   shortName: text("short_name").notNull(),
   fullName: text("full_name").notNull(),
   description: text("description"),

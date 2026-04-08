@@ -443,14 +443,14 @@ function createWorkflow(overrides?: {
         queries: {
           findById: vi.fn(async () => ({
             description: "Customer description",
-            displayName: "Customer One",
+            name: "Customer One",
             externalRef: "cust-001",
             id: "customer-1",
           })),
           listByIds: vi.fn(async () => [
             {
               description: "Customer description",
-              displayName: "Customer One",
+              name: "Customer One",
               externalRef: "cust-001",
               id: "customer-1",
             },

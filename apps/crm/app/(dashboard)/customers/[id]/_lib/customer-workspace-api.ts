@@ -20,14 +20,14 @@ import {
 
 type UpdateCustomerWorkspaceInput = {
   description: string | null;
-  displayName: string;
+  name: string;
   externalRef: string | null;
 };
 
 const CustomerRecordSchema = z.object({
   createdAt: z.iso.datetime(),
   description: z.string().nullable(),
-  displayName: z.string(),
+  name: z.string(),
   externalRef: z.string().nullable(),
   id: z.uuid(),
   updatedAt: z.iso.datetime(),
@@ -45,7 +45,7 @@ const CounterpartyDetailSchema = z.object({
   id: z.uuid(),
   shortName: z.string(),
   fullName: z.string(),
-  externalId: z.string().nullable(),
+  externalRef: z.string().nullable(),
   relationshipKind: z.enum(["customer_owned", "external"]),
   country: z.string().nullable(),
   createdAt: z.iso.datetime(),
@@ -140,7 +140,7 @@ function mapCustomerCounterparty(input: {
     counterpartyId: input.counterparty.id,
     country: input.counterparty.country,
     createdAt: input.counterparty.createdAt,
-    externalId: input.counterparty.externalId,
+    externalRef: input.counterparty.externalRef,
     fullName: input.counterparty.fullName,
     inn: findIdentifier(input.counterparty, "inn"),
     orgName: input.counterparty.shortName,
@@ -297,7 +297,7 @@ export async function getCustomerWorkspace(
   return {
     createdAt: customer.createdAt,
     description: customer.description,
-    displayName: customer.displayName,
+    name: customer.name,
     externalRef: customer.externalRef,
     hasActiveAgreement: agreementsPayload.data.some((agreement) => agreement.isActive),
     id: customer.id,

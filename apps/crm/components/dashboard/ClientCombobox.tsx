@@ -98,14 +98,14 @@ export function ClientCombobox({
         const data = await res.json();
         const items: Client[] = (data.data ?? data.items ?? []).map(
           (item: {
-            displayName?: string;
             id: string;
             inn?: string | null;
+            name?: string;
             orgName?: string;
           }) => ({
             id: item.id,
             inn: item.inn ?? null,
-            orgName: item.displayName ?? item.orgName ?? "",
+            orgName: item.name ?? item.orgName ?? "",
           }),
         );
 

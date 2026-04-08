@@ -98,7 +98,7 @@ const CUSTOMER_EXPORT_COLUMNS: {
   key: keyof CustomerExportRow;
 }[] = [
   { header: "ID", key: "id" },
-  { header: "Название", key: "displayName" },
+  { header: "Название", key: "name" },
   { header: "Внешний референс", key: "externalRef" },
   { header: "Описание", key: "description" },
   { header: "Создан", key: "createdAt" },
@@ -107,7 +107,7 @@ const CUSTOMER_EXPORT_COLUMNS: {
 
 interface CustomerExportRow {
   id: string;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   description: string | null;
   createdAt: string;
@@ -121,7 +121,7 @@ function formatDate(value: Date) {
 function toExportRow(customer: z.infer<typeof CustomerSchema>): CustomerExportRow {
   return {
     id: customer.id,
-    displayName: customer.displayName,
+    name: customer.name,
     externalRef: customer.externalRef,
     description: customer.description,
     createdAt: customer.createdAt.toISOString(),

@@ -1,4 +1,10 @@
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
+
 import { eq } from "drizzle-orm";
+
+import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
+import { noopLogger } from "@bedrock/platform/observability";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
@@ -6,34 +12,113 @@ import { ORGANIZATIONS } from "./fixtures";
 
 export { ORGANIZATION_IDS } from "./fixtures";
 
+const ORGANIZATION_ASSETS_DIR = resolve(
+  import.meta.dirname,
+  "assets",
+  "organizations",
+);
+
+function createSeedObjectStorage() {
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY;
+  const secretAccessKey = process.env.S3_SECRET_KEY;
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    return undefined;
+  }
+
+  return new S3ObjectStorageAdapter(
+    {
+      endpoint,
+      publicEndpoint: process.env.S3_PUBLIC_ENDPOINT,
+      region: process.env.S3_REGION ?? "us-east-1",
+      accessKeyId,
+      secretAccessKey,
+      bucket: process.env.S3_BUCKET ?? "bedrock-documents",
+      forcePathStyle: true,
+    },
+    noopLogger,
+  );
+}
+
+async function uploadOrganizationAsset(input: {
+  fileName: string;
+  key: string;
+  objectStorage: S3ObjectStorageAdapter;
+}) {
+  if (extname(input.fileName).toLowerCase() !== ".png") {
+    throw new Error(
+      `[seed:organizations] Expected PNG asset, got ${input.fileName}`,
+    );
+  }
+
+  const buffer = await readFile(resolve(ORGANIZATION_ASSETS_DIR, input.fileName));
+  await input.objectStorage.upload(input.key, buffer, "image/png");
+  return input.key;
+}
+
 export async function seedOrganizations(db: Database | Transaction) {
+  const objectStorage = createSeedObjectStorage();
+  let seededFilesCount = 0;
+
   for (const organization of ORGANIZATIONS) {
+    const requiresFiles = Boolean(
+      organization.signatureAssetFileName || organization.sealAssetFileName,
+    );
+
+    if (requiresFiles && !objectStorage) {
+      throw new Error(
+        `[seed:organizations] S3 storage is required to seed files for organization ${organization.id}`,
+      );
+    }
+
+    const signatureKey =
+      organization.signatureAssetFileName && objectStorage
+        ? await uploadOrganizationAsset({
+            fileName: organization.signatureAssetFileName,
+            key: `organizations/${organization.id}/signature.png`,
+            objectStorage,
+          })
+        : null;
+    const sealKey =
+      organization.sealAssetFileName && objectStorage
+        ? await uploadOrganizationAsset({
+            fileName: organization.sealAssetFileName,
+            key: `organizations/${organization.id}/seal.png`,
+            objectStorage,
+          })
+        : null;
+
+    if (signatureKey || sealKey) {
+      seededFilesCount += 1;
+    }
+
     await db
       .insert(schema.organizations)
       .values({
         id: organization.id,
-        externalId: organization.externalId,
+        externalRef: organization.externalRef,
         shortName: organization.shortName,
         fullName: organization.fullName,
         description: organization.description ?? null,
         kind: organization.kind,
         country: organization.country ?? null,
         isActive: true,
-        signatureKey: null,
-        sealKey: null,
+        signatureKey,
+        sealKey,
       })
       .onConflictDoUpdate({
         target: schema.organizations.id,
         set: {
-          externalId: organization.externalId,
+          externalRef: organization.externalRef,
           shortName: organization.shortName,
           fullName: organization.fullName,
           description: organization.description ?? null,
           kind: organization.kind,
           country: organization.country ?? null,
           isActive: true,
-          signatureKey: null,
-          sealKey: null,
+          signatureKey,
+          sealKey,
         },
       });
 
@@ -44,28 +129,30 @@ export async function seedOrganizations(db: Database | Transaction) {
         counterpartyId: null,
         fullName: organization.fullName,
         shortName: organization.shortName,
-        fullNameI18n: null,
-        shortNameI18n: null,
+        fullNameI18n: organization.fullNameI18n ?? null,
+        shortNameI18n: organization.shortNameI18n ?? null,
         legalFormCode: organization.orgType ?? null,
         legalFormLabel: organization.orgType ?? null,
-        legalFormLabelI18n: null,
+        legalFormLabelI18n: organization.orgTypeI18n ?? null,
         countryCode: organization.country ?? null,
         businessActivityCode: null,
         businessActivityText: organization.description ?? null,
+        businessActivityTextI18n: null,
       })
       .onConflictDoUpdate({
         target: schema.partyProfiles.organizationId,
         set: {
           fullName: organization.fullName,
           shortName: organization.shortName,
-          fullNameI18n: null,
-          shortNameI18n: null,
+          fullNameI18n: organization.fullNameI18n ?? null,
+          shortNameI18n: organization.shortNameI18n ?? null,
           legalFormCode: organization.orgType ?? null,
           legalFormLabel: organization.orgType ?? null,
-          legalFormLabelI18n: null,
+          legalFormLabelI18n: organization.orgTypeI18n ?? null,
           countryCode: organization.country ?? null,
           businessActivityCode: null,
           businessActivityText: organization.description ?? null,
+          businessActivityTextI18n: null,
         },
       })
       .returning({ id: schema.partyProfiles.id });
@@ -129,9 +216,13 @@ export async function seedOrganizations(db: Database | Transaction) {
         countryCode: organization.country ?? null,
         postalCode: null,
         city: organization.city ?? null,
+        cityI18n: organization.cityI18n ?? null,
         streetAddress: null,
+        streetAddressI18n: null,
         addressDetails: null,
+        addressDetailsI18n: null,
         fullAddress: organization.address,
+        fullAddressI18n: organization.addressI18n ?? null,
       });
     }
 
@@ -140,15 +231,17 @@ export async function seedOrganizations(db: Database | Transaction) {
         partyProfileId: profileId,
         role: "director",
         fullName: organization.directorName,
-        fullNameI18n: null,
-        title: null,
-        titleI18n: null,
-        basisDocument: null,
-        basisDocumentI18n: null,
+        fullNameI18n: organization.directorNameI18n ?? null,
+        title: organization.directorTitle ?? null,
+        titleI18n: organization.directorTitleI18n ?? null,
+        basisDocument: organization.directorBasis ?? null,
+        basisDocumentI18n: organization.directorBasisI18n ?? null,
         isPrimary: true,
       });
     }
   }
 
-  console.log(`[seed:organizations] Seeded ${ORGANIZATIONS.length} organizations`);
+  console.log(
+    `[seed:organizations] Seeded ${ORGANIZATIONS.length} organizations (${seededFilesCount} with signature/seal files)`,
+  );
 }

@@ -21,6 +21,7 @@ export type PartyProfileBundleSource = {
     countryCode: string | null;
     businessActivityCode: string | null;
     businessActivityText: string | null;
+    businessActivityTextI18n: LocaleTextMap;
   };
   identifiers: Array<{
     id?: string;
@@ -32,9 +33,13 @@ export type PartyProfileBundleSource = {
     countryCode: string | null;
     postalCode: string | null;
     city: string | null;
+    cityI18n: LocaleTextMap;
     streetAddress: string | null;
+    streetAddressI18n: LocaleTextMap;
     addressDetails: string | null;
+    addressDetailsI18n: LocaleTextMap;
     fullAddress: string | null;
+    fullAddressI18n: LocaleTextMap;
   } | null;
   contacts: Array<{
     id?: string;
@@ -58,10 +63,12 @@ export type PartyProfileBundleSource = {
     licenseType: PartyLicenseInput["licenseType"];
     licenseNumber: string;
     issuedBy: string | null;
+    issuedByI18n: LocaleTextMap;
     issuedAt: Date | string | null;
     expiresAt: Date | string | null;
     activityCode: string | null;
     activityText: string | null;
+    activityTextI18n: LocaleTextMap;
   }>;
 };
 
@@ -117,9 +124,13 @@ function cloneAddress(
     countryCode: item.countryCode ?? null,
     postalCode: item.postalCode ?? null,
     city: item.city ?? null,
+    cityI18n: cloneLocaleTextMap(item.cityI18n ?? null),
     streetAddress: item.streetAddress ?? null,
+    streetAddressI18n: cloneLocaleTextMap(item.streetAddressI18n ?? null),
     addressDetails: item.addressDetails ?? null,
+    addressDetailsI18n: cloneLocaleTextMap(item.addressDetailsI18n ?? null),
     fullAddress: item.fullAddress ?? null,
+    fullAddressI18n: cloneLocaleTextMap(item.fullAddressI18n ?? null),
   };
 }
 
@@ -158,10 +169,12 @@ function cloneLicenses(
     licenseType: item.licenseType,
     licenseNumber: item.licenseNumber,
     issuedBy: item.issuedBy ?? null,
+    issuedByI18n: cloneLocaleTextMap(item.issuedByI18n ?? null),
     issuedAt: normalizeDate(item.issuedAt ?? null),
     expiresAt: normalizeDate(item.expiresAt ?? null),
     activityCode: item.activityCode ?? null,
     activityText: item.activityText ?? null,
+    activityTextI18n: cloneLocaleTextMap(item.activityTextI18n ?? null),
   }));
 }
 
@@ -180,6 +193,7 @@ export function createSeededPartyProfileBundle(
       countryCode: seed.countryCode ?? null,
       businessActivityCode: null,
       businessActivityText: null,
+      businessActivityTextI18n: null,
     },
     identifiers: [],
     address: null,
@@ -217,6 +231,9 @@ export function toPartyProfileBundleInput(
       countryCode: source.profile.countryCode ?? null,
       businessActivityCode: source.profile.businessActivityCode ?? null,
       businessActivityText: source.profile.businessActivityText ?? null,
+      businessActivityTextI18n: cloneLocaleTextMap(
+        source.profile.businessActivityTextI18n ?? null,
+      ),
     },
     identifiers: cloneIdentifiers(source.identifiers),
     address: cloneAddress(source.address),

@@ -34,7 +34,7 @@ function toGeneralFormValues(
     fullName: organization.fullName,
     kind: organization.kind,
     country: organization.country ?? "",
-    externalId: organization.externalId ?? "",
+    externalRef: organization.externalRef ?? "",
     description: organization.description ?? "",
   };
 }
@@ -165,7 +165,7 @@ export function OrganizationCanonicalEditor({
                   fullName: values.fullName.trim(),
                   country: values.country.trim() || null,
                   description: values.description.trim() || null,
-                  externalId: values.externalId.trim() || null,
+                  externalRef: values.externalRef.trim() || null,
                 },
               });
 

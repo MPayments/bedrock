@@ -32,7 +32,7 @@ function toFormValues(
     fullName: organization.fullName,
     kind: organization.kind,
     country: organization.country ?? "",
-    externalId: organization.externalId ?? "",
+    externalRef: organization.externalRef ?? "",
     description: organization.description ?? "",
   };
 }
@@ -86,7 +86,7 @@ export function EditOrganizationFormClient({
         apiClient.v1.organizations[":id"].$patch({
           param: { id: current.id },
           json: {
-            externalId: values.externalId || null,
+            externalRef: values.externalRef || null,
             description: values.description || null,
           },
         }),

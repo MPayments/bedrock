@@ -80,8 +80,8 @@ export class DrizzleCounterpartyReads implements CounterpartyReads {
       conditions.push(eq(counterparties.customerId, input.customerId));
     }
 
-    if (input.externalId) {
-      conditions.push(eq(counterparties.externalId, input.externalId));
+    if (input.externalRef) {
+      conditions.push(eq(counterparties.externalRef, input.externalRef));
     }
 
     const relationshipKinds = input.relationshipKind?.map((value) =>

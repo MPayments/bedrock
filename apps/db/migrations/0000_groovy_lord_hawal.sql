@@ -405,7 +405,7 @@ CREATE TABLE "correspondence_rules" (
 --> statement-breakpoint
 CREATE TABLE "counterparties" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"external_id" text,
+	"external_ref" text,
 	"customer_id" uuid,
 	"relationship_kind" "counterparty_relationship_kind" DEFAULT 'external' NOT NULL,
 	"short_name" text NOT NULL,
@@ -493,7 +493,7 @@ CREATE TABLE "customer_memberships" (
 CREATE TABLE "customers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"external_ref" text,
-	"display_name" text NOT NULL,
+	"name" text NOT NULL,
 	"description" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -994,7 +994,7 @@ CREATE TABLE "organization_requisite_bindings" (
 --> statement-breakpoint
 CREATE TABLE "organizations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"external_id" text,
+	"external_ref" text,
 	"short_name" text NOT NULL,
 	"full_name" text NOT NULL,
 	"description" text,
@@ -1026,9 +1026,13 @@ CREATE TABLE "party_addresses" (
 	"country_code" "party_country_code",
 	"postal_code" text,
 	"city" text,
+	"city_i18n" jsonb,
 	"street_address" text,
+	"street_address_i18n" jsonb,
 	"address_details" text,
+	"address_details_i18n" jsonb,
 	"full_address" text,
+	"full_address_i18n" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1067,6 +1071,7 @@ CREATE TABLE "party_profiles" (
 	"country_code" "party_country_code",
 	"business_activity_code" text,
 	"business_activity_text" text,
+	"business_activity_text_i18n" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "party_profiles_owner_chk" CHECK ((
@@ -1084,10 +1089,12 @@ CREATE TABLE "party_licenses" (
 	"license_type" text NOT NULL,
 	"license_number" text NOT NULL,
 	"issued_by" text,
+	"issued_by_i18n" jsonb,
 	"issued_at" timestamp with time zone,
 	"expires_at" timestamp with time zone,
 	"activity_code" text,
 	"activity_text" text,
+	"activity_text_i18n" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

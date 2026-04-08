@@ -38,6 +38,7 @@ export const partyProfiles = pgTable(
     countryCode: partyCountryCodeEnum("country_code"),
     businessActivityCode: text("business_activity_code"),
     businessActivityText: text("business_activity_text"),
+    businessActivityTextI18n: jsonb("business_activity_text_i18n").$type<LocaleTextMap>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -103,9 +104,13 @@ export const partyAddresses = pgTable(
     countryCode: partyCountryCodeEnum("country_code"),
     postalCode: text("postal_code"),
     city: text("city"),
+    cityI18n: jsonb("city_i18n").$type<LocaleTextMap>(),
     streetAddress: text("street_address"),
+    streetAddressI18n: jsonb("street_address_i18n").$type<LocaleTextMap>(),
     addressDetails: text("address_details"),
+    addressDetailsI18n: jsonb("address_details_i18n").$type<LocaleTextMap>(),
     fullAddress: text("full_address"),
+    fullAddressI18n: jsonb("full_address_i18n").$type<LocaleTextMap>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -184,10 +189,12 @@ export const partyLicenses = pgTable(
     licenseType: text("license_type").notNull(),
     licenseNumber: text("license_number").notNull(),
     issuedBy: text("issued_by"),
+    issuedByI18n: jsonb("issued_by_i18n").$type<LocaleTextMap>(),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     activityCode: text("activity_code"),
     activityText: text("activity_text"),
+    activityTextI18n: jsonb("activity_text_i18n").$type<LocaleTextMap>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

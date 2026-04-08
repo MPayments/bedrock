@@ -13,7 +13,7 @@ import {
 
 export const OrganizationListItemSchema = z.object({
   id: z.uuid(),
-  externalId: z.string().nullable(),
+  externalRef: z.string().nullable(),
   shortName: z.string(),
   fullName: z.string(),
   description: z.string().nullable(),

@@ -56,7 +56,7 @@ const OrganizationGeneralFormSchema = z.object({
       (value) => value.length === 0 || ORGANIZATION_COUNTRY_CODE_SET.has(value),
       "Выберите страну из списка",
     ),
-  externalId: z.string().trim(),
+  externalRef: z.string().trim(),
   description: z.string().trim(),
 });
 
@@ -102,7 +102,7 @@ const DEFAULT_VALUES: OrganizationGeneralFormValues = {
   fullName: "",
   kind: "legal_entity",
   country: "",
-  externalId: "",
+  externalRef: "",
   description: "",
 };
 
@@ -383,7 +383,7 @@ function OrganizationGeneralFormBase({
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <Controller
-                    name="externalId"
+                    name="externalRef"
                     control={control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>

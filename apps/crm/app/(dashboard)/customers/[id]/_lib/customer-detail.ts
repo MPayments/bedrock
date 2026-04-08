@@ -14,7 +14,7 @@ export type CustomerCounterparty = {
   counterpartyId: string;
   country: string | null;
   createdAt: string;
-  externalId: string | null;
+  externalRef: string | null;
   fullName: string;
   inn: string | null;
   orgName: string;
@@ -28,7 +28,7 @@ export type CustomerCounterparty = {
 export type CustomerWorkspaceDetail = {
   createdAt: string;
   description: string | null;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   hasActiveAgreement: boolean;
   id: string;
@@ -55,7 +55,7 @@ export type ClientDocument = z.infer<typeof ClientDocumentSchema>;
 
 export const customerFormSchema = z.object({
   description: z.string(),
-  displayName: z.string().trim().min(1, "Название клиента обязательно"),
+  name: z.string().trim().min(1, "Название клиента обязательно"),
   externalRef: z.string(),
 });
 
@@ -64,12 +64,12 @@ export type CustomerFormData = z.infer<typeof customerFormSchema>;
 export function customerToFormValues(
   workspace: Pick<
     CustomerWorkspaceDetail,
-    "description" | "displayName" | "externalRef"
+    "description" | "name" | "externalRef"
   > | null,
 ): CustomerFormData {
   return {
     description: workspace?.description ?? "",
-    displayName: workspace?.displayName ?? "",
+    name: workspace?.name ?? "",
     externalRef: workspace?.externalRef ?? "",
   };
 }

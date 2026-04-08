@@ -19,7 +19,7 @@ import type { CustomerRelationHubData } from "../lib/relation-hub";
 
 function toFormValues(customer: CustomerDetails): CustomerGeneralFormValues {
   return {
-    displayName: customer.displayName,
+    name: customer.name,
     externalRef: customer.externalRef ?? "",
     description: customer.description ?? "",
   };
@@ -56,7 +56,7 @@ export function EditCustomerFormClient({
     setError(null);
     setSubmitting(true);
     const payload = {
-      displayName: values.displayName,
+      name: values.name,
       externalRef: values.externalRef || null,
       description: values.description || null,
     };

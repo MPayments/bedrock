@@ -24,7 +24,7 @@ export const OrganizationWorkspaceSchema = z.object({
   id: z.uuid(),
   shortName: z.string(),
   fullName: z.string(),
-  externalId: z.string().nullable(),
+  externalRef: z.string().nullable(),
   description: z.string().nullable(),
   country: z.string().nullable(),
   kind: z.enum(["legal_entity", "individual"]),

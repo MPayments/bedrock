@@ -4,7 +4,7 @@ import type { Organization } from "./contracts/dto";
 export function toOrganizationDto(
   organization: {
     id: string;
-    externalId: string | null;
+    externalRef: string | null;
     shortName: string;
     fullName: string;
     description: string | null;

@@ -42,7 +42,7 @@ const EMPTY_VALUES: OrganizationGeneralFormValues = {
   fullName: "",
   kind: "legal_entity",
   country: "",
-  externalId: "",
+  externalRef: "",
   description: "",
 };
 
@@ -209,7 +209,7 @@ export default function NewOrganizationPage() {
         fullName: values.fullName.trim(),
         kind: values.kind,
         country: values.country.trim() || undefined,
-        externalId: values.externalId.trim() || undefined,
+        externalRef: values.externalRef.trim() || undefined,
         description: values.description.trim() || undefined,
         partyProfile:
           values.kind === "legal_entity"

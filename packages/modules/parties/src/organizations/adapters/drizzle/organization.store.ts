@@ -33,7 +33,7 @@ export class DrizzleOrganizationStore implements OrganizationStore {
 
   async create(organization: {
     id: string;
-    externalId: string | null;
+    externalRef: string | null;
     shortName: string;
     fullName: string;
     description: string | null;
@@ -53,7 +53,7 @@ export class DrizzleOrganizationStore implements OrganizationStore {
 
   async update(organization: {
     id: string;
-    externalId: string | null;
+    externalRef: string | null;
     shortName: string;
     fullName: string;
     description: string | null;
@@ -66,7 +66,7 @@ export class DrizzleOrganizationStore implements OrganizationStore {
     const [updated] = await this.db
       .update(organizations)
       .set({
-        externalId: organization.externalId,
+        externalRef: organization.externalRef,
         shortName: organization.shortName,
         fullName: organization.fullName,
         description: organization.description,

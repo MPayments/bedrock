@@ -1098,7 +1098,7 @@ export default function NewCustomerPage() {
             <Field
               form={form}
               label="Название клиента"
-              name="displayName"
+              name="name"
               placeholder="ООО «Компания»"
               required
             />

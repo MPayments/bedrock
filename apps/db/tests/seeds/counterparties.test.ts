@@ -62,7 +62,7 @@ describe("seedCounterparties", () => {
     expect(customerGroupValues).toEqual(
       CUSTOMERS.map((customer) => ({
         code: `customer:${customer.id}`,
-        name: customer.displayName,
+        name: customer.name,
         description: "Auto-created customer group",
         parentId: null,
         customerId: customer.id,

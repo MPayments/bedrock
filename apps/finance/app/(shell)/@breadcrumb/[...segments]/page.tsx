@@ -105,7 +105,7 @@ const dynamicResolvers = {
     singularLabel: "Клиент",
     hrefPrefix: "/entities/customers",
     getById: getCustomerById,
-    getLabel: (customer) => customer.displayName,
+    getLabel: (customer) => customer.name,
     getId: (customer) => customer.id,
   }),
   organizations: createResourceSegmentResolver({

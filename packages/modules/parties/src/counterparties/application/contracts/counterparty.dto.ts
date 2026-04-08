@@ -11,7 +11,7 @@ import { CounterpartyRelationshipKindSchema } from "../../domain/relationship-ki
 
 export const CounterpartyListItemSchema = z.object({
   id: z.uuid(),
-  externalId: z.string().nullable(),
+  externalRef: z.string().nullable(),
   customerId: z.uuid().nullable(),
   relationshipKind: CounterpartyRelationshipKindSchema,
   shortName: z.string(),

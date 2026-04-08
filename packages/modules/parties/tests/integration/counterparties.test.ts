@@ -14,7 +14,7 @@ describe("parties counterparties integration", () => {
   it("creates, lists, finds, updates, and removes counterparties", async () => {
     const { module } = createIntegrationRuntime();
     const customer = await module.customers.commands.create({
-      displayName: uniqueLabel("Customer"),
+      name: uniqueLabel("Customer"),
       externalRef: uniqueLabel("crm"),
     });
     const groups = await module.counterparties.queries.listGroups({
@@ -125,7 +125,7 @@ describe("parties counterparties integration", () => {
   it("exposes counterparties query helpers", async () => {
     const { module, queries } = createIntegrationRuntime();
     const customer = await module.customers.commands.create({
-      displayName: uniqueLabel("Customer"),
+      name: uniqueLabel("Customer"),
       externalRef: uniqueLabel("crm"),
     });
     const [managedGroup] = await module.counterparties.queries.listGroups({
