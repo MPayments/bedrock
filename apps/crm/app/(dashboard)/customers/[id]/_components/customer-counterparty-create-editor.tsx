@@ -204,7 +204,7 @@ export function CustomerCounterpartyCreateEditor({
           return values;
         }}
         onShortNameChange={() => {}}
-        submitLabel="Создать контрагента"
+        submitLabel="Создать"
         submittingLabel="Создание..."
         disableSubmitUntilDirty={false}
         showDates={false}
