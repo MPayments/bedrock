@@ -6,6 +6,7 @@ import {
   CounterpartyGroupRuleError,
   CounterpartyNotFoundError,
   RequisiteProviderNotActiveError,
+  SubAgentProfileNotFoundError,
 } from "@bedrock/parties";
 import {
   CounterpartySchema,
@@ -393,6 +394,10 @@ export function counterpartiesRoutes(ctx: AppContext) {
         },
         description: "Counterparty assignment updated",
       },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
       404: {
         content: { "application/json": { schema: ErrorSchema } },
         description: "Counterparty not found",
@@ -417,9 +422,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
         )
       ).get(counterpartyId) ?? null;
     const subAgent = assignment?.subAgentCounterpartyId
-      ? await ctx.partiesModule.subAgentProfiles.queries.findById(
-          assignment.subAgentCounterpartyId,
-        )
+      ? await findSubAgentProfileOrNull(assignment.subAgentCounterpartyId)
       : null;
 
     return {
@@ -427,6 +430,30 @@ export function counterpartiesRoutes(ctx: AppContext) {
       subAgent,
       subAgentCounterpartyId: assignment?.subAgentCounterpartyId ?? null,
     };
+  }
+
+  async function findSubAgentProfileOrNull(counterpartyId: string) {
+    try {
+      return await ctx.partiesModule.subAgentProfiles.queries.findById(
+        counterpartyId,
+      );
+    } catch (error) {
+      if (error instanceof SubAgentProfileNotFoundError) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  async function assertSubAgentProfileExists(counterpartyId: string) {
+    const subAgent = await findSubAgentProfileOrNull(counterpartyId);
+
+    if (!subAgent) {
+      throw new ValidationError(
+        `Sub-agent profile not found: ${counterpartyId}`,
+      );
+    }
   }
 
   return app
@@ -603,12 +630,18 @@ export function counterpartiesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
       try {
         await ensureCounterpartyExists(id);
+        if (input.subAgentCounterpartyId) {
+          await assertSubAgentProfileExists(input.subAgentCounterpartyId);
+        }
         await ctx.partiesReadRuntime.counterpartiesQueries.upsertAssignment({
           counterpartyId: id,
           subAgentCounterpartyId: input.subAgentCounterpartyId,
         });
         return c.json(await resolveAssignment(id), 200);
       } catch (err) {
+        if (err instanceof ValidationError) {
+          return c.json({ error: err.message }, 400);
+        }
         if (err instanceof CounterpartyNotFoundError) {
           return c.json({ error: err.message }, 404);
         }
