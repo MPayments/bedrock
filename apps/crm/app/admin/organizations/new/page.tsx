@@ -283,7 +283,7 @@ export default function NewOrganizationPage() {
         onValuesChange={setGeneralValues}
         onSubmit={handleSubmit}
         onShortNameChange={() => {}}
-        submitLabel="Создать организацию"
+        submitLabel="Создать"
         submittingLabel="Создание..."
         disableSubmitUntilDirty={false}
         showDates={false}
