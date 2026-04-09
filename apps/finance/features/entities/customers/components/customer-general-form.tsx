@@ -31,7 +31,7 @@ import { CustomerDeleteDialog } from "./customer-delete-dialog";
 import { formatDate } from "@/lib/format";
 
 export type CustomerGeneralFormValues = {
-  displayName: string;
+  name: string;
   externalRef: string;
   description: string;
 };
@@ -68,13 +68,13 @@ type CustomerGeneralFormBaseProps = CustomerGeneralFormProps & {
 };
 
 const DEFAULT_VALUES: CustomerGeneralFormValues = {
-  displayName: "",
+  name: "",
   externalRef: "",
   description: "",
 };
 
 const CustomerGeneralFormSchema = z.object({
-  displayName: z.string().trim().min(1, "Название клиента обязательно"),
+  name: z.string().trim().min(1, "Название клиента обязательно"),
   externalRef: z.string(),
   description: z.string(),
 });
@@ -92,14 +92,14 @@ function normalizeValues(
   values: CustomerGeneralFormValues,
 ): CustomerGeneralFormValues {
   return {
-    displayName: values.displayName.trim(),
+    name: values.name.trim(),
     externalRef: values.externalRef.trim(),
     description: values.description.trim(),
   };
 }
 
 function valuesSignature(values: CustomerGeneralFormValues) {
-  return `${values.displayName}\n${values.externalRef}\n${values.description}`;
+  return `${values.name}\n${values.externalRef}\n${values.description}`;
 }
 
 const CREATE_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
@@ -152,7 +152,7 @@ function CustomerGeneralFormBase({
   });
 
   const watchedValues = useWatch({ control });
-  const watchedDisplayName = watchedValues?.displayName ?? "";
+  const watchedDisplayName = watchedValues?.name ?? "";
   const formattedCreatedAt = useMemo(() => {
     if (variant.usePlaceholderDates) {
       return "—";
@@ -171,13 +171,13 @@ function CustomerGeneralFormBase({
   const currentValues = useMemo(
     () =>
       normalizeValues({
-        displayName: watchedValues?.displayName ?? "",
+        name: watchedValues?.name ?? "",
         externalRef: watchedValues?.externalRef ?? "",
         description: watchedValues?.description ?? "",
       }),
     [
       watchedValues?.description,
-      watchedValues?.displayName,
+      watchedValues?.name,
       watchedValues?.externalRef,
     ],
   );
@@ -283,7 +283,7 @@ function CustomerGeneralFormBase({
             <FieldSet>
               <FieldGroup>
                 <Controller
-                  name="displayName"
+                  name="name"
                   control={control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>

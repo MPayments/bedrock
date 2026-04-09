@@ -7,6 +7,7 @@ import {
 } from "../contracts/commands";
 import { OrganizationNotFoundError } from "../errors";
 import type { OrganizationsCommandUnitOfWork } from "../ports/organizations.uow";
+import { toOrganizationDto } from "../to-organization-dto";
 
 export class UpdateOrganizationCommand {
   constructor(
@@ -25,33 +26,12 @@ export class UpdateOrganizationCommand {
 
       const next = applyPatch(
         {
-          externalId: existing.externalId,
           shortName: existing.shortName,
           fullName: existing.fullName,
-          description: existing.description,
           country: existing.country,
-          kind: existing.kind,
+          externalRef: existing.externalRef,
+          description: existing.description,
           isActive: existing.isActive,
-          nameI18n: existing.nameI18n,
-          orgType: existing.orgType,
-          orgTypeI18n: existing.orgTypeI18n,
-          countryI18n: existing.countryI18n,
-          city: existing.city,
-          cityI18n: existing.cityI18n,
-          address: existing.address,
-          addressI18n: existing.addressI18n,
-          inn: existing.inn,
-          taxId: existing.taxId,
-          kpp: existing.kpp,
-          ogrn: existing.ogrn,
-          oktmo: existing.oktmo,
-          okpo: existing.okpo,
-          directorName: existing.directorName,
-          directorNameI18n: existing.directorNameI18n,
-          directorPosition: existing.directorPosition,
-          directorPositionI18n: existing.directorPositionI18n,
-          directorBasis: existing.directorBasis,
-          directorBasisI18n: existing.directorBasisI18n,
           signatureKey: existing.signatureKey,
           sealKey: existing.sealKey,
         },
@@ -60,15 +40,28 @@ export class UpdateOrganizationCommand {
 
       const updated = await tx.organizationStore.update({
         id,
-        ...next,
+        externalRef: next.externalRef,
+        shortName: next.shortName,
+        fullName: next.fullName,
+        description: next.description,
+        country: next.country,
+        kind: existing.kind,
+        isActive: next.isActive,
+        signatureKey: next.signatureKey,
+        sealKey: next.sealKey,
       });
 
       if (!updated) {
         throw new OrganizationNotFoundError(id);
       }
 
+      const partyProfile = await tx.partyProfiles.findBundleByOwner({
+        ownerType: "organization",
+        ownerId: updated.id,
+      });
+
       this.runtime.log.info("Organization updated", { id });
-      return updated;
+      return toOrganizationDto(updated, partyProfile);
     });
   }
 }

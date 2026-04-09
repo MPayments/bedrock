@@ -1,10 +1,7 @@
 import { Entity, normalizeRequiredText } from "@bedrock/shared/core";
+import { normalizeOptionalText } from "@bedrock/shared/core/domain";
 
 import { RequisiteOwner } from "./owner";
-import {
-  RequisiteDetails,
-  type RequisiteDetailsFields,
-} from "./requisite-details";
 import type { RequisiteKind } from "./requisite-kind";
 
 export interface RequisiteSnapshot {
@@ -12,21 +9,14 @@ export interface RequisiteSnapshot {
   ownerType: "organization" | "counterparty";
   ownerId: string;
   providerId: string;
+  providerBranchId: string | null;
   currencyId: string;
   kind: RequisiteKind;
   label: string;
-  description: string | null;
   beneficiaryName: string | null;
-  accountNo: string | null;
-  corrAccount: string | null;
-  iban: string | null;
-  network: string | null;
-  assetCode: string | null;
-  address: string | null;
-  memoTag: string | null;
-  accountRef: string | null;
-  subaccountRef: string | null;
-  contact: string | null;
+  beneficiaryNameLocal: string | null;
+  beneficiaryAddress: string | null;
+  paymentPurposeTemplate: string | null;
   notes: string | null;
   isDefault: boolean;
   createdAt: Date;
@@ -34,39 +24,38 @@ export interface RequisiteSnapshot {
   archivedAt: Date | null;
 }
 
-export interface CreateRequisiteProps extends RequisiteDetailsFields {
+export interface CreateRequisiteProps {
   id: string;
   ownerType: "organization" | "counterparty";
   ownerId: string;
   providerId: string;
+  providerBranchId: string | null;
   currencyId: string;
+  kind: RequisiteKind;
   label: string;
+  beneficiaryName: string | null;
+  beneficiaryNameLocal: string | null;
+  beneficiaryAddress: string | null;
+  paymentPurposeTemplate: string | null;
+  notes: string | null;
   isDefault: boolean;
 }
 
 export interface UpdateRequisiteProps {
   providerId: string;
+  providerBranchId: string | null;
   currencyId: string;
   kind: RequisiteKind;
   label: string;
-  description: string | null;
   beneficiaryName: string | null;
-  accountNo: string | null;
-  corrAccount: string | null;
-  iban: string | null;
-  network: string | null;
-  assetCode: string | null;
-  address: string | null;
-  memoTag: string | null;
-  accountRef: string | null;
-  subaccountRef: string | null;
-  contact: string | null;
+  beneficiaryNameLocal: string | null;
+  beneficiaryAddress: string | null;
+  paymentPurposeTemplate: string | null;
   notes: string | null;
   isDefault: boolean;
 }
 
 function normalizeSnapshot(snapshot: RequisiteSnapshot): RequisiteSnapshot {
-  const details = RequisiteDetails.create(snapshot);
   const owner = RequisiteOwner.create({
     type: snapshot.ownerType,
     id: snapshot.ownerId,
@@ -81,7 +70,14 @@ function normalizeSnapshot(snapshot: RequisiteSnapshot): RequisiteSnapshot {
       "requisite.label_required",
       "label",
     ),
-    ...details.toFields(),
+    beneficiaryName: normalizeOptionalText(snapshot.beneficiaryName),
+    beneficiaryNameLocal: normalizeOptionalText(snapshot.beneficiaryNameLocal),
+    beneficiaryAddress: normalizeOptionalText(snapshot.beneficiaryAddress),
+    paymentPurposeTemplate: normalizeOptionalText(
+      snapshot.paymentPurposeTemplate,
+    ),
+    notes: normalizeOptionalText(snapshot.notes),
+    providerBranchId: snapshot.providerBranchId ?? null,
   };
 }
 

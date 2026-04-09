@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import type {
+  Counterparty,
+  Organization,
+  Requisite,
+  RequisiteProvider,
+} from "@bedrock/parties/contracts";
+
 export const DOCUMENT_TEMPLATE_TYPES = [
   "contract",
   "invoice",
@@ -69,31 +76,6 @@ export interface ClientContractAgreement {
   fixedFee: string | null;
 }
 
-export interface ClientContractOrganization {
-  id: string;
-  nameI18n?: DocumentLocalizedText | null;
-  addressI18n?: DocumentLocalizedText | null;
-  countryI18n?: DocumentLocalizedText | null;
-  cityI18n?: DocumentLocalizedText | null;
-  directorNameI18n?: DocumentLocalizedText | null;
-  inn: string | null;
-  taxId: string | null;
-  kpp: string | null;
-  signatureKey: string | null;
-  sealKey: string | null;
-}
-
-export interface ClientContractOrganizationBankRequisite {
-  id: string;
-  accountNo: string | null;
-  bic: string | null;
-  corrAccount: string | null;
-  currencyCode: string;
-  institutionName: string | null;
-  ownerId: string;
-  swift: string | null;
-}
-
 export interface CalculationDocumentData {
   additionalExpenses: string;
   additionalExpensesInBase: string;
@@ -114,11 +96,14 @@ export interface CalculationDocumentData {
 
 export interface RenderClientContractInput {
   agreement: ClientContractAgreement;
-  client: ClientContractClient;
+  clientBankProvider: RequisiteProvider | null;
+  clientBankRequisite: Requisite | null;
+  clientCounterparty: Counterparty;
   format?: ClientContractFormat;
   lang?: DocumentLanguage;
-  organization: ClientContractOrganization;
-  organizationRequisite: ClientContractOrganizationBankRequisite;
+  organization: Organization;
+  organizationRequisite: Requisite;
+  organizationRequisiteProvider: RequisiteProvider | null;
 }
 
 export const GenerateCustomerContractInputSchema = z.object({

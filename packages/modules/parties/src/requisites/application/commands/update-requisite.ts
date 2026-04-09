@@ -1,6 +1,8 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { applyPatch } from "@bedrock/shared/core";
 
+import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
+import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import type { UpdateRequisiteProps } from "../../domain/requisite";
 import {
   UpdateRequisiteInputSchema,
@@ -8,22 +10,10 @@ import {
 } from "../contracts/requisites";
 import {
   RequisiteNotFoundError,
-  RequisiteProviderNotActiveError,
 } from "../errors";
 import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
 import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
-
-async function assertProviderActive(
-  reads: RequisiteProviderReads,
-  providerId: string,
-) {
-  const provider = await reads.findActiveById(providerId);
-
-  if (!provider) {
-    throw new RequisiteProviderNotActiveError(providerId);
-  }
-}
 
 export class UpdateRequisiteCommand {
   constructor(
@@ -44,11 +34,55 @@ export class UpdateRequisiteCommand {
       }
 
       const current = existing.toSnapshot();
-      const nextInput = applyPatch<UpdateRequisiteProps>(current, validated);
+      const nextInput = applyPatch<UpdateRequisiteProps>(
+        {
+          providerId: current.providerId,
+          providerBranchId: current.providerBranchId,
+          currencyId: current.currencyId,
+          kind: current.kind,
+          label: current.label,
+          beneficiaryName: current.beneficiaryName,
+          beneficiaryNameLocal: current.beneficiaryNameLocal,
+          beneficiaryAddress: current.beneficiaryAddress,
+          paymentPurposeTemplate: current.paymentPurposeTemplate,
+          notes: current.notes,
+          isDefault: current.isDefault,
+        },
+        validated,
+      );
       const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await this.currencies.assertCurrencyExists(nextInput.currencyId);
-      await assertProviderActive(this.providerReads, nextInput.providerId);
+      await assertRequisiteProviderSelection(
+        this.providerReads,
+        nextInput.providerId,
+        nextInput.providerBranchId,
+      );
+      let identifiersToValidate = validated.identifiers;
+      if (
+        identifiersToValidate === undefined &&
+        nextInput.kind !== current.kind
+      ) {
+        const detail = await tx.requisites.findDetailById(id);
+
+        if (!detail) {
+          throw new RequisiteNotFoundError(id);
+        }
+
+        identifiersToValidate = detail.identifiers.map((identifier) => ({
+          id: identifier.id,
+          scheme: identifier.scheme,
+          value: identifier.value,
+          isPrimary: identifier.isPrimary,
+        }));
+      }
+      if (identifiersToValidate !== undefined) {
+        validatePaymentIdentifiers({
+          owner: "requisite",
+          identifiers: identifiersToValidate,
+          requisiteKind: nextInput.kind,
+        });
+      }
 
       const sourceSet = await tx.requisites.findSetByOwnerCurrency({
         ownerType: current.ownerType,
@@ -79,13 +113,25 @@ export class UpdateRequisiteCommand {
         updated = next.requisite;
       }
 
+      if (validated.identifiers !== undefined) {
+        await tx.requisites.replaceIdentifiers({
+          requisiteId: updated.id,
+          items: validated.identifiers,
+        });
+      }
+      const requisite = await tx.requisites.findDetailById(updated.id);
+
+      if (!requisite) {
+        throw new Error(`Requisite not found after update: ${updated.id}`);
+      }
+
       this.runtime.log.info("Requisite updated", {
         id,
         ownerType: current.ownerType,
         ownerId: current.ownerId,
       });
 
-      return updated.toSnapshot();
+      return requisite;
     });
   }
 }

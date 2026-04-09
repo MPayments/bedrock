@@ -50,7 +50,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   type PortalCustomerContext,
-  type PortalLegalEntityContext,
+  type PortalCounterpartyContext,
+  resolvePortalCustomerDisplayName,
+  resolvePortalCustomerId,
+  resolvePortalCounterpartyInn,
+  resolvePortalPrimaryCounterpartyId,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
 import {
@@ -58,12 +62,12 @@ import {
   type PortalDealType,
 } from "@/lib/portal-deals";
 import {
-  formatCustomerLegalEntityLabel,
-  isDuplicateCustomerLegalEntityName,
-} from "@/lib/legal-entities";
+  formatCustomerCounterpartyLabel,
+  isDuplicateCustomerCounterpartyName,
+} from "@/lib/counterparties";
 import { cn } from "@/lib/utils";
 
-interface LegalEntityOption extends PortalLegalEntityContext {
+interface CounterpartyOption extends PortalCounterpartyContext {
   agentAgreementStatus: "active" | "missing";
   customerDisplayName: string;
   customerId: string;
@@ -93,7 +97,7 @@ const DEAL_TYPE_OPTIONS: {
   {
     value: "payment",
     label: "Платеж",
-    description: "Оплата внешнему получателю по выбранному юридическому лицу.",
+    description: "Оплата внешнему получателю по выбранному контрагенту.",
   },
   {
     value: "currency_exchange",
@@ -112,7 +116,7 @@ const DEAL_TYPE_OPTIONS: {
   },
 ] as const;
 
-const STEP_LABELS = ["Юрлицо", "Тип", "Данные"] as const;
+const STEP_LABELS = ["Контрагент", "Тип", "Данные"] as const;
 const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
 const DEFAULT_EXPECTED_CURRENCY = "USD";
 
@@ -178,32 +182,32 @@ export function NewDealDialog({
   const [error, setError] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  const legalEntities = useMemo<LegalEntityOption[]>(
+  const counterparties = useMemo<CounterpartyOption[]>(
     () =>
       customers.flatMap((customer) =>
-        customer.legalEntities.map((legalEntity) => ({
+        customer.counterparties.map((partyProfile) => ({
           agentAgreementStatus: customer.agentAgreement.status,
-          ...legalEntity,
-          customerDisplayName: customer.displayName,
-          customerId: customer.customerId,
+          ...partyProfile,
+          customerDisplayName: resolvePortalCustomerDisplayName(customer),
+          customerId: resolvePortalCustomerId(customer),
         })),
       ),
     [customers],
   );
-  const eligibleLegalEntities = useMemo(
+  const eligibleCounterparties = useMemo(
     () =>
-      legalEntities.filter(
-        (legalEntity) => legalEntity.agentAgreementStatus === "active",
+      counterparties.filter(
+        (partyProfile) => partyProfile.agentAgreementStatus === "active",
       ),
-    [legalEntities],
+    [counterparties],
   );
 
-  const selectedLegalEntity =
-    legalEntities.find(
-      (legalEntity) => legalEntity.counterpartyId === selectedCounterpartyId,
+  const selectedCounterparty =
+    counterparties.find(
+      (partyProfile) => partyProfile.id === selectedCounterpartyId,
     ) ?? null;
-  const selectedLegalEntityEligible =
-    selectedLegalEntity?.agentAgreementStatus === "active";
+  const selectedCounterpartyEligible =
+    selectedCounterparty?.agentAgreementStatus === "active";
   const requiresIncomingReceipt =
     dealType === "currency_transit" || dealType === "exporter_settlement";
   const isPaymentDeal = dealType === "payment";
@@ -232,33 +236,33 @@ export function NewDealDialog({
   }, [customerContexts, customers.length, open]);
 
   useEffect(() => {
-    if (!open || selectedCounterpartyId || eligibleLegalEntities.length === 0) {
+    if (!open || selectedCounterpartyId || eligibleCounterparties.length === 0) {
       return;
     }
 
     const preferredCounterparty =
       customers
         .flatMap((customer) =>
-          customer.legalEntities.map((legalEntity) => ({
-            counterpartyId: legalEntity.counterpartyId,
+          customer.counterparties.map((partyProfile) => ({
+            counterpartyId: partyProfile.id,
             eligible: customer.agentAgreement.status === "active",
             preferred:
-              customer.primaryCounterpartyId === legalEntity.counterpartyId,
+              resolvePortalPrimaryCounterpartyId(customer) === partyProfile.id,
           })),
         )
         .find((item) => item.preferred && item.eligible)?.counterpartyId ??
-      eligibleLegalEntities[0]?.counterpartyId;
+      eligibleCounterparties[0]?.id;
 
     if (preferredCounterparty) {
       setSelectedCounterpartyId(preferredCounterparty);
     }
-  }, [customers, eligibleLegalEntities, open, selectedCounterpartyId]);
+  }, [customers, eligibleCounterparties, open, selectedCounterpartyId]);
 
   useEffect(() => {
-    if (selectedCounterpartyId && !selectedLegalEntityEligible) {
+    if (selectedCounterpartyId && !selectedCounterpartyEligible) {
       setSelectedCounterpartyId(undefined);
     }
-  }, [selectedCounterpartyId, selectedLegalEntityEligible]);
+  }, [selectedCounterpartyId, selectedCounterpartyEligible]);
 
   useEffect(() => {
     if (dealType !== "payment") {
@@ -317,12 +321,12 @@ export function NewDealDialog({
 
   function validateCurrentStep() {
     if (step === 1) {
-      if (eligibleLegalEntities.length === 0) {
+      if (eligibleCounterparties.length === 0) {
         setError("Чтобы создать сделку, сначала заключите агентский договор.");
         return false;
       }
 
-      if (!selectedCounterpartyId || !selectedLegalEntityEligible) {
+      if (!selectedCounterpartyId || !selectedCounterpartyEligible) {
         setError(
           "Чтобы продолжить, выберите организацию с действующим агентским договором.",
         );
@@ -441,11 +445,11 @@ export function NewDealDialog({
     setStep((current) => Math.min(3, current + 1));
   }
 
-  function renderLegalEntityStep() {
+  function renderCounterpartyStep() {
     return (
       <div className="space-y-4">
         <div className="min-w-0 space-y-2">
-          <Label>Юридическое лицо</Label>
+          <Label>Контрагент</Label>
           <Popover open={clientsOpen} onOpenChange={setClientsOpen}>
             <PopoverTrigger
               render={
@@ -457,62 +461,62 @@ export function NewDealDialog({
               }
             >
               <span className="block min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
-                {selectedLegalEntity
-                  ? formatCustomerLegalEntityLabel({
+                {selectedCounterparty
+                  ? formatCustomerCounterpartyLabel({
                       customerDisplayName:
-                        selectedLegalEntity.customerDisplayName,
-                      legalEntityName: selectedLegalEntity.shortName,
+                        selectedCounterparty.customerDisplayName,
+                      counterpartyName: selectedCounterparty.shortName,
                     })
-                  : "Выберите юридическое лицо"}
+                  : "Выберите контрагента"}
               </span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </PopoverTrigger>
             <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
               <Command>
-                <CommandInput placeholder="Поиск юридического лица..." />
+                <CommandInput placeholder="Поиск контрагента..." />
                 <CommandList>
-                  <CommandEmpty>Юридические лица не найдены</CommandEmpty>
+                  <CommandEmpty>Контрагенты не найдены</CommandEmpty>
                   <CommandGroup>
-                    {legalEntities.map((legalEntity) => (
+                    {counterparties.map((partyProfile) => (
                       <CommandItem
-                        key={legalEntity.counterpartyId}
-                        disabled={legalEntity.agentAgreementStatus !== "active"}
-                        value={formatCustomerLegalEntityLabel({
-                          customerDisplayName: legalEntity.customerDisplayName,
-                          legalEntityName: legalEntity.shortName,
+                        key={partyProfile.id}
+                        disabled={partyProfile.agentAgreementStatus !== "active"}
+                        value={formatCustomerCounterpartyLabel({
+                          customerDisplayName: partyProfile.customerDisplayName,
+                          counterpartyName: partyProfile.shortName,
                         })}
                         onSelect={() => {
-                          if (legalEntity.agentAgreementStatus !== "active") {
+                          if (partyProfile.agentAgreementStatus !== "active") {
                             return;
                           }
-                          setSelectedCounterpartyId(legalEntity.counterpartyId);
+                          setSelectedCounterpartyId(partyProfile.id);
                           setClientsOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4 shrink-0",
-                            selectedCounterpartyId === legalEntity.counterpartyId
+                            selectedCounterpartyId === partyProfile.id
                               ? "opacity-100"
                               : "opacity-0",
                           )}
                         />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="block truncate">{legalEntity.shortName}</span>
-                          {!isDuplicateCustomerLegalEntityName({
-                            customerDisplayName: legalEntity.customerDisplayName,
-                            legalEntityName: legalEntity.shortName,
+                          <span className="block truncate">{partyProfile.shortName}</span>
+                          {!isDuplicateCustomerCounterpartyName({
+                            customerDisplayName: partyProfile.customerDisplayName,
+                            counterpartyName: partyProfile.shortName,
                           }) ? (
                             <span className="block truncate text-xs text-muted-foreground">
-                              {legalEntity.customerDisplayName}
+                              {partyProfile.customerDisplayName}
                             </span>
                           ) : null}
-                          {legalEntity.inn ? (
+                          {resolvePortalCounterpartyInn(partyProfile) ? (
                             <span className="block truncate text-xs text-muted-foreground">
-                              ИНН: {legalEntity.inn}
+                              ИНН: {resolvePortalCounterpartyInn(partyProfile)}
                             </span>
                           ) : null}
-                          {legalEntity.agentAgreementStatus !== "active" ? (
+                          {partyProfile.agentAgreementStatus !== "active" ? (
                             <span className="block truncate text-xs text-amber-600">
                               Агентский договор не заключен
                             </span>
@@ -528,10 +532,10 @@ export function NewDealDialog({
           {loadingClients ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Загрузка юридических лиц...
+              Загрузка контрагентов...
             </div>
           ) : null}
-          {!loadingClients && eligibleLegalEntities.length === 0 ? (
+          {!loadingClients && eligibleCounterparties.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Чтобы создать сделку, сначала заключите агентский договор.
             </p>
@@ -786,7 +790,7 @@ export function NewDealDialog({
           <DialogHeader className="min-w-0 pr-8">
             <DialogTitle>Новая сделка</DialogTitle>
             <DialogDescription>
-              Выберите юридическое лицо, тип сделки и заполните клиентскую часть
+              Выберите контрагента, тип сделки и заполните клиентскую часть
               анкеты.
             </DialogDescription>
           </DialogHeader>
@@ -810,7 +814,7 @@ export function NewDealDialog({
           </div>
 
           <div className="min-w-0 space-y-4">
-            {step === 1 ? renderLegalEntityStep() : null}
+            {step === 1 ? renderCounterpartyStep() : null}
             {step === 2 ? renderTypeStep() : null}
             {step === 3 ? renderDataStep() : null}
 
@@ -840,7 +844,7 @@ export function NewDealDialog({
                   creating ||
                   loadingClients ||
                   !selectedCounterpartyId ||
-                  !selectedLegalEntityEligible
+                  !selectedCounterpartyEligible
                 }
               >
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

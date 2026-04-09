@@ -73,7 +73,7 @@ export type CrmBankInstructionSnapshot = {
   swift: string | null;
 };
 
-export type CrmCustomerLegalEntityOption = {
+export type CrmCustomerCounterpartyOption = {
   counterpartyId: string;
   fullName: string;
   inn: string | null;
@@ -101,7 +101,7 @@ export type DealIntakeFormProps = {
   applicantRequisites: CrmApplicantRequisiteOption[];
   currencyOptions: CrmCurrencyOption[];
   intake: CrmDealIntakeDraft;
-  legalEntities: CrmCustomerLegalEntityOption[];
+  counterparties: CrmCustomerCounterpartyOption[];
   moneyRequestLayout?: "inline" | "stacked";
   onChange: (next: CrmDealIntakeDraft) => void;
   readOnly?: boolean;
@@ -249,7 +249,7 @@ export function createDealIntakeFormContext({
   applicantRequisites,
   currencyOptions,
   intake,
-  legalEntities,
+  counterparties,
   moneyRequestLayout = "stacked",
   onChange,
   readOnly = false,
@@ -265,9 +265,9 @@ export function createDealIntakeFormContext({
     intake.settlementDestination.bankInstructionSnapshot ??
     emptyBankInstructionSnapshot();
   const selectedApplicant =
-    legalEntities.find(
-      (legalEntity) =>
-        legalEntity.counterpartyId === intake.common.applicantCounterpartyId,
+    counterparties.find(
+      (partyProfile) =>
+        partyProfile.counterpartyId === intake.common.applicantCounterpartyId,
     ) ?? null;
   const selectedSourceCurrency =
     currencyOptions.find(
@@ -321,14 +321,14 @@ export function createDealIntakeFormContext({
     : snapshotFieldValue(intake.moneyRequest.sourceAmount);
   const selectedApplicantLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
-    loadingLabel: "Загрузка юридических лиц...",
+    loadingLabel: "Загрузка контрагентов...",
     matchedLabel: selectedApplicant
       ? `${selectedApplicant.shortName}${
           selectedApplicant.inn ? ` · ИНН ${selectedApplicant.inn}` : ""
         }`
       : null,
-    missingLabel: "Выбранное юрлицо недоступно",
-    optionsCount: legalEntities.length,
+    missingLabel: "Выбранный контрагент недоступен",
+    optionsCount: counterparties.length,
     value: intake.common.applicantCounterpartyId,
   });
   const sourceCurrencyLabel = resolveOptionLabel({
@@ -517,7 +517,7 @@ export function createDealIntakeFormContext({
     incomingReceiptSectionTitle,
     intake,
     isPaymentDeal,
-    legalEntities,
+    counterparties,
     moneyRequestSectionTitle,
     primaryAmountLabel,
     primaryAmountValue,
@@ -557,7 +557,7 @@ export function DealIntakeCommonSection({
 }: DealIntakeSectionProps) {
   const {
     intake,
-    legalEntities,
+    counterparties,
     readOnly,
     selectedApplicantLabel,
     updateCommon,
@@ -570,7 +570,7 @@ export function DealIntakeCommonSection({
       </div>
       <div className="grid gap-4">
         <div className="min-w-0 max-w-full space-y-2">
-          <Label>Юридическое лицо заявителя</Label>
+          <Label>Контрагент заявителя</Label>
           <Select
             disabled={readOnly}
             value={intake.common.applicantCounterpartyId ?? "__none"}
@@ -584,20 +584,20 @@ export function DealIntakeCommonSection({
             <SelectTrigger className="w-full min-w-0">
               <SelectValue
                 className="min-w-0 truncate"
-                placeholder="Выберите юридическое лицо"
+                placeholder="Выберите контрагента"
               >
                 {selectedApplicantLabel}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none">Не выбрано</SelectItem>
-              {legalEntities.map((legalEntity) => (
+              {counterparties.map((partyProfile) => (
                 <SelectItem
-                  key={legalEntity.counterpartyId}
-                  value={legalEntity.counterpartyId}
+                  key={partyProfile.counterpartyId}
+                  value={partyProfile.counterpartyId}
                 >
-                  {legalEntity.shortName}
-                  {legalEntity.inn ? ` · ИНН ${legalEntity.inn}` : ""}
+                  {partyProfile.shortName}
+                  {partyProfile.inn ? ` · ИНН ${partyProfile.inn}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -4,7 +4,7 @@ import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().defaultRandom(),
   externalRef: text("external_ref"),
-  displayName: text("display_name").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

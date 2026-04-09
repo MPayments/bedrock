@@ -4,6 +4,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  like,
   or,
   sql,
 } from "drizzle-orm";
@@ -17,11 +18,15 @@ import {
   customerCounterpartyAssignments,
   counterparties,
 } from "./schema";
+import {
+  partyIdentifiers,
+  partyProfiles,
+} from "../../../party-profiles/adapters/drizzle/schema";
 
 export class DrizzleCounterpartiesQueries {
   constructor(private readonly db: Database) {}
 
-  async searchCustomerOwnedLegalEntities(input: {
+  async searchCustomerOwnedCounterparties(input: {
     limit: number;
     offset: number;
     q: string;
@@ -38,11 +43,22 @@ export class DrizzleCounterpartiesQueries {
       .select({
         counterpartyId: counterparties.id,
         customerId: counterparties.customerId,
-        inn: counterparties.inn,
+        inn: partyIdentifiers.value,
         orgName: counterparties.fullName,
         shortName: counterparties.shortName,
       })
       .from(counterparties)
+      .leftJoin(
+        partyProfiles,
+        eq(partyProfiles.counterpartyId, counterparties.id),
+      )
+      .leftJoin(
+        partyIdentifiers,
+        and(
+          eq(partyIdentifiers.partyProfileId, partyProfiles.id),
+          eq(partyIdentifiers.scheme, "inn"),
+        ),
+      )
       .where(
         and(
           eq(counterparties.relationshipKind, "customer_owned"),
@@ -50,7 +66,7 @@ export class DrizzleCounterpartiesQueries {
           or(
             ilike(counterparties.shortName, `%${input.q}%`),
             ilike(counterparties.fullName, `%${input.q}%`),
-            ilike(counterparties.inn, `%${input.q}%`),
+            like(sql`coalesce(${partyIdentifiers.value}, '')`, `%${input.q}%`),
           ),
         ),
       )
@@ -93,6 +109,14 @@ export class DrizzleCounterpartiesQueries {
         customerId: counterparties.customerId,
       })
       .from(counterparties)
+      .leftJoin(
+        partyProfiles,
+        eq(partyProfiles.counterpartyId, counterparties.id),
+      )
+      .leftJoin(
+        partyIdentifiers,
+        eq(partyIdentifiers.partyProfileId, partyProfiles.id),
+      )
       .where(
         and(
           eq(counterparties.relationshipKind, "customer_owned"),
@@ -100,11 +124,8 @@ export class DrizzleCounterpartiesQueries {
           or(
             ilike(counterparties.shortName, `%${input.q}%`),
             ilike(counterparties.fullName, `%${input.q}%`),
-            ilike(counterparties.externalId, `%${input.q}%`),
-            ilike(counterparties.inn, `%${input.q}%`),
-            ilike(counterparties.email, `%${input.q}%`),
-            ilike(counterparties.phone, `%${input.q}%`),
-            ilike(counterparties.directorName, `%${input.q}%`),
+            ilike(counterparties.externalRef, `%${input.q}%`),
+            like(sql`coalesce(${partyIdentifiers.value}, '')`, `%${input.q}%`),
           ),
         ),
       )

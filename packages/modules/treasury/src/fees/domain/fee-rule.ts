@@ -198,7 +198,10 @@ export class FeeRule extends Entity<string> {
     fromCurrencyId?: string | null;
     toCurrencyId?: string | null;
   }): boolean {
-    if (!this.snapshot.isActive || this.snapshot.operationKind !== input.operationKind) {
+    if (
+      !this.snapshot.isActive ||
+      this.snapshot.operationKind !== input.operationKind
+    ) {
       return false;
     }
 
@@ -213,10 +216,18 @@ export class FeeRule extends Entity<string> {
       return false;
     }
 
-    return matchesNullableScope(this.snapshot.dealDirection, input.dealDirection) &&
+    return (
+      matchesNullableScope(this.snapshot.dealDirection, input.dealDirection) &&
       matchesNullableScope(this.snapshot.dealForm, input.dealForm) &&
-      matchesNullableScope(this.snapshot.fromCurrencyId, input.fromCurrencyId ?? null) &&
-      matchesNullableScope(this.snapshot.toCurrencyId, input.toCurrencyId ?? null);
+      matchesNullableScope(
+        this.snapshot.fromCurrencyId,
+        input.fromCurrencyId ?? null,
+      ) &&
+      matchesNullableScope(
+        this.snapshot.toCurrencyId,
+        input.toCurrencyId ?? null,
+      )
+    );
   }
 
   specificity(): number {
@@ -232,8 +243,10 @@ export class FeeRule extends Entity<string> {
     return (
       this.snapshot.priority - other.snapshot.priority ||
       other.specificity() - this.specificity() ||
-      this.snapshot.effectiveFrom.getTime() - other.snapshot.effectiveFrom.getTime() ||
-      (this.snapshot.createdAt?.getTime() ?? 0) - (other.snapshot.createdAt?.getTime() ?? 0) ||
+      this.snapshot.effectiveFrom.getTime() -
+        other.snapshot.effectiveFrom.getTime() ||
+      (this.snapshot.createdAt?.getTime() ?? 0) -
+        (other.snapshot.createdAt?.getTime() ?? 0) ||
       this.snapshot.id.localeCompare(other.snapshot.id)
     );
   }
@@ -243,16 +256,15 @@ export class FeeRule extends Entity<string> {
     defaultCurrency: string;
     fixedCurrency?: string;
   }): FeeComponent | null {
-    let amountMinor = 0n;
-
-    if (this.snapshot.calcMethod === "bps") {
-      invariant(this.snapshot.bps !== null, "bps fee rule requires bps", {
-        code: "treasury.fee_rule.bps_required",
-      });
-      amountMinor = calculateBpsAmount(input.principalMinor, this.snapshot.bps);
-    } else {
-      amountMinor = this.snapshot.fixedAmountMinor ?? 0n;
-    }
+    const amountMinor =
+      this.snapshot.calcMethod === "bps"
+        ? (() => {
+            invariant(this.snapshot.bps !== null, "bps fee rule requires bps", {
+              code: "treasury.fee_rule.bps_required",
+            });
+            return calculateBpsAmount(input.principalMinor, this.snapshot.bps);
+          })()
+        : (this.snapshot.fixedAmountMinor ?? 0n);
 
     if (amountMinor <= 0n) {
       return null;
@@ -264,7 +276,7 @@ export class FeeRule extends Entity<string> {
       kind: this.snapshot.feeKind,
       currency:
         this.snapshot.calcMethod === "fixed"
-          ? input.fixedCurrency ?? input.defaultCurrency
+          ? (input.fixedCurrency ?? input.defaultCurrency)
           : input.defaultCurrency,
       amountMinor,
       source: "rule",

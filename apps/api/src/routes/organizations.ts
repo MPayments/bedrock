@@ -4,13 +4,23 @@ import type { z } from "@hono/zod-openapi";
 import {
   OrganizationDeleteConflictError,
   OrganizationNotFoundError,
+  RequisiteProviderNotActiveError,
 } from "@bedrock/parties";
+import type {
+  OrganizationListItemSchema} from "@bedrock/parties/contracts";
 import {
   CreateOrganizationInputSchema,
+  CreateRequisiteInputSchema,
   ListOrganizationsQuerySchema,
+  ListRequisitesQuerySchema,
+  PartyProfileBundleInputSchema,
+  PartyProfileBundleSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
+  PaginatedOrganizationsSchema,
   OrganizationSchema,
+  RequisiteListItemSchema,
+  RequisiteSchema,
   UpdateOrganizationInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
@@ -23,20 +33,34 @@ import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import { countOrganizationBankRequisites } from "./organization-requisites";
+import {
+  mapPartyProfileMutationError,
+  replacePartyProfileBundle,
+} from "./party-profile";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const PaginatedOrganizationsSchema =
-  createPaginatedListSchema(OrganizationSchema);
 interface OrganizationFilesResponse {
   banksCount: number;
   hasFiles: boolean;
   sealUrl: string | null;
   signatureUrl: string | null;
 }
+
+const OrganizationRequisitesQuerySchema = ListRequisitesQuerySchema.omit({
+  ownerId: true,
+  ownerType: true,
+});
+const CreateOrganizationRequisiteInputSchema = CreateRequisiteInputSchema.omit({
+  ownerId: true,
+  ownerType: true,
+});
+const PaginatedOrganizationRequisitesSchema = createPaginatedListSchema(
+  RequisiteListItemSchema,
+);
 async function buildOrganizationListRow(
   ctx: AppContext,
-  organization: z.infer<typeof OrganizationSchema>,
+  organization: z.infer<typeof OrganizationListItemSchema>,
 ) {
   const banksCount = await countOrganizationBankRequisites(ctx, organization.id);
 
@@ -255,6 +279,125 @@ export function organizationsRoutes(ctx: AppContext) {
     },
   });
 
+  const listRequisitesRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["list"] })],
+    method: "get",
+    path: "/{id}/requisites",
+    tags: ["Organizations"],
+    summary: "List organization requisites",
+    request: {
+      params: IdParamSchema,
+      query: OrganizationRequisitesQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaginatedOrganizationRequisitesSchema,
+          },
+        },
+        description: "Paginated list of organization requisites",
+      },
+      404: {
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Organization not found",
+      },
+    },
+  });
+
+  const createRequisiteRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["create"] })],
+    method: "post",
+    path: "/{id}/requisites",
+    tags: ["Organizations"],
+    summary: "Create organization requisite",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateOrganizationRequisiteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: RequisiteSchema,
+          },
+        },
+        description: "Organization requisite created",
+      },
+      400: {
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Validation error",
+      },
+      404: {
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Organization not found",
+      },
+    },
+  });
+
+  const putPartyProfileRoute = createRoute({
+    middleware: [requirePermission({ organizations: ["update"] })],
+    method: "put",
+    path: "/{id}/party-profile",
+    tags: ["Organizations"],
+    summary: "Replace organization party profile data",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: PartyProfileBundleInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PartyProfileBundleSchema,
+          },
+        },
+        description: "Organization party profile bundle updated",
+      },
+      400: {
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Validation error",
+      },
+      404: {
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Organization not found",
+      },
+    },
+  });
+
+  async function ensureOrganizationExists(id: string) {
+    const organization =
+      await ctx.partiesModule.organizations.queries.findById(id);
+
+    if (!organization) {
+      throw new OrganizationNotFoundError(id);
+    }
+  }
+
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
@@ -345,6 +488,76 @@ export function organizationsRoutes(ctx: AppContext) {
         }
         if (error instanceof OrganizationDeleteConflictError) {
           return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    })
+    .openapi(listRequisitesRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const query = c.req.valid("query");
+
+      try {
+        await ensureOrganizationExists(id);
+        const result = await ctx.partiesModule.requisites.queries.list({
+          ...query,
+          ownerId: id,
+          ownerType: "organization",
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        if (error instanceof OrganizationNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    })
+    .openapi(createRequisiteRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        await ensureOrganizationExists(id);
+        const requisite = await ctx.partiesModule.requisites.commands.create({
+          ...input,
+          ownerId: id,
+          ownerType: "organization",
+        });
+        return c.json(requisite, 201);
+      } catch (error) {
+        if (error instanceof OrganizationNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        if (
+          error instanceof ValidationError ||
+          error instanceof RequisiteProviderNotActiveError
+        ) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    })
+    .openapi(putPartyProfileRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        const organization =
+          await ctx.partiesModule.organizations.queries.findById(id);
+        const bundle = await replacePartyProfileBundle({
+          bundle: input,
+          ctx,
+          ownerId: id,
+          ownerType: "organization",
+          party: organization,
+        });
+        return c.json(bundle, 200);
+      } catch (error) {
+        const handled = mapPartyProfileMutationError(
+          error,
+          OrganizationNotFoundError,
+        );
+        if (handled) {
+          return c.json(handled.body, handled.status);
         }
         throw error;
       }

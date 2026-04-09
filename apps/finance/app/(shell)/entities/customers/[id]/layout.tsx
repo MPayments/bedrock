@@ -17,7 +17,7 @@ export default async function CustomerLayout({
   return (
     <CustomerEditWorkspaceLayout
       customerId={customer.id}
-      initialTitle={customer.displayName}
+      initialTitle={customer.name}
     >
       {children}
     </CustomerEditWorkspaceLayout>

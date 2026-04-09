@@ -12,26 +12,45 @@ import {
 } from "./zod";
 import type { RequisiteSnapshot } from "../../domain/requisite";
 
-export const RequisiteSchema = z.object({
+export const RequisiteIdentifierSchema = z.object({
+  id: z.uuid(),
+  requisiteId: z.uuid(),
+  scheme: z.string(),
+  value: z.string(),
+  normalizedValue: z.string(),
+  isPrimary: z.boolean(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type RequisiteIdentifier = z.infer<typeof RequisiteIdentifierSchema>;
+
+export const RequisiteIdentifierInputSchema = z.object({
+  id: z.uuid().optional(),
+  scheme: z.string().trim().min(1),
+  value: z.string().trim().min(1),
+  isPrimary: z.boolean().default(false),
+});
+
+export type RequisiteIdentifierInput = z.infer<
+  typeof RequisiteIdentifierInputSchema
+>;
+
+export const RequisiteListItemSchema = z.object({
   id: z.uuid(),
   ownerType: RequisiteOwnerTypeSchema,
   ownerId: z.uuid(),
+  organizationId: z.uuid().nullable(),
+  counterpartyId: z.uuid().nullable(),
   providerId: z.uuid(),
+  providerBranchId: z.uuid().nullable(),
   currencyId: z.uuid(),
   kind: RequisiteKindSchema,
   label: z.string(),
-  description: z.string().nullable(),
   beneficiaryName: z.string().nullable(),
-  accountNo: z.string().nullable(),
-  corrAccount: z.string().nullable(),
-  iban: z.string().nullable(),
-  network: z.string().nullable(),
-  assetCode: z.string().nullable(),
-  address: z.string().nullable(),
-  memoTag: z.string().nullable(),
-  accountRef: z.string().nullable(),
-  subaccountRef: z.string().nullable(),
-  contact: z.string().nullable(),
+  beneficiaryNameLocal: z.string().nullable(),
+  beneficiaryAddress: z.string().nullable(),
+  paymentPurposeTemplate: z.string().nullable(),
   notes: z.string().nullable(),
   isDefault: z.boolean(),
   createdAt: z.date(),
@@ -39,7 +58,13 @@ export const RequisiteSchema = z.object({
   archivedAt: z.date().nullable(),
 });
 
-export type Requisite = RequisiteSnapshot;
+export const RequisiteSchema = RequisiteListItemSchema.extend({
+  identifiers: z.array(RequisiteIdentifierSchema),
+});
+
+export type Requisite = z.infer<typeof RequisiteSchema>;
+export type RequisiteListItem = z.infer<typeof RequisiteListItemSchema>;
+export type RequisiteAnchorSnapshot = RequisiteSnapshot;
 
 export const RequisiteAccountingBindingSchema = z.object({
   requisiteId: z.uuid(),
@@ -120,48 +145,37 @@ const nullableShortTextPatch = z
   .nullable()
   .transform((value) => trimToNull(value))
   .exactOptional();
+
 export const CreateRequisiteInputSchema = z.object({
   ownerType: RequisiteOwnerTypeSchema,
   ownerId: z.uuid(),
   providerId: z.uuid(),
+  providerBranchId: z.uuid().nullish().transform((value) => value ?? null),
   currencyId: z.uuid(),
   kind: RequisiteKindSchema,
   label: z.string().trim().min(1).max(255),
-  description: nullableText,
   beneficiaryName: nullableShortText,
-  accountNo: nullableShortText,
-  corrAccount: nullableShortText,
-  iban: nullableShortText,
-  network: nullableShortText,
-  assetCode: nullableShortText,
-  address: nullableText,
-  memoTag: nullableShortText,
-  accountRef: nullableShortText,
-  subaccountRef: nullableShortText,
-  contact: nullableText,
+  beneficiaryNameLocal: nullableShortText,
+  beneficiaryAddress: nullableText,
+  paymentPurposeTemplate: nullableText,
   notes: nullableText,
+  identifiers: z.array(RequisiteIdentifierInputSchema).min(1),
   isDefault: z.boolean().optional().default(false),
 });
 export type CreateRequisiteInput = z.infer<typeof CreateRequisiteInputSchema>;
 
 export const UpdateRequisiteInputSchema = z.object({
   providerId: z.uuid().exactOptional(),
+  providerBranchId: z.uuid().nullable().exactOptional(),
   currencyId: z.uuid().exactOptional(),
   kind: RequisiteKindSchema.exactOptional(),
   label: z.string().trim().min(1).max(255).exactOptional(),
-  description: nullableTextPatch,
   beneficiaryName: nullableShortTextPatch,
-  accountNo: nullableShortTextPatch,
-  corrAccount: nullableShortTextPatch,
-  iban: nullableShortTextPatch,
-  network: nullableShortTextPatch,
-  assetCode: nullableShortTextPatch,
-  address: nullableTextPatch,
-  memoTag: nullableShortTextPatch,
-  accountRef: nullableShortTextPatch,
-  subaccountRef: nullableShortTextPatch,
-  contact: nullableTextPatch,
+  beneficiaryNameLocal: nullableShortTextPatch,
+  beneficiaryAddress: nullableTextPatch,
+  paymentPurposeTemplate: nullableTextPatch,
   notes: nullableTextPatch,
+  identifiers: z.array(RequisiteIdentifierInputSchema).exactOptional(),
   isDefault: z.boolean().exactOptional(),
 });
 export type UpdateRequisiteInput = z.infer<typeof UpdateRequisiteInputSchema>;

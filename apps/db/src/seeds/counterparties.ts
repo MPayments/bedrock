@@ -18,13 +18,13 @@ async function upsertCustomers(db: SeedDb) {
       .insert(schema.customers)
       .values({
         id: customer.id,
-        displayName: customer.displayName,
+        name: customer.name,
         externalRef: customer.externalRef,
       })
       .onConflictDoUpdate({
         target: schema.customers.id,
         set: {
-          displayName: customer.displayName,
+          name: customer.name,
           externalRef: customer.externalRef,
         },
       });
@@ -37,24 +37,170 @@ async function upsertCounterparties(db: SeedDb) {
       .insert(schema.counterparties)
       .values({
         id: counterparty.id,
-        externalId: counterparty.externalId,
+        externalRef: counterparty.externalRef,
         customerId: counterparty.customerId,
+        relationshipKind: "customer_owned",
         shortName: counterparty.shortName,
         fullName: counterparty.fullName,
+        description: null,
         kind: counterparty.kind,
         country: counterparty.country,
       })
       .onConflictDoUpdate({
         target: schema.counterparties.id,
         set: {
-          externalId: counterparty.externalId,
+          externalRef: counterparty.externalRef,
           customerId: counterparty.customerId,
+          relationshipKind: "customer_owned",
           shortName: counterparty.shortName,
           fullName: counterparty.fullName,
+          description: null,
           kind: counterparty.kind,
           country: counterparty.country,
         },
       });
+
+    await db
+      .insert(schema.partyProfiles)
+      .values({
+        organizationId: null,
+        counterpartyId: counterparty.id,
+        fullName: counterparty.profile.fullName,
+        shortName: counterparty.profile.shortName,
+        fullNameI18n: counterparty.profile.fullNameI18n ?? null,
+        shortNameI18n: counterparty.profile.shortNameI18n ?? null,
+        legalFormCode: counterparty.profile.legalFormCode ?? null,
+        legalFormLabel: counterparty.profile.legalFormLabel ?? null,
+        legalFormLabelI18n: counterparty.profile.legalFormLabelI18n ?? null,
+        countryCode: counterparty.profile.countryCode ?? counterparty.country ?? null,
+        businessActivityCode: null,
+        businessActivityText: counterparty.profile.businessActivityText ?? null,
+        businessActivityTextI18n:
+          counterparty.profile.businessActivityTextI18n ?? null,
+      })
+      .onConflictDoUpdate({
+        target: schema.partyProfiles.counterpartyId,
+        set: {
+          fullName: counterparty.profile.fullName,
+          shortName: counterparty.profile.shortName,
+          fullNameI18n: counterparty.profile.fullNameI18n ?? null,
+          shortNameI18n: counterparty.profile.shortNameI18n ?? null,
+          legalFormCode: counterparty.profile.legalFormCode ?? null,
+          legalFormLabel: counterparty.profile.legalFormLabel ?? null,
+          legalFormLabelI18n: counterparty.profile.legalFormLabelI18n ?? null,
+          countryCode:
+            counterparty.profile.countryCode ?? counterparty.country ?? null,
+          businessActivityText: counterparty.profile.businessActivityText ?? null,
+          businessActivityTextI18n:
+            counterparty.profile.businessActivityTextI18n ?? null,
+          updatedAt: new Date(),
+        },
+      });
+
+    const [profile] = await db
+      .select({ id: schema.partyProfiles.id })
+      .from(schema.partyProfiles)
+      .where(eq(schema.partyProfiles.counterpartyId, counterparty.id));
+    const profileId = profile?.id;
+    if (!profileId) {
+      throw new Error(
+        `[seed:counterparties] Failed to upsert party profile for ${counterparty.id}`,
+      );
+    }
+
+    await db
+      .delete(schema.partyIdentifiers)
+      .where(eq(schema.partyIdentifiers.partyProfileId, profileId));
+    await db
+      .delete(schema.partyAddresses)
+      .where(eq(schema.partyAddresses.partyProfileId, profileId));
+    await db
+      .delete(schema.partyContacts)
+      .where(eq(schema.partyContacts.partyProfileId, profileId));
+    await db
+      .delete(schema.partyRepresentatives)
+      .where(eq(schema.partyRepresentatives.partyProfileId, profileId));
+    await db
+      .delete(schema.partyLicenses)
+      .where(eq(schema.partyLicenses.partyProfileId, profileId));
+
+    if ((counterparty.profile.identifiers ?? []).length > 0) {
+      await db.insert(schema.partyIdentifiers).values(
+        counterparty.profile.identifiers!.map((identifier) => ({
+          partyProfileId: profileId,
+          scheme: identifier.scheme,
+          value: identifier.value,
+          normalizedValue: identifier.value,
+        })),
+      );
+    }
+
+    if (counterparty.profile.address) {
+      await db.insert(schema.partyAddresses).values({
+        partyProfileId: profileId,
+        countryCode:
+          counterparty.profile.address.countryCode
+          ?? counterparty.profile.countryCode
+          ?? counterparty.country
+          ?? null,
+        postalCode: counterparty.profile.address.postalCode ?? null,
+        city: counterparty.profile.address.city ?? null,
+        cityI18n: counterparty.profile.address.cityI18n ?? null,
+        streetAddress: counterparty.profile.address.streetAddress ?? null,
+        streetAddressI18n:
+          counterparty.profile.address.streetAddressI18n ?? null,
+        addressDetails: counterparty.profile.address.addressDetails ?? null,
+        addressDetailsI18n:
+          counterparty.profile.address.addressDetailsI18n ?? null,
+        fullAddress: counterparty.profile.address.fullAddress ?? null,
+        fullAddressI18n: counterparty.profile.address.fullAddressI18n ?? null,
+      });
+    }
+
+    if ((counterparty.profile.contacts ?? []).length > 0) {
+      await db.insert(schema.partyContacts).values(
+        counterparty.profile.contacts!.map((contact) => ({
+          partyProfileId: profileId,
+          type: contact.type,
+          value: contact.value,
+          isPrimary: contact.isPrimary ?? false,
+        })),
+      );
+    }
+
+    if ((counterparty.profile.representatives ?? []).length > 0) {
+      await db.insert(schema.partyRepresentatives).values(
+        counterparty.profile.representatives!.map((representative) => ({
+          partyProfileId: profileId,
+          role: representative.role,
+          fullName: representative.fullName,
+          fullNameI18n: representative.fullNameI18n ?? null,
+          title: representative.title ?? null,
+          titleI18n: representative.titleI18n ?? null,
+          basisDocument: representative.basisDocument ?? null,
+          basisDocumentI18n: representative.basisDocumentI18n ?? null,
+          isPrimary: representative.isPrimary ?? false,
+        })),
+      );
+    }
+
+    if ((counterparty.profile.licenses ?? []).length > 0) {
+      await db.insert(schema.partyLicenses).values(
+        counterparty.profile.licenses!.map((license) => ({
+          partyProfileId: profileId,
+          licenseType: license.type,
+          licenseNumber: license.number,
+          issuedBy: license.issuer ?? null,
+          issuedByI18n: license.issuerI18n ?? null,
+          issuedAt: license.issuedAt ? new Date(`${license.issuedAt}T00:00:00.000Z`) : null,
+          expiresAt: license.expiresAt
+            ? new Date(`${license.expiresAt}T00:00:00.000Z`)
+            : null,
+          activityText: license.activityText ?? null,
+          activityTextI18n: license.activityTextI18n ?? null,
+        })),
+      );
+    }
   }
 }
 
@@ -66,7 +212,7 @@ async function ensureManagedCustomerGroups(
       .insert(schema.counterpartyGroups)
       .values({
         code: customerGroupCode(customer.id),
-        name: customer.displayName,
+        name: customer.name,
         description: "Auto-created customer group",
         parentId: null,
         customerId: customer.id,
@@ -75,7 +221,7 @@ async function ensureManagedCustomerGroups(
       .onConflictDoUpdate({
         target: schema.counterpartyGroups.code,
         set: {
-          name: customer.displayName,
+          name: customer.name,
           description: "Auto-created customer group",
           parentId: null,
           customerId: customer.id,

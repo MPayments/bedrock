@@ -10,7 +10,7 @@ import { CustomerRowActions } from "./customer-row-actions";
 export function getColumns(): ColumnDef<SerializedCustomer>[] {
   return [
     {
-      accessorKey: "displayName",
+      accessorKey: "name",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Название" />
       ),

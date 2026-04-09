@@ -1,5 +1,8 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
+import {
+  findRequisiteIdentifier,
+} from "@bedrock/parties";
 import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 
@@ -87,18 +90,32 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
     for (const [organizationId, options] of optionsByOrganization) {
       optionsByOrganizationId.set(organizationId, options);
 
-      for (const option of options) {
+      const optionRequisites = (
+        await Promise.all(
+          options.map((option) =>
+            ctx.partiesReadRuntime.requisitesQueries.findById(option.id),
+          ),
+        )
+      ).filter((requisite) => requisite !== null);
+
+      for (const option of optionRequisites) {
         metaById.set(
           option.id,
           createRequisiteMeta({
-            accountNo: option.accountNo,
-            accountRef: option.accountRef,
-            address: option.address,
-            currency: option.currencyCode,
-            iban: option.iban,
+            accountNo:
+              findRequisiteIdentifier(option, "local_account_number")?.value ??
+              null,
+            accountRef:
+              findRequisiteIdentifier(option, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(option, "wallet_address")?.value ?? null,
+            currency:
+              options.find((item) => item.id === option.id)?.currencyCode ?? "",
+            iban: findRequisiteIdentifier(option, "iban")?.value ?? null,
             kind: option.kind,
             label: option.label,
-            subaccountRef: option.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(option, "subaccount_ref")?.value ?? null,
           }),
         );
       }
@@ -120,14 +137,19 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
         metaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: requisite.accountNo,
-            accountRef: requisite.accountRef,
-            address: requisite.address,
+            accountNo:
+              findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+              null,
+            accountRef:
+              findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: requisite.iban,
+            iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
             kind: requisite.kind,
             label: requisite.label,
-            subaccountRef: requisite.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
           }),
         );
       }
@@ -216,14 +238,19 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
         requisiteMetaById.set(
           requisite.id,
           createRequisiteMeta({
-            accountNo: requisite.accountNo,
-            accountRef: requisite.accountRef,
-            address: requisite.address,
+            accountNo:
+              findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+              null,
+            accountRef:
+              findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+            address:
+              findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
             currency: "",
-            iban: requisite.iban,
+            iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
             kind: requisite.kind,
             label: requisite.label,
-            subaccountRef: requisite.subaccountRef,
+            subaccountRef:
+              findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
           }),
         );
       }

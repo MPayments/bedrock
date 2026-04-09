@@ -8,5 +8,5 @@ export interface CustomerReads {
   findByExternalRef(externalRef: string): Promise<Customer | null>;
   list(input: ListCustomersQuery): Promise<PaginatedList<Customer>>;
   listByIds(ids: string[]): Promise<Customer[]>;
-  listDisplayNamesById(ids: string[]): Promise<Map<string, string>>;
+  listNamesById(ids: string[]): Promise<Map<string, string>>;
 }

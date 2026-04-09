@@ -60,7 +60,43 @@ function createTestApp() {
           ]
         : [],
   );
-  const findById = vi.fn().mockResolvedValue(null);
+  const findById = vi.fn(async (requisiteId: string) =>
+    requisiteId === "33333333-3333-4333-8333-333333333333"
+      ? {
+          id: requisiteId,
+          ownerType: "organization",
+          ownerId: "11111111-1111-4111-8111-111111111111",
+          organizationId: "11111111-1111-4111-8111-111111111111",
+          counterpartyId: null,
+          providerId: "44444444-4444-4444-8444-444444444444",
+          providerBranchId: null,
+          currencyId: "55555555-5555-4555-8555-555555555555",
+          kind: "bank" as const,
+          label: "USD settlement",
+          beneficiaryName: "Multihansa",
+          beneficiaryNameLocal: null,
+          beneficiaryAddress: null,
+          paymentPurposeTemplate: null,
+          notes: null,
+          identifiers: [
+            {
+              id: `${requisiteId}-account`,
+              requisiteId,
+              scheme: "local_account_number",
+              value: "40702810900000000001",
+              normalizedValue: "40702810900000000001",
+              isPrimary: true,
+              createdAt: new Date("2026-02-01T00:00:00.000Z"),
+              updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+            },
+          ],
+          isDefault: true,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          archivedAt: null,
+        }
+      : null,
+  );
   const ensureDefaultOrganizationBook = vi.fn().mockResolvedValue({
     bookId: "book-1",
   });
@@ -176,7 +212,9 @@ describe("treasury organization balances route", () => {
     expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
       organizationId: "11111111-1111-4111-8111-111111111111",
     });
-    expect(findById).not.toHaveBeenCalled();
+    expect(findById).toHaveBeenCalledWith(
+      "33333333-3333-4333-8333-333333333333",
+    );
   });
 
   it("returns zero-balance rows for organization requisites before the first posting", async () => {

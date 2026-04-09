@@ -273,11 +273,12 @@ export function CustomerBankingSection(props: {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Банк</CardTitle>
+          <CardTitle className="text-lg">Банк и расчёты</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Выберите банк из справочника или переключитесь на ручной ввод.
+            Выберите банк из справочника или укажите его вручную, чтобы
+            сохранить расчётные реквизиты первого счёта.
           </p>
 
           {!providerSelected ? (

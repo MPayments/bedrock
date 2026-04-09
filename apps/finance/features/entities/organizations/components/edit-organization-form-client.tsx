@@ -1,14 +1,19 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
+import {
+  OrganizationGeneralEditor,
+  type OrganizationGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  OrganizationEditGeneralForm,
-  type OrganizationGeneralFormValues,
-} from "./organization-form";
+import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
 import type { SerializedOrganization } from "../lib/types";
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
@@ -27,7 +32,7 @@ function toFormValues(
     fullName: organization.fullName,
     kind: organization.kind,
     country: organization.country ?? "",
-    externalId: organization.externalId ?? "",
+    externalRef: organization.externalRef ?? "",
     description: organization.description ?? "",
   };
 }
@@ -43,7 +48,9 @@ export function EditOrganizationFormClient({
     toFormValues(organization),
   );
   const [submitting, setSubmitting] = useState(false);
+  const [savingLegalEntity, setSavingLegalEntity] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleShortNameChange = useCallback(
@@ -52,10 +59,25 @@ export function EditOrganizationFormClient({
     },
     [actions, current.id],
   );
+  const partyProfileSeed = useMemo(
+    () => ({
+      fullName: current.fullName,
+      shortName: current.shortName,
+      countryCode: current.country,
+    }),
+    [current.country, current.fullName, current.shortName],
+  );
 
   async function handleSubmit(
     values: OrganizationGeneralFormValues,
   ): Promise<OrganizationGeneralFormValues | void> {
+    if (values.kind !== current.kind) {
+      const message = "Смена типа организации в этой форме не поддерживается";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setError(null);
     setSubmitting(true);
 
@@ -64,11 +86,7 @@ export function EditOrganizationFormClient({
         apiClient.v1.organizations[":id"].$patch({
           param: { id: current.id },
           json: {
-            shortName: values.shortName,
-            fullName: values.fullName,
-            kind: values.kind,
-            country: values.country || null,
-            externalId: values.externalId || null,
+            externalRef: values.externalRef || null,
             description: values.description || null,
           },
         }),
@@ -91,6 +109,48 @@ export function EditOrganizationFormClient({
     router.refresh();
 
     return nextValues;
+  }
+
+  async function handleLegalEntitySubmit(
+    bundle: PartyProfileBundleInput,
+  ) {
+    setError(null);
+    setSavingLegalEntity(true);
+
+    const result = await executeMutation<SerializedOrganization>({
+      request: async () => {
+        const response =
+          await apiClient.v1.organizations[":id"]["party-profile"].$put({
+            param: { id: current.id },
+            json: bundle,
+          });
+
+        if (!response.ok) {
+          return response;
+        }
+
+        return apiClient.v1.organizations[":id"].$get({
+          param: { id: current.id },
+        });
+      },
+      fallbackMessage: "Не удалось обновить юридические данные организации",
+      parseData: async (response) => (await response.json()) as SerializedOrganization,
+    });
+
+    setSavingLegalEntity(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
+    }
+
+    setCurrent(result.data);
+    setInitialValues(toFormValues(result.data));
+    toast.success("Юридические данные организации обновлены");
+    router.refresh();
+
+    return (result.data.partyProfile as PartyProfileBundleSource | null) ?? bundle;
   }
 
   async function handleDelete() {
@@ -121,16 +181,40 @@ export function EditOrganizationFormClient({
   }
 
   return (
-    <OrganizationEditGeneralForm
-      initialValues={initialValues}
-      createdAt={current.createdAt}
-      updatedAt={current.updatedAt}
-      submitting={submitting}
-      deleting={deleting}
-      error={error}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-      onShortNameChange={handleShortNameChange}
-    />
+    <div className="space-y-6">
+      <OrganizationGeneralEditor
+        initialValues={initialValues}
+        createdAt={current.createdAt}
+        updatedAt={current.updatedAt}
+        submitting={submitting}
+        error={error}
+        onSubmit={handleSubmit}
+        onShortNameChange={handleShortNameChange}
+        headerActions={
+          <EntityDeleteDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            deleting={deleting}
+            onDelete={handleDelete}
+            disableDelete={submitting}
+            title="Удалить организацию?"
+            description="Организация будет удалена без возможности восстановления."
+            trigger={
+              <Button variant="destructive" type="button" disabled={submitting} />
+            }
+          />
+        }
+      />
+      {current.kind === "legal_entity" ? (
+        <PartyProfileEditor
+          bundle={current.partyProfile as PartyProfileBundleSource | null}
+          seed={partyProfileSeed}
+          submitting={savingLegalEntity}
+          error={error}
+          onSubmit={handleLegalEntitySubmit}
+          title="Мастер-данные организации"
+        />
+      ) : null}
+    </div>
   );
 }

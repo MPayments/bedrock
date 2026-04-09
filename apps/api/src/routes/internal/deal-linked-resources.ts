@@ -1,5 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
 import { z } from "@hono/zod-openapi";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
@@ -7,8 +7,8 @@ import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 
-import { db } from "../../db/client";
 import type { AppContext } from "../../context";
+import { db } from "../../db/client";
 
 export const DealScopedCreateDocumentInputSchema = z.object({
   dealId: z.string().uuid().optional(),

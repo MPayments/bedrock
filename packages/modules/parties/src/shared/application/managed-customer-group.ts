@@ -7,7 +7,7 @@ export async function ensureManagedCustomerGroup(input: {
   generateUuid: UuidGenerator;
   groups: Pick<CounterpartyGroupRepository, "findManagedCustomerGroup" | "save">;
   customerId: string;
-  displayName: string;
+  name: string;
   now: Date;
 }): Promise<CounterpartyGroup> {
   const existing = await input.groups.findManagedCustomerGroup(input.customerId);
@@ -17,7 +17,7 @@ export async function ensureManagedCustomerGroup(input: {
         {
           id: input.generateUuid(),
           customerId: input.customerId,
-          displayName: input.displayName,
+          displayName: input.name,
         },
         {
           now: input.now,
@@ -27,7 +27,7 @@ export async function ensureManagedCustomerGroup(input: {
   }
 
   const synced = existing.syncManagedCustomerDisplayName({
-    displayName: input.displayName,
+    displayName: input.name,
     now: input.now,
   });
 

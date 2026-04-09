@@ -34,9 +34,19 @@ import {
   customerCounterpartyAssignments,
   customers,
   organizations,
+  partyAddresses,
+  partyContacts,
+  partyIdentifiers,
+  partyProfiles,
+  partyLicenses,
+  partyRepresentatives,
   organizationRequisiteBindings,
   requisiteKindEnum,
   requisiteOwnerTypeEnum,
+  requisiteIdentifiers,
+  requisiteProviderBranchIdentifiers,
+  requisiteProviderBranches,
+  requisiteProviderIdentifiers,
   requisiteProviders,
   requisites,
   subAgentProfiles,
@@ -71,10 +81,20 @@ const partiesSchema: {
   counterpartyRelationshipKindEnum: typeof counterpartyRelationshipKindEnum;
   customerCounterpartyAssignments: typeof customerCounterpartyAssignments;
   organizations: typeof organizations;
+  partyProfiles: typeof partyProfiles;
+  partyIdentifiers: typeof partyIdentifiers;
+  partyAddresses: typeof partyAddresses;
+  partyContacts: typeof partyContacts;
+  partyRepresentatives: typeof partyRepresentatives;
+  partyLicenses: typeof partyLicenses;
   requisiteOwnerTypeEnum: typeof requisiteOwnerTypeEnum;
   requisiteKindEnum: typeof requisiteKindEnum;
   requisiteProviders: typeof requisiteProviders;
+  requisiteProviderIdentifiers: typeof requisiteProviderIdentifiers;
+  requisiteProviderBranches: typeof requisiteProviderBranches;
+  requisiteProviderBranchIdentifiers: typeof requisiteProviderBranchIdentifiers;
   requisites: typeof requisites;
+  requisiteIdentifiers: typeof requisiteIdentifiers;
   organizationRequisiteBindings: typeof organizationRequisiteBindings;
   subAgentProfiles: typeof subAgentProfiles;
 } = {
@@ -85,10 +105,20 @@ const partiesSchema: {
   counterpartyRelationshipKindEnum,
   customerCounterpartyAssignments,
   organizations,
+  partyProfiles,
+  partyIdentifiers,
+  partyAddresses,
+  partyContacts,
+  partyRepresentatives,
+  partyLicenses,
   requisiteOwnerTypeEnum,
   requisiteKindEnum,
   requisiteProviders,
+  requisiteProviderIdentifiers,
+  requisiteProviderBranches,
+  requisiteProviderBranchIdentifiers,
   requisites,
+  requisiteIdentifiers,
   organizationRequisiteBindings,
   subAgentProfiles,
 };

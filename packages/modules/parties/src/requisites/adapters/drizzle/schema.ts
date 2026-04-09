@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -16,6 +17,7 @@ import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import { counterparties } from "../../../counterparties/adapters/drizzle/schema";
 import { organizations } from "../../../organizations/adapters/drizzle/schema";
+import type { LocaleTextMap } from "../../../shared/domain/locale-map";
 import { REQUISITE_OWNER_TYPE_VALUES } from "../../domain/owner";
 import { REQUISITE_KIND_VALUES } from "../../domain/requisite-kind";
 
@@ -35,13 +37,13 @@ export const requisiteProviders = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     kind: requisiteKindEnum("kind").notNull(),
-    name: text("name").notNull(),
+    legalName: text("legal_name").notNull(),
+    legalNameI18n: jsonb("legal_name_i18n").$type<LocaleTextMap>(),
+    displayName: text("display_name").notNull(),
+    displayNameI18n: jsonb("display_name_i18n").$type<LocaleTextMap>(),
     description: text("description"),
     country: text("country"),
-    address: text("address"),
-    contact: text("contact"),
-    bic: text("bic"),
-    swift: text("swift"),
+    website: text("website"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -54,6 +56,110 @@ export const requisiteProviders = pgTable(
   (table) => [
     index("requisite_providers_kind_idx").on(table.kind),
     index("requisite_providers_country_idx").on(table.country),
+  ],
+);
+
+export const requisiteProviderIdentifiers = pgTable(
+  "requisite_provider_identifiers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerId: uuid("provider_id")
+      .notNull()
+      .references(() => requisiteProviders.id, { onDelete: "cascade" }),
+    scheme: text("scheme").notNull(),
+    value: text("value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("requisite_provider_identifiers_provider_idx").on(table.providerId),
+    uniqueIndex("requisite_provider_identifiers_value_uq").on(
+      table.providerId,
+      table.scheme,
+      table.normalizedValue,
+    ),
+    uniqueIndex("requisite_provider_identifiers_primary_uq")
+      .on(table.providerId, table.scheme)
+      .where(sql`${table.isPrimary} = true`),
+  ],
+);
+
+export const requisiteProviderBranches = pgTable(
+  "requisite_provider_branches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerId: uuid("provider_id")
+      .notNull()
+      .references(() => requisiteProviders.id, { onDelete: "cascade" }),
+    code: text("code"),
+    name: text("name").notNull(),
+    nameI18n: jsonb("name_i18n").$type<LocaleTextMap>(),
+    country: text("country"),
+    postalCode: text("postal_code"),
+    city: text("city"),
+    cityI18n: jsonb("city_i18n").$type<LocaleTextMap>(),
+    line1: text("line_1"),
+    line1I18n: jsonb("line_1_i18n").$type<LocaleTextMap>(),
+    line2: text("line_2"),
+    line2I18n: jsonb("line_2_i18n").$type<LocaleTextMap>(),
+    rawAddress: text("raw_address"),
+    rawAddressI18n: jsonb("raw_address_i18n").$type<LocaleTextMap>(),
+    contactEmail: text("contact_email"),
+    contactPhone: text("contact_phone"),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("requisite_provider_branches_provider_idx").on(table.providerId),
+    uniqueIndex("requisite_provider_branches_primary_uq")
+      .on(table.providerId)
+      .where(sql`${table.isPrimary} = true and ${table.archivedAt} is null`),
+  ],
+);
+
+export const requisiteProviderBranchIdentifiers = pgTable(
+  "requisite_provider_branch_identifiers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => requisiteProviderBranches.id, { onDelete: "cascade" }),
+    scheme: text("scheme").notNull(),
+    value: text("value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("requisite_provider_branch_identifiers_branch_idx").on(table.branchId),
+    uniqueIndex("requisite_provider_branch_identifiers_value_uq").on(
+      table.branchId,
+      table.scheme,
+      table.normalizedValue,
+    ),
+    uniqueIndex("requisite_provider_branch_identifiers_primary_uq")
+      .on(table.branchId, table.scheme)
+      .where(sql`${table.isPrimary} = true`),
   ],
 );
 
@@ -71,23 +177,21 @@ export const requisites = pgTable(
     providerId: uuid("provider_id")
       .notNull()
       .references(() => requisiteProviders.id),
+    providerBranchId: uuid("provider_branch_id").references(
+      () => requisiteProviderBranches.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     currencyId: uuid("currency_id")
       .notNull()
       .references(() => currencies.id),
     kind: requisiteKindEnum("kind").notNull(),
     label: text("label").notNull(),
-    description: text("description"),
     beneficiaryName: text("beneficiary_name"),
-    accountNo: text("account_no"),
-    corrAccount: text("corr_account"),
-    iban: text("iban"),
-    network: text("network"),
-    assetCode: text("asset_code"),
-    address: text("address"),
-    memoTag: text("memo_tag"),
-    accountRef: text("account_ref"),
-    subaccountRef: text("subaccount_ref"),
-    contact: text("contact"),
+    beneficiaryNameLocal: text("beneficiary_name_local"),
+    beneficiaryAddress: text("beneficiary_address"),
+    paymentPurposeTemplate: text("payment_purpose_template"),
     notes: text("notes"),
     isDefault: boolean("is_default").notNull().default(false),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -116,6 +220,7 @@ export const requisites = pgTable(
     index("requisites_organization_idx").on(table.organizationId),
     index("requisites_counterparty_idx").on(table.counterpartyId),
     index("requisites_provider_idx").on(table.providerId),
+    index("requisites_provider_branch_idx").on(table.providerBranchId),
     index("requisites_currency_idx").on(table.currencyId),
     index("requisites_kind_idx").on(table.kind),
     uniqueIndex("requisites_default_organization_uq")
@@ -131,10 +236,44 @@ export const requisites = pgTable(
   ],
 );
 
+export const requisiteIdentifiers = pgTable(
+  "requisite_identifiers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requisiteId: uuid("requisite_id")
+      .notNull()
+      .references(() => requisites.id, { onDelete: "cascade" }),
+    scheme: text("scheme").notNull(),
+    value: text("value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("requisite_identifiers_requisite_idx").on(table.requisiteId),
+    uniqueIndex("requisite_identifiers_value_uq").on(
+      table.requisiteId,
+      table.scheme,
+      table.normalizedValue,
+    ),
+    uniqueIndex("requisite_identifiers_primary_uq")
+      .on(table.requisiteId, table.scheme)
+      .where(sql`${table.isPrimary} = true`),
+  ],
+);
+
 export const organizationRequisiteBindings = pgTable(
   "organization_requisite_bindings",
   {
-    requisiteId: uuid("requisite_id").primaryKey(),
+    requisiteId: uuid("requisite_id")
+      .primaryKey()
+      .references(() => requisites.id, { onDelete: "cascade" }),
     bookId: uuid("book_id")
       .notNull()
       .references(() => books.id),
@@ -161,10 +300,21 @@ export const organizationRequisiteBindings = pgTable(
 export const schema = {
   requisites,
   requisiteProviders,
+  requisiteProviderIdentifiers,
+  requisiteProviderBranches,
+  requisiteProviderBranchIdentifiers,
+  requisiteIdentifiers,
   organizationRequisiteBindings,
 };
 
 export type RequisiteRow = typeof requisites.$inferSelect;
 export type RequisiteProviderRow = typeof requisiteProviders.$inferSelect;
+export type RequisiteProviderIdentifierRow =
+  typeof requisiteProviderIdentifiers.$inferSelect;
+export type RequisiteProviderBranchRow =
+  typeof requisiteProviderBranches.$inferSelect;
+export type RequisiteProviderBranchIdentifierRow =
+  typeof requisiteProviderBranchIdentifiers.$inferSelect;
+export type RequisiteIdentifierRow = typeof requisiteIdentifiers.$inferSelect;
 export type OrganizationRequisiteBindingRow =
   typeof organizationRequisiteBindings.$inferSelect;

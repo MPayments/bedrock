@@ -6,6 +6,7 @@ import {
   createRequisiteProviderSnapshot,
   updateRequisiteProviderSnapshot,
 } from "../../src/requisites/domain/requisite-provider";
+import { assertRequisiteProviderBranchSelection } from "../../src/requisites/domain/requisite-provider-selection";
 
 describe("requisite provider domain helpers", () => {
   it("normalizes provider snapshots", () => {
@@ -13,24 +14,23 @@ describe("requisite provider domain helpers", () => {
       id: "00000000-0000-4000-8000-000000000111",
       now: new Date("2026-01-01T00:00:00.000Z"),
       kind: "bank",
-      name: "  JPM  ",
+      legalName: "  JPM Chase Bank  ",
+      displayName: "  JPM  ",
       description: "   ",
       country: "us",
-      address: null,
-      contact: null,
-      bic: "  044525225  ",
-      swift: "  CHASUS33  ",
+      website: null,
     });
 
-    expect(created.name).toBe("JPM");
+    expect(created.legalName).toBe("JPM Chase Bank");
+    expect(created.displayName).toBe("JPM");
     expect(created.country).toBe("US");
     expect(created.description).toBeNull();
 
     const updated = updateRequisiteProviderSnapshot(created, {
-      name: " JPM Updated ",
+      displayName: " JPM Updated ",
       now: new Date("2026-01-02T00:00:00.000Z"),
     });
-    expect(updated.name).toBe("JPM Updated");
+    expect(updated.displayName).toBe("JPM Updated");
   });
 
   it("rejects invalid provider details", () => {
@@ -39,14 +39,24 @@ describe("requisite provider domain helpers", () => {
         id: "00000000-0000-4000-8000-000000000111",
         now: new Date("2026-01-01T00:00:00.000Z"),
         kind: "bank",
-        name: "JPM",
+        legalName: "JPM",
+        displayName: "JPM",
         description: null,
         country: null,
-        address: null,
-        contact: null,
-        bic: null,
-        swift: null,
+        website: null,
       }),
+    ).toThrow(DomainError);
+  });
+
+  it("rejects selecting a branch from another provider", () => {
+    expect(() =>
+      assertRequisiteProviderBranchSelection(
+        {
+          id: "provider-1",
+          branches: [{ id: "branch-1" }],
+        },
+        "branch-2",
+      ),
     ).toThrow(DomainError);
   });
 });

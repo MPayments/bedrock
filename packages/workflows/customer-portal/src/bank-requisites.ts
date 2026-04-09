@@ -1,10 +1,15 @@
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { PartiesModule } from "@bedrock/parties";
+import {
+  findRequisiteProviderIdentifier,
+  formatRequisiteProviderAddress,
+  resolveRequisiteProviderDisplayName,
+  type PartiesModule,
+} from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 type RequisitesApi = PartiesModule["requisites"];
 
-export interface LegalEntityBankingInput {
+export interface CounterpartyBankingInput {
   bankProviderId?: string | null;
   bankProvider?: {
     address?: string | null;
@@ -35,7 +40,7 @@ export interface CustomerBankingService {
   }): Promise<BankProviderSearchResult[]>;
   upsertCounterpartyBankRequisite(input: {
     counterpartyId: string;
-    values: LegalEntityBankingInput;
+    values: CounterpartyBankingInput;
   }): Promise<{
     provider: Awaited<ReturnType<RequisitesApi["queries"]["findProviderById"]>> | null;
     requisite: Awaited<ReturnType<RequisitesApi["queries"]["findById"]>> | null;
@@ -66,7 +71,7 @@ function normalizeCountryCode(value: string | null | undefined): string | null {
   return normalized && normalized.length === 2 ? normalized : null;
 }
 
-function hasBankSignal(input: LegalEntityBankingInput) {
+function hasBankSignal(input: CounterpartyBankingInput) {
   return Boolean(
     normalizeNullableText(input.bankProvider?.name) ||
       normalizeNullableText(input.bankProvider?.address) ||
@@ -154,7 +159,11 @@ async function listCounterpartyBankRequisites(
         result.data.find((item) => item.archivedAt === null) ??
         null;
 
-      return [counterpartyId, preferred] as const;
+      const requisite = preferred
+        ? await requisites.queries.findById(preferred.id)
+        : null;
+
+      return [counterpartyId, requisite] as const;
     }),
   );
 
@@ -179,11 +188,11 @@ export function createCustomerBankingService(
 
     const [byName, byBic, bySwift] = await Promise.all([
       deps.requisites.queries.listProviders({
+        displayName: query,
         kind: ["bank"],
         limit,
-        name: query,
         offset: 0,
-        sortBy: "name",
+        sortBy: "displayName",
         sortOrder: "asc",
       }),
       deps.requisites.queries.listProviders({
@@ -191,38 +200,74 @@ export function createCustomerBankingService(
         kind: ["bank"],
         limit,
         offset: 0,
-        sortBy: "name",
+        sortBy: "displayName",
         sortOrder: "asc",
       }),
       deps.requisites.queries.listProviders({
         kind: ["bank"],
         limit,
         offset: 0,
-        sortBy: "name",
+        sortBy: "displayName",
         sortOrder: "asc",
         swift: [upperQuery],
       }),
     ]);
+    const providerIds = Array.from(
+      new Set(
+        [...byName.data, ...byBic.data, ...bySwift.data].map(
+          (provider) => provider.id,
+        ),
+      ),
+    );
+    const providers = (
+      await Promise.all(
+        providerIds.map((providerId) =>
+          deps.requisites.queries.findProviderById(providerId),
+        ),
+      )
+    ).filter((provider) => provider !== null);
 
     const merged = new Map<string, BankProviderSearchResult>();
-    for (const provider of [...byName.data, ...byBic.data, ...bySwift.data]) {
+    for (const provider of providers) {
       if (merged.has(provider.id)) {
         continue;
       }
 
+      const bic =
+        findRequisiteProviderIdentifier({
+          provider,
+          scheme: "bic",
+        })?.value ?? null;
+      const swift =
+        findRequisiteProviderIdentifier({
+          provider,
+          scheme: "swift",
+        })?.value ?? null;
+      const nameMatched =
+        provider.displayName.toLowerCase().includes(query.toLowerCase()) ||
+        provider.legalName.toLowerCase().includes(query.toLowerCase());
+      const codeMatched =
+        bic === exactBic || swift === upperQuery;
+
+      if (!nameMatched && !codeMatched) {
+        continue;
+      }
+
       merged.set(provider.id, {
-        address: provider.address,
-        bic: provider.bic,
+        address: formatRequisiteProviderAddress({ provider }),
+        bic,
         country: provider.country,
         displayLabel: buildProviderLabel({
-          bic: provider.bic,
+          bic,
           country: provider.country,
-          name: provider.name,
-          swift: provider.swift,
+          name: resolveRequisiteProviderDisplayName({ provider }) ?? provider.displayName,
+          swift,
         }),
         id: provider.id,
-        name: provider.name,
-        swift: provider.swift,
+        name:
+          resolveRequisiteProviderDisplayName({ provider }) ??
+          provider.displayName,
+        swift,
       });
     }
 
@@ -230,7 +275,7 @@ export function createCustomerBankingService(
   }
 
   async function resolveBankProvider(
-    input: LegalEntityBankingInput,
+    input: CounterpartyBankingInput,
     options?: { allowCreate?: boolean },
   ) {
     const selectedProviderId = normalizeNullableText(input.bankProviderId);
@@ -251,23 +296,38 @@ export function createCustomerBankingService(
     });
 
     const existing = await deps.requisites.queries.listProviders({
-      bic: bic ? [bic] : undefined,
       country: country ? [country] : undefined,
+      displayName: providerName,
       kind: ["bank"],
       limit: 50,
-      name: providerName,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
-      swift: swift ? [swift] : undefined,
     });
+    const existingProviders = (
+      await Promise.all(
+        existing.data.map((provider) =>
+          deps.requisites.queries.findProviderById(provider.id),
+        ),
+      )
+    ).filter((provider) => provider !== null);
     const matched =
-      existing.data.find(
+      existingProviders.find(
         (provider) =>
-          provider.name === providerName &&
+          provider.displayName === providerName &&
           (country ? provider.country === country : true) &&
-          (bic ? provider.bic === bic : true) &&
-          (swift ? provider.swift === swift : true),
+          (bic
+            ? findRequisiteProviderIdentifier({
+                provider,
+                scheme: "bic",
+              })?.value === bic
+            : true) &&
+          (swift
+            ? findRequisiteProviderIdentifier({
+                provider,
+                scheme: "swift",
+              })?.value === swift
+            : true),
       ) ?? null;
     if (matched) {
       return matched;
@@ -278,20 +338,40 @@ export function createCustomerBankingService(
     }
 
     return deps.requisites.commands.createProvider({
-      address: normalizeNullableText(input.bankProvider?.address),
-      bic,
-      contact: null,
       country,
       description: "Created manually via portal onboarding",
+      displayName: providerName,
+      identifiers: [
+        ...(bic ? [{ scheme: "bic", value: bic, isPrimary: true }] : []),
+        ...(swift ? [{ scheme: "swift", value: swift, isPrimary: true }] : []),
+      ],
       kind: "bank",
-      name: providerName,
-      swift,
+      legalName: providerName,
+      branches: normalizeNullableText(input.bankProvider?.address)
+        ? [
+            {
+              code: null,
+              name: providerName,
+              country,
+              postalCode: null,
+              city: null,
+              line1: null,
+              line2: null,
+              rawAddress: normalizeNullableText(input.bankProvider?.address),
+              contactEmail: null,
+              contactPhone: null,
+              isPrimary: true,
+              identifiers: [],
+            },
+          ]
+        : [],
+      website: null,
     });
   }
 
   async function upsertCounterpartyBankRequisite(input: {
     counterpartyId: string;
-    values: LegalEntityBankingInput;
+    values: CounterpartyBankingInput;
   }) {
     const existingMap = await listCounterpartyBankRequisites(deps.requisites, [
       input.counterpartyId,
@@ -335,16 +415,46 @@ export function createCustomerBankingService(
     const resolvedProvider = provider;
     const currencyCode = resolvedProvider.country === "RU" ? "RUB" : "USD";
     const currency = await deps.currencies.findByCode(currencyCode);
+    const providerBranchId =
+      resolvedProvider.branches.find((branch) => branch.isPrimary)?.id ?? null;
+    const identifiers = [
+      accountNo
+        ? {
+            scheme: "local_account_number",
+            value: accountNo,
+            isPrimary: true,
+          }
+        : null,
+      normalizeNullableText(input.values.bankRequisite?.corrAccount)
+        ? {
+            scheme: "corr_account",
+            value: normalizeNullableText(input.values.bankRequisite?.corrAccount)!,
+            isPrimary: true,
+          }
+        : null,
+      normalizeNullableText(input.values.bankRequisite?.iban)
+        ? {
+            scheme: "iban",
+            value: normalizeNullableText(input.values.bankRequisite?.iban)!,
+            isPrimary: true,
+          }
+        : null,
+    ].filter((item) => item !== null);
     const bankValues = {
-      accountNo,
-      corrAccount: normalizeNullableText(input.values.bankRequisite?.corrAccount),
+      beneficiaryAddress: null,
       isDefault: true,
       kind: "bank" as const,
       label:
         normalizeNullableText(input.values.bankProvider?.name) ??
-        resolvedProvider.name ??
+        resolveRequisiteProviderDisplayName({ provider: resolvedProvider }) ??
         normalizeNullableText(input.values.orgName) ??
         "Bank details",
+      beneficiaryName,
+      beneficiaryNameLocal: null,
+      identifiers,
+      notes: null,
+      paymentPurposeTemplate: null,
+      providerBranchId,
       providerId: resolvedProvider.id,
     };
 
@@ -355,20 +465,9 @@ export function createCustomerBankingService(
         })
       : await deps.requisites.commands.create({
           ...bankValues,
-          address: null,
-          accountRef: null,
-          assetCode: null,
-          beneficiaryName,
-          contact: null,
           currencyId: currency.id,
-          description: null,
-          iban: normalizeNullableText(input.values.bankRequisite?.iban),
-          memoTag: null,
-          network: null,
-          notes: null,
           ownerId: input.counterpartyId,
           ownerType: "counterparty",
-          subaccountRef: null,
         });
 
     deps.logger.info("Upserted counterparty bank requisite", {

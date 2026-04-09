@@ -1,7 +1,7 @@
 import type {
   CrmApplicantRequisiteOption,
   CrmCurrencyOption,
-  CrmCustomerLegalEntityOption,
+  CrmCustomerCounterpartyOption,
   CrmDealIntakeDraft,
 } from "../../_components/deal-intake-form";
 import type { ApiDealSectionCompleteness } from "./types";
@@ -12,7 +12,7 @@ export type IntakeEditorCardProps = {
   intake: CrmDealIntakeDraft;
   isDirty: boolean;
   isSaving: boolean;
-  legalEntities: CrmCustomerLegalEntityOption[];
+  counterparties: CrmCustomerCounterpartyOption[];
   onChange: (next: CrmDealIntakeDraft) => void;
   onReset: () => void;
   onSave: () => void;

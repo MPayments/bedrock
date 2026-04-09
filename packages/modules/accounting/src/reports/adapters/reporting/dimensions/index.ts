@@ -178,7 +178,7 @@ export function createBedrockDimensionRegistry(input: {
     {
       key: "customerId",
       resolveLabels: ({ values }) =>
-        customersQueries.listDisplayNamesById(values),
+        customersQueries.listNamesById(values),
     },
     {
       key: "orderId",

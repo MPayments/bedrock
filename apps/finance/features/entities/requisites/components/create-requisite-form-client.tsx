@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { RequisiteProviderSchema } from "@bedrock/parties/contracts";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { z } from "zod";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type {
   RequisiteFormValues,
   RequisiteOwnerType,
 } from "@/features/entities/requisites-shared/lib/constants";
+import { buildRequisiteIdentifiers } from "@/features/entities/requisites-shared/lib/master-data";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -48,6 +51,33 @@ export function CreateRequisiteFormClient({
   const ownerOptions = getRequisiteOwnerOptions(options, ownerType);
   const ownerPresentation = getRequisiteOwnerPresentation(ownerType);
 
+  async function loadProviderBranches(providerId: string) {
+    const response = await apiClient.v1.requisites.providers[":id"].$get({
+      param: { id: providerId },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const provider = RequisiteProviderSchema.omit({
+      createdAt: true,
+      updatedAt: true,
+      archivedAt: true,
+    })
+      .extend({
+        createdAt: z.iso.datetime(),
+        updatedAt: z.iso.datetime(),
+        archivedAt: z.iso.datetime().nullable(),
+      })
+      .parse(await response.json());
+
+    return provider.branches.map((branch) => ({
+      id: branch.id,
+      label: branch.name,
+    }));
+  }
+
   async function handleSubmit(values: RequisiteFormValues) {
     if (!ownerType) {
       return;
@@ -57,31 +87,32 @@ export function CreateRequisiteFormClient({
     setSubmitting(true);
 
     const result = await executeMutation<CreatedRequisite>({
-      request: () =>
-        apiClient.v1.requisites.$post({
-          json: {
-            ownerType,
-            ownerId: values.ownerId,
-            providerId: values.providerId,
-            currencyId: values.currencyId,
-            kind: values.kind,
-            label: values.label,
-            description: values.description || null,
-            beneficiaryName: values.beneficiaryName || null,
-            accountNo: values.accountNo || null,
-            corrAccount: values.corrAccount || null,
-            iban: values.iban || null,
-            network: values.network || null,
-            assetCode: values.assetCode || null,
-            address: values.address || null,
-            memoTag: values.memoTag || null,
-            accountRef: values.accountRef || null,
-            subaccountRef: values.subaccountRef || null,
-            contact: values.contact || null,
-            notes: values.notes || null,
-            isDefault: values.isDefault,
-          },
-        }),
+      request: () => {
+        const json = {
+          providerId: values.providerId,
+          providerBranchId: values.providerBranchId || null,
+          currencyId: values.currencyId,
+          kind: values.kind,
+          label: values.label,
+          beneficiaryName: values.beneficiaryName || null,
+          beneficiaryNameLocal: values.beneficiaryNameLocal || null,
+          beneficiaryAddress: values.beneficiaryAddress || null,
+          paymentPurposeTemplate: values.description || null,
+          notes: values.notes || null,
+          identifiers: buildRequisiteIdentifiers(values),
+          isDefault: values.isDefault,
+        };
+
+        return ownerType === "organization"
+          ? apiClient.v1.organizations[":id"].requisites.$post({
+              param: { id: values.ownerId },
+              json,
+            })
+          : apiClient.v1.counterparties[":id"].requisites.$post({
+              param: { id: values.ownerId },
+              json,
+            });
+      },
       fallbackMessage: "Не удалось создать реквизит",
       parseData: async (response) => (await response.json()) as CreatedRequisite,
     });
@@ -106,6 +137,7 @@ export function CreateRequisiteFormClient({
       ownerOptions={ownerOptions}
       ownerTypeReadonly={ownerTypeReadonly}
       providerOptions={options.providers}
+      loadProviderBranches={loadProviderBranches}
       currencyOptions={options.currencies}
       initialValues={initialValues}
       ownerReadonly={ownerReadonly}

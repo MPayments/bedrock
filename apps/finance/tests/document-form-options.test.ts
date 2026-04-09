@@ -32,7 +32,7 @@ describe("document form options", () => {
       });
     readPaginatedList.mockResolvedValueOnce({
       data: {
-        data: [{ id: "customer-1", displayName: "Acme Corp" }],
+        data: [{ id: "customer-1", name: "Acme Corp" }],
       },
     });
 

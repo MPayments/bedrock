@@ -1,7 +1,9 @@
 import { cache } from "react";
 import { z } from "zod";
 
+import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import {
+  CounterpartyListItemSchema,
   CounterpartyGroupOptionsResponseSchema,
   CounterpartySchema,
   type CounterpartyGroupOption,
@@ -20,7 +22,7 @@ import { createResourceListQuery } from "@/lib/resources/search-params";
 import type { CounterpartiesListResult } from "./types";
 import { type CounterpartiesSearchParams } from "./validations";
 
-const CounterpartyResponseSchema = CounterpartySchema.omit({
+const CounterpartyListItemResponseSchema = CounterpartyListItemSchema.omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
@@ -28,8 +30,18 @@ const CounterpartyResponseSchema = CounterpartySchema.omit({
   updatedAt: z.iso.datetime(),
 });
 
+const CounterpartyResponseSchema = CounterpartySchema.omit({
+  partyProfile: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  partyProfile: z.custom<PartyProfileBundleSource | null>().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 const CounterpartiesListResponseSchema = createPaginatedResponseSchema(
-  CounterpartyResponseSchema,
+  CounterpartyListItemResponseSchema,
 );
 
 function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {

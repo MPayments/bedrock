@@ -23,8 +23,8 @@
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3"
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2"
   },
   "bedrock": {
     "kind": "sdk",

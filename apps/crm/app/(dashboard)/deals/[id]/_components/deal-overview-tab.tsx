@@ -18,7 +18,7 @@ import {
   formatDealWorkflowMessage,
 } from "./constants";
 import { DealInfoCard } from "./deal-info-card";
-import { LegalEntityCard } from "./legal-entity-card";
+import { CounterpartyCard } from "./counterparty-card";
 import { OrganizationCard } from "./organization-card";
 import { OrganizationRequisiteCard } from "./organization-requisite-card";
 import type {
@@ -29,7 +29,7 @@ import type {
   ApiOrganization,
   ApiRequisite,
   ApiRequisiteProvider,
-  ApiCustomerLegalEntity,
+  ApiCustomerCounterparty,
   CalculationView,
 } from "./types";
 
@@ -39,7 +39,7 @@ type DealOverviewTabProps = {
   deal: ApiDealDetails;
   isEditingComment: boolean;
   isSavingComment: boolean;
-  legalEntity: ApiCustomerLegalEntity | null;
+  partyProfile: ApiCustomerCounterparty | null;
   onCommentChange: (value: string) => void;
   onCancelEdit: () => void;
   onEditComment: () => void;
@@ -114,7 +114,7 @@ export function DealOverviewTab({
   deal,
   isEditingComment,
   isSavingComment,
-  legalEntity,
+  partyProfile,
   onCommentChange,
   onCancelEdit,
   onEditComment,
@@ -188,7 +188,7 @@ export function DealOverviewTab({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <LegalEntityCard legalEntity={legalEntity} />
+        <CounterpartyCard partyProfile={partyProfile} />
         <OrganizationCard organization={organization} />
         <OrganizationRequisiteCard
           requisite={organizationRequisite}

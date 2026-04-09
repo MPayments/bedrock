@@ -9,22 +9,16 @@ function createRequisite(overrides?: Record<string, unknown>) {
     ownerType: "organization",
     ownerId: "owner-1",
     providerId: "provider-1",
+    providerBranchId: null,
     currencyId: "currency-1",
     kind: "bank",
     label: "Main bank",
-    description: null,
     beneficiaryName: null,
-    accountNo: null,
-    corrAccount: null,
-    iban: null,
-    network: null,
-    assetCode: null,
-    address: null,
-    memoTag: null,
-    accountRef: null,
-    subaccountRef: null,
-    contact: null,
+    beneficiaryNameLocal: null,
+    beneficiaryAddress: null,
+    paymentPurposeTemplate: null,
     notes: null,
+    identifiers: [],
     isDefault: false,
     createdAt: new Date("2026-04-01T00:00:00.000Z"),
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
@@ -46,7 +40,7 @@ describe("requisite queries", () => {
         )
         .mockResolvedValueOnce(
           createRequisite({
-            kind: "crypto_wallet",
+            kind: "blockchain",
           }),
         ),
     } as any;
@@ -85,6 +79,9 @@ describe("requisite queries", () => {
         newestNonDefault,
         defaultRequisite,
       ]),
+      findById: vi.fn(async (id: string) =>
+        [newestNonDefault, defaultRequisite].find((item) => item.id === id) ?? null,
+      ),
     } as any);
 
     await expect(query.execute("counterparty-1")).resolves.toBe(
@@ -107,6 +104,9 @@ describe("requisite queries", () => {
     });
     const query = new FindPreferredCounterpartyBankByCounterpartyIdQuery({
       listActiveBankByCounterpartyId: vi.fn(async () => [newest, older]),
+      findById: vi.fn(async (id: string) =>
+        [newest, older].find((item) => item.id === id) ?? null,
+      ),
     } as any);
 
     await expect(query.execute("counterparty-1")).resolves.toBe(newest);

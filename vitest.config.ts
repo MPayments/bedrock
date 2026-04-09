@@ -20,6 +20,7 @@ export default defineConfig({
       "packages/plugins/documents-commercial/vitest.config.ts",
       "packages/plugins/documents-ifrs/vitest.config.ts",
       "packages/plugins/documents-sdk/vitest.config.ts",
+      "packages/sdk/parties-ui/vitest.config.ts",
       "packages/shared/vitest.config.ts",
       "packages/workflows/document-drafts/vitest.config.ts",
       "packages/workflows/document-posting/vitest.config.ts",

@@ -105,7 +105,7 @@ const dynamicResolvers = {
     singularLabel: "Клиент",
     hrefPrefix: "/entities/customers",
     getById: getCustomerById,
-    getLabel: (customer) => customer.displayName,
+    getLabel: (customer) => customer.name,
     getId: (customer) => customer.id,
   }),
   organizations: createResourceSegmentResolver({
@@ -133,7 +133,7 @@ const dynamicResolvers = {
     singularLabel: "Провайдер реквизитов",
     hrefPrefix: "/entities/requisite-providers",
     getById: getRequisiteProviderById,
-    getLabel: (provider) => provider.name,
+    getLabel: (provider) => provider.displayName,
     getId: (provider) => provider.id,
   }),
   documents: async ({ segment }: { segment: string }) => {

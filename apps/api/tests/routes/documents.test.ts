@@ -1,6 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ListLedgerOperationsInputSchema } from "@bedrock/ledger/contracts";
+
 const { userHasPermission } = vi.hoisted(() => ({
   userHasPermission: vi.fn(async () => ({ success: true })),
 }));
@@ -325,11 +327,46 @@ describe("documentsRoutes mutation actions", () => {
     const response = await app.request("http://localhost/journal");
 
     expect(response.status).toBe(200);
+    expect(() =>
+      ListLedgerOperationsInputSchema.parse(
+        accountingReportsService.listOperationsWithLabels.mock.calls[0]?.[0],
+      ),
+    ).not.toThrow();
     expect(accountingReportsService.listOperationsWithLabels).toHaveBeenCalledWith({
       limit: 20,
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
+    });
+  });
+
+  it("accepts dimension filters without explicit undefined optional fields", async () => {
+    const { app, accountingReportsService } = createTestApp();
+    accountingReportsService.listOperationsWithLabels.mockResolvedValue({
+      data: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+
+    const response = await app.request(
+      "http://localhost/journal?dimension.counterpartyId=counterparty-1",
+    );
+
+    expect(response.status).toBe(200);
+    expect(() =>
+      ListLedgerOperationsInputSchema.parse(
+        accountingReportsService.listOperationsWithLabels.mock.calls[0]?.[0],
+      ),
+    ).not.toThrow();
+    expect(accountingReportsService.listOperationsWithLabels).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+      dimensionFilters: {
+        counterpartyId: ["counterparty-1"],
+      },
     });
   });
 

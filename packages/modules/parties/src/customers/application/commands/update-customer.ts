@@ -23,7 +23,7 @@ export class UpdateCustomerCommand {
 
       const next = {
         externalRef: existing.externalRef,
-        displayName: existing.displayName,
+        name: existing.name,
         description: existing.description,
         ...validated,
       };
@@ -31,12 +31,12 @@ export class UpdateCustomerCommand {
       const updated = await tx.customerStore.update({ id, ...next });
       if (!updated) throw new CustomerNotFoundError(id);
 
-      if (existing.displayName !== updated.displayName) {
+      if (existing.name !== updated.name) {
         await ensureManagedCustomerGroup({
           generateUuid: this.runtime.generateUuid,
           groups: tx.counterpartyGroups,
           customerId: id,
-          displayName: updated.displayName,
+          name: updated.name,
           now: this.runtime.now(),
         });
       }

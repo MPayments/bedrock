@@ -21,6 +21,29 @@ function createRuntime(overrides?: Record<string, unknown>) {
   } as any;
 }
 
+function createPartyProfileBundle() {
+  return {
+    profile: {
+      fullName: "Acme Incorporated",
+      shortName: "Acme",
+      fullNameI18n: null,
+      shortNameI18n: null,
+      legalFormCode: null,
+      legalFormLabel: null,
+      legalFormLabelI18n: null,
+      countryCode: null,
+      businessActivityCode: null,
+      businessActivityText: null,
+      businessActivityTextI18n: null,
+    },
+    identifiers: [],
+    address: null,
+    contacts: [],
+    representatives: [],
+    licenses: [],
+  };
+}
+
 describe("counterparty command handlers", () => {
   it("creates a customer-linked counterparty with the managed group", async () => {
     const customerId = "00000000-0000-4000-8000-000000000901";
@@ -35,7 +58,7 @@ describe("counterparty command handlers", () => {
             customerStore: {
               findById: vi.fn(async () => ({
                 id: customerId,
-                displayName: "Acme Corp",
+                name: "Acme Corp",
               })),
             },
             counterparties: {
@@ -73,6 +96,15 @@ describe("counterparty command handlers", () => {
               ),
               save: vi.fn(async (group: CounterpartyGroup) => group),
             },
+            partyProfiles: {
+              findBundleByOwner: vi.fn(async () => null),
+              upsertProfile: vi.fn(),
+              replaceIdentifiers: vi.fn(),
+              replaceAddress: vi.fn(),
+              replaceContacts: vi.fn(),
+              replaceRepresentatives: vi.fn(),
+              replaceLicenses: vi.fn(),
+            },
           } as any)),
       } as any,
     );
@@ -82,6 +114,7 @@ describe("counterparty command handlers", () => {
       fullName: "Acme Incorporated",
       customerId,
       groupIds: [sharedGroupId],
+      partyProfile: createPartyProfileBundle(),
     });
 
     expect(created.groupIds).toEqual([sharedGroupId, managedGroupId]);
@@ -100,6 +133,15 @@ describe("counterparty command handlers", () => {
             },
             counterparties: {},
             counterpartyGroups: {},
+            partyProfiles: {
+              findBundleByOwner: vi.fn(async () => null),
+              upsertProfile: vi.fn(),
+              replaceIdentifiers: vi.fn(),
+              replaceAddress: vi.fn(),
+              replaceContacts: vi.fn(),
+              replaceRepresentatives: vi.fn(),
+              replaceLicenses: vi.fn(),
+            },
           } as any)),
       } as any,
     );
@@ -109,6 +151,7 @@ describe("counterparty command handlers", () => {
         shortName: "Acme",
         fullName: "Acme Incorporated",
         customerId,
+        partyProfile: createPartyProfileBundle(),
       }),
     ).rejects.toBeInstanceOf(CounterpartyCustomerNotFoundError);
   });
@@ -116,7 +159,7 @@ describe("counterparty command handlers", () => {
   it("drops customer-scoped memberships when clearing the customer link", async () => {
     const existing = Counterparty.fromSnapshot({
       id: "cp-1",
-      externalId: null,
+      externalRef: null,
       relationshipKind: "customer_owned",
       customerId: "cust-1",
       shortName: "Acme",
@@ -165,6 +208,9 @@ describe("counterparty command handlers", () => {
             },
             counterpartyGroups: {
               save: vi.fn(async (group: CounterpartyGroup) => group),
+            },
+            partyProfiles: {
+              findBundleByOwner: vi.fn(async () => null),
             },
           } as any)),
       } as any,

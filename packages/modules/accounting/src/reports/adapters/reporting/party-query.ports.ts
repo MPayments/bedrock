@@ -19,7 +19,7 @@ export interface AccountingCounterpartiesQueryPort {
 }
 
 export interface AccountingCustomersQueryPort {
-  listDisplayNamesById(ids: string[]): Promise<Map<string, string>>;
+  listNamesById(ids: string[]): Promise<Map<string, string>>;
 }
 
 export interface AccountingRequisitesQueryPort {

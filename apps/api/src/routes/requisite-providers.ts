@@ -3,10 +3,11 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { RequisiteProviderNotFoundError } from "@bedrock/parties";
 import {
   CreateRequisiteProviderInputSchema,
-  ListRequisiteProvidersQuerySchema,
+  RequisiteProviderListItemSchema,
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
+  ListRequisiteProvidersQuerySchema,
   UpdateRequisiteProviderInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
@@ -15,14 +16,14 @@ import {
   MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
 
-import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
+import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
 const PaginatedRequisiteProvidersSchema = createPaginatedListSchema(
-  RequisiteProviderSchema,
+  RequisiteProviderListItemSchema,
 );
 export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -217,7 +218,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const result = await ctx.partiesModule.requisites.queries.listProviders({
         limit: MAX_QUERY_LIST_LIMIT,
         offset: 0,
-        sortBy: "name",
+        sortBy: "displayName",
         sortOrder: "asc",
       });
 
@@ -226,8 +227,8 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
           RequisiteProviderOptionSchema.parse({
             id: item.id,
             kind: item.kind,
-            name: item.name,
-            label: item.name,
+            displayName: item.displayName,
+            label: item.displayName,
           }),
         ),
         200,

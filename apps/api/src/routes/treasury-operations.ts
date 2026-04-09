@@ -1,6 +1,10 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
+import {
+  findRequisiteIdentifier,
+  resolveRequisiteProviderDisplayName,
+} from "@bedrock/parties";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   paginateInMemory,
@@ -306,20 +310,27 @@ function buildRequisiteAccountSummary(requisite: RequisiteRecord | null | undefi
 
   const identity =
     resolveRequisiteIdentity({
-      accountNo: requisite.accountNo,
-      accountRef: requisite.accountRef,
-      address: requisite.address,
-      assetCode: requisite.assetCode,
+      accountNo:
+        findRequisiteIdentifier(requisite, "local_account_number")?.value ??
+        null,
+      accountRef:
+        findRequisiteIdentifier(requisite, "account_ref")?.value ?? null,
+      address:
+        findRequisiteIdentifier(requisite, "wallet_address")?.value ?? null,
+      assetCode: null,
       beneficiaryName: requisite.beneficiaryName,
       bic: null,
-      contact: requisite.contact,
-      corrAccount: requisite.corrAccount,
-      iban: requisite.iban,
+      contact: null,
+      corrAccount:
+        findRequisiteIdentifier(requisite, "corr_account")?.value ?? null,
+      iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
       kind: requisite.kind,
-      memoTag: requisite.memoTag,
-      network: requisite.network,
+      memoTag:
+        findRequisiteIdentifier(requisite, "memo_tag")?.value ?? null,
+      network: null,
       notes: requisite.notes,
-      subaccountRef: requisite.subaccountRef,
+      subaccountRef:
+        findRequisiteIdentifier(requisite, "subaccount_ref")?.value ?? null,
     }) || null;
 
   return {
@@ -340,7 +351,13 @@ function resolveProviderName(
     return null;
   }
 
-  return providerById.get(requisite.providerId)?.name ?? null;
+  const provider = providerById.get(requisite.providerId);
+  return provider
+    ? resolveRequisiteProviderDisplayName({
+        provider,
+        branchId: requisite.providerBranchId,
+      })
+    : null;
 }
 
 function resolveInternalEntityOrganizationId(

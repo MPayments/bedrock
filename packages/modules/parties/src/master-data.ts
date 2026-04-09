@@ -1,0 +1,284 @@
+import type {
+  Counterparty,
+  LocaleTextMap,
+  Organization,
+  Requisite,
+  RequisiteProvider,
+} from "./contracts";
+import type {
+  PartyAddress,
+  PartyContact,
+  PartyProfileBundle,
+  PartyIdentifier,
+  PartyRepresentative,
+} from "./party-profiles/application/contracts";
+
+type PartyWithPartyProfile = Pick<
+  Counterparty | Organization,
+  "partyProfile"
+>;
+
+function pickPrimary<T extends { isPrimary: boolean }>(items: T[]): T | null {
+  return items.find((item) => item.isPrimary) ?? items[0] ?? null;
+}
+
+function getBundle(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
+) {
+  if (!partyOrBundle) {
+    return null;
+  }
+
+  return "profile" in partyOrBundle ? partyOrBundle : partyOrBundle.partyProfile;
+}
+
+export function findPartyIdentifier(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
+  scheme: string,
+): PartyIdentifier | null {
+  const bundle = getBundle(partyOrBundle);
+  if (!bundle) {
+    return null;
+  }
+
+  return bundle.identifiers.find((identifier) => identifier.scheme === scheme) ?? null;
+}
+
+export function findPartyContact(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
+  type: string,
+): PartyContact | null {
+  const bundle = getBundle(partyOrBundle);
+  if (!bundle) {
+    return null;
+  }
+
+  return pickPrimary(bundle.contacts.filter((contact) => contact.type === type));
+}
+
+export function findPartyAddress(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
+): PartyAddress | null {
+  const bundle = getBundle(partyOrBundle);
+  if (!bundle) {
+    return null;
+  }
+
+  return bundle.address;
+}
+
+export function findPartyRepresentative(
+  partyOrBundle: PartyWithPartyProfile | PartyProfileBundle | null,
+  preferredRoles: string[] = ["director", "signatory", "contact"],
+): PartyRepresentative | null {
+  const bundle = getBundle(partyOrBundle);
+  if (!bundle) {
+    return null;
+  }
+
+  for (const role of preferredRoles) {
+    const item = pickPrimary(
+      bundle.representatives.filter((representative) => representative.role === role),
+    );
+    if (item) {
+      return item;
+    }
+  }
+
+  return pickPrimary(bundle.representatives);
+}
+
+export function formatPartyAddress(
+  address: PartyAddress | null | undefined,
+): string | null {
+  if (!address) {
+    return null;
+  }
+
+  if (address.fullAddress) {
+    return address.fullAddress;
+  }
+
+  const parts = [
+    address.streetAddress,
+    address.addressDetails,
+    address.city,
+    address.postalCode,
+    address.countryCode,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+export function findRequisiteIdentifier(
+  requisite: Requisite | null | undefined,
+  scheme: string,
+) {
+  if (!requisite) {
+    return null;
+  }
+
+  const identifiers = requisite.identifiers ?? [];
+
+  return (
+    identifiers.find(
+      (identifier) => identifier.scheme === scheme && identifier.isPrimary,
+    ) ??
+    identifiers.find((identifier) => identifier.scheme === scheme) ??
+    null
+  );
+}
+
+export function findRequisiteProviderBranch(
+  provider: RequisiteProvider | null | undefined,
+  branchId: string | null | undefined,
+) {
+  if (!provider || !branchId) {
+    return null;
+  }
+
+  return (provider.branches ?? []).find((branch) => branch.id === branchId) ?? null;
+}
+
+function findPrimaryRequisiteProviderBranch(
+  provider: RequisiteProvider | null | undefined,
+) {
+  if (!provider) {
+    return null;
+  }
+
+  return pickPrimary(provider.branches ?? []);
+}
+
+export function findRequisiteProviderIdentifier(input: {
+  provider: RequisiteProvider | null | undefined;
+  scheme: string;
+  branchId?: string | null;
+}) {
+  const branch = input.branchId
+    ? findRequisiteProviderBranch(input.provider, input.branchId)
+    : null;
+
+  if (branch) {
+    const identifiers = branch.identifiers ?? [];
+
+    return (
+      identifiers.find(
+        (identifier) =>
+          identifier.scheme === input.scheme && identifier.isPrimary,
+      ) ??
+      identifiers.find((identifier) => identifier.scheme === input.scheme) ??
+      null
+    );
+  }
+
+  if (!input.provider) {
+    return null;
+  }
+
+  const identifiers = input.provider.identifiers ?? [];
+  const providerIdentifier =
+    identifiers.find(
+      (identifier) =>
+        identifier.scheme === input.scheme && identifier.isPrimary,
+    ) ??
+    identifiers.find((identifier) => identifier.scheme === input.scheme) ??
+    null;
+
+  if (providerIdentifier) {
+    return providerIdentifier;
+  }
+
+  const primaryBranch = findPrimaryRequisiteProviderBranch(input.provider);
+  if (!primaryBranch) {
+    return null;
+  }
+
+  const branchIdentifiers = primaryBranch.identifiers ?? [];
+
+  return (
+    branchIdentifiers.find(
+      (identifier) =>
+        identifier.scheme === input.scheme && identifier.isPrimary,
+    ) ??
+    branchIdentifiers.find((identifier) => identifier.scheme === input.scheme) ??
+    null
+  );
+}
+
+export function formatRequisiteProviderAddress(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}) {
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
+
+  if (!branch) {
+    return null;
+  }
+
+  if (branch.rawAddress) {
+    return branch.rawAddress;
+  }
+
+  const parts = [
+    branch.line1,
+    branch.line2,
+    branch.city,
+    branch.postalCode,
+    branch.country,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+export function formatRequisiteProviderAddressI18n(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}): LocaleTextMap | null {
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
+
+  if (!branch) {
+    return null;
+  }
+
+  if (branch.rawAddressI18n) {
+    return branch.rawAddressI18n;
+  }
+
+  const buildLocaleAddress = (locale: "ru" | "en") => {
+    const parts = [
+      branch.line1I18n?.[locale] ?? branch.line1,
+      branch.line2I18n?.[locale] ?? branch.line2,
+      branch.cityI18n?.[locale] ?? branch.city,
+      branch.postalCode,
+      branch.country,
+    ].filter(Boolean);
+
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  const ru = buildLocaleAddress("ru");
+  const en = buildLocaleAddress("en");
+
+  return ru || en ? { ru, en } : null;
+}
+
+export function resolveRequisiteProviderDisplayName(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}) {
+  const branch = findRequisiteProviderBranch(input.provider, input.branchId);
+  return branch?.name ?? input.provider?.displayName ?? null;
+}
+
+export function resolveRequisiteProviderDisplayNameI18n(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}): LocaleTextMap | null {
+  const branch = findRequisiteProviderBranch(input.provider, input.branchId);
+  return branch?.nameI18n ?? input.provider?.displayNameI18n ?? null;
+}

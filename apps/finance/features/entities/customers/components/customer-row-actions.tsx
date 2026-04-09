@@ -7,7 +7,7 @@ import { apiClient } from "@/lib/api-client";
 
 type CustomerRowActionModel = {
   id: string;
-  displayName: string;
+  name: string;
 };
 
 type CustomerRowActionsProps = {
@@ -20,7 +20,7 @@ export function CustomerRowActions({ customer }: CustomerRowActionsProps) {
   return (
     <EntityRowActions
       openHref={`/entities/customers/${customer.id}`}
-      ariaLabel={`Действия для клиента ${customer.displayName}`}
+      ariaLabel={`Действия для клиента ${customer.name}`}
       deleteDialogTitle="Удалить клиента?"
       deleteDialogDescription="Клиент будет удален без возможности восстановления."
       deleteFallbackMessage="Не удалось удалить клиента"

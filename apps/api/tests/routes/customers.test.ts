@@ -74,11 +74,29 @@ describe("customers routes", () => {
     userHasPermission.mockResolvedValue({ success: true });
   });
 
+  it("does not expose legacy customer legal-entity compatibility routes", async () => {
+    const { app } = createTestApp();
+
+    const detailResponse = await app.request(
+      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}`,
+    );
+    const listResponse = await app.request(
+      `http://localhost/customers/${IDS.customer}/party-profiles`,
+    );
+    const bankProvidersResponse = await app.request(
+      "http://localhost/customers/bank-providers?query=bank",
+    );
+
+    expect(detailResponse.status).toBe(404);
+    expect(listResponse.status).toBe(404);
+    expect(bankProvidersResponse.status).toBe(400);
+  });
+
   it("delegates legal entity contract generation to the workflow and persists the generated file", async () => {
     const { app, documentGenerationWorkflow, filesModule } = createTestApp();
 
     const response = await app.request(
-      `http://localhost/customers/${IDS.customer}/legal-entities/${IDS.counterparty}/contract?format=pdf&lang=en`,
+      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=pdf&lang=en`,
     );
 
     expect(response.status).toBe(200);

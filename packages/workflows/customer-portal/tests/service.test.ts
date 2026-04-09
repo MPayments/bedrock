@@ -14,7 +14,7 @@ function createWorkflow(overrides?: {
       customerId: string;
       directorName?: string | null;
       email?: string | null;
-      externalId?: string | null;
+      externalRef?: string | null;
       fullName?: string;
       id: string;
       inn?: string | null;
@@ -54,7 +54,7 @@ function createWorkflow(overrides?: {
         customerId: "customer-1",
         directorName: "Иван Иванов",
         email: "finance@example.com",
-        externalId: "7700000000",
+        externalRef: "7700000000",
         fullName: "Customer counterparty",
         id: "counterparty-1",
         inn: "7700000000",
@@ -193,34 +193,25 @@ function createWorkflow(overrides?: {
     counterparties: {
       commands: {
         create: vi.fn(async (input) => ({
-          address: input.address ?? null,
-          addressI18n: input.addressI18n ?? null,
-          country: input.country ?? null,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           customerId: input.customerId,
           description: null,
-          directorBasis: input.directorBasis ?? null,
-          directorBasisI18n: input.directorBasisI18n ?? null,
-          directorName: input.directorName ?? null,
-          directorNameI18n: input.directorNameI18n ?? null,
-          email: input.email ?? null,
-          externalId: input.externalId ?? null,
-          fullName: input.fullName,
+          country: input.partyProfile?.profile.countryCode ?? null,
+          externalRef: input.externalRef ?? null,
+          fullName:
+            input.partyProfile?.profile.fullName ??
+            input.fullName ??
+            input.shortName ??
+            "Counterparty",
           id: "counterparty-created",
-          inn: input.inn ?? null,
-          kind: "legal_entity",
-          kpp: input.kpp ?? null,
-          ogrn: input.ogrn ?? null,
-          okpo: input.okpo ?? null,
-          oktmo: input.oktmo ?? null,
-          orgNameI18n: input.orgNameI18n ?? null,
-          orgType: input.orgType ?? null,
-          orgTypeI18n: input.orgTypeI18n ?? null,
-          phone: input.phone ?? null,
-          position: input.position ?? null,
-          positionI18n: input.positionI18n ?? null,
+          kind: input.kind,
+          partyProfile: input.partyProfile ?? null,
           relationshipKind: "customer_owned",
-          shortName: input.shortName,
+          shortName:
+            input.partyProfile?.profile.shortName ??
+            input.shortName ??
+            input.fullName ??
+            "Counterparty",
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
         })),
       },
@@ -242,7 +233,7 @@ function createWorkflow(overrides?: {
                 directorName: match.directorName ?? null,
                 directorNameI18n: null,
                 email: match.email ?? null,
-                externalId: match.externalId ?? null,
+                externalRef: match.externalRef ?? null,
                 fullName: match.fullName ?? match.shortName ?? counterpartyId,
                 id: match.id,
                 inn: match.inn ?? null,
@@ -283,7 +274,7 @@ function createWorkflow(overrides?: {
                   directorName: item.directorName ?? null,
                   directorNameI18n: null,
                   email: item.email ?? null,
-                  externalId: item.externalId ?? null,
+                  externalRef: item.externalRef ?? null,
                   fullName: item.fullName ?? item.shortName ?? item.id,
                   id: item.id,
                   inn: item.inn ?? null,
@@ -314,7 +305,7 @@ function createWorkflow(overrides?: {
       commands: {
         create: vi.fn(async (input) => ({
           id: "customer-created",
-          displayName: input.displayName,
+          name: input.name,
           externalRef: input.externalRef ?? null,
           description: input.description ?? null,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -324,7 +315,7 @@ function createWorkflow(overrides?: {
       queries: {
         findById: vi.fn(async (customerId: string) => ({
           id: customerId,
-          displayName: `Customer ${customerId}`,
+          name: `Customer ${customerId}`,
           externalRef: null,
           description: null,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -333,7 +324,7 @@ function createWorkflow(overrides?: {
         listByIds: vi.fn(async (customerIds: string[]) =>
           customerIds.map((customerId) => ({
             id: customerId,
-            displayName: `Customer ${customerId}`,
+            name: `Customer ${customerId}`,
             externalRef: null,
             description: null,
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -348,23 +339,21 @@ function createWorkflow(overrides?: {
           id: "requisite-created",
           ownerType: input.ownerType,
           ownerId: input.ownerId,
+          organizationId:
+            input.ownerType === "organization" ? input.ownerId : null,
+          counterpartyId:
+            input.ownerType === "counterparty" ? input.ownerId : null,
           providerId: input.providerId,
+          providerBranchId: input.providerBranchId ?? null,
           currencyId: input.currencyId,
           kind: input.kind,
           label: input.label,
-          description: input.description ?? null,
           beneficiaryName: input.beneficiaryName ?? null,
-          accountNo: input.accountNo ?? null,
-          corrAccount: input.corrAccount ?? null,
-          iban: input.iban ?? null,
-          network: input.network ?? null,
-          assetCode: input.assetCode ?? null,
-          address: input.address ?? null,
-          memoTag: input.memoTag ?? null,
-          accountRef: input.accountRef ?? null,
-          subaccountRef: input.subaccountRef ?? null,
-          contact: input.contact ?? null,
+          beneficiaryNameLocal: input.beneficiaryNameLocal ?? null,
+          beneficiaryAddress: input.beneficiaryAddress ?? null,
+          paymentPurposeTemplate: input.paymentPurposeTemplate ?? null,
           notes: input.notes ?? null,
+          identifiers: input.identifiers ?? [],
           isDefault: input.isDefault ?? false,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -373,13 +362,15 @@ function createWorkflow(overrides?: {
         createProvider: vi.fn(async (input) => ({
           id: "provider-created",
           kind: input.kind,
-          name: input.name,
+          legalName: input.legalName,
+          legalNameI18n: input.legalNameI18n ?? null,
+          displayName: input.displayName,
+          displayNameI18n: input.displayNameI18n ?? null,
           description: input.description ?? null,
           country: input.country ?? null,
-          address: input.address ?? null,
-          contact: input.contact ?? null,
-          bic: input.bic ?? null,
-          swift: input.swift ?? null,
+          website: input.website ?? null,
+          identifiers: input.identifiers ?? [],
+          branches: input.branches ?? [],
           archivedAt: null,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -388,23 +379,19 @@ function createWorkflow(overrides?: {
           id,
           ownerType: "counterparty",
           ownerId: "counterparty-created",
+          organizationId: null,
+          counterpartyId: "counterparty-created",
           providerId: input.providerId ?? "provider-created",
+          providerBranchId: input.providerBranchId ?? null,
           currencyId: input.currencyId ?? "usd-id",
           kind: input.kind ?? "bank",
           label: input.label ?? "Bank details",
-          description: input.description ?? null,
           beneficiaryName: input.beneficiaryName ?? null,
-          accountNo: input.accountNo ?? null,
-          corrAccount: input.corrAccount ?? null,
-          iban: input.iban ?? null,
-          network: input.network ?? null,
-          assetCode: input.assetCode ?? null,
-          address: input.address ?? null,
-          memoTag: input.memoTag ?? null,
-          accountRef: input.accountRef ?? null,
-          subaccountRef: input.subaccountRef ?? null,
-          contact: input.contact ?? null,
+          beneficiaryNameLocal: input.beneficiaryNameLocal ?? null,
+          beneficiaryAddress: input.beneficiaryAddress ?? null,
+          paymentPurposeTemplate: input.paymentPurposeTemplate ?? null,
           notes: input.notes ?? null,
+          identifiers: input.identifiers ?? [],
           isDefault: input.isDefault ?? false,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -502,7 +489,7 @@ describe("customer portal workflow", () => {
             customerId: "customer-1",
             directorName: "Иван Иванов",
             email: "one@example.com",
-            externalId: "7700000000",
+            externalRef: "7700000000",
             id: "counterparty-1",
             inn: "7700000000",
             phone: "+79990001122",
@@ -512,7 +499,7 @@ describe("customer portal workflow", () => {
         "customer-2": [
           {
             customerId: "customer-2",
-            externalId: "8800000000",
+            externalRef: "8800000000",
             id: "counterparty-2",
             inn: "8800000000",
             shortName: "Acme EU",
@@ -526,35 +513,35 @@ describe("customer portal workflow", () => {
     ).resolves.toEqual({
       data: [
         expect.objectContaining({
-          customerId: "customer-1",
-          displayName: "Customer customer-1",
-          legalEntities: [
+          customer: expect.objectContaining({
+            id: "customer-1",
+            name: "Customer customer-1",
+          }),
+          counterparties: [
             expect.objectContaining({
-              counterpartyId: "counterparty-1",
+              id: "counterparty-1",
               shortName: "Acme RU",
             }),
           ],
-          legalEntityCount: 1,
-          primaryCounterpartyId: "counterparty-1",
         }),
         expect.objectContaining({
-          customerId: "customer-2",
-          displayName: "Customer customer-2",
-          legalEntities: [
+          customer: expect.objectContaining({
+            id: "customer-2",
+            name: "Customer customer-2",
+          }),
+          counterparties: [
             expect.objectContaining({
-              counterpartyId: "counterparty-2",
+              id: "counterparty-2",
               shortName: "Acme EU",
             }),
           ],
-          legalEntityCount: 1,
-          primaryCounterpartyId: "counterparty-2",
         }),
       ],
       total: 2,
     });
   });
 
-  it("creates a canonical customer and legal entity for portal onboarding", async () => {
+  it("creates a canonical customer and counterparty for portal onboarding", async () => {
     const { iam, parties, workflow } = createWorkflow({
       memberships: [],
       hasPendingPortalGrant: true,
@@ -563,7 +550,7 @@ describe("customer portal workflow", () => {
       },
     });
 
-    const result = await workflow.createLegalEntity(
+    const result = await workflow.createCounterparty(
       { userId: "user-1" },
       {
         bankMode: "manual",
@@ -579,6 +566,7 @@ describe("customer portal workflow", () => {
         directorName: "Иван Иванов",
         email: "finance@example.com",
         inn: "7700000000",
+        kind: "legal_entity",
         orgName: "Acme Corp",
         phone: "+79990001122",
       },
@@ -586,17 +574,38 @@ describe("customer portal workflow", () => {
 
     expect(parties.customers.commands.create).toHaveBeenCalledWith({
       description: null,
-      displayName: "Acme Corp",
+      name: "Acme Corp",
       externalRef: null,
     });
     expect(parties.counterparties.commands.create).toHaveBeenCalledWith(
       expect.objectContaining({
         customerId: "customer-created",
-        directorName: "Иван Иванов",
-        email: "finance@example.com",
-        inn: "7700000000",
+        externalRef: "7700000000",
+        kind: "legal_entity",
+        partyProfile: expect.objectContaining({
+          contacts: expect.arrayContaining([
+            expect.objectContaining({
+              type: "email",
+              value: "finance@example.com",
+            }),
+          ]),
+          identifiers: expect.arrayContaining([
+            expect.objectContaining({
+              scheme: "inn",
+              value: "7700000000",
+            }),
+          ]),
+          profile: expect.objectContaining({
+            shortName: "Acme Corp",
+          }),
+          representatives: expect.arrayContaining([
+            expect.objectContaining({
+              fullName: "Иван Иванов",
+              role: "director",
+            }),
+          ]),
+        }),
         relationshipKind: "customer_owned",
-        shortName: "Acme Corp",
       }),
     );
     expect(iam.customerMemberships.commands.upsert).toHaveBeenCalledWith({
@@ -609,19 +618,83 @@ describe("customer portal workflow", () => {
     expect(parties.requisites.commands.create).toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
-        account: "40702810900000000001",
-        bankCountry: "RU",
-        bankName: "АО Банк",
-        bic: "044525225",
-        counterpartyId: "counterparty-created",
-        customerId: "customer-created",
-        id: 0,
-        orgName: "Acme Corp",
+        counterparty: expect.objectContaining({
+          id: "counterparty-created",
+          customerId: "customer-created",
+          fullName: "Acme Corp",
+          shortName: "Acme Corp",
+        }),
+        customer: expect.objectContaining({
+          id: "customer-created",
+          name: "Acme Corp",
+        }),
+        provider: expect.objectContaining({
+          country: "RU",
+          displayName: "АО Банк",
+          legalName: "АО Банк",
+          identifiers: expect.arrayContaining([
+            expect.objectContaining({
+              scheme: "bic",
+              value: "044525225",
+            }),
+          ]),
+        }),
+        requisite: expect.objectContaining({
+          counterpartyId: "counterparty-created",
+          beneficiaryName: "Acme Corp",
+          identifiers: expect.arrayContaining([
+            expect.objectContaining({
+              scheme: "local_account_number",
+              value: "40702810900000000001",
+            }),
+          ]),
+        }),
       }),
     );
   });
 
-  it("allows onboarding legal-entity creation for mixed-access internal users", async () => {
+  it("passes top-level names for individual onboarding counterparties", async () => {
+    const { parties, workflow } = createWorkflow({
+      memberships: [],
+      hasPendingPortalGrant: true,
+      user: {
+        role: null,
+      },
+    });
+
+    const result = await workflow.createCounterparty(
+      { userId: "user-1" },
+      {
+        bankMode: "existing",
+        kind: "individual",
+        orgName: "",
+        personFullName: "Иван Иванов",
+      },
+    );
+
+    expect(parties.counterparties.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "customer-created",
+        fullName: "Иван Иванов",
+        kind: "individual",
+        shortName: "Иван Иванов",
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        counterparty: expect.objectContaining({
+          fullName: "Иван Иванов",
+          kind: "individual",
+          shortName: "Иван Иванов",
+        }),
+        customer: expect.objectContaining({
+          name: "Иван Иванов",
+        }),
+      }),
+    );
+  });
+
+  it("allows onboarding counterparty creation for mixed-access internal users", async () => {
     const { workflow } = createWorkflow({
       memberships: [],
       hasPendingPortalGrant: true,
@@ -631,17 +704,27 @@ describe("customer portal workflow", () => {
     });
 
     await expect(
-      workflow.createLegalEntity(
+      workflow.createCounterparty(
         { userId: "user-1" },
         {
           bankMode: "existing",
+          kind: "legal_entity",
           orgName: "CRM only",
         },
       ),
     ).resolves.toEqual(
       expect.objectContaining({
-        customerId: "customer-created",
-        orgName: "CRM only",
+        counterparty: expect.objectContaining({
+          customerId: "customer-created",
+          fullName: "CRM only",
+          shortName: "CRM only",
+        }),
+        customer: expect.objectContaining({
+          id: "customer-created",
+          name: "CRM only",
+        }),
+        provider: null,
+        requisite: null,
       }),
     );
   });
@@ -657,26 +740,80 @@ describe("customer portal workflow", () => {
     const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
       typeof vi.fn
     >;
+    const findProviderByIdMock = parties.requisites.queries.findProviderById as ReturnType<
+      typeof vi.fn
+    >;
     listProvidersMock.mockResolvedValueOnce({
       data: [
         {
-          address: "Москва",
           archivedAt: null,
-          bic: "044525225",
-          contact: null,
           country: "RU",
           createdAt: new Date("2026-02-01T00:00:00.000Z"),
           description: null,
+          displayName: "АО Банк",
           id: "provider-1",
           kind: "bank",
-          name: "АО Банк",
-          swift: "BANKRUMM",
+          legalName: "АО Банк",
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          website: null,
         },
       ],
       limit: 8,
       offset: 0,
       total: 1,
+    });
+    findProviderByIdMock.mockResolvedValueOnce({
+      archivedAt: null,
+      branches: [
+        {
+          archivedAt: null,
+          city: null,
+          code: null,
+          contactEmail: null,
+          contactPhone: null,
+          country: "RU",
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          id: "branch-1",
+          identifiers: [],
+          isPrimary: true,
+          line1: null,
+          line2: null,
+          name: "АО Банк",
+          postalCode: null,
+          providerId: "provider-1",
+          rawAddress: "Москва",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        },
+      ],
+      country: "RU",
+      createdAt: new Date("2026-02-01T00:00:00.000Z"),
+      description: null,
+      displayName: "АО Банк",
+      id: "provider-1",
+      identifiers: [
+        {
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          id: "provider-bic-1",
+          isPrimary: true,
+          normalizedValue: "044525225",
+          scheme: "bic",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          value: "044525225",
+        },
+        {
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          id: "provider-swift-1",
+          isPrimary: true,
+          normalizedValue: "BANKRUMM",
+          scheme: "swift",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          value: "BANKRUMM",
+        },
+      ],
+      kind: "bank",
+      legalName: "АО Банк",
+      updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+      website: null,
     });
 
     await expect(
@@ -693,6 +830,97 @@ describe("customer portal workflow", () => {
         swift: "BANKRUMM",
       }),
     ]);
+  });
+
+  it("finds bank providers by exact bic even when the name does not match", async () => {
+    const { parties, workflow } = createWorkflow({
+      memberships: [],
+      hasPendingPortalGrant: true,
+      user: {
+        role: null,
+      },
+    });
+    const listProvidersMock = parties.requisites.queries.listProviders as ReturnType<
+      typeof vi.fn
+    >;
+    const findProviderByIdMock = parties.requisites.queries.findProviderById as ReturnType<
+      typeof vi.fn
+    >;
+
+    listProvidersMock.mockImplementation(async (input) => {
+      if (input.bic?.includes("044525225")) {
+        return {
+          data: [
+            {
+              archivedAt: null,
+              country: "RU",
+              createdAt: new Date("2025-01-01T00:00:00.000Z"),
+              description: null,
+              displayName: "АО Банк",
+              id: "provider-by-bic",
+              kind: "bank",
+              legalName: "АО Банк",
+              updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+              website: null,
+            },
+          ],
+          limit: 8,
+          offset: 0,
+          total: 1,
+        };
+      }
+
+      return {
+        data: [],
+        limit: 8,
+        offset: 0,
+        total: 0,
+      };
+    });
+    findProviderByIdMock.mockResolvedValueOnce({
+      archivedAt: null,
+      branches: [],
+      country: "RU",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      description: null,
+      displayName: "АО Банк",
+      displayNameI18n: null,
+      id: "provider-by-bic",
+      identifiers: [
+        {
+          createdAt: new Date("2025-01-01T00:00:00.000Z"),
+          id: "provider-by-bic-bic",
+          isPrimary: true,
+          normalizedValue: "044525225",
+          scheme: "bic",
+          updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+          value: "044525225",
+        },
+      ],
+      kind: "bank",
+      legalName: "АО Банк",
+      legalNameI18n: null,
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      website: null,
+    });
+
+    await expect(
+      workflow.searchBankProviders(
+        { userId: "user-1" },
+        { query: "044525225", limit: 8 },
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        bic: "044525225",
+        id: "provider-by-bic",
+        name: "АО Банк",
+      }),
+    ]);
+    expect(listProvidersMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bic: ["044525225"],
+      }),
+    );
   });
 
   it("allows bank-provider search for mixed-access internal users during onboarding", async () => {

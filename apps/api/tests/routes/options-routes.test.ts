@@ -41,7 +41,8 @@ function createRequisiteProvidersQueryStub() {
         {
           id: "22222222-2222-4222-8222-222222222222",
           kind: "bank",
-          name: "Core Bank",
+          displayName: "Core Bank",
+          legalName: "Core Bank",
         },
       ],
       total: 1,
@@ -120,7 +121,7 @@ describe("options routes", () => {
     expect(requisitesQueries.listProviders).toHaveBeenCalledWith({
       limit: MAX_QUERY_LIST_LIMIT,
       offset: 0,
-      sortBy: "name",
+      sortBy: "displayName",
       sortOrder: "asc",
     });
     await expect(response.json()).resolves.toEqual({
@@ -128,7 +129,7 @@ describe("options routes", () => {
         {
           id: "22222222-2222-4222-8222-222222222222",
           kind: "bank",
-          name: "Core Bank",
+          displayName: "Core Bank",
           label: "Core Bank",
         },
       ],

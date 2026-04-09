@@ -26,7 +26,7 @@ export type AppSessionUser = z.infer<typeof AppSessionUserSchema>;
 
 export const CustomerPortalCustomerSummarySchema = z.object({
   description: z.string().nullable(),
-  displayName: z.string(),
+  name: z.string(),
   externalRef: z.string().nullable(),
   id: z.string(),
 });

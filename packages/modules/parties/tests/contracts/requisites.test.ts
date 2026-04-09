@@ -19,13 +19,19 @@ describe("requisites contracts", () => {
       currencyId: "00000000-0000-4000-8000-000000000113",
       kind: "bank",
       label: "  Main bank  ",
-      description: "   ",
+      paymentPurposeTemplate: "   ",
       beneficiaryName: "  Acme Ltd  ",
-      accountNo: "  12345  ",
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "  12345  ",
+          isPrimary: true,
+        },
+      ],
     });
 
     expect(parsed.label).toBe("Main bank");
-    expect(parsed.description).toBeNull();
+    expect(parsed.paymentPurposeTemplate).toBeNull();
     expect(parsed.beneficiaryName).toBe("Acme Ltd");
     expect(parsed.isDefault).toBe(false);
   });
@@ -39,21 +45,59 @@ describe("requisites contracts", () => {
   it("parses create provider input", () => {
     const parsed = CreateRequisiteProviderInputSchema.parse({
       kind: "bank",
-      name: "  JPM  ",
+      legalName: "  JPM Chase Bank  ",
+      legalNameI18n: { en: "  JPM Chase Bank  ", ru: "  Банк JPM Chase  " },
+      displayName: "  JPM  ",
+      displayNameI18n: { en: " JPM ", ru: " Джей Пи Морган " },
       country: "us",
-      bic: "  044525225  ",
-      swift: "  CHASUS33  ",
+      branches: [
+        {
+          name: "Main Branch",
+          nameI18n: { ru: "Главный филиал" },
+          country: "us",
+          city: "New York",
+          cityI18n: { ru: "Нью-Йорк" },
+          rawAddress: "270 Park Avenue, New York",
+          rawAddressI18n: { ru: "270 Park Avenue, Нью-Йорк" },
+        },
+      ],
+      identifiers: [
+        { scheme: "BIC", value: "  044525225  ", isPrimary: true },
+        { scheme: " SWIFT ", value: "  CHASUS33  ", isPrimary: true },
+      ],
     });
 
-    expect(parsed.name).toBe("JPM");
+    expect(parsed.legalName).toBe("JPM Chase Bank");
+    expect(parsed.legalNameI18n).toEqual({
+      en: "JPM Chase Bank",
+      ru: "Банк JPM Chase",
+    });
+    expect(parsed.displayName).toBe("JPM");
+    expect(parsed.displayNameI18n).toEqual({
+      en: "JPM",
+      ru: "Джей Пи Морган",
+    });
     expect(parsed.country).toBe("US");
-    expect(parsed.bic).toBe("044525225");
-    expect(parsed.swift).toBe("CHASUS33");
+    expect(parsed.branches[0]?.cityI18n).toEqual({ ru: "Нью-Йорк" });
+    expect(parsed.identifiers[0]?.scheme).toBe("bic");
+    expect(parsed.identifiers[1]?.scheme).toBe("swift");
+    expect(parsed.identifiers).toHaveLength(2);
+  });
+
+  it("rejects unsupported provider identifier schemes", () => {
+    expect(
+      CreateRequisiteProviderInputSchema.safeParse({
+        kind: "bank",
+        legalName: "JPM Chase Bank",
+        displayName: "JPM",
+        identifiers: [{ scheme: "custom_scheme", value: "123", isPrimary: true }],
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects explicit undefined in update provider input", () => {
     expect(
-      UpdateRequisiteProviderInputSchema.safeParse({ name: undefined }).success,
+      UpdateRequisiteProviderInputSchema.safeParse({ legalName: undefined }).success,
     ).toBe(false);
   });
 
@@ -63,15 +107,17 @@ describe("requisites contracts", () => {
       kind: "bank,exchange",
     });
     const providers = ListRequisiteProvidersQuerySchema.parse({
-      bic: "044525225, 044525974",
+      bic: "044525225",
       country: "US, DE",
-      swift: "BOFAUS3N, CHASUS33",
+      legalName: "Chase",
+      swift: "CHASUS33, DEUTDEFF",
     });
 
     expect(requisites.kind).toEqual(["bank", "exchange"]);
-    expect(providers.bic).toEqual(["044525225", "044525974"]);
+    expect(providers.bic).toEqual(["044525225"]);
     expect(providers.country).toEqual(["US", "DE"]);
-    expect(providers.swift).toEqual(["BOFAUS3N", "CHASUS33"]);
+    expect(providers.legalName).toBe("Chase");
+    expect(providers.swift).toEqual(["CHASUS33", "DEUTDEFF"]);
   });
 
   it("requires ownerType when ownerId is set in options query", () => {

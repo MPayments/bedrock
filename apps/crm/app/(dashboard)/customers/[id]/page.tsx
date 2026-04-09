@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, ChevronLeft, Loader2, Plus, X } from "lucide-react";
+import { AlertCircle, ChevronLeft, Loader2, X } from "lucide-react";
 import {
   useParams,
   usePathname,
@@ -24,30 +24,29 @@ import {
 } from "@bedrock/sdk-ui/components/dialog";
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
-import { API_BASE_URL } from "@/lib/constants";
 import { CustomerDetailHeader } from "./_components/customer-detail-header";
-import {
-  CustomerLegalEntityPanel,
-  CountryField,
-  Field,
-} from "./_components/customer-legal-entity-panel";
+import { CustomerCounterpartyPanel } from "./_components/customer-counterparty-panel";
 import { CustomerSummaryCard } from "./_components/customer-summary-card";
 import { PendingEntitySwitchDialog } from "./_components/pending-entity-switch-dialog";
 import {
   buildCustomerEntityHref,
-  createLegalEntitySchema,
   customerFormSchema,
   customerToFormValues,
   type ClientDocument,
   type CustomerFormData,
-  type CreateLegalEntityFormData,
-  type CustomerLegalEntity,
   type CustomerWorkspaceDetail,
-  legalEntityFormSchema,
-  legalEntityToFormValues,
-  type LegalEntityFormData,
-  resolveActiveLegalEntityId,
+  resolveActiveCounterpartyId,
 } from "./_lib/customer-detail";
+import {
+  archiveCustomer,
+  deleteCustomerCounterpartyDocument,
+  downloadCustomerCounterpartyContract,
+  downloadCustomerCounterpartyDocument,
+  getCustomerWorkspace,
+  listCustomerCounterpartyDocuments,
+  updateCustomerWorkspace,
+  uploadCustomerCounterpartyDocument,
+} from "./_lib/customer-workspace-api";
 
 function normalizeOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -98,15 +97,15 @@ export default function CustomerDetailPage() {
   const [entitySwitchDialogOpen, setEntitySwitchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerSaving, setCustomerSaving] = useState(false);
-  const [legalEntitySaving, setLegalEntitySaving] = useState(false);
+  const [counterpartyDirty, setCounterpartyDirty] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
-    null,
-  );
+  const [deletingDocumentId, setDeletingDocumentId] = useState<
+    ClientDocument["id"] | null
+  >(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
@@ -116,8 +115,7 @@ export default function CustomerDetailPage() {
   );
   const [uploadDocumentDescription, setUploadDocumentDescription] =
     useState("");
-  const [newLegalEntityOpen, setNewLegalEntityOpen] = useState(false);
-  const [creatingLegalEntity, setCreatingLegalEntity] = useState(false);
+  const [creatingCounterpartyMode, setCreatingCounterpartyMode] = useState(false);
   const [emptyAlertDismissed, setEmptyAlertDismissed] = useState(false);
   const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
   const [requisitesDirty, setRequisitesDirty] = useState(false);
@@ -128,37 +126,19 @@ export default function CustomerDetailPage() {
     resolver: zodResolver(customerFormSchema) as never,
   });
 
-  const legalEntityForm = useForm<LegalEntityFormData>({
-    defaultValues: legalEntityToFormValues(null),
-    resolver: zodResolver(legalEntityFormSchema) as never,
-  });
-
-  const createLegalEntityForm = useForm<CreateLegalEntityFormData>({
-    defaultValues: {
-      address: "",
-      country: "",
-      directorName: "",
-      email: "",
-      inn: "",
-      orgName: "",
-      phone: "",
-    },
-    resolver: zodResolver(createLegalEntitySchema),
-  });
-
   const resolvedActiveCounterpartyId = useMemo(() => {
     if (!workspace) {
       return null;
     }
 
-    return resolveActiveLegalEntityId({
-      legalEntities: workspace.legalEntities,
+    return resolveActiveCounterpartyId({
+      counterparties: workspace.counterparties,
       primaryCounterpartyId: workspace.primaryCounterpartyId,
       requestedCounterpartyId: entityParam,
     });
   }, [entityParam, workspace]);
 
-  const selectedLegalEntity = useMemo(() => {
+  const selectedCounterparty = useMemo(() => {
     const targetCounterpartyId =
       activeCounterpartyId ?? resolvedActiveCounterpartyId;
 
@@ -167,24 +147,23 @@ export default function CustomerDetailPage() {
     }
 
     return (
-      workspace.legalEntities.find(
-        (legalEntity) => legalEntity.counterpartyId === targetCounterpartyId,
+      workspace.counterparties.find(
+        (partyProfile) => partyProfile.counterpartyId === targetCounterpartyId,
       ) ?? null
     );
   }, [activeCounterpartyId, resolvedActiveCounterpartyId, workspace]);
 
   const customerDirty = customerForm.formState.isDirty;
-  const legalEntityDirty = legalEntityForm.formState.isDirty;
   const hasUnsavedChanges =
-    customerDirty || legalEntityDirty || requisitesDirty;
+    customerDirty || counterpartyDirty || requisitesDirty;
   const hasCustomerAgreement = workspace?.hasActiveAgreement ?? false;
   const showMissingAgreementAlert =
-    selectedLegalEntity !== null &&
+    selectedCounterparty !== null &&
     !hasCustomerAgreement &&
     !agreementAlertDismissed;
   const showMissingLegalEntitiesAlert =
     workspace !== null &&
-    workspace.legalEntities.length === 0 &&
+    workspace.counterparties.length === 0 &&
     !emptyAlertDismissed;
 
   const navigateToEntity = useCallback(
@@ -206,14 +185,14 @@ export default function CustomerDetailPage() {
   );
 
   const resetDraftsFromWorkspace = useCallback(
-    (legalEntity: CustomerLegalEntity | null) => {
+    () => {
       customerForm.reset(customerToFormValues(workspace));
-      legalEntityForm.reset(legalEntityToFormValues(legalEntity));
+      setCounterpartyDirty(false);
       setRequisitesDirty(false);
       setRequisitesResetSignal((current) => current + 1);
       setError(null);
     },
-    [customerForm, legalEntityForm, workspace],
+    [customerForm, workspace],
   );
 
   const requestEntityChange = useCallback(
@@ -246,19 +225,9 @@ export default function CustomerDetailPage() {
 
       try {
         setLoadingDocuments(true);
-        const response = await fetch(
-          `${API_BASE_URL}/customers/${customerId}/legal-entities/${counterpartyId}/documents`,
-          {
-            credentials: "include",
-          },
+        setDocuments(
+          await listCustomerCounterpartyDocuments(customerId, counterpartyId),
         );
-
-        if (!response.ok) {
-          throw new Error(`Ошибка загрузки документов: ${response.status}`);
-        }
-
-        const data: ClientDocument[] = await response.json();
-        setDocuments(data);
       } catch (fetchError) {
         console.error("Failed to fetch documents", fetchError);
         setError(
@@ -277,23 +246,8 @@ export default function CustomerDetailPage() {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Клиент не найден");
-        }
-
-        throw new Error(`Ошибка загрузки: ${response.status}`);
-      }
-
-      const data: CustomerWorkspaceDetail = await response.json();
+      const data = await getCustomerWorkspace(customerId);
       setWorkspace(data);
-
       return data;
     } catch (fetchError) {
       console.error("Failed to fetch customer workspace", fetchError);
@@ -369,26 +323,18 @@ export default function CustomerDetailPage() {
   }, [customerDirty, customerForm, workspace]);
 
   useEffect(() => {
-    if (legalEntityDirty) {
-      return;
-    }
-
-    legalEntityForm.reset(legalEntityToFormValues(selectedLegalEntity));
-  }, [legalEntityDirty, legalEntityForm, selectedLegalEntity]);
-
-  useEffect(() => {
-    if (workspace?.legalEntities.length) {
+    if (workspace?.counterparties.length) {
       setEmptyAlertDismissed(false);
     }
-  }, [workspace?.legalEntities.length]);
+  }, [workspace?.counterparties.length]);
 
   useEffect(() => {
     setAgreementAlertDismissed(false);
   }, [hasCustomerAgreement]);
 
   useEffect(() => {
-    void fetchDocuments(selectedLegalEntity?.counterpartyId ?? null);
-  }, [fetchDocuments, selectedLegalEntity?.counterpartyId]);
+    void fetchDocuments(selectedCounterparty?.counterpartyId ?? null);
+  }, [fetchDocuments, selectedCounterparty?.counterpartyId]);
 
   async function handleSaveCustomer(data: CustomerFormData) {
     if (!workspace) {
@@ -398,30 +344,15 @@ export default function CustomerDetailPage() {
     try {
       setCustomerSaving(true);
       setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        body: JSON.stringify({
-          description: normalizeOptionalText(data.description),
-          displayName: data.displayName.trim(),
-          externalRef: normalizeOptionalText(data.externalRef),
-        }),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "PATCH",
+      await updateCustomerWorkspace(customerId, {
+        description: normalizeOptionalText(data.description),
+        name: data.name.trim(),
+        externalRef: normalizeOptionalText(data.externalRef),
       });
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка сохранения клиента" }));
-        throw new Error(message.error ?? "Ошибка сохранения клиента");
+      const updatedWorkspace = await fetchWorkspace();
+      if (updatedWorkspace) {
+        customerForm.reset(customerToFormValues(updatedWorkspace));
       }
-
-      const updatedWorkspace: CustomerWorkspaceDetail = await response.json();
-      setWorkspace(updatedWorkspace);
-      customerForm.reset(customerToFormValues(updatedWorkspace));
     } catch (saveError) {
       console.error("Failed to save customer workspace", saveError);
       setError(
@@ -434,96 +365,11 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleSaveLegalEntity(data: LegalEntityFormData) {
-    if (!selectedLegalEntity) {
-      return;
-    }
-
-    try {
-      setLegalEntitySaving(true);
-      setError(null);
-
-      const legalEntityPayload = {
-        address: normalizeOptionalText(data.address),
-        directorBasis: normalizeOptionalText(data.directorBasis),
-        directorName: normalizeOptionalText(data.directorName),
-        email: normalizeOptionalText(data.email),
-        inn: normalizeOptionalText(data.inn),
-        kpp: normalizeOptionalText(data.kpp),
-        ogrn: normalizeOptionalText(data.ogrn),
-        okpo: normalizeOptionalText(data.okpo),
-        oktmo: normalizeOptionalText(data.oktmo),
-        orgName: data.orgName.trim(),
-        orgType: normalizeOptionalText(data.orgType),
-        phone: normalizeOptionalText(data.phone),
-        position: normalizeOptionalText(data.position),
-      };
-
-      const legalEntityResponse = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}`,
-        {
-          body: JSON.stringify(legalEntityPayload),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "PATCH",
-        },
-      );
-
-      if (!legalEntityResponse.ok) {
-        const message = await legalEntityResponse
-          .json()
-          .catch(() => ({ error: "Ошибка сохранения юридического лица" }));
-        throw new Error(message.error ?? "Ошибка сохранения юридического лица");
-      }
-
-      const updatedLegalEntity: CustomerLegalEntity =
-        await legalEntityResponse.json();
-      setWorkspace((currentWorkspace) =>
-        currentWorkspace
-          ? {
-              ...currentWorkspace,
-              legalEntities: currentWorkspace.legalEntities.map(
-                (legalEntity) =>
-                  legalEntity.counterpartyId ===
-                  updatedLegalEntity.counterpartyId
-                    ? updatedLegalEntity
-                    : legalEntity,
-              ),
-            }
-          : currentWorkspace,
-      );
-      legalEntityForm.reset(legalEntityToFormValues(updatedLegalEntity));
-    } catch (saveError) {
-      console.error("Failed to save legal entity", saveError);
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Не удалось сохранить юридическое лицо",
-      );
-    } finally {
-      setLegalEntitySaving(false);
-    }
-  }
-
   async function handleArchive() {
     try {
       setDeleting(true);
       setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
-        credentials: "include",
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка архивации клиента" }));
-        throw new Error(message.error ?? "Ошибка архивации клиента");
-      }
-
+      await archiveCustomer(customerId);
       router.push("/customers");
     } catch (deleteError) {
       console.error("Failed to archive customer workspace", deleteError);
@@ -537,101 +383,40 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleCreateLegalEntity(values: CreateLegalEntityFormData) {
-    if (!workspace) {
-      return;
-    }
-
+  async function handleCounterpartyCreated(counterpartyId: string) {
     try {
-      setCreatingLegalEntity(true);
       setError(null);
-
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities`,
-        {
-          body: JSON.stringify({
-            address: normalizeOptionalText(values.address),
-            country:
-              normalizeOptionalText(values.country)?.toUpperCase() ?? null,
-            directorName: normalizeOptionalText(values.directorName),
-            email: normalizeOptionalText(values.email),
-            inn: normalizeOptionalText(values.inn),
-            orgName: values.orgName.trim(),
-            phone: normalizeOptionalText(values.phone),
-          }),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка создания юридического лица" }));
-        throw new Error(message.error ?? "Ошибка создания юридического лица");
-      }
-
-      const created: CustomerLegalEntity = await response.json();
-      createLegalEntityForm.reset();
-      setNewLegalEntityOpen(false);
-      setWorkspace((currentWorkspace) =>
-        currentWorkspace
-          ? {
-              ...currentWorkspace,
-              legalEntities: [...currentWorkspace.legalEntities, created],
-              legalEntityCount: currentWorkspace.legalEntityCount + 1,
-            }
-          : currentWorkspace,
-      );
-      navigateToEntity(created.counterpartyId, "push");
+      setCreatingCounterpartyMode(false);
+      setCounterpartyDirty(false);
+      await fetchWorkspace();
+      navigateToEntity(counterpartyId, "push");
     } catch (createError) {
-      console.error("Failed to create legal entity", createError);
+      console.error("Failed to finish counterparty creation", createError);
       setError(
         createError instanceof Error
           ? createError.message
-          : "Не удалось создать юридическое лицо",
+          : "Не удалось создать субъекта",
       );
-    } finally {
-      setCreatingLegalEntity(false);
     }
   }
 
   async function handleUploadDocument() {
-    if (!selectedLegalEntity || !uploadDocumentFile) {
+    if (!selectedCounterparty || !uploadDocumentFile) {
       return;
     }
 
     try {
       setUploadingDocument(true);
-      const formData = new FormData();
-      formData.append("file", uploadDocumentFile);
-      if (uploadDocumentDescription.trim()) {
-        formData.append("description", uploadDocumentDescription.trim());
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents`,
-        {
-          body: formData,
-          credentials: "include",
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка загрузки документа" }));
-        throw new Error(message.error ?? "Ошибка загрузки документа");
-      }
-
+      await uploadCustomerCounterpartyDocument({
+        customerId,
+        counterpartyId: selectedCounterparty.counterpartyId,
+        description: uploadDocumentDescription,
+        file: uploadDocumentFile,
+      });
       setUploadDialogOpen(false);
       setUploadDocumentDescription("");
       setUploadDocumentFile(null);
-      await fetchDocuments(selectedLegalEntity.counterpartyId);
+      await fetchDocuments(selectedCounterparty.counterpartyId);
     } catch (uploadError) {
       console.error("Failed to upload document", uploadError);
       setError(
@@ -645,26 +430,19 @@ export default function CustomerDetailPage() {
   }
 
   async function handleDownloadDocument(document: ClientDocument) {
-    if (!selectedLegalEntity) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents/${document.id}/download`,
-        {
-          credentials: "include",
-        },
+      await downloadResponseAsFile(
+        await downloadCustomerCounterpartyDocument({
+          customerId,
+          counterpartyId: selectedCounterparty.counterpartyId,
+          documentId: document.id,
+        }),
+        document.fileName,
       );
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка скачивания документа" }));
-        throw new Error(message.error ?? "Ошибка скачивания документа");
-      }
-
-      await downloadResponseAsFile(response, document.fileName);
     } catch (downloadError) {
       console.error("Failed to download document", downloadError);
       setError(
@@ -675,29 +453,19 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleDeleteDocument(documentId: string) {
-    if (!selectedLegalEntity) {
+  async function handleDeleteDocument(documentId: ClientDocument["id"]) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
       setDeletingDocumentId(documentId);
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/documents/${documentId}`,
-        {
-          credentials: "include",
-          method: "DELETE",
-        },
-      );
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка удаления документа" }));
-        throw new Error(message.error ?? "Ошибка удаления документа");
-      }
-
-      await fetchDocuments(selectedLegalEntity.counterpartyId);
+      await deleteCustomerCounterpartyDocument({
+        customerId,
+        counterpartyId: selectedCounterparty.counterpartyId,
+        documentId,
+      });
+      await fetchDocuments(selectedCounterparty.counterpartyId);
     } catch (deleteError) {
       console.error("Failed to delete document", deleteError);
       setError(
@@ -711,29 +479,20 @@ export default function CustomerDetailPage() {
   }
 
   async function handleDownloadContract(format: "docx" | "pdf") {
-    if (!selectedLegalEntity) {
+    if (!selectedCounterparty) {
       return;
     }
 
     try {
       setDownloadingContract(true);
-      const response = await fetch(
-        `${API_BASE_URL}/customers/${customerId}/legal-entities/${selectedLegalEntity.counterpartyId}/contract?format=${format}&lang=${contractLang}`,
-        {
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        const message = await response
-          .json()
-          .catch(() => ({ error: "Ошибка скачивания договора" }));
-        throw new Error(message.error ?? "Ошибка скачивания договора");
-      }
-
       await downloadResponseAsFile(
-        response,
-        `customer-contract-${selectedLegalEntity.counterpartyId}.${format}`,
+        await downloadCustomerCounterpartyContract({
+          customerId,
+          counterpartyId: selectedCounterparty.counterpartyId,
+          format,
+          lang: contractLang,
+        }),
+        `customer-contract-${selectedCounterparty.counterpartyId}.${format}`,
       );
     } catch (downloadError) {
       console.error("Failed to download contract", downloadError);
@@ -752,7 +511,7 @@ export default function CustomerDetailPage() {
 
     setEntitySwitchDialogOpen(false);
     setPendingEntitySwitch(null);
-    resetDraftsFromWorkspace(selectedLegalEntity);
+    resetDraftsFromWorkspace();
 
     if (!nextSwitch) {
       return;
@@ -790,14 +549,14 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-4">
       <CustomerDetailHeader
-        canManageAgreement={selectedLegalEntity !== null}
+        canManageAgreement={selectedCounterparty !== null}
         deleting={deleting}
-        legalEntityCount={workspace.legalEntityCount}
-        onAddLegalEntity={() => setNewLegalEntityOpen(true)}
+        counterpartyCount={workspace.counterpartyCount}
+        onAddCounterparty={() => setCreatingCounterpartyMode(true)}
         onArchive={handleArchive}
         onBack={() => router.back()}
         onOpenContractDialog={() => setContractDialogOpen(true)}
-        title={workspace.displayName}
+        title={workspace.name}
       />
 
       {error ? (
@@ -810,8 +569,8 @@ export default function CustomerDetailPage() {
         <Alert variant="warning" className="pr-12">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            У клиента пока нет юридических лиц. Добавьте первое юридическое
-            лицо, чтобы продолжить.
+            У клиента пока нет субъектов сделки. Добавьте первый субъект, чтобы
+            продолжить работу.
           </AlertDescription>
           <Button
             type="button"
@@ -865,13 +624,15 @@ export default function CustomerDetailPage() {
       />
 
       <div>
-        {workspace.legalEntities.length > 0 && selectedLegalEntity ? (
-          <CustomerLegalEntityPanel
+        {workspace.counterparties.length > 0 && selectedCounterparty ? (
+          <CustomerCounterpartyPanel
+            createMode={creatingCounterpartyMode}
+            customerId={customerId}
             contractLang={contractLang}
             deletingDocumentId={deletingDocumentId}
             documents={documents}
             downloadingContract={downloadingContract}
-            form={legalEntityForm}
+            counterpartyResetSignal={requisitesResetSignal}
             loadingDocuments={loadingDocuments}
             onContractLangChange={setContractLang}
             onDeleteDocument={(documentId) => {
@@ -886,20 +647,85 @@ export default function CustomerDetailPage() {
             onEntityChange={(counterpartyId) => {
               requestEntityChange(counterpartyId, "push");
             }}
+            onCancelCreate={() => {
+              setCreatingCounterpartyMode(false);
+              setCounterpartyDirty(false);
+            }}
+            onCreated={(counterpartyId) => {
+              void handleCounterpartyCreated(counterpartyId);
+            }}
+            onCounterpartyDirtyChange={setCounterpartyDirty}
+            onCounterpartySaved={() => {
+              setCounterpartyDirty(false);
+              void fetchWorkspace();
+            }}
             onRequisitesDirtyChange={setRequisitesDirty}
             requisitesResetSignal={requisitesResetSignal}
-            onSave={(data) => {
-              void handleSaveLegalEntity(data);
-            }}
             onUploadDocument={() => setUploadDialogOpen(true)}
-            saving={legalEntitySaving}
-            selectedLegalEntity={selectedLegalEntity}
-            workspaceLegalEntities={workspace.legalEntities}
+            selectedCounterparty={selectedCounterparty}
+            workspaceCounterparties={workspace.counterparties}
             workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
           />
         ) : (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            У этого клиента пока нет юридических лиц.
+            {creatingCounterpartyMode ? (
+              <CustomerCounterpartyPanel
+                createMode
+                customerId={customerId}
+                contractLang={contractLang}
+                deletingDocumentId={deletingDocumentId}
+                documents={documents}
+                downloadingContract={downloadingContract}
+                counterpartyResetSignal={requisitesResetSignal}
+                loadingDocuments={loadingDocuments}
+                onContractLangChange={setContractLang}
+                onDeleteDocument={(documentId) => {
+                  void handleDeleteDocument(documentId);
+                }}
+                onDownloadContract={(format) => {
+                  void handleDownloadContract(format);
+                }}
+                onDownloadDocument={(document) => {
+                  void handleDownloadDocument(document);
+                }}
+                onEntityChange={(counterpartyId) => {
+                  requestEntityChange(counterpartyId, "push");
+                }}
+                onCancelCreate={() => {
+                  setCreatingCounterpartyMode(false);
+                  setCounterpartyDirty(false);
+                }}
+                onCreated={(counterpartyId) => {
+                  void handleCounterpartyCreated(counterpartyId);
+                }}
+                onCounterpartyDirtyChange={setCounterpartyDirty}
+                onCounterpartySaved={() => {
+                  setCounterpartyDirty(false);
+                  void fetchWorkspace();
+                }}
+                onRequisitesDirtyChange={setRequisitesDirty}
+                requisitesResetSignal={requisitesResetSignal}
+                onUploadDocument={() => setUploadDialogOpen(true)}
+                selectedCounterparty={{
+                  counterpartyId: "00000000-0000-0000-0000-000000000000",
+                  country: null,
+                  createdAt: workspace.createdAt,
+                  externalRef: null,
+                  fullName: "",
+                  inn: null,
+                  orgName: "",
+                  relationshipKind: "customer_owned",
+                  shortName: "",
+                  subAgent: null,
+                  subAgentCounterpartyId: null,
+                  updatedAt: workspace.updatedAt,
+                }}
+                workspaceCounterparties={workspace.counterparties}
+                workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
+              />
+            ) : (
+              "У этого клиента пока нет субъектов сделки."
+            )}
           </div>
         )}
       </div>
@@ -909,7 +735,7 @@ export default function CustomerDetailPage() {
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
-              Документ будет привязан к выбранному юридическому лицу.
+              Документ будет привязан к выбранному субъекту сделки.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -970,87 +796,6 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={newLegalEntityOpen} onOpenChange={setNewLegalEntityOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Добавить юридическое лицо</DialogTitle>
-            <DialogDescription>
-              Создайте новое юридическое лицо для этого клиента.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={createLegalEntityForm.handleSubmit(
-              handleCreateLegalEntity,
-            )}
-          >
-            <Field
-              disabled={creatingLegalEntity}
-              form={createLegalEntityForm}
-              label="Название юр. лица"
-              name="orgName"
-              required
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                disabled={creatingLegalEntity}
-                form={createLegalEntityForm}
-                label="ИНН"
-                name="inn"
-              />
-              <Field
-                disabled={creatingLegalEntity}
-                form={createLegalEntityForm}
-                label="Email"
-                name="email"
-                type="email"
-              />
-              <Field
-                disabled={creatingLegalEntity}
-                form={createLegalEntityForm}
-                label="Телефон"
-                name="phone"
-              />
-              <Field
-                disabled={creatingLegalEntity}
-                form={createLegalEntityForm}
-                label="Директор"
-                name="directorName"
-              />
-              <CountryField
-                disabled={creatingLegalEntity}
-                form={createLegalEntityForm}
-                label="Страна"
-                name="country"
-              />
-            </div>
-            <Field
-              disabled={creatingLegalEntity}
-              form={createLegalEntityForm}
-              label="Адрес"
-              name="address"
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setNewLegalEntityOpen(false)}
-                type="button"
-              >
-                Отмена
-              </Button>
-              <Button disabled={creatingLegalEntity} type="submit">
-                {creatingLegalEntity ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Создать юр. лицо
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       <PendingEntitySwitchDialog
         open={entitySwitchDialogOpen}
         onOpenChange={(open) => {
@@ -1062,9 +807,9 @@ export default function CustomerDetailPage() {
         onConfirm={handleConfirmEntitySwitch}
       />
 
-      {selectedLegalEntity ? (
+      {selectedCounterparty ? (
         <NewContractDialog
-          counterpartyId={selectedLegalEntity.counterpartyId}
+          counterpartyId={selectedCounterparty.counterpartyId}
           customerId={customerId}
           onOpenChange={setContractDialogOpen}
           onSuccess={() => {

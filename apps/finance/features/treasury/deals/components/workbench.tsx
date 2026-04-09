@@ -8,8 +8,9 @@ import {
   CheckCircle2,
   Clock3,
   Download,
-  File,
+  Paperclip,
   FileText,
+  File,
   Info,
   ListChecks,
   ShieldCheck,
@@ -793,7 +794,7 @@ function DocumentsTab({
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
-              <File className="h-5 w-5 text-muted-foreground" />
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
               Подтверждающие файлы
             </CardTitle>
             <Button
@@ -870,7 +871,7 @@ function DocumentsTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-muted-foreground" />
+            <File className="h-5 w-5 text-muted-foreground" />
             Внутренние документы
           </CardTitle>
         </CardHeader>

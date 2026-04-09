@@ -25,14 +25,14 @@ describe("deals integration characterization", () => {
           sourceCurrencyId: fixture.currencies.rub.id,
           targetCurrencyId: fixture.currencies.usd.id,
         }),
-        incomingReceipt: {
-          contractNumber: null,
-          expectedAmount: "1000.00",
-          expectedAt: null,
-          expectedCurrencyId: fixture.currencies.usd.id,
-          invoiceNumber: null,
-          payerCounterpartyId: null,
-          payerSnapshot: null,
+        common: {
+          ...createPaymentIntakeDraft({
+            applicantCounterpartyId: fixture.applicant.id,
+            beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+            sourceCurrencyId: fixture.currencies.rub.id,
+            targetCurrencyId: fixture.currencies.usd.id,
+          }).common,
+          applicantCounterpartyId: null,
         },
         moneyRequest: {
           ...createPaymentIntakeDraft({
@@ -166,7 +166,7 @@ describe("deals integration characterization", () => {
     expect(history[0]?.sourceQuoteId).toBe(quote.id);
   });
 
-  it("blocks status transitions when business requirements are not met and still rejects transitions outside the static map", async () => {
+  it("submits typed payment intake and still rejects transitions outside the static map", async () => {
     const fixture = await createAgreementFixture();
     const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
@@ -204,7 +204,7 @@ describe("deals integration characterization", () => {
     const workflowBefore = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
       created.summary.id,
     );
-    expect(workflowBefore?.nextAction).toBe("Complete intake");
+    expect(workflowBefore?.nextAction).toBe("Submit deal");
 
     const commented = await fixture.runtime.modules.deals.deals.commands.updateComment({
       comment: "Internal comment",
@@ -215,11 +215,20 @@ describe("deals integration characterization", () => {
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({
         actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-        comment: "Move to submitted",
         dealId: created.summary.id,
-        status: "submitted",
+        status: "done",
       }),
-    ).rejects.toThrow("Deal transition to submitted is blocked");
+    ).rejects.toThrow("Cannot transition deal status from draft to done");
+
+    const submitted = await fixture.runtime.modules.deals.deals.commands.transitionStatus({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      comment: "Move to submitted",
+      dealId: created.summary.id,
+      status: "submitted",
+    });
+
+    expect(submitted.summary.status).toBe("submitted");
+    expect(submitted.nextAction).toBe("Resolve operational capability");
 
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({
@@ -227,7 +236,7 @@ describe("deals integration characterization", () => {
         dealId: created.summary.id,
         status: "done",
       }),
-    ).rejects.toThrow("Cannot transition deal status from draft to done");
+    ).rejects.toThrow("Cannot transition deal status from submitted to done");
   });
 
   it("hydrates linked treasury operations back onto execution plan legs", async () => {

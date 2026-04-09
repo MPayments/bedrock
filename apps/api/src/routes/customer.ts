@@ -10,14 +10,19 @@ import {
   FileAttachmentPurposeSchema,
 } from "@bedrock/files/contracts";
 import { CustomerMembershipSchema } from "@bedrock/iam/contracts";
-import { CustomerSchema } from "@bedrock/parties/contracts";
+import {
+  CounterpartySchema,
+  CustomerSchema,
+  RequisiteProviderSchema,
+  RequisiteSchema,
+} from "@bedrock/parties/contracts";
 import {
   PortalDealListProjectionSchema,
   PortalDealProjectionSchema,
 } from "@bedrock/workflow-deal-projections/contracts";
 
+import { lookupCompanyByInn } from "./counterparty-directory";
 import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
-import { lookupCompanyByInn } from "./legal-entities";
 import { DeletedSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { withStoredResultRouteIdempotency } from "../common/route-idempotency";
@@ -44,41 +49,25 @@ const CustomerPortalProfileSchema = z.object({
   memberships: z.array(CustomerMembershipSchema),
 });
 
-const CustomerPortalLegalEntitySchema = z.object({
-  address: z.string().nullable(),
-  counterpartyId: z.string().uuid(),
-  country: z.string().nullable(),
-  createdAt: z.string(),
-  directorName: z.string().nullable(),
-  email: z.string().nullable(),
-  externalId: z.string().nullable(),
-  fullName: z.string(),
-  inn: z.string().nullable(),
-  phone: z.string().nullable(),
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  shortName: z.string(),
-  updatedAt: z.string(),
-});
-
 const CustomerPortalCustomerContextSchema = z.object({
   agentAgreement: z.object({
     contractNumber: z.string().nullable(),
     status: z.enum(["active", "missing"]),
   }),
-  createdAt: z.string(),
-  customerId: z.string().uuid(),
-  description: z.string().nullable(),
-  displayName: z.string(),
-  externalRef: z.string().nullable(),
-  legalEntities: z.array(CustomerPortalLegalEntitySchema),
-  legalEntityCount: z.number().int(),
-  primaryCounterpartyId: z.string().uuid().nullable(),
-  updatedAt: z.string(),
+  customer: CustomerSchema,
+  counterparties: z.array(CounterpartySchema),
 });
 
 const CustomerPortalCustomerContextsSchema = z.object({
   data: z.array(CustomerPortalCustomerContextSchema),
   total: z.number().int(),
+});
+
+const CustomerPortalCreateCounterpartyResponseSchema = z.object({
+  counterparty: CounterpartySchema,
+  customer: CustomerSchema,
+  provider: RequisiteProviderSchema.nullable(),
+  requisite: RequisiteSchema.nullable(),
 });
 
 const CustomerPortalBankProviderInputSchema = z
@@ -121,12 +110,12 @@ const CustomerPortalBankRequisiteInputSchema = z
   .nullable()
   .optional();
 
-type CustomerPortalCreateLegalEntityResponse = Awaited<
-  ReturnType<AppContext["customerPortalWorkflow"]["createLegalEntity"]>
+type CustomerPortalCreateCounterpartyResponse = Awaited<
+  ReturnType<AppContext["customerPortalWorkflow"]["createCounterparty"]>
 >;
 
-const CUSTOMER_PORTAL_CREATE_LEGAL_ENTITY_IDEMPOTENCY_SCOPE =
-  "customer.portal.create-legal-entity";
+const CUSTOMER_PORTAL_CREATE_COUNTERPARTY_IDEMPOTENCY_SCOPE =
+  "customer.portal.create-counterparty";
 
 function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
@@ -138,14 +127,14 @@ function parseAttachmentPurpose(value: unknown) {
   );
 }
 
-async function withCustomerPortalCreateLegalEntityIdempotency(input: {
+async function withCustomerPortalCreateCounterpartyIdempotency(input: {
   c: {
     get: (key: "requestContext") => ReturnType<typeof getRequestContext>;
     json: (body: unknown, status?: number) => Response;
   };
   ctx: AppContext;
-  request: z.infer<typeof CustomerPortalCreateLegalEntityInputSchema>;
-  run: () => Promise<CustomerPortalCreateLegalEntityResponse>;
+  request: z.infer<typeof CustomerPortalCreateCounterpartyInputSchema>;
+  run: () => Promise<CustomerPortalCreateCounterpartyResponse>;
   userId: string;
 }) {
   const idempotencyKey = getRequestContext(input.c)?.idempotencyKey;
@@ -164,7 +153,7 @@ async function withCustomerPortalCreateLegalEntityIdempotency(input: {
       userId: input.userId,
     },
     run: input.run,
-    scope: CUSTOMER_PORTAL_CREATE_LEGAL_ENTITY_IDEMPOTENCY_SCOPE,
+    scope: CUSTOMER_PORTAL_CREATE_COUNTERPARTY_IDEMPOTENCY_SCOPE,
   });
 }
 
@@ -205,8 +194,9 @@ function isValidRoutingCode(
   );
 }
 
-const CustomerPortalCreateLegalEntityInputSchema = z
+const CustomerPortalCreateCounterpartyInputSchema = z
   .object({
+    kind: z.enum(["legal_entity", "individual"]).default("legal_entity"),
     address: z.string().nullable().optional(),
     addressI18n: LocalizedTextSchema,
     bankMode: z.enum(["existing", "manual"]),
@@ -237,16 +227,34 @@ const CustomerPortalCreateLegalEntityInputSchema = z
     ogrn: z.string().nullable().optional(),
     okpo: z.string().nullable().optional(),
     oktmo: z.string().nullable().optional(),
-    orgName: z.string().min(1),
+    orgName: z.string().default(""),
     orgNameI18n: LocalizedTextSchema,
     orgType: z.string().nullable().optional(),
     orgTypeI18n: LocalizedTextSchema,
+    personFullName: z.string().default(""),
+    personFullNameI18n: LocalizedTextSchema,
     phone: z.string().nullable().optional(),
     position: z.string().nullable().optional(),
     positionI18n: LocalizedTextSchema,
     subAgentCounterpartyId: z.string().uuid().nullable().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.kind === "legal_entity" && !hasText(data.orgName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orgName"],
+        message: "Название организации обязательно",
+      });
+    }
+
+    if (data.kind === "individual" && !hasText(data.personFullName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["personFullName"],
+        message: "ФИО обязательно",
+      });
+    }
+
     if (!hasBankSignal(data)) {
       return;
     }
@@ -462,16 +470,16 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
-  const createLegalEntityRoute = createRoute({
+  const createCounterpartyRoute = createRoute({
     method: "post",
-    path: "/legal-entities",
+    path: "/counterparties",
     tags: ["Customer"],
-    summary: "Create a customer legal entity",
+    summary: "Create a customer counterparty",
     request: {
       body: {
         content: {
           "application/json": {
-            schema: CustomerPortalCreateLegalEntityInputSchema,
+            schema: CustomerPortalCreateCounterpartyInputSchema,
           },
         },
         required: true,
@@ -479,8 +487,12 @@ export function customerRoutes(ctx: AppContext) {
     },
     responses: {
       201: {
-        content: { "application/json": { schema: z.any() } },
-        description: "Legal entity created",
+        content: {
+          "application/json": {
+            schema: CustomerPortalCreateCounterpartyResponseSchema,
+          },
+        },
+        description: "Counterparty created",
       },
       400: {
         content: { "application/json": { schema: z.object({ error: z.string() }) } },
@@ -495,9 +507,9 @@ export function customerRoutes(ctx: AppContext) {
 
   const searchBankProvidersRoute = createRoute({
     method: "get",
-    path: "/legal-entities/bank-providers",
+    path: "/counterparties/bank-providers",
     tags: ["Customer"],
-    summary: "Search bank providers for legal entity onboarding",
+    summary: "Search bank providers for counterparty onboarding",
     request: {
       query: CustomerPortalBankProviderSearchQuerySchema,
     },
@@ -521,7 +533,7 @@ export function customerRoutes(ctx: AppContext) {
 
   const lookupByInnRoute = createRoute({
     method: "get",
-    path: "/legal-entities/lookup-by-inn",
+    path: "/counterparties/lookup-by-inn",
     tags: ["Customer"],
     summary: "Lookup company by INN for portal onboarding",
     request: {
@@ -547,7 +559,7 @@ export function customerRoutes(ctx: AppContext) {
 
   const parseCardRoute = createRoute({
     method: "post",
-    path: "/legal-entities/parse-card",
+    path: "/counterparties/parse-card",
     tags: ["Customer"],
     summary: "Parse uploaded customer card for portal onboarding",
     responses: {
@@ -773,7 +785,7 @@ const getDealProjectionRoute = createRoute({
 
   async function listAuthorizedCustomerIds(userId: string) {
     const result = await ctx.customerPortalWorkflow.getCustomerContexts({ userId });
-    return Array.from(new Set(result.data.map((item) => item.customerId)));
+    return Array.from(new Set(result.data.map((item) => item.customer.id)));
   }
 
   async function findAuthorizedPortalDealProjection(
@@ -852,24 +864,25 @@ const getDealProjectionRoute = createRoute({
             const contract =
               await resolveEffectiveCustomerAgreementByCustomerId(
                 ctx,
-                customerContext.customerId,
+                customerContext.customer.id,
               );
 
-            return [customerContext.customerId, contract] as const;
+            return [customerContext.customer.id, contract] as const;
           }),
         ),
       );
 
       const data = result.data.map((customerContext) => {
         const contract =
-          contractsByCustomerId.get(customerContext.customerId) ?? null;
+          contractsByCustomerId.get(customerContext.customer.id) ?? null;
 
         return {
-          ...customerContext,
+          customer: customerContext.customer,
           agentAgreement: {
             contractNumber: contract?.contractNumber ?? null,
             status: contract?.isActive ? "active" : "missing",
           },
+          counterparties: customerContext.counterparties,
         } satisfies z.infer<typeof CustomerPortalCustomerContextSchema>;
       });
 
@@ -881,17 +894,17 @@ const getDealProjectionRoute = createRoute({
         200,
       );
     })
-    .openapi(createLegalEntityRoute, async (c): Promise<any> => {
+    .openapi(createCounterpartyRoute, async (c): Promise<any> => {
       const user = c.get("user")!;
       const input = c.req.valid("json");
 
       try {
-        const result = await withCustomerPortalCreateLegalEntityIdempotency({
+        const result = await withCustomerPortalCreateCounterpartyIdempotency({
           c,
           ctx,
           request: input,
           run: () =>
-            ctx.customerPortalWorkflow.createLegalEntity(
+            ctx.customerPortalWorkflow.createCounterparty(
               {
                 userId: user.id,
               },

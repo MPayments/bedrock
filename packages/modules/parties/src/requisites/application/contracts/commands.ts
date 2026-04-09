@@ -1,20 +1,13 @@
 import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
-import {
-  DomainError,
-} from "@bedrock/shared/core/domain";
 
 import { RequisiteCountryCodeSchema, RequisiteKindSchema } from "./zod";
-import { validateRequisiteProviderDetails } from "../../domain/requisite-provider";
-
-function readCauseString(
-  error: DomainError,
-  key: string,
-): string | undefined {
-  const value = error.meta?.[key];
-  return typeof value === "string" ? value : undefined;
-}
+import { LocaleTextMapSchema } from "../../../shared/domain/locale-map";
+import {
+  REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
+  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
+} from "../../domain/identifier-schemes";
 
 const nullableText = z
   .string()
@@ -38,76 +31,98 @@ const nullableTextPatch = z
   .nullable()
   .transform((value) => trimToNull(value))
   .exactOptional();
-const nullableShortTextPatch = z
-  .string()
-  .trim()
-  .max(255)
-  .nullable()
-  .transform((value) => trimToNull(value))
-  .exactOptional();
 const nullableCountryPatch =
   RequisiteCountryCodeSchema.nullable().exactOptional();
 
 const providerFieldsSchema = z.object({
   kind: RequisiteKindSchema,
-  name: z.string().trim().min(1).max(255),
+  legalName: z.string().trim().min(1).max(255),
+  legalNameI18n: LocaleTextMapSchema.optional().default(null),
+  displayName: z.string().trim().min(1).max(255),
+  displayNameI18n: LocaleTextMapSchema.optional().default(null),
   description: nullableText,
   country: nullableCountry,
-  address: nullableText,
-  contact: nullableText,
-  bic: nullableShortText,
-  swift: nullableShortText,
+  website: nullableText,
 });
+export const RequisiteProviderIdentifierSchemeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.enum(REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES));
+export type RequisiteProviderIdentifierSchemeValue = z.infer<
+  typeof RequisiteProviderIdentifierSchemeSchema
+>;
+export const RequisiteProviderBranchIdentifierSchemeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.enum(REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES));
+export type RequisiteProviderBranchIdentifierSchemeValue = z.infer<
+  typeof RequisiteProviderBranchIdentifierSchemeSchema
+>;
 
-function refineProviderRules(
-  value: {
-    kind: string;
-    country: string | null;
-    bic: string | null;
-    swift: string | null;
-  },
-  ctx: z.RefinementCtx,
-) {
-  try {
-    validateRequisiteProviderDetails({
-      kind: value.kind as never,
-      name: "validated",
-      description: null,
-      country: value.country,
-      address: null,
-      contact: null,
-      bic: value.bic,
-      swift: value.swift,
-    });
-  } catch (error) {
-    if (error instanceof DomainError) {
-      ctx.addIssue({
-        code: "custom",
-        path: [readCauseString(error, "field") ?? "kind"],
-        message: error.message,
-      });
-      return;
-    }
+export const RequisiteProviderIdentifierInputSchema = z.object({
+  id: z.uuid().optional(),
+  scheme: RequisiteProviderIdentifierSchemeSchema,
+  value: z.string().trim().min(1),
+  isPrimary: z.boolean().default(false),
+});
+export type RequisiteProviderIdentifierInput = z.infer<
+  typeof RequisiteProviderIdentifierInputSchema
+>;
+export const RequisiteProviderBranchIdentifierInputSchema = z.object({
+  id: z.uuid().optional(),
+  scheme: RequisiteProviderBranchIdentifierSchemeSchema,
+  value: z.string().trim().min(1),
+  isPrimary: z.boolean().default(false),
+});
+export type RequisiteProviderBranchIdentifierInput = z.infer<
+  typeof RequisiteProviderBranchIdentifierInputSchema
+>;
 
-    throw error;
-  }
-}
+export const RequisiteProviderBranchInputSchema = z.object({
+  id: z.uuid().optional(),
+  code: nullableShortText,
+  name: z.string().trim().min(1).max(255),
+  nameI18n: LocaleTextMapSchema.optional().default(null),
+  country: nullableCountry,
+  postalCode: nullableShortText,
+  city: nullableShortText,
+  cityI18n: LocaleTextMapSchema.optional().default(null),
+  line1: nullableText,
+  line1I18n: LocaleTextMapSchema.optional().default(null),
+  line2: nullableText,
+  line2I18n: LocaleTextMapSchema.optional().default(null),
+  rawAddress: nullableText,
+  rawAddressI18n: LocaleTextMapSchema.optional().default(null),
+  contactEmail: nullableShortText,
+  contactPhone: nullableShortText,
+  isPrimary: z.boolean().default(false),
+  identifiers: z.array(RequisiteProviderBranchIdentifierInputSchema).default([]),
+});
+export type RequisiteProviderBranchInput = z.infer<
+  typeof RequisiteProviderBranchInputSchema
+>;
 
-export const CreateRequisiteProviderInputSchema =
-  providerFieldsSchema.superRefine(refineProviderRules);
+export const CreateRequisiteProviderInputSchema = providerFieldsSchema.extend({
+  identifiers: z.array(RequisiteProviderIdentifierInputSchema).default([]),
+  branches: z.array(RequisiteProviderBranchInputSchema).default([]),
+});
 export type CreateRequisiteProviderInput = z.input<
   typeof CreateRequisiteProviderInputSchema
 >;
 
 export const UpdateRequisiteProviderInputSchema = z.object({
   kind: RequisiteKindSchema.exactOptional(),
-  name: z.string().trim().min(1).max(255).exactOptional(),
+  legalName: z.string().trim().min(1).max(255).exactOptional(),
+  legalNameI18n: LocaleTextMapSchema.exactOptional(),
+  displayName: z.string().trim().min(1).max(255).exactOptional(),
+  displayNameI18n: LocaleTextMapSchema.exactOptional(),
   description: nullableTextPatch,
   country: nullableCountryPatch,
-  address: nullableTextPatch,
-  contact: nullableTextPatch,
-  bic: nullableShortTextPatch,
-  swift: nullableShortTextPatch,
+  website: nullableTextPatch,
+  identifiers: z.array(RequisiteProviderIdentifierInputSchema).exactOptional(),
+  branches: z.array(RequisiteProviderBranchInputSchema).exactOptional(),
 });
 export type UpdateRequisiteProviderInput = z.input<
   typeof UpdateRequisiteProviderInputSchema

@@ -41,7 +41,7 @@ export const DEAL_TYPE_LABELS: Record<DealType, string> = {
 };
 
 export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
-  applicant: "юридическое лицо клиента",
+  applicant: "контрагент клиента",
   customer: "клиент",
   external_beneficiary: "получатель выплаты",
   external_payer: "плательщик",
@@ -185,7 +185,7 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
     "Нужно создать расчет по принятой котировке.",
   "An accepted quote is required for convert deals":
     "Для сделки с конвертацией нужна принятая котировка.",
-  "Applicant requisite is required": "Выберите реквизиты юридического лица.",
+  "Applicant requisite is required": "Выберите реквизиты контрагента.",
   "Beneficiary bank instructions are required":
     "Заполните банковские реквизиты получателя.",
   "Contract number is required": "Укажите номер договора.",

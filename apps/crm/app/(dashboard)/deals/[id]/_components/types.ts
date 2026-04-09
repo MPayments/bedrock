@@ -405,7 +405,7 @@ export type ApiAgreementDetails = {
   organizationRequisiteId: string;
 };
 
-export type ApiCustomerLegalEntity = {
+export type ApiCustomerCounterparty = {
   counterpartyId: string;
   directorBasis: string | null;
   directorName: string | null;
@@ -422,10 +422,46 @@ export type ApiCustomerLegalEntity = {
 
 export type ApiCustomerWorkspace = {
   description: string | null;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   id: string;
-  legalEntities: ApiCustomerLegalEntity[];
+  counterparties: ApiCustomerCounterparty[];
+};
+
+export type ApiCanonicalCounterparty = {
+  externalRef: string | null;
+  fullName: string;
+  id: string;
+  partyProfile: {
+    contacts: {
+      isPrimary: boolean;
+      type: string;
+      value: string;
+    }[];
+    identifiers: Array<{
+      scheme: string;
+      value: string;
+    }>;
+    representatives: Array<{
+      basisDocument: string | null;
+      fullName: string;
+      isPrimary: boolean;
+      role: string;
+      title: string | null;
+    }>;
+  } | null;
+  relationshipKind: "customer_owned" | "external";
+  shortName: string;
+};
+
+export type ApiDealCustomerContext = {
+  counterparties: ApiCanonicalCounterparty[];
+  customer: {
+    description: string | null;
+    name: string;
+    externalRef: string | null;
+    id: string;
+  };
 };
 
 export type ApiOrganization = {
@@ -553,7 +589,7 @@ export type DealPageData = {
   customer: ApiCustomerWorkspace;
   deal: ApiDealDetails;
   formalDocuments: ApiFormalDocument[];
-  legalEntity: ApiCustomerLegalEntity | null;
+  partyProfile: ApiCustomerCounterparty | null;
   organization: ApiOrganization;
   organizationRequisite: ApiRequisite;
   organizationRequisiteProvider: ApiRequisiteProvider | null;
@@ -591,8 +627,8 @@ export type ApiCrmDealWorkbenchProjection = {
   comment: string | null;
   context: {
     agreement: ApiAgreementDetails | null;
-    applicant: ApiCustomerLegalEntity | null;
-    customer: ApiCustomerWorkspace | null;
+    applicant: ApiCanonicalCounterparty | null;
+    customer: ApiDealCustomerContext | null;
     internalEntity: ApiOrganization | null;
     internalEntityRequisite: ApiRequisite | null;
     internalEntityRequisiteProvider: ApiRequisiteProvider | null;

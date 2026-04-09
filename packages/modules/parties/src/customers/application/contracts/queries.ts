@@ -6,14 +6,14 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 const CUSTOMERS_SORTABLE_COLUMNS = [
-  "displayName",
+  "name",
   "externalRef",
   "createdAt",
   "updatedAt",
 ] as const;
 
 interface CustomersListFilters {
-  displayName: { kind: "string"; cardinality: "single" };
+  name: { kind: "string"; cardinality: "single" };
   externalRef: { kind: "string"; cardinality: "single" };
 }
 
@@ -24,7 +24,7 @@ export const CUSTOMERS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: CUSTOMERS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
-    displayName: { kind: "string", cardinality: "single" },
+    name: { kind: "string", cardinality: "single" },
     externalRef: { kind: "string", cardinality: "single" },
   },
 };

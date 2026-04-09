@@ -62,16 +62,16 @@ describe("seedCounterparties", () => {
     expect(customerGroupValues).toEqual(
       CUSTOMERS.map((customer) => ({
         code: `customer:${customer.id}`,
-        name: customer.displayName,
+        name: customer.name,
         description: "Auto-created customer group",
         parentId: null,
         customerId: customer.id,
         isSystem: false,
       })),
     );
-    expect(deleteTables).toEqual(
-      COUNTERPARTIES.map(() => schema.counterpartyGroupMemberships),
-    );
+    expect(
+      deleteTables.filter((table) => table === schema.counterpartyGroupMemberships),
+    ).toEqual(COUNTERPARTIES.map(() => schema.counterpartyGroupMemberships));
     expect(membershipValues).toEqual(
       COUNTERPARTIES.map((counterparty) => ({
         counterpartyId: counterparty.id,

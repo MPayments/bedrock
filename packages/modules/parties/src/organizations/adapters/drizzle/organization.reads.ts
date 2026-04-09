@@ -19,7 +19,11 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import { organizations } from "./schema";
-import type { Organization } from "../../application/contracts/dto";
+import { DrizzlePartyProfilesReads } from "../../../party-profiles/adapters/drizzle/party-profiles.reads";
+import type {
+  Organization,
+  OrganizationListItem,
+} from "../../application/contracts/dto";
 import type { ListOrganizationsQuery } from "../../application/contracts/queries";
 import type { OrganizationReads } from "../../application/ports/organization.reads";
 import type { PartyKind } from "../../domain/party-kind";
@@ -75,10 +79,24 @@ export class DrizzleOrganizationReads implements OrganizationReads {
       .where(eq(organizations.id, id))
       .limit(1);
 
-    return row ?? null;
+    if (!row) {
+      return null;
+    }
+
+    const legalEntitiesReads = new DrizzlePartyProfilesReads(this.db);
+
+    return {
+      ...row,
+      partyProfile: await legalEntitiesReads.findBundleByOwner({
+        ownerType: "organization",
+        ownerId: row.id,
+      }),
+    };
   }
 
-  async list(input: ListOrganizationsQuery): Promise<PaginatedList<Organization>> {
+  async list(
+    input: ListOrganizationsQuery,
+  ): Promise<PaginatedList<OrganizationListItem>> {
     const where = buildWhere(input);
     const orderByFn = resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
     const orderByColumn = resolveSortValue(

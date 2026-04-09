@@ -31,10 +31,11 @@ export function agentsRoutes(ctx: AppContext) {
   });
 
   return app.openapi(listRoute, async (c): Promise<any> => {
-    const users: Awaited<ReturnType<typeof ctx.iamService.queries.list>>["data"] =
-      [];
+    const users: Awaited<
+      ReturnType<typeof ctx.iamService.queries.list>
+    >["data"] = [];
     let offset = 0;
-    let total = 0;
+    let total: number;
 
     do {
       const page = await ctx.iamService.queries.list({

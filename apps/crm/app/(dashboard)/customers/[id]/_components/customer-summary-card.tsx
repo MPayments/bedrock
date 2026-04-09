@@ -7,6 +7,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
@@ -41,7 +42,13 @@ export function CustomerSummaryCard({
     <Card>
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle>Данные клиента</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>Карточка клиента</CardTitle>
+            <CardDescription>
+              Внутренние данные CRM: название, внешний идентификатор и
+              комментарий менеджера.
+            </CardDescription>
+          </div>
           {isDirty ? (
             <div className="flex items-center gap-2">
               <Button
@@ -79,15 +86,15 @@ export function CustomerSummaryCard({
             <Label htmlFor="customer-display-name">Название клиента</Label>
             <Input
               id="customer-display-name"
-              value={form.watch("displayName")}
+              value={form.watch("name")}
               onChange={(event) =>
-                form.setValue("displayName", event.target.value, {
+                form.setValue("name", event.target.value, {
                   shouldDirty: true,
                   shouldValidate: true,
                 })
               }
             />
-            <FieldError message={form.formState.errors.displayName?.message} />
+            <FieldError message={form.formState.errors.name?.message} />
           </div>
 
           <div className="space-y-2">

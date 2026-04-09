@@ -27,13 +27,13 @@ export class CreateCustomerCommand {
         generateUuid: this.runtime.generateUuid,
         groups: tx.counterpartyGroups,
         customerId: created.id,
-        displayName: created.displayName,
+        name: created.name,
         now,
       });
 
       this.runtime.log.info("Customer created", {
         id: created.id,
-        displayName: created.displayName,
+        name: created.name,
       });
 
       return created;

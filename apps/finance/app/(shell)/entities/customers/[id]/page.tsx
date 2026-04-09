@@ -1,5 +1,6 @@
 import { EditCustomerFormClient } from "@/features/entities/customers/components/edit-customer-form-client";
 import { getCustomerById } from "@/features/entities/customers/lib/queries";
+import { getCustomerRelationHubData } from "@/features/entities/customers/lib/relation-hub";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface CustomerPageProps {
@@ -11,6 +12,7 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
     params,
     getById: getCustomerById,
   });
+  const relationHub = await getCustomerRelationHubData(customer.id);
 
-  return <EditCustomerFormClient customer={customer} />;
+  return <EditCustomerFormClient customer={customer} relationHub={relationHub} />;
 }

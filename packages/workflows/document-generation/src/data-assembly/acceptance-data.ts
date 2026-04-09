@@ -104,6 +104,13 @@ export function assembleAcceptanceData(
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
+  applyLocalizedTemplateField(
+    raw,
+    "agentBankName",
+    organizationRequisite,
+    "institutionName",
+    lang,
+  );
   withLocalizedTemplateFields(raw, "directorName", {
     ru: formatDirector(getLocalizedValue(client, "directorName", "ru") || "", "ru").genitive,
     en: getLocalizedValue(client, "directorName", "en") || getLocalizedValue(client, "directorName", "ru"),

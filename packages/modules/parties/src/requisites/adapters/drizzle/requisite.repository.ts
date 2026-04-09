@@ -2,13 +2,18 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import { requisites, type RequisiteRow } from "./schema";
+import { DrizzleRequisiteReads } from "./requisite.reads";
+import { requisiteIdentifiers, requisites } from "./schema";
 import type { RequisiteRepository } from "../../application/ports/requisite.repository";
+import {
+  normalizePaymentIdentifierScheme,
+  normalizePaymentIdentifierValue,
+} from "../../domain/identifier-schemes";
 import type { RequisiteOwnerType } from "../../domain/owner";
 import { Requisite, type RequisiteSnapshot } from "../../domain/requisite";
 import { RequisiteSet } from "../../domain/requisite-set";
 
-function mapRowToSnapshot(row: RequisiteRow): RequisiteSnapshot {
+function mapRowToSnapshot(row: typeof requisites.$inferSelect): RequisiteSnapshot {
   return {
     id: row.id,
     ownerType: row.ownerType,
@@ -17,21 +22,14 @@ function mapRowToSnapshot(row: RequisiteRow): RequisiteSnapshot {
         ? row.organizationId!
         : row.counterpartyId!,
     providerId: row.providerId,
+    providerBranchId: row.providerBranchId,
     currencyId: row.currencyId,
     kind: row.kind,
     label: row.label,
-    description: row.description,
     beneficiaryName: row.beneficiaryName,
-    accountNo: row.accountNo,
-    corrAccount: row.corrAccount,
-    iban: row.iban,
-    network: row.network,
-    assetCode: row.assetCode,
-    address: row.address,
-    memoTag: row.memoTag,
-    accountRef: row.accountRef,
-    subaccountRef: row.subaccountRef,
-    contact: row.contact,
+    beneficiaryNameLocal: row.beneficiaryNameLocal,
+    beneficiaryAddress: row.beneficiaryAddress,
+    paymentPurposeTemplate: row.paymentPurposeTemplate,
     notes: row.notes,
     isDefault: row.isDefault,
     createdAt: row.createdAt,
@@ -48,6 +46,10 @@ function ownerIdColumn(ownerType: RequisiteOwnerType) {
 
 export class DrizzleRequisiteRepository implements RequisiteRepository {
   constructor(private readonly db: Queryable) {}
+
+  findDetailById(id: string) {
+    return new DrizzleRequisiteReads(this.db).findById(id);
+  }
 
   async findById(id: string): Promise<Requisite | null> {
     const [row] = await this.db
@@ -98,6 +100,39 @@ export class DrizzleRequisiteRepository implements RequisiteRepository {
     }
   }
 
+  async replaceIdentifiers(input: {
+    requisiteId: string;
+    items: {
+      id?: string;
+      scheme: string;
+      value: string;
+      isPrimary: boolean;
+    }[];
+  }): Promise<void> {
+    await this.db
+      .delete(requisiteIdentifiers)
+      .where(eq(requisiteIdentifiers.requisiteId, input.requisiteId));
+
+    if (input.items.length === 0) {
+      return;
+    }
+
+    await this.db.insert(requisiteIdentifiers).values(
+      input.items.map((item) => ({
+        id: item.id,
+        requisiteId: input.requisiteId,
+        scheme: normalizePaymentIdentifierScheme(item.scheme),
+        value: item.value.trim(),
+        normalizedValue: normalizePaymentIdentifierValue({
+          owner: "requisite",
+          scheme: item.scheme,
+          value: item.value,
+        }),
+        isPrimary: item.isPrimary,
+      })),
+    );
+  }
+
   private async findExistingRow(id: string) {
     const [row] = await this.db
       .select({ id: requisites.id })
@@ -119,21 +154,14 @@ export class DrizzleRequisiteRepository implements RequisiteRepository {
         counterpartyId:
           snapshot.ownerType === "counterparty" ? snapshot.ownerId : null,
         providerId: snapshot.providerId,
+        providerBranchId: snapshot.providerBranchId,
         currencyId: snapshot.currencyId,
         kind: snapshot.kind,
         label: snapshot.label,
-        description: snapshot.description,
         beneficiaryName: snapshot.beneficiaryName,
-        accountNo: snapshot.accountNo,
-        corrAccount: snapshot.corrAccount,
-        iban: snapshot.iban,
-        network: snapshot.network,
-        assetCode: snapshot.assetCode,
-        address: snapshot.address,
-        memoTag: snapshot.memoTag,
-        accountRef: snapshot.accountRef,
-        subaccountRef: snapshot.subaccountRef,
-        contact: snapshot.contact,
+        beneficiaryNameLocal: snapshot.beneficiaryNameLocal,
+        beneficiaryAddress: snapshot.beneficiaryAddress,
+        paymentPurposeTemplate: snapshot.paymentPurposeTemplate,
         notes: snapshot.notes,
         isDefault: snapshot.isDefault,
         archivedAt: snapshot.archivedAt,
@@ -148,21 +176,14 @@ export class DrizzleRequisiteRepository implements RequisiteRepository {
       .update(requisites)
       .set({
         providerId: snapshot.providerId,
+        providerBranchId: snapshot.providerBranchId,
         currencyId: snapshot.currencyId,
         kind: snapshot.kind,
         label: snapshot.label,
-        description: snapshot.description,
         beneficiaryName: snapshot.beneficiaryName,
-        accountNo: snapshot.accountNo,
-        corrAccount: snapshot.corrAccount,
-        iban: snapshot.iban,
-        network: snapshot.network,
-        assetCode: snapshot.assetCode,
-        address: snapshot.address,
-        memoTag: snapshot.memoTag,
-        accountRef: snapshot.accountRef,
-        subaccountRef: snapshot.subaccountRef,
-        contact: snapshot.contact,
+        beneficiaryNameLocal: snapshot.beneficiaryNameLocal,
+        beneficiaryAddress: snapshot.beneficiaryAddress,
+        paymentPurposeTemplate: snapshot.paymentPurposeTemplate,
         notes: snapshot.notes,
         isDefault: snapshot.isDefault,
         archivedAt: snapshot.archivedAt,

@@ -1,15 +1,58 @@
-import type { RequisiteProvider } from "../contracts/dto";
+import type {
+  RequisiteProvider,
+  RequisiteProviderListItem,
+} from "../contracts/dto";
 
 export type RequisiteProviderWriteInput = Omit<
-  RequisiteProvider,
+  RequisiteProviderListItem,
   "createdAt" | "updatedAt"
 >;
 
 export interface RequisiteProviderStore {
-  findActiveById(id: string): Promise<RequisiteProvider | null>;
-  create(provider: RequisiteProviderWriteInput): Promise<RequisiteProvider>;
+  findDetailById(id: string): Promise<RequisiteProvider | null>;
+  findActiveById(id: string): Promise<RequisiteProviderListItem | null>;
+  create(
+    provider: RequisiteProviderWriteInput,
+  ): Promise<RequisiteProviderListItem>;
   update(
     provider: RequisiteProviderWriteInput,
-  ): Promise<RequisiteProvider | null>;
+  ): Promise<RequisiteProviderListItem | null>;
+  replaceIdentifiers(input: {
+    providerId: string;
+    items: {
+      id?: string;
+      scheme: string;
+      value: string;
+      isPrimary: boolean;
+    }[];
+  }): Promise<void>;
+  replaceBranches(input: {
+    providerId: string;
+    items: {
+      id?: string;
+      code: string | null;
+      name: string;
+      nameI18n: Record<string, string | null> | null;
+      country: string | null;
+      postalCode: string | null;
+      city: string | null;
+      cityI18n: Record<string, string | null> | null;
+      line1: string | null;
+      line1I18n: Record<string, string | null> | null;
+      line2: string | null;
+      line2I18n: Record<string, string | null> | null;
+      rawAddress: string | null;
+      rawAddressI18n: Record<string, string | null> | null;
+      contactEmail: string | null;
+      contactPhone: string | null;
+      isPrimary: boolean;
+      identifiers: {
+        id?: string;
+        scheme: string;
+        value: string;
+        isPrimary: boolean;
+      }[];
+    }[];
+  }): Promise<void>;
   archive(id: string, archivedAt: Date): Promise<boolean>;
 }

@@ -17,8 +17,16 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import { requisites, type RequisiteRow } from "./schema";
-import type { Requisite } from "../../application/contracts/requisites";
+import {
+  requisiteIdentifiers,
+  requisites,
+  type RequisiteIdentifierRow,
+  type RequisiteRow,
+} from "./schema";
+import type {
+  Requisite,
+  RequisiteListItem,
+} from "../../application/contracts/requisites";
 import type {
   RequisiteOptionRecord,
   RequisiteReads,
@@ -47,21 +55,14 @@ function mapRowToSnapshot(row: RequisiteRow): RequisiteSnapshot {
         ? row.organizationId!
         : row.counterpartyId!,
     providerId: row.providerId,
+    providerBranchId: row.providerBranchId,
     currencyId: row.currencyId,
     kind: row.kind,
     label: row.label,
-    description: row.description,
     beneficiaryName: row.beneficiaryName,
-    accountNo: row.accountNo,
-    corrAccount: row.corrAccount,
-    iban: row.iban,
-    network: row.network,
-    assetCode: row.assetCode,
-    address: row.address,
-    memoTag: row.memoTag,
-    accountRef: row.accountRef,
-    subaccountRef: row.subaccountRef,
-    contact: row.contact,
+    beneficiaryNameLocal: row.beneficiaryNameLocal,
+    beneficiaryAddress: row.beneficiaryAddress,
+    paymentPurposeTemplate: row.paymentPurposeTemplate,
     notes: row.notes,
     isDefault: row.isDefault,
     createdAt: row.createdAt,
@@ -70,8 +71,26 @@ function mapRowToSnapshot(row: RequisiteRow): RequisiteSnapshot {
   };
 }
 
-function toPublicRequisite(snapshot: RequisiteSnapshot): Requisite {
-  return { ...snapshot };
+function mapRowToListItem(row: RequisiteRow): RequisiteListItem {
+  const ownerId =
+    row.ownerType === "organization" ? row.organizationId! : row.counterpartyId!;
+
+  return {
+    ...mapRowToSnapshot(row),
+    ownerId,
+    organizationId: row.organizationId,
+    counterpartyId: row.counterpartyId,
+  };
+}
+
+function mapRowsToDetail(
+  row: RequisiteRow,
+  identifierRows: RequisiteIdentifierRow[],
+): Requisite {
+  return {
+    ...mapRowToListItem(row),
+    identifiers: identifierRows,
+  };
 }
 
 function ownerIdColumn(ownerType: RequisiteOwnerType) {
@@ -92,7 +111,8 @@ export class DrizzleRequisiteReads implements RequisiteReads {
 
     if (!row) return null;
 
-    return toPublicRequisite(mapRowToSnapshot(row));
+    const identifiers = await this.listIdentifierRows([row.id]);
+    return mapRowsToDetail(row, identifiers.get(row.id) ?? []);
   }
 
   async findActiveById(id: string): Promise<Requisite | null> {
@@ -104,12 +124,13 @@ export class DrizzleRequisiteReads implements RequisiteReads {
 
     if (!row) return null;
 
-    return toPublicRequisite(mapRowToSnapshot(row));
+    const identifiers = await this.listIdentifierRows([row.id]);
+    return mapRowsToDetail(row, identifiers.get(row.id) ?? []);
   }
 
   async listActiveBankByCounterpartyId(
     counterpartyId: string,
-  ): Promise<Requisite[]> {
+  ): Promise<RequisiteListItem[]> {
     const rows = await this.db
       .select()
       .from(requisites)
@@ -123,7 +144,7 @@ export class DrizzleRequisiteReads implements RequisiteReads {
       )
       .orderBy(desc(requisites.createdAt));
 
-    return rows.map((row) => toPublicRequisite(mapRowToSnapshot(row)));
+    return rows.map((row) => mapRowToListItem(row));
   }
 
   async list(input: {
@@ -137,7 +158,7 @@ export class DrizzleRequisiteReads implements RequisiteReads {
     currencyId?: string[];
     kind?: string[];
     providerId?: string[];
-  }): Promise<PaginatedList<Requisite>> {
+  }): Promise<PaginatedList<RequisiteListItem>> {
     const conditions: SQL[] = [isNull(requisites.archivedAt)];
 
     if (input.label) {
@@ -162,7 +183,7 @@ export class DrizzleRequisiteReads implements RequisiteReads {
 
     if (input.kind?.length) {
       conditions.push(
-        inArray(requisites.kind, input.kind as Requisite["kind"][]),
+        inArray(requisites.kind, input.kind as RequisiteListItem["kind"][]),
       );
     }
 
@@ -193,7 +214,7 @@ export class DrizzleRequisiteReads implements RequisiteReads {
     ]);
 
     return {
-      data: rows.map((row) => toPublicRequisite(mapRowToSnapshot(row))),
+      data: rows.map((row) => mapRowToListItem(row)),
       total: countRows[0]?.total ?? 0,
       limit: input.limit,
       offset: input.offset,
@@ -207,15 +228,11 @@ export class DrizzleRequisiteReads implements RequisiteReads {
     const conditions: SQL[] = [isNull(requisites.archivedAt)];
 
     if (input.ownerType) {
-      conditions.push(
-        eq(requisites.ownerType, input.ownerType as RequisiteOwnerType),
-      );
+      conditions.push(eq(requisites.ownerType, input.ownerType));
     }
 
     if (input.ownerId && input.ownerType) {
-      conditions.push(
-        eq(ownerIdColumn(input.ownerType as RequisiteOwnerType), input.ownerId),
-      );
+      conditions.push(eq(ownerIdColumn(input.ownerType), input.ownerId));
     }
 
     return this.db
@@ -228,16 +245,6 @@ export class DrizzleRequisiteReads implements RequisiteReads {
         kind: requisites.kind,
         label: requisites.label,
         beneficiaryName: requisites.beneficiaryName,
-        accountNo: requisites.accountNo,
-        corrAccount: requisites.corrAccount,
-        iban: requisites.iban,
-        network: requisites.network,
-        assetCode: requisites.assetCode,
-        address: requisites.address,
-        memoTag: requisites.memoTag,
-        accountRef: requisites.accountRef,
-        subaccountRef: requisites.subaccountRef,
-        contact: requisites.contact,
         notes: requisites.notes,
         currencyCode: currencyCodeSql,
       })
@@ -285,5 +292,31 @@ export class DrizzleRequisiteReads implements RequisiteReads {
       })
       .from(requisites)
       .where(inArray(requisites.id, uniqueIds));
+  }
+
+  private async listIdentifierRows(requisiteIds: string[]) {
+    const uniqueIds = Array.from(new Set(requisiteIds.filter(Boolean)));
+    const result = new Map<string, RequisiteIdentifierRow[]>();
+
+    if (uniqueIds.length === 0) {
+      return result;
+    }
+
+    const rows = await this.db
+      .select()
+      .from(requisiteIdentifiers)
+      .where(inArray(requisiteIdentifiers.requisiteId, uniqueIds))
+      .orderBy(
+        asc(requisiteIdentifiers.requisiteId),
+        asc(requisiteIdentifiers.createdAt),
+      );
+
+    for (const row of rows) {
+      const items = result.get(row.requisiteId) ?? [];
+      items.push(row);
+      result.set(row.requisiteId, items);
+    }
+
+    return result;
   }
 }

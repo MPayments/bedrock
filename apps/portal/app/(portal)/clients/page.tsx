@@ -17,9 +17,15 @@ import {
 
 import {
   type PortalCustomerContext,
+  resolvePortalCustomerDescription,
+  resolvePortalCustomerDisplayName,
+  resolvePortalCustomerExternalRef,
+  resolvePortalCustomerId,
+  resolvePortalCounterpartyInn,
+  resolvePortalCounterpartyPhone,
   requestCustomerContexts,
 } from "@/lib/customer-contexts";
-import { isDuplicateCustomerLegalEntityName } from "@/lib/legal-entities";
+import { isDuplicateCustomerCounterpartyName } from "@/lib/counterparties";
 
 export default function PortalClientsPage() {
   const router = useRouter();
@@ -81,7 +87,7 @@ export default function PortalClientsPage() {
       <div className="space-y-3">
         {customers.map((customer) => (
           <Card
-            key={customer.customerId}
+            key={resolvePortalCustomerId(customer)}
             className="transition-colors hover:bg-muted/50"
           >
             <CardHeader className="pb-2">
@@ -89,18 +95,18 @@ export default function PortalClientsPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="h-5 w-5 shrink-0 text-primary" />
                   <CardTitle className="truncate text-base">
-                    {customer.displayName}
+                    {resolvePortalCustomerDisplayName(customer)}
                   </CardTitle>
                 </div>
-                {customer.externalRef ? (
+                {resolvePortalCustomerExternalRef(customer) ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    Ref: {customer.externalRef}
+                    Ref: {resolvePortalCustomerExternalRef(customer)}
                   </span>
                 ) : null}
               </div>
-              {customer.description ? (
+              {resolvePortalCustomerDescription(customer) ? (
                 <CardDescription className="mt-1 text-sm">
-                  {customer.description}
+                  {resolvePortalCustomerDescription(customer)}
                 </CardDescription>
               ) : null}
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -124,30 +130,33 @@ export default function PortalClientsPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
-                {customer.legalEntities.map((legalEntity) => (
+                {customer.counterparties.map((counterparty) => (
                   <div
-                    key={legalEntity.counterpartyId}
+                    key={counterparty.id}
                     className="rounded-lg border border-border/60 p-3"
                   >
                     <div className="min-w-0">
-                      {!isDuplicateCustomerLegalEntityName({
-                        customerDisplayName: customer.displayName,
-                        legalEntityName: legalEntity.shortName,
+                      {!isDuplicateCustomerCounterpartyName({
+                        customerDisplayName:
+                          resolvePortalCustomerDisplayName(customer),
+                        counterpartyName: counterparty.shortName,
                       }) ? (
                         <p className="truncate font-medium">
-                          {legalEntity.shortName}
+                          {counterparty.shortName}
                         </p>
                       ) : null}
-                      {legalEntity.inn ? (
+                      {resolvePortalCounterpartyInn(counterparty) ? (
                         <p className="text-xs text-muted-foreground">
-                          ИНН: {legalEntity.inn}
+                          ИНН: {resolvePortalCounterpartyInn(counterparty)}
                         </p>
                       ) : null}
                     </div>
-                    {legalEntity.phone ? (
+                    {resolvePortalCounterpartyPhone(counterparty) ? (
                       <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="h-3.5 w-3.5" />
-                        <span>{legalEntity.phone}</span>
+                        <span>
+                          {resolvePortalCounterpartyPhone(counterparty)}
+                        </span>
                       </div>
                     ) : null}
                   </div>
@@ -161,14 +170,12 @@ export default function PortalClientsPage() {
       <Card className="mt-6">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
-            В разработке
+            <FileText className="h-4 w-4" />В разработке
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>Редактирование данных организации</li>
-            <li>Просмотр заявок по организации</li>
             <li>Документы организации</li>
           </ul>
         </CardContent>

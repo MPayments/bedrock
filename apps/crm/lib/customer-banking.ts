@@ -1,6 +1,9 @@
+import { z } from "zod";
+
 import { normalizeToAlpha2 } from "@bedrock/shared/reference-data/countries";
 
-import { API_BASE_URL } from "@/lib/constants";
+import { apiClient } from "@/lib/api-client";
+import { readJsonWithSchema } from "@/lib/api/response";
 
 export type CustomerBankProviderSnapshot = {
   address?: string;
@@ -32,6 +35,48 @@ export type CustomerBankProviderSearchResult = {
   name: string;
   swift: string | null;
 };
+
+const RequisiteProviderListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      country: z.string().nullable(),
+      displayName: z.string(),
+      kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
+      legalName: z.string(),
+    }),
+  ),
+});
+
+const RequisiteProviderDetailSchema = z.object({
+  id: z.uuid(),
+  country: z.string().nullable(),
+  displayName: z.string(),
+  legalName: z.string(),
+  identifiers: z.array(
+    z.object({
+      scheme: z.string(),
+      value: z.string(),
+    }),
+  ),
+  branches: z.array(
+    z.object({
+      country: z.string().nullable(),
+      line1: z.string().nullable(),
+      line2: z.string().nullable(),
+      city: z.string().nullable(),
+      postalCode: z.string().nullable(),
+      rawAddress: z.string().nullable(),
+      isPrimary: z.boolean(),
+      identifiers: z.array(
+        z.object({
+          scheme: z.string(),
+          value: z.string(),
+        }),
+      ),
+    }),
+  ),
+});
 
 type FlatBankingSource = {
   account?: string | null;
@@ -209,20 +254,68 @@ export function createCustomerBankingPayload(
   };
 }
 
+function findProviderIdentifier(
+  provider: z.infer<typeof RequisiteProviderDetailSchema>,
+  scheme: string,
+) {
+  const branchValue =
+    provider.branches
+      .flatMap((branch) => (branch.isPrimary ? branch.identifiers : []))
+      .find((identifier) => identifier.scheme === scheme)?.value ?? null;
+
+  if (branchValue) {
+    return branchValue;
+  }
+
+  return (
+    provider.identifiers.find((identifier) => identifier.scheme === scheme)
+      ?.value ?? null
+  );
+}
+
+function formatProviderAddress(
+  provider: z.infer<typeof RequisiteProviderDetailSchema>,
+) {
+  const primaryBranch =
+    provider.branches.find((branch) => branch.isPrimary) ?? provider.branches[0];
+  if (!primaryBranch) {
+    return null;
+  }
+
+  const fallback = [
+    primaryBranch.line1,
+    primaryBranch.line2,
+    primaryBranch.city,
+    primaryBranch.postalCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return primaryBranch.rawAddress ?? (fallback || null);
+}
+
 export async function searchCustomerBankProviders(input: {
   query: string;
   signal?: AbortSignal;
 }) {
-  const search = new URLSearchParams({
-    limit: "8",
-    query: input.query.trim(),
-  });
+  const trimmed = input.query.trim();
+  if (trimmed.length < 2) {
+    return [];
+  }
 
-  const response = await fetch(
-    `${API_BASE_URL}/customers/bank-providers?${search.toString()}`,
+  const response = await apiClient.v1.requisites.providers.$get(
     {
-      credentials: "include",
-      signal: input.signal,
+      query: {
+        displayName: trimmed,
+        kind: ["bank"],
+        limit: 8,
+        offset: 0,
+        sortBy: "displayName",
+        sortOrder: "asc",
+      },
+    },
+    {
+      init: { signal: input.signal },
     },
   );
 
@@ -230,9 +323,43 @@ export async function searchCustomerBankProviders(input: {
     throw new Error(`Ошибка поиска банка: ${response.status}`);
   }
 
-  const payload = (await response.json()) as {
-    data?: CustomerBankProviderSearchResult[];
-  };
+  const payload = await readJsonWithSchema(
+    response,
+    RequisiteProviderListResponseSchema,
+  );
 
-  return payload.data ?? [];
+  const details = await Promise.all(
+    payload.data.map(async (provider) => {
+      const detailResponse = await apiClient.v1.requisites.providers[":id"].$get(
+        {
+          param: { id: provider.id },
+        },
+        {
+          init: { signal: input.signal },
+        },
+      );
+
+      if (!detailResponse.ok) {
+        throw new Error(`Ошибка загрузки банка: ${detailResponse.status}`);
+      }
+
+      return readJsonWithSchema(detailResponse, RequisiteProviderDetailSchema);
+    }),
+  );
+
+  return details.map((provider) => {
+    const bic = findProviderIdentifier(provider, "bic");
+    const swift = findProviderIdentifier(provider, "swift");
+    const name = provider.displayName || provider.legalName;
+
+    return {
+      address: formatProviderAddress(provider),
+      bic,
+      country: provider.country,
+      displayLabel: [name, provider.country, bic ?? swift].filter(Boolean).join(" · "),
+      id: provider.id,
+      name,
+      swift,
+    };
+  });
 }

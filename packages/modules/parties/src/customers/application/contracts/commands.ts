@@ -15,7 +15,7 @@ export const CreateCustomerInputSchema = z.object({
     .trim()
     .nullish()
     .transform((value) => trimToNull(value) ?? null),
-  displayName: z.string().trim().min(1, "displayName is required"),
+  name: z.string().trim().min(1, "name is required"),
   description: z
     .string()
     .trim()
@@ -32,7 +32,7 @@ export const UpdateCustomerInputSchema = z.object({
     .nullable()
     .transform((value) => trimToNull(value))
     .exactOptional(),
-  displayName: z.string().trim().min(1).exactOptional(),
+  name: z.string().trim().min(1).exactOptional(),
   description: z
     .string()
     .trim()

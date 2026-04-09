@@ -33,7 +33,7 @@ import {
   dealsRoutes,
   documentsRoutes,
   internalDealCapabilitiesRoutes,
-  legalEntitiesRoutes,
+  counterpartyDirectoryRoutes,
   organizationsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
@@ -208,6 +208,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/calculations", calculationsRoutes(ctx))
+    .route("/counterparties", counterpartyDirectoryRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
     .route("/customer", customerRoutes(ctx))
@@ -216,7 +217,6 @@ function createV1Routes(ctx: AppContext) {
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
     .route("/internal/deal-capabilities", internalDealCapabilitiesRoutes(ctx))
-    .route("/legal-entities", legalEntitiesRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))

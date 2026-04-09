@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { CurrencyNotFoundError } from "@bedrock/currencies";
 import {
   CounterpartyNotFoundError,
   OrganizationNotFoundError,
@@ -13,12 +12,10 @@ import {
   RequisiteProviderNotActiveError,
 } from "@bedrock/parties";
 import {
-  BankRequisiteWorkspaceResponseSchema,
-  CreateRequisiteInputSchema,
-  ListBankRequisiteWorkspaceQuerySchema,
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
+  RequisiteListItemSchema,
   RequisiteOptionsResponseSchema,
   RequisiteOptionSchema,
   RequisiteProviderSchema,
@@ -29,7 +26,6 @@ import {
 import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   createPaginatedListSchema,
-  MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
@@ -38,39 +34,9 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const PaginatedRequisitesSchema = createPaginatedListSchema(RequisiteSchema);
-
-async function findBankWorkspaceProvider(
-  ctx: AppContext,
-  providerId: string,
-) {
-  try {
-    return await ctx.partiesModule.requisites.queries.findProviderById(
-      providerId,
-    );
-  } catch (error) {
-    if (error instanceof RequisiteProviderNotFoundError) {
-      return null;
-    }
-
-    throw error;
-  }
-}
-
-async function findBankWorkspaceCurrency(
-  ctx: AppContext,
-  currencyId: string,
-) {
-  try {
-    return await ctx.currenciesService.findById(currencyId);
-  } catch (error) {
-    if (error instanceof CurrencyNotFoundError) {
-      return null;
-    }
-
-    throw error;
-  }
-}
+const PaginatedRequisitesSchema = createPaginatedListSchema(
+  RequisiteListItemSchema,
+);
 
 export function requisitesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -113,72 +79,6 @@ export function requisitesRoutes(ctx: AppContext) {
           },
         },
         description: "Requisite option list",
-      },
-    },
-  });
-
-  const bankWorkspaceRoute = createRoute({
-    middleware: [requirePermission({ requisites: ["list"] })],
-    method: "get",
-    path: "/bank-workspace",
-    tags: ["Requisites"],
-    summary:
-      "List active bank requisites for an owner with resolved provider and currency metadata",
-    request: {
-      query: ListBankRequisiteWorkspaceQuerySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: BankRequisiteWorkspaceResponseSchema,
-          },
-        },
-        description: "Bank requisites workspace data",
-      },
-    },
-  });
-
-  const createRoute_ = createRoute({
-    middleware: [requirePermission({ requisites: ["create"] })],
-    method: "post",
-    path: "/",
-    tags: ["Requisites"],
-    summary: "Create requisite",
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: CreateRequisiteInputSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      201: {
-        content: {
-          "application/json": {
-            schema: RequisiteSchema,
-          },
-        },
-        description: "Requisite created",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-      404: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Owner not found",
       },
     },
   });
@@ -423,84 +323,6 @@ export function requisitesRoutes(ctx: AppContext) {
       const result = await ctx.partiesModule.requisites.queries.list(query);
       return c.json(result, 200);
     })
-    .openapi(bankWorkspaceRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result = await ctx.partiesModule.requisites.queries.list({
-        kind: ["bank"],
-        limit: MAX_QUERY_LIST_LIMIT,
-        offset: 0,
-        ownerId: query.ownerId,
-        ownerType: query.ownerType,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-      const activeRows = result.data.filter((row) => row.archivedAt === null);
-      const providerIds = [...new Set(activeRows.map((row) => row.providerId))];
-      const currencyIds = [...new Set(activeRows.map((row) => row.currencyId))];
-      const [providerEntries, currencyEntries] = await Promise.all([
-        Promise.all(
-          providerIds.map(async (providerId) => [
-            providerId,
-            await findBankWorkspaceProvider(ctx, providerId),
-          ] as const),
-        ),
-        Promise.all(
-          currencyIds.map(async (currencyId) => [
-            currencyId,
-            await findBankWorkspaceCurrency(ctx, currencyId),
-          ] as const),
-        ),
-      ]);
-      const providerById = new Map(providerEntries);
-      const currencyById = new Map(currencyEntries);
-
-      return c.json(
-        {
-          data: activeRows.map((row) => {
-            const provider = providerById.get(row.providerId) ?? null;
-            const currency = currencyById.get(row.currencyId);
-
-            return {
-              accountNo: row.accountNo,
-              beneficiaryName: row.beneficiaryName,
-              contact: row.contact,
-              corrAccount: row.corrAccount,
-              createdAt: row.createdAt.toISOString(),
-              currency: {
-                code: currency?.code ?? row.currencyId,
-                id: row.currencyId,
-                label: currency
-                  ? `${currency.code} · ${currency.name}`
-                  : row.currencyId,
-                name: currency?.name ?? row.currencyId,
-              },
-              description: row.description,
-              iban: row.iban,
-              id: row.id,
-              isDefault: row.isDefault,
-              kind: "bank" as const,
-              label: row.label,
-              notes: row.notes,
-              ownerId: row.ownerId,
-              ownerType: row.ownerType,
-              provider: provider
-                ? {
-                    address: provider.address,
-                    bic: provider.bic,
-                    country: provider.country,
-                    id: provider.id,
-                    name: provider.name,
-                    swift: provider.swift,
-                  }
-                : null,
-              providerId: row.providerId,
-              updatedAt: row.updatedAt.toISOString(),
-            };
-          }),
-        },
-        200,
-      );
-    })
     .openapi(optionsRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.partiesModule.requisites.queries.listOptions(
@@ -513,20 +335,6 @@ export function requisitesRoutes(ctx: AppContext) {
         ),
         200,
       );
-    })
-    .openapi(createRoute_, async (c) => {
-      const input = c.req.valid("json");
-
-      try {
-        const requisite = await ctx.requisiteAccountingWorkflow.create(input);
-        return c.json(requisite, 201);
-      } catch (error) {
-        const handled = handleMutationError(error);
-        if (handled) {
-          return c.json(handled.body, handled.status);
-        }
-        throw error;
-      }
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");

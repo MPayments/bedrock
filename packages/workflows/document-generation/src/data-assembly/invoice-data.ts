@@ -66,5 +66,12 @@ export function assembleInvoiceData(
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
+  applyLocalizedTemplateField(
+    raw,
+    "agentBankName",
+    organizationRequisite,
+    "institutionName",
+    lang,
+  );
   return prune(raw);
 }

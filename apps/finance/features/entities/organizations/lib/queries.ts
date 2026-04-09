@@ -13,12 +13,13 @@ import type { OrganizationsSearchParams } from "./validations";
 
 const OrganizationApiSchema = z.object({
   id: z.uuid(),
-  externalId: z.string().nullable(),
+  externalRef: z.string().nullable(),
   shortName: z.string(),
   fullName: z.string(),
   description: z.string().nullable(),
   country: z.string().nullable(),
   kind: z.enum(["legal_entity", "individual"]),
+  partyProfile: z.any().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

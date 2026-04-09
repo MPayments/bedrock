@@ -24,7 +24,9 @@ import {
   type PathValue,
   type UseFormReturn,
 } from "react-hook-form";
+import { z } from "zod";
 
+import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import {
   Accordion,
   AccordionContent,
@@ -55,6 +57,8 @@ import {
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { CustomerBankingSection } from "@/components/customers/customer-banking-section";
+import { apiClient } from "@/lib/api-client";
+import { readJsonWithSchema } from "@/lib/api/response";
 import { API_BASE_URL } from "@/lib/constants";
 import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
@@ -62,9 +66,14 @@ import type { CustomerBankingFormData } from "@/lib/validation";
 import { CustomerCreateHeader } from "./_components/customer-create-header";
 import { PendingCreateLeaveDialog } from "./_components/pending-create-leave-dialog";
 import {
+  buildCounterpartyAssignmentPayload,
+  buildCounterpartyBankRequisiteCreatePayload,
+  buildCustomerCounterpartyCreatePayload,
   buildCustomerCreatePayload,
+  buildManualBankProviderCreatePayload,
   customerCreateSchema,
   getCustomerCreateDefaultValues,
+  resolveDefaultRequisiteCurrencyCode,
   type CustomerCreateFormData,
 } from "./_lib/customer-create";
 
@@ -83,6 +92,42 @@ type SubAgentProfileResponse = {
   kind: "individual" | "legal_entity";
   shortName: string;
 };
+
+const CreatedCustomerSchema = z.object({
+  id: z.uuid(),
+});
+
+const CreatedCounterpartySchema = z.object({
+  id: z.uuid(),
+});
+
+const RequisiteProviderDetailSchema = z.object({
+  id: z.uuid(),
+  country: z.string().nullable(),
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      isPrimary: z.boolean(),
+    }),
+  ),
+});
+
+function getResponseErrorMessage(
+  payload: unknown,
+  fallback: string,
+) {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  return (
+    (typeof record.message === "string" && record.message) ||
+    (typeof record.error === "string" && record.error) ||
+    fallback
+  );
+}
 
 function mapSubAgentProfileToOption(
   profile: SubAgentProfileResponse,
@@ -252,6 +297,7 @@ export default function NewCustomerPage() {
   });
 
   const addSubAgent = form.watch("addSubAgent");
+  const counterpartyKind = form.watch("counterpartyKind");
   const formDirty = form.formState.isDirty;
 
   const loadSubAgents = useCallback(async () => {
@@ -347,7 +393,7 @@ export default function NewCustomerPage() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -356,7 +402,10 @@ export default function NewCustomerPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка поиска: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка поиска: ${response.status}`,
+          ),
         );
       }
 
@@ -408,23 +457,36 @@ export default function NewCustomerPage() {
 
     try {
       const values = form.getValues();
-      const translated = await translateFieldsToEnglish({
-        address: values.address,
-        directorBasis: values.directorBasis,
-        directorName: values.directorName,
-        orgName: values.orgName,
-        orgType: values.orgType,
-        position: values.position,
-      });
+      const translated = await translateFieldsToEnglish(
+        values.counterpartyKind === "legal_entity"
+          ? {
+              address: values.address,
+              directorBasis: values.directorBasis,
+              directorName: values.directorName,
+              orgName: values.orgName,
+              orgType: values.orgType,
+              position: values.position,
+            }
+          : {
+              address: values.address,
+              personFullName: values.personFullName,
+            },
+      );
 
-      const mapping: Record<string, Path<CustomerCreateFormData>> = {
-        address: "addressI18n.en",
-        directorBasis: "directorBasisI18n.en",
-        directorName: "directorNameI18n.en",
-        orgName: "orgNameI18n.en",
-        orgType: "orgTypeI18n.en",
-        position: "positionI18n.en",
-      };
+      const mapping: Record<string, Path<CustomerCreateFormData>> =
+        values.counterpartyKind === "legal_entity"
+          ? {
+              address: "addressI18n.en",
+              directorBasis: "directorBasisI18n.en",
+              directorName: "directorNameI18n.en",
+              orgName: "orgNameI18n.en",
+              orgType: "orgTypeI18n.en",
+              position: "positionI18n.en",
+            }
+          : {
+              address: "addressI18n.en",
+              personFullName: "personFullNameI18n.en",
+            };
 
       Object.entries(mapping).forEach(([sourceField, targetField]) => {
         const value = translated[sourceField];
@@ -472,7 +534,7 @@ export default function NewCustomerPage() {
       formData.append("file", file);
 
       const response = await fetch(
-        `${API_BASE_URL}/legal-entities/parse-card`,
+        `${API_BASE_URL}/counterparties/parse-card`,
         {
           body: formData,
           credentials: "include",
@@ -483,7 +545,10 @@ export default function NewCustomerPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка распознавания: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка распознавания: ${response.status}`,
+          ),
         );
       }
 
@@ -628,7 +693,9 @@ export default function NewCustomerPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Ошибка создания субагента");
+        throw new Error(
+          getResponseErrorMessage(errorData, "Ошибка создания субагента"),
+        );
       }
 
       const newSubAgent = mapSubAgentProfileToOption(
@@ -657,24 +724,175 @@ export default function NewCustomerPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/customers`, {
-        body: JSON.stringify(buildCustomerCreatePayload(data)),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
+      const customerResponse = await apiClient.v1.customers.$post({
+        json: buildCustomerCreatePayload(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Ошибка создания: ${response.status}`,
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка создания клиента: ${customerResponse.status}`,
+          ),
         );
       }
 
-      const customer = await response.json();
-      router.push(`/customers/${customer.id}`);
+      const customer = await readJsonWithSchema(
+        customerResponse,
+        CreatedCustomerSchema,
+      );
+
+      const counterpartyResponse = await apiClient.v1.counterparties.$post({
+        json: buildCustomerCounterpartyCreatePayload({
+          customerId: customer.id,
+          values: data,
+        }),
+      });
+
+      if (!counterpartyResponse.ok) {
+        const errorData = await counterpartyResponse.json().catch(() => ({}));
+        throw new Error(
+          getResponseErrorMessage(
+            errorData,
+            `Ошибка создания субъекта: ${counterpartyResponse.status}`,
+          ),
+        );
+      }
+
+      const counterparty = await readJsonWithSchema(
+        counterpartyResponse,
+        CreatedCounterpartySchema,
+      );
+
+      const assignmentPayload = buildCounterpartyAssignmentPayload(data);
+      if (assignmentPayload.subAgentCounterpartyId) {
+        const assignmentResponse =
+          await apiClient.v1.counterparties[":id"].assignment.$patch({
+            param: { id: counterparty.id },
+            json: assignmentPayload,
+          });
+
+        if (!assignmentResponse.ok) {
+          const errorData = await assignmentResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка назначения субагента: ${assignmentResponse.status}`,
+            ),
+          );
+        }
+      }
+
+      const manualProviderPayload = buildManualBankProviderCreatePayload(data);
+      let providerId = data.bankProviderId || null;
+      let providerBranchId: string | null = null;
+      let providerCountry = data.bankProvider.country?.trim().toUpperCase() || null;
+
+      if (manualProviderPayload) {
+        const providerResponse = await apiClient.v1.requisites.providers.$post({
+          json: manualProviderPayload,
+        });
+
+        if (!providerResponse.ok) {
+          const errorData = await providerResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка создания банка: ${providerResponse.status}`,
+            ),
+          );
+        }
+
+        const provider = await readJsonWithSchema(
+          providerResponse,
+          RequisiteProviderDetailSchema,
+        );
+        providerId = provider.id;
+        providerCountry = provider.country;
+        providerBranchId =
+          provider.branches.find((branch) => branch.isPrimary)?.id ?? null;
+      } else if (providerId) {
+        const providerResponse =
+          await apiClient.v1.requisites.providers[":id"].$get({
+            param: { id: providerId },
+          });
+
+        if (!providerResponse.ok) {
+          const errorData = await providerResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка загрузки банка: ${providerResponse.status}`,
+            ),
+          );
+        }
+
+        const provider = await readJsonWithSchema(
+          providerResponse,
+          RequisiteProviderDetailSchema,
+        );
+        providerCountry = provider.country;
+        providerBranchId =
+          provider.branches.find((branch) => branch.isPrimary)?.id ?? null;
+      }
+
+      if (providerId) {
+        const currenciesResponse = await apiClient.v1.currencies.options.$get({});
+        if (!currenciesResponse.ok) {
+          const errorData = await currenciesResponse.json().catch(() => ({}));
+          throw new Error(
+            getResponseErrorMessage(
+              errorData,
+              `Ошибка загрузки валют: ${currenciesResponse.status}`,
+            ),
+          );
+        }
+
+        const currencies = await readJsonWithSchema(
+          currenciesResponse,
+          CurrencyOptionsResponseSchema,
+        );
+        const defaultCurrencyCode =
+          providerCountry === "RU"
+            ? "RUB"
+            : resolveDefaultRequisiteCurrencyCode(data);
+        const currency = currencies.data.find(
+          (item) => item.code === defaultCurrencyCode,
+        );
+
+        if (!currency) {
+          throw new Error(`Валюта ${defaultCurrencyCode} не найдена`);
+        }
+
+        const requisitePayload = buildCounterpartyBankRequisiteCreatePayload({
+          counterpartyId: counterparty.id,
+          currencyId: currency.id,
+          providerBranchId,
+          providerId,
+          values: data,
+        });
+
+        if (requisitePayload) {
+          const requisiteResponse =
+            await apiClient.v1.counterparties[":id"].requisites.$post({
+              param: { id: counterparty.id },
+              json: requisitePayload,
+            });
+
+          if (!requisiteResponse.ok) {
+            const errorData = await requisiteResponse.json().catch(() => ({}));
+            throw new Error(
+              getResponseErrorMessage(
+                errorData,
+                `Ошибка создания реквизитов: ${requisiteResponse.status}`,
+              ),
+            );
+          }
+        }
+      }
+
+      router.push(`/customers/${customer.id}?entity=${counterparty.id}`);
     } catch (submitError) {
       console.error("Create customer error:", submitError);
       setError(
@@ -703,111 +921,189 @@ export default function NewCustomerPage() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="h-full">
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Building2 className="h-4 w-4 text-primary" />
-                Автозаполнение по ИНН
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Заполнит данные юридического лица из ЕГРЮЛ/ЕГРИП.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input
-              placeholder="Введите ИНН"
-              value={innSearchValue}
-              onChange={(event) => {
-                setInnSearchValue(event.target.value.replace(/\D/g, ""));
-                setInnSearchSuccess(false);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleInnSearch();
-                }
-              }}
-              disabled={searchingByInn}
-              maxLength={12}
-            />
-            <Button
-              type="button"
-              onClick={() => void handleInnSearch()}
-              disabled={searchingByInn || !innSearchValue.trim()}
-              className="w-full"
-            >
-              {searchingByInn ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Search className="size-4" />
-              )}
-              Найти компанию
-            </Button>
-            {innSearchSuccess ? (
-              <div className="flex items-center gap-2 text-xs text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
-                Данные юридического лица обновлены
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+      <Card className="border-border/60 bg-muted/20">
+        <CardHeader className="border-b">
+          <div className="space-y-1">
+            <CardTitle className="text-base">Что будет создано</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Один сценарий создаёт клиентскую карточку в CRM и первый рабочий
+              субъект, от имени которого будут вестись сделки.
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Клиент в CRM</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Внутренняя карточка с названием, внешним ID и заметками.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Субъект сделки</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Компания или физлицо, которое будет участвовать в сделках.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Банк и расчёты</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Первый банковский счёт и реквизиты, если они уже известны.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Субагент</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Необязательная привязка партнёра, который сопровождает клиента.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="h-full">
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Автозаполнение из PDF
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Извлечет реквизиты из PDF-карточки клиента.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="application/pdf"
-              className="hidden"
-              disabled={parsingFile}
-            />
-            <Button
-              className="w-full"
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={parsingFile}
-            >
-              {parsingFile ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Upload className="size-4" />
-              )}
-              Загрузить PDF
-            </Button>
-            {uploadedFileName ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                <span className="truncate">{uploadedFileName}</span>
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Быстрое заполнение</h2>
+          <p className="text-sm text-muted-foreground">
+            Используйте справочники и автоматизацию, чтобы не вводить данные
+            вручную.
+          </p>
+        </div>
+        {counterpartyKind === "legal_entity" ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Заполнить по ИНН
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Подтянет карточку юрлица из справочника по ИНН.
+                </p>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                placeholder="Введите ИНН"
+                value={innSearchValue}
+                onChange={(event) => {
+                  setInnSearchValue(event.target.value.replace(/\D/g, ""));
+                  setInnSearchSuccess(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleInnSearch();
+                  }
+                }}
+                disabled={searchingByInn}
+                maxLength={12}
+              />
+              <Button
+                type="button"
+                onClick={() => void handleInnSearch()}
+                disabled={searchingByInn || !innSearchValue.trim()}
+                className="w-full"
+              >
+                {searchingByInn ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Search className="size-4" />
+                )}
+                Подтянуть данные
+              </Button>
+              {innSearchSuccess ? (
+                <div className="flex items-center gap-2 text-xs text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Данные субъекта обновлены
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <Card className="h-full">
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Импорт из PDF
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Извлечёт реквизиты и контакты из PDF-карточки.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="application/pdf"
+                className="hidden"
+                disabled={parsingFile}
+              />
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsingFile}
+              >
+                {parsingFile ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                Загрузить PDF
+              </Button>
+              {uploadedFileName ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span className="truncate">{uploadedFileName}</span>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="h-full">
+            <CardHeader className="border-b">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Languages className="h-4 w-4 text-primary" />
+                  Английская версия
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Заполнит англоязычные поля по русским данным субъекта.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={() => void handleTranslateToEnglish()}
+                disabled={translating}
+              >
+                {translating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Languages className="size-4" />
+                )}
+                Заполнить английскую версию
+              </Button>
+            </CardContent>
+          </Card>
+          </div>
+        ) : (
+          <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Languages className="h-4 w-4 text-primary" />
-                Перевод на английский
+                Английская версия
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Заполнит English fields по русским данным юридического лица.
+                Заполнит англоязычные поля по данным физлица.
               </p>
             </div>
           </CardHeader>
@@ -824,11 +1120,12 @@ export default function NewCustomerPage() {
               ) : (
                 <Languages className="size-4" />
               )}
-              Заполнить английские поля
+              Заполнить английскую версию
             </Button>
           </CardContent>
-        </Card>
-      </div>
+          </Card>
+        )}
+      </section>
 
       <form
         id="customer-create-form"
@@ -838,9 +1135,9 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Данные клиента</CardTitle>
+              <CardTitle>Карточка клиента</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Канонические поля клиента в CRM.
+                Внутренние CRM-данные: как клиент будет отображаться у команды.
               </p>
             </div>
           </CardHeader>
@@ -848,7 +1145,7 @@ export default function NewCustomerPage() {
             <Field
               form={form}
               label="Название клиента"
-              name="displayName"
+              name="name"
               placeholder="ООО «Компания»"
               required
             />
@@ -872,156 +1169,286 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Данные юр. лица</CardTitle>
+              <CardTitle>Первый субъект сделки</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Первое юридическое лицо клиента и контактные данные.
+                Заполните данные компании или физлица, от имени которого будут
+                оформляться сделки.
               </p>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                form={form}
-                label="Название юр. лица"
-                name="orgName"
-                placeholder="ООО «Компания»"
-                required
-              />
-              <Field
-                form={form}
-                label="Тип организации"
-                name="orgType"
-                placeholder="ООО, ИП, АО..."
-                required
-              />
-              <Field
-                form={form}
-                label="ИНН"
-                name="inn"
-                placeholder="1234567890"
-                required
-              />
-              <Field
-                form={form}
-                label="КПП"
-                name="kpp"
-                placeholder="123456789"
-              />
-              <Field
-                form={form}
-                label="ОГРН"
-                name="ogrn"
-                placeholder="1234567890123"
-              />
-              <Field
-                form={form}
-                label="ОКПО"
-                name="okpo"
-                placeholder="12345678"
-              />
-              <Field
-                form={form}
-                label="ОКТМО"
-                name="oktmo"
-                placeholder="12345678901"
-              />
-              <Field
-                form={form}
-                label="Email"
-                name="email"
-                placeholder="info@company.ru"
-                type="email"
-              />
-              <Field
-                form={form}
-                label="Телефон"
-                name="phone"
-                placeholder="+7 (999) 123-45-67"
-              />
-              <Field
-                form={form}
-                label="Директор"
-                name="directorName"
-                placeholder="Иванов Иван Иванович"
-                required
-              />
-              <Field
-                form={form}
-                label="Должность"
-                name="position"
-                placeholder="Генеральный директор"
-                required
-              />
-              <Field
-                form={form}
-                label="Основание полномочий"
-                name="directorBasis"
-                placeholder="Устав"
-                required
-              />
-              <Field
-                form={form}
-                label="Адрес"
-                name="address"
-                placeholder="г. Москва, ул. Примерная, д. 1"
-              />
+            <div className="space-y-2 md:max-w-sm">
+              <Label htmlFor="counterparty-kind">Тип субъекта</Label>
+              <Select
+                value={counterpartyKind}
+                onValueChange={(value) =>
+                  form.setValue(
+                    "counterpartyKind",
+                    value as PathValue<CustomerCreateFormData, "counterpartyKind">,
+                    {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              >
+                <SelectTrigger id="counterparty-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="legal_entity">Юрлицо</SelectItem>
+                  <SelectItem value="individual">Физлицо</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {counterpartyKind === "legal_entity" ? (
+              <>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">
+                      Идентификация компании
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Базовые данные, по которым субъект будет виден в CRM и
+                      документах.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="Название организации"
+                      name="orgName"
+                      placeholder="ООО «Компания»"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Тип организации"
+                      name="orgType"
+                      placeholder="ООО, ИП, АО..."
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">
+                      Регистрационные данные
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Идентификаторы компании из государственных и внутренних
+                      справочников.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <Field
+                      form={form}
+                      label="ИНН"
+                      name="inn"
+                      placeholder="1234567890"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="КПП"
+                      name="kpp"
+                      placeholder="123456789"
+                    />
+                    <Field
+                      form={form}
+                      label="ОГРН"
+                      name="ogrn"
+                      placeholder="1234567890123"
+                    />
+                    <Field
+                      form={form}
+                      label="ОКПО"
+                      name="okpo"
+                      placeholder="12345678"
+                    />
+                    <Field
+                      form={form}
+                      label="ОКТМО"
+                      name="oktmo"
+                      placeholder="12345678901"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">Подписант</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Человек, который действует от имени компании.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="Директор"
+                      name="directorName"
+                      placeholder="Иванов Иван Иванович"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Должность"
+                      name="position"
+                      placeholder="Генеральный директор"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Основание полномочий"
+                      name="directorBasis"
+                      placeholder="Устав"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium">
+                    Идентификация физлица
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Основные данные субъекта, который будет участвовать в
+                    сделках.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field
+                    form={form}
+                    label="ФИО"
+                    name="personFullName"
+                    placeholder="Иванов Иван Иванович"
+                    required
+                  />
+                  <Field
+                    form={form}
+                    label="ИНН"
+                    name="inn"
+                    placeholder="123456789012"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Контакты и адрес</h3>
+                <p className="text-sm text-muted-foreground">
+                  Данные для связи и юридического оформления документов.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  form={form}
+                  label="Email"
+                  name="email"
+                  placeholder="info@company.ru"
+                  type="email"
+                />
+                <Field
+                  form={form}
+                  label="Телефон"
+                  name="phone"
+                  placeholder="+7 (999) 123-45-67"
+                />
+                <Field
+                  form={form}
+                  label="Адрес"
+                  name="address"
+                  placeholder="г. Москва, ул. Примерная, д. 1"
+                />
+              </div>
             </div>
 
             <Accordion defaultValue={[]} multiple>
-              <AccordionItem value="organization-english">
-                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                  English fields: организация
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4 pt-3 md:grid-cols-2">
-                    <Field
-                      form={form}
-                      label="Название организации (EN)"
-                      name="orgNameI18n.en"
-                      placeholder="Company name in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Тип организации (EN)"
-                      name="orgTypeI18n.en"
-                      placeholder="LLC, Ltd..."
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="contacts-english">
-                <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                  English fields: контакты и представитель
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4 pt-3 md:grid-cols-2">
-                    <Field
-                      form={form}
-                      label="ФИО директора (EN)"
-                      name="directorNameI18n.en"
-                      placeholder="Director full name in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Должность (EN)"
-                      name="positionI18n.en"
-                      placeholder="Director position in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Основание полномочий (EN)"
-                      name="directorBasisI18n.en"
-                      placeholder="Authority basis in English"
-                    />
-                    <Field
-                      form={form}
-                      label="Адрес (EN)"
-                      name="addressI18n.en"
-                      placeholder="Legal address in English"
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+              {counterpartyKind === "legal_entity" ? (
+                <>
+                  <AccordionItem value="organization-english">
+                    <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                      Английская версия названия и формы
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid gap-4 pt-3 md:grid-cols-2">
+                        <Field
+                          form={form}
+                          label="Название организации (EN)"
+                          name="orgNameI18n.en"
+                          placeholder="Company name in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Тип организации (EN)"
+                          name="orgTypeI18n.en"
+                          placeholder="LLC, Ltd..."
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="contacts-english">
+                    <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                      Английская версия адреса и подписанта
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid gap-4 pt-3 md:grid-cols-2">
+                        <Field
+                          form={form}
+                          label="ФИО директора (EN)"
+                          name="directorNameI18n.en"
+                          placeholder="Director full name in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Должность (EN)"
+                          name="positionI18n.en"
+                          placeholder="Director position in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Основание полномочий (EN)"
+                          name="directorBasisI18n.en"
+                          placeholder="Authority basis in English"
+                        />
+                        <Field
+                          form={form}
+                          label="Адрес (EN)"
+                          name="addressI18n.en"
+                          placeholder="Legal address in English"
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </>
+              ) : (
+                <AccordionItem value="individual-english">
+                  <AccordionTrigger className="rounded-md px-0 hover:no-underline">
+                    Английская версия данных физлица
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid gap-4 pt-3 md:grid-cols-2">
+                      <Field
+                        form={form}
+                        label="ФИО (EN)"
+                        name="personFullNameI18n.en"
+                        placeholder="Full name in English"
+                      />
+                      <Field
+                        form={form}
+                        label="Адрес (EN)"
+                        name="addressI18n.en"
+                        placeholder="Address in English"
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
             </Accordion>
           </CardContent>
         </Card>
@@ -1042,7 +1469,8 @@ export default function NewCustomerPage() {
                     Субагент
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Привязка существующего или нового субагента к клиенту.
+                    Привяжите существующего партнёра или создайте нового
+                    субагента для сопровождения клиента.
                   </p>
                 </div>
                 <Button

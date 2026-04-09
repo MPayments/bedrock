@@ -23,6 +23,7 @@ import {
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import {
   CounterpartySchema,
+  CustomerSchema,
   OrganizationSchema,
   RequisiteProviderSchema,
   RequisiteSchema,
@@ -127,32 +128,13 @@ export type PortalDealListProjection = z.infer<
   typeof PortalDealListProjectionSchema
 >;
 
-export const CustomerLegalEntitySummarySchema = z.object({
-  counterpartyId: z.uuid(),
-  email: z.string().nullable(),
-  fullName: z.string(),
-  inn: z.string().nullable(),
-  orgName: z.string(),
-  phone: z.string().nullable(),
-  position: z.string().nullable(),
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  shortName: z.string(),
+export const CrmDealCustomerContextSchema = z.object({
+  counterparties: z.array(CounterpartySchema),
+  customer: CustomerSchema,
 });
 
-export type CustomerLegalEntitySummary = z.infer<
-  typeof CustomerLegalEntitySummarySchema
->;
-
-export const CustomerWorkspaceSummarySchema = z.object({
-  description: z.string().nullable(),
-  displayName: z.string(),
-  externalRef: z.string().nullable(),
-  id: z.uuid(),
-  legalEntities: z.array(CustomerLegalEntitySummarySchema),
-});
-
-export type CustomerWorkspaceSummary = z.infer<
-  typeof CustomerWorkspaceSummarySchema
+export type CrmDealCustomerContext = z.infer<
+  typeof CrmDealCustomerContextSchema
 >;
 
 export const DealPricingSummarySchema = z.object({
@@ -268,7 +250,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   context: z.object({
     agreement: AgreementDetailsSchema.nullable(),
     applicant: CounterpartySchema.nullable(),
-    customer: CustomerWorkspaceSummarySchema.nullable(),
+    customer: CrmDealCustomerContextSchema.nullable(),
     internalEntity: OrganizationSchema.nullable(),
     internalEntityRequisite: RequisiteSchema.nullable(),
     internalEntityRequisiteProvider: RequisiteProviderSchema.nullable(),

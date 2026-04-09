@@ -40,11 +40,11 @@ describe("customer command handlers", () => {
     );
 
     const created = await create.execute({
-      displayName: "Acme Corp",
+      name: "Acme Corp",
       externalRef: "crm-1",
     });
 
-    expect(created.displayName).toBe("Acme Corp");
+    expect(created.name).toBe("Acme Corp");
     expect(saveManagedGroup).toHaveBeenCalledTimes(1);
     expect(saveManagedGroup.mock.calls[0]?.[0].toSnapshot()).toEqual(
       expect.objectContaining({
@@ -67,7 +67,7 @@ describe("customer command handlers", () => {
               findById: vi.fn(async () => ({
                 id: "cust-1",
                 externalRef: null,
-                displayName: "Acme Corp",
+                name: "Acme Corp",
                 description: null,
                 createdAt: new Date("2026-01-01T00:00:00.000Z"),
                 updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -97,7 +97,7 @@ describe("customer command handlers", () => {
       } as any,
     );
 
-    await update.execute("cust-1", { displayName: "Acme Updated" });
+    await update.execute("cust-1", { name: "Acme Updated" });
     expect(saveManagedGroup).toHaveBeenCalledTimes(1);
     expect(saveManagedGroup.mock.calls[0]?.[0].toSnapshot().name).toBe(
       "Acme Updated",
@@ -123,7 +123,7 @@ describe("customer command handlers", () => {
     );
 
     await expect(
-      update.execute("missing", { displayName: "Acme Updated" }),
+      update.execute("missing", { name: "Acme Updated" }),
     ).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 
@@ -135,7 +135,7 @@ describe("customer command handlers", () => {
         findById: vi.fn(async () => ({
           id: "cust-1",
           externalRef: null,
-          displayName: "Acme Corp",
+          name: "Acme Corp",
           description: null,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -164,7 +164,7 @@ describe("customer command handlers", () => {
         findById: vi.fn(async () => ({
           id: "cust-1",
           externalRef: null,
-          displayName: "Acme Corp",
+          name: "Acme Corp",
           description: null,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -183,7 +183,7 @@ describe("customer command handlers", () => {
               findByCustomerId: vi.fn(async () => [
                 Counterparty.fromSnapshot({
                   id: "cp-1",
-                  externalId: null,
+                  externalRef: null,
                   relationshipKind: "customer_owned",
                   customerId: "cust-1",
                   shortName: "Acme CP",

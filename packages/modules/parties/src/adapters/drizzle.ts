@@ -7,6 +7,8 @@ export { DrizzleCounterpartyRepository } from "../counterparties/adapters/drizzl
 export { DrizzleCustomerReads } from "../customers/adapters/drizzle/customer.reads";
 export { DrizzleCustomersQueries } from "../customers/adapters/drizzle/customers.queries";
 export { DrizzleCustomerStore } from "../customers/adapters/drizzle/customer.store";
+export { DrizzlePartyProfilesReads } from "../party-profiles/adapters/drizzle/party-profiles.reads";
+export { DrizzlePartyProfilesStore } from "../party-profiles/adapters/drizzle/party-profiles.store";
 export { DrizzleOrganizationReads } from "../organizations/adapters/drizzle/organization.reads";
 export { DrizzleOrganizationsQueries } from "../organizations/adapters/drizzle/organizations.queries";
 export { DrizzleOrganizationStore } from "../organizations/adapters/drizzle/organization.store";

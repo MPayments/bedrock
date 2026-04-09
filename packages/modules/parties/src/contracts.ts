@@ -27,11 +27,13 @@ export {
   type UpdateCounterpartyInput,
 } from "./counterparties/application/contracts/counterparty.commands";
 export {
+  CounterpartyListItemSchema,
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
   CounterpartySchema,
   PaginatedCounterpartiesSchema,
   type Counterparty,
+  type CounterpartyListItem,
   type CounterpartyOption,
   type PaginatedCounterparties,
 } from "./counterparties/application/contracts/counterparty.dto";
@@ -58,6 +60,62 @@ export {
   type ListCounterpartyGroupsQuery,
 } from "./counterparties/application/contracts/counterparty-group.queries";
 export {
+  LEGAL_IDENTIFIER_SCHEME_VALUES,
+  PARTY_CONTACT_TYPE_VALUES,
+  PARTY_LICENSE_TYPE_VALUES,
+  PARTY_REPRESENTATIVE_ROLE_VALUES,
+  normalizePartyTaxonomyValue,
+  type LegalIdentifierScheme,
+  type PartyContactType,
+  type PartyLicenseType,
+  type PartyRepresentativeRole,
+} from "./party-profiles/domain/taxonomies";
+export {
+  LegalIdentifierSchemeSchema,
+  PartyAddressInputSchema,
+  PartyAddressSchema,
+  PartyContactInputSchema,
+  PartyContactTypeSchema,
+  PartyContactSchema,
+  PartyProfileBundleInputSchema,
+  PartyProfileBundleSchema,
+  PartyIdentifierInputSchema,
+  PartyIdentifierSchema,
+  PartyProfileOwnerTypeSchema,
+  PartyProfileInputSchema,
+  PartyProfileSchema,
+  PartyLicenseInputSchema,
+  PartyLicenseTypeSchema,
+  PartyLicenseSchema,
+  PartyRepresentativeRoleSchema,
+  PartyRepresentativeInputSchema,
+  PartyRepresentativeSchema,
+  type LegalIdentifierSchemeValue,
+  type PartyAddress,
+  type PartyAddressInput,
+  type PartyContact,
+  type PartyContactInput,
+  type PartyContactTypeValue,
+  type PartyProfileBundle,
+  type PartyProfileBundleInput,
+  type PartyIdentifier,
+  type PartyIdentifierInput,
+  type PartyProfileLocaleTextMap,
+  type PartyProfileOwnerType,
+  type PartyProfile,
+  type PartyProfileInput,
+  type PartyLicense,
+  type PartyLicenseInput,
+  type PartyLicenseTypeValue,
+  type PartyRepresentative,
+  type PartyRepresentativeInput,
+  type PartyRepresentativeRoleValue,
+} from "./party-profiles/application/contracts";
+export {
+  LocaleTextMapSchema,
+  type LocaleTextMap,
+} from "./shared/domain/locale-map";
+export {
   CountryCodeSchema,
   PARTY_KIND_VALUES,
   type CountryCode,
@@ -71,11 +129,13 @@ export {
   type UpdateOrganizationInput,
 } from "./organizations/application/contracts/commands";
 export {
+  OrganizationListItemSchema,
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
   OrganizationSchema,
   PaginatedOrganizationsSchema,
   type Organization,
+  type OrganizationListItem,
   type OrganizationKind,
   type OrganizationOption,
   type PaginatedOrganizations,
@@ -87,8 +147,16 @@ export {
 } from "./organizations/application/contracts/queries";
 export {
   CreateRequisiteProviderInputSchema,
+  RequisiteProviderBranchIdentifierSchemeSchema,
+  RequisiteProviderBranchIdentifierInputSchema,
+  RequisiteProviderBranchInputSchema,
+  RequisiteProviderIdentifierSchemeSchema,
+  RequisiteProviderIdentifierInputSchema,
   UpdateRequisiteProviderInputSchema,
   type CreateRequisiteProviderInput,
+  type RequisiteProviderBranchIdentifierInput,
+  type RequisiteProviderBranchInput,
+  type RequisiteProviderIdentifierInput,
   type UpdateRequisiteProviderInput,
 } from "./requisites/application/contracts/commands";
 export {
@@ -98,10 +166,15 @@ export {
   type UpdateSubAgentProfileInput,
 } from "./sub-agent-profiles/application/contracts/commands";
 export {
+  RequisiteProviderBranchIdentifierSchema,
+  RequisiteProviderBranchSchema,
+  RequisiteProviderIdentifierSchema,
+  RequisiteProviderListItemSchema,
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
   type RequisiteProvider,
+  type RequisiteProviderListItem,
   type RequisiteProviderOption,
 } from "./requisites/application/contracts/dto";
 export {
@@ -110,20 +183,13 @@ export {
   type ListRequisiteProvidersQuery,
 } from "./requisites/application/contracts/queries";
 export {
-  BankRequisiteWorkspaceItemSchema,
-  BankRequisiteWorkspaceProviderSchema,
-  BankRequisiteWorkspaceResponseSchema,
-  ListBankRequisiteWorkspaceQuerySchema,
-  type BankRequisiteWorkspaceItem,
-  type BankRequisiteWorkspaceProvider,
-  type BankRequisiteWorkspaceResponse,
-  type ListBankRequisiteWorkspaceQuery,
-} from "./requisites/application/contracts/bank-workspace";
-export {
   CreateRequisiteInputSchema,
   ListRequisiteOptionsQuerySchema,
   ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
+  RequisiteIdentifierInputSchema,
+  RequisiteIdentifierSchema,
+  RequisiteListItemSchema,
   RequisiteOptionSchema,
   RequisiteOptionsResponseSchema,
   RequisiteSchema,
@@ -135,6 +201,9 @@ export {
   type ListRequisitesQuery,
   type Requisite,
   type RequisiteAccountingBinding,
+  type RequisiteIdentifier,
+  type RequisiteIdentifierInput,
+  type RequisiteListItem,
   type RequisiteOption,
   type UpdateRequisiteInput,
   type UpsertRequisiteAccountingBindingInput,
@@ -150,6 +219,12 @@ export {
   SUB_AGENT_PROFILES_LIST_CONTRACT,
   type ListSubAgentProfilesQuery,
 } from "./sub-agent-profiles/application/contracts/queries";
+export {
+  REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
+  REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
+  type RequisiteProviderBranchIdentifierSchemeValue,
+  type RequisiteProviderIdentifierSchemeValue,
+} from "./requisites/domain/identifier-schemes";
 export {
   REQUISITE_KIND_VALUES,
   REQUISITE_OWNER_TYPE_VALUES,

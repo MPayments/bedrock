@@ -7,9 +7,9 @@ export class FindPreferredCounterpartyBankByCounterpartyIdQuery {
   async execute(counterpartyId: string): Promise<Requisite | null> {
     const requisites =
       await this.reads.listActiveBankByCounterpartyId(counterpartyId);
+    const preferred =
+      requisites.find((requisite) => requisite.isDefault) ?? requisites[0] ?? null;
 
-    return (
-      requisites.find((requisite) => requisite.isDefault) ?? requisites[0] ?? null
-    );
+    return preferred ? this.reads.findById(preferred.id) : null;
   }
 }

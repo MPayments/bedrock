@@ -1,55 +1,122 @@
 import { z } from "zod";
 
-import type {
-  BankRequisiteWorkspaceItem,
-  RequisiteProviderOption,
-} from "@bedrock/parties/contracts";
 import type { CurrencyOption } from "@bedrock/currencies/contracts";
+import type { RequisiteProviderOption } from "@bedrock/parties/contracts";
+import {
+  bankRequisiteFormSchema,
+  createBankRequisiteCreatePayload,
+  createBankRequisiteUpdatePayload,
+  createEmptyBankRequisiteValues as createEmptyCanonicalBankRequisiteValues,
+  toBankRequisiteFormValues,
+} from "@bedrock/sdk-parties-ui/lib/bank-requisites";
 
-export type CounterpartyBankRequisite = BankRequisiteWorkspaceItem;
-
-function normalizeOptionalText(value: string | null | undefined) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-export const bankRequisiteEditorFormSchema = z.object({
-  accountNo: z.string().trim().min(1, "Номер счёта обязателен"),
-  beneficiaryName: z.string().trim().min(1, "Получатель обязателен"),
-  contact: z.string().optional(),
-  corrAccount: z
-    .string()
-    .optional()
-    .refine(
-      (value) => {
-        if (!value || value.trim() === "") {
-          return true;
-        }
-
-        return /^\d+$/.test(value.trim()) && value.trim().length === 20;
-      },
-      { message: "Корреспондентский счёт должен содержать 20 цифр" },
-    ),
-  currencyId: z.string().uuid("Выберите валюту"),
-  description: z.string().optional(),
-  iban: z
-    .string()
-    .optional()
-    .refine(
-      (value) => {
-        if (!value || value.trim() === "") {
-          return true;
-        }
-
-        return /^[A-Z0-9]{15,34}$/i.test(value.trim());
-      },
-      { message: "IBAN должен содержать от 15 до 34 символов" },
-    ),
-  isDefault: z.boolean(),
-  label: z.string().trim().min(1, "Название реквизита обязательно"),
-  notes: z.string().optional(),
-  providerId: z.string().uuid("Выберите банк"),
+export const BankRequisiteIdentifierSchema = z.object({
+  scheme: z.string(),
+  value: z.string(),
+  isPrimary: z.boolean(),
 });
+
+export const CounterpartyBankRequisiteSchema = z.object({
+  id: z.uuid(),
+  ownerType: z.literal("counterparty"),
+  ownerId: z.uuid(),
+  organizationId: z.uuid().nullable(),
+  counterpartyId: z.uuid().nullable(),
+  providerId: z.uuid(),
+  providerBranchId: z.uuid().nullable(),
+  currencyId: z.uuid(),
+  kind: z.literal("bank"),
+  label: z.string(),
+  beneficiaryName: z.string().nullable(),
+  beneficiaryNameLocal: z.string().nullable(),
+  beneficiaryAddress: z.string().nullable(),
+  paymentPurposeTemplate: z.string().nullable(),
+  notes: z.string().nullable(),
+  isDefault: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  archivedAt: z.iso.datetime().nullable().optional(),
+  identifiers: z.array(BankRequisiteIdentifierSchema),
+});
+
+export type CounterpartyBankRequisite = z.infer<
+  typeof CounterpartyBankRequisiteSchema
+>;
+
+export const CounterpartyBankRequisitesListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      ownerType: z.literal("counterparty"),
+      ownerId: z.uuid(),
+      organizationId: z.uuid().nullable(),
+      counterpartyId: z.uuid().nullable(),
+      providerId: z.uuid(),
+      providerBranchId: z.uuid().nullable(),
+      currencyId: z.uuid(),
+      kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
+      label: z.string(),
+      beneficiaryName: z.string().nullable(),
+      beneficiaryNameLocal: z.string().nullable(),
+      beneficiaryAddress: z.string().nullable(),
+      paymentPurposeTemplate: z.string().nullable(),
+      notes: z.string().nullable(),
+      isDefault: z.boolean(),
+      createdAt: z.iso.datetime(),
+      updatedAt: z.iso.datetime(),
+      archivedAt: z.iso.datetime().nullable().optional(),
+    }),
+  ),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+
+export const RequisiteProviderDetailsSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
+  legalName: z.string(),
+  displayName: z.string(),
+  description: z.string().nullable(),
+  country: z.string().nullable(),
+  website: z.string().nullable(),
+  identifiers: z.array(
+    z.object({
+      scheme: z.string(),
+      value: z.string(),
+      isPrimary: z.boolean(),
+    }),
+  ),
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      code: z.string().nullable(),
+      name: z.string(),
+      country: z.string().nullable(),
+      postalCode: z.string().nullable(),
+      city: z.string().nullable(),
+      line1: z.string().nullable(),
+      line2: z.string().nullable(),
+      rawAddress: z.string().nullable(),
+      contactEmail: z.string().nullable(),
+      contactPhone: z.string().nullable(),
+      isPrimary: z.boolean(),
+      identifiers: z.array(
+        z.object({
+          scheme: z.string(),
+          value: z.string(),
+          isPrimary: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+});
+
+export type RequisiteProviderDetails = z.infer<
+  typeof RequisiteProviderDetailsSchema
+>;
+
+export const bankRequisiteEditorFormSchema = bankRequisiteFormSchema;
 
 export type BankRequisiteEditorFormData = z.infer<
   typeof bankRequisiteEditorFormSchema
@@ -60,7 +127,20 @@ export type GroupedBankRequisites = {
   requisites: CounterpartyBankRequisite[];
 };
 
-function sortRequisites(left: CounterpartyBankRequisite, right: CounterpartyBankRequisite) {
+function findIdentifierValue(
+  requisite: CounterpartyBankRequisite,
+  scheme: string,
+): string {
+  return (
+    requisite.identifiers.find((identifier) => identifier.scheme === scheme)
+      ?.value ?? ""
+  );
+}
+
+function sortRequisites(
+  left: CounterpartyBankRequisite,
+  right: CounterpartyBankRequisite,
+) {
   if (left.isDefault !== right.isDefault) {
     return left.isDefault ? -1 : 1;
   }
@@ -70,19 +150,26 @@ function sortRequisites(left: CounterpartyBankRequisite, right: CounterpartyBank
 
 export function groupBankRequisitesByCurrency(
   requisites: CounterpartyBankRequisite[],
+  currencyOptions: CurrencyOption[],
 ) {
+  const currencyById = new Map(currencyOptions.map((item) => [item.id, item]));
   const groups = new Map<string, GroupedBankRequisites>();
 
   for (const requisite of requisites) {
-    const group = groups.get(requisite.currency.id);
+    const currency = currencyById.get(requisite.currencyId);
+    if (!currency) {
+      continue;
+    }
+
+    const group = groups.get(currency.id);
 
     if (group) {
       group.requisites.push(requisite);
       continue;
     }
 
-    groups.set(requisite.currency.id, {
-      currency: requisite.currency,
+    groups.set(currency.id, {
+      currency,
       requisites: [requisite],
     });
   }
@@ -105,117 +192,74 @@ export function resolveInitialBankRequisiteId(
     return requestedId;
   }
 
-  const groups = groupBankRequisitesByCurrency(requisites);
-  return groups[0]?.requisites[0]?.id ?? null;
+  const [first] = [...requisites].sort(sortRequisites);
+  return first?.id ?? null;
 }
 
 export function createEmptyBankRequisiteValues(
-  legalEntityName: string,
+  counterpartyName: string,
 ): BankRequisiteEditorFormData {
-  return {
-    accountNo: "",
-    beneficiaryName: legalEntityName,
-    contact: "",
-    corrAccount: "",
-    currencyId: "",
-    description: "",
-    iban: "",
-    isDefault: false,
-    label: "",
-    notes: "",
-    providerId: "",
-  };
+  return createEmptyCanonicalBankRequisiteValues(counterpartyName);
 }
 
 export function bankRequisiteToFormValues(
   requisite: CounterpartyBankRequisite | null,
-  legalEntityName: string,
+  counterpartyName: string,
 ): BankRequisiteEditorFormData {
-  if (!requisite) {
-    return createEmptyBankRequisiteValues(legalEntityName);
-  }
-
-  return {
-    accountNo: requisite.accountNo ?? "",
-    beneficiaryName: requisite.beneficiaryName ?? legalEntityName,
-    contact: requisite.contact ?? "",
-    corrAccount: requisite.corrAccount ?? "",
-    currencyId: requisite.currency.id,
-    description: requisite.description ?? "",
-    iban: requisite.iban ?? "",
-    isDefault: requisite.isDefault,
-    label: requisite.label,
-    notes: requisite.notes ?? "",
-    providerId: requisite.providerId,
-  };
+  return toBankRequisiteFormValues(requisite, counterpartyName);
 }
 
 export function createCounterpartyBankRequisitePayload(input: {
   counterpartyId: string;
   values: BankRequisiteEditorFormData;
 }) {
+  const payload = createBankRequisiteCreatePayload({
+    counterpartyId: input.counterpartyId,
+    values: input.values,
+  });
+
   return {
-    accountNo: input.values.accountNo.trim(),
-    beneficiaryName: input.values.beneficiaryName.trim(),
-    contact: normalizeOptionalText(input.values.contact),
-    corrAccount: normalizeOptionalText(input.values.corrAccount),
-    currencyId: input.values.currencyId,
-    description: normalizeOptionalText(input.values.description),
-    iban: normalizeOptionalText(input.values.iban)?.toUpperCase() ?? null,
-    isDefault: input.values.isDefault,
-    kind: "bank" as const,
-    label: input.values.label.trim(),
-    notes: normalizeOptionalText(input.values.notes),
-    ownerId: input.counterpartyId,
-    ownerType: "counterparty" as const,
-    providerId: input.values.providerId,
+    providerId: payload.providerId,
+    providerBranchId: payload.providerBranchId,
+    currencyId: payload.currencyId,
+    kind: payload.kind,
+    label: payload.label,
+    beneficiaryName: payload.beneficiaryName,
+    beneficiaryNameLocal: payload.beneficiaryNameLocal,
+    beneficiaryAddress: payload.beneficiaryAddress,
+    paymentPurposeTemplate: payload.paymentPurposeTemplate,
+    notes: payload.notes,
+    identifiers: payload.identifiers,
+    isDefault: payload.isDefault,
   };
 }
 
 export function createCounterpartyBankRequisitePatch(
   values: BankRequisiteEditorFormData,
 ) {
-  return {
-    accountNo: values.accountNo.trim(),
-    beneficiaryName: values.beneficiaryName.trim(),
-    contact: normalizeOptionalText(values.contact),
-    corrAccount: normalizeOptionalText(values.corrAccount),
-    currencyId: values.currencyId,
-    description: normalizeOptionalText(values.description),
-    iban: normalizeOptionalText(values.iban)?.toUpperCase() ?? null,
-    isDefault: values.isDefault,
-    label: values.label.trim(),
-    notes: normalizeOptionalText(values.notes),
-    providerId: values.providerId,
-  };
+  return createBankRequisiteUpdatePayload(values);
 }
 
 export function formatBankRequisiteIdentity(requisite: CounterpartyBankRequisite) {
-  if (requisite.accountNo) {
-    const tail = requisite.accountNo.slice(-4);
-    return requisite.accountNo.length > 4
-      ? `Счёт ••••${tail}`
-      : `Счёт ${requisite.accountNo}`;
+  const accountNo = findIdentifierValue(requisite, "local_account_number");
+  if (accountNo) {
+    const tail = accountNo.slice(-4);
+    return accountNo.length > 4 ? `Счёт ••••${tail}` : `Счёт ${accountNo}`;
   }
 
-  if (requisite.iban) {
-    const tail = requisite.iban.slice(-4);
-    return requisite.iban.length > 4
-      ? `IBAN ••••${tail}`
-      : `IBAN ${requisite.iban}`;
+  const iban = findIdentifierValue(requisite, "iban");
+  if (iban) {
+    const tail = iban.slice(-4);
+    return iban.length > 4 ? `IBAN ••••${tail}` : `IBAN ${iban}`;
   }
 
   return "Реквизиты без номера счёта";
 }
 
 export function getBankProviderLabel(
-  requisite: CounterpartyBankRequisite,
+  requisite: Pick<CounterpartyBankRequisite, "providerId">,
   providerOptions: RequisiteProviderOption[],
 ) {
-  if (requisite.provider?.name) {
-    return requisite.provider.name;
-  }
-
   return (
     providerOptions.find((option) => option.id === requisite.providerId)?.label ??
     "Провайдер недоступен"
@@ -226,7 +270,5 @@ export function getCurrencyLabel(
   currencyId: string,
   currencyOptions: CurrencyOption[],
 ) {
-  return (
-    currencyOptions.find((option) => option.id === currencyId)?.label ?? "—"
-  );
+  return currencyOptions.find((option) => option.id === currencyId)?.label ?? "—";
 }

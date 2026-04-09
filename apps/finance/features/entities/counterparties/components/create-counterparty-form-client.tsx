@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
+import {
+  CounterpartyGeneralEditor,
+  type CounterpartyGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  CounterpartyCreateGeneralForm,
-  type CounterpartyGeneralFormValues,
-} from "../components/organization-general-form";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
@@ -42,6 +45,19 @@ export function CreateCounterpartyFormClient({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
+  const [draftValues, setDraftValues] = useState<CounterpartyGeneralFormValues>(
+    () => ({
+      shortName: "",
+      fullName: "",
+      kind: "legal_entity",
+      country: "",
+      description: "",
+      customerId: "",
+      groupIds: Array.from(new Set(initialGroupIds)),
+    }),
+  );
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
 
   const initialValues = useMemo<CounterpartyGeneralFormValues>(
     () => ({
@@ -55,6 +71,38 @@ export function CreateCounterpartyFormClient({
     }),
     [initialGroupIds],
   );
+  const partyProfileSeed = useMemo(
+    () => ({
+      fullName: draftValues.fullName,
+      shortName: draftValues.shortName,
+      countryCode: draftValues.country || null,
+    }),
+    [draftValues.country, draftValues.fullName, draftValues.shortName],
+  );
+
+  function resolveCreatePartyProfileBundle(
+    values: CounterpartyGeneralFormValues,
+    bundle: PartyProfileBundleInput | null,
+  ) {
+    const fallbackCountryCode = values.country.trim() || null;
+
+    return bundle
+      ? {
+          ...bundle,
+          profile: {
+            ...bundle.profile,
+            fullName: bundle.profile.fullName.trim() || values.fullName.trim(),
+            shortName:
+              bundle.profile.shortName.trim() || values.shortName.trim(),
+            countryCode: bundle.profile.countryCode ?? fallbackCountryCode,
+          },
+        }
+      : createSeededPartyProfileBundle({
+          fullName: values.fullName.trim(),
+          shortName: values.shortName.trim(),
+          countryCode: values.country.trim() || null,
+        });
+  }
 
   async function handleSubmit(values: CounterpartyGeneralFormValues) {
     setError(null);
@@ -71,6 +119,10 @@ export function CreateCounterpartyFormClient({
       description: values.description.trim() || undefined,
       customerId: customerId || null,
       groupIds: values.groupIds,
+      partyProfile:
+        values.kind === "legal_entity"
+          ? resolveCreatePartyProfileBundle(values, partyProfileDraft)
+          : undefined,
     };
 
     const result = await executeMutation<CreatedCounterparty>({
@@ -95,14 +147,34 @@ export function CreateCounterpartyFormClient({
   }
 
   return (
-    <CounterpartyCreateGeneralForm
-      initialValues={initialValues}
-      groupOptions={initialGroupOptions}
-      lockedGroupIds={lockedGroupIds}
-      submitting={submitting}
-      error={error}
-      onShortNameChange={actions.setCreateName}
-      onSubmit={disableSubmit ? undefined : handleSubmit}
-    />
+    <div className="space-y-6">
+      <CounterpartyGeneralEditor
+        initialValues={initialValues}
+        groupOptions={initialGroupOptions}
+        lockedGroupIds={lockedGroupIds}
+        submitting={submitting}
+        error={error}
+        onShortNameChange={actions.setCreateName}
+        onSubmit={disableSubmit ? undefined : handleSubmit}
+        onValuesChange={setDraftValues}
+        submitLabel="Создать"
+        submittingLabel="Создание..."
+        disableSubmitUntilDirty={false}
+        showDates={false}
+      />
+      {draftValues.kind === "legal_entity" ? (
+        <PartyProfileEditor
+          bundle={partyProfileDraft}
+          seed={partyProfileSeed}
+          submitting={submitting}
+          error={error}
+          title="Мастер-данные контрагента"
+          showActions={false}
+          onChange={(bundle) => {
+            setPartyProfileDraft(bundle);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

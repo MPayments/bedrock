@@ -18,7 +18,7 @@ export default async function EditCustomerBreadcrumbPage({
   return (
     <EditCustomerBreadcrumb
       customerId={customer.id}
-      initialLabel={customer.displayName}
+      initialLabel={customer.name}
     />
   );
 }

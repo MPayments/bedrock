@@ -22,6 +22,7 @@ import type {
   OrganizationsCommandTx,
   OrganizationsCommandUnitOfWork,
 } from "../../../organizations/application/ports/organizations.uow";
+import { DrizzlePartyProfilesStore } from "../../../party-profiles/adapters/drizzle/party-profiles.store";
 import { DrizzleRequisiteBindingStore } from "../../../requisites/adapters/drizzle/requisite-binding.store";
 import { DrizzleRequisiteProviderStore } from "../../../requisites/adapters/drizzle/requisite-provider.store";
 import { DrizzleRequisiteRepository } from "../../../requisites/adapters/drizzle/requisite.repository";
@@ -47,6 +48,7 @@ function bindPartyRegistryTx(tx: Transaction): PartyRegistryTx {
 
   return {
     customerStore: new DrizzleCustomerStore(tx),
+    partyProfiles: new DrizzlePartyProfilesStore(tx),
     organizationStore: new DrizzleOrganizationStore(tx),
     counterparties: new DrizzleCounterpartyRepository(tx),
     counterpartyGroupHierarchy: new DrizzleCounterpartyGroupHierarchyReads(tx),

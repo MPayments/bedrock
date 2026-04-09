@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { RequisiteProviderMasterDataEditor } from "@bedrock/sdk-parties-ui/components/requisite-provider-master-data-editor";
+import { type RequisiteProviderMasterDataInput } from "@bedrock/sdk-parties-ui/lib/requisite-provider-master-data";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
-import {
-  RequisiteProviderForm,
-  type RequisiteProviderFormValues,
-} from "./requisite-provider-form";
-import type { SerializedRequisiteProvider } from "../lib/types";
+import type { RequisiteProviderDetails } from "../lib/queries";
 
 type EditRequisiteProviderFormClientProps = {
-  provider: SerializedRequisiteProvider;
+  provider: RequisiteProviderDetails;
 };
 
 export function EditRequisiteProviderFormClient({
@@ -27,30 +27,28 @@ export function EditRequisiteProviderFormClient({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(
-    values: RequisiteProviderFormValues,
-  ): Promise<RequisiteProviderFormValues | void> {
+  async function handleSubmit(values: RequisiteProviderMasterDataInput) {
     setError(null);
     setSubmitting(true);
 
-    const result = await executeMutation<SerializedRequisiteProvider>({
+    const result = await executeMutation<RequisiteProviderDetails>({
       request: () =>
         apiClient.v1.requisites.providers[":id"].$patch({
           param: { id: current.id },
           json: {
             kind: values.kind,
-            name: values.name,
-            description: values.description || null,
-            country: values.country || null,
-            address: values.address || null,
-            contact: values.contact || null,
-            bic: values.bic || null,
-            swift: values.swift || null,
+            legalName: values.legalName,
+            displayName: values.displayName,
+            description: values.description,
+            country: values.country,
+            website: values.website,
+            identifiers: values.identifiers,
+            branches: values.branches,
           },
         }),
       fallbackMessage: "Не удалось обновить провайдера реквизитов",
       parseData: async (response) =>
-        (await response.json()) as SerializedRequisiteProvider,
+        (await response.json()) as RequisiteProviderDetails,
     });
 
     setSubmitting(false);
@@ -65,16 +63,7 @@ export function EditRequisiteProviderFormClient({
     toast.success("Провайдер реквизитов обновлён");
     router.refresh();
 
-    return {
-      kind: result.data.kind,
-      name: result.data.name,
-      description: result.data.description ?? "",
-      country: result.data.country ?? "",
-      address: result.data.address ?? "",
-      contact: result.data.contact ?? "",
-      bic: result.data.bic ?? "",
-      swift: result.data.swift ?? "",
-    };
+    return result.data;
   }
 
   async function handleDelete() {
@@ -104,27 +93,24 @@ export function EditRequisiteProviderFormClient({
   }
 
   return (
-    <RequisiteProviderForm
-      initialValues={{
-        kind: current.kind,
-        name: current.name,
-        description: current.description ?? "",
-        country: current.country ?? "",
-        address: current.address ?? "",
-        contact: current.contact ?? "",
-        bic: current.bic ?? "",
-        swift: current.swift ?? "",
-      }}
-      createdAt={current.createdAt}
-      updatedAt={current.updatedAt}
-      submitting={submitting}
-      deleting={deleting}
-      error={error}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-      submitLabel="Сохранить"
-      submittingLabel="Сохранение..."
-      showDelete
-    />
+    <div className="space-y-6">
+      <RequisiteProviderMasterDataEditor
+        provider={current}
+        submitting={submitting}
+        error={error}
+        onSubmit={handleSubmit}
+      />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={submitting || deleting}
+          onClick={() => void handleDelete()}
+        >
+          <Trash2 className="size-4" />
+          {deleting ? "Удаление..." : "Удалить провайдера"}
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -24,6 +24,8 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
+import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
+import { loadCustomerOwnedCounterparties } from "@/lib/customer-owned-counterparties";
 import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +34,7 @@ import {
   DealIntakeForm,
   type CrmApplicantRequisiteOption,
   type CrmCurrencyOption,
-  type CrmCustomerLegalEntityOption,
+  type CrmCustomerCounterpartyOption,
   type CrmDealIntakeDraft,
   type CrmDealType,
 } from "./deal-intake-form";
@@ -76,7 +78,7 @@ function formatAgreementLabel(agreement: AgreementOption) {
 
 type CustomerDetail = {
   id: string;
-  legalEntities: CrmCustomerLegalEntityOption[];
+  counterparties: CrmCustomerCounterpartyOption[];
   primaryCounterpartyId: string | null;
 };
 
@@ -145,7 +147,7 @@ export function NewDealDialog({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const legalEntities = customerDetail?.legalEntities ?? [];
+  const counterparties = customerDetail?.counterparties ?? [];
   const agreementOptions = useMemo(
     () => agreements.filter((agreement) => agreement.isActive),
     [agreements],
@@ -155,8 +157,8 @@ export function NewDealDialog({
       (currency) => currency.code === DEFAULT_PAYMENT_SOURCE_CURRENCY_CODE,
     )?.id ?? null;
   const selectedApplicant =
-    legalEntities.find(
-      (legalEntity) => legalEntity.counterpartyId === selectedApplicantId,
+    counterparties.find(
+      (partyProfile) => partyProfile.counterpartyId === selectedApplicantId,
     ) ?? null;
   const selectedAgreement =
     agreementOptions.find((agreement) => agreement.id === selectedAgreementId) ?? null;
@@ -197,6 +199,8 @@ export function NewDealDialog({
       return;
     }
 
+    const currentSelectedCustomerId = selectedCustomerId;
+
     let cancelled = false;
 
     async function loadCustomerContext() {
@@ -205,9 +209,16 @@ export function NewDealDialog({
         setError(null);
 
         const [customer, agreementsPayload] = await Promise.all([
-          fetchJson<CustomerDetail>(`${API_BASE_URL}/customers/${selectedCustomerId}`),
+          loadCustomerOwnedCounterparties(currentSelectedCustomerId).then(
+            (counterparties) =>
+              ({
+                id: currentSelectedCustomerId,
+                counterparties,
+                primaryCounterpartyId: counterparties[0]?.counterpartyId ?? null,
+              }) satisfies CustomerDetail,
+          ),
           fetchJson<{ data: AgreementOption[] }>(
-            `${API_BASE_URL}/agreements?customerId=${selectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
+            `${API_BASE_URL}/agreements?customerId=${currentSelectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
           ),
         ]);
 
@@ -220,7 +231,7 @@ export function NewDealDialog({
 
         const defaultApplicantId =
           customer.primaryCounterpartyId ??
-          customer.legalEntities[0]?.counterpartyId ??
+          customer.counterparties[0]?.counterpartyId ??
           undefined;
         const defaultAgreementId = agreementsPayload.data.find((item) => item.isActive)?.id;
 
@@ -268,6 +279,8 @@ export function NewDealDialog({
       return;
     }
 
+    const currentSelectedApplicantId = selectedApplicantId;
+
     setIntake((current) => ({
       ...current,
       common: {
@@ -280,32 +293,12 @@ export function NewDealDialog({
 
     async function loadApplicantRequisites() {
       try {
-        const payload = await fetchJson<{
-          data: Array<{
-            accountNo: string | null;
-            beneficiaryName: string | null;
-            iban: string | null;
-            id: string;
-            label: string;
-            provider: { name: string } | null;
-          }>;
-        }>(
-          `${API_BASE_URL}/requisites/bank-workspace?ownerType=counterparty&ownerId=${selectedApplicantId}`,
-        );
-
         if (cancelled) {
           return;
         }
 
         setApplicantRequisites(
-          payload.data.map((requisite) => ({
-            accountNo: requisite.accountNo,
-            beneficiaryName: requisite.beneficiaryName,
-            iban: requisite.iban,
-            id: requisite.id,
-            label: requisite.label,
-            providerLabel: requisite.provider?.name ?? null,
-          })),
+          await loadApplicantRequisiteOptions(currentSelectedApplicantId),
         );
       } catch (fetchError) {
         if (!cancelled) {
@@ -353,7 +346,7 @@ export function NewDealDialog({
       }
 
       if (!selectedApplicantId) {
-        setError("Выберите юридическое лицо заявителя.");
+        setError("Выберите контрагента заявителя.");
         return false;
       }
     }
@@ -455,7 +448,7 @@ export function NewDealDialog({
           {step === 2 ? (
             <div className="space-y-4">
               <div className="min-w-0 space-y-2">
-                <Label>Юридическое лицо заявителя</Label>
+                <Label>Контрагент заявителя</Label>
                 <Select
                   disabled={loadingContext}
                   value={selectedApplicantId ?? "__none"}
@@ -468,7 +461,7 @@ export function NewDealDialog({
                   <SelectTrigger className="w-full min-w-0">
                     <SelectValue
                       className="min-w-0 truncate"
-                      placeholder="Выберите юрлицо"
+                      placeholder="Выберите контрагента"
                     >
                       {selectedApplicant
                         ? `${selectedApplicant.shortName}${
@@ -483,13 +476,13 @@ export function NewDealDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">Не выбрано</SelectItem>
-                    {legalEntities.map((legalEntity) => (
+                    {counterparties.map((partyProfile) => (
                       <SelectItem
-                        key={legalEntity.counterpartyId}
-                        value={legalEntity.counterpartyId}
+                        key={partyProfile.counterpartyId}
+                        value={partyProfile.counterpartyId}
                       >
-                        {legalEntity.shortName}
-                        {legalEntity.inn ? ` · ИНН ${legalEntity.inn}` : ""}
+                        {partyProfile.shortName}
+                        {partyProfile.inn ? ` · ИНН ${partyProfile.inn}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -564,7 +557,7 @@ export function NewDealDialog({
               applicantRequisites={applicantRequisites}
               currencyOptions={currencyOptions}
               intake={intake}
-              legalEntities={legalEntities}
+              counterparties={counterparties}
               moneyRequestLayout="inline"
               onChange={setIntake}
             />

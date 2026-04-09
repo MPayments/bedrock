@@ -72,7 +72,7 @@ export function IntakeEditorCard({
   intake,
   isDirty,
   isSaving,
-  legalEntities,
+  counterparties,
   onChange,
   onReset,
   onSave,
@@ -83,7 +83,7 @@ export function IntakeEditorCard({
     applicantRequisites,
     currencyOptions,
     intake,
-    legalEntities,
+    counterparties,
     onChange,
     readOnly,
   });

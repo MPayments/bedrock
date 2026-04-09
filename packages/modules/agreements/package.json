@@ -30,10 +30,10 @@
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
-    "eslint": "^9.31.0",
+    "eslint": "^10.2.0",
     "pg": "^8.18.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   },
   "bedrock": {
     "kind": "module",

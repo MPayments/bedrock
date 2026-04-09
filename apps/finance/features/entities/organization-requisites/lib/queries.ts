@@ -9,10 +9,13 @@ import {
 
 import {
   getRequisiteKindLabel,
-  resolveRequisiteIdentity,
   type RequisiteKind,
   type SerializedRequisite,
 } from "@/features/entities/requisites-shared/lib/constants";
+import {
+  resolveLegacyRequisiteIdentity,
+  toLegacyRequisiteValues,
+} from "@/features/entities/requisites-shared/lib/master-data";
 import { REQUISITES_LIST_CONTRACT } from "@/features/entities/requisites-shared/lib/contracts";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
@@ -35,23 +38,25 @@ const RequisiteApiSchema = z.object({
   ownerType: z.literal("organization"),
   ownerId: z.uuid(),
   providerId: z.uuid(),
+  providerBranchId: z.uuid().nullable(),
   currencyId: z.uuid(),
   kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
   label: z.string(),
-  description: z.string().nullable(),
   beneficiaryName: z.string().nullable(),
-  accountNo: z.string().nullable(),
-  corrAccount: z.string().nullable(),
-  iban: z.string().nullable(),
-  network: z.string().nullable(),
-  assetCode: z.string().nullable(),
-  address: z.string().nullable(),
-  memoTag: z.string().nullable(),
-  accountRef: z.string().nullable(),
-  subaccountRef: z.string().nullable(),
-  contact: z.string().nullable(),
+  beneficiaryNameLocal: z.string().nullable(),
+  beneficiaryAddress: z.string().nullable(),
+  paymentPurposeTemplate: z.string().nullable(),
   notes: z.string().nullable(),
   isDefault: z.boolean(),
+  identifiers: z
+    .array(
+      z.object({
+        scheme: z.string(),
+        value: z.string(),
+        isPrimary: z.boolean(),
+      }),
+    )
+    .default([]),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -63,61 +68,57 @@ const RequisitesListResponseSchema = createPaginatedResponseSchema(
 const RequisiteDetailsSchema = RequisiteApiSchema.transform<
   OrganizationRequisiteDetails
 >((row) => ({
+  ...toLegacyRequisiteValues({
+    kind: row.kind,
+    beneficiaryName: row.beneficiaryName,
+    beneficiaryNameLocal: row.beneficiaryNameLocal,
+    beneficiaryAddress: row.beneficiaryAddress,
+    paymentPurposeTemplate: row.paymentPurposeTemplate,
+    notes: row.notes,
+    identifiers: row.identifiers,
+  }),
   id: row.id,
   ownerId: row.ownerId,
   providerId: row.providerId,
+  providerBranchId: row.providerBranchId ?? "",
   currencyId: row.currencyId,
   kind: row.kind,
   label: row.label,
-  description: row.description ?? "",
-  beneficiaryName: row.beneficiaryName ?? "",
-  accountNo: row.accountNo ?? "",
-  corrAccount: row.corrAccount ?? "",
-  iban: row.iban ?? "",
-  network: row.network ?? "",
-  assetCode: row.assetCode ?? "",
-  address: row.address ?? "",
-  memoTag: row.memoTag ?? "",
-  accountRef: row.accountRef ?? "",
-  subaccountRef: row.subaccountRef ?? "",
-  contact: row.contact ?? "",
-  notes: row.notes ?? "",
   isDefault: row.isDefault,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 }));
 
-const RawRequisiteDetailsSchema = z.object({
-  id: z.uuid(),
-  ownerType: z.enum(["organization", "counterparty"]),
-  ownerId: z.uuid(),
-  providerId: z.uuid(),
-  currencyId: z.uuid(),
-  kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
-  label: z.string(),
-  description: z.string().nullable(),
-  beneficiaryName: z.string().nullable(),
-  accountNo: z.string().nullable(),
-  corrAccount: z.string().nullable(),
-  iban: z.string().nullable(),
-  network: z.string().nullable(),
-  assetCode: z.string().nullable(),
-  address: z.string().nullable(),
-  memoTag: z.string().nullable(),
-  accountRef: z.string().nullable(),
-  subaccountRef: z.string().nullable(),
-  contact: z.string().nullable(),
-  notes: z.string().nullable(),
-  isDefault: z.boolean(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
+const RawRequisiteDetailsSchema = RequisiteApiSchema.or(
+  z.object({
+    id: z.uuid(),
+    ownerType: z.enum(["organization", "counterparty"]),
+    ownerId: z.uuid(),
+    providerId: z.uuid(),
+    providerBranchId: z.uuid().nullable(),
+    currencyId: z.uuid(),
+    kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
+    label: z.string(),
+    beneficiaryName: z.string().nullable(),
+    beneficiaryNameLocal: z.string().nullable(),
+    beneficiaryAddress: z.string().nullable(),
+    paymentPurposeTemplate: z.string().nullable(),
+    notes: z.string().nullable(),
+    identifiers: z.array(
+      z.object({
+        scheme: z.string(),
+        value: z.string(),
+        isPrimary: z.boolean(),
+      }),
+    ),
+    isDefault: z.boolean(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  }),
+);
 
 function createListQuery(search: OrganizationRequisitesSearchParams) {
-  return {
-    ...createResourceListQuery(REQUISITES_LIST_CONTRACT, search),
-    ownerType: "organization" as const,
-  };
+  return createResourceListQuery(REQUISITES_LIST_CONTRACT, search);
 }
 
 async function getOrganizationLabelById() {
@@ -180,13 +181,11 @@ function serializeRow(
     kind: row.kind as RequisiteKind,
     kindDisplay: getRequisiteKindLabel(row.kind),
     label: row.label,
-    identity: resolveRequisiteIdentity({
+    identity: resolveLegacyRequisiteIdentity({
       kind: row.kind,
-      accountNo: row.accountNo ?? "",
-      iban: row.iban ?? "",
-      address: row.address ?? "",
-      accountRef: row.accountRef ?? "",
-      subaccountRef: row.subaccountRef ?? "",
+      label: row.label,
+      beneficiaryName: row.beneficiaryName,
+      identifiers: row.identifiers,
     }),
     isDefault: row.isDefault,
     createdAt: row.createdAt,
@@ -195,14 +194,15 @@ function serializeRow(
 }
 
 export async function getOrganizationRequisites(
-  search: OrganizationRequisitesSearchParams,
+  search: OrganizationRequisitesSearchParams & { organizationId: string },
 ): Promise<OrganizationRequisitesListResult> {
   const client = await getServerApiClient();
   const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.organizations[":id"].requisites.$get({
+            param: { id: search.organizationId },
             query: createListQuery(search),
           }),
         schema: RequisitesListResponseSchema,
@@ -229,10 +229,9 @@ export async function getOrganizationRequisitesForOrganization(
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.organizations[":id"].requisites.$get({
+            param: { id: organizationId },
             query: {
-              ownerType: "organization",
-              ownerId: organizationId,
               limit: 100,
               offset: 0,
               sortBy: "createdAt",

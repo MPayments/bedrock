@@ -1,21 +1,32 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   CounterpartyCustomerNotFoundError,
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
   CounterpartyNotFoundError,
+  RequisiteProviderNotActiveError,
+  SubAgentProfileNotFoundError,
 } from "@bedrock/parties";
 import {
   CounterpartySchema,
   CreateCounterpartyInputSchema,
+  CreateRequisiteInputSchema,
   ListCounterpartiesQuerySchema,
+  ListRequisitesQuerySchema,
+  PartyProfileBundleInputSchema,
+  PartyProfileBundleSchema,
+  PaginatedCounterpartiesSchema,
+  RequisiteListItemSchema,
+  RequisiteSchema,
+  SubAgentProfileSchema,
   UpdateCounterpartyInputSchema,
 } from "@bedrock/parties/contracts";
 import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/parties/contracts";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   createPaginatedListSchema,
   MAX_QUERY_LIST_LIMIT,
@@ -24,11 +35,32 @@ import {
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
+import {
+  mapPartyProfileMutationError,
+  replacePartyProfileBundle,
+} from "./party-profile";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const PaginatedCounterpartiesSchema =
-  createPaginatedListSchema(CounterpartySchema);
+const CounterpartyRequisitesQuerySchema = ListRequisitesQuerySchema.omit({
+  ownerId: true,
+  ownerType: true,
+});
+const CreateCounterpartyRequisiteInputSchema = CreateRequisiteInputSchema.omit({
+  ownerId: true,
+  ownerType: true,
+});
+const PaginatedCounterpartyRequisitesSchema = createPaginatedListSchema(
+  RequisiteListItemSchema,
+);
+const CounterpartyAssignmentSchema = z.object({
+  counterpartyId: z.uuid(),
+  subAgent: SubAgentProfileSchema.nullable(),
+  subAgentCounterpartyId: z.uuid().nullable(),
+});
+const UpdateCounterpartyAssignmentInputSchema = z.object({
+  subAgentCounterpartyId: z.uuid().nullable(),
+});
 
 export function counterpartiesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -219,6 +251,211 @@ export function counterpartiesRoutes(ctx: AppContext) {
     },
   });
 
+  const listRequisitesRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["list"] })],
+    method: "get",
+    path: "/{id}/requisites",
+    tags: ["Counterparties"],
+    summary: "List counterparty requisites",
+    request: {
+      params: IdParamSchema,
+      query: CounterpartyRequisitesQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaginatedCounterpartyRequisitesSchema,
+          },
+        },
+        description: "Paginated list of counterparty requisites",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  const createRequisiteRoute = createRoute({
+    middleware: [requirePermission({ requisites: ["create"] })],
+    method: "post",
+    path: "/{id}/requisites",
+    tags: ["Counterparties"],
+    summary: "Create counterparty requisite",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateCounterpartyRequisiteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: RequisiteSchema,
+          },
+        },
+        description: "Counterparty requisite created",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  const putPartyProfileRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["update"] })],
+    method: "put",
+    path: "/{id}/party-profile",
+    tags: ["Counterparties"],
+    summary: "Replace counterparty party profile data",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": { schema: PartyProfileBundleInputSchema },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: PartyProfileBundleSchema },
+        },
+        description: "Counterparty party profile bundle updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  const getAssignmentRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/{id}/assignment",
+    tags: ["Counterparties"],
+    summary: "Get customer-owned counterparty assignment",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CounterpartyAssignmentSchema },
+        },
+        description: "Counterparty assignment",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  const updateAssignmentRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["update"] })],
+    method: "patch",
+    path: "/{id}/assignment",
+    tags: ["Counterparties"],
+    summary: "Update customer-owned counterparty assignment",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateCounterpartyAssignmentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CounterpartyAssignmentSchema },
+        },
+        description: "Counterparty assignment updated",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Counterparty not found",
+      },
+    },
+  });
+
+  async function ensureCounterpartyExists(id: string) {
+    const counterparty =
+      await ctx.partiesModule.counterparties.queries.findById(id);
+
+    if (!counterparty) {
+      throw new CounterpartyNotFoundError(id);
+    }
+  }
+
+  async function resolveAssignment(counterpartyId: string) {
+    const assignment =
+      (
+        await ctx.partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds(
+          [counterpartyId],
+        )
+      ).get(counterpartyId) ?? null;
+    const subAgent = assignment?.subAgentCounterpartyId
+      ? await findSubAgentProfileOrNull(assignment.subAgentCounterpartyId)
+      : null;
+
+    return {
+      counterpartyId,
+      subAgent,
+      subAgentCounterpartyId: assignment?.subAgentCounterpartyId ?? null,
+    };
+  }
+
+  async function findSubAgentProfileOrNull(counterpartyId: string) {
+    try {
+      return await ctx.partiesModule.subAgentProfiles.queries.findById(
+        counterpartyId,
+      );
+    } catch (error) {
+      if (error instanceof SubAgentProfileNotFoundError) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  async function assertSubAgentProfileExists(counterpartyId: string) {
+    const subAgent = await findSubAgentProfileOrNull(counterpartyId);
+
+    if (!subAgent) {
+      throw new ValidationError(
+        `Sub-agent profile not found: ${counterpartyId}`,
+      );
+    }
+  }
+
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
@@ -303,6 +540,108 @@ export function counterpartiesRoutes(ctx: AppContext) {
         await ctx.partiesModule.counterparties.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        throw err;
+      }
+    })
+    .openapi(listRequisitesRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const query = c.req.valid("query");
+      try {
+        await ensureCounterpartyExists(id);
+        const result = await ctx.partiesModule.requisites.queries.list({
+          ...query,
+          ownerId: id,
+          ownerType: "counterparty",
+        });
+        return c.json(result, 200);
+      } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        throw err;
+      }
+    })
+    .openapi(createRequisiteRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+      try {
+        await ensureCounterpartyExists(id);
+        const requisite = await ctx.partiesModule.requisites.commands.create({
+          ...input,
+          ownerId: id,
+          ownerType: "counterparty",
+        });
+        return c.json(requisite, 201);
+      } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        if (
+          err instanceof ValidationError ||
+          err instanceof RequisiteProviderNotActiveError
+        ) {
+          return c.json({ error: err.message }, 400);
+        }
+        throw err;
+      }
+    })
+    .openapi(putPartyProfileRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+      try {
+        const counterparty =
+          await ctx.partiesModule.counterparties.queries.findById(id);
+        const bundle = await replacePartyProfileBundle({
+          bundle: input,
+          ctx,
+          ownerId: id,
+          ownerType: "counterparty",
+          party: counterparty,
+        });
+        return c.json(bundle, 200);
+      } catch (err) {
+        const handled = mapPartyProfileMutationError(
+          err,
+          CounterpartyNotFoundError,
+        );
+        if (handled) {
+          return c.json(handled.body, handled.status);
+        }
+        throw err;
+      }
+    })
+    .openapi(getAssignmentRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        await ensureCounterpartyExists(id);
+        return c.json(await resolveAssignment(id), 200);
+      } catch (err) {
+        if (err instanceof CounterpartyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        throw err;
+      }
+    })
+    .openapi(updateAssignmentRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+      try {
+        await ensureCounterpartyExists(id);
+        if (input.subAgentCounterpartyId) {
+          await assertSubAgentProfileExists(input.subAgentCounterpartyId);
+        }
+        await ctx.partiesReadRuntime.counterpartiesQueries.upsertAssignment({
+          counterpartyId: id,
+          subAgentCounterpartyId: input.subAgentCounterpartyId,
+        });
+        return c.json(await resolveAssignment(id), 200);
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          return c.json({ error: err.message }, 400);
+        }
         if (err instanceof CounterpartyNotFoundError) {
           return c.json({ error: err.message }, 404);
         }

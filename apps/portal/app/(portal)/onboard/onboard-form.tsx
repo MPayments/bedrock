@@ -25,6 +25,7 @@ import { z } from "zod";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
+  composePersonFullName,
   type CustomerOnboardInput,
   customerOnboardSchema,
 } from "@/lib/validation";
@@ -46,6 +47,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@bedrock/sdk-ui/components/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 const EXTRA_FIELDS: Array<{
@@ -69,6 +77,11 @@ const EXTRA_FIELDS: Array<{
   { name: "ogrn", label: "ОГРН", placeholder: "1234567890123" },
 ];
 
+const COUNTERPARTY_KIND_OPTIONS = [
+  { label: "Юрлицо", value: "legal_entity" },
+  { label: "Физлицо", value: "individual" },
+] as const;
+
 type BankProviderSearchResult = {
   address: string | null;
   bic: string | null;
@@ -80,6 +93,16 @@ type BankProviderSearchResult = {
 };
 
 type CustomerOnboardingFormValues = z.input<typeof customerOnboardSchema>;
+type CustomerOnboardingRequest = Omit<
+  CustomerOnboardingFormValues,
+  | "counterpartyKind"
+  | "personFirstName"
+  | "personLastName"
+  | "personMiddleName"
+> & {
+  kind: "individual" | "legal_entity";
+  personFullName: string;
+};
 
 const { Stepper, ...onboardingStepperDefinition } = defineStepper(
   {
@@ -105,7 +128,7 @@ const { Stepper, ...onboardingStepperDefinition } = defineStepper(
   {
     id: "requisites",
     title: "Реквизиты",
-    description: "Снимок реквизитов для юридического лица",
+    description: "Снимок реквизитов контрагента",
   },
   {
     id: "review",
@@ -126,6 +149,8 @@ const STEP_ERROR_FIELDS: Record<OnboardingStepId, string[]> = {
   ],
   company: [
     "orgName",
+    "personLastName",
+    "personFirstName",
     "directorName",
     "orgType",
     "position",
@@ -408,7 +433,7 @@ function BankCombobox(props: {
           query: trimmed,
         });
         const response = await fetch(
-          `${API_BASE_URL}/customer/legal-entities/bank-providers?${search.toString()}`,
+          `${API_BASE_URL}/customer/counterparties/bank-providers?${search.toString()}`,
           {
             credentials: "include",
             signal: controller.signal,
@@ -544,6 +569,7 @@ export function CustomerOnboardingForm() {
     resolver: zodResolver(customerOnboardSchema) as never,
     defaultValues: {
       address: "",
+      counterpartyKind: "legal_entity",
       bankMode: "existing",
       bankProvider: {
         address: "",
@@ -569,15 +595,25 @@ export function CustomerOnboardingForm() {
       oktmo: "",
       orgName: "",
       orgType: "",
+      personFirstName: "",
+      personLastName: "",
+      personMiddleName: "",
       phone: "",
       position: "",
     },
   });
 
+  const counterpartyKind = useWatch({
+    control,
+    name: "counterpartyKind",
+  });
   const bankMode = useWatch({ control, name: "bankMode" });
   const bankProviderId = useWatch({ control, name: "bankProviderId" });
   const applicantName = useWatch({ control, name: "name" });
   const orgName = useWatch({ control, name: "orgName" });
+  const personFirstName = useWatch({ control, name: "personFirstName" });
+  const personLastName = useWatch({ control, name: "personLastName" });
+  const personMiddleName = useWatch({ control, name: "personMiddleName" });
   const bankProviderName = useWatch({ control, name: "bankProvider.name" });
   const bankProviderAddress = useWatch({
     control,
@@ -597,15 +633,22 @@ export function CustomerOnboardingForm() {
     control,
     name: "bankRequisite.beneficiaryName",
   });
+  const personFullName = composePersonFullName({
+    personFirstName,
+    personLastName,
+    personMiddleName,
+  });
+  const counterpartyDisplayName =
+    counterpartyKind === "individual" ? personFullName : orgName;
 
   useEffect(() => {
     if (syncBeneficiaryName) {
-      setValue("bankRequisite.beneficiaryName", orgName ?? "", {
+      setValue("bankRequisite.beneficiaryName", counterpartyDisplayName ?? "", {
         shouldDirty: false,
         shouldValidate: true,
       });
     }
-  }, [orgName, setValue, syncBeneficiaryName]);
+  }, [counterpartyDisplayName, setValue, syncBeneficiaryName]);
 
   function applyCompanyData(companyData: Record<string, unknown>) {
     const bankCountry =
@@ -755,7 +798,7 @@ export function CustomerOnboardingForm() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/customer/legal-entities/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/customer/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -798,7 +841,7 @@ export function CustomerOnboardingForm() {
       formData.append("file", file);
 
       const response = await fetch(
-        `${API_BASE_URL}/customer/legal-entities/parse-card`,
+        `${API_BASE_URL}/customer/counterparties/parse-card`,
         {
           method: "POST",
           credentials: "include",
@@ -831,8 +874,16 @@ export function CustomerOnboardingForm() {
   async function onSubmit(data: CustomerOnboardingFormValues) {
     try {
       const parsed = customerOnboardSchema.parse(data);
-      const payload: CustomerOnboardInput = {
-        ...parsed,
+      const { counterpartyKind, personFirstName, personLastName, personMiddleName, ...rest } = parsed;
+      const composedPersonFullName = composePersonFullName({
+        personFirstName,
+        personLastName,
+        personMiddleName,
+      });
+      const payload = {
+        ...rest,
+        kind: counterpartyKind,
+        personFullName: composedPersonFullName,
         addressI18n: {
           en: parsed.addressI18n?.en || undefined,
           ru: parsed.address || undefined,
@@ -863,13 +914,17 @@ export function CustomerOnboardingForm() {
           en: parsed.orgTypeI18n?.en || undefined,
           ru: parsed.orgType || undefined,
         },
+        personFullNameI18n: {
+          en: parsed.personFullNameI18n?.en || undefined,
+          ru: composedPersonFullName || undefined,
+        },
         positionI18n: {
           en: parsed.positionI18n?.en || undefined,
           ru: parsed.position || undefined,
         },
-      };
+      } satisfies CustomerOnboardingRequest;
 
-      const response = await fetch(`${API_BASE_URL}/customer/legal-entities`, {
+      const response = await fetch(`${API_BASE_URL}/customer/counterparties`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -882,7 +937,7 @@ export function CustomerOnboardingForm() {
       if (!response.ok) {
         const responsePayload = await response.json().catch(() => ({}));
         throw new Error(
-          responsePayload.message || "Не удалось создать организацию",
+          responsePayload.message || "Не удалось создать контрагента",
         );
       }
 
@@ -929,117 +984,153 @@ export function CustomerOnboardingForm() {
     if (stepId === "source") {
       return (
         <div className="space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="counterpartyKind">Тип контрагента</Label>
+            <Controller
+              control={control}
+              name="counterpartyKind"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="counterpartyKind">
+                    <SelectValue placeholder="Выберите тип контрагента">
+                      {
+                        COUNTERPARTY_KIND_OPTIONS.find(
+                          (option) => option.value === field.value,
+                        )?.label
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTERPARTY_KIND_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
           <div className="space-y-1">
             <p className="text-sm font-medium">Как хотите начать?</p>
             <p className="text-sm text-muted-foreground">
-              Быстро заполните организацию по ИНН, загрузите карточку партнера
-              или переходите к ручному заполнению.
+              {counterpartyKind === "legal_entity"
+                ? "Быстро заполните организацию по ИНН, загрузите карточку партнера или переходите к ручному заполнению."
+                : "Для физлица заполнение идет вручную: укажите ФИО, контакты и при необходимости банковские реквизиты."}
             </p>
           </div>
 
-          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Быстрое заполнение по ИНН</span>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="source-inn">
-                Введите ИНН <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="source-inn"
-                  {...register("inn")}
-                  inputMode="numeric"
-                  maxLength={12}
-                  disabled={searchingByInn}
-                  placeholder="1234567890"
-                  onChange={(event) => {
-                    register("inn").onChange(event);
-                    setInnSearchSuccess(false);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void handleInnSearch();
-                    }
-                  }}
+          {counterpartyKind === "legal_entity" ? (
+            <>
+              <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    Быстрое заполнение по ИНН
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="source-inn">
+                    Введите ИНН <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="source-inn"
+                      {...register("inn")}
+                      inputMode="numeric"
+                      maxLength={12}
+                      disabled={searchingByInn}
+                      placeholder="1234567890"
+                      onChange={(event) => {
+                        register("inn").onChange(event);
+                        setInnSearchSuccess(false);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleInnSearch();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void handleInnSearch()}
+                      disabled={searchingByInn}
+                      className="shrink-0"
+                    >
+                      {searchingByInn ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Заполнить"
+                      )}
+                    </Button>
+                  </div>
+                  {errors.inn ? (
+                    <p className="text-xs text-destructive">{errors.inn.message}</p>
+                  ) : null}
+                  {innSearchSuccess ? (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Данные организации загружены</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    Загрузите карту партнера (PDF)
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Мы попытаемся извлечь реквизиты и заполнить форму автоматически.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={parsingFile}
                 />
                 <Button
                   type="button"
-                  onClick={() => void handleInnSearch()}
-                  disabled={searchingByInn}
-                  className="shrink-0"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={parsingFile}
+                  className="w-full"
                 >
-                  {searchingByInn ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  {parsingFile ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Распознавание...
+                    </>
                   ) : (
-                    "Заполнить"
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Загрузить PDF
+                    </>
                   )}
                 </Button>
+                {uploadedFileName && !parsingFile ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <span className="truncate">{uploadedFileName}</span>
+                  </div>
+                ) : null}
               </div>
-              {errors.inn ? (
-                <p className="text-xs text-destructive">{errors.inn.message}</p>
-              ) : null}
-              {innSearchSuccess ? (
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Данные организации загружены</span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">
-                Загрузите карту партнера (PDF)
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Мы попытаемся извлечь реквизиты и заполнить форму автоматически.
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-              disabled={parsingFile}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={parsingFile}
-              className="w-full"
-            >
-              {parsingFile ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Распознавание...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Загрузить PDF
-                </>
-              )}
-            </Button>
-            {uploadedFileName && !parsingFile ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                <span className="truncate">{uploadedFileName}</span>
-              </div>
-            ) : null}
-          </div>
+            </>
+          ) : null}
 
           <div className="rounded-xl border border-dashed p-4">
             <p className="text-sm font-medium">Заполнить вручную</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Если у вас нет ИНН под рукой или карточки партнера, продолжайте по
-              шагам и заполните данные вручную.
+              {counterpartyKind === "legal_entity"
+                ? "Если у вас нет ИНН под рукой или карточки партнера, продолжайте по шагам и заполните данные вручную."
+                : "Продолжайте по шагам и заполните данные физлица вручную."}
             </p>
           </div>
         </div>
@@ -1105,61 +1196,152 @@ export function CustomerOnboardingForm() {
       return (
         <div className="space-y-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Данные организации</p>
+            <p className="text-sm font-medium">
+              {counterpartyKind === "legal_entity"
+                ? "Данные организации"
+                : "Данные контрагента"}
+            </p>
             <p className="text-sm text-muted-foreground">
-              Юридическая информация компании и подписанта.
+              {counterpartyKind === "legal_entity"
+                ? "Юридическая информация компании и подписанта."
+                : "Основные данные физлица: ФИО, адрес и идентификаторы."}
             </p>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="orgName">
-              Название организации <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="orgName"
-              {...register("orgName")}
-              placeholder="ООО «Компания»"
-            />
-            {errors.orgName ? (
-              <p className="text-xs text-destructive">
-                {errors.orgName.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="directorName">
-              ФИО директора <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="directorName"
-              {...register("directorName")}
-              placeholder="Петров Петр Петрович"
-            />
-            {errors.directorName ? (
-              <p className="text-xs text-destructive">
-                {errors.directorName.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {EXTRA_FIELDS.map((field) => (
-              <div key={field.name} className="space-y-1.5">
-                <Label htmlFor={field.name}>{field.label}</Label>
+          {counterpartyKind === "legal_entity" ? (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="orgName">
+                  Название организации <span className="text-destructive">*</span>
+                </Label>
                 <Input
-                  id={field.name}
-                  {...register(field.name)}
-                  placeholder={field.placeholder}
+                  id="orgName"
+                  {...register("orgName")}
+                  placeholder="ООО «Компания»"
                 />
-                {getErrorMessage((errors as Record<string, unknown>)[field.name]) ? (
+                {errors.orgName ? (
                   <p className="text-xs text-destructive">
-                    {getErrorMessage((errors as Record<string, unknown>)[field.name])}
+                    {errors.orgName.message}
                   </p>
                 ) : null}
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="directorName">
+                  ФИО директора <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="directorName"
+                  {...register("directorName")}
+                  placeholder="Петров Петр Петрович"
+                />
+                {errors.directorName ? (
+                  <p className="text-xs text-destructive">
+                    {errors.directorName.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {EXTRA_FIELDS.map((field) => (
+                  <div key={field.name} className="space-y-1.5">
+                    <Label htmlFor={field.name}>{field.label}</Label>
+                    <Input
+                      id={field.name}
+                      {...register(field.name)}
+                      placeholder={field.placeholder}
+                    />
+                    {getErrorMessage(
+                      (errors as Record<string, unknown>)[field.name],
+                    ) ? (
+                      <p className="text-xs text-destructive">
+                        {getErrorMessage(
+                          (errors as Record<string, unknown>)[field.name],
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="personLastName">
+                  Фамилия <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="personLastName"
+                  {...register("personLastName")}
+                  placeholder="Иванов"
+                />
+                {errors.personLastName ? (
+                  <p className="text-xs text-destructive">
+                    {errors.personLastName.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="personFirstName">
+                    Имя <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="personFirstName"
+                    {...register("personFirstName")}
+                    placeholder="Иван"
+                  />
+                  {errors.personFirstName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.personFirstName.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="personMiddleName">Отчество</Label>
+                  <Input
+                    id="personMiddleName"
+                    {...register("personMiddleName")}
+                    placeholder="Иванович"
+                  />
+                  {errors.personMiddleName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.personMiddleName.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="address">Адрес</Label>
+                  <Input
+                    id="address"
+                    {...register("address")}
+                    placeholder="г. Москва, ул. ..."
+                  />
+                  {errors.address ? (
+                    <p className="text-xs text-destructive">
+                      {errors.address.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="inn">ИНН</Label>
+                  <Input
+                    id="inn"
+                    {...register("inn")}
+                    inputMode="numeric"
+                    maxLength={12}
+                    placeholder="123456789012"
+                  />
+                  {errors.inn ? (
+                    <p className="text-xs text-destructive">
+                      {errors.inn.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       );
     }
@@ -1312,10 +1494,12 @@ export function CustomerOnboardingForm() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="selected-bank-country">Страна банка</Label>
-                  <Input
+                  <CountrySelect
                     id="selected-bank-country"
                     value={bankProviderCountry ?? ""}
-                    readOnly
+                    onValueChange={() => undefined}
+                    disabled
+                    placeholder="Страна не указана"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1346,7 +1530,10 @@ export function CustomerOnboardingForm() {
       const reviewRows = [
         { label: "ИНН", value: innValue },
         { label: "Контакт", value: applicantName },
-        { label: "Организация", value: orgName },
+        {
+          label: counterpartyKind === "legal_entity" ? "Организация" : "Контрагент",
+          value: counterpartyDisplayName,
+        },
         {
           label: "Банк",
           value: bankProviderName,
@@ -1358,10 +1545,12 @@ export function CustomerOnboardingForm() {
       return (
         <div className="space-y-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Проверьте данные перед отправкой</p>
+            <p className="text-sm font-medium">
+              Проверьте данные перед отправкой
+            </p>
             <p className="text-sm text-muted-foreground">
-              Если что-то выглядит неверно, вернитесь к нужному шагу и
-              поправьте поля.
+              Если что-то выглядит неверно, вернитесь к нужному шагу и поправьте
+              поля.
             </p>
           </div>
           <div className="rounded-xl border bg-muted/20 p-4">
@@ -1386,13 +1575,13 @@ export function CustomerOnboardingForm() {
     }
 
     return (
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Реквизиты счета</p>
-            <p className="text-sm text-muted-foreground">
-              Реквизиты сохраняются как снимок данных для этого юридического лица.
-            </p>
-          </div>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Реквизиты счета</p>
+          <p className="text-sm text-muted-foreground">
+            Реквизиты сохраняются как снимок данных для выбранного контрагента.
+          </p>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
@@ -1475,7 +1664,7 @@ export function CustomerOnboardingForm() {
       <div className="mb-6">
         <h1 className="text-xl font-bold">Добро пожаловать</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Заполните информацию о вашей организации
+          Заполните информацию о вашем контрагенте
         </p>
       </div>
 
@@ -1561,7 +1750,7 @@ export function CustomerOnboardingForm() {
                     {isSubmitting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    Сохранить организацию
+                    Сохранить
                   </Button>
                 ) : (
                   <Stepper.Next

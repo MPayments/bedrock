@@ -1,4 +1,4 @@
-import { PackageOpen } from "lucide-react";
+import { File } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
@@ -58,7 +58,7 @@ export function FormalDocumentsCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <PackageOpen className="h-5 w-5 text-muted-foreground" />
+          <File className="h-5 w-5 text-muted-foreground" />
           Внутренние документы
         </CardTitle>
       </CardHeader>

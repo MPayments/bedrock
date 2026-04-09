@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import {
+  OrganizationGeneralEditor,
+  type OrganizationGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  OrganizationCreateGeneralForm,
-  type OrganizationGeneralFormValues,
-} from "./organization-form";
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
@@ -26,7 +29,7 @@ const EMPTY_ORGANIZATION_VALUES: OrganizationGeneralFormValues = {
   fullName: "",
   kind: "legal_entity",
   country: "",
-  externalId: "",
+  externalRef: "",
   description: "",
 };
 
@@ -37,6 +40,45 @@ export function CreateOrganizationFormClient({
   const { actions } = useOrganizationDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftValues, setDraftValues] = useState<OrganizationGeneralFormValues>(
+    EMPTY_ORGANIZATION_VALUES,
+  );
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
+  const partyProfileSeed = useMemo(
+    () => ({
+      fullName: draftValues.fullName || EMPTY_ORGANIZATION_VALUES.fullName,
+      shortName: draftValues.shortName || EMPTY_ORGANIZATION_VALUES.shortName,
+      countryCode: draftValues.country || EMPTY_ORGANIZATION_VALUES.country,
+    }),
+    [draftValues.country, draftValues.fullName, draftValues.shortName],
+  );
+
+  function resolveCreatePartyProfileBundle(
+    values: OrganizationGeneralFormValues,
+    bundle: PartyProfileBundleInput | null,
+  ) {
+    const fallbackCountryCode = values.country.trim() || null;
+
+    const resolvedBundle = bundle
+      ? {
+          ...bundle,
+          profile: {
+            ...bundle.profile,
+            fullName: bundle.profile.fullName.trim() || values.fullName.trim(),
+            shortName:
+              bundle.profile.shortName.trim() || values.shortName.trim(),
+            countryCode: bundle.profile.countryCode ?? fallbackCountryCode,
+          },
+        }
+      : createSeededPartyProfileBundle({
+          fullName: values.fullName,
+          shortName: values.shortName,
+          countryCode: values.country || null,
+        });
+
+    return resolvedBundle;
+  }
 
   async function handleSubmit(values: OrganizationGeneralFormValues) {
     setError(null);
@@ -50,8 +92,12 @@ export function CreateOrganizationFormClient({
             fullName: values.fullName,
             kind: values.kind,
             country: values.country || undefined,
-            externalId: values.externalId || undefined,
+            externalRef: values.externalRef || undefined,
             description: values.description || undefined,
+            partyProfile:
+              values.kind === "legal_entity"
+                ? resolveCreatePartyProfileBundle(values, partyProfileDraft)
+                : undefined,
           },
         }),
       fallbackMessage: "Не удалось создать организацию",
@@ -71,12 +117,32 @@ export function CreateOrganizationFormClient({
   }
 
   return (
-    <OrganizationCreateGeneralForm
-      initialValues={EMPTY_ORGANIZATION_VALUES}
-      submitting={submitting}
-      error={error}
-      onSubmit={handleSubmit}
-      onShortNameChange={actions.setCreateName}
-    />
+    <div className="space-y-6">
+      <OrganizationGeneralEditor
+        initialValues={EMPTY_ORGANIZATION_VALUES}
+        submitting={submitting}
+        error={error}
+        onSubmit={handleSubmit}
+        onShortNameChange={actions.setCreateName}
+        onValuesChange={setDraftValues}
+        submitLabel="Создать"
+        submittingLabel="Создание..."
+        disableSubmitUntilDirty={false}
+        showDates={false}
+      />
+      {draftValues.kind === "legal_entity" ? (
+        <PartyProfileEditor
+          bundle={partyProfileDraft}
+          seed={partyProfileSeed}
+          submitting={submitting}
+          error={error}
+          title="Мастер-данные организации"
+          showActions={false}
+          onChange={(bundle) => {
+            setPartyProfileDraft(bundle);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -96,13 +96,13 @@ function createAnonymousFinanceSnapshot() {
 
 function mapCustomerSummaries(customers: {
   description: string | null;
-  displayName: string;
+  name: string;
   externalRef: string | null;
   id: string;
 }[]) {
   return customers.map((customer) => ({
     description: customer.description,
-    displayName: customer.displayName,
+    name: customer.name,
     externalRef: customer.externalRef,
     id: customer.id,
   }));

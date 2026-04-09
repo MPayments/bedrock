@@ -4,12 +4,32 @@ import { describe, expect, it } from "vitest";
 
 import { books, bookAccountInstances } from "@bedrock/ledger/schema";
 
+import { createLegalEntityPartyProfileBundle } from "./party-profile.fixture";
 import { createIntegrationRuntime } from "./runtime";
 import { db, pool } from "./setup";
+import { RequisiteProviderBranchMismatchError } from "../../src/errors";
 import { schema as partiesSchema } from "../../src/schema";
 
 function uniqueLabel(prefix: string) {
   return `${prefix}-${randomUUID().slice(0, 8)}`;
+}
+
+function createBankProviderInput(swift: string) {
+  const displayName = uniqueLabel("Provider");
+
+  return {
+    country: "US" as const,
+    displayName,
+    identifiers: [
+      {
+        scheme: "swift" as const,
+        value: swift,
+        isPrimary: true,
+      },
+    ],
+    kind: "bank" as const,
+    legalName: `${displayName} Bank`,
+  };
 }
 
 async function getCurrency() {
@@ -24,16 +44,18 @@ describe("parties requisites integration", () => {
   it("creates, lists, finds, updates, and archives requisites", async () => {
     const { module, queries } = createIntegrationRuntime();
     const currency = await getCurrency();
+    const organizationShortName = uniqueLabel("Org");
     const organization = await module.organizations.commands.create({
-      shortName: uniqueLabel("Org"),
+      shortName: organizationShortName,
       fullName: "Organization",
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName: organizationShortName,
+        fullName: "Organization",
+      }),
     });
-    const provider = await module.requisites.commands.createProvider({
-      kind: "bank",
-      name: uniqueLabel("Provider"),
-      country: "US",
-      swift: "BOFAUS3N",
-    });
+    const provider = await module.requisites.commands.createProvider(
+      createBankProviderInput("BOFAUS3N"),
+    );
 
     const created = await module.requisites.commands.create({
       ownerType: "organization",
@@ -44,7 +66,13 @@ describe("parties requisites integration", () => {
       label: "Main",
       description: null,
       beneficiaryName: "Acme Corp",
-      accountNo: "12345",
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "12345",
+          isPrimary: true,
+        },
+      ],
       isDefault: true,
     });
     expect(created.isDefault).toBe(true);
@@ -84,19 +112,21 @@ describe("parties requisites integration", () => {
   it("creates, lists, finds, archives providers and manages bindings", async () => {
     const { module, queries } = createIntegrationRuntime();
     const currency = await getCurrency();
+    const organizationShortName = uniqueLabel("Org");
     const organization = await module.organizations.commands.create({
-      shortName: uniqueLabel("Org"),
+      shortName: organizationShortName,
       fullName: "Organization",
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName: organizationShortName,
+        fullName: "Organization",
+      }),
     });
-    const provider = await module.requisites.commands.createProvider({
-      kind: "bank",
-      name: uniqueLabel("Provider"),
-      country: "US",
-      swift: "CHASUS33",
-    });
+    const provider = await module.requisites.commands.createProvider(
+      createBankProviderInput("CHASUS33"),
+    );
 
     const providerList = await module.requisites.queries.listProviders({
-      name: provider.name,
+      displayName: provider.displayName,
     });
     expect(providerList.total).toBe(1);
 
@@ -107,9 +137,12 @@ describe("parties requisites integration", () => {
 
     const updatedProvider = await module.requisites.commands.updateProvider(
       provider.id,
-      { name: `${provider.name}-updated` },
+      {
+        displayName: `${provider.displayName}-updated`,
+        legalName: `${provider.legalName}-updated`,
+      },
     );
-    expect(updatedProvider.name).toContain("updated");
+    expect(updatedProvider.displayName).toContain("updated");
 
     const requisite = await module.requisites.commands.create({
       ownerType: "organization",
@@ -120,7 +153,13 @@ describe("parties requisites integration", () => {
       label: "Binding Requisite",
       description: null,
       beneficiaryName: "Acme Corp",
-      accountNo: "98765",
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "98765",
+          isPrimary: true,
+        },
+      ],
     });
 
     const [book] = await db
@@ -175,5 +214,83 @@ describe("parties requisites integration", () => {
       .from(partiesSchema.requisiteProviders)
       .where(eq(partiesSchema.requisiteProviders.id, provider.id));
     expect(archivedProvider?.archivedAt).not.toBeNull();
+  });
+
+  it("rejects provider branches that belong to another provider", async () => {
+    const { module } = createIntegrationRuntime();
+    const currency = await getCurrency();
+    const organizationShortName = uniqueLabel("Org");
+    const organization = await module.organizations.commands.create({
+      shortName: organizationShortName,
+      fullName: "Organization",
+      partyProfile: createLegalEntityPartyProfileBundle({
+        shortName: organizationShortName,
+        fullName: "Organization",
+      }),
+    });
+    const providerOne = await module.requisites.commands.createProvider({
+      ...createBankProviderInput("CITIUS33"),
+      branches: [
+        {
+          name: uniqueLabel("Provider One Branch"),
+          identifiers: [],
+        },
+      ],
+    });
+    const providerTwo = await module.requisites.commands.createProvider({
+      ...createBankProviderInput("DEUTUS33"),
+      branches: [
+        {
+          name: uniqueLabel("Provider Two Branch"),
+          identifiers: [],
+        },
+      ],
+    });
+
+    await expect(
+      module.requisites.commands.create({
+        ownerType: "organization",
+        ownerId: organization.id,
+        providerId: providerOne.id,
+        providerBranchId: providerTwo.branches[0]!.id,
+        currencyId: currency.id,
+        kind: "bank",
+        label: "Invalid branch",
+        description: null,
+        beneficiaryName: "Acme Corp",
+        identifiers: [
+          {
+            scheme: "local_account_number",
+            value: "11111",
+            isPrimary: true,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(RequisiteProviderBranchMismatchError);
+
+    const requisite = await module.requisites.commands.create({
+      ownerType: "organization",
+      ownerId: organization.id,
+      providerId: providerOne.id,
+      providerBranchId: providerOne.branches[0]!.id,
+      currencyId: currency.id,
+      kind: "bank",
+      label: "Main",
+      description: null,
+      beneficiaryName: "Acme Corp",
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "22222",
+          isPrimary: true,
+        },
+      ],
+    });
+
+    await expect(
+      module.requisites.commands.update(requisite.id, {
+        providerId: providerTwo.id,
+      }),
+    ).rejects.toBeInstanceOf(RequisiteProviderBranchMismatchError);
   });
 });
