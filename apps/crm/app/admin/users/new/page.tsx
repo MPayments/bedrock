@@ -1,7 +1,9 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { CreateUserForm } from "@bedrock/sdk-users-ui/components/create-user-form";
@@ -11,28 +13,28 @@ import type {
 } from "@bedrock/sdk-users-ui/lib/contracts";
 import type { CreateUserFormValues } from "@bedrock/sdk-users-ui/lib/schemas";
 
-import { apiClient } from "@/lib/api-client";
-import { executeMutation } from "@/lib/resources/http";
+import { apiClient } from "@/lib/api/browser-client";
+import { executeApiMutation } from "@/lib/api/mutation";
 
 import {
-  FINANCE_DEFAULT_USER_ROLE,
-  FINANCE_USER_ROLE_OPTIONS,
-} from "../lib/role-options";
+  CRM_DEFAULT_USER_ROLE,
+  CRM_USER_ROLE_OPTIONS,
+} from "../_lib/role-options";
 
-export function CreateUserFormClient() {
+export default function NewUserPage() {
   const router = useRouter();
 
   async function handleSubmit(
     values: CreateUserFormValues,
   ): Promise<MutationResult<CreatedUser>> {
-    const result = await executeMutation<CreatedUser>({
+    const result = await executeApiMutation<CreatedUser>({
       request: () =>
         apiClient.v1.users.$post({
           json: {
             name: values.name,
             email: values.email,
             password: values.password,
-            role: values.role as "admin" | "finance",
+            role: values.role as "admin" | "agent",
           },
         }),
       fallbackMessage: "Не удалось создать пользователя",
@@ -45,15 +47,31 @@ export function CreateUserFormClient() {
     }
 
     toast.success("Пользователь создан");
-    router.push(`/users/${result.data.id}`);
+    router.push(`/admin/users/${result.data.id}`);
     return { ok: true, data: result.data };
   }
 
   return (
-    <CreateUserForm
-      roleOptions={FINANCE_USER_ROLE_OPTIONS}
-      defaultRole={FINANCE_DEFAULT_USER_ROLE}
-      onSubmit={handleSubmit}
-    />
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => router.push("/admin/users")}
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Назад
+        </Button>
+        <h1 className="text-2xl font-bold">Новый пользователь</h1>
+      </div>
+
+      <CreateUserForm
+        roleOptions={CRM_USER_ROLE_OPTIONS}
+        defaultRole={CRM_DEFAULT_USER_ROLE}
+        onSubmit={handleSubmit}
+        onCancel={() => router.push("/admin/users")}
+      />
+    </div>
   );
 }
