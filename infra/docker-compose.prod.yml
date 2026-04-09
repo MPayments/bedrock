@@ -5,6 +5,7 @@
 #   - External Postgres accessible from dokploy-network
 #   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 #   - .env with TB_ADDRESS, TB_CLUSTER_ID, BETTER_AUTH_SECRET
+#   - .env with DRIZZLE_MASTERPASS before starting drizzle-gateway
 #   - Public DNS:
 #       crm.multihansa.com
 #       finance.multihansa.com
@@ -15,11 +16,14 @@
 #   1. docker compose up db-migrate    # apply migrations
 #   2. docker compose up db-seed       # seed data (first deploy only)
 #   3. docker compose up -d tigerbeetle api finance crm portal workers
+#   4. docker compose up -d drizzle-gateway
 #
 # Notes:
 #   - api stays internal on dokploy-network.
 #   - crm has its own server-side task storage and needs DB env vars too.
 #   - crm/finance/portal proxy auth and /v1 traffic to api via API_INTERNAL_URL.
+#   - drizzle-gateway binds to 127.0.0.1:4983 only; access it via SSH tunnel:
+#       ssh -L 4983:127.0.0.1:4983 <server>
 # ---------------------------------------------------------------------------
 
 networks:
@@ -27,6 +31,7 @@ networks:
     external: true
 
 volumes:
+  drizzle-gateway-data:
   tigerbeetle-data:
   rustfs-data:
 
@@ -70,6 +75,21 @@ services:
       - "traefik.http.routers.bedrock-rustfs.priority=10"
       - "traefik.http.routers.bedrock-rustfs.entrypoints=web,websecure"
       - "traefik.http.services.bedrock-rustfs.loadbalancer.server.port=9000"
+
+  drizzle-gateway:
+    image: ghcr.io/drizzle-team/gateway:latest
+    container_name: drizzle-gateway
+    environment:
+      PORT: 4983
+      MASTERPASS: ${DRIZZLE_MASTERPASS}
+      DATABASE_URL_BEDROCK: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+    volumes:
+      - drizzle-gateway-data:/app
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4983:4983"
 
   # ---------------------------------------------------------------------------
   # Init containers (run once per deploy, then exit)
