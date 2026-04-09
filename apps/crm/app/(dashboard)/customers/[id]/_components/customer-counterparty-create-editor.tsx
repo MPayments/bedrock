@@ -11,6 +11,7 @@ import {
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import type { LocalizedTextVariant } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
@@ -21,6 +22,7 @@ import { readJsonWithSchema } from "@/lib/api/response";
 
 type CustomerCounterpartyCreateEditorProps = {
   customerId: string;
+  localizedTextVariant?: LocalizedTextVariant;
   onCancel: () => void;
   onCreated: (counterpartyId: string) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -40,8 +42,23 @@ const INITIAL_VALUES: CounterpartyGeneralFormValues = {
   groupIds: [],
 };
 
+function getSubjectDetailsCopy(kind: "individual" | "legal_entity") {
+  return kind === "individual"
+    ? {
+        description:
+          "Идентификаторы, адрес, контакты и англоязычные поля будущего субъекта сделки.",
+        title: "Детали субъекта",
+      }
+    : {
+        description:
+          "Юридические реквизиты, идентификаторы, адрес, контакты, представители и лицензии будущего субъекта сделки.",
+        title: "Юридические и контактные данные",
+      };
+}
+
 export function CustomerCounterpartyCreateEditor({
   customerId,
+  localizedTextVariant,
   onCancel,
   onCreated,
   onDirtyChange,
@@ -73,7 +90,7 @@ export function CustomerCounterpartyCreateEditor({
 
         const response = await apiClient.v1["counterparty-groups"].options.$get({});
         if (!response.ok) {
-          throw new Error("Не удалось загрузить группы контрагентов");
+          throw new Error("Не удалось загрузить группы субъектов");
         }
 
         const payload = await readJsonWithSchema(
@@ -89,7 +106,7 @@ export function CustomerCounterpartyCreateEditor({
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "Не удалось загрузить группы контрагентов",
+              : "Не удалось загрузить группы субъектов",
           );
         }
       } finally {
@@ -127,11 +144,13 @@ export function CustomerCounterpartyCreateEditor({
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Загрузка формы создания контрагента...
+          Загрузка формы создания субъекта...
         </CardContent>
       </Card>
     );
   }
+
+  const subjectDetailsCopy = getSubjectDetailsCopy(generalValues.kind);
 
   return (
     <div className="space-y-6">
@@ -186,7 +205,7 @@ export function CustomerCounterpartyCreateEditor({
                   },
                 },
               }),
-            fallbackMessage: "Ошибка создания контрагента",
+            fallbackMessage: "Ошибка создания субъекта",
             parseData: async (response) =>
               readJsonWithSchema(response, CreatedCounterpartySchema),
           });
@@ -204,10 +223,13 @@ export function CustomerCounterpartyCreateEditor({
           return values;
         }}
         onShortNameChange={() => {}}
-        submitLabel="Создать"
+        description="Базовая карточка нового субъекта сделки: как он будет называться, в какой стране работает и как отображается в CRM."
+        submitLabel="Создать субъекта"
         submittingLabel="Создание..."
         disableSubmitUntilDirty={false}
+        showGroups={false}
         showDates={false}
+        title="Карточка субъекта"
         headerActions={
           <Button variant="outline" type="button" onClick={onCancel}>
             <X className="size-4" />
@@ -217,16 +239,20 @@ export function CustomerCounterpartyCreateEditor({
       />
       <PartyProfileEditor
         bundle={partyProfileDraft}
+        description={subjectDetailsCopy.description}
+        localizedTextVariant={localizedTextVariant}
         partyKind={generalValues.kind}
         seed={partyProfileSeed}
         submitting={submitting}
         error={error}
         onDirtyChange={setLegalDirty}
         showActions={false}
+        showIdentityFields={false}
+        showLocalizedTextModeSwitcher={false}
         onChange={(bundle) => {
           setPartyProfileDraft(bundle);
         }}
-        title="Профиль контрагента"
+        title={subjectDetailsCopy.title}
       />
     </div>
   );

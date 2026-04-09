@@ -8,6 +8,8 @@ import pluginNext from "@next/eslint-plugin-next";
 import { config as baseConfig } from "./base.js";
 import { clientReachableCommonImportPaths } from "./client-reachable.js";
 
+const REACT_VERSION = "19.2.0";
+
 /**
  * A custom ESLint configuration for libraries that use Next.js.
  *
@@ -51,7 +53,8 @@ export const nextJsConfig = [
     plugins: {
       "react-hooks": pluginReactHooks,
     },
-    settings: { react: { version: "detect" } },
+    // Avoid plugin auto-detection, which still assumes deprecated ESLint rule context APIs.
+    settings: { react: { version: REACT_VERSION } },
     rules: {
       ...pluginReactHooks.configs.recommended.rules,
       // React scope no longer necessary with new JSX transform.

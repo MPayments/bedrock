@@ -25,7 +25,7 @@ export function CustomerCreateHeader({
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Новый клиент</h1>
           <p className="text-sm text-muted-foreground">
-            Создание клиента и первого юридического лица
+            Создание клиента в CRM, первого субъекта сделки и расчетных данных
           </p>
         </div>
       </div>

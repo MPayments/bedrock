@@ -31,6 +31,10 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
+import {
+  LOCALIZED_TEXT_VARIANTS,
+  type LocalizedTextVariant,
+} from "@bedrock/sdk-parties-ui/lib/localized-text";
 
 import type {
   ClientDocument,
@@ -68,7 +72,7 @@ type CustomerCounterpartyPanelProps = {
 };
 
 type CustomerCounterpartySection =
-  | "organization"
+  | "subject"
   | "subagent"
   | "requisites"
   | "documents";
@@ -123,7 +127,35 @@ export function CustomerCounterpartyPanel({
   workspacePrimaryCounterpartyId,
 }: CustomerCounterpartyPanelProps) {
   const [activeSection, setActiveSection] =
-    useState<CustomerCounterpartySection>("organization");
+    useState<CustomerCounterpartySection>("subject");
+  const [localizedTextVariant, setLocalizedTextVariant] =
+    useState<LocalizedTextVariant>("base");
+
+  if (createMode) {
+    return (
+      <div className="space-y-4">
+        <Card className="border-dashed bg-muted/20">
+          <CardHeader className="border-b">
+            <div className="space-y-1">
+              <CardTitle className="text-base">Новый субъект сделки</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Добавьте компанию или физлицо, от имени которого клиент будет
+                проводить сделки. Банковские реквизиты и документы можно будет
+                настроить после создания.
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
+        <CustomerCounterpartyCreateEditor
+          customerId={customerId}
+          localizedTextVariant={localizedTextVariant}
+          onCancel={onCancelCreate}
+          onCreated={onCreated}
+          onDirtyChange={onCounterpartyDirtyChange}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -131,7 +163,7 @@ export function CustomerCounterpartyPanel({
         value={activeSection}
         onValueChange={(value) => {
           if (
-            value === "organization" ||
+            value === "subject" ||
             value === "subagent" ||
             value === "requisites" ||
             value === "documents"
@@ -142,19 +174,50 @@ export function CustomerCounterpartyPanel({
         className="w-full"
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <CustomerCounterpartySelect
-            activeCounterpartyId={selectedCounterparty.counterpartyId}
-            counterparties={workspaceCounterparties}
-            onValueChange={onEntityChange}
-            workspace={{
-              counterparties: workspaceCounterparties,
-              primaryCounterpartyId: workspacePrimaryCounterpartyId,
-            }}
-          />
+          <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-end lg:gap-3">
+            <div className="w-full space-y-1 md:max-w-[420px]">
+              <CustomerCounterpartySelect
+                activeCounterpartyId={selectedCounterparty.counterpartyId}
+                counterparties={workspaceCounterparties}
+                onValueChange={onEntityChange}
+                workspace={{
+                  counterparties: workspaceCounterparties,
+                  primaryCounterpartyId: workspacePrimaryCounterpartyId,
+                }}
+              />
+            </div>
+            <div className="w-full space-y-1 sm:w-[180px]">
+              <Select
+                value={localizedTextVariant}
+                onValueChange={(value) =>
+                  setLocalizedTextVariant(
+                    (value as LocalizedTextVariant) ?? "base",
+                  )
+                }
+              >
+                <SelectTrigger className="w-full bg-card">
+                  <SelectValue>
+                    {
+                      LOCALIZED_TEXT_VARIANTS.find(
+                        (option) => option.value === localizedTextVariant,
+                      )?.label
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCALIZED_TEXT_VARIANTS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <TabsList className="gap-2">
-            <TabsTrigger value="organization">
+            <TabsTrigger value="subject">
               <Building2 className="h-4 w-4" />
-              Контрагент
+              Субъект
             </TabsTrigger>
             <TabsTrigger value="subagent">
               <UserRound className="h-4 w-4" />
@@ -162,7 +225,7 @@ export function CustomerCounterpartyPanel({
             </TabsTrigger>
             <TabsTrigger value="requisites">
               <Wallet className="h-4 w-4" />
-              Реквизиты
+              Банк и расчеты
             </TabsTrigger>
             <TabsTrigger value="documents">
               <FileText className="h-4 w-4" />
@@ -173,26 +236,18 @@ export function CustomerCounterpartyPanel({
       </Tabs>
 
       <div
-        hidden={activeSection !== "organization"}
-        aria-hidden={activeSection !== "organization"}
+        hidden={activeSection !== "subject"}
+        aria-hidden={activeSection !== "subject"}
         className="space-y-4"
       >
         <div className="space-y-4">
-          {createMode ? (
-            <CustomerCounterpartyCreateEditor
-              customerId={customerId}
-              onCancel={onCancelCreate}
-              onCreated={onCreated}
-              onDirtyChange={onCounterpartyDirtyChange}
-            />
-          ) : (
-            <CustomerCounterpartyEditor
-              counterpartyId={selectedCounterparty.counterpartyId}
-              onDirtyChange={onCounterpartyDirtyChange}
-              onSaved={onCounterpartySaved}
-              resetSignal={counterpartyResetSignal}
-            />
-          )}
+          <CustomerCounterpartyEditor
+            counterpartyId={selectedCounterparty.counterpartyId}
+            localizedTextVariant={localizedTextVariant}
+            onDirtyChange={onCounterpartyDirtyChange}
+            onSaved={onCounterpartySaved}
+            resetSignal={counterpartyResetSignal}
+          />
         </div>
       </div>
 
@@ -286,20 +341,22 @@ export function CustomerCounterpartyPanel({
                 Документы
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={contractLang}
-                  onValueChange={(value) =>
-                    onContractLangChange((value as "ru" | "en") ?? "ru")
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ru">Русский</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="w-[180px] space-y-1">
+                  <Select
+                    value={contractLang}
+                    onValueChange={(value) =>
+                      onContractLangChange((value as "ru" | "en") ?? "ru")
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ru">Русский</SelectItem>
+                      <SelectItem value="en">English</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -409,7 +466,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
       <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="break-words">{value}</p>
+      <p className="wrap-break-word">{value}</p>
     </div>
   );
 }

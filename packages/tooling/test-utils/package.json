@@ -20,16 +20,16 @@
     "@bedrock/platform": "workspace:*"
   },
   "peerDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^4.1.4"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18"
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   },
   "bedrock": {
     "kind": "tooling",

@@ -25,6 +25,7 @@ import { z } from "zod";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
+  composePersonFullName,
   type CustomerOnboardInput,
   customerOnboardSchema,
 } from "@/lib/validation";
@@ -93,10 +94,14 @@ type BankProviderSearchResult = {
 
 type CustomerOnboardingFormValues = z.input<typeof customerOnboardSchema>;
 type CustomerOnboardingRequest = Omit<
-  CustomerOnboardInput,
-  "counterpartyKind"
+  CustomerOnboardingFormValues,
+  | "counterpartyKind"
+  | "personFirstName"
+  | "personLastName"
+  | "personMiddleName"
 > & {
   kind: "individual" | "legal_entity";
+  personFullName: string;
 };
 
 const { Stepper, ...onboardingStepperDefinition } = defineStepper(
@@ -144,7 +149,8 @@ const STEP_ERROR_FIELDS: Record<OnboardingStepId, string[]> = {
   ],
   company: [
     "orgName",
-    "personFullName",
+    "personLastName",
+    "personFirstName",
     "directorName",
     "orgType",
     "position",
@@ -589,7 +595,9 @@ export function CustomerOnboardingForm() {
       oktmo: "",
       orgName: "",
       orgType: "",
-      personFullName: "",
+      personFirstName: "",
+      personLastName: "",
+      personMiddleName: "",
       phone: "",
       position: "",
     },
@@ -603,7 +611,9 @@ export function CustomerOnboardingForm() {
   const bankProviderId = useWatch({ control, name: "bankProviderId" });
   const applicantName = useWatch({ control, name: "name" });
   const orgName = useWatch({ control, name: "orgName" });
-  const personFullName = useWatch({ control, name: "personFullName" });
+  const personFirstName = useWatch({ control, name: "personFirstName" });
+  const personLastName = useWatch({ control, name: "personLastName" });
+  const personMiddleName = useWatch({ control, name: "personMiddleName" });
   const bankProviderName = useWatch({ control, name: "bankProvider.name" });
   const bankProviderAddress = useWatch({
     control,
@@ -622,6 +632,11 @@ export function CustomerOnboardingForm() {
   const beneficiaryNameValue = useWatch({
     control,
     name: "bankRequisite.beneficiaryName",
+  });
+  const personFullName = composePersonFullName({
+    personFirstName,
+    personLastName,
+    personMiddleName,
   });
   const counterpartyDisplayName =
     counterpartyKind === "individual" ? personFullName : orgName;
@@ -859,10 +874,16 @@ export function CustomerOnboardingForm() {
   async function onSubmit(data: CustomerOnboardingFormValues) {
     try {
       const parsed = customerOnboardSchema.parse(data);
-      const { counterpartyKind, ...rest } = parsed;
+      const { counterpartyKind, personFirstName, personLastName, personMiddleName, ...rest } = parsed;
+      const composedPersonFullName = composePersonFullName({
+        personFirstName,
+        personLastName,
+        personMiddleName,
+      });
       const payload = {
         ...rest,
         kind: counterpartyKind,
+        personFullName: composedPersonFullName,
         addressI18n: {
           en: parsed.addressI18n?.en || undefined,
           ru: parsed.address || undefined,
@@ -895,7 +916,7 @@ export function CustomerOnboardingForm() {
         },
         personFullNameI18n: {
           en: parsed.personFullNameI18n?.en || undefined,
-          ru: parsed.personFullName || undefined,
+          ru: composedPersonFullName || undefined,
         },
         positionI18n: {
           en: parsed.positionI18n?.en || undefined,
@@ -971,7 +992,13 @@ export function CustomerOnboardingForm() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="counterpartyKind">
-                    <SelectValue placeholder="Выберите тип контрагента" />
+                    <SelectValue placeholder="Выберите тип контрагента">
+                      {
+                        COUNTERPARTY_KIND_OPTIONS.find(
+                          (option) => option.value === field.value,
+                        )?.label
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {COUNTERPARTY_KIND_OPTIONS.map((option) => (
@@ -1240,22 +1267,50 @@ export function CustomerOnboardingForm() {
           ) : (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="personFullName">
-                  ФИО контрагента <span className="text-destructive">*</span>
+                <Label htmlFor="personLastName">
+                  Фамилия <span className="text-destructive">*</span>
                 </Label>
                 <Input
-                  id="personFullName"
-                  {...register("personFullName")}
-                  placeholder="Иванов Иван Иванович"
+                  id="personLastName"
+                  {...register("personLastName")}
+                  placeholder="Иванов"
                 />
-                {errors.personFullName ? (
+                {errors.personLastName ? (
                   <p className="text-xs text-destructive">
-                    {errors.personFullName.message}
+                    {errors.personLastName.message}
                   </p>
                 ) : null}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="personFirstName">
+                    Имя <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="personFirstName"
+                    {...register("personFirstName")}
+                    placeholder="Иван"
+                  />
+                  {errors.personFirstName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.personFirstName.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="personMiddleName">Отчество</Label>
+                  <Input
+                    id="personMiddleName"
+                    {...register("personMiddleName")}
+                    placeholder="Иванович"
+                  />
+                  {errors.personMiddleName ? (
+                    <p className="text-xs text-destructive">
+                      {errors.personMiddleName.message}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="address">Адрес</Label>
                   <Input
@@ -1439,10 +1494,12 @@ export function CustomerOnboardingForm() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="selected-bank-country">Страна банка</Label>
-                  <Input
+                  <CountrySelect
                     id="selected-bank-country"
                     value={bankProviderCountry ?? ""}
-                    readOnly
+                    onValueChange={() => undefined}
+                    disabled
+                    placeholder="Страна не указана"
                   />
                 </div>
                 <div className="space-y-1.5">

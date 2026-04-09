@@ -105,7 +105,7 @@ export async function requestCustomerContexts() {
   });
 
   if (!response.ok) {
-    throw new Error(`Ошибка загрузки контрагентов: ${response.status}`);
+    throw new Error(`Ошибка загрузки субъектов: ${response.status}`);
   }
 
   return (await response.json()) as PortalCustomerContextsResponse;

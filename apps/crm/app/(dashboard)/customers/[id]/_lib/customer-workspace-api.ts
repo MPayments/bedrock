@@ -268,7 +268,7 @@ export async function getCustomerWorkspace(
         throw new Error(
           await resolveErrorMessage(
             detailResponse,
-            `Не удалось загрузить контрагента ${id}`,
+            `Не удалось загрузить субъекта ${id}`,
           ),
         );
       }
@@ -277,7 +277,7 @@ export async function getCustomerWorkspace(
         throw new Error(
           await resolveErrorMessage(
             assignmentResponse,
-            `Не удалось загрузить назначение контрагента ${id}`,
+            `Не удалось загрузить назначение субъекта ${id}`,
           ),
         );
       }

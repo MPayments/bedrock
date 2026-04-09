@@ -755,7 +755,7 @@ export default function NewCustomerPage() {
         throw new Error(
           getResponseErrorMessage(
             errorData,
-            `Ошибка создания контрагента: ${counterpartyResponse.status}`,
+            `Ошибка создания субъекта: ${counterpartyResponse.status}`,
           ),
         );
       }
@@ -921,17 +921,63 @@ export default function NewCustomerPage() {
         </Alert>
       ) : null}
 
-      {counterpartyKind === "legal_entity" ? (
-        <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="border-border/60 bg-muted/20">
+        <CardHeader className="border-b">
+          <div className="space-y-1">
+            <CardTitle className="text-base">Что будет создано</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Один сценарий создаёт клиентскую карточку в CRM и первый рабочий
+              субъект, от имени которого будут вестись сделки.
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Клиент в CRM</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Внутренняя карточка с названием, внешним ID и заметками.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Субъект сделки</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Компания или физлицо, которое будет участвовать в сделках.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Банк и расчёты</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Первый банковский счёт и реквизиты, если они уже известны.
+            </p>
+          </div>
+          <div className="rounded-md border bg-background px-4 py-3">
+            <p className="text-sm font-medium">Субагент</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Необязательная привязка партнёра, который сопровождает клиента.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Быстрое заполнение</h2>
+          <p className="text-sm text-muted-foreground">
+            Используйте справочники и автоматизацию, чтобы не вводить данные
+            вручную.
+          </p>
+        </div>
+        {counterpartyKind === "legal_entity" ? (
+          <div className="grid gap-4 lg:grid-cols-3">
           <Card className="h-full">
             <CardHeader className="border-b">
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Building2 className="h-4 w-4 text-primary" />
-                  Автозаполнение по ИНН
+                  Заполнить по ИНН
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Заполнит данные юрлица из ЕГРЮЛ/ЕГРИП.
+                  Подтянет карточку юрлица из справочника по ИНН.
                 </p>
               </div>
             </CardHeader>
@@ -963,12 +1009,12 @@ export default function NewCustomerPage() {
                 ) : (
                   <Search className="size-4" />
                 )}
-                Найти компанию
+                Подтянуть данные
               </Button>
               {innSearchSuccess ? (
                 <div className="flex items-center gap-2 text-xs text-green-600">
                   <CheckCircle2 className="h-4 w-4" />
-                  Данные контрагента обновлены
+                  Данные субъекта обновлены
                 </div>
               ) : null}
             </CardContent>
@@ -979,10 +1025,10 @@ export default function NewCustomerPage() {
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  Автозаполнение из PDF
+                  Импорт из PDF
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Извлечет реквизиты из PDF-карточки клиента.
+                  Извлечёт реквизиты и контакты из PDF-карточки.
                 </p>
               </div>
             </CardHeader>
@@ -1023,10 +1069,10 @@ export default function NewCustomerPage() {
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Languages className="h-4 w-4 text-primary" />
-                  Перевод на английский
+                  Английская версия
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Заполнит English fields по русским данным контрагента.
+                  Заполнит англоязычные поля по русским данным субъекта.
                 </p>
               </div>
             </CardHeader>
@@ -1043,21 +1089,21 @@ export default function NewCustomerPage() {
                 ) : (
                   <Languages className="size-4" />
                 )}
-                Заполнить английские поля
+                Заполнить английскую версию
               </Button>
             </CardContent>
           </Card>
-        </div>
-      ) : (
-        <Card>
+          </div>
+        ) : (
+          <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Languages className="h-4 w-4 text-primary" />
-                Перевод на английский
+                Английская версия
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Заполнит English fields по данным физлица.
+                Заполнит англоязычные поля по данным физлица.
               </p>
             </div>
           </CardHeader>
@@ -1074,11 +1120,12 @@ export default function NewCustomerPage() {
               ) : (
                 <Languages className="size-4" />
               )}
-              Заполнить английские поля
+              Заполнить английскую версию
             </Button>
           </CardContent>
-        </Card>
-      )}
+          </Card>
+        )}
+      </section>
 
       <form
         id="customer-create-form"
@@ -1088,9 +1135,9 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Данные клиента</CardTitle>
+              <CardTitle>Карточка клиента</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Поля клиента в CRM.
+                Внутренние CRM-данные: как клиент будет отображаться у команды.
               </p>
             </div>
           </CardHeader>
@@ -1122,15 +1169,16 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Первый контрагент клиента</CardTitle>
+              <CardTitle>Первый субъект сделки</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Тип, профиль и контактные данные первого контрагента клиента.
+                Заполните данные компании или физлица, от имени которого будут
+                оформляться сделки.
               </p>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2 md:max-w-sm">
-              <Label htmlFor="counterparty-kind">Тип контрагента</Label>
+              <Label htmlFor="counterparty-kind">Тип субъекта</Label>
               <Select
                 value={counterpartyKind}
                 onValueChange={(value) =>
@@ -1154,57 +1202,125 @@ export default function NewCustomerPage() {
               </Select>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {counterpartyKind === "legal_entity" ? (
-                <>
-                  <Field
-                    form={form}
-                    label="Название организации"
-                    name="orgName"
-                    placeholder="ООО «Компания»"
-                    required
-                  />
-                  <Field
-                    form={form}
-                    label="Тип организации"
-                    name="orgType"
-                    placeholder="ООО, ИП, АО..."
-                    required
-                  />
-                  <Field
-                    form={form}
-                    label="ИНН"
-                    name="inn"
-                    placeholder="1234567890"
-                    required
-                  />
-                  <Field
-                    form={form}
-                    label="КПП"
-                    name="kpp"
-                    placeholder="123456789"
-                  />
-                  <Field
-                    form={form}
-                    label="ОГРН"
-                    name="ogrn"
-                    placeholder="1234567890123"
-                  />
-                  <Field
-                    form={form}
-                    label="ОКПО"
-                    name="okpo"
-                    placeholder="12345678"
-                  />
-                  <Field
-                    form={form}
-                    label="ОКТМО"
-                    name="oktmo"
-                    placeholder="12345678901"
-                  />
-                </>
-              ) : (
-                <>
+            {counterpartyKind === "legal_entity" ? (
+              <>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">
+                      Идентификация компании
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Базовые данные, по которым субъект будет виден в CRM и
+                      документах.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="Название организации"
+                      name="orgName"
+                      placeholder="ООО «Компания»"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Тип организации"
+                      name="orgType"
+                      placeholder="ООО, ИП, АО..."
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">
+                      Регистрационные данные
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Идентификаторы компании из государственных и внутренних
+                      справочников.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <Field
+                      form={form}
+                      label="ИНН"
+                      name="inn"
+                      placeholder="1234567890"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="КПП"
+                      name="kpp"
+                      placeholder="123456789"
+                    />
+                    <Field
+                      form={form}
+                      label="ОГРН"
+                      name="ogrn"
+                      placeholder="1234567890123"
+                    />
+                    <Field
+                      form={form}
+                      label="ОКПО"
+                      name="okpo"
+                      placeholder="12345678"
+                    />
+                    <Field
+                      form={form}
+                      label="ОКТМО"
+                      name="oktmo"
+                      placeholder="12345678901"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">Подписант</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Человек, который действует от имени компании.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      form={form}
+                      label="Директор"
+                      name="directorName"
+                      placeholder="Иванов Иван Иванович"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Должность"
+                      name="position"
+                      placeholder="Генеральный директор"
+                      required
+                    />
+                    <Field
+                      form={form}
+                      label="Основание полномочий"
+                      name="directorBasis"
+                      placeholder="Устав"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium">
+                    Идентификация физлица
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Основные данные субъекта, который будет участвовать в
+                    сделках.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
                   <Field
                     form={form}
                     label="ФИО"
@@ -1218,52 +1334,38 @@ export default function NewCustomerPage() {
                     name="inn"
                     placeholder="123456789012"
                   />
-                </>
-              )}
-              <Field
-                form={form}
-                label="Email"
-                name="email"
-                placeholder="info@company.ru"
-                type="email"
-              />
-              <Field
-                form={form}
-                label="Телефон"
-                name="phone"
-                placeholder="+7 (999) 123-45-67"
-              />
-              {counterpartyKind === "legal_entity" ? (
-                <>
-                  <Field
-                    form={form}
-                    label="Директор"
-                    name="directorName"
-                    placeholder="Иванов Иван Иванович"
-                    required
-                  />
-                  <Field
-                    form={form}
-                    label="Должность"
-                    name="position"
-                    placeholder="Генеральный директор"
-                    required
-                  />
-                  <Field
-                    form={form}
-                    label="Основание полномочий"
-                    name="directorBasis"
-                    placeholder="Устав"
-                    required
-                  />
-                </>
-              ) : null}
-              <Field
-                form={form}
-                label="Адрес"
-                name="address"
-                placeholder="г. Москва, ул. Примерная, д. 1"
-              />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Контакты и адрес</h3>
+                <p className="text-sm text-muted-foreground">
+                  Данные для связи и юридического оформления документов.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  form={form}
+                  label="Email"
+                  name="email"
+                  placeholder="info@company.ru"
+                  type="email"
+                />
+                <Field
+                  form={form}
+                  label="Телефон"
+                  name="phone"
+                  placeholder="+7 (999) 123-45-67"
+                />
+                <Field
+                  form={form}
+                  label="Адрес"
+                  name="address"
+                  placeholder="г. Москва, ул. Примерная, д. 1"
+                />
+              </div>
             </div>
 
             <Accordion defaultValue={[]} multiple>
@@ -1271,7 +1373,7 @@ export default function NewCustomerPage() {
                 <>
                   <AccordionItem value="organization-english">
                     <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                      English fields: организация
+                      Английская версия названия и формы
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid gap-4 pt-3 md:grid-cols-2">
@@ -1292,7 +1394,7 @@ export default function NewCustomerPage() {
                   </AccordionItem>
                   <AccordionItem value="contacts-english">
                     <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                      English fields: контакты и представитель
+                      Английская версия адреса и подписанта
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid gap-4 pt-3 md:grid-cols-2">
@@ -1327,7 +1429,7 @@ export default function NewCustomerPage() {
               ) : (
                 <AccordionItem value="individual-english">
                   <AccordionTrigger className="rounded-md px-0 hover:no-underline">
-                    English fields: физлицо
+                    Английская версия данных физлица
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="grid gap-4 pt-3 md:grid-cols-2">
@@ -1367,7 +1469,8 @@ export default function NewCustomerPage() {
                     Субагент
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Привязка существующего или нового субагента к клиенту.
+                    Привяжите существующего партнёра или создайте нового
+                    субагента для сопровождения клиента.
                   </p>
                 </div>
                 <Button

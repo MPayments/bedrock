@@ -204,7 +204,7 @@ function createWorkflow(overrides?: {
             input.shortName ??
             "Counterparty",
           id: "counterparty-created",
-          kind: "legal_entity",
+          kind: input.kind,
           partyProfile: input.partyProfile ?? null,
           relationshipKind: "customer_owned",
           shortName:
@@ -648,6 +648,47 @@ describe("customer portal workflow", () => {
               value: "40702810900000000001",
             }),
           ]),
+        }),
+      }),
+    );
+  });
+
+  it("passes top-level names for individual onboarding counterparties", async () => {
+    const { parties, workflow } = createWorkflow({
+      memberships: [],
+      hasPendingPortalGrant: true,
+      user: {
+        role: null,
+      },
+    });
+
+    const result = await workflow.createCounterparty(
+      { userId: "user-1" },
+      {
+        bankMode: "existing",
+        kind: "individual",
+        orgName: "",
+        personFullName: "Иван Иванов",
+      },
+    );
+
+    expect(parties.counterparties.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "customer-created",
+        fullName: "Иван Иванов",
+        kind: "individual",
+        shortName: "Иван Иванов",
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        counterparty: expect.objectContaining({
+          fullName: "Иван Иванов",
+          kind: "individual",
+          shortName: "Иван Иванов",
+        }),
+        customer: expect.objectContaining({
+          name: "Иван Иванов",
         }),
       }),
     );

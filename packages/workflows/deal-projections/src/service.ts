@@ -13,10 +13,7 @@ import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import type { IamService } from "@bedrock/iam";
 import { type PartiesModule as PartiesModuleRoot } from "@bedrock/parties";
-import type {
-  Counterparty,
-  Customer,
-} from "@bedrock/parties/contracts";
+import type { Counterparty, Customer } from "@bedrock/parties/contracts";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
@@ -251,7 +248,9 @@ async function loadDealMoneyLookups(
     ...new Set(
       listedDeals
         .map((deal) => deal.calculationId)
-        .filter((calculationId): calculationId is string => Boolean(calculationId)),
+        .filter((calculationId): calculationId is string =>
+          Boolean(calculationId),
+        ),
     ),
   ];
   const sourceCurrencyIds = [
@@ -270,8 +269,9 @@ async function loadDealMoneyLookups(
         ): Promise<readonly [string, CalculationDetailsLike | null]> =>
           [
             calculationId,
-            (await deps.calculations.calculations.queries.findById(calculationId)) ??
-              null,
+            (await deps.calculations.calculations.queries.findById(
+              calculationId,
+            )) ?? null,
           ] as const,
       ),
     ),
@@ -279,7 +279,9 @@ async function loadDealMoneyLookups(
   const baseCurrencyIds = [
     ...new Set(
       Array.from(calculationsById.values())
-        .map((calculation) => calculation?.currentSnapshot.baseCurrencyId ?? null)
+        .map(
+          (calculation) => calculation?.currentSnapshot.baseCurrencyId ?? null,
+        )
         .filter((currencyId): currencyId is string => Boolean(currencyId)),
     ),
   ];
@@ -818,9 +820,7 @@ function getAvailableOutcomeTransitions(
     "settled",
     "failed",
   ];
-  const returnTransitions: ("failed" | "returned" | "settled")[] = [
-    "returned",
-  ];
+  const returnTransitions: ("failed" | "returned" | "settled")[] = ["returned"];
 
   if (!latestInstruction) {
     return [];
@@ -1120,9 +1120,7 @@ function sumCalculationLineAmountsByCurrency(
   }, new Map<string, bigint>());
 }
 
-function mergeProfitabilityAmountsByCurrency(
-  ...groups: Map<string, bigint>[]
-) {
+function mergeProfitabilityAmountsByCurrency(...groups: Map<string, bigint>[]) {
   const totals = new Map<string, bigint>();
 
   for (const group of groups) {
@@ -1382,7 +1380,7 @@ export function createDealProjectionsWorkflow(
   }): Promise<DealListRecord[]> {
     const deals: DealListRecord[] = [];
     let offset = 0;
-    let total = 0;
+    let total: number;
 
     do {
       const page = await deps.deals.deals.queries.list({
@@ -1421,9 +1419,12 @@ export function createDealProjectionsWorkflow(
           .filter((agentId): agentId is string => Boolean(agentId)),
       ),
     ];
-    const [{ baseCurrenciesById, calculationsById, currenciesById }, customers, agentEntries] =
-      await Promise.all([
-        loadDealMoneyLookups(listedDeals, deps),
+    const [
+      { baseCurrenciesById, calculationsById, currenciesById },
+      customers,
+      agentEntries,
+    ] = await Promise.all([
+      loadDealMoneyLookups(listedDeals, deps),
       deps.parties.customers.queries.listByIds(customerIds),
       Promise.all(
         agentIds.map(
@@ -1544,35 +1545,28 @@ export function createDealProjectionsWorkflow(
     });
 
     filteredDeals.sort((left, right) => {
-      let comparison = 0;
-
-      switch (normalizedQuery.sortBy) {
-        case "id":
-          comparison = left.id.localeCompare(right.id);
-          break;
-        case "client":
-          comparison = compareNullableStrings(left.client, right.client);
-          break;
-        case "amount":
-          comparison = compareBigInt(left.amountMinor, right.amountMinor);
-          break;
-        case "amountInBase":
-          comparison = compareBigInt(
-            left.amountInBaseMinor,
-            right.amountInBaseMinor,
-          );
-          break;
-        case "closedAt":
-          comparison = compareNullableDates(left.closedAt, right.closedAt);
-          break;
-        case "agentName":
-          comparison = compareNullableStrings(left.agentName, right.agentName);
-          break;
-        case "createdAt":
-        default:
-          comparison = left.createdAtDate - right.createdAtDate;
-          break;
-      }
+      const comparison = (() => {
+        switch (normalizedQuery.sortBy) {
+          case "id":
+            return left.id.localeCompare(right.id);
+          case "client":
+            return compareNullableStrings(left.client, right.client);
+          case "amount":
+            return compareBigInt(left.amountMinor, right.amountMinor);
+          case "amountInBase":
+            return compareBigInt(
+              left.amountInBaseMinor,
+              right.amountInBaseMinor,
+            );
+          case "closedAt":
+            return compareNullableDates(left.closedAt, right.closedAt);
+          case "agentName":
+            return compareNullableStrings(left.agentName, right.agentName);
+          case "createdAt":
+          default:
+            return left.createdAtDate - right.createdAtDate;
+        }
+      })();
 
       return normalizedQuery.sortOrder === "asc" ? comparison : -comparison;
     });
@@ -1665,9 +1659,11 @@ export function createDealProjectionsWorkflow(
       ...new Set(listedDeals.map((deal) => deal.customerId)),
     ];
 
-    const [{ baseCurrenciesById, calculationsById, currenciesById }, customers] =
-      await Promise.all([
-        loadDealMoneyLookups(listedDeals, deps),
+    const [
+      { baseCurrenciesById, calculationsById, currenciesById },
+      customers,
+    ] = await Promise.all([
+      loadDealMoneyLookups(listedDeals, deps),
       deps.parties.customers.queries.listByIds(customerIds),
     ]);
 
@@ -1688,7 +1684,8 @@ export function createDealProjectionsWorkflow(
         ? (currenciesById.get(deal.currencyId) ?? null)
         : null;
       const baseCurrency = calculation
-        ? (baseCurrenciesById.get(calculation.currentSnapshot.baseCurrencyId) ?? null)
+        ? (baseCurrenciesById.get(calculation.currentSnapshot.baseCurrencyId) ??
+          null)
         : null;
       const monetary = buildCrmDealMoneySummary({
         deal,
@@ -1753,7 +1750,9 @@ export function createDealProjectionsWorkflow(
     );
     const precisionByCode = new Map(
       Array.from(currenciesById.values())
-        .filter((currency): currency is NonNullable<typeof currency> => Boolean(currency))
+        .filter((currency): currency is NonNullable<typeof currency> =>
+          Boolean(currency),
+        )
         .map((currency) => [currency.code, currency.precision] as const),
     );
 
@@ -1825,7 +1824,10 @@ export function createDealProjectionsWorkflow(
         ([currencyCode, amountMinor]) => {
           return [
             currencyCode,
-            parseMinorOrZero(amountMinor, precisionByCode.get(currencyCode) ?? 2),
+            parseMinorOrZero(
+              amountMinor,
+              precisionByCode.get(currencyCode) ?? 2,
+            ),
           ] as const;
         },
       );
@@ -1834,7 +1836,7 @@ export function createDealProjectionsWorkflow(
       const amount = reportCurrencyCode
         ? ((totalsObject[reportCurrencyCode] as number | undefined) ?? 0)
         : totalsByCurrency.length === 1
-          ? totalsByCurrency[0]?.[1] ?? 0
+          ? (totalsByCurrency[0]?.[1] ?? 0)
           : 0;
       const closedAmount = reportCurrencyCode
         ? parseMinorOrZero(
@@ -2099,33 +2101,29 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
-    const [
-      attachments,
-      currentCalculation,
-      operationsResult,
-      quotesResult,
-    ] = await Promise.all([
-      deps.files.files.queries.listDealAttachments(dealId),
-      workflow.summary.calculationId
-        ? deps.calculations.calculations.queries.findById(
-            workflow.summary.calculationId,
-          )
-        : Promise.resolve(null),
-      deps.treasury.operations.queries.list({
-        dealId,
-        limit: MAX_QUERY_LIST_LIMIT,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      }),
-      deps.treasury.quotes.queries.listQuotes({
-        dealId,
-        limit: MAX_QUERY_LIST_LIMIT,
-        offset: 0,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      }),
-    ]);
+    const [attachments, currentCalculation, operationsResult, quotesResult] =
+      await Promise.all([
+        deps.files.files.queries.listDealAttachments(dealId),
+        workflow.summary.calculationId
+          ? deps.calculations.calculations.queries.findById(
+              workflow.summary.calculationId,
+            )
+          : Promise.resolve(null),
+        deps.treasury.operations.queries.list({
+          dealId,
+          limit: MAX_QUERY_LIST_LIMIT,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }),
+        deps.treasury.quotes.queries.listQuotes({
+          dealId,
+          limit: MAX_QUERY_LIST_LIMIT,
+          offset: 0,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }),
+      ]);
 
     const actions = buildCrmWorkbenchActions(workflow);
     const attachmentRequirements = buildCrmEvidenceRequirements({
@@ -2148,10 +2146,9 @@ export function createDealProjectionsWorkflow(
         operationsResult.data.map((operation) => operation.id),
       );
     const latestInstructionByOperationId = new Map(
-      latestInstructions.map((instruction) => [
-        instruction.operationId,
-        instruction,
-      ] as const),
+      latestInstructions.map(
+        (instruction) => [instruction.operationId, instruction] as const,
+      ),
     );
     const reconciliationLinks =
       await deps.reconciliation.links.listOperationLinks({
@@ -2297,7 +2294,8 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
-          const customerId = getCustomerParticipant(workflow)?.customerId ?? null;
+          const customerId =
+            getCustomerParticipant(workflow)?.customerId ?? null;
           const internalEntityName =
             getInternalEntityParticipant(workflow)?.displayName ?? null;
 
@@ -2317,7 +2315,9 @@ export function createDealProjectionsWorkflow(
           }
 
           const [agreement, operationsResult] = await Promise.all([
-            deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+            deps.agreements.agreements.queries.findById(
+              workflow.summary.agreementId,
+            ),
             deps.treasury.operations.queries.list({
               dealId: deal.id,
               limit: MAX_QUERY_LIST_LIMIT,
@@ -2332,14 +2332,15 @@ export function createDealProjectionsWorkflow(
               operationsResult.data.map((operation) => operation.id),
             );
           const latestInstructionByOperationId = new Map(
-            latestInstructions.map((instruction) => [
-              instruction.operationId,
-              instruction,
-            ] as const),
+            latestInstructions.map(
+              (instruction) => [instruction.operationId, instruction] as const,
+            ),
           );
           const reconciliationLinks =
             await deps.reconciliation.links.listOperationLinks({
-              operationIds: operationsResult.data.map((operation) => operation.id),
+              operationIds: operationsResult.data.map(
+                (operation) => operation.id,
+              ),
             });
           const reconciliationLinksByOperationId = new Map(
             reconciliationLinks.map(

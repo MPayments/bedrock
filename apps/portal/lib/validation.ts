@@ -41,6 +41,20 @@ function hasText(value: string | undefined) {
   return Boolean(value?.trim());
 }
 
+export function composePersonFullName(input: {
+  personFirstName?: string;
+  personLastName?: string;
+  personMiddleName?: string;
+}) {
+  return [
+    input.personLastName?.trim(),
+    input.personFirstName?.trim(),
+    input.personMiddleName?.trim(),
+  ]
+    .filter((part) => Boolean(part))
+    .join(" ");
+}
+
 function isValidRoutingCode(
   routingCode: string | undefined,
   country: string | undefined,
@@ -81,7 +95,9 @@ export const customerOnboardSchema = z
     orgNameI18n: localizedTextSchema.optional(),
     orgType: z.string().optional(),
     orgTypeI18n: localizedTextSchema.optional(),
-    personFullName: z.string().optional(),
+    personFirstName: z.string().optional(),
+    personLastName: z.string().optional(),
+    personMiddleName: z.string().optional(),
     personFullNameI18n: localizedTextSchema.optional(),
     inn: z.string().refine(
       (val) => {
@@ -154,12 +170,22 @@ export const customerOnboardSchema = z
           message: "ФИО директора обязательно",
         });
       }
-    } else if (!hasText(data.personFullName)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["personFullName"],
-        message: "ФИО контрагента обязательно",
-      });
+    } else {
+      if (!hasText(data.personLastName)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["personLastName"],
+          message: "Фамилия обязательна",
+        });
+      }
+
+      if (!hasText(data.personFirstName)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["personFirstName"],
+          message: "Имя обязательно",
+        });
+      }
     }
 
     if (!hasBankSignal(data)) {

@@ -10,6 +10,7 @@ import {
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import type { LocalizedTextVariant } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
@@ -36,10 +37,25 @@ type CounterpartyEditorPayload = z.infer<typeof CounterpartyEditorSchema>;
 
 type CustomerCounterpartyEditorProps = {
   counterpartyId: string;
+  localizedTextVariant?: LocalizedTextVariant;
   onDirtyChange: (dirty: boolean) => void;
   onSaved?: () => void;
   resetSignal: number;
 };
+
+function getSubjectDetailsCopy(kind: "individual" | "legal_entity") {
+  return kind === "individual"
+    ? {
+        description:
+          "Идентификаторы, адрес, контакты и англоязычные поля субъекта сделки.",
+        title: "Детали субъекта",
+      }
+    : {
+        description:
+          "Юридические реквизиты, идентификаторы, адрес, контакты, представители и лицензии субъекта сделки.",
+        title: "Юридические и контактные данные",
+      };
+}
 
 function toGeneralFormValues(
   counterparty: CounterpartyEditorPayload,
@@ -57,6 +73,7 @@ function toGeneralFormValues(
 
 export function CustomerCounterpartyEditor({
   counterpartyId,
+  localizedTextVariant,
   onDirtyChange,
   onSaved,
   resetSignal,
@@ -93,10 +110,10 @@ export function CustomerCounterpartyEditor({
         ]);
 
         if (!counterpartyResponse.ok) {
-          throw new Error("Не удалось загрузить данные контрагента");
+          throw new Error("Не удалось загрузить данные субъекта");
         }
         if (!groupOptionsResponse.ok) {
-          throw new Error("Не удалось загрузить группы контрагентов");
+          throw new Error("Не удалось загрузить группы субъектов");
         }
 
         const [counterpartyPayload, groupPayload] = await Promise.all([
@@ -118,7 +135,7 @@ export function CustomerCounterpartyEditor({
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "Не удалось загрузить профиль контрагента",
+              : "Не удалось загрузить карточку субъекта",
           );
         }
       } finally {
@@ -163,7 +180,7 @@ export function CustomerCounterpartyEditor({
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Загрузка профиля контрагента...
+          Загрузка карточки субъекта...
         </CardContent>
       </Card>
     );
@@ -173,11 +190,13 @@ export function CustomerCounterpartyEditor({
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Не удалось загрузить данные контрагента.
+          Не удалось загрузить данные субъекта.
         </CardContent>
       </Card>
     );
   }
+
+  const subjectDetailsCopy = getSubjectDetailsCopy(counterparty.kind);
 
   return (
     <div className="space-y-6">
@@ -189,10 +208,11 @@ export function CustomerCounterpartyEditor({
         updatedAt={counterparty.updatedAt}
         submitting={savingGeneral}
         error={error}
+        kindReadonly
         onDirtyChange={setGeneralDirty}
         onSubmit={async (values) => {
           if (values.kind !== counterparty.kind) {
-            setError("Смена типа контрагента в CRM не поддерживается");
+            setError("Смена типа субъекта в CRM не поддерживается");
             return;
           }
 
@@ -245,7 +265,7 @@ export function CustomerCounterpartyEditor({
                 param: { id: counterpartyId },
               });
             },
-            fallbackMessage: "Не удалось сохранить данные контрагента",
+            fallbackMessage: "Не удалось сохранить карточку субъекта",
             parseData: async (response) =>
               readJsonWithSchema(response, CounterpartyEditorSchema),
           });
@@ -262,11 +282,16 @@ export function CustomerCounterpartyEditor({
           onSaved?.();
           return toGeneralFormValues(result.data);
         }}
-        submitLabel="Сохранить контрагента"
+        description="Базовая карточка субъекта сделки: отображаемое имя, тип, страна и внутренний комментарий."
+        submitLabel="Сохранить карточку"
         submittingLabel="Сохранение..."
+        showGroups={false}
+        title="Карточка субъекта"
       />
       <PartyProfileEditor
         bundle={counterparty.partyProfile}
+        description={subjectDetailsCopy.description}
+        localizedTextVariant={localizedTextVariant}
         partyKind={counterparty.kind}
         seed={partyProfileSeed}
         submitting={savingLegal}
@@ -292,7 +317,7 @@ export function CustomerCounterpartyEditor({
                 param: { id: counterpartyId },
               });
             },
-            fallbackMessage: "Не удалось сохранить профиль контрагента",
+            fallbackMessage: "Не удалось сохранить дополнительные данные субъекта",
             parseData: async (response) =>
               readJsonWithSchema(response, CounterpartyEditorSchema),
           });
@@ -310,7 +335,10 @@ export function CustomerCounterpartyEditor({
 
           return result.data.partyProfile ?? bundle;
         }}
-        title="Профиль контрагента"
+        showIdentityFields={false}
+        showLocalizedTextModeSwitcher={false}
+        submitLabel="Сохранить детали"
+        title={subjectDetailsCopy.title}
       />
     </div>
   );

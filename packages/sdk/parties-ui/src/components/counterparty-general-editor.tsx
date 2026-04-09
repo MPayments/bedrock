@@ -82,6 +82,8 @@ type CounterpartyGeneralEditorProps = {
   submittingLabel?: string;
   disableSubmitUntilDirty?: boolean;
   headerActions?: ReactNode;
+  kindReadonly?: boolean;
+  showGroups?: boolean;
   showDates?: boolean;
   title?: string;
   description?: string;
@@ -240,6 +242,8 @@ export function CounterpartyGeneralEditor({
   submittingLabel = "Сохранение...",
   disableSubmitUntilDirty = true,
   headerActions,
+  kindReadonly = false,
+  showGroups = true,
   showDates = true,
   title = "Общая информация",
   description = "Просмотр и редактирование общей информации контрагента.",
@@ -855,6 +859,7 @@ export function CounterpartyGeneralEditor({
                           name={field.name}
                           value={field.value}
                           onValueChange={field.onChange}
+                          disabled={submitting || kindReadonly}
                         >
                           <SelectTrigger
                             id="counterparty-kind"
@@ -917,50 +922,54 @@ export function CounterpartyGeneralEditor({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="groupIds"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel>Группы</FieldLabel>
-                        <FieldDescription>
-                          Можно сочетать пользовательские группы и группы одного
-                          клиента. Группы разных клиентов смешивать нельзя.
-                        </FieldDescription>
-                        <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                          {groupOptions.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                              Группы не найдены.
-                            </p>
-                          ) : (
-                            renderGroupTree(
-                              normalizeSelectedGroupIds(field.value ?? []),
-                              (nextValue) => field.onChange(nextValue),
-                              ROOT_GROUP,
-                            )
-                          )}
-                        </div>
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                  <Field data-invalid={Boolean(errors.description)}>
-                    <FieldLabel htmlFor="counterparty-description">
-                      Описание
-                    </FieldLabel>
-                    <FieldDescription>
-                      Дополнительная информация о контрагенте
-                    </FieldDescription>
-                    <Textarea
-                      {...register("description")}
-                      id="counterparty-description"
-                      aria-invalid={Boolean(errors.description)}
-                      rows={3}
+                  {showGroups ? (
+                    <Controller
+                      name="groupIds"
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel>Группы</FieldLabel>
+                          <FieldDescription>
+                            Можно сочетать пользовательские группы и группы одного
+                            клиента. Группы разных клиентов смешивать нельзя.
+                          </FieldDescription>
+                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
+                            {groupOptions.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                Группы не найдены.
+                              </p>
+                            ) : (
+                              renderGroupTree(
+                                normalizeSelectedGroupIds(field.value ?? []),
+                                (nextValue) => field.onChange(nextValue),
+                                ROOT_GROUP,
+                              )
+                            )}
+                          </div>
+                          {fieldState.invalid ? (
+                            <FieldError errors={[fieldState.error]} />
+                          ) : null}
+                        </Field>
+                      )}
                     />
-                    <FieldError errors={[errors.description]} />
-                  </Field>
+                  ) : null}
+                  <div className={showGroups ? undefined : "md:col-span-2"}>
+                    <Field data-invalid={Boolean(errors.description)}>
+                      <FieldLabel htmlFor="counterparty-description">
+                        Описание
+                      </FieldLabel>
+                      <FieldDescription>
+                        Дополнительная информация о контрагенте
+                      </FieldDescription>
+                      <Textarea
+                        {...register("description")}
+                        id="counterparty-description"
+                        aria-invalid={Boolean(errors.description)}
+                        rows={3}
+                      />
+                      <FieldError errors={[errors.description]} />
+                    </Field>
+                  </div>
                 </div>
               </FieldGroup>
             </FieldSet>

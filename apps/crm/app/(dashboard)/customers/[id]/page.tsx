@@ -395,7 +395,7 @@ export default function CustomerDetailPage() {
       setError(
         createError instanceof Error
           ? createError.message
-          : "Не удалось создать контрагента",
+          : "Не удалось создать субъекта",
       );
     }
   }
@@ -569,8 +569,8 @@ export default function CustomerDetailPage() {
         <Alert variant="warning" className="pr-12">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            У клиента пока нет контрагентов. Добавьте первого контрагента,
-            чтобы продолжить.
+            У клиента пока нет субъектов сделки. Добавьте первый субъект, чтобы
+            продолжить работу.
           </AlertDescription>
           <Button
             type="button"
@@ -724,7 +724,7 @@ export default function CustomerDetailPage() {
                 workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
               />
             ) : (
-              "У этого клиента пока нет контрагентов."
+              "У этого клиента пока нет субъектов сделки."
             )}
           </div>
         )}
@@ -735,7 +735,7 @@ export default function CustomerDetailPage() {
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
-              Документ будет привязан к выбранному контрагенту.
+              Документ будет привязан к выбранному субъекту сделки.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

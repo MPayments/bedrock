@@ -921,9 +921,11 @@ export function createCustomerPortalWorkflow(
           customerId: customer.id,
           description: null,
           externalRef: normalizeNullableText(input.inn),
+          fullName: counterpartyName,
           kind: input.kind,
           partyProfile,
           relationshipKind: "customer_owned",
+          shortName: counterpartyName,
         });
 
       await ensureActiveOwnerMembership({

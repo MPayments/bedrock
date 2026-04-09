@@ -66,10 +66,10 @@ export function CustomerDetailHeader({
           <p className="text-sm text-muted-foreground">
             {counterpartyCount}{" "}
             {counterpartyCount === 1
-              ? "контрагент"
+              ? "субъект сделки"
               : counterpartyCount < 5
-                ? "контрагента"
-                : "контрагентов"}
+                ? "субъекта сделки"
+                : "субъектов сделки"}
           </p>
         </div>
       </div>
@@ -86,14 +86,14 @@ export function CustomerDetailHeader({
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuItem onClick={onAddCounterparty}>
                 <Plus className="h-4 w-4" />
-                <span>Добавить контрагента</span>
+                <span>Добавить субъекта</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!canManageAgreement}
                 onClick={onOpenContractDialog}
               >
                 <FileText className="h-4 w-4" />
-                <span>Создать / редактировать договор</span>
+                <span>Договор с клиентом</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

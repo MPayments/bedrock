@@ -4,9 +4,20 @@ import { AlertCircle, ChevronLeft, Loader2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  LOCALIZED_TEXT_VARIANTS,
+  type LocalizedTextVariant,
+} from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 
 import { OrganizationBankRequisitesWorkspace } from "./_components/organization-bank-requisites-workspace";
 import { OrganizationCanonicalEditor } from "./_components/organization-canonical-editor";
@@ -35,6 +46,8 @@ export default function OrganizationWorkspacePage() {
   const [organizationDirty, setOrganizationDirty] = useState(false);
   const [requisitesDirty, setRequisitesDirty] = useState(false);
   const [filesDirty, setFilesDirty] = useState(false);
+  const [localizedTextVariant, setLocalizedTextVariant] =
+    useState<LocalizedTextVariant>("base");
 
   const hasUnsavedChanges = organizationDirty || requisitesDirty || filesDirty;
 
@@ -138,6 +151,35 @@ export default function OrganizationWorkspacePage() {
     );
   }
 
+  const localizedTextControl =
+    activeTab === "organization" && organization.kind === "legal_entity" ? (
+      <div className="w-full space-y-1 sm:w-[180px]">
+        <Select
+          value={localizedTextVariant}
+          onValueChange={(value) =>
+            setLocalizedTextVariant((value as LocalizedTextVariant) ?? "base")
+          }
+        >
+          <SelectTrigger className="w-full bg-card">
+            <SelectValue>
+              {
+                LOCALIZED_TEXT_VARIANTS.find(
+                  (option) => option.value === localizedTextVariant,
+                )?.label
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {LOCALIZED_TEXT_VARIANTS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -180,6 +222,7 @@ export default function OrganizationWorkspacePage() {
       <OrganizationSummaryCard organization={organization} />
       <OrganizationWorkspaceTabs
         activeTab={activeTab}
+        controls={localizedTextControl}
         onTabChange={handleTabChange}
       />
 
@@ -188,6 +231,7 @@ export default function OrganizationWorkspacePage() {
         aria-hidden={activeTab !== "organization"}
       >
         <OrganizationCanonicalEditor
+          localizedTextVariant={localizedTextVariant}
           organizationId={organizationId}
           onDirtyChange={setOrganizationDirty}
           onSaved={handleWorkspaceSaved}

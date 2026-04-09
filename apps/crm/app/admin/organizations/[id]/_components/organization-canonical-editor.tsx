@@ -8,6 +8,7 @@ import {
   OrganizationGeneralEditor,
   type OrganizationGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { type LocalizedTextVariant } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 
@@ -21,6 +22,7 @@ import {
 } from "../_lib/organization-workspace-api";
 
 type OrganizationCanonicalEditorProps = {
+  localizedTextVariant: LocalizedTextVariant;
   onDirtyChange: (dirty: boolean) => void;
   onSaved?: () => void;
   organizationId: string;
@@ -40,6 +42,7 @@ function toGeneralFormValues(
 }
 
 export function OrganizationCanonicalEditor({
+  localizedTextVariant,
   onDirtyChange,
   onSaved,
   organizationId,
@@ -232,9 +235,11 @@ export function OrganizationCanonicalEditor({
         <PartyProfileEditor
           bundle={organization.partyProfile}
           seed={partyProfileSeed}
+          localizedTextVariant={localizedTextVariant}
           submitting={savingLegal}
           error={error}
           onDirtyChange={setLegalDirty}
+          showLocalizedTextModeSwitcher={false}
           onSubmit={async (bundle: PartyProfileBundleInput) => {
             setError(null);
             setSavingLegal(true);

@@ -6,7 +6,6 @@ import { beforeAll, afterAll, afterEach } from "vitest";
 
 import { schema } from "@bedrock/ledger/schema";
 
-
 // Test database and TigerBeetle connection
 const testDbConfig = {
   host: process.env.DB_HOST || "localhost",
@@ -14,12 +13,12 @@ const testDbConfig = {
   database: process.env.DB_NAME || "postgres",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
-  ssl: false
+  ssl: false,
 };
 
 const tbConfig = {
   cluster_id: BigInt(process.env.TB_CLUSTER_ID || "1"),
-  replica_addresses: [process.env.TB_ADDRESS || "127.0.0.1:3555"]
+  replica_addresses: [process.env.TB_ADDRESS || "127.0.0.1:3555"],
 };
 
 // Initialize connections immediately at module load time
@@ -82,11 +81,12 @@ async function assertTigerBeetleReady(timeoutMs = 5000) {
         timeoutId = setTimeout(() => {
           reject(new Error(`timeout after ${timeoutMs}ms`));
         }, timeoutMs);
-      })
+      }),
     ]);
   } catch (error) {
     throw new Error(
-      `TigerBeetle health check failed (address=${tbConfig.replica_addresses[0]}, cluster_id=${tbConfig.cluster_id}): ${formatError(error)}`
+      `TigerBeetle health check failed (address=${tbConfig.replica_addresses[0]}, cluster_id=${tbConfig.cluster_id}): ${formatError(error)}`,
+      { cause: error },
     );
   } finally {
     if (timeoutId) {

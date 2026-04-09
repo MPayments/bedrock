@@ -62,14 +62,14 @@ export default function PortalClientsPage() {
         <div className="flex items-center gap-3">
           <Building2 className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Мои контрагенты</h1>
+            <h1 className="text-2xl font-bold">Мои организации</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {customers.length}{" "}
               {customers.length === 1
-                ? "клиент"
+                ? "организация"
                 : customers.length < 5
-                  ? "клиента"
-                  : "клиентов"}
+                  ? "организации"
+                  : "организаций"}
             </p>
           </div>
         </div>
@@ -137,7 +137,8 @@ export default function PortalClientsPage() {
                   >
                     <div className="min-w-0">
                       {!isDuplicateCustomerCounterpartyName({
-                        customerDisplayName: resolvePortalCustomerDisplayName(customer),
+                        customerDisplayName:
+                          resolvePortalCustomerDisplayName(customer),
                         counterpartyName: counterparty.shortName,
                       }) ? (
                         <p className="truncate font-medium">
@@ -153,7 +154,9 @@ export default function PortalClientsPage() {
                     {resolvePortalCounterpartyPhone(counterparty) ? (
                       <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="h-3.5 w-3.5" />
-                        <span>{resolvePortalCounterpartyPhone(counterparty)}</span>
+                        <span>
+                          {resolvePortalCounterpartyPhone(counterparty)}
+                        </span>
                       </div>
                     ) : null}
                   </div>
@@ -167,15 +170,13 @@ export default function PortalClientsPage() {
       <Card className="mt-6">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
-            В разработке
+            <FileText className="h-4 w-4" />В разработке
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Редактирование данных контрагента</li>
-            <li>Просмотр заявок по контрагенту</li>
-            <li>Документы контрагента</li>
+            <li>Редактирование данных организации</li>
+            <li>Документы организации</li>
           </ul>
         </CardContent>
       </Card>

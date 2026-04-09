@@ -54,9 +54,12 @@ import { type LocalizedTextVariant } from "../lib/localized-text";
 
 type PartyProfileEditorProps = {
   bundle: PartyProfileBundleSource | PartyProfileBundleInput | null;
+  description?: string;
   error?: string | null;
+  localizedTextVariant?: LocalizedTextVariant;
   onChange?: (bundle: PartyProfileBundleInput, dirty: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onLocalizedTextVariantChange?: (value: LocalizedTextVariant) => void;
   onSubmit?: (
     bundle: PartyProfileBundleInput,
   ) =>
@@ -67,6 +70,8 @@ type PartyProfileEditorProps = {
   seed?: PartyProfileSeed;
   partyKind?: "individual" | "legal_entity";
   showActions?: boolean;
+  showIdentityFields?: boolean;
+  showLocalizedTextModeSwitcher?: boolean;
   submitLabel?: string;
   submitting?: boolean;
   submittingLabel?: string;
@@ -159,7 +164,7 @@ function parseDateInput(value: string): Date | null {
 
 function SectionCard(props: {
   actions?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   description?: string;
   title: string;
 }) {
@@ -176,7 +181,7 @@ function SectionCard(props: {
           {props.actions}
         </div>
       </CardHeader>
-      <CardContent>{props.children}</CardContent>
+      {props.children == null ? null : <CardContent>{props.children}</CardContent>}
     </Card>
   );
 }
@@ -334,13 +339,18 @@ function emptyLicense(): PartyLicenseInput {
 
 export function PartyProfileEditor({
   bundle,
+  description,
   error,
+  localizedTextVariant: controlledLocalizedTextVariant,
   onChange,
   onDirtyChange,
+  onLocalizedTextVariantChange,
   onSubmit,
   partyKind = "legal_entity",
   seed,
   showActions = true,
+  showIdentityFields = true,
+  showLocalizedTextModeSwitcher = true,
   submitLabel = "Сохранить",
   submitting = false,
   submittingLabel = "Сохранение...",
@@ -358,13 +368,17 @@ export function PartyProfileEditor({
     clonePartyProfileBundleInput(initialDraft),
   );
   const [localError, setLocalError] = useState<string | null>(null);
-  const [localizedTextVariant, setLocalizedTextVariant] =
+  const [internalLocalizedTextVariant, setInternalLocalizedTextVariant] =
     useState<LocalizedTextVariant>("base");
   const lastInitialDraftSerializedRef = useRef(initialDraftSerialized);
   const availableIdentifierSchemes = useMemo(
     () => getAvailableIdentifierSchemes(draft.identifiers),
     [draft.identifiers],
   );
+  const localizedTextVariant =
+    controlledLocalizedTextVariant ?? internalLocalizedTextVariant;
+  const handleLocalizedTextVariantChange =
+    onLocalizedTextVariantChange ?? setInternalLocalizedTextVariant;
 
   useEffect(() => {
     if (lastInitialDraftSerializedRef.current === initialDraftSerialized) {
@@ -424,202 +438,231 @@ export function PartyProfileEditor({
     }));
   }
 
+  const resolvedDescription =
+    description ??
+    (partyKind === "individual"
+      ? "Данные контрагента: имена, идентификаторы, адрес и контакты."
+      : "Данные контрагента: профиль, идентификаторы, адрес, контакты, представители и лицензии.");
+  const showProfileOverviewFields =
+    showIdentityFields || partyKind === "legal_entity";
+  const errorMessage = error ?? localError;
+  const errorAlert = errorMessage ? (
+    <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+      {errorMessage}
+    </div>
+  ) : null;
+  const profileActions = showActions ? (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setDraft(clonePartyProfileBundleInput(initialDraft))}
+        disabled={!isDirty || submitting}
+      >
+        <X className="size-4" />
+        Отменить
+      </Button>
+      <Button
+        type="button"
+        onClick={() => void handleSubmit()}
+        disabled={!isDirty || submitting}
+      >
+        {submitting ? (
+          <Spinner className="size-4" />
+        ) : (
+          <Save className="size-4" />
+        )}
+        {submitting ? submittingLabel : submitLabel}
+      </Button>
+    </div>
+  ) : null;
+  const localizedFieldModeBanner = showLocalizedTextModeSwitcher ? (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2">
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium">Редактируемая версия текста</p>
+        <p className="text-xs text-muted-foreground">
+          Этот выбор влияет на текстовые поля ниже: названия, адреса,
+          контакты и описания.
+        </p>
+      </div>
+      <LocalizedTextModeSwitcher
+        value={localizedTextVariant}
+        onChange={handleLocalizedTextVariantChange}
+        disabled={submitting}
+      />
+    </div>
+  ) : null;
+  const fallbackHeader =
+    errorAlert || localizedFieldModeBanner || profileActions ? (
+      <div className="space-y-4">
+        {errorAlert}
+        {localizedFieldModeBanner}
+        {profileActions ? (
+          <div className="flex justify-end">{profileActions}</div>
+        ) : null}
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-6">
-      <SectionCard
-        title={title}
-        description={
-          partyKind === "individual"
-            ? "Данные контрагента: имена, идентификаторы, адрес и контакты."
-            : "Данные контрагента: профиль, идентификаторы, адрес, контакты, представители и лицензии."
-        }
-        actions={
-          showActions ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setDraft(clonePartyProfileBundleInput(initialDraft))
-                }
-                disabled={!isDirty || submitting}
-              >
-                <X className="size-4" />
-                Отменить
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={!isDirty || submitting}
-              >
-                {submitting ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                {submitting ? submittingLabel : submitLabel}
-              </Button>
-            </div>
-          ) : null
-        }
-      >
-        {error || localError ? (
-          <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {error ?? localError}
-          </div>
-        ) : null}
+      {showProfileOverviewFields ? (
+        <SectionCard
+          title={title}
+          description={resolvedDescription}
+          actions={profileActions}
+        >
+          {errorAlert ? <div className="mb-4">{errorAlert}</div> : null}
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2">
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium">Режим локализуемых полей</p>
-            <p className="text-xs text-muted-foreground">
-              Переключает все локализуемые текстовые поля формы.
-            </p>
-          </div>
-          <LocalizedTextModeSwitcher
-            value={localizedTextVariant}
-            onChange={setLocalizedTextVariant}
-            disabled={submitting}
-          />
-        </div>
+          {localizedFieldModeBanner ? (
+            <div className="mb-4">{localizedFieldModeBanner}</div>
+          ) : null}
 
-        <FieldSet>
-          <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <LocalizedTextInputField
-              label="Полное наименование"
-              variant={localizedTextVariant}
-              value={draft.profile.fullName}
-              localeMap={draft.profile.fullNameI18n}
-              onChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  profile: {
-                    ...current.profile,
-                    fullName: value.value,
-                    fullNameI18n: value.localeMap,
-                  },
-                }))
-              }
-              disabled={submitting}
-            />
-            <LocalizedTextInputField
-              label="Краткое наименование"
-              variant={localizedTextVariant}
-              value={draft.profile.shortName}
-              localeMap={draft.profile.shortNameI18n}
-              onChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  profile: {
-                    ...current.profile,
-                    shortName: value.value,
-                    shortNameI18n: value.localeMap,
-                  },
-                }))
-              }
-              disabled={submitting}
-            />
-            {partyKind === "legal_entity" ? (
-              <>
-                <Field>
-                  <FieldLabel>Код формы</FieldLabel>
-                  <Input
-                    value={draft.profile.legalFormCode ?? ""}
-                    onChange={(event) =>
+          <FieldSet>
+            <FieldGroup className="grid gap-4 md:grid-cols-2">
+              {showIdentityFields ? (
+                <>
+                  <LocalizedTextInputField
+                    label="Полное наименование"
+                    variant={localizedTextVariant}
+                    value={draft.profile.fullName}
+                    localeMap={draft.profile.fullNameI18n}
+                    onChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         profile: {
                           ...current.profile,
-                          legalFormCode: event.target.value || null,
+                          fullName: value.value,
+                          fullNameI18n: value.localeMap,
                         },
                       }))
                     }
                     disabled={submitting}
                   />
-                </Field>
-                <LocalizedTextInputField
-                  label="Наименование формы"
-                  variant={localizedTextVariant}
-                  value={draft.profile.legalFormLabel ?? ""}
-                  localeMap={draft.profile.legalFormLabelI18n}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      profile: {
-                        ...current.profile,
-                        legalFormLabel: value.value || null,
-                        legalFormLabelI18n: value.localeMap,
-                      },
-                    }))
-                  }
-                  disabled={submitting}
-                />
-              </>
-            ) : null}
-            <Field>
-              <FieldLabel>Страна</FieldLabel>
-              <CountrySelect
-                value={draft.profile.countryCode ?? ""}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    profile: {
-                      ...current.profile,
-                      countryCode: value || null,
-                    },
-                  }))
-                }
-                disabled={submitting}
-                clearable
-                placeholder="Выберите страну"
-                searchPlaceholder="Поиск страны..."
-                emptyLabel="Страна не найдена"
-                clearLabel="Очистить"
-              />
-            </Field>
-            {partyKind === "legal_entity" ? (
-              <>
-                <Field>
-                  <FieldLabel>Код деятельности</FieldLabel>
-                  <Input
-                    value={draft.profile.businessActivityCode ?? ""}
-                    onChange={(event) =>
+                  <LocalizedTextInputField
+                    label="Краткое наименование"
+                    variant={localizedTextVariant}
+                    value={draft.profile.shortName}
+                    localeMap={draft.profile.shortNameI18n}
+                    onChange={(value) =>
                       setDraft((current) => ({
                         ...current,
                         profile: {
                           ...current.profile,
-                          businessActivityCode: event.target.value || null,
+                          shortName: value.value,
+                          shortNameI18n: value.localeMap,
                         },
                       }))
                     }
                     disabled={submitting}
                   />
+                </>
+              ) : null}
+              {partyKind === "legal_entity" ? (
+                <>
+                  <Field>
+                    <FieldLabel>Код формы</FieldLabel>
+                    <Input
+                      value={draft.profile.legalFormCode ?? ""}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          profile: {
+                            ...current.profile,
+                            legalFormCode: event.target.value || null,
+                          },
+                        }))
+                      }
+                      disabled={submitting}
+                    />
+                  </Field>
+                  <LocalizedTextInputField
+                    label="Наименование формы"
+                    variant={localizedTextVariant}
+                    value={draft.profile.legalFormLabel ?? ""}
+                    localeMap={draft.profile.legalFormLabelI18n}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        profile: {
+                          ...current.profile,
+                          legalFormLabel: value.value || null,
+                          legalFormLabelI18n: value.localeMap,
+                        },
+                      }))
+                    }
+                    disabled={submitting}
+                  />
+                </>
+              ) : null}
+              {showIdentityFields ? (
+                <Field>
+                  <FieldLabel>Страна</FieldLabel>
+                  <CountrySelect
+                    value={draft.profile.countryCode ?? ""}
+                    onValueChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        profile: {
+                          ...current.profile,
+                          countryCode: value || null,
+                        },
+                      }))
+                    }
+                    disabled={submitting}
+                    clearable
+                    placeholder="Выберите страну"
+                    searchPlaceholder="Поиск страны..."
+                    emptyLabel="Страна не найдена"
+                    clearLabel="Очистить"
+                  />
                 </Field>
-                <LocalizedTextInputField
-                  className="md:col-span-2"
-                  label="Описание деятельности"
-                  variant={localizedTextVariant}
-                  value={draft.profile.businessActivityText ?? ""}
-                  localeMap={draft.profile.businessActivityTextI18n}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      profile: {
-                        ...current.profile,
-                        businessActivityText: value.value || null,
-                        businessActivityTextI18n: value.localeMap,
-                      },
-                    }))
-                  }
-                  multiline
-                  rows={3}
-                  disabled={submitting}
-                />
-              </>
-            ) : null}
-          </FieldGroup>
-        </FieldSet>
-      </SectionCard>
+              ) : null}
+              {partyKind === "legal_entity" ? (
+                <>
+                  <Field>
+                    <FieldLabel>Код деятельности</FieldLabel>
+                    <Input
+                      value={draft.profile.businessActivityCode ?? ""}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          profile: {
+                            ...current.profile,
+                            businessActivityCode: event.target.value || null,
+                          },
+                        }))
+                      }
+                      disabled={submitting}
+                    />
+                  </Field>
+                  <LocalizedTextInputField
+                    className="md:col-span-2"
+                    label="Описание деятельности"
+                    variant={localizedTextVariant}
+                    value={draft.profile.businessActivityText ?? ""}
+                    localeMap={draft.profile.businessActivityTextI18n}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        profile: {
+                          ...current.profile,
+                          businessActivityText: value.value || null,
+                          businessActivityTextI18n: value.localeMap,
+                        },
+                      }))
+                    }
+                    multiline
+                    rows={3}
+                    disabled={submitting}
+                  />
+                </>
+              ) : null}
+            </FieldGroup>
+          </FieldSet>
+        </SectionCard>
+      ) : (
+        fallbackHeader
+      )}
 
       <SectionCard
         title="Идентификаторы"
@@ -752,6 +795,9 @@ export function PartyProfileEditor({
           </Button>
         }
       >
+        {!showProfileOverviewFields && localizedFieldModeBanner ? (
+          <div className="mb-4">{localizedFieldModeBanner}</div>
+        ) : null}
         <FieldGroup className="grid gap-4 md:grid-cols-2">
           <Field>
             <FieldLabel>Страна</FieldLabel>

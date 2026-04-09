@@ -247,6 +247,9 @@ export function CounterpartyBankRequisitesWorkspace({
   const selectedBranch =
     providerDetail?.branches.find((branch) => branch.id === selectedProviderBranchId) ??
     null;
+  const selectedBranchLabel = selectedBranch
+    ? `${selectedBranch.name}${selectedBranch.isPrimary ? " · основной" : ""}`
+    : undefined;
   const isEditorBusy =
     saving || archiving || settingDefault || providerDetailLoading;
   const hasUnsavedEditorState =
@@ -803,7 +806,9 @@ export function CounterpartyBankRequisitesWorkspace({
                             disabled={isEditorBusy}
                           >
                             <SelectTrigger id="requisite-provider-branch">
-                              <SelectValue placeholder="Выберите филиал" />
+                              <SelectValue placeholder="Выберите филиал">
+                                {selectedBranchLabel}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {providerDetail.branches.map((branch) => (

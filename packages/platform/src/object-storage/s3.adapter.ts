@@ -79,7 +79,11 @@ export class S3ObjectStorageAdapter {
     });
   }
 
-  async upload(key: string, data: Buffer, contentType: string): Promise<string> {
+  async upload(
+    key: string,
+    data: Buffer,
+    contentType: string,
+  ): Promise<string> {
     await this.ensureBucketExists();
 
     try {
@@ -101,7 +105,9 @@ export class S3ObjectStorageAdapter {
         key,
         ...details.meta,
       });
-      throw new Error(`Failed to upload file to S3: ${details.summary}`);
+      throw new Error(`Failed to upload file to S3: ${details.summary}`, {
+        cause: error,
+      });
     }
   }
 
@@ -142,7 +148,9 @@ export class S3ObjectStorageAdapter {
         key,
         ...details.meta,
       });
-      throw new Error(`Failed to download file from S3: ${details.summary}`);
+      throw new Error(`Failed to download file from S3: ${details.summary}`, {
+        cause: error,
+      });
     }
   }
 
@@ -166,7 +174,9 @@ export class S3ObjectStorageAdapter {
         key,
         ...details.meta,
       });
-      throw new Error(`Failed to generate signed URL: ${details.summary}`);
+      throw new Error(`Failed to generate signed URL: ${details.summary}`, {
+        cause: error,
+      });
     }
   }
 
@@ -189,7 +199,9 @@ export class S3ObjectStorageAdapter {
         key,
         ...details.meta,
       });
-      throw new Error(`Failed to delete file from S3: ${details.summary}`);
+      throw new Error(`Failed to delete file from S3: ${details.summary}`, {
+        cause: error,
+      });
     }
   }
 
@@ -208,12 +220,20 @@ export class S3ObjectStorageAdapter {
       this.logger.info(`S3 bucket "${this.bucket}" is ready`);
       this.bucketEnsured = true;
     } catch (error: unknown) {
-      const s3Error = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const s3Error = error as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+      };
 
-      if (s3Error.name === "NotFound" || s3Error.$metadata?.httpStatusCode === 404) {
+      if (
+        s3Error.name === "NotFound" ||
+        s3Error.$metadata?.httpStatusCode === 404
+      ) {
         this.logger.info(`Creating S3 bucket "${this.bucket}"...`);
         try {
-          await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+          await this.client.send(
+            new CreateBucketCommand({ Bucket: this.bucket }),
+          );
           this.logger.info(`S3 bucket "${this.bucket}" created successfully`);
           this.bucketEnsured = true;
         } catch (createError) {
@@ -223,7 +243,9 @@ export class S3ObjectStorageAdapter {
             endpoint: this.endpoint,
             ...details.meta,
           });
-          throw new Error(`Failed to create S3 bucket: ${details.summary}`);
+          throw new Error(`Failed to create S3 bucket: ${details.summary}`, {
+            cause: createError,
+          });
         }
       } else {
         const details = await describeS3Error(error);
@@ -232,7 +254,9 @@ export class S3ObjectStorageAdapter {
           endpoint: this.endpoint,
           ...details.meta,
         });
-        throw new Error(`Failed to check S3 bucket: ${details.summary}`);
+        throw new Error(`Failed to check S3 bucket: ${details.summary}`, {
+          cause: error,
+        });
       }
     }
   }
@@ -244,19 +268,24 @@ async function describeS3Error(
   const s3Error = error as S3ErrorLike;
   const response = isRecord(s3Error.$response) ? s3Error.$response : undefined;
   const bodyText = await readResponseBody(response?.body);
-  const errorCode = extractXmlTag(bodyText, "Code") ?? normalizeErrorCode(s3Error.name);
+  const errorCode =
+    extractXmlTag(bodyText, "Code") ?? normalizeErrorCode(s3Error.name);
   const errorMessage =
-    extractXmlTag(bodyText, "Message") ?? normalizeErrorMessage(s3Error.message);
+    extractXmlTag(bodyText, "Message") ??
+    normalizeErrorMessage(s3Error.message);
   const httpStatusCode =
     s3Error.$metadata?.httpStatusCode ??
-    (typeof response?.statusCode === "number" ? response.statusCode : undefined);
+    (typeof response?.statusCode === "number"
+      ? response.statusCode
+      : undefined);
   const headers = isRecord(response?.headers) ? response.headers : undefined;
   const requestId =
     normalizeHeaderValue(headers?.["x-amz-request-id"]) ??
     normalizeHeaderValue(headers?.["x-request-id"]) ??
     s3Error.$metadata?.requestId;
   const extendedRequestId =
-    normalizeHeaderValue(headers?.["x-amz-id-2"]) ?? s3Error.$metadata?.extendedRequestId;
+    normalizeHeaderValue(headers?.["x-amz-id-2"]) ??
+    s3Error.$metadata?.extendedRequestId;
   const summaryParts = [errorCode ?? "S3Error"];
 
   if (errorMessage && errorMessage !== errorCode) {
@@ -313,7 +342,10 @@ async function describeS3Error(
   return { meta, summary };
 }
 
-function extractXmlTag(value: string | undefined, tag: string): string | undefined {
+function extractXmlTag(
+  value: string | undefined,
+  tag: string,
+): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -347,7 +379,11 @@ function normalizeHeaderValue(value: unknown): string | undefined {
     return value;
   }
 
-  if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+  if (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    typeof value[0] === "string"
+  ) {
     return value[0];
   }
 
@@ -365,7 +401,9 @@ function normalizeResponseBody(value: string | undefined): string | undefined {
     return undefined;
   }
 
-  return normalized.length > 500 ? `${normalized.slice(0, 497)}...` : normalized;
+  return normalized.length > 500
+    ? `${normalized.slice(0, 497)}...`
+    : normalized;
 }
 
 async function readResponseBody(body: unknown): Promise<string | undefined> {
@@ -403,5 +441,7 @@ function normalizeChunk(chunk: unknown): Buffer {
 }
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
-  return typeof value === "object" && value !== null && Symbol.asyncIterator in value;
+  return (
+    typeof value === "object" && value !== null && Symbol.asyncIterator in value
+  );
 }

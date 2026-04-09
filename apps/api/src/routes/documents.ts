@@ -168,7 +168,7 @@ function parseJournalOperationsQuery(requestUrl: string) {
     dimensionFilters.set(dimensionKey, existing);
   }
 
-  return JournalOperationsQuerySchema.parse({
+  const rawQuery = {
     limit: params.get("limit") ?? undefined,
     offset: params.get("offset") ?? undefined,
     sortBy: params.get("sortBy") ?? undefined,
@@ -183,7 +183,13 @@ function parseJournalOperationsQuery(requestUrl: string) {
       dimensionFilters.size > 0
         ? Object.fromEntries(dimensionFilters)
         : undefined,
-  });
+  };
+
+  return JournalOperationsQuerySchema.parse(
+    Object.fromEntries(
+      Object.entries(rawQuery).filter(([, value]) => value !== undefined),
+    ),
+  );
 }
 
 interface DocumentPermissionAuthSurface {
