@@ -42,7 +42,7 @@ export function RateSourcesPanel({ initialSources }: RateSourcesPanelProps) {
   const router = useRouter();
   const [syncing, setSyncing] = React.useState<string | null>(null);
 
-  async function handleSync(source: "cbr" | "investing" | "xe") {
+  async function handleSync(source: SerializedSourceStatus["source"]) {
     setSyncing(source);
     try {
       const result = await executeMutation({
@@ -67,7 +67,7 @@ export function RateSourcesPanel({ initialSources }: RateSourcesPanelProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-4">
       {initialSources.map((source) => (
         <Card key={source.source} className="rounded-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

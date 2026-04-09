@@ -1,4 +1,4 @@
-export const TREASURY_RATE_SOURCES = ["cbr", "investing", "xe"] as const;
+export const TREASURY_RATE_SOURCES = ["cbr", "investing", "xe", "grinex"] as const;
 
 export type RateSource = (typeof TREASURY_RATE_SOURCES)[number];
 

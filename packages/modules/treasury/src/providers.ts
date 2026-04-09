@@ -3,6 +3,10 @@ export {
   type CbrRateSourceProviderDeps,
 } from "./rates/adapters/providers/sources/cbr";
 export {
+  createGrinexRateSourceProvider,
+  type GrinexRateSourceProviderDeps,
+} from "./rates/adapters/providers/sources/grinex";
+export {
   createInvestingRateSourceProvider,
   type InvestingRateSourceProviderDeps,
 } from "./rates/adapters/providers/sources/investing";

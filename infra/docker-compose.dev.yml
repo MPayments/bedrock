@@ -22,6 +22,7 @@ services:
       - seccomp=unconfined
     cap_add:
       - IPC_LOCK
+      
   rustfs:
     image: rustfs/rustfs:latest
     container_name: mpayments-rustfs
