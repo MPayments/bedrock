@@ -10,14 +10,28 @@ const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, partiesSchema);
 
 async function cleanupPartiesTables() {
-  await pool.query("DELETE FROM organization_requisite_bindings");
-  await pool.query("DELETE FROM requisites");
-  await pool.query("DELETE FROM requisite_providers");
-  await pool.query("DELETE FROM counterparty_group_memberships");
-  await pool.query("DELETE FROM counterparty_groups");
-  await pool.query("DELETE FROM counterparties");
-  await pool.query("DELETE FROM organizations");
-  await pool.query("DELETE FROM customers");
+  await pool.query(`
+    TRUNCATE TABLE
+      agreement_parties,
+      agreements,
+      customer_counterparty_assignments,
+      documents,
+      organization_requisite_bindings,
+      party_profiles,
+      requisite_identifiers,
+      requisite_provider_branch_identifiers,
+      requisite_provider_branches,
+      requisite_provider_identifiers,
+      requisites,
+      requisite_providers,
+      sub_agent_profiles,
+      counterparty_group_memberships,
+      counterparty_groups,
+      counterparties,
+      organizations,
+      customers
+    RESTART IDENTITY CASCADE
+  `);
 }
 
 registerPgIntegrationLifecycle({

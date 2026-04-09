@@ -1,4 +1,13 @@
+import { DomainError } from "@bedrock/shared/core/domain";
 import { ServiceError, ValidationError } from "@bedrock/shared/core/errors";
+
+function readMetaString(
+  error: DomainError,
+  key: string,
+): string | undefined {
+  const value = error.meta?.[key];
+  return typeof value === "string" ? value : undefined;
+}
 
 export class RequisiteError extends ServiceError {}
 
@@ -28,6 +37,21 @@ export class RequisiteProviderBranchMismatchError extends ValidationError {
       `Requisite provider branch ${branchId} does not belong to provider ${providerId}`,
     );
   }
+}
+
+export function rethrowRequisiteProviderDomainError(error: unknown): never {
+  if (!(error instanceof DomainError)) {
+    throw error;
+  }
+
+  if (error.code === "requisite_provider.branch.provider_mismatch") {
+    throw new RequisiteProviderBranchMismatchError(
+      readMetaString(error, "providerId") ?? error.message,
+      readMetaString(error, "branchId") ?? error.message,
+    );
+  }
+
+  throw error;
 }
 
 export class RequisiteAccountingBindingNotFoundError extends RequisiteError {

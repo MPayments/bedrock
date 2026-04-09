@@ -1,5 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 import { CounterpartyNotFoundError } from "../../../counterparties/application/errors";
 import type { CounterpartyReads } from "../../../counterparties/application/ports/counterparty.reads";
 import { OrganizationNotFoundError } from "../../../organizations/application/errors";
@@ -13,7 +14,6 @@ import {
 import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
 import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
-import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 
 async function assertOwnerExists(input: {
   owner: RequisiteOwner;

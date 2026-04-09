@@ -6,6 +6,7 @@ import {
   createRequisiteProviderSnapshot,
   updateRequisiteProviderSnapshot,
 } from "../../src/requisites/domain/requisite-provider";
+import { assertRequisiteProviderBranchSelection } from "../../src/requisites/domain/requisite-provider-selection";
 
 describe("requisite provider domain helpers", () => {
   it("normalizes provider snapshots", () => {
@@ -44,6 +45,18 @@ describe("requisite provider domain helpers", () => {
         country: null,
         website: null,
       }),
+    ).toThrow(DomainError);
+  });
+
+  it("rejects selecting a branch from another provider", () => {
+    expect(() =>
+      assertRequisiteProviderBranchSelection(
+        {
+          id: "provider-1",
+          branches: [{ id: "branch-1" }],
+        },
+        "branch-2",
+      ),
     ).toThrow(DomainError);
   });
 });

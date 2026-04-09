@@ -1,8 +1,9 @@
-import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
+import { assertRequisiteProviderBranchSelection } from "../../domain/requisite-provider-selection";
 import {
-  RequisiteProviderBranchMismatchError,
   RequisiteProviderNotActiveError,
+  rethrowRequisiteProviderDomainError,
 } from "../errors";
+import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 
 export async function assertRequisiteProviderSelection(
   reads: RequisiteProviderReads,
@@ -15,13 +16,9 @@ export async function assertRequisiteProviderSelection(
     throw new RequisiteProviderNotActiveError(providerId);
   }
 
-  if (
-    providerBranchId &&
-    !(provider.branches ?? []).some((branch) => branch.id === providerBranchId)
-  ) {
-    throw new RequisiteProviderBranchMismatchError(
-      providerId,
-      providerBranchId,
-    );
+  try {
+    assertRequisiteProviderBranchSelection(provider, providerBranchId);
+  } catch (error) {
+    rethrowRequisiteProviderDomainError(error);
   }
 }

@@ -1,6 +1,7 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { applyPatch } from "@bedrock/shared/core";
 
+import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 import { validatePaymentIdentifiers } from "../../domain/identifier-schemes";
 import type { UpdateRequisiteProps } from "../../domain/requisite";
 import {
@@ -13,7 +14,6 @@ import {
 import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
 import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
 import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
-import { assertRequisiteProviderSelection } from "./assert-requisite-provider-selection";
 
 export class UpdateRequisiteCommand {
   constructor(
