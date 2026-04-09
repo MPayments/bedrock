@@ -58,10 +58,28 @@ export class UpdateRequisiteCommand {
         nextInput.providerId,
         nextInput.providerBranchId,
       );
-      if (validated.identifiers !== undefined) {
+      let identifiersToValidate = validated.identifiers;
+      if (
+        identifiersToValidate === undefined &&
+        nextInput.kind !== current.kind
+      ) {
+        const detail = await tx.requisites.findDetailById(id);
+
+        if (!detail) {
+          throw new RequisiteNotFoundError(id);
+        }
+
+        identifiersToValidate = detail.identifiers.map((identifier) => ({
+          id: identifier.id,
+          scheme: identifier.scheme,
+          value: identifier.value,
+          isPrimary: identifier.isPrimary,
+        }));
+      }
+      if (identifiersToValidate !== undefined) {
         validatePaymentIdentifiers({
           owner: "requisite",
-          identifiers: validated.identifiers,
+          identifiers: identifiersToValidate,
           requisiteKind: nextInput.kind,
         });
       }

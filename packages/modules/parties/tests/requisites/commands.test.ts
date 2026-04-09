@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { ValidationError } from "@bedrock/shared/core/errors";
+
 import {
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteProviderBranchMismatchError,
@@ -231,6 +233,93 @@ describe("requisite command handlers", () => {
         providerId: "00000000-0000-4000-8000-000000000113",
       }),
     ).rejects.toBeInstanceOf(RequisiteProviderBranchMismatchError);
+
+    expect(findSetByOwnerCurrency).not.toHaveBeenCalled();
+  });
+
+  it("rejects a kind change when stored identifiers do not match the next kind", async () => {
+    const findSetByOwnerCurrency = vi.fn();
+    const update = new UpdateRequisiteCommand(
+      createRuntime(),
+      {
+        assertCurrencyExists: vi.fn(async () => undefined),
+        listCodesById: vi.fn(async () => new Map()),
+      },
+      {
+        findActiveById: vi.fn(async () => ({
+          id: "provider-1",
+          branches: [],
+        })),
+      } as any,
+      {
+        run: vi.fn(async (work) =>
+          work({
+            requisites: {
+              findById: vi.fn(async () =>
+                Requisite.fromSnapshot({
+                  id: "req-1",
+                  ownerType: "organization",
+                  ownerId: "org-1",
+                  providerId: "provider-1",
+                  providerBranchId: null,
+                  currencyId: "currency-1",
+                  kind: "bank",
+                  label: "Main",
+                  beneficiaryName: "Acme",
+                  beneficiaryNameLocal: null,
+                  beneficiaryAddress: null,
+                  paymentPurposeTemplate: null,
+                  notes: null,
+                  isDefault: true,
+                  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+                  archivedAt: null,
+                }),
+              ),
+              findDetailById: vi.fn(async () => ({
+                id: "req-1",
+                ownerType: "organization",
+                ownerId: "org-1",
+                organizationId: "org-1",
+                counterpartyId: null,
+                providerId: "provider-1",
+                providerBranchId: null,
+                currencyId: "currency-1",
+                kind: "bank",
+                label: "Main",
+                beneficiaryName: "Acme",
+                beneficiaryNameLocal: null,
+                beneficiaryAddress: null,
+                paymentPurposeTemplate: null,
+                notes: null,
+                isDefault: true,
+                createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+                archivedAt: null,
+                identifiers: [
+                  {
+                    id: "ri-1",
+                    requisiteId: "req-1",
+                    scheme: "local_account_number",
+                    value: "1234",
+                    normalizedValue: "1234",
+                    isPrimary: true,
+                    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+                  },
+                ],
+              })),
+              findSetByOwnerCurrency,
+            },
+          } as any)),
+      } as any,
+    );
+
+    await expect(
+      update.execute("req-1", {
+        kind: "blockchain",
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
 
     expect(findSetByOwnerCurrency).not.toHaveBeenCalled();
   });

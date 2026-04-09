@@ -9,6 +9,7 @@ import {
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
@@ -87,24 +88,54 @@ export function CounterpartyEditForm({
     const customerId =
       typeof values.customerId === "string" ? values.customerId.trim() : "";
 
-    const payload = {
-      shortName: values.shortName.trim(),
-      fullName: values.fullName.trim(),
-      kind: values.kind,
-      country: values.country.trim() || null,
-      description: values.description.trim() || null,
-      customerId: customerId || null,
-      groupIds: values.groupIds,
-    };
+    const partyProfile =
+      current.partyProfile
+        ? {
+            ...current.partyProfile,
+            profile: {
+              ...current.partyProfile.profile,
+              fullName: values.fullName.trim(),
+              shortName: values.shortName.trim(),
+              countryCode: values.country.trim() || null,
+            },
+          }
+        : createSeededPartyProfileBundle({
+            fullName: values.fullName.trim(),
+            shortName: values.shortName.trim(),
+            countryCode: values.country.trim() || null,
+          });
 
     const result = await executeMutation<CounterpartyDetails>({
-      request: () =>
-        apiClient.v1.counterparties[":id"].$patch({
+      request: async () => {
+        const patchResponse = await apiClient.v1.counterparties[":id"].$patch({
           param: {
             id: current.id,
           },
-          json: payload,
-        }),
+          json: {
+            description: values.description.trim() || null,
+            customerId: customerId || null,
+            groupIds: values.groupIds,
+          },
+        });
+
+        if (!patchResponse.ok) {
+          return patchResponse;
+        }
+
+        const partyProfileResponse =
+          await apiClient.v1.counterparties[":id"]["party-profile"].$put({
+            param: { id: current.id },
+            json: partyProfile,
+          });
+
+        if (!partyProfileResponse.ok) {
+          return partyProfileResponse;
+        }
+
+        return apiClient.v1.counterparties[":id"].$get({
+          param: { id: current.id },
+        });
+      },
       fallbackMessage: "Не удалось обновить контрагента",
       parseData: async (response) => (await response.json()) as CounterpartyDetails,
     });
@@ -156,6 +187,7 @@ export function CounterpartyEditForm({
       <CounterpartyGeneralEditor
         initialValues={initialValues}
         groupOptions={initialGroupOptions}
+        kindReadonly
         lockedGroupIds={lockedGroupIds}
         submitting={submitting}
         error={error}
