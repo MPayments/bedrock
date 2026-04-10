@@ -6,7 +6,7 @@ import {
   getCounterpartyGroups,
 } from "@/features/entities/counterparties/lib/queries";
 import { searchParamsCache } from "@/features/entities/counterparties/lib/validations";
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 
 interface CustomerCounterpartiesPageProps {
   params: Promise<{ id: string }>;

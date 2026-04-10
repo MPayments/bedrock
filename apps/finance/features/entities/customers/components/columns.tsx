@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import type { SerializedCustomer } from "@/features/entities/customers/lib/types";
 import { formatDate } from "@/lib/format";
 import { CustomerRowActions } from "./customer-row-actions";

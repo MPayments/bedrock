@@ -22,7 +22,7 @@ import {
 } from "@bedrock/sdk-ui/components/popover";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;

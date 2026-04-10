@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/features/documents/lib/status-labels";
 import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 import { formatDate } from "@/lib/format";
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 function badgeVariant(
   value: string,

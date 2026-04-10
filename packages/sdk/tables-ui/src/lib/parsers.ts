@@ -1,9 +1,8 @@
 import { createParser } from "nuqs/server";
 import { z } from "zod";
 
-import { dataTableConfig } from "../config/data-table";
-
-import type { ExtendedColumnSort } from "../types/data-table";
+import { dataTableConfig } from "@bedrock/sdk-tables-ui/lib/config";
+import type { ExtendedColumnSort } from "@bedrock/sdk-tables-ui/lib/types";
 
 const sortingItemSchema = z.object({
   id: z.string(),

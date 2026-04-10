@@ -1,7 +1,7 @@
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 import { TREASURY_OPERATION_VIEW_VALUES } from "@bedrock/treasury/contracts";
 
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 type OperationBadgeVariant = "default" | "secondary" | "destructive" | "outline";
 

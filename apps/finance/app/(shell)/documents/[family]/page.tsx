@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { DocumentsTable } from "@/features/documents/components/documents-table";
 import {

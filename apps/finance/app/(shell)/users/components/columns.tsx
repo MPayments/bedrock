@@ -5,7 +5,7 @@ import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { UserStatusBadge } from "@bedrock/sdk-users-ui/components/user-status-badge";
 import { createRoleLabelResolver } from "@bedrock/sdk-users-ui/lib/role-label";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import { formatDate } from "@/lib/format";
 import {
   FINANCE_USER_ROLE_DISPLAY_OPTIONS,

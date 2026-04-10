@@ -25,6 +25,7 @@
     "@bedrock/platform": "workspace:*",
     "@bedrock/sdk-api-client": "workspace:*",
     "@bedrock/sdk-parties-ui": "workspace:*",
+    "@bedrock/sdk-tables-ui": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@bedrock/sdk-users-ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

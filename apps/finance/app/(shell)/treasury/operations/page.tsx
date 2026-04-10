@@ -1,6 +1,6 @@
 import { Workflow } from "lucide-react";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { TreasuryOperationsTable } from "@/features/treasury/operations/components/table";
 import { getTreasuryOperations } from "@/features/treasury/operations/lib/queries";
