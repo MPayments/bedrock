@@ -16,6 +16,7 @@
     "db:seed:users": "tsx ./src/seeds/run-users.ts",
     "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
     "db:seed:organizations": "tsx ./src/seeds/run-organizations.ts",
+    "db:seed:organization-assets": "tsx ./src/seeds/run-organization-assets.ts",
     "db:seed:requisite-providers": "tsx ./src/seeds/run-requisite-providers.ts",
     "db:seed:requisites": "tsx ./src/seeds/run-requisites.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
