@@ -257,57 +257,46 @@ export const getRequisitesFilterOptions = cache(
   },
 );
 
-export const getRequisiteFormOptions = cache(
-  async (): Promise<RequisiteFormOptions> => {
-    const client = await getServerApiClient();
-    const [counterparties, organizations, providers, currencies] =
-      await Promise.all([
-        readOptionsList({
-          request: () =>
-            client.v1.counterparties.options.$get(
-              {},
-              { init: { cache: "force-cache" } },
-            ),
-          schema: CounterpartyOptionsResponseSchema,
-          context: "Не удалось загрузить контрагентов",
-        }),
-        readOptionsList({
-          request: () =>
-            client.v1.organizations.options.$get(
-              {},
-              { init: { cache: "force-cache" } },
-            ),
-          schema: OrganizationOptionsResponseSchema,
-          context: "Не удалось загрузить организации",
-        }),
-        readOptionsList({
-          request: () =>
-            client.v1.requisites.providers.options.$get(
-              {},
-              { init: { cache: "force-cache" } },
-            ),
-          schema: RequisiteProviderOptionsResponseSchema,
-          context: "Не удалось загрузить провайдеров реквизитов",
-        }),
-        readOptionsList({
-          request: () =>
-            client.v1.currencies.options.$get(
-              {},
-              { init: { cache: "force-cache" } },
-            ),
-          schema: CurrencyOptionsResponseSchema,
-          context: "Не удалось загрузить валюты",
-        }),
-      ]);
+export async function getRequisiteFormOptions(): Promise<RequisiteFormOptions> {
+  const client = await getServerApiClient();
+  const [counterparties, organizations, providers, currencies] =
+    await Promise.all([
+      readOptionsList({
+        request: () =>
+          client.v1.counterparties.options.$get({}, { init: { cache: "no-store" } }),
+        schema: CounterpartyOptionsResponseSchema,
+        context: "Не удалось загрузить контрагентов",
+      }),
+      readOptionsList({
+        request: () =>
+          client.v1.organizations.options.$get({}, { init: { cache: "no-store" } }),
+        schema: OrganizationOptionsResponseSchema,
+        context: "Не удалось загрузить организации",
+      }),
+      readOptionsList({
+        request: () =>
+          client.v1.requisites.providers.options.$get(
+            {},
+            { init: { cache: "no-store" } },
+          ),
+        schema: RequisiteProviderOptionsResponseSchema,
+        context: "Не удалось загрузить провайдеров реквизитов",
+      }),
+      readOptionsList({
+        request: () =>
+          client.v1.currencies.options.$get({}, { init: { cache: "no-store" } }),
+        schema: CurrencyOptionsResponseSchema,
+        context: "Не удалось загрузить валюты",
+      }),
+    ]);
 
-    return {
-      counterpartyOwners: toRelationOptions(counterparties.data),
-      organizationOwners: toRelationOptions(organizations.data),
-      providers: toRelationOptions(providers.data),
-      currencies: toRelationOptions(currencies.data),
-    };
-  },
-);
+  return {
+    counterpartyOwners: toRelationOptions(counterparties.data),
+    organizationOwners: toRelationOptions(organizations.data),
+    providers: toRelationOptions(providers.data),
+    currencies: toRelationOptions(currencies.data),
+  };
+}
 
 export async function getRequisites(
   search: RequisitesSearchParams = {},
