@@ -602,7 +602,7 @@ describe("document generation workflow", () => {
     expect(result.mimeType).toBe(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
-    expect(result.fileName).toMatch(/^contract_\d+\.docx$/);
+    expect(result.fileName).toMatch(/^contract-[0-9A-F]{8}\.docx$/);
     expect(objectStorage.download).toHaveBeenCalledWith(
       `organizations/${IDS.organization}/signature.png`,
     );

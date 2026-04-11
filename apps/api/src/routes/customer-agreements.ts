@@ -11,6 +11,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/shared/core/errors";
+import { getUuidPrefix } from "@bedrock/shared/core/uuid";
 
 import type { AppContext } from "../context";
 
@@ -40,6 +41,12 @@ function trimToNull(value: string | null | undefined): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildDefaultCustomerAgreementContractNumber(
+  customerId: string,
+): string {
+  return `contract-${getUuidPrefix(customerId).toUpperCase()}`;
 }
 
 function trimLeadingZeros(value: string): string {
@@ -332,7 +339,9 @@ export async function createCustomerAgreementForCustomer(
     organizationId: input.organizationId,
     organizationRequisiteId: input.organizationRequisiteId,
     contractDate: parseCompatibilityDate(input.contractDate) ?? undefined,
-    contractNumber: trimToNull(input.contractNumber),
+    contractNumber:
+      trimToNull(input.contractNumber) ??
+      buildDefaultCustomerAgreementContractNumber(input.customerId),
     feeRules: await buildAgreementFeeRules({
       agentFee: input.agentFee,
       ctx,
@@ -379,7 +388,8 @@ export async function updateCustomerAgreement(
     contractNumber:
       input.contractNumber === undefined
         ? undefined
-        : trimToNull(input.contractNumber),
+        : (trimToNull(input.contractNumber) ??
+          buildDefaultCustomerAgreementContractNumber(current.customerId)),
     feeRules:
       input.agentFee === undefined && input.fixedFee === undefined
         ? undefined
