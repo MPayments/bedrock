@@ -280,7 +280,7 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
   const [owners, providers, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.counterparties.options.$get({}, { init: { cache: "no-store" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
     }),
@@ -288,14 +288,14 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
       request: () =>
         client.v1.requisites.providers.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: RequisiteProviderOptionsResponseSchema,
       context: "Не удалось загрузить провайдеров реквизитов",
     }),
     readOptionsList({
       request: () =>
-        client.v1.currencies.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.currencies.options.$get({}, { init: { cache: "no-store" } }),
       schema: CurrencyOptionsResponseSchema,
       context: "Не удалось загрузить валюты",
     }),

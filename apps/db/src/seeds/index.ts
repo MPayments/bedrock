@@ -1,6 +1,7 @@
 export { CURRENCY_IDS, currencyIdForCode, seedCurrencies } from "./currencies";
 export { seedAccounting } from "./accounting";
 export { seedCounterparties } from "./counterparties";
+export { seedOrganizationAssets } from "./organization-assets";
 export { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
 export {
   REQUISITE_PROVIDER_IDS,

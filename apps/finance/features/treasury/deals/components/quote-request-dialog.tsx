@@ -422,6 +422,7 @@ export function QuoteRequestDialog({
             <Input
               id="deal-quote-manual-rate"
               disabled={!manualRateEnabled}
+              inputMode="decimal"
               placeholder={
                 sourceCurrency && toCurrency
                   ? `Например 97.15 ${toCurrency} за 1 ${sourceCurrency.code}`
@@ -430,6 +431,9 @@ export function QuoteRequestDialog({
               value={manualRate}
               onChange={(event) => setManualRate(event.target.value)}
             />
+            <p className="text-muted-foreground text-xs">
+              Можно вводить с точкой или запятой, например: 97.15 или 97,15
+            </p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="deal-quote-as-of">Дата котировки</Label>

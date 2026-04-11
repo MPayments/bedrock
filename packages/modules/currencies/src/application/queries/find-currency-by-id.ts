@@ -7,6 +7,19 @@ export class FindCurrencyByIdQuery {
 
   async execute(id: string): Promise<Currency | null> {
     const cache = await warmCurrenciesCache(this.context);
-    return cache.byId.get(id) ?? null;
+    const cached = cache.byId.get(id);
+
+    if (cached) {
+      return cached;
+    }
+
+    const fresh = await this.context.queries.findById(id);
+    if (!fresh) {
+      return null;
+    }
+
+    cache.byId.set(fresh.id, fresh);
+    cache.byCode.set(fresh.code, fresh);
+    return fresh;
   }
 }

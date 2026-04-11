@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "deep-modules": {
+      "source": "codybrom/clairvoyance",
+      "sourceType": "github",
+      "computedHash": "d981ed6b5ac3148d6d35c3f9dfe0cee816d0f52b0110bff5ecb45f0745b7e3ed"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
