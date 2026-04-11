@@ -143,6 +143,16 @@ function mapSubAgentProfileToOption(
 
 const SUB_AGENT_PAGE_LIMIT = 200;
 
+const SUBJECT_KIND_OPTIONS = [
+  { value: "legal_entity", label: "Юрлицо" },
+  { value: "individual", label: "Физлицо" },
+] as const;
+
+const SUB_AGENT_KIND_OPTIONS = [
+  { value: "individual", label: "Физическое лицо" },
+  { value: "legal_entity", label: "Юридическое лицо" },
+] as const;
+
 function getNestedError(errors: Record<string, unknown>, path: string) {
   const segments = path.split(".");
   let current: unknown = errors;
@@ -921,44 +931,6 @@ export default function NewCustomerPage() {
         </Alert>
       ) : null}
 
-      <Card className="border-border/60 bg-muted/20">
-        <CardHeader className="border-b">
-          <div className="space-y-1">
-            <CardTitle className="text-base">Что будет создано</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Один сценарий создаёт клиентскую карточку в CRM и первый рабочий
-              субъект, от имени которого будут вестись сделки.
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-md border bg-background px-4 py-3">
-            <p className="text-sm font-medium">Клиент в CRM</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Внутренняя карточка с названием, внешним ID и заметками.
-            </p>
-          </div>
-          <div className="rounded-md border bg-background px-4 py-3">
-            <p className="text-sm font-medium">Субъект сделки</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Компания или физлицо, которое будет участвовать в сделках.
-            </p>
-          </div>
-          <div className="rounded-md border bg-background px-4 py-3">
-            <p className="text-sm font-medium">Банк и расчёты</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Первый банковский счёт и реквизиты, если они уже известны.
-            </p>
-          </div>
-          <div className="rounded-md border bg-background px-4 py-3">
-            <p className="text-sm font-medium">Субагент</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Необязательная привязка партнёра, который сопровождает клиента.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       <section className="space-y-3">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">Быстрое заполнение</h2>
@@ -1193,11 +1165,20 @@ export default function NewCustomerPage() {
                 }
               >
                 <SelectTrigger id="counterparty-kind">
-                  <SelectValue />
+                  <SelectValue>
+                    {
+                      SUBJECT_KIND_OPTIONS.find(
+                        (option) => option.value === counterpartyKind,
+                      )?.label
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="legal_entity">Юрлицо</SelectItem>
-                  <SelectItem value="individual">Физлицо</SelectItem>
+                  {SUBJECT_KIND_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1577,15 +1558,23 @@ export default function NewCustomerPage() {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue>
+                                {
+                                  SUB_AGENT_KIND_OPTIONS.find(
+                                    (option) => option.value === newSubAgentKind,
+                                  )?.label
+                                }
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="individual">
-                                Физическое лицо
-                              </SelectItem>
-                              <SelectItem value="legal_entity">
-                                Юридическое лицо
-                              </SelectItem>
+                              {SUB_AGENT_KIND_OPTIONS.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
