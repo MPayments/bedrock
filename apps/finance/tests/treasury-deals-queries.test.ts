@@ -597,6 +597,73 @@ describe("treasury deals queries", () => {
     );
   });
 
+  it("accepts treasury instruction timestamps serialized as strings in deal operations", async () => {
+    const workspacePayload = createFinanceWorkspacePayload() as any;
+
+    workspacePayload.relatedResources.operations = [
+      {
+        actions: {
+          canPrepareInstruction: false,
+          canRequestReturn: false,
+          canRetryInstruction: false,
+          canSubmitInstruction: true,
+          canVoidInstruction: false,
+        },
+        availableOutcomeTransitions: [],
+        id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        instructionStatus: "prepared",
+        kind: "payout",
+        latestInstruction: {
+          attempt: 1,
+          createdAt: "2026-04-02T08:20:00.000Z",
+          failedAt: null,
+          id: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          operationId: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          providerRef: null,
+          providerSnapshot: null,
+          returnRequestedAt: null,
+          returnedAt: null,
+          settledAt: null,
+          sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
+          state: "prepared",
+          submittedAt: null,
+          updatedAt: "2026-04-02T08:21:00.000Z",
+          voidedAt: null,
+        },
+        operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
+        state: "planned",
+      },
+    ];
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => workspacePayload,
+    });
+
+    const { getFinanceDealWorkspaceById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    await expect(
+      getFinanceDealWorkspaceById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        relatedResources: expect.objectContaining({
+          operations: [
+            expect.objectContaining({
+              latestInstruction: expect.objectContaining({
+                createdAt: expect.any(Date),
+                updatedAt: expect.any(Date),
+              }),
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("merges finance workspace with quotes and calculations for the treasury workbench", async () => {
     fetchMock
       .mockResolvedValueOnce({
