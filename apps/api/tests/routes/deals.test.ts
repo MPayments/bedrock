@@ -173,7 +173,6 @@ function createWorkflowProjection() {
     },
     nextAction: "Update execution leg state",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     participants: [
@@ -249,7 +248,6 @@ function createFinanceQueueProjection() {
         internalEntityName: "Multihansa",
         nextAction: "Close deal",
         operationalState: {
-          capabilities: [],
           positions: [],
         },
         profitabilitySnapshot: {
@@ -352,7 +350,6 @@ function createFinanceWorkspaceProjection() {
     },
     nextAction: "Close deal",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     pricing: {
@@ -1546,8 +1543,7 @@ describe("deals routes", () => {
           "idempotency-key": "execution-blocker-resolve-1",
         },
         body: JSON.stringify({
-          capabilityKind: "can_payout",
-          target: "capability",
+          legId: "00000000-0000-4000-8000-000000000102",
         }),
       },
     );
@@ -1555,12 +1551,10 @@ describe("deals routes", () => {
     expect(response.status).toBe(200);
     expect(dealExecutionWorkflow.resolveExecutionBlocker).toHaveBeenCalledWith({
       actorUserId: "user-1",
-      capabilityKind: "can_payout",
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idempotencyKey: "execution-blocker-resolve-1",
-      legId: undefined,
-      target: "capability",
+      legId: "00000000-0000-4000-8000-000000000102",
     });
   });
 

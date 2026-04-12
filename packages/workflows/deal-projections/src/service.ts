@@ -2219,10 +2219,7 @@ export function createDealProjectionsWorkflow(
         canRequestExecution:
           !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
         canResolveExecutionBlocker:
-          workflow.executionPlan.some((leg) => leg.state === "blocked") ||
-          workflow.operationalState.capabilities.some(
-            (capability) => capability.status !== "enabled",
-          ),
+          workflow.executionPlan.some((leg) => leg.state === "blocked"),
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,

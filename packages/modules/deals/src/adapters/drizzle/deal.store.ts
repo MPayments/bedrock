@@ -4,7 +4,6 @@ import type { Queryable } from "@bedrock/platform/persistence";
 
 import {
   dealAttachmentIngestions,
-  dealCapabilityStates,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
@@ -28,7 +27,6 @@ import type {
   CreateDealTimelineEventStoredInput,
   DealStore,
   ReplaceDealOperationalPositionStoredInput,
-  UpsertDealCapabilityStateStoredInput,
 } from "../../application/ports/deal.store";
 
 export class DrizzleDealStore implements DealStore {
@@ -444,39 +442,6 @@ export class DrizzleDealStore implements DealStore {
           skippedFields: [],
           status: "pending",
           updatedAt: sql`now()`,
-        },
-      });
-  }
-
-  async upsertDealCapabilityState(
-    input: UpsertDealCapabilityStateStoredInput,
-  ): Promise<void> {
-    await this.db
-      .insert(dealCapabilityStates)
-      .values({
-        applicantCounterpartyId: input.applicantCounterpartyId,
-        capabilityKind: input.capabilityKind,
-        dealType: input.dealType,
-        id: input.id,
-        internalEntityOrganizationId: input.internalEntityOrganizationId,
-        note: input.note,
-        reasonCode: input.reasonCode,
-        status: input.status,
-        updatedByUserId: input.updatedByUserId,
-      })
-      .onConflictDoUpdate({
-        target: [
-          dealCapabilityStates.applicantCounterpartyId,
-          dealCapabilityStates.internalEntityOrganizationId,
-          dealCapabilityStates.dealType,
-          dealCapabilityStates.capabilityKind,
-        ],
-        set: {
-          note: input.note,
-          reasonCode: input.reasonCode,
-          status: input.status,
-          updatedByUserId: input.updatedByUserId,
-          updatedAt: new Date(),
         },
       });
   }

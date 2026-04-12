@@ -1580,12 +1580,10 @@ export function dealsRoutes(ctx: AppContext) {
 
             return ctx.dealExecutionWorkflow.resolveExecutionBlocker({
               actorUserId: c.get("user")!.id,
-              capabilityKind: body.capabilityKind,
               comment: body.comment ?? null,
               dealId: id,
               idempotencyKey,
               legId: body.legId,
-              target: body.target,
             });
           },
         );

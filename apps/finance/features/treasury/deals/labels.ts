@@ -98,26 +98,12 @@ export const FINANCE_DEAL_TYPE_LABELS: Record<FinanceDealType, string> = {
   payment: "Платеж поставщику",
 };
 
-export const DEAL_CAPABILITY_LABELS: Record<string, string> = {
-  can_collect: "Сбор средств",
-  can_exporter_settle: "Расчеты экспортера",
-  can_fx: "Конвертация",
-  can_payout: "Выплата",
-  can_transit: "Транзит",
-};
-
 export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   applicant: "юридическое лицо клиента",
   customer: "клиент",
   external_beneficiary: "получатель выплаты",
   external_payer: "плательщик",
   internal_entity: "наша организация",
-};
-
-export const DEAL_CAPABILITY_STATUS_LABELS: Record<string, string> = {
-  disabled: "Выключена",
-  enabled: "Включена",
-  pending: "Ожидает настройки",
 };
 
 export const DEAL_LEG_KIND_LABELS: Record<string, string> = {
@@ -192,7 +178,6 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   deal_closed: "Сделка закрыта",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
-  execution_blocker_resolved: "Блокер исполнения устранен",
   intake_saved: "Анкета сохранена",
   instruction_failed: "Инструкция завершилась ошибкой",
   instruction_prepared: "Инструкция подготовлена",
@@ -238,7 +223,6 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Prepare closing documents": "Подготовить закрывающие документы",
   "Prepare documents": "Подготовить документы",
   "Resolve approvals": "Завершить согласование",
-  "Resolve operational capability": "Настроить операционные возможности",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
   "Update execution leg state": "Обновить этап исполнения",
@@ -338,28 +322,12 @@ export function getFinanceDealTypeLabel(value: string | null | undefined) {
   return FINANCE_DEAL_TYPE_LABELS[value as FinanceDealType] ?? value;
 }
 
-export function getDealCapabilityLabel(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
-  return DEAL_CAPABILITY_LABELS[value] ?? value;
-}
-
 export function getFormalDocumentLabel(value: string | null | undefined) {
   if (!value) {
     return "—";
   }
 
   return FORMAL_DOCUMENT_LABELS[value] ?? value;
-}
-
-export function getDealCapabilityStatusLabel(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
-  return DEAL_CAPABILITY_STATUS_LABELS[value] ?? value;
 }
 
 export function getDealLegKindLabel(value: string | null | undefined) {
@@ -505,26 +473,6 @@ export function formatDealWorkflowMessage(message: string | null | undefined) {
     return `Согласование отклонено: ${approvalRejectedMatch[1]}.`;
   }
 
-  const capabilityDisabledMatch = message.match(
-    /^Operational capability is disabled: ([a-z_]+)$/,
-  );
-  if (capabilityDisabledMatch) {
-    const kind = capabilityDisabledMatch[1] ?? "";
-    return `Операционная возможность отключена: ${
-      DEAL_CAPABILITY_LABELS[kind] ?? formatFallbackLabel(kind)
-    }.`;
-  }
-
-  const capabilityPendingMatch = message.match(
-    /^Operational capability is not enabled: ([a-z_]+)$/,
-  );
-  if (capabilityPendingMatch) {
-    const kind = capabilityPendingMatch[1] ?? "";
-    return `Операционная возможность не настроена: ${
-      DEAL_CAPABILITY_LABELS[kind] ?? formatFallbackLabel(kind)
-    }.`;
-  }
-
   const positionMatch = message.match(
     /^Operational position is (missing|blocked|not complete|not ready): ([a-z_]+)$/,
   );
@@ -583,17 +531,6 @@ export function formatDealWorkflowMessage(message: string | null | undefined) {
   }
 
   return message;
-}
-
-export function formatCapabilityIssue(input: {
-  kind: string | null | undefined;
-  status: string | null | undefined;
-}) {
-  const label = getDealCapabilityLabel(input.kind).toLowerCase();
-
-  return input.status === "disabled"
-    ? `Операция недоступна: ${label}.`
-    : `Нужно настроить: ${label}.`;
 }
 
 export function formatOperationalPositionIssue(input: {
@@ -701,21 +638,6 @@ export function getFinanceDealStatusVariant(
     case "awaiting_payment":
     case "closing_documents":
       return "outline";
-    default:
-      return "outline";
-  }
-}
-
-export function getDealCapabilityStatusVariant(
-  value: string | null | undefined,
-): DealBadgeVariant {
-  switch (value) {
-    case "enabled":
-      return "default";
-    case "disabled":
-      return "destructive";
-    case "pending":
-      return "secondary";
     default:
       return "outline";
   }

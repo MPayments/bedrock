@@ -7,10 +7,7 @@ import {
   DealTransitionBlockedError,
   type DealsModule,
 } from "@bedrock/deals";
-import type {
-  DealCapabilityKind,
-  DealWorkflowProjection,
-} from "@bedrock/deals/contracts";
+import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
@@ -51,7 +48,6 @@ const EXECUTION_REQUESTABLE_STATUSES = new Set([
 ]);
 type ExecutionLifecycleEventType =
   | "deal_closed"
-  | "execution_blocker_resolved"
   | "execution_requested"
   | "instruction_failed"
   | "instruction_prepared"
@@ -737,114 +733,34 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
 
     async resolveExecutionBlocker(input: {
       actorUserId: string;
-      capabilityKind?: DealCapabilityKind;
       comment?: string | null;
       dealId: string;
       idempotencyKey: string;
-      legId?: string;
-      target: "capability" | "leg";
+      legId: string;
     }): Promise<DealWorkflowProjection> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule }) => {
+        handler: async ({ dealsModule }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-          if (input.target === "leg") {
-            if (!input.legId) {
-              throw new ValidationError("legId is required");
-            }
-
-            const leg = findLegById(workflow, input.legId);
-            if (!leg) {
-              throw new ValidationError(
-                `Deal ${input.dealId} does not have execution leg ${input.legId}`,
-              );
-            }
-
-            if (leg.state !== "blocked") {
-              return workflow;
-            }
-
-            const updated = await dealsModule.deals.commands.updateLegState({
-              actorUserId: input.actorUserId,
-              comment: input.comment ?? null,
-              dealId: input.dealId,
-              idx: leg.idx,
-              state: "ready",
-            });
-
-            await dealStore.createDealTimelineEvents([
-              buildTimelineEvent({
-                actorUserId: input.actorUserId,
-                dealId: input.dealId,
-                payload: {
-                  comment: input.comment ?? null,
-                  legId: leg.id,
-                  legIdx: leg.idx,
-                  target: "leg",
-                },
-                sourceRef: `execution:${input.dealId}:blocker:leg:${leg.id}:resolve:${input.idempotencyKey}`,
-                type: "execution_blocker_resolved",
-              }),
-            ]);
-
-            return updated;
-          }
-
-          if (!input.capabilityKind) {
-            throw new ValidationError("capabilityKind is required");
-          }
-
-          const capability = workflow.operationalState.capabilities.find(
-            (item) => item.kind === input.capabilityKind,
-          );
-
-          if (!capability) {
+          const leg = findLegById(workflow, input.legId);
+          if (!leg) {
             throw new ValidationError(
-              `Deal ${input.dealId} does not expose capability ${input.capabilityKind}`,
+              `Deal ${input.dealId} does not have execution leg ${input.legId}`,
             );
           }
 
-          if (capability.status === "enabled") {
+          if (leg.state !== "blocked") {
             return workflow;
           }
 
-          if (
-            !capability.applicantCounterpartyId ||
-            !capability.internalEntityOrganizationId
-          ) {
-            throw new ValidationError(
-              `Capability ${capability.kind} is missing applicant or internal entity context`,
-            );
-          }
-
-          await dealsModule.deals.commands.upsertCapabilityState({
+          return dealsModule.deals.commands.updateLegState({
             actorUserId: input.actorUserId,
-            applicantCounterpartyId: capability.applicantCounterpartyId,
-            capabilityKind: capability.kind,
-            dealType: capability.dealType ?? workflow.summary.type,
-            internalEntityOrganizationId:
-              capability.internalEntityOrganizationId,
-            note: input.comment ?? capability.note ?? null,
-            reasonCode: null,
-            status: "enabled",
+            comment: input.comment ?? null,
+            dealId: input.dealId,
+            idx: leg.idx,
+            state: "ready",
           });
-
-          await dealStore.createDealTimelineEvents([
-            buildTimelineEvent({
-              actorUserId: input.actorUserId,
-              dealId: input.dealId,
-              payload: {
-                capabilityKind: capability.kind,
-                comment: input.comment ?? null,
-                target: "capability",
-              },
-              sourceRef: `execution:${input.dealId}:blocker:capability:${capability.kind}:resolve:${input.idempotencyKey}`,
-              type: "execution_blocker_resolved",
-            }),
-          ]);
-
-          return requireWorkflow(dealsModule, input.dealId);
         },
         idempotencyKey: input.idempotencyKey,
         loadReplayResult: async ({ dealsModule }, storedResult) => {
@@ -852,11 +768,9 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           return requireWorkflow(dealsModule, dealId);
         },
         request: {
-          capabilityKind: input.capabilityKind ?? null,
           comment: input.comment ?? null,
           dealId: input.dealId,
-          legId: input.legId ?? null,
-          target: input.target,
+          legId: input.legId,
         },
         scope: DEAL_EXECUTION_RESOLVE_BLOCKER_SCOPE,
         serializeResult: (result) => ({ dealId: result.summary.id }),

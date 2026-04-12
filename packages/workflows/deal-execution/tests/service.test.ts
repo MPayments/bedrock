@@ -165,7 +165,6 @@ function createWorkflowProjection(input?: {
     },
     nextAction: "Request execution",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     participants: [
@@ -735,5 +734,100 @@ describe("deal execution workflow", () => {
       status: "done",
     });
     expect(harness.createDealTimelineEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves blocked legs through updateLegState without emitting a separate blocker event", async () => {
+    const blockedWorkflow = createWorkflowProjection({
+      status: "awaiting_payment",
+      type: "payment",
+      withConvert: false,
+    });
+    blockedWorkflow.executionPlan = blockedWorkflow.executionPlan.map(
+      (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
+        leg.kind === "payout" ? { ...leg, state: "blocked" } : leg,
+    );
+    const resolvedWorkflow = {
+      ...blockedWorkflow,
+      executionPlan: blockedWorkflow.executionPlan.map(
+        (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
+          leg.kind === "payout" ? { ...leg, state: "ready" } : leg,
+      ),
+    };
+    const updateLegState = vi.fn(async () => resolvedWorkflow);
+    const createDealTimelineEvents = vi.fn(async () => undefined);
+    const workflow = createDealExecutionWorkflow({
+      agreements: {
+        agreements: {
+          queries: {
+            findById: vi.fn(),
+          },
+        },
+      } as any,
+      currencies: {
+        findById: vi.fn(),
+      } as any,
+      db: {
+        transaction: vi.fn(async (handler: (tx: any) => Promise<unknown>) =>
+          handler({}),
+        ),
+      } as any,
+      idempotency: {
+        withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
+      } as any,
+      createDealStore: () => ({
+        createDealLegOperationLinks: vi.fn(),
+        createDealTimelineEvents,
+      }),
+      createDealsModule: () => ({
+        deals: {
+          commands: {
+            updateLegState,
+          },
+          queries: {
+            findWorkflowById: vi.fn(async () => blockedWorkflow),
+          },
+        },
+      } as any),
+      createReconciliationService: () => ({
+        links: {
+          listOperationLinks: vi.fn(),
+        },
+      } as any),
+      createTreasuryModule: () => ({
+        instructions: {
+          queries: {
+            listLatestByOperationIds: vi.fn(),
+          },
+        },
+        operations: {
+          commands: {
+            createOrGetPlanned: vi.fn(),
+          },
+        },
+        quotes: {
+          queries: {
+            getQuoteDetails: vi.fn(),
+          },
+        },
+      } as any),
+    });
+
+    const result = await workflow.resolveExecutionBlocker({
+      actorUserId: "user-1",
+      comment: "Retry payout",
+      dealId: "deal-1",
+      idempotencyKey: "resolve-1",
+      legId: "leg-2",
+    });
+
+    expect(updateLegState).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Retry payout",
+      dealId: "deal-1",
+      idx: 2,
+      state: "ready",
+    });
+    expect(createDealTimelineEvents).not.toHaveBeenCalled();
+    expect(result.executionPlan.at(-1)?.state).toBe("ready");
   });
 });

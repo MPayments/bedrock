@@ -16,7 +16,6 @@ import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
 import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
-import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
@@ -28,7 +27,6 @@ import { FindDealWorkflowsByIdsQuery } from "./queries/find-deal-workflows-by-id
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
-import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -93,10 +91,6 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
-  const upsertDealCapabilityState = new UpsertDealCapabilityStateCommand(
-    deps.runtime,
-    deps.commandUow,
-  );
   const appendTimelineEvent = new AppendDealTimelineEventCommand(
     deps.runtime,
     deps.commandUow,
@@ -117,7 +111,6 @@ export function createDealsService(deps: DealsServiceDeps) {
   const findDealWorkflowsByIds = new FindDealWorkflowsByIdsQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
   const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
-  const listCapabilityStates = new ListDealCapabilityStatesQuery(deps.reads);
   const listAttachmentIngestions = new ListDealAttachmentIngestionsQuery(
     deps.reads,
   );
@@ -148,9 +141,6 @@ export function createDealsService(deps: DealsServiceDeps) {
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       updateComment: updateDealComment.execute.bind(updateDealComment),
-      upsertCapabilityState: upsertDealCapabilityState.execute.bind(
-        upsertDealCapabilityState,
-      ),
       updateLegState: updateDealLegState.execute.bind(updateDealLegState),
     },
     queries: {
@@ -166,9 +156,6 @@ export function createDealsService(deps: DealsServiceDeps) {
         findDealWorkflowsByIds.execute.bind(findDealWorkflowsByIds),
       listAttachmentIngestions:
         listAttachmentIngestions.execute.bind(listAttachmentIngestions),
-      listCapabilityStates: listCapabilityStates.execute.bind(
-        listCapabilityStates,
-      ),
       listCalculationHistory: listCalculationHistory.execute.bind(
         listCalculationHistory,
       ),

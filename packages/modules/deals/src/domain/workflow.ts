@@ -403,14 +403,6 @@ export function deriveDealNextAction(input: {
 
   if (
     relevantBlockers.some((blocker) =>
-      ["capability_pending", "capability_disabled"].includes(blocker.code),
-    )
-  ) {
-    return "Resolve operational capability";
-  }
-
-  if (
-    relevantBlockers.some((blocker) =>
       ["operational_position_incomplete", "operational_position_blocked"].includes(
         blocker.code,
       ),

@@ -488,24 +488,6 @@ const FinanceDealWorkspaceSchema = z.object({
   instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: z.object({
-    capabilities: z.array(
-      z.object({
-        applicantCounterpartyId: z.string().uuid().nullable().optional().default(null),
-        dealType: FinanceDealTypeSchema.optional(),
-        internalEntityOrganizationId: z
-          .string()
-          .uuid()
-          .nullable()
-          .optional()
-          .default(null),
-        kind: z.string(),
-        note: z.string().nullable(),
-        reasonCode: z.string().nullable(),
-        status: z.string(),
-        updatedAt: NullableApiDateTimeStringSchema.optional().default(null),
-        updatedByUserId: z.string().nullable().optional().default(null),
-      }),
-    ),
     positions: z.array(
       z.object({
         amountMinor: z.string().nullable(),

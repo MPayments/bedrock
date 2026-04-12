@@ -121,18 +121,6 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
     },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
-      capabilities: [
-        {
-          applicantCounterpartyId: null,
-          internalEntityOrganizationId: null,
-          kind: "can_collect",
-          note: null,
-          reasonCode: null,
-          status: "enabled",
-          updatedAt: null,
-          updatedByUserId: null,
-        },
-      ],
       positions: [
         {
           amountMinor: null,

@@ -73,7 +73,6 @@ function createBaseWorkflow(): DealWorkflowProjection {
     },
     nextAction: "Accept quote",
     operationalState: {
-      capabilities: [],
       positions: [
         {
           amountMinor: "100000",

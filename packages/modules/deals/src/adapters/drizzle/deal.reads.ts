@@ -25,7 +25,6 @@ import {
 import {
   dealAttachmentIngestions,
   dealApprovals,
-  dealCapabilityStates,
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
@@ -39,7 +38,6 @@ import type {
   DealApproval,
   DealAttachmentIngestion,
   DealCalculationHistoryItem,
-  DealCapabilityState,
   DealDetails,
   DealFundingResolution,
   DealIntakeDraft,
@@ -157,30 +155,6 @@ function toDate(value: Date | string) {
 
 function toDateOrNull(value: Date | string | null | undefined) {
   return value ? toDate(value) : null;
-}
-
-function mapCapabilityState(row: {
-  applicantCounterpartyId: string;
-  capabilityKind: DealCapabilityState["kind"];
-  dealType: DealCapabilityState["dealType"];
-  internalEntityOrganizationId: string;
-  note: string | null;
-  reasonCode: string | null;
-  status: DealCapabilityState["status"];
-  updatedAt: Date;
-  updatedByUserId: string | null;
-}): DealCapabilityState {
-  return {
-    applicantCounterpartyId: row.applicantCounterpartyId,
-    dealType: row.dealType,
-    internalEntityOrganizationId: row.internalEntityOrganizationId,
-    kind: row.capabilityKind,
-    note: row.note,
-    reasonCode: row.reasonCode,
-    status: row.status,
-    updatedAt: row.updatedAt,
-    updatedByUserId: row.updatedByUserId,
-  };
 }
 
 function mapAttachmentIngestion(row: {
@@ -582,22 +556,6 @@ export class DrizzleDealReads implements DealReads {
     }));
   }
 
-  private async loadCapabilityStatesForWorkflow(input: {
-    applicantCounterpartyId: string | null;
-    dealType: DealCapabilityState["dealType"];
-    internalEntityOrganizationId: string | null;
-  }): Promise<DealCapabilityState[]> {
-    if (!input.applicantCounterpartyId || !input.internalEntityOrganizationId) {
-      return [];
-    }
-
-    return this.listCapabilityStates({
-      applicantCounterpartyId: input.applicantCounterpartyId,
-      dealType: input.dealType,
-      internalEntityOrganizationId: input.internalEntityOrganizationId,
-    });
-  }
-
   private async loadAcceptedQuote(
     dealId: string,
     revision: number,
@@ -868,26 +826,14 @@ export class DrizzleDealReads implements DealReads {
       now,
       storedLegs,
     });
-    const [capabilityStates, calculationOperationalLines] = await Promise.all([
-      this.loadCapabilityStatesForWorkflow({
-        applicantCounterpartyId:
-          participants.find((participant) => participant.role === "applicant")
-            ?.counterpartyId ?? null,
-        dealType: summary.type,
-        internalEntityOrganizationId:
-          participants.find(
-            (participant) => participant.role === "internal_entity",
-          )?.organizationId ?? null,
-      }),
+    const [calculationOperationalLines] = await Promise.all([
       this.loadCalculationOperationalLines(summary.calculationId),
     ]);
     const operationalState = buildDealOperationalState({
       calculationId: summary.calculationId,
       calculationLines: calculationOperationalLines,
-      capabilityStates,
       executionPlan,
       intake: summary.snapshot,
-      participants,
       sectionCompleteness,
       status: summary.status,
       updatedAt: summary.updatedAt,
@@ -997,67 +943,6 @@ export class DrizzleDealReads implements DealReads {
       .limit(1);
 
     return row ? mapAttachmentIngestion(row) : null;
-  }
-
-  async listCapabilityStates(input: {
-    applicantCounterpartyId?: string;
-    capabilityKind?: DealCapabilityState["kind"];
-    dealType?: DealCapabilityState["dealType"];
-    internalEntityOrganizationId?: string;
-    status?: DealCapabilityState["status"];
-  }): Promise<DealCapabilityState[]> {
-    const conditions: SQL[] = [];
-
-    if (input.applicantCounterpartyId) {
-      conditions.push(
-        eq(
-          dealCapabilityStates.applicantCounterpartyId,
-          input.applicantCounterpartyId,
-        ),
-      );
-    }
-    if (input.internalEntityOrganizationId) {
-      conditions.push(
-        eq(
-          dealCapabilityStates.internalEntityOrganizationId,
-          input.internalEntityOrganizationId,
-        ),
-      );
-    }
-    if (input.dealType) {
-      conditions.push(eq(dealCapabilityStates.dealType, input.dealType));
-    }
-    if (input.capabilityKind) {
-      conditions.push(
-        eq(dealCapabilityStates.capabilityKind, input.capabilityKind),
-      );
-    }
-    if (input.status) {
-      conditions.push(eq(dealCapabilityStates.status, input.status));
-    }
-
-    const rows = await this.db
-      .select({
-        applicantCounterpartyId: dealCapabilityStates.applicantCounterpartyId,
-        capabilityKind: dealCapabilityStates.capabilityKind,
-        dealType: dealCapabilityStates.dealType,
-        internalEntityOrganizationId:
-          dealCapabilityStates.internalEntityOrganizationId,
-        note: dealCapabilityStates.note,
-        reasonCode: dealCapabilityStates.reasonCode,
-        status: dealCapabilityStates.status,
-        updatedAt: dealCapabilityStates.updatedAt,
-        updatedByUserId: dealCapabilityStates.updatedByUserId,
-      })
-      .from(dealCapabilityStates)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(
-        asc(dealCapabilityStates.dealType),
-        asc(dealCapabilityStates.capabilityKind),
-        asc(dealCapabilityStates.updatedAt),
-      );
-
-    return rows.map(mapCapabilityState);
   }
 
   async listAttachmentIngestionsByDealId(

@@ -125,18 +125,6 @@ function createDeal(): FinanceDealWorkspace {
     },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
-      capabilities: [
-        {
-          applicantCounterpartyId: null,
-          internalEntityOrganizationId: null,
-          kind: "can_payout",
-          note: null,
-          reasonCode: "capability_missing",
-          status: "pending",
-          updatedAt: null,
-          updatedByUserId: null,
-        },
-      ],
       positions: [
         {
           amountMinor: "12500000",

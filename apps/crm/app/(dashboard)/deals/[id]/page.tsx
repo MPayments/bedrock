@@ -1960,14 +1960,10 @@ export default function DealDetailPage() {
       data.workflow.operationalState.positions.filter(
         (position) => position.state === "blocked",
       ).length;
-    const capabilityIssueCount =
-      data.workflow.operationalState.capabilities.filter(
-        (capability) => capability.status !== "enabled",
-      ).length;
 
     return {
       documents: missingEvidenceCount + missingDocumentCount,
-      execution: blockedLegCount + blockedPositionCount + capabilityIssueCount,
+      execution: blockedLegCount + blockedPositionCount,
       intake:
         incompleteSectionCount > 0
           ? incompleteSectionCount

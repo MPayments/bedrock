@@ -1,16 +1,12 @@
 import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
-import { dealIntakeHasConvertLeg } from "./workflow";
 import type {
-  DealCapabilityState,
   DealIntakeDraft,
   DealOperationalPosition,
   DealOperationalState,
   DealSectionCompleteness,
   DealWorkflowLeg,
-  DealWorkflowParticipant,
 } from "../application/contracts/dto";
 import type {
-  DealCapabilityKind,
   DealOperationalPositionKind,
   DealOperationalPositionState,
   DealStatus,
@@ -127,34 +123,6 @@ function buildNotApplicablePosition(
   };
 }
 
-export function listRequiredDealCapabilityKinds(
-  intake: DealIntakeDraft,
-): DealCapabilityKind[] {
-  const kinds: DealCapabilityKind[] = ["can_collect", "can_payout"];
-
-  switch (intake.type) {
-    case "payment":
-      break;
-    case "currency_exchange":
-      kinds.splice(1, 0, "can_fx");
-      break;
-    case "currency_transit":
-      kinds.splice(1, 0, "can_transit");
-      if (dealIntakeHasConvertLeg(intake)) {
-        kinds.splice(1, 0, "can_fx");
-      }
-      break;
-    case "exporter_settlement":
-      kinds.unshift("can_exporter_settle");
-      if (dealIntakeHasConvertLeg(intake)) {
-        kinds.splice(1, 0, "can_fx");
-      }
-      break;
-  }
-
-  return [...new Set(kinds)];
-}
-
 export function listRequiredOperationalPositionKinds(
   type: DealIntakeDraft["type"],
 ): DealOperationalPositionKind[] {
@@ -189,50 +157,12 @@ export function isOperationalPositionDone(
 export function buildDealOperationalState(input: {
   calculationId: string | null;
   calculationLines: CalculationOperationalLine[];
-  capabilityStates: DealCapabilityState[];
   executionPlan: DealWorkflowLeg[];
   intake: DealIntakeDraft;
-  participants: DealWorkflowParticipant[];
   sectionCompleteness: DealSectionCompleteness[];
   status: DealStatus;
   updatedAt: Date;
 }): DealOperationalState {
-  const applicantCounterpartyId =
-    input.participants.find((participant) => participant.role === "applicant")
-      ?.counterpartyId ?? null;
-  const internalEntityOrganizationId =
-    input.participants.find((participant) => participant.role === "internal_entity")
-      ?.organizationId ?? null;
-
-  const capabilities = listRequiredDealCapabilityKinds(input.intake).map((kind) => {
-    const existing = input.capabilityStates.find(
-      (candidate) =>
-        candidate.kind === kind &&
-        candidate.dealType === input.intake.type &&
-        candidate.applicantCounterpartyId === applicantCounterpartyId &&
-        candidate.internalEntityOrganizationId === internalEntityOrganizationId,
-    );
-
-    if (existing) {
-      return existing;
-    }
-
-    return {
-      applicantCounterpartyId,
-      dealType: input.intake.type,
-      internalEntityOrganizationId,
-      kind,
-      note: null,
-      reasonCode:
-        applicantCounterpartyId && internalEntityOrganizationId
-          ? "capability_missing"
-          : "participant_missing",
-      status: "pending" as const,
-      updatedAt: null,
-      updatedByUserId: null,
-    };
-  });
-
   const collectLegs = input.executionPlan.filter((leg) => leg.kind === "collect");
   const downstreamLegs = input.executionPlan.filter((leg) =>
     ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
@@ -361,7 +291,6 @@ export function buildDealOperationalState(input: {
     });
 
   return {
-    capabilities,
     positions,
   };
 }

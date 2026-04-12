@@ -30,15 +30,6 @@ export type DealLegState =
   | "blocked"
   | "skipped";
 
-export type DealCapabilityKind =
-  | "can_collect"
-  | "can_fx"
-  | "can_payout"
-  | "can_transit"
-  | "can_exporter_settle";
-
-export type DealCapabilityStatus = "enabled" | "disabled" | "pending";
-
 export type DealOperationalPositionKind =
   | "customer_receivable"
   | "provider_payable"
@@ -123,7 +114,6 @@ export type ApiDealTimelineEvent = {
     | "attachment_ingestion_failed"
     | "document_created"
     | "document_status_changed"
-    | "execution_blocker_resolved"
     | "leg_state_changed";
   visibility: "customer_safe" | "internal";
 };
@@ -155,18 +145,6 @@ export type ApiDealAcceptedQuote = {
   usedDocumentId: string | null;
 } | null;
 
-export type ApiDealCapabilityState = {
-  applicantCounterpartyId: string | null;
-  dealType: DealType;
-  internalEntityOrganizationId: string | null;
-  kind: DealCapabilityKind;
-  note: string | null;
-  reasonCode: string | null;
-  status: DealCapabilityStatus;
-  updatedAt: string | null;
-  updatedByUserId: string | null;
-};
-
 export type ApiDealOperationalPosition = {
   amountMinor: string | null;
   currencyId: string | null;
@@ -178,7 +156,6 @@ export type ApiDealOperationalPosition = {
 };
 
 export type ApiDealOperationalState = {
-  capabilities: ApiDealCapabilityState[];
   positions: ApiDealOperationalPosition[];
 };
 

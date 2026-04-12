@@ -203,7 +203,6 @@ function createDeal(): FinanceDealWorkbenchData {
     },
     nextAction: "Complete intake form",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     pricing: {

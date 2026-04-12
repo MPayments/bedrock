@@ -11,8 +11,6 @@ CREATE TYPE "public"."counterparty_relationship_kind" AS ENUM('customer_owned', 
 CREATE TYPE "public"."deal_approval_status" AS ENUM('pending', 'approved', 'rejected', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."deal_approval_type" AS ENUM('commercial', 'compliance', 'operations');--> statement-breakpoint
 CREATE TYPE "public"."deal_attachment_ingestion_status" AS ENUM('pending', 'processing', 'processed', 'failed');--> statement-breakpoint
-CREATE TYPE "public"."deal_capability_kind" AS ENUM('can_collect', 'can_fx', 'can_payout', 'can_transit', 'can_exporter_settle');--> statement-breakpoint
-CREATE TYPE "public"."deal_capability_status" AS ENUM('enabled', 'disabled', 'pending');--> statement-breakpoint
 CREATE TYPE "public"."deal_leg_kind" AS ENUM('collect', 'convert', 'transit_hold', 'payout', 'settle_exporter');--> statement-breakpoint
 CREATE TYPE "public"."deal_leg_operation_kind" AS ENUM('payin', 'payout', 'fx_conversion', 'intracompany_transfer', 'intercompany_funding');--> statement-breakpoint
 CREATE TYPE "public"."deal_leg_state" AS ENUM('pending', 'ready', 'in_progress', 'done', 'blocked', 'skipped');--> statement-breakpoint
@@ -20,7 +18,7 @@ CREATE TYPE "public"."deal_operational_position_kind" AS ENUM('customer_receivab
 CREATE TYPE "public"."deal_operational_position_state" AS ENUM('not_applicable', 'pending', 'ready', 'in_progress', 'done', 'blocked');--> statement-breakpoint
 CREATE TYPE "public"."deal_participant_role" AS ENUM('customer', 'applicant', 'internal_entity', 'external_payer', 'external_beneficiary');--> statement-breakpoint
 CREATE TYPE "public"."deal_status" AS ENUM('draft', 'submitted', 'rejected', 'preparing_documents', 'awaiting_funds', 'awaiting_payment', 'closing_documents', 'done', 'cancelled');--> statement-breakpoint
-CREATE TYPE "public"."deal_timeline_event_type" AS ENUM('deal_created', 'intake_saved', 'participant_changed', 'status_changed', 'leg_state_changed', 'execution_requested', 'leg_operation_created', 'instruction_prepared', 'instruction_submitted', 'instruction_settled', 'instruction_failed', 'instruction_retried', 'instruction_voided', 'return_requested', 'instruction_returned', 'execution_blocker_resolved', 'deal_closed', 'quote_created', 'quote_accepted', 'quote_expired', 'quote_used', 'calculation_attached', 'attachment_uploaded', 'attachment_deleted', 'attachment_ingested', 'attachment_ingestion_failed', 'document_created', 'document_status_changed');--> statement-breakpoint
+CREATE TYPE "public"."deal_timeline_event_type" AS ENUM('deal_created', 'intake_saved', 'participant_changed', 'status_changed', 'leg_state_changed', 'execution_requested', 'leg_operation_created', 'instruction_prepared', 'instruction_submitted', 'instruction_settled', 'instruction_failed', 'instruction_retried', 'instruction_voided', 'return_requested', 'instruction_returned', 'deal_closed', 'quote_created', 'quote_accepted', 'quote_expired', 'quote_used', 'calculation_attached', 'attachment_uploaded', 'attachment_deleted', 'attachment_ingested', 'attachment_ingestion_failed', 'document_created', 'document_status_changed');--> statement-breakpoint
 CREATE TYPE "public"."deal_timeline_visibility" AS ENUM('customer_safe', 'internal');--> statement-breakpoint
 CREATE TYPE "public"."deal_type" AS ENUM('payment', 'currency_exchange', 'currency_transit', 'exporter_settlement');--> statement-breakpoint
 CREATE TYPE "public"."dimension_mode" AS ENUM('required', 'optional', 'forbidden');--> statement-breakpoint
@@ -545,20 +543,6 @@ CREATE TABLE "deal_calculation_links" (
 	"deal_id" uuid NOT NULL,
 	"calculation_id" uuid NOT NULL,
 	"source_quote_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "deal_capability_states" (
-	"id" uuid PRIMARY KEY NOT NULL,
-	"applicant_counterparty_id" uuid NOT NULL,
-	"internal_entity_organization_id" uuid NOT NULL,
-	"deal_type" "deal_type" NOT NULL,
-	"capability_kind" "deal_capability_kind" NOT NULL,
-	"status" "deal_capability_status" NOT NULL,
-	"reason_code" text,
-	"note" text,
-	"updated_by_user_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1472,9 +1456,6 @@ ALTER TABLE "deal_approvals" ADD CONSTRAINT "deal_approvals_deal_id_deals_id_fk"
 ALTER TABLE "deal_attachment_ingestions" ADD CONSTRAINT "deal_attachment_ingestions_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_calculation_links" ADD CONSTRAINT "deal_calculation_links_calculation_id_calculations_id_fk" FOREIGN KEY ("calculation_id") REFERENCES "public"."calculations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deal_capability_states" ADD CONSTRAINT "deal_capability_states_applicant_counterparty_id_counterparties_id_fk" FOREIGN KEY ("applicant_counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deal_capability_states" ADD CONSTRAINT "deal_capability_states_internal_entity_organization_id_organizations_id_fk" FOREIGN KEY ("internal_entity_organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deal_capability_states" ADD CONSTRAINT "deal_capability_states_updated_by_user_id_user_id_fk" FOREIGN KEY ("updated_by_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_intake_snapshots" ADD CONSTRAINT "deal_intake_snapshots_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_leg_operation_links" ADD CONSTRAINT "deal_leg_operation_links_deal_leg_id_deal_legs_id_fk" FOREIGN KEY ("deal_leg_id") REFERENCES "public"."deal_legs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_legs" ADD CONSTRAINT "deal_legs_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1632,10 +1613,6 @@ CREATE INDEX "deal_attachment_ingestions_status_idx" ON "deal_attachment_ingesti
 CREATE UNIQUE INDEX "deal_calculation_links_deal_calc_uq" ON "deal_calculation_links" USING btree ("deal_id","calculation_id");--> statement-breakpoint
 CREATE INDEX "deal_calculation_links_deal_idx" ON "deal_calculation_links" USING btree ("deal_id");--> statement-breakpoint
 CREATE INDEX "deal_calculation_links_calculation_idx" ON "deal_calculation_links" USING btree ("calculation_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "deal_capability_states_scope_uq" ON "deal_capability_states" USING btree ("applicant_counterparty_id","internal_entity_organization_id","deal_type","capability_kind");--> statement-breakpoint
-CREATE INDEX "deal_capability_states_applicant_idx" ON "deal_capability_states" USING btree ("applicant_counterparty_id");--> statement-breakpoint
-CREATE INDEX "deal_capability_states_internal_entity_idx" ON "deal_capability_states" USING btree ("internal_entity_organization_id");--> statement-breakpoint
-CREATE INDEX "deal_capability_states_status_idx" ON "deal_capability_states" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "deal_intake_snapshots_revision_idx" ON "deal_intake_snapshots" USING btree ("revision");--> statement-breakpoint
 CREATE INDEX "deal_intake_snapshots_applicant_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'common' ->> 'applicantCounterpartyId')));--> statement-breakpoint
 CREATE INDEX "deal_intake_snapshots_invoice_idx" ON "deal_intake_snapshots" USING btree (((snapshot -> 'incomingReceipt' ->> 'invoiceNumber')));--> statement-breakpoint

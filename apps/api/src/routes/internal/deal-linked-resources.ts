@@ -6,6 +6,7 @@ import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
+import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
 
 import {
   extractAgreementCommercialDefaults,
@@ -71,7 +72,7 @@ export async function previewDealScopedQuote(input: {
   body: any;
   ctx: AppContext;
   dealId: string;
-}) {
+}): Promise<QuotePreviewRecord> {
   const quoteInput = await buildDealScopedQuoteInput(input);
   return input.ctx.treasuryModule.quotes.queries.previewQuote(quoteInput);
 }
