@@ -68,6 +68,18 @@ export function assembleApplicationData(
     currencyCode: calculation.currencyCode,
     originalAmount: formatCurrencyAmount(calculation.originalAmount as string | number),
     totalAmount: formatCurrencyAmount(calculation.totalAmount as string | number),
+    agreementFeePercentage: calculation.agreementFeePercentage,
+    agreementFeeAmount: formatCurrencyAmount(
+      calculation.agreementFeeAmount as string | number,
+    ),
+    quoteMarkupPercentage: calculation.quoteMarkupPercentage,
+    quoteMarkupAmount: formatCurrencyAmount(
+      calculation.quoteMarkupAmount as string | number,
+    ),
+    totalFeePercentage: calculation.totalFeePercentage,
+    totalFeeAmount: formatCurrencyAmount(
+      calculation.totalFeeAmount as string | number,
+    ),
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
     additionalExpensesInBase: formatCurrencyAmount(
@@ -76,7 +88,14 @@ export function assembleApplicationData(
     totalWithExpensesInBase: formatCurrencyAmount(
       calculation.totalWithExpensesInBase as string | number,
     ),
-    feeAmountInBase: formatCurrencyAmount(calculation.feeAmountInBase as string | number),
+    totalFeeAmountInBase: formatCurrencyAmount(
+      calculation.totalFeeAmountInBase as string | number,
+    ),
+    fixedFeeAmount: formatCurrencyAmount(
+      calculation.fixedFeeAmount as string | number,
+    ),
+    fixedFeeCurrencyCode: calculation.fixedFeeCurrencyCode,
+    finalRate: calculation.finalRate ?? calculation.rate,
     rate: calculation.rate,
     originalInBase: formatCurrencyAmount(
       calculation.totalInBase as string | number,

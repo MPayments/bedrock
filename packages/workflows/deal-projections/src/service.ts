@@ -226,7 +226,7 @@ function buildCrmDealMoneySummary(input: {
         )
       : parseMinorOrZero(amountMinor, sourcePrecision);
   const feePercentage = input.calculation
-    ? parseMinorOrZero(input.calculation.currentSnapshot.feeBps, 2)
+    ? parseMinorOrZero(input.calculation.currentSnapshot.totalFeeBps, 2)
     : 0;
 
   return {
@@ -332,6 +332,17 @@ function serializeCrmPricingQuote(quote: TreasuryQuoteRecord): QuoteListItem {
 
   return {
     createdAt: quote.createdAt.toISOString(),
+    commercialTerms: quote.commercialTerms
+      ? {
+          agreementVersionId: quote.commercialTerms.agreementVersionId,
+          agreementFeeBps: quote.commercialTerms.agreementFeeBps.toString(),
+          quoteMarkupBps: quote.commercialTerms.quoteMarkupBps.toString(),
+          totalFeeBps: quote.commercialTerms.totalFeeBps.toString(),
+          fixedFeeAmountMinor:
+            quote.commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
+          fixedFeeCurrency: quote.commercialTerms.fixedFeeCurrency ?? null,
+        }
+      : null,
     dealDirection: quote.dealDirection,
     dealForm: quote.dealForm,
     dealId: quote.dealId,
@@ -423,8 +434,8 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
 
   const activeOrLatestQuote = [...workflow.relatedResources.quotes].sort(
     (left, right) => {
-      const leftTime = left.expiresAt?.getTime() ?? 0;
-      const rightTime = right.expiresAt?.getTime() ?? 0;
+      const leftTime = getDateTimeValue(left.expiresAt);
+      const rightTime = getDateTimeValue(right.expiresAt);
       return rightTime - leftTime;
     },
   )[0];
@@ -434,10 +445,23 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
   }
 
   return {
-    expiresAt: activeOrLatestQuote.expiresAt,
+    expiresAt: toDateOrNull(activeOrLatestQuote.expiresAt),
     quoteId: activeOrLatestQuote.id,
     status: activeOrLatestQuote.status,
   };
+}
+
+function toDateOrNull(value: Date | string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return value instanceof Date ? value : new Date(value);
+}
+
+function getDateTimeValue(value: Date | string | null | undefined) {
+  const date = toDateOrNull(value);
+  return date?.getTime() ?? 0;
 }
 
 function hasAttachmentPurpose(
@@ -2190,8 +2214,8 @@ export function createDealProjectionsWorkflow(
       acceptedQuoteDetails,
       actions: {
         canCloseDeal: closeReadiness.ready,
-        canCreateCalculation: actions.canCreateCalculation,
-        canCreateQuote: actions.canCreateQuote,
+        canCreateCalculation: false,
+        canCreateQuote: false,
         canRequestExecution:
           !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
         canResolveExecutionBlocker:

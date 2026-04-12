@@ -366,7 +366,7 @@ const FinanceDealCalculationHistoryItemSchema = z.object({
   calculationId: z.string().uuid(),
   calculationTimestamp: z.iso.datetime(),
   createdAt: z.iso.datetime(),
-  feeAmountMinor: z.string(),
+  totalFeeAmountMinor: z.string(),
   fxQuoteId: z.string().uuid().nullable(),
   originalAmountMinor: z.string(),
   rateDen: z.string(),

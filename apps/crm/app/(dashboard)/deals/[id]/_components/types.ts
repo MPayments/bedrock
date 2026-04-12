@@ -351,18 +351,25 @@ export type ApiDealDetails = {
 export type ApiCalculationDetails = {
   createdAt: string;
   currentSnapshot: {
+    agreementFeeAmountMinor: string;
+    agreementFeeBps: string;
+    agreementVersionId: string | null;
     additionalExpensesAmountMinor: string;
     additionalExpensesCurrencyId: string | null;
     additionalExpensesInBaseMinor: string;
     baseCurrencyId: string;
     calculationCurrencyId: string;
     calculationTimestamp: string;
-    feeAmountInBaseMinor: string;
-    feeAmountMinor: string;
-    feeBps: string;
+    fixedFeeAmountMinor: string;
+    fixedFeeCurrencyId: string | null;
+    quoteMarkupAmountMinor: string;
+    quoteMarkupBps: string;
     rateDen: string;
     rateNum: string;
     originalAmountMinor: string;
+    totalFeeAmountInBaseMinor: string;
+    totalFeeAmountMinor: string;
+    totalFeeBps: string;
     totalAmountMinor: string;
     totalInBaseMinor: string;
     totalWithExpensesInBaseMinor: string;
@@ -522,18 +529,28 @@ export type ApiDealCalculationHistoryItem = {
   calculationId: string;
   calculationTimestamp: string;
   createdAt: string;
-  feeAmountMinor: string;
   fxQuoteId: string | null;
   originalAmountMinor: string;
   rateDen: string;
   rateNum: string;
   sourceQuoteId: string | null;
+  totalFeeAmountMinor: string;
   totalAmountMinor: string;
   totalInBaseMinor: string;
   totalWithExpensesInBaseMinor: string;
 };
 
+export type ApiQuoteCommercialTerms = {
+  agreementFeeBps: string;
+  agreementVersionId: string | null;
+  fixedFeeAmountMinor: string | null;
+  fixedFeeCurrency: string | null;
+  quoteMarkupBps: string;
+  totalFeeBps: string;
+};
+
 export type ApiDealPricingQuote = {
+  commercialTerms: ApiQuoteCommercialTerms | null;
   createdAt: string;
   dealDirection: string | null;
   dealForm: string | null;
@@ -557,17 +574,80 @@ export type ApiDealPricingQuote = {
   usedDocumentId: string | null;
 };
 
+export type ApiQuotePreview = {
+  commercialTerms: ApiQuoteCommercialTerms | null;
+  dealDirection: string | null;
+  dealForm: string | null;
+  expiresAt: string;
+  feeComponents: {
+    accountDirection: "payable" | "receivable" | "neutral";
+    amountMinor: string;
+    appliesTo: "from" | "to";
+    chargingParty: "customer" | "provider" | "internal";
+    collectionMode: "embedded_in_rate" | "off_quote" | "upfront";
+    currency: string;
+    description: string | null;
+    kind: string;
+    metadata: Record<string, unknown>;
+    recipientPartyRef: string | null;
+    source: string;
+  }[];
+  financialLines: {
+    accountDirection: "debit" | "credit";
+    amountMinor: string;
+    currency: string;
+    kind:
+      | "provider_payable"
+      | "provider_receivable"
+      | "customer_payable"
+      | "customer_receivable"
+      | "fee_revenue"
+      | "spread_revenue"
+      | "pass_through";
+    metadata: Record<string, unknown>;
+  }[];
+  fromAmount: string;
+  fromAmountMinor: string;
+  fromCurrency: string;
+  legs: {
+    asOf: string;
+    executionCounterpartyId: string | null;
+    fromAmountMinor: string;
+    fromCurrency: string;
+    idx: number;
+    rateDen: string;
+    rateNum: string;
+    sourceKind: string;
+    sourceRef: string | null;
+    toAmountMinor: string;
+    toCurrency: string;
+  }[];
+  pricingMode: string;
+  pricingTrace: Record<string, unknown>;
+  rateDen: string;
+  rateNum: string;
+  toAmount: string;
+  toAmountMinor: string;
+  toCurrency: string;
+};
+
 export type CalculationView = {
   additionalExpenses: string;
   additionalExpensesCurrencyCode: string | null;
   additionalExpensesInBase: string;
+  agreementFeeAmount: string;
+  agreementFeePercentage: string;
   baseCurrencyCode: string;
   currencyCode: string;
-  feeAmount: string;
-  feeAmountInBase: string;
-  feePercentage: string;
+  finalRate: string;
+  fixedFeeAmount: string;
+  fixedFeeCurrencyCode: string | null;
   originalAmount: string;
-  rate: string;
+  quoteMarkupAmount: string;
+  quoteMarkupPercentage: string;
+  totalFeeAmount: string;
+  totalFeeAmountInBase: string;
+  totalFeePercentage: string;
   totalAmount: string;
   totalInBase: string;
   totalWithExpensesInBase: string;

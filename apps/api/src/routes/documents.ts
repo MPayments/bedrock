@@ -100,8 +100,21 @@ const FIELD_METADATA: Record<string, { label: string; category: string }> = {
   directorBasis: { label: "Основание действий директора", category: "Клиент" },
   directorInitials: { label: "Инициалы директора", category: "Клиент" },
   directorName: { label: "ФИО директора", category: "Клиент" },
-  feeAmountInBase: { label: "Комиссия (в базовой валюте)", category: "Расчёт" },
+  agreementFeeAmount: {
+    label: "Договорная комиссия",
+    category: "Расчёт",
+  },
+  agreementFeePercentage: {
+    label: "Договорная комиссия (%)",
+    category: "Расчёт",
+  },
+  finalRate: { label: "Финальный курс клиента", category: "Расчёт" },
   fixedFee: { label: "Фикс. комиссия", category: "Договор" },
+  fixedFeeAmount: { label: "Фиксированная комиссия", category: "Расчёт" },
+  fixedFeeCurrencyCode: {
+    label: "Валюта фиксированной комиссии",
+    category: "Расчёт",
+  },
   inn: { label: "ИНН", category: "Клиент" },
   invoiceNumber: { label: "Номер счёта", category: "Документ" },
   kpp: { label: "КПП", category: "Клиент" },
@@ -109,8 +122,26 @@ const FIELD_METADATA: Record<string, { label: string; category: string }> = {
   orgName: { label: "Название организации", category: "Клиент" },
   orgType: { label: "Тип организации", category: "Клиент" },
   originalAmount: { label: "Сумма в валюте", category: "Расчёт" },
-  rate: { label: "Курс", category: "Расчёт" },
+  quoteMarkupAmount: { label: "Надбавка к котировке", category: "Расчёт" },
+  quoteMarkupPercentage: {
+    label: "Надбавка к котировке (%)",
+    category: "Расчёт",
+  },
+  rate: { label: "Финальный курс клиента", category: "Расчёт" },
   swiftCode: { label: "SWIFT-код получателя", category: "Сделка" },
+  totalFeeAmount: { label: "Суммарная комиссия", category: "Расчёт" },
+  totalFeeAmountInBase: {
+    label: "Суммарная комиссия (в базовой валюте)",
+    category: "Расчёт",
+  },
+  totalFeeAmountInBaseWords: {
+    label: "Суммарная комиссия прописью",
+    category: "Расчёт",
+  },
+  totalFeePercentage: {
+    label: "Суммарная комиссия (%)",
+    category: "Расчёт",
+  },
   totalAmount: { label: "Итого с комиссией", category: "Расчёт" },
   totalWithExpensesInBase: {
     label: "Итого с расходами (в базовой валюте)",

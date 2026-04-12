@@ -200,23 +200,35 @@ function createWorkflow(overrides?: {
   calculation?: {
     createdAt: Date;
     currentSnapshot: {
+      agreementVersionId: string | null;
+      agreementFeeAmountMinor: string;
+      agreementFeeBps: string;
       additionalExpensesAmountMinor: string;
       additionalExpensesCurrencyId: string | null;
       additionalExpensesInBaseMinor: string;
+      fixedFeeAmountMinor: string;
+      fixedFeeCurrencyId: string | null;
       baseCurrencyId: string;
       calculationCurrencyId: string;
       calculationTimestamp: Date;
-      feeAmountInBaseMinor: string;
-      feeAmountMinor: string;
-      feeBps: string;
       fxQuoteId: string | null;
       id: string;
       originalAmountMinor: string;
+      pricingProvenance: Record<string, unknown> | null;
+      quoteMarkupAmountMinor: string;
+      quoteMarkupBps: string;
       quoteSnapshot: Record<string, unknown> | null;
+      referenceRateAsOf: Date | null;
+      referenceRateDen: string | null;
+      referenceRateNum: string | null;
+      referenceRateSource: "manual" | "fx_quote" | "cbr" | null;
       rateDen: string;
       rateNum: string;
       rateSource: "manual";
       snapshotNumber: number;
+      totalFeeAmountInBaseMinor: string;
+      totalFeeAmountMinor: string;
+      totalFeeBps: string;
       totalAmountMinor: string;
       totalInBaseMinor: string;
       totalWithExpensesInBaseMinor: string;
@@ -591,6 +603,9 @@ describe("createDealProjectionsWorkflow", () => {
       calculation: {
         createdAt: new Date("2026-04-01T00:00:00.000Z"),
         currentSnapshot: {
+          agreementVersionId: null,
+          agreementFeeAmountMinor: "100",
+          agreementFeeBps: "100",
           additionalExpensesAmountMinor: "0",
           additionalExpensesCurrencyId: null,
           additionalExpensesInBaseMinor: "0",
@@ -601,17 +616,26 @@ describe("createDealProjectionsWorkflow", () => {
           calculationCurrencyId: "currency-rub",
           calculationTimestamp: new Date("2026-04-01T00:00:00.000Z"),
           createdAt: new Date("2026-04-01T00:00:00.000Z"),
-          feeAmountInBaseMinor: "100",
-          feeAmountMinor: "100",
-          feeBps: "100",
+          fixedFeeAmountMinor: "0",
+          fixedFeeCurrencyId: null,
           fxQuoteId: null,
           id: "snapshot-1",
           originalAmountMinor: "100000",
+          pricingProvenance: null,
+          quoteMarkupAmountMinor: "0",
+          quoteMarkupBps: "0",
           quoteSnapshot: null,
+          referenceRateAsOf: null,
+          referenceRateDen: null,
+          referenceRateNum: null,
+          referenceRateSource: null,
           rateDen: "1",
           rateNum: "1",
           rateSource: "manual",
           snapshotNumber: 1,
+          totalFeeAmountInBaseMinor: "100",
+          totalFeeAmountMinor: "100",
+          totalFeeBps: "100",
           totalAmountMinor: "100100",
           totalInBaseMinor: "100100",
           totalWithExpensesInBaseMinor: "100100",
@@ -748,6 +772,34 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
   });
 
+  it("builds CRM board projections when quote expiry timestamps arrive as strings", async () => {
+    const workflow = createWorkflow({
+      workflow: {
+        ...createBaseWorkflow(),
+        relatedResources: {
+          ...createBaseWorkflow().relatedResources,
+          quotes: [
+            {
+              expiresAt:
+                "2026-04-01T12:00:00.000Z" as unknown as Date | null,
+              id: "quote-1",
+              status: "active",
+            },
+          ],
+        },
+      },
+    });
+
+    const projection = await workflow.listCrmDealBoard();
+
+    expect(projection.items).toHaveLength(1);
+    expect(projection.items[0]?.quoteSummary).toEqual({
+      expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+      quoteId: "quote-1",
+      status: "active",
+    });
+  });
+
   it("builds CRM list projections without route-owned SQL", async () => {
     const workflow = createWorkflow();
 
@@ -853,6 +905,9 @@ describe("createDealProjectionsWorkflow", () => {
       calculation: {
         createdAt: new Date("2026-04-01T09:00:00.000Z"),
         currentSnapshot: {
+          agreementVersionId: null,
+          agreementFeeAmountMinor: "100",
+          agreementFeeBps: "100",
           additionalExpensesAmountMinor: "0",
           additionalExpensesCurrencyId: null,
           additionalExpensesInBaseMinor: "0",
@@ -863,17 +918,26 @@ describe("createDealProjectionsWorkflow", () => {
           calculationCurrencyId: "currency-rub",
           calculationTimestamp: new Date("2026-04-01T09:00:00.000Z"),
           createdAt: new Date("2026-04-01T09:00:00.000Z"),
-          feeAmountInBaseMinor: "100",
-          feeAmountMinor: "100",
-          feeBps: "100",
+          fixedFeeAmountMinor: "0",
+          fixedFeeCurrencyId: null,
           fxQuoteId: null,
           id: "snapshot-1",
           originalAmountMinor: "100000",
+          pricingProvenance: null,
+          quoteMarkupAmountMinor: "0",
+          quoteMarkupBps: "0",
           quoteSnapshot: null,
+          referenceRateAsOf: null,
+          referenceRateDen: null,
+          referenceRateNum: null,
+          referenceRateSource: null,
           rateDen: "1",
           rateNum: "1",
           rateSource: "manual",
           snapshotNumber: 1,
+          totalFeeAmountInBaseMinor: "100",
+          totalFeeAmountMinor: "100",
+          totalFeeBps: "100",
           totalAmountMinor: "600",
           totalInBaseMinor: "600",
           totalWithExpensesInBaseMinor: "600",

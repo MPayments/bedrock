@@ -1,6 +1,9 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
+import {
+  CalculationDetailsSchema,
+  CreateCalculationInputSchema,
+} from "@bedrock/calculations/contracts";
 import {
   AssignDealAgentInputSchema,
   CloseDealInputSchema,
@@ -27,6 +30,7 @@ import {
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
   PreviewQuoteInputSchema,
+  QuotePreviewResponseSchema,
   QuoteListItemSchema,
   QuoteSchema,
 } from "@bedrock/treasury/contracts";
@@ -59,6 +63,7 @@ import {
   buildDealTrace,
   createDealScopedFormalDocument,
   createDealScopedQuote,
+  previewDealScopedQuote,
   DealScopedCreateDocumentInputSchema,
   assertDealAllowsCommercialWrite,
   requireDeal,
@@ -67,6 +72,7 @@ import { toDocumentDto } from "./internal/document-dto";
 import {
   serializeQuote,
   serializeQuoteListItem,
+  serializeQuotePreview,
 } from "./internal/treasury-quote-dto";
 
 export function dealsRoutes(ctx: AppContext) {
@@ -121,12 +127,20 @@ export function dealsRoutes(ctx: AppContext) {
   );
   const DealCalculationFromQuoteInputSchema = z
     .object({
-      agentFeePercent: z.string().trim().min(1).nullable().optional(),
-      fixedFeeAmount: z.string().trim().min(1).nullable().optional(),
-      fixedFeeCurrencyCode: z.string().trim().min(1).nullable().optional(),
       quoteId: z.string().uuid(),
     })
     .strict();
+  const DealHistoricalCalculationImportInputSchema =
+    CreateCalculationInputSchema.extend({
+      sourceQuoteId: z.uuid().nullable().optional(),
+    });
+  const DealCreateQuoteInputSchema = PreviewQuoteInputSchema.and(
+    z.object({
+      fixedFeeAmount: z.string().trim().min(1).nullable().optional(),
+      fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().optional(),
+      quoteMarkupPercent: z.string().trim().min(1).nullable().optional(),
+    }),
+  );
   const DealAttachmentVisibilityInputSchema = z.object({
     visibility: FileAttachmentVisibilitySchema.optional(),
   });
@@ -631,6 +645,61 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const importHistoricalCalculationRoute = createRoute({
+    middleware: [
+      requirePermission({ calculations: ["create"], deals: ["update"] }),
+    ],
+    method: "post",
+    path: "/{id}/calculations/import",
+    tags: ["Deals"],
+    summary: "Import a historical calculation and attach it to a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: DealHistoricalCalculationImportInputSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: CalculationDetailsSchema,
+          },
+        },
+        description: "Historical calculation imported and attached",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation or idempotency header error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or referenced entity not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Idempotency conflict",
+      },
+    },
+  });
+
   const requestExecutionRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
@@ -937,7 +1006,7 @@ export function dealsRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: PreviewQuoteInputSchema,
+            schema: DealCreateQuoteInputSchema,
           },
         },
         required: true,
@@ -951,6 +1020,35 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Quote created",
+      },
+    },
+  });
+
+  const previewQuoteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/quotes/preview",
+    tags: ["Deals"],
+    summary: "Preview a treasury quote for a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: DealCreateQuoteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: QuotePreviewResponseSchema,
+          },
+        },
+        description: "Quote preview",
       },
     },
   });
@@ -1359,14 +1457,48 @@ export function dealsRoutes(ctx: AppContext) {
             const deal = await requireDeal(ctx, id);
             assertDealAllowsCommercialWrite(deal);
             return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
-              agentFeePercent: body.agentFeePercent,
               actorUserId: c.get("user")!.id,
               dealId: id,
-              fixedFeeAmount: body.fixedFeeAmount,
-              fixedFeeCurrencyCode: body.fixedFeeCurrencyCode,
               idempotencyKey,
               quoteId: body.quoteId,
             });
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(importHistoricalCalculationRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            await requireDeal(ctx, id);
+
+            const { sourceQuoteId, ...calculationBody } = body;
+            const calculation =
+              await ctx.calculationsModule.calculations.commands.create({
+                ...calculationBody,
+                actorUserId: c.get("user")!.id,
+                idempotencyKey,
+              });
+
+            await ctx.dealsModule.deals.commands.linkCalculation({
+              actorUserId: c.get("user")!.id,
+              calculationId: calculation.id,
+              dealId: id,
+              sourceQuoteId: sourceQuoteId ?? null,
+            });
+
+            return calculation;
           },
         );
 
@@ -1576,6 +1708,21 @@ export function dealsRoutes(ctx: AppContext) {
         });
 
         return jsonOk(c, serializeQuote(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(previewQuoteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await previewDealScopedQuote({
+          body,
+          ctx,
+          dealId: id,
+        });
+
+        return jsonOk(c, serializeQuotePreview(result));
       } catch (error) {
         return handleRouteError(c, error);
       }

@@ -4,8 +4,10 @@ import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import type {
   QuoteLegInputSchema,
-  QuotePricingTraceSchema} from "./zod";
+  QuotePricingTraceSchema,
+} from "./zod";
 import {
+  QuoteCommercialTermsSchema,
   QuoteFinancialLineSchema,
   financialLineSettlementModeSchema,
   quoteLegSourceKindSchema,
@@ -37,6 +39,7 @@ export const QuoteSchema = z.object({
   toAmountMinor: z.string(),
   pricingMode: quotePricingModeSchema,
   pricingTrace: z.record(z.string(), z.unknown()),
+  commercialTerms: QuoteCommercialTermsSchema.nullable(),
   dealDirection: z.string().nullable(),
   dealForm: z.string().nullable(),
   rateNum: z.string(),
@@ -109,6 +112,7 @@ export const QuoteDetailsResponseSchema = z.object({
   feeComponents: z.array(QuoteFeeComponentSchema),
   financialLines: z.array(QuoteFinancialLineSchema),
   pricingTrace: z.record(z.string(), z.unknown()),
+  commercialTerms: QuoteCommercialTermsSchema.nullable(),
 });
 
 export const QuotePreviewResponseSchema = z.object({
@@ -120,6 +124,7 @@ export const QuotePreviewResponseSchema = z.object({
   toAmount: z.string(),
   pricingMode: quotePricingModeSchema,
   pricingTrace: z.record(z.string(), z.unknown()),
+  commercialTerms: QuoteCommercialTermsSchema.nullable(),
   dealDirection: z.string().nullable(),
   dealForm: z.string().nullable(),
   rateNum: z.string(),
@@ -135,6 +140,7 @@ export const QuoteListResponseSchema = createPaginatedListSchema(
 );
 
 export type QuoteFinancialLine = z.infer<typeof QuoteFinancialLineSchema>;
+export type QuoteCommercialTerms = z.infer<typeof QuoteCommercialTermsSchema>;
 export type QuoteLegInput = z.infer<typeof QuoteLegInputSchema>;
 export type QuotePricingTrace = z.infer<typeof QuotePricingTraceSchema>;
 export type Quote = z.infer<typeof QuoteSchema>;

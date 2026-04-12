@@ -1,5 +1,9 @@
 import type { CrossRate } from "../../../rates/application/ports";
 import type { QuoteFeesPort } from "../../../shared/application/external-ports";
+import {
+  buildCommercialFeeComponents,
+  createQuoteCommercialTerms,
+} from "../../domain/commercial-terms";
 import { QuotePricingPlan } from "../../domain/quote-pricing-plan";
 import { QuoteRoute } from "../../domain/quote-route";
 import {
@@ -42,6 +46,19 @@ export class PreviewQuoteQuery {
         dealForm: validated.dealForm,
         at: asOf,
       });
+      const commercialTerms = createQuoteCommercialTerms({
+        agreementVersionId: validated.commercialTerms?.agreementVersionId ?? null,
+        agreementFeeBps:
+          validated.commercialTerms?.agreementFeeBps !== undefined
+            ? BigInt(validated.commercialTerms.agreementFeeBps)
+            : undefined,
+        quoteMarkupBps:
+          validated.commercialTerms?.quoteMarkupBps !== undefined
+            ? BigInt(validated.commercialTerms.quoteMarkupBps)
+            : undefined,
+        fixedFeeAmount: validated.commercialTerms?.fixedFeeAmount ?? null,
+        fixedFeeCurrency: validated.commercialTerms?.fixedFeeCurrency ?? null,
+      });
 
       return QuotePricingPlan.autoCross({
         ...validated,
@@ -51,7 +68,15 @@ export class PreviewQuoteQuery {
           rateDen: cross.rateDen,
         },
         anchor: validated.anchor ?? "USD",
-        feeComponents,
+        feeComponents: [
+          ...feeComponents,
+          ...buildCommercialFeeComponents({
+            commercialTerms,
+            feeCurrency: validated.fromCurrency,
+            principalMinor: sourceAmountMinor,
+          }),
+        ],
+        commercialTerms,
       }).toSnapshot();
     }
 
@@ -66,11 +91,32 @@ export class PreviewQuoteQuery {
       dealForm: validated.dealForm,
       at: asOf,
     });
+    const commercialTerms = createQuoteCommercialTerms({
+      agreementVersionId: validated.commercialTerms?.agreementVersionId ?? null,
+      agreementFeeBps:
+        validated.commercialTerms?.agreementFeeBps !== undefined
+          ? BigInt(validated.commercialTerms.agreementFeeBps)
+          : undefined,
+      quoteMarkupBps:
+        validated.commercialTerms?.quoteMarkupBps !== undefined
+          ? BigInt(validated.commercialTerms.quoteMarkupBps)
+          : undefined,
+      fixedFeeAmount: validated.commercialTerms?.fixedFeeAmount ?? null,
+      fixedFeeCurrency: validated.commercialTerms?.fixedFeeCurrency ?? null,
+    });
 
     return QuotePricingPlan.explicitRoute({
       ...validated,
       fromAmountMinor: sourceAmountMinor,
-      feeComponents,
+      feeComponents: [
+        ...feeComponents,
+        ...buildCommercialFeeComponents({
+          commercialTerms,
+          feeCurrency: validated.fromCurrency,
+          principalMinor: sourceAmountMinor,
+        }),
+      ],
+      commercialTerms,
     }).toSnapshot();
   }
 

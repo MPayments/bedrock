@@ -1,6 +1,7 @@
 import { stableStringify } from "@bedrock/shared/core/canon";
 import { AggregateRoot, DomainError, invariant } from "@bedrock/shared/core/domain";
 
+import type { QuoteCommercialTermsSnapshot } from "./commercial-terms";
 import type { QuotePricingPlanSnapshot } from "./quote-pricing-plan";
 import type {
   QuotePricingMode,
@@ -15,6 +16,7 @@ export interface QuoteSnapshot {
   toAmountMinor: bigint;
   pricingMode: QuotePricingMode;
   pricingTrace: Record<string, unknown> | null;
+  commercialTerms: QuoteCommercialTermsSnapshot | null;
   dealDirection: string | null;
   dealForm: string | null;
   rateNum: bigint;
@@ -62,6 +64,7 @@ export class Quote extends AggregateRoot<string> {
       toAmountMinor: input.pricingPlan.toAmountMinor,
       pricingMode: input.pricingPlan.pricingMode,
       pricingTrace: input.pricingPlan.pricingTrace,
+      commercialTerms: input.pricingPlan.commercialTerms,
       dealDirection: input.pricingPlan.dealDirection,
       dealForm: input.pricingPlan.dealForm,
       rateNum: input.pricingPlan.rateNum,
@@ -157,6 +160,8 @@ export class Quote extends AggregateRoot<string> {
       this.snapshot.pricingMode === input.pricingPlan.pricingMode &&
       this.snapshot.dealDirection === input.pricingPlan.dealDirection &&
       this.snapshot.dealForm === input.pricingPlan.dealForm &&
+      stableStringify(this.snapshot.commercialTerms ?? {}) ===
+        stableStringify(input.pricingPlan.commercialTerms ?? {}) &&
       this.snapshot.rateNum === input.pricingPlan.rateNum &&
       this.snapshot.rateDen === input.pricingPlan.rateDen &&
       this.snapshot.expiresAt.getTime() ===

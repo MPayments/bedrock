@@ -10,6 +10,7 @@ import { CreateDealDraftCommand } from "./commands/create-deal-draft";
 import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
 import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
+import { LinkCalculationCommand } from "./commands/link-calculation";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
@@ -74,6 +75,11 @@ export function createDealsService(deps: DealsServiceDeps) {
       deps.commandUow,
       deps.references,
     );
+  const linkCalculation = new LinkCalculationCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
   const transitionDealStatus = new TransitionDealStatusCommand(
     deps.runtime,
     deps.commandUow,
@@ -137,6 +143,7 @@ export function createDealsService(deps: DealsServiceDeps) {
         linkCalculationFromAcceptedQuote.execute.bind(
           linkCalculationFromAcceptedQuote,
         ),
+      linkCalculation: linkCalculation.execute.bind(linkCalculation),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),

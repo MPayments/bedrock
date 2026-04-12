@@ -15,6 +15,7 @@ export interface DealCalculationReference {
 }
 
 export interface DealQuoteReference {
+  agreementVersionId: string | null;
   dealId: string | null;
   expiresAt: Date | null;
   id: string;

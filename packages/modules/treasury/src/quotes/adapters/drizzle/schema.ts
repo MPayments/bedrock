@@ -22,6 +22,14 @@ import type {
 } from "../../domain/quote-types";
 
 export type FeeComponentSource = "rule" | "manual";
+export type SerializedQuoteCommercialTerms = {
+  agreementVersionId: string | null;
+  agreementFeeBps: string;
+  quoteMarkupBps: string;
+  totalFeeBps: string;
+  fixedFeeAmountMinor: string | null;
+  fixedFeeCurrency: string | null;
+};
 
 export const fxQuotes = pgTable(
   "fx_quotes",
@@ -39,6 +47,8 @@ export const fxQuotes = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    commercialTerms:
+      jsonb("commercial_terms").$type<SerializedQuoteCommercialTerms | null>(),
     dealDirection: text("deal_direction"),
     dealForm: text("deal_form"),
     rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),

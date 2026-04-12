@@ -25,6 +25,17 @@ export function serializeQuote(
     toAmountMinor: quote.toAmountMinor.toString(),
     pricingMode: quote.pricingMode,
     pricingTrace: quote.pricingTrace ?? {},
+    commercialTerms: quote.commercialTerms
+      ? {
+          agreementVersionId: quote.commercialTerms.agreementVersionId,
+          agreementFeeBps: quote.commercialTerms.agreementFeeBps.toString(),
+          quoteMarkupBps: quote.commercialTerms.quoteMarkupBps.toString(),
+          totalFeeBps: quote.commercialTerms.totalFeeBps.toString(),
+          fixedFeeAmountMinor:
+            quote.commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
+          fixedFeeCurrency: quote.commercialTerms.fixedFeeCurrency ?? null,
+        }
+      : null,
     dealDirection: quote.dealDirection ?? null,
     dealForm: quote.dealForm ?? null,
     rateNum: quote.rateNum.toString(),
@@ -89,6 +100,20 @@ export function serializeQuoteDetails(
       amountMinor: line.amountMinor.toString(),
     })),
     pricingTrace: details.pricingTrace,
+    commercialTerms: details.quote.commercialTerms
+      ? {
+          agreementVersionId: details.quote.commercialTerms.agreementVersionId,
+          agreementFeeBps:
+            details.quote.commercialTerms.agreementFeeBps.toString(),
+          quoteMarkupBps:
+            details.quote.commercialTerms.quoteMarkupBps.toString(),
+          totalFeeBps: details.quote.commercialTerms.totalFeeBps.toString(),
+          fixedFeeAmountMinor:
+            details.quote.commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
+          fixedFeeCurrency:
+            details.quote.commercialTerms.fixedFeeCurrency ?? null,
+        }
+      : null,
   };
 }
 
@@ -108,6 +133,17 @@ export function serializeQuotePreview(
     }),
     pricingMode: preview.pricingMode,
     pricingTrace: preview.pricingTrace,
+    commercialTerms: preview.commercialTerms
+      ? {
+          agreementVersionId: preview.commercialTerms.agreementVersionId,
+          agreementFeeBps: preview.commercialTerms.agreementFeeBps.toString(),
+          quoteMarkupBps: preview.commercialTerms.quoteMarkupBps.toString(),
+          totalFeeBps: preview.commercialTerms.totalFeeBps.toString(),
+          fixedFeeAmountMinor:
+            preview.commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
+          fixedFeeCurrency: preview.commercialTerms.fixedFeeCurrency ?? null,
+        }
+      : null,
     dealDirection: preview.dealDirection,
     dealForm: preview.dealForm,
     rateNum: preview.rateNum.toString(),

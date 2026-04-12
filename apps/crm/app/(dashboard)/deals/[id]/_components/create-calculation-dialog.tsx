@@ -7,36 +7,62 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@bedrock/sdk-ui/components/dialog";
-import { Input } from "@bedrock/sdk-ui/components/input";
-import { Label } from "@bedrock/sdk-ui/components/label";
 
 type CreateCalculationDialogProps = {
-  agentFeePercent: string;
+  agreementFeePercentage: string;
+  finalRate: string;
   fixedFeeAmount: string;
   fixedFeeCurrencyCode: string | null;
   isCreating: boolean;
-  onAgentFeePercentChange: (value: string) => void;
   onCancel: () => void;
-  onFixedFeeAmountChange: (value: string) => void;
   onOpenChange: (open: boolean) => void;
   onSubmit: () => void;
   open: boolean;
   quotePairLabel: string | null;
+  quoteMarkupPercentage: string;
+  totalFeePercentage: string;
 };
 
 export function CreateCalculationDialog({
-  agentFeePercent,
+  agreementFeePercentage,
+  finalRate,
   fixedFeeAmount,
   fixedFeeCurrencyCode,
   isCreating,
-  onAgentFeePercentChange,
   onCancel,
-  onFixedFeeAmountChange,
   onOpenChange,
   onSubmit,
   open,
   quotePairLabel,
+  quoteMarkupPercentage,
+  totalFeePercentage,
 }: CreateCalculationDialogProps) {
+  const summaryItems = [
+    {
+      label: "Договорная комиссия",
+      value: `${agreementFeePercentage || "0"}%`,
+    },
+    {
+      label: "Надбавка к котировке",
+      value: `${quoteMarkupPercentage || "0"}%`,
+    },
+    {
+      label: "Суммарная комиссия",
+      value: `${totalFeePercentage || "0"}%`,
+    },
+    {
+      label: "Финальный курс клиента",
+      value: finalRate || "—",
+    },
+    {
+      label: "Фиксированная комиссия",
+      value:
+        fixedFeeAmount && fixedFeeCurrencyCode
+          ? `${fixedFeeAmount} ${fixedFeeCurrencyCode}`
+          : "Нет фиксированной комиссии",
+    },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -50,39 +76,24 @@ export function CreateCalculationDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            Комиссии и дополнительные расходы необязательны. Если в договоре уже
-            есть условия, они подставлены в форму и их можно изменить или
-            очистить перед созданием расчета.
+            Расчет будет зафиксирован по уже принятой котировке. Коммерческие
+            условия ниже попадут в снимок расчета без дополнительного
+            редактирования на этом шаге.
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="deal-create-calculation-agent-fee">
-              Агентская комиссия (%)
-            </Label>
-            <Input
-              id="deal-create-calculation-agent-fee"
-              inputMode="decimal"
-              placeholder="Например 1"
-              value={agentFeePercent}
-              onChange={(event) => onAgentFeePercentChange(event.target.value)}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {summaryItems.map((item) => (
+              <div key={item.label} className="rounded-md border bg-muted/20 p-3">
+                <div className="text-xs text-muted-foreground">{item.label}</div>
+                <div className="mt-1 break-words text-sm font-medium text-foreground">
+                  {item.value}
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="deal-create-calculation-fixed-fee">
-                Фиксированная комиссия
-              </Label>
-              <Input
-                id="deal-create-calculation-fixed-fee"
-                inputMode="decimal"
-                placeholder="Например 150"
-                value={fixedFeeAmount}
-                onChange={(event) => onFixedFeeAmountChange(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Валюта</Label>
-              <Input disabled value={fixedFeeCurrencyCode ?? "—"} />
-            </div>
+          <div className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+            Изменить надбавку или фиксированную комиссию после принятия
+            котировки нельзя. Для этого нужно запросить и принять новую
+            котировку.
           </div>
         </div>
         <DialogFooter>

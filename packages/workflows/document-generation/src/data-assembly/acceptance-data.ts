@@ -37,7 +37,7 @@ export function assembleAcceptanceData(
 
   const baseCurrency = (calculation.baseCurrencyCode as string) || "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
-  const feeInBase = calculation.feeAmountInBase as string | number;
+  const totalFeeInBase = calculation.totalFeeAmountInBase as string | number;
   const acceptanceNumber = resolveDocumentNumber(
     deal.acceptanceNumber,
     deal.id,
@@ -68,14 +68,35 @@ export function assembleAcceptanceData(
     ogrn: client.ogrn,
     currencyCode: calculation.currencyCode,
     rate: calculation.rate,
+    finalRate: calculation.finalRate ?? calculation.rate,
     originalAmount: formatCurrencyAmount(calculation.originalAmount as string | number),
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
     originalAmountInBase: formatCurrencyAmount(
       calculation.totalInBase as string | number,
     ),
-    feeAmountInBase: formatCurrencyAmount(feeInBase),
-    feeAmountInBaseWords: formatMoneyInWords(feeInBase, baseCurrency, lang),
+    agreementFeePercentage: calculation.agreementFeePercentage,
+    agreementFeeAmount: formatCurrencyAmount(
+      calculation.agreementFeeAmount as string | number,
+    ),
+    quoteMarkupPercentage: calculation.quoteMarkupPercentage,
+    quoteMarkupAmount: formatCurrencyAmount(
+      calculation.quoteMarkupAmount as string | number,
+    ),
+    totalFeePercentage: calculation.totalFeePercentage,
+    totalFeeAmount: formatCurrencyAmount(
+      calculation.totalFeeAmount as string | number,
+    ),
+    totalFeeAmountInBase: formatCurrencyAmount(totalFeeInBase),
+    totalFeeAmountInBaseWords: formatMoneyInWords(
+      totalFeeInBase,
+      baseCurrency,
+      lang,
+    ),
+    fixedFeeAmount: formatCurrencyAmount(
+      calculation.fixedFeeAmount as string | number,
+    ),
+    fixedFeeCurrencyCode: calculation.fixedFeeCurrencyCode,
     additionalExpensesInBase: formatCurrencyAmount(
       calculation.additionalExpensesInBase as string | number,
     ),

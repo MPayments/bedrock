@@ -24,6 +24,7 @@ export interface QuoteRecord {
   toAmountMinor: bigint;
   pricingMode: QuotePricingMode;
   pricingTrace: Record<string, unknown> | null;
+  commercialTerms: QuoteCommercialTermsRecord | null;
   dealDirection: string | null;
   dealForm: string | null;
   rateNum: bigint;
@@ -74,6 +75,7 @@ export interface QuotePreviewRecord {
   toAmountMinor: bigint;
   pricingMode: QuotePricingMode;
   pricingTrace: Record<string, unknown>;
+  commercialTerms: QuoteCommercialTermsRecord | null;
   dealDirection: string | null;
   dealForm: string | null;
   rateNum: bigint;
@@ -92,6 +94,7 @@ export interface QuoteWriteModel {
   toAmountMinor: bigint;
   pricingMode: QuotePricingMode;
   pricingTrace: Record<string, unknown> | null;
+  commercialTerms: QuoteCommercialTermsRecord | null;
   dealDirection: string | null;
   dealForm: string | null;
   rateNum: bigint;
@@ -116,6 +119,15 @@ export interface QuoteLegWriteModel {
   sourceRef: string | null;
   asOf: Date;
   executionCounterpartyId: string | null;
+}
+
+export interface QuoteCommercialTermsRecord {
+  agreementVersionId: string | null;
+  agreementFeeBps: bigint;
+  quoteMarkupBps: bigint;
+  totalFeeBps: bigint;
+  fixedFeeAmountMinor: bigint | null;
+  fixedFeeCurrency: string | null;
 }
 
 export interface QuotesListQuery {

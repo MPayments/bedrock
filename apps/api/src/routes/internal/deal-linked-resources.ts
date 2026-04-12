@@ -7,6 +7,11 @@ import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 
+import {
+  extractAgreementCommercialDefaults,
+  normalizeOptionalDecimalString,
+  percentStringToBps,
+} from "../../composition/commercial-pricing";
 import type { AppContext } from "../../context";
 import { db } from "../../db/client";
 
@@ -48,14 +53,83 @@ export async function createDealScopedQuote(input: {
   dealId: string;
   idempotencyKey: string;
 }) {
+  const quoteInput = await buildDealScopedQuoteInput(input);
+  type CreateQuoteInput = Parameters<
+    AppContext["treasuryModule"]["quotes"]["commands"]["createQuote"]
+  >[0];
+
+  const createQuoteInput: CreateQuoteInput = {
+    ...(quoteInput as CreateQuoteInput),
+    dealId: input.dealId,
+    idempotencyKey: input.idempotencyKey,
+  };
+
+  return input.ctx.treasuryModule.quotes.commands.createQuote(createQuoteInput);
+}
+
+export async function previewDealScopedQuote(input: {
+  body: any;
+  ctx: AppContext;
+  dealId: string;
+}) {
+  const quoteInput = await buildDealScopedQuoteInput(input);
+  return input.ctx.treasuryModule.quotes.queries.previewQuote(quoteInput);
+}
+
+async function buildDealScopedQuoteInput(input: {
+  body: any;
+  ctx: AppContext;
+  dealId: string;
+}) {
   const deal = await requireDeal(input.ctx, input.dealId);
   assertDealAllowsCommercialWrite(deal);
 
-  return input.ctx.treasuryModule.quotes.commands.createQuote({
-    ...input.body,
-    dealId: input.dealId,
-    idempotencyKey: input.idempotencyKey,
+  const agreement = await input.ctx.agreementsModule.agreements.queries.findById(
+    deal.agreementId,
+  );
+  if (!agreement) {
+    throw new NotFoundError("Agreement", deal.agreementId);
+  }
+
+  const {
+    fixedFeeAmount,
+    fixedFeeCurrency,
+    quoteMarkupPercent,
+    ...quoteBody
+  } = input.body as {
+    fixedFeeAmount?: string | null;
+    fixedFeeCurrency?: string | null;
+    quoteMarkupPercent?: string | null;
+  } & Record<string, unknown>;
+  const defaults = extractAgreementCommercialDefaults({
+    agreement,
+    fallbackFixedFeeCurrency:
+      typeof quoteBody.toCurrency === "string" ? quoteBody.toCurrency : null,
   });
+  const hasFixedFeeOverride =
+    fixedFeeAmount !== undefined || fixedFeeCurrency !== undefined;
+  const normalizedFixedFeeAmount = hasFixedFeeOverride
+    ? normalizeOptionalDecimalString(fixedFeeAmount, "fixedFeeAmount") ?? null
+    : defaults.fixedFeeAmount;
+  const normalizedFixedFeeCurrency = hasFixedFeeOverride
+    ? fixedFeeCurrency?.trim().toUpperCase() || null
+    : defaults.fixedFeeCurrency;
+  type PreviewQuoteInput = Parameters<
+    AppContext["treasuryModule"]["quotes"]["queries"]["previewQuote"]
+  >[0];
+
+  const previewQuoteInput: PreviewQuoteInput = {
+    ...(quoteBody as PreviewQuoteInput),
+    commercialTerms: {
+      agreementVersionId: defaults.agreementVersionId,
+      agreementFeeBps: defaults.agreementFeeBps.toString(),
+      quoteMarkupBps: percentStringToBps(quoteMarkupPercent).toString(),
+      fixedFeeAmount: normalizedFixedFeeAmount,
+      fixedFeeCurrency: normalizedFixedFeeCurrency,
+    },
+  };
+
+  return previewQuoteInput;
 }
 
 export async function createDealScopedFormalDocument(input: {

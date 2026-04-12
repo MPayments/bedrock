@@ -155,6 +155,15 @@ export type LinkDealCalculationFromAcceptedQuoteInput = z.infer<
   typeof LinkDealCalculationFromAcceptedQuoteInputSchema
 >;
 
+export const LinkDealCalculationInputSchema = z.object({
+  calculationId: z.uuid(),
+  sourceQuoteId: z.uuid().nullable().optional(),
+});
+
+export type LinkDealCalculationInput = z.infer<
+  typeof LinkDealCalculationInputSchema
+>;
+
 export const AcceptDealQuoteInputSchema = z.object({
   quoteId: z.uuid(),
 });

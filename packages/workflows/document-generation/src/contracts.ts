@@ -79,16 +79,23 @@ export interface ClientContractAgreement {
 export interface CalculationDocumentData {
   additionalExpenses: string;
   additionalExpensesInBase: string;
+  agreementFeeAmount: string;
+  agreementFeePercentage: string;
   baseCurrencyCode: string;
   calculationTimestamp: string;
   currencyCode: string;
-  feeAmount: string;
-  feeAmountInBase: string;
-  feePercentage: string;
+  fixedFeeAmount: string;
+  fixedFeeCurrencyCode: string | null;
+  finalRate: string;
   id: string;
   originalAmount: string;
+  quoteMarkupAmount: string;
+  quoteMarkupPercentage: string;
   rate: string;
   rateSource: string;
+  totalFeeAmount: string;
+  totalFeeAmountInBase: string;
+  totalFeePercentage: string;
   totalAmount: string;
   totalInBase: string;
   totalWithExpensesInBase: string;

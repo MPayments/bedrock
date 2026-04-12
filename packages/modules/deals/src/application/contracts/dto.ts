@@ -590,7 +590,7 @@ export const DealCalculationHistoryItemSchema = z.object({
   calculationId: z.uuid(),
   calculationTimestamp: z.date(),
   createdAt: z.date(),
-  feeAmountMinor: z.string(),
+  totalFeeAmountMinor: z.string(),
   fxQuoteId: z.uuid().nullable(),
   originalAmountMinor: z.string(),
   rateDen: z.string(),

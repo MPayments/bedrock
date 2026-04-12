@@ -105,6 +105,43 @@ describe("Treasury rates integration", () => {
         expect(provider.fetchLatest).not.toHaveBeenCalled();
     });
 
+    it("writes the inverse manual pair so direct reverse lookups use the same manual rate", async () => {
+        const provider = {
+            source: "cbr" as const,
+            fetchLatest: vi.fn(async () => {
+                throw new Error("CBR provider should not be called when manual rate exists");
+            }),
+        };
+        const service = createTreasuryTestServiceWithProvider(provider);
+
+        await service.rates.setManualRate({
+            base: "USD",
+            quote: "RUB",
+            rateNum: 77821n,
+            rateDen: 1000n,
+            asOf: new Date("2026-04-12T00:28:02.000Z"),
+        });
+
+        const direct = await service.rates.getLatestRate(
+            "USD",
+            "RUB",
+            new Date("2026-04-12T00:30:00.000Z"),
+        );
+        const inverse = await service.rates.getLatestRate(
+            "RUB",
+            "USD",
+            new Date("2026-04-12T00:30:00.000Z"),
+        );
+
+        expect(direct.source).toBe("manual");
+        expect(direct.rateNum).toBe(77821n);
+        expect(direct.rateDen).toBe(1000n);
+        expect(inverse.source).toBe("manual");
+        expect(inverse.rateNum).toBe(1000n);
+        expect(inverse.rateDen).toBe(77821n);
+        expect(provider.fetchLatest).not.toHaveBeenCalled();
+    });
+
     it("refreshes CBR rates on read when TTL is expired", async () => {
         const staleSyncedAt = new Date(Date.now() - DAY_IN_SECONDS * 2 * 1000);
         const staleAsOf = new Date("2026-02-17T00:00:00.000Z");

@@ -12,6 +12,10 @@ import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import { schema } from "../../../schema";
+import {
+  deserializeQuoteCommercialTerms,
+  serializeQuoteCommercialTerms,
+} from "../../domain/commercial-terms";
 import type {
   MarkQuoteUsedInput,
   QuoteLegRecord,
@@ -21,6 +25,13 @@ import type {
   QuotesRepository,
   QuoteWriteModel,
 } from "../../application/ports";
+
+function mapQuoteRecord(record: typeof schema.fxQuotes.$inferSelect): QuoteRecord {
+  return {
+    ...record,
+    commercialTerms: deserializeQuoteCommercialTerms(record.commercialTerms),
+  };
+}
 
 export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
   constructor(private readonly db: Queryable) {}
@@ -34,6 +45,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       .insert(schema.fxQuotes)
       .values({
         ...input,
+        commercialTerms: serializeQuoteCommercialTerms(input.commercialTerms),
         pricingTrace: input.pricingTrace ?? undefined,
       })
       .onConflictDoNothing({
@@ -41,7 +53,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       })
       .returning();
 
-    return (inserted[0] as QuoteRecord | undefined) ?? null;
+    return inserted[0] ? mapQuoteRecord(inserted[0]) : null;
   }
 
   async insertQuoteLegs(
@@ -110,7 +122,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
     ]);
 
     return {
-      rows: rows as QuoteRecord[],
+      rows: rows.map(mapQuoteRecord),
       total: totalRows[0]?.total ?? 0,
     };
   }
@@ -126,7 +138,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       .where(eq(schema.fxQuotes.id, id))
       .limit(1);
 
-    return quote as QuoteRecord | undefined;
+    return quote ? mapQuoteRecord(quote) : undefined;
   }
 
   async findQuoteByIdempotencyKey(
@@ -140,7 +152,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       .where(eq(schema.fxQuotes.idempotencyKey, idempotencyKey))
       .limit(1);
 
-    return quote as QuoteRecord | undefined;
+    return quote ? mapQuoteRecord(quote) : undefined;
   }
 
   async listQuoteLegs(
@@ -179,7 +191,7 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       )
       .returning();
 
-    return updated[0] as QuoteRecord | undefined;
+    return updated[0] ? mapQuoteRecord(updated[0]) : undefined;
   }
 
   async expireOldQuotes(now: Date): Promise<QuoteRecord[]> {
@@ -196,6 +208,6 @@ export class DrizzleTreasuryQuotesRepository implements QuotesRepository {
       )
       .returning();
 
-    return expired as QuoteRecord[];
+    return expired.map(mapQuoteRecord);
   }
 }
