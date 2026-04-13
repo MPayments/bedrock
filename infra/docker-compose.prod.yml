@@ -197,6 +197,7 @@ services:
       dockerfile: apps/finance/Dockerfile
       args:
         API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
+        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
     container_name: bedrock-finance
     depends_on:
       - api
@@ -222,6 +223,7 @@ services:
       dockerfile: apps/crm/Dockerfile
       args:
         API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
+        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
         NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL:-https://portal.multihansa.com}
         NEXT_PUBLIC_APP_URL: ${CRM_PUBLIC_URL:-https://crm.multihansa.com}
         NEXT_PUBLIC_APP_TITLE: ${CRM_NEXT_PUBLIC_APP_TITLE:-Multihansa CRM}
@@ -263,6 +265,7 @@ services:
       dockerfile: apps/portal/Dockerfile
       args:
         API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
+        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
         NEXT_PUBLIC_CRM_URL: ${CRM_PUBLIC_URL:-https://crm.multihansa.com}
         NEXT_PUBLIC_APP_URL: ${PORTAL_PUBLIC_URL:-https://portal.multihansa.com}
         NEXT_PUBLIC_APP_TITLE: ${PORTAL_NEXT_PUBLIC_APP_TITLE:-Multihansa Portal}

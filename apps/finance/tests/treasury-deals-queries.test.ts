@@ -5,11 +5,19 @@ import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries
 const headers = vi.fn();
 const fetchMock = vi.fn();
 
+type SerializedDates<T> = T extends Date
+  ? string | Date
+  : T extends (infer U)[]
+    ? SerializedDates<U>[]
+    : T extends object
+      ? { [K in keyof T]: SerializedDates<T[K]> }
+      : T;
+
 vi.mock("next/headers", () => ({
   headers,
 }));
 
-function createFinanceWorkspacePayload(): FinanceDealWorkspace {
+function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> {
   const fundingResolution = {
     availableMinor: null,
     fundingOrganizationId: "84bb2b72-886b-43b2-bdc5-1d4d6d03120d",
