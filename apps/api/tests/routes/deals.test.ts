@@ -302,6 +302,7 @@ function createFinanceWorkspaceProjection() {
       canCreateCalculation: false,
       canCreateQuote: false,
       canRequestExecution: false,
+      canRunReconciliation: true,
       canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
@@ -412,10 +413,14 @@ function createFinanceWorkspaceProjection() {
       quotes: [],
       reconciliationExceptions: [
         {
+          actions: {
+            adjustmentDocumentDocType: "transfer_resolution",
+            canIgnore: true,
+          },
           blocking: true,
           createdAt: new Date("2026-04-03T11:00:00.000Z"),
           externalRecordId: "external-1",
-          id: "exception-1",
+          id: "00000000-0000-4000-8000-000000000111",
           operationId: "operation-1",
           reasonCode: "no_match",
           resolvedAt: null,
@@ -505,6 +510,23 @@ function createTestApp() {
       findById: vi.fn(),
     },
   };
+  const reconciliationService = {
+    exceptions: {
+      ignore: vi.fn(),
+      resolveWithAdjustment: vi.fn(),
+    },
+    runs: {
+      runReconciliation: vi.fn(),
+    },
+  };
+  const documentsService = {
+    get: vi.fn(),
+  };
+  const persistence = {
+    db: {
+      execute: vi.fn(async () => ({ rows: [] })),
+    },
+  };
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -532,6 +554,9 @@ function createTestApp() {
       calculationsModule,
       partiesModule,
       currenciesService,
+      reconciliationService,
+      documentsService,
+      persistence,
     } as any),
   );
 
@@ -547,6 +572,9 @@ function createTestApp() {
     iamService,
     partiesModule,
     currenciesService,
+    reconciliationService,
+    documentsService,
+    persistence,
   };
 }
 
@@ -1731,10 +1759,164 @@ describe("deals routes", () => {
     });
     expect(body.relatedResources.reconciliationExceptions).toEqual([
       expect.objectContaining({
-        id: "exception-1",
+        actions: {
+          adjustmentDocumentDocType: "transfer_resolution",
+          canIgnore: true,
+        },
+        id: "00000000-0000-4000-8000-000000000111",
         source: "bank_statement",
       }),
     ]);
+  });
+
+  it("lists deal-scoped reconciliation exceptions from the finance workspace", async () => {
+    const { app, dealProjectionsWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({
+        actions: {
+          adjustmentDocumentDocType: "transfer_resolution",
+          canIgnore: true,
+        },
+        id: "00000000-0000-4000-8000-000000000111",
+      }),
+    ]);
+  });
+
+  it("runs deal-scoped reconciliation for pending treasury outcome records", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      persistence,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection
+      .mockResolvedValueOnce(createFinanceWorkspaceProjection())
+      .mockResolvedValueOnce({
+        ...createFinanceWorkspaceProjection(),
+        actions: {
+          ...createFinanceWorkspaceProjection().actions,
+          canRunReconciliation: false,
+        },
+        reconciliationSummary: {
+          ...createFinanceWorkspaceProjection().reconciliationSummary,
+          pendingOperationCount: 0,
+          reconciledOperationCount: 1,
+          state: "clear",
+        },
+      });
+    persistence.db.execute.mockResolvedValue({
+      rows: [{ id: "external-record-1" }],
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/run",
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": "reconciliation-run-1",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(reconciliationService.runs.runReconciliation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      idempotencyKey: "reconciliation-run-1",
+      inputQuery: {
+        externalRecordIds: ["external-record-1"],
+      },
+      requestContext: {
+        causationId: null,
+        correlationId: "corr-1",
+        idempotencyKey: "reconciliation-run-1",
+        requestId: "req-1",
+        traceId: null,
+      },
+      rulesetChecksum: "core-default-v1",
+      source: "treasury_instruction_outcomes",
+    });
+  });
+
+  it("ignores deal-scoped reconciliation exceptions", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions/00000000-0000-4000-8000-000000000111/ignore",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(reconciliationService.exceptions.ignore).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000111",
+    );
+  });
+
+  it("resolves deal-scoped reconciliation exceptions with an adjustment document", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      documentsService,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+    documentsService.get.mockResolvedValue({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      id: "00000000-0000-4000-8000-000000000555",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions/00000000-0000-4000-8000-000000000111/adjustment-document",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          docType: "transfer_resolution",
+          documentId: "00000000-0000-4000-8000-000000000555",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.get).toHaveBeenCalledWith(
+      "transfer_resolution",
+      "00000000-0000-4000-8000-000000000555",
+      "user-1",
+    );
+    expect(
+      reconciliationService.exceptions.resolveWithAdjustment,
+    ).toHaveBeenCalledWith({
+      adjustmentDocumentId: "00000000-0000-4000-8000-000000000555",
+      exceptionId: "00000000-0000-4000-8000-000000000111",
+    });
   });
 
   it("updates a deal execution leg state", async () => {

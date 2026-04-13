@@ -89,4 +89,22 @@ describe("auth permissions", () => {
       "cancel",
     ]);
   });
+
+  it("grants reconciliation permissions to admin and finance roles only", () => {
+    expect((admin as any).statements.reconciliation).toEqual([
+      "list",
+      "run",
+      "resolve",
+      "ignore",
+    ]);
+    expect((finance as any).statements.reconciliation).toEqual([
+      "list",
+      "run",
+      "resolve",
+      "ignore",
+    ]);
+    expect((user as any).statements.reconciliation).toBeUndefined();
+    expect((agent as any).statements.reconciliation).toBeUndefined();
+    expect((customer as any).statements.reconciliation).toBeUndefined();
+  });
 });

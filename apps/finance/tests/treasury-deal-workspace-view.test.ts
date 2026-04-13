@@ -57,6 +57,7 @@ function createDeal(): FinanceDealWorkspace {
       canCreateCalculation: true,
       canCreateQuote: true,
       canRequestExecution: false,
+      canRunReconciliation: true,
       canResolveExecutionBlocker: true,
       canUploadAttachment: true,
     },
@@ -187,6 +188,10 @@ function createDeal(): FinanceDealWorkspace {
       ],
       reconciliationExceptions: [
         {
+          actions: {
+            adjustmentDocumentDocType: "transfer_resolution",
+            canIgnore: true,
+          },
           blocking: true,
           createdAt: "2026-04-02T10:00:00.000Z",
           externalRecordId: "external-record-1",

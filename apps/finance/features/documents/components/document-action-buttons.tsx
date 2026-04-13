@@ -11,6 +11,7 @@ import {
   postDocument,
   rejectDocument,
   repostDocument,
+  resolveDealReconciliationExceptionWithAdjustmentDocument,
   submitDocument,
   voidDocument,
 } from "@/features/operations/documents/lib/mutations";
@@ -19,6 +20,11 @@ type DocumentActionButtonsProps = {
   docType: string;
   documentId: string;
   allowedActions: string[];
+  reconciliationAdjustment?: {
+    dealId: string;
+    exceptionId: string;
+    returnToHref?: string;
+  };
 };
 
 type ActionButtonConfig = {
@@ -34,6 +40,7 @@ export function DocumentActionButtons({
   docType,
   documentId,
   allowedActions,
+  reconciliationAdjustment,
 }: DocumentActionButtonsProps) {
   const router = useRouter();
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -117,6 +124,34 @@ export function DocumentActionButtons({
         result.message ?? `Не удалось выполнить действие ${input.title}`,
       );
       setActiveAction(null);
+      return;
+    }
+
+    if (input.actionId === "post" && reconciliationAdjustment) {
+      const resolution =
+        await resolveDealReconciliationExceptionWithAdjustmentDocument({
+          dealId: reconciliationAdjustment.dealId,
+          docType,
+          documentId,
+          exceptionId: reconciliationAdjustment.exceptionId,
+        });
+
+      if (!resolution.ok) {
+        toast.error(resolution.message);
+        setActiveAction(null);
+        router.refresh();
+        return;
+      }
+
+      toast.success("Документ проведен, исключение сверки разрешено");
+      setActiveAction(null);
+
+      if (reconciliationAdjustment.returnToHref) {
+        router.push(reconciliationAdjustment.returnToHref);
+        return;
+      }
+
+      router.refresh();
       return;
     }
 

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
+
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
@@ -8,6 +10,7 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
+import { documents as documentsTable } from "@bedrock/documents/schema";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFilesModule } from "@bedrock/files";
@@ -282,8 +285,14 @@ export function createWorkerImplementations(
     ...createWorkerMetadata("reconciliation", deps.env),
     db: deps.db,
     documents: {
-      async existsById() {
-        return false;
+      async existsById(documentId: string) {
+        const [document] = await deps.db
+          .select({ id: documentsTable.id })
+          .from(documentsTable)
+          .where(eq(documentsTable.id, documentId))
+          .limit(1);
+
+        return Boolean(document);
       },
     },
     idempotency: reconciliationIdempotency,
@@ -292,6 +301,9 @@ export function createWorkerImplementations(
         return (
           (await ledgerModule.operations.queries.getDetails(operationId)) !== null
         );
+      },
+      async treasuryOperationExists(operationId: string) {
+        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
       },
     },
     logger: deps.logger,

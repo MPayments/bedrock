@@ -1,10 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  closeDealPaymentBackend,
-  reconcileDealOperationsForClose,
-} from "./deal-payment-backend";
-import {
   PAYMENT_DEAL_FINANCE_AUTH_FILE,
   PAYMENT_DEAL_FINANCE_BASE_URL,
   PAYMENT_DEAL_INVOICE_FILE,
@@ -333,18 +329,49 @@ async function collectFinanceOperationUrls(page: Page) {
     });
 }
 
+async function readFinanceOperationUrlsViaApi(page: Page, dealId: string) {
+  const response = await page.request.get(
+    `${PAYMENT_DEAL_FINANCE_BASE_URL}/v1/deals/${encodeURIComponent(dealId)}/finance-workspace`,
+    {
+      headers: {
+        "x-bedrock-app-audience": "finance",
+      },
+    },
+  );
+
+  if (!response.ok()) {
+    return [];
+  }
+
+  const payload = (await response.json()) as {
+    relatedResources?: {
+      operations?: Array<{
+        operationHref?: string;
+      }>;
+    };
+  };
+
+  return (payload.relatedResources?.operations ?? [])
+    .map((operation) => operation.operationHref ?? "")
+    .filter((href) => href.includes("/treasury/operations/"));
+}
+
 async function waitForFinanceOperationUrls(page: Page, dealId: string) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     await page.goto(buildFinanceDealUrl(dealId, "execution"));
 
-    const urls = await collectFinanceOperationUrls(page);
+    const urls = [
+      ...(await collectFinanceOperationUrls(page)),
+      ...(await readFinanceOperationUrlsViaApi(page, dealId)),
+    ];
+
     if (urls.length > 0) {
-      return urls.map((url) =>
+      return Array.from(new Set(urls)).map((url) =>
         url.startsWith("http") ? url : `${PAYMENT_DEAL_FINANCE_BASE_URL}${url}`,
       );
     }
 
-    await page.waitForTimeout(1_000);
+    await page.waitForTimeout(2_000);
   }
 
   throw new Error(
@@ -418,9 +445,43 @@ async function readFinanceLegOperationUrl(page: Page, idx: number) {
     : `${PAYMENT_DEAL_FINANCE_BASE_URL}${href}`;
 }
 
-test.afterAll(async () => {
-  await closeDealPaymentBackend();
-});
+async function runAndWaitForFinanceReconciliation(page: Page, dealId: string) {
+  await page.goto(buildFinanceDealUrl(dealId, "execution"));
+
+  await expect
+    .poll(
+      async () => {
+        await page.goto(buildFinanceDealUrl(dealId, "execution"));
+
+        const rerunButton = page.getByTestId("finance-deal-run-reconciliation");
+        if (
+          (await rerunButton.count()) > 0 &&
+          (await rerunButton.isEnabled())
+        ) {
+          await rerunButton.click();
+          await page.waitForLoadState("networkidle");
+        }
+
+        return {
+          canRun:
+            (await rerunButton.count()) > 0
+              ? await rerunButton.isEnabled()
+              : false,
+          state: (
+            (await page
+              .getByTestId("finance-deal-reconciliation-state")
+              .textContent()) ?? ""
+          ).trim(),
+        };
+      },
+      {
+        timeout: 90_000,
+      },
+    )
+    .toMatchObject({
+      state: "Сверка завершена",
+    });
+}
 
 test("runs the payment deal end-to-end through CRM and finance", async ({
   browser,
@@ -677,8 +738,8 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       }
     });
 
-    await test.step("reconcile the settled treasury operations for close readiness", async () => {
-      await reconcileDealOperationsForClose(dealId);
+    await test.step("reconcile the settled treasury operations from finance", async () => {
+      await runAndWaitForFinanceReconciliation(financePage, dealId);
     });
 
     await test.step("create and post the exchange document for the FX leg", async () => {

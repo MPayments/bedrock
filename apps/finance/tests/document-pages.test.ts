@@ -16,6 +16,7 @@ const getFinanceDealWorkbenchById = vi.fn();
 const getAgreementContextById = vi.fn();
 const getOrganizationRequisitesForOrganization = vi.fn();
 const DocumentCreateTypedFormClient = vi.fn(() => null);
+const DocumentDetailsView = vi.fn(() => null);
 const createEmptyDocumentFormOptions = vi.fn(() => ({
   counterparties: [],
   customers: [],
@@ -69,6 +70,10 @@ vi.mock("@/features/documents/components/documents-table", () => ({
 
 vi.mock("@/features/documents/components/document-create-typed-form-client", () => ({
   DocumentCreateTypedFormClient,
+}));
+
+vi.mock("@/features/documents/components/document-details-view", () => ({
+  DocumentDetailsView,
 }));
 
 describe("document pages", () => {
@@ -490,5 +495,167 @@ describe("document pages", () => {
       },
     });
     expect(getAgreementContextById).not.toHaveBeenCalled();
+  });
+
+  it("passes reconciliation adjustment context through deal-scoped create pages", async () => {
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [],
+      formalDocumentRequirements: [],
+      relatedResources: {
+        formalDocuments: [
+          {
+            approvalStatus: null,
+            createdAt: "2026-03-03T10:00:00.000Z",
+            docType: "transfer_intra",
+            id: "00000000-0000-4000-8000-000000000701",
+            lifecycleStatus: "active",
+            occurredAt: "2026-03-03T10:00:00.000Z",
+            postingStatus: "posted",
+            submissionStatus: "submitted",
+          },
+        ],
+      },
+      summary: {
+        calculationId: null,
+      },
+      workflow: {
+        intake: {
+          common: {
+            applicantCounterpartyId: null,
+          },
+        },
+        participants: [],
+      },
+    });
+
+    const { default: CreatePage } = await import(
+      "@/app/(shell)/documents/create/[docType]/page"
+    );
+
+    const page = await CreatePage({
+      params: Promise.resolve({
+        docType: "transfer_resolution",
+      }),
+      searchParams: Promise.resolve({
+        dealId: "00000000-0000-4000-8000-000000000999",
+        reconciliationExceptionId:
+          "00000000-0000-4000-8000-000000000998",
+        returnTo:
+          "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=execution",
+      }),
+    });
+    renderToStaticMarkup(page);
+
+    const lastCall = DocumentCreateTypedFormClient.mock.calls.at(-1) as
+      | [unknown]
+      | undefined;
+    expect(lastCall).toBeDefined();
+
+    const [props] = lastCall!;
+    expect(props).toMatchObject({
+      dealId: "00000000-0000-4000-8000-000000000999",
+      docType: "transfer_resolution",
+      reconciliationAdjustmentExceptionId:
+        "00000000-0000-4000-8000-000000000998",
+      successHref:
+        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=execution",
+      initialPayload: {
+        eventIdempotencyKey:
+          "reconciliation:00000000-0000-4000-8000-000000000998",
+        pendingIndex: 0,
+        transferDocumentId: "00000000-0000-4000-8000-000000000701",
+      },
+    });
+  });
+
+  it("passes reconciliation adjustment context to document details views", async () => {
+    const getDocumentDetails = vi.fn().mockResolvedValue({
+      children: [],
+      compensates: [],
+      computed: null,
+      dependsOn: [],
+      document: {
+        allowedActions: [],
+        amount: null,
+        approvalStatus: "not_required",
+        approvedAt: null,
+        approvedBy: null,
+        cancelledAt: null,
+        cancelledBy: null,
+        counterpartyId: null,
+        createIdempotencyKey: null,
+        createdAt: "2026-03-03T10:00:00.000Z",
+        createdBy: "user-1",
+        currency: null,
+        customerId: null,
+        dealId: "00000000-0000-4000-8000-000000000999",
+        docNo: "TRR-1",
+        docType: "transfer_resolution",
+        id: "00000000-0000-4000-8000-000000000777",
+        lifecycleStatus: "active",
+        memo: null,
+        occurredAt: "2026-03-03T10:00:00.000Z",
+        organizationRequisiteId: null,
+        payload: {},
+        payloadVersion: 1,
+        postingError: null,
+        postingOperationId: null,
+        postingStartedAt: null,
+        postingStatus: "unposted",
+        postedAt: null,
+        rejectedAt: null,
+        rejectedBy: null,
+        searchText: "TRR-1",
+        submissionStatus: "draft",
+        submittedAt: null,
+        submittedBy: null,
+        title: "Transfer resolution",
+        updatedAt: "2026-03-03T10:00:00.000Z",
+        version: 1,
+      },
+      documentOperations: [],
+      extra: null,
+      ledgerOperations: [],
+      links: [],
+      parent: null,
+    });
+
+    vi.doMock("@/features/operations/documents/lib/queries", () => ({
+      getDocuments,
+      getDocumentDetails,
+    }));
+
+    const { default: DetailsPage } = await import(
+      "@/app/(shell)/documents/[family]/[docType]/[id]/page"
+    );
+
+    const page = await DetailsPage({
+      params: Promise.resolve({
+        family: "transfers",
+        docType: "transfer_resolution",
+        id: "00000000-0000-4000-8000-000000000777",
+      }),
+      searchParams: Promise.resolve({
+        reconciliationExceptionId:
+          "00000000-0000-4000-8000-000000000998",
+        returnTo:
+          "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=execution",
+      }),
+    });
+    renderToStaticMarkup(page);
+
+    const lastCall = DocumentDetailsView.mock.calls.at(-1) as
+      | [unknown]
+      | undefined;
+    expect(lastCall).toBeDefined();
+
+    const [props] = lastCall!;
+    expect(props).toMatchObject({
+      dealId: "00000000-0000-4000-8000-000000000999",
+      reconciliationAdjustmentExceptionId:
+        "00000000-0000-4000-8000-000000000998",
+      returnToHref:
+        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=execution",
+    });
   });
 });

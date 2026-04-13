@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
@@ -12,13 +12,37 @@ interface DrizzleReconciliationMatchesRepository {
   ) => Promise<ReconciliationMatchRecord[]>;
   createManyTx: (
     tx: Transaction,
-    input: Omit<ReconciliationMatchRecord, "id" | "createdAt">[],
+    input: Omit<
+      ReconciliationMatchRecord,
+      "id" | "createdAt" | "matchedOperationRef"
+    >[],
   ) => Promise<void>;
 }
 
 export function createDrizzleReconciliationMatchesRepository(
   db: Database,
 ) {
+  function toMatchRecord(
+    row: typeof schema.reconciliationMatches.$inferSelect,
+  ): ReconciliationMatchRecord {
+    const matchedOperationRef = row.matchedTreasuryOperationId
+      ? {
+          id: row.matchedTreasuryOperationId,
+          kind: "treasury" as const,
+        }
+      : row.matchedOperationId
+        ? {
+            id: row.matchedOperationId,
+            kind: "ledger" as const,
+          }
+        : null;
+
+    return {
+      ...row,
+      matchedOperationRef,
+    };
+  }
+
   const repository: DrizzleReconciliationMatchesRepository = {
     async findById(id) {
       const [match] = await db
@@ -27,7 +51,7 @@ export function createDrizzleReconciliationMatchesRepository(
         .where(eq(schema.reconciliationMatches.id, id))
         .limit(1);
 
-      return match ?? null;
+      return match ? toMatchRecord(match) : null;
     },
 
     async listByMatchedOperationIds(operationIds) {
@@ -39,8 +63,15 @@ export function createDrizzleReconciliationMatchesRepository(
         .select()
         .from(schema.reconciliationMatches)
         .where(
-          inArray(schema.reconciliationMatches.matchedOperationId, operationIds),
-        );
+          or(
+            inArray(schema.reconciliationMatches.matchedOperationId, operationIds),
+            inArray(
+              schema.reconciliationMatches.matchedTreasuryOperationId,
+              operationIds,
+            ),
+          ),
+        )
+        .then((rows) => rows.map(toMatchRecord));
     },
 
     async createManyTx(tx: Transaction, input) {

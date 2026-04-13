@@ -11,7 +11,8 @@ export const WORKER_CATALOG = [
     id: "documents",
     envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
     defaultIntervalMs: 250,
-    description: "Завершает статусы проведения документов по результатам ledger.",
+    description:
+      "Завершает статусы проведения документов по результатам ledger.",
   },
   {
     id: "documents-period-close",
@@ -35,8 +36,9 @@ export const WORKER_CATALOG = [
   {
     id: "reconciliation",
     envKey: "RECONCILIATION_WORKER_INTERVAL_MS",
-    defaultIntervalMs: 60_000,
-    description: "Обрабатывает внешние записи сверки и связывает их с операциями.",
+    defaultIntervalMs: 5_000,
+    description:
+      "Обрабатывает внешние записи сверки и связывает их с операциями.",
   },
   {
     id: "deal-attachment-ingestion",

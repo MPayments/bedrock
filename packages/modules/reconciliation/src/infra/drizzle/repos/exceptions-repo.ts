@@ -40,6 +40,13 @@ interface DrizzleReconciliationExceptionsRepository {
       resolvedAt: Date;
     },
   ) => Promise<void>;
+  markIgnoredTx: (
+    tx: Transaction,
+    input: {
+      id: string;
+      ignoredAt: Date;
+    },
+  ) => Promise<void>;
 }
 
 function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
@@ -176,6 +183,16 @@ export function createDrizzleReconciliationExceptionsRepository(
           state: "resolved",
           adjustmentDocumentId: input.adjustmentDocumentId,
           resolvedAt: input.resolvedAt,
+        })
+        .where(eq(schema.reconciliationExceptions.id, input.id));
+    },
+
+    async markIgnoredTx(tx: Transaction, input) {
+      await tx
+        .update(schema.reconciliationExceptions)
+        .set({
+          state: "ignored",
+          resolvedAt: input.ignoredAt,
         })
         .where(eq(schema.reconciliationExceptions.id, input.id));
     },

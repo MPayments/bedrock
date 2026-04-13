@@ -135,14 +135,19 @@ function buildDocumentHref(
 }
 
 export function DocumentDetailsView({
+  dealId,
   details,
   documentBasePath,
+  reconciliationAdjustmentExceptionId,
+  returnToHref,
   userRole,
   formOptions,
 }: {
   dealId?: string | null;
   details: DocumentDetailsDto;
   documentBasePath: string;
+  reconciliationAdjustmentExceptionId?: string;
+  returnToHref?: string;
   userRole: UserRole;
   formOptions: DocumentFormOptions;
 }) {
@@ -182,6 +187,15 @@ export function DocumentDetailsView({
               docType={document.docType}
               documentId={document.id}
               allowedActions={document.allowedActions}
+              reconciliationAdjustment={
+                dealId && reconciliationAdjustmentExceptionId
+                  ? {
+                      dealId,
+                      exceptionId: reconciliationAdjustmentExceptionId,
+                      returnToHref,
+                    }
+                  : undefined
+              }
             />
           </div>
         </CardHeader>

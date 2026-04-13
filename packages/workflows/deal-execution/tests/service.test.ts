@@ -830,4 +830,154 @@ describe("deal execution workflow", () => {
     expect(createDealTimelineEvents).not.toHaveBeenCalled();
     expect(result.executionPlan.at(-1)?.state).toBe("ready");
   });
+
+  it("ingests a treasury settlement reconciliation record when an instruction reaches a terminal outcome", async () => {
+    const workflowProjection = createWorkflowProjection({
+      operationRefs: [
+        [
+          {
+            kind: "payin",
+            operationId: "op-1",
+            sourceRef: "deal:deal-1:leg:1:payin:1",
+          },
+        ],
+        [],
+      ],
+      status: "awaiting_payment",
+      type: "payment",
+      withConvert: false,
+    });
+    const ingestExternalRecord = vi.fn(async () => undefined);
+    const createDealTimelineEvents = vi.fn(async () => undefined);
+
+    const workflow = createDealExecutionWorkflow({
+      agreements: {
+        agreements: {
+          queries: {
+            findById: vi.fn(),
+          },
+        },
+      } as any,
+      currencies: {
+        findById: vi.fn(),
+      } as any,
+      db: {
+        transaction: vi.fn(async (handler: (tx: any) => Promise<unknown>) =>
+          handler({}),
+        ),
+      } as any,
+      idempotency: {
+        withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
+      } as any,
+      createDealStore: () => ({
+        createDealLegOperationLinks: vi.fn(),
+        createDealTimelineEvents,
+      }),
+      createDealsModule: () => ({
+        deals: {
+          queries: {
+            findWorkflowById: vi.fn(async () => workflowProjection),
+          },
+        },
+      } as any),
+      createReconciliationService: () => ({
+        links: {
+          listOperationLinks: vi.fn(async () => []),
+        },
+        records: {
+          ingestExternalRecord,
+        },
+      } as any),
+      createTreasuryModule: () => ({
+        instructions: {
+          commands: {
+            recordOutcome: vi.fn(async () => ({
+              attempt: 1,
+              createdAt: new Date("2026-04-03T10:00:00.000Z"),
+              failedAt: null,
+              id: "instruction-1",
+              operationId: "op-1",
+              providerRef: "provider-ref-1",
+              providerSnapshot: { providerStatus: "settled" },
+              returnRequestedAt: null,
+              returnedAt: null,
+              settledAt: new Date("2026-04-03T10:05:00.000Z"),
+              sourceRef: "source-1",
+              state: "settled",
+              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
+              updatedAt: new Date("2026-04-03T10:05:00.000Z"),
+              voidedAt: null,
+            })),
+          },
+          queries: {
+            findById: vi.fn(async () => ({
+              attempt: 1,
+              createdAt: new Date("2026-04-03T10:00:00.000Z"),
+              failedAt: null,
+              id: "instruction-1",
+              operationId: "op-1",
+              providerRef: null,
+              providerSnapshot: null,
+              returnRequestedAt: null,
+              returnedAt: null,
+              settledAt: null,
+              sourceRef: "source-1",
+              state: "submitted",
+              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
+              updatedAt: new Date("2026-04-03T10:01:00.000Z"),
+              voidedAt: null,
+            })),
+          },
+        },
+        operations: {
+          queries: {
+            findById: vi.fn(async () => ({
+              dealId: "deal-1",
+              id: "op-1",
+              kind: "payout",
+            })),
+          },
+        },
+        quotes: {
+          queries: {
+            getQuoteDetails: vi.fn(async () => null),
+          },
+        },
+      } as any),
+    });
+
+    await workflow.recordInstructionOutcome({
+      actorUserId: "user-1",
+      idempotencyKey: "record-outcome-1",
+      instructionId: "instruction-1",
+      outcome: "settled",
+      providerRef: "provider-ref-1",
+      providerSnapshot: { providerStatus: "settled" },
+    });
+
+    expect(ingestExternalRecord).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      idempotencyKey: "reconciliation:auto:instruction-1:settled",
+      normalizationVersion: 1,
+      normalizedPayload: {
+        dealId: "deal-1",
+        instructionId: "instruction-1",
+        instructionState: "settled",
+        operationId: "op-1",
+        operationKind: "treasury",
+        treasuryOperationKind: "payout",
+      },
+      rawPayload: {
+        dealId: "deal-1",
+        instructionId: "instruction-1",
+        instructionState: "settled",
+        operationId: "op-1",
+        operationKind: "payout",
+        providerRef: "provider-ref-1",
+        providerSnapshot: { providerStatus: "settled" },
+      },
+      source: "treasury_instruction_outcomes",
+      sourceRecordId: "instruction-1:settled",
+    });
+  });
 });

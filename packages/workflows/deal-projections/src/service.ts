@@ -25,6 +25,7 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteListItem,
   TreasuryInstruction,
+  TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
 
 import {
@@ -1116,6 +1117,16 @@ function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
   };
 }
 
+function resolveAdjustmentDocumentDocType(input: {
+  operationKind: TreasuryOperationKind | null;
+}) {
+  if (!input.operationKind || input.operationKind === "fx_conversion") {
+    return null;
+  }
+
+  return "transfer_resolution";
+}
+
 function getPositionByKind(
   workflow: DealWorkflowProjection,
   kind: string,
@@ -2169,6 +2180,9 @@ export function createDealProjectionsWorkflow(
       await deps.treasury.instructions.queries.listLatestByOperationIds(
         operationsResult.data.map((operation) => operation.id),
       );
+    const operationsById = new Map(
+      operationsResult.data.map((operation) => [operation.id, operation] as const),
+    );
     const latestInstructionByOperationId = new Map(
       latestInstructions.map(
         (instruction) => [instruction.operationId, instruction] as const,
@@ -2189,13 +2203,25 @@ export function createDealProjectionsWorkflow(
     const {
       closeReadiness,
       instructionSummary,
-      reconciliationExceptions,
+      reconciliationExceptions: readinessReconciliationExceptions,
       reconciliationSummary,
     } = deriveFinanceDealReadiness({
       latestInstructionByOperationId,
       reconciliationLinksByOperationId,
       workflow,
     });
+    const reconciliationExceptions = readinessReconciliationExceptions.map(
+      (exception) => ({
+        ...exception,
+        actions: {
+          adjustmentDocumentDocType: resolveAdjustmentDocumentDocType({
+            operationKind:
+              operationsById.get(exception.operationId)?.kind ?? null,
+          }),
+          canIgnore: exception.state === "open",
+        },
+      }),
+    );
     const queueBlocked =
       queueContext.blockers.length > 0 ||
       workflow.executionPlan.some((leg) => leg.state === "blocked");
@@ -2218,6 +2244,12 @@ export function createDealProjectionsWorkflow(
         canCreateQuote: false,
         canRequestExecution:
           !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
+        canRunReconciliation:
+          instructionSummary.totalOperations > 0 &&
+          instructionSummary.terminalOperations ===
+            instructionSummary.totalOperations &&
+          (reconciliationSummary.state === "pending" ||
+            reconciliationSummary.state === "blocked"),
         canResolveExecutionBlocker:
           workflow.executionPlan.some((leg) => leg.state === "blocked"),
         canUploadAttachment: actions.canUploadAttachment,

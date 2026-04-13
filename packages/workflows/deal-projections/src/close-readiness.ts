@@ -263,6 +263,10 @@ function buildReconciliationState(input: {
 
     for (const exception of link?.exceptions ?? []) {
       reconciliationExceptions.push({
+        actions: {
+          adjustmentDocumentDocType: null,
+          canIgnore: exception.state === "open",
+        },
         blocking: exception.state === "open",
         createdAt: exception.createdAt,
         externalRecordId: exception.externalRecordId,

@@ -61,6 +61,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       canCreateCalculation: true,
       canCreateQuote: true,
       canRequestExecution: false,
+      canRunReconciliation: false,
       canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },

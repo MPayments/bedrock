@@ -1096,26 +1096,34 @@ function formatProfitabilityAmounts(
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
   executionTabReturnTo: string;
+  ignoringExceptionId: string | null;
   isClosingDeal: boolean;
   isCreatingLegOperationId: string | null;
   isRequestingExecution: boolean;
+  isRunningReconciliation: boolean;
   isResolvingLegId: string | null;
   onCloseDeal: () => void;
   onCreateLegOperation: (legId: string) => void;
+  onIgnoreReconciliationException: (exceptionId: string) => void;
   onRequestExecution: () => void;
+  onRunReconciliation: () => void;
   onResolveLeg: (legId: string) => void;
 };
 
 function ExecutionTab({
   deal,
   executionTabReturnTo,
+  ignoringExceptionId,
   isClosingDeal,
   isCreatingLegOperationId,
   isRequestingExecution,
+  isRunningReconciliation,
   isResolvingLegId,
   onCloseDeal,
   onCreateLegOperation,
+  onIgnoreReconciliationException,
   onRequestExecution,
+  onRunReconciliation,
   onResolveLeg,
 }: ExecutionTabProps) {
   const visiblePositions = deal.operationalState.positions.filter(
@@ -1221,15 +1229,31 @@ function ExecutionTab({
             <div className="rounded-lg border px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="font-medium">Результат сверки</div>
-                <Badge
-                  variant={getReconciliationStateVariant(
-                    deal.reconciliationSummary.state,
-                  )}
-                >
-                  {getReconciliationStateLabel(
-                    deal.reconciliationSummary.state,
-                  )}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {deal.actions.canRunReconciliation ? (
+                    <Button
+                      data-testid="finance-deal-run-reconciliation"
+                      size="sm"
+                      variant="outline"
+                      disabled={isRunningReconciliation}
+                      onClick={onRunReconciliation}
+                    >
+                      {isRunningReconciliation
+                        ? "Повторяем..."
+                        : "Повторить сверку"}
+                    </Button>
+                  ) : null}
+                  <Badge
+                    data-testid="finance-deal-reconciliation-state"
+                    variant={getReconciliationStateVariant(
+                      deal.reconciliationSummary.state,
+                    )}
+                  >
+                    {getReconciliationStateLabel(
+                      deal.reconciliationSummary.state,
+                    )}
+                  </Badge>
+                </div>
               </div>
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center justify-between gap-3">
@@ -1337,6 +1361,48 @@ function ExecutionTab({
                     ? ` · Закрыто: ${formatDate(exception.resolvedAt)}`
                     : ""}
                 </div>
+                {exception.state === "open" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {exception.actions.adjustmentDocumentDocType ? (
+                      <Button
+                        data-testid={`finance-deal-reconciliation-exception-create-adjustment-${exception.id}`}
+                        render={
+                          <Link
+                            href={
+                              buildDocumentCreateHref(
+                                exception.actions.adjustmentDocumentDocType,
+                                {
+                                  dealId: deal.summary.id,
+                                  reconciliationExceptionId: exception.id,
+                                  returnTo: executionTabReturnTo,
+                                },
+                              ) ?? "/documents"
+                            }
+                          />
+                        }
+                        size="sm"
+                        variant="outline"
+                      >
+                        Создать корректировочный документ
+                      </Button>
+                    ) : null}
+                    {exception.actions.canIgnore ? (
+                      <Button
+                        data-testid={`finance-deal-reconciliation-exception-ignore-${exception.id}`}
+                        size="sm"
+                        variant="outline"
+                        disabled={ignoringExceptionId === exception.id}
+                        onClick={() =>
+                          onIgnoreReconciliationException(exception.id)
+                        }
+                      >
+                        {ignoringExceptionId === exception.id
+                          ? "Игнорируем..."
+                          : "Игнорировать"}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))
           )}
@@ -1592,7 +1658,11 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     string | null
   >(null);
   const [isRequestingExecution, setIsRequestingExecution] = useState(false);
+  const [isRunningReconciliation, setIsRunningReconciliation] = useState(false);
   const [isResolvingLegId, setIsResolvingLegId] = useState<string | null>(null);
+  const [ignoringExceptionId, setIgnoringExceptionId] = useState<string | null>(
+    null,
+  );
 
   const tabParam = searchParams.get("tab");
   const activeTab = isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
@@ -1813,6 +1883,61 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     refreshPage(router);
   }
 
+  async function handleRunReconciliation() {
+    setIsRunningReconciliation(true);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось повторить сверку",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/reconciliation/run`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+          },
+        ),
+    });
+
+    setIsRunningReconciliation(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Сверка обновлена");
+    refreshPage(router);
+  }
+
+  async function handleIgnoreReconciliationException(exceptionId: string) {
+    setIgnoringExceptionId(exceptionId);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось игнорировать исключение сверки",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/reconciliation/exceptions/${encodeURIComponent(exceptionId)}/ignore`,
+          {
+            method: "POST",
+            credentials: "include",
+          },
+        ),
+    });
+
+    setIgnoringExceptionId(null);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Исключение сверки помечено как игнорируемое");
+    refreshPage(router);
+  }
+
   async function handleCloseDeal() {
     setIsClosingDeal(true);
 
@@ -1877,13 +2002,19 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <ExecutionTab
                   deal={deal}
                   executionTabReturnTo={executionTabReturnTo}
+                  ignoringExceptionId={ignoringExceptionId}
                   isClosingDeal={isClosingDeal}
                   isCreatingLegOperationId={isCreatingLegOperationId}
                   isRequestingExecution={isRequestingExecution}
+                  isRunningReconciliation={isRunningReconciliation}
                   isResolvingLegId={isResolvingLegId}
                   onCloseDeal={handleCloseDeal}
                   onCreateLegOperation={handleCreateLegOperation}
+                  onIgnoreReconciliationException={
+                    handleIgnoreReconciliationException
+                  }
                   onRequestExecution={handleRequestExecution}
+                  onRunReconciliation={handleRunReconciliation}
                   onResolveLeg={handleResolveLeg}
                 />
               ) : null}

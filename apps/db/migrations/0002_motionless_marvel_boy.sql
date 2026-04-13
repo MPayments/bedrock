@@ -1,0 +1,3 @@
+ALTER TABLE "reconciliation_matches" ADD COLUMN "matched_treasury_operation_id" uuid;--> statement-breakpoint
+ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_matched_treasury_operation_id_treasury_operations_id_fk" FOREIGN KEY ("matched_treasury_operation_id") REFERENCES "public"."treasury_operations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "recon_matches_matched_treasury_operation_idx" ON "reconciliation_matches" USING btree ("matched_treasury_operation_id");

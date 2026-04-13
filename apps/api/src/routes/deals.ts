@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
@@ -27,7 +28,9 @@ import {
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
+import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   PreviewQuoteInputSchema,
   QuotePreviewResponseSchema,
@@ -46,6 +49,7 @@ import {
   CrmDealsStatsSchema,
   FinanceDealQueueFiltersSchema,
   FinanceDealQueueProjectionSchema,
+  FinanceDealReconciliationExceptionSchema,
   FinanceDealWorkspaceProjectionSchema,
 } from "@bedrock/workflow-deal-projections/contracts";
 
@@ -77,6 +81,9 @@ import {
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const RECONCILIATION_DEFAULT_RULESET_CHECKSUM = "core-default-v1";
+  const TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE =
+    "treasury_instruction_outcomes";
   const DealAttachmentParamsSchema = IdParamSchema.extend({
     attachmentId: z
       .string()
@@ -122,6 +129,23 @@ export function dealsRoutes(ctx: AppContext) {
         },
       }),
   });
+  const DealReconciliationExceptionParamsSchema = IdParamSchema.extend({
+    exceptionId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "exceptionId",
+        },
+      }),
+  });
+  const ResolveAdjustmentDocumentInputSchema = z
+    .object({
+      docType: z.string().trim().min(1),
+      documentId: z.string().uuid(),
+    })
+    .strict();
   const DealCalculationHistorySchema = z.array(
     DealCalculationHistoryItemSchema,
   );
@@ -147,6 +171,56 @@ export function dealsRoutes(ctx: AppContext) {
   const DealAttachmentPurposeInputSchema = z.object({
     purpose: FileAttachmentPurposeSchema,
   });
+
+  async function getFinanceWorkspaceOrThrow(dealId: string) {
+    await requireDeal(ctx, dealId);
+    const workspace =
+      await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(dealId);
+
+    if (!workspace) {
+      throw new ValidationError(`Finance workspace is not available for deal ${dealId}`);
+    }
+
+    return workspace;
+  }
+
+  async function getDealReconciliationException(input: {
+    dealId: string;
+    exceptionId: string;
+  }) {
+    const workspace = await getFinanceWorkspaceOrThrow(input.dealId);
+    const exception = workspace.relatedResources.reconciliationExceptions.find(
+      (item) => item.id === input.exceptionId,
+    );
+
+    if (!exception) {
+      throw new ValidationError(
+        `Reconciliation exception ${input.exceptionId} is not linked to deal ${input.dealId}`,
+      );
+    }
+
+    return {
+      exception,
+      workspace,
+    };
+  }
+
+  async function listPendingDealReconciliationExternalRecordIds(dealId: string) {
+    const result = await ctx.persistence.db.execute(sql`
+      select er.id::text as id
+      from ${reconciliationSchema.reconciliationExternalRecords} er
+      where er.source = ${TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE}
+        and (${reconciliationSchema.reconciliationExternalRecords.normalizedPayload} ->> 'dealId') = ${dealId}
+        and not exists (
+          select 1
+          from ${reconciliationSchema.reconciliationMatches} rm
+          where rm.external_record_id = er.id
+        )
+      order by er.received_at asc, er.id asc
+    `);
+
+    return ((result.rows ?? []) as { id: string }[]).map((row) => row.id);
+  }
 
   const listRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
@@ -380,6 +454,110 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Deal not found",
+      },
+    },
+  });
+
+  const listDealReconciliationExceptionsRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["list"], reconciliation: ["list"] }),
+    ],
+    method: "get",
+    path: "/{id}/reconciliation/exceptions",
+    tags: ["Deals"],
+    summary: "List deal-scoped reconciliation exceptions",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(FinanceDealReconciliationExceptionSchema),
+          },
+        },
+        description: "Reconciliation exceptions linked to the deal",
+      },
+    },
+  });
+
+  const runDealReconciliationRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["update"], reconciliation: ["run"] }),
+    ],
+    method: "post",
+    path: "/{id}/reconciliation/run",
+    tags: ["Deals"],
+    summary: "Run reconciliation for pending deal-linked records",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FinanceDealWorkspaceProjectionSchema,
+          },
+        },
+        description: "Updated finance deal workspace projection",
+      },
+    },
+  });
+
+  const ignoreDealReconciliationExceptionRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["update"], reconciliation: ["ignore"] }),
+    ],
+    method: "post",
+    path: "/{id}/reconciliation/exceptions/{exceptionId}/ignore",
+    tags: ["Deals"],
+    summary: "Ignore a deal-scoped reconciliation exception",
+    request: {
+      params: DealReconciliationExceptionParamsSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FinanceDealWorkspaceProjectionSchema,
+          },
+        },
+        description: "Updated finance deal workspace projection",
+      },
+    },
+  });
+
+  const resolveDealReconciliationAdjustmentRoute = createRoute({
+    middleware: [
+      requirePermission({
+        deals: ["update"],
+        documents: ["create"],
+        reconciliation: ["resolve"],
+      }),
+    ],
+    method: "post",
+    path: "/{id}/reconciliation/exceptions/{exceptionId}/adjustment-document",
+    tags: ["Deals"],
+    summary: "Resolve a deal-scoped reconciliation exception with an adjustment document",
+    request: {
+      params: DealReconciliationExceptionParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: ResolveAdjustmentDocumentInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FinanceDealWorkspaceProjectionSchema,
+          },
+        },
+        description: "Updated finance deal workspace projection",
       },
     },
   });
@@ -1339,6 +1517,101 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listDealReconciliationExceptionsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const workspace = await getFinanceWorkspaceOrThrow(id);
+        return jsonOk(c, workspace.relatedResources.reconciliationExceptions);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(runDealReconciliationRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await getFinanceWorkspaceOrThrow(id);
+
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const externalRecordIds =
+              await listPendingDealReconciliationExternalRecordIds(id);
+
+            if (externalRecordIds.length > 0) {
+              await ctx.reconciliationService.runs.runReconciliation({
+                source: TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE,
+                rulesetChecksum: RECONCILIATION_DEFAULT_RULESET_CHECKSUM,
+                inputQuery: {
+                  externalRecordIds,
+                },
+                actorUserId: c.get("user")!.id,
+                idempotencyKey,
+                requestContext: getRequestContext(c),
+              });
+            }
+
+            const workspace = await getFinanceWorkspaceOrThrow(id);
+            return workspace;
+          },
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(ignoreDealReconciliationExceptionRoute, async (c) => {
+      try {
+        const { exceptionId, id } = c.req.valid("param");
+        await getDealReconciliationException({
+          dealId: id,
+          exceptionId,
+        });
+
+        await ctx.reconciliationService.exceptions.ignore(exceptionId);
+
+        const workspace = await getFinanceWorkspaceOrThrow(id);
+        return jsonOk(c, workspace);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(resolveDealReconciliationAdjustmentRoute, async (c) => {
+      try {
+        const { exceptionId, id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        await getDealReconciliationException({
+          dealId: id,
+          exceptionId,
+        });
+
+        const document = await ctx.documentsService.get(
+          body.docType,
+          body.documentId,
+          c.get("user")!.id,
+        );
+
+        if (document.dealId !== id) {
+          throw new ValidationError(
+            `Document ${body.documentId} is not linked to deal ${id}`,
+          );
+        }
+
+        await ctx.reconciliationService.exceptions.resolveWithAdjustment({
+          exceptionId,
+          adjustmentDocumentId: body.documentId,
+        });
+
+        const workspace = await getFinanceWorkspaceOrThrow(id);
+        return jsonOk(c, workspace);
       } catch (error) {
         return handleRouteError(c, error);
       }

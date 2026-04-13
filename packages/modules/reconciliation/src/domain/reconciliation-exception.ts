@@ -63,4 +63,34 @@ export class ReconciliationException extends Entity<string> {
       },
     };
   }
+
+  ignore(input: {
+    ignoredAt: Date;
+  }) {
+    if (this.snapshot.state === "ignored") {
+      return {
+        alreadyIgnored: true,
+        exceptionId: this.snapshot.id,
+      };
+    }
+
+    if (this.snapshot.state === "resolved") {
+      return {
+        alreadyIgnored: false,
+        exceptionId: this.snapshot.id,
+        ignoredBlockedByResolution: true as const,
+        update: null,
+      };
+    }
+
+    return {
+      alreadyIgnored: false,
+      exceptionId: this.snapshot.id,
+      ignoredBlockedByResolution: false as const,
+      update: {
+        id: this.snapshot.id,
+        ignoredAt: input.ignoredAt,
+      },
+    };
+  }
 }

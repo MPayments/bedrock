@@ -144,6 +144,7 @@ function createDeal(): FinanceDealWorkbenchData {
       canCreateCalculation: false,
       canCreateQuote: true,
       canRequestExecution: true,
+      canRunReconciliation: false,
       canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
@@ -434,6 +435,10 @@ describe("treasury deal workbench", () => {
     };
     deal.relatedResources.reconciliationExceptions = [
       {
+        actions: {
+          adjustmentDocumentDocType: "transfer_resolution",
+          canIgnore: true,
+        },
         blocking: true,
         createdAt: "2026-04-02T10:00:00.000Z",
         externalRecordId: "external-record-1",
@@ -460,6 +465,9 @@ describe("treasury deal workbench", () => {
     expect(normalizedMarkup).toContain("Открытых исключений");
     expect(normalizedMarkup).toContain("Исключения сверки");
     expect(normalizedMarkup).toContain("bank_statement");
+    expect(normalizedMarkup).toContain(
+      "reconciliationExceptionId=exception-1",
+    );
     expect(normalizedMarkup).toContain("25 513,38 RUB");
     expect(normalizedMarkup).not.toContain("2 551 338");
     expect(normalizedMarkup).not.toContain("Закрыть сделку");

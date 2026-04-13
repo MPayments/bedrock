@@ -57,11 +57,14 @@ export function createListOperationLinksHandler(
     ]);
 
     for (const match of matchedRows) {
-      if (!match.matchedOperationId) {
+      const matchedOperationId =
+        match.matchedOperationRef?.id ?? match.matchedOperationId;
+
+      if (!matchedOperationId) {
         continue;
       }
 
-      const link = linksByOperationId.get(match.matchedOperationId);
+      const link = linksByOperationId.get(matchedOperationId);
       if (!link) {
         continue;
       }
