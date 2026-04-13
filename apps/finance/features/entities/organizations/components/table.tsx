@@ -7,8 +7,8 @@ import * as React from "react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { COUNTRIES } from "@bedrock/shared/reference-data/countries";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
-import { EntityTableShell } from "@/components/entities/entity-table-shell";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import { formatDate } from "@/lib/format";
 
 import type {

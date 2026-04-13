@@ -1,6 +1,6 @@
 import { TicketPercent } from "lucide-react";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { FxQuotesTable } from "@/features/treasury/quotes/components/table";
 import { getFxQuotes } from "@/features/treasury/quotes/lib/queries";

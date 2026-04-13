@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
-  flexRender,
   getCoreRowModel,
   SortingState,
   useReactTable,
@@ -13,20 +12,13 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Plus, Search, Download, Loader2 } from "lucide-react";
 
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/sdk-ui/components/table";
-import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
-import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
-import { API_BASE_URL } from "@/lib/constants";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
+
+import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+
+import { API_BASE_URL } from "@/lib/constants";
 
 interface ClientRow {
   id: string;
@@ -170,7 +162,7 @@ export default function ClientsPage() {
         id: "rowNumber",
         meta: { label: "№" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="№" align="left" />
+          <DataTableColumnHeader column={column} label="№" />
         ),
         enableSorting: false,
         enableHiding: false,
@@ -183,7 +175,7 @@ export default function ClientsPage() {
         accessorKey: "name",
         meta: { label: "Организация" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Организация" />
+          <DataTableColumnHeader column={column} label="Организация" />
         ),
         enableSorting: false,
       },
@@ -191,7 +183,7 @@ export default function ClientsPage() {
         accessorKey: "externalRef",
         meta: { label: "Ref" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Ref" />
+          <DataTableColumnHeader column={column} label="Ref" />
         ),
         enableSorting: false,
         cell: ({ getValue }) => getValue<string | null>() || "—",
@@ -200,7 +192,7 @@ export default function ClientsPage() {
         accessorKey: "description",
         meta: { label: "Описание" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Описание" />
+          <DataTableColumnHeader column={column} label="Описание" />
         ),
         enableSorting: false,
         cell: ({ getValue }) => getValue<string | null>() || "—",
@@ -209,7 +201,7 @@ export default function ClientsPage() {
         accessorKey: "createdAt",
         meta: { label: "Создан" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Создан" />
+          <DataTableColumnHeader column={column} label="Создан" />
         ),
         enableSorting: false,
         cell: ({ getValue }) =>
@@ -219,7 +211,7 @@ export default function ClientsPage() {
         accessorKey: "updatedAt",
         meta: { label: "Обновлен" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Обновлен" />
+          <DataTableColumnHeader column={column} label="Обновлен" />
         ),
         enableSorting: false,
         cell: ({ getValue }) =>
@@ -284,21 +276,6 @@ export default function ClientsPage() {
 
       <Card>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <div className="relative w-[300px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Поиск по названию, ИНН, директору..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <DataTableViewOptions table={table} />
-          </div>
-
           {error && (
             <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
               {error}
@@ -311,59 +288,33 @@ export default function ClientsPage() {
                 <div className="text-sm text-muted-foreground">Загрузка...</div>
               </div>
             )}
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() =>
-                        router.push(`/customers/${row.original.id}`)
-                      }
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      {loading ? "Загрузка..." : "Нет данных"}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              table={table}
+              onRowDoubleClick={(row) =>
+                router.push(`/customers/${row.original.id}`)
+              }
+              contextMenuItems={(row) => [
+                {
+                  label: "Открыть",
+                  onClick: () => router.push(`/customers/${row.original.id}`),
+                },
+              ]}
+            >
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="relative w-[300px]">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Поиск по названию, ИНН, директору..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
+            </DataTable>
           </div>
-
-          <DataTablePagination table={table} />
         </CardContent>
       </Card>
     </div>

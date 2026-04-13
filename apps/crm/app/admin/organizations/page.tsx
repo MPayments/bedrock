@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
-  flexRender,
   getCoreRowModel,
   useReactTable,
   getSortedRowModel,
@@ -26,16 +25,10 @@ import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { Input } from "@bedrock/sdk-ui/components/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/sdk-ui/components/table";
 
-import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
+import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+
 import { API_BASE_URL } from "@/lib/constants";
 import {
   AlertDialog,
@@ -170,7 +163,7 @@ export default function OrganizationsPage() {
         id: "rowNumber",
         meta: { label: "№" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="№" align="left" />
+          <DataTableColumnHeader column={column} label="№" />
         ),
         enableSorting: false,
         cell: ({ row }) => row.index + 1,
@@ -180,7 +173,7 @@ export default function OrganizationsPage() {
         accessorKey: "name",
         meta: { label: "Название" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Название" />
+          <DataTableColumnHeader column={column} label="Название" />
         ),
         cell: ({ row }) => (
           <div className="max-w-[300px]">
@@ -199,7 +192,7 @@ export default function OrganizationsPage() {
         accessorKey: "inn",
         meta: { label: "ИНН" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="ИНН" />
+          <DataTableColumnHeader column={column} label="ИНН" />
         ),
         cell: ({ getValue }) => getValue<string | null>() || "—",
       },
@@ -207,7 +200,7 @@ export default function OrganizationsPage() {
         accessorKey: "country",
         meta: { label: "Страна" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Страна" />
+          <DataTableColumnHeader column={column} label="Страна" />
         ),
         cell: ({ row }) => getCountryLabel(row.original.country),
       },
@@ -215,7 +208,7 @@ export default function OrganizationsPage() {
         accessorKey: "directorName",
         meta: { label: "Директор" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Директор" />
+          <DataTableColumnHeader column={column} label="Директор" />
         ),
         cell: ({ getValue }) => getValue<string | null>() || "—",
       },
@@ -223,7 +216,7 @@ export default function OrganizationsPage() {
         accessorKey: "banksCount",
         meta: { label: "Реквизиты" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Реквизиты" />
+          <DataTableColumnHeader column={column} label="Реквизиты" />
         ),
         cell: ({ getValue }) => (
           <Badge variant="secondary">{getValue<number>()}</Badge>
@@ -233,7 +226,7 @@ export default function OrganizationsPage() {
         accessorKey: "hasFiles",
         meta: { label: "Файлы" },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Печать/Подпись" />
+          <DataTableColumnHeader column={column} label="Печать/Подпись" />
         ),
         cell: ({ getValue }) =>
           getValue<boolean>() ? (
@@ -305,81 +298,37 @@ export default function OrganizationsPage() {
 
       <Card>
         <CardContent className="space-y-4">
-          {/* Поиск */}
-          <div className="flex items-center gap-2">
-            <div className="relative w-[300px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Поиск по названию, ИНН..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
-              {error}
-            </div>
-          )}
-
-          {/* Таблица */}
-          <div className="relative rounded-md border">
+          <div className="relative">
             {loading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             )}
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() =>
-                        router.push(`/admin/organizations/${row.original.id}`)
-                      }
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      {loading ? "Загрузка..." : "Нет данных"}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              table={table}
+              onRowDoubleClick={(row) =>
+                router.push(`/admin/organizations/${row.original.id}`)
+              }
+              contextMenuItems={(row) => [
+                {
+                  label: "Открыть",
+                  onClick: () => router.push(`/admin/organizations/${row.original.id}`),
+                },
+              ]}
+            >
+              {/* Поиск */}
+              <div className="flex items-center gap-2">
+                <div className="relative w-[300px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Поиск по названию, ИНН..."
+                    value={globalFilter}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </DataTable>
           </div>
         </CardContent>
       </Card>

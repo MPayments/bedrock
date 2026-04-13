@@ -7,7 +7,7 @@ import * as React from "react";
 import {
   EntityTableShell,
   type EntityListResult,
-} from "@/components/entities/entity-table-shell";
+} from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 
 import { getColumns, type SerializedUser } from "./columns";
 

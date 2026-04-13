@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { EntityTableShell } from "@/components/entities/entity-table-shell";
+import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 import { getDocumentColumns } from "./columns";
 

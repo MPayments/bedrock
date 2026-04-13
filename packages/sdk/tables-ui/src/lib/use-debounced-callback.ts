@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { useCallbackRef } from "@/hooks/use-callback-ref";
+import { useCallbackRef } from "@bedrock/sdk-tables-ui/lib/use-callback-ref";
 
 /**
  * @see https://github.com/mantinedev/mantine/blob/master/packages/@mantine/hooks/src/use-debounced-callback/use-debounced-callback.ts

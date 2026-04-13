@@ -27,9 +27,9 @@ import {
 } from "nuqs";
 import * as React from "react";
 
-import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
-import { getSortingStateParser } from "@/lib/parsers";
-import type { ExtendedColumnSort, FilterVariant } from "@/types/data-table";
+import { useDebouncedCallback } from "@bedrock/sdk-tables-ui/lib/use-debounced-callback";
+import { getSortingStateParser } from "@bedrock/sdk-tables-ui/lib/parsers";
+import type { ExtendedColumnSort, FilterVariant } from "@bedrock/sdk-tables-ui/lib/types";
 
 const PAGE_KEY = "page";
 const PER_PAGE_KEY = "perPage";

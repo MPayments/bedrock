@@ -5,8 +5,8 @@ import {
   type ParserWithOptionalDefault,
 } from "nuqs/server";
 
-import { getSortingStateParser } from "@/lib/parsers";
-import type { ExtendedColumnSort } from "@/types/data-table";
+import { getSortingStateParser } from "@bedrock/sdk-tables-ui/lib/parsers";
+import type { ExtendedColumnSort } from "@bedrock/sdk-tables-ui/lib/types";
 
 interface ListSearchParamsParsersOptions {
   sortableColumns: readonly string[];

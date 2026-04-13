@@ -16,7 +16,7 @@ import {
   type SortInput,
 } from "@bedrock/shared/core/pagination";
 
-import type { EntityListResult } from "@/components/entities/entity-table-shell";
+import type { EntityListResult } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import { deriveFinanceDealBlockerState } from "@/features/treasury/deals/lib/execution-summary";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import {

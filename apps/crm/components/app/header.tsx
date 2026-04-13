@@ -247,6 +247,16 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               )}
+              {session.role === "admin" && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    asChild
+                    className={navigationMenuTriggerStyle()}
+                  >
+                    <Link href="/admin/users">Пользователи</Link>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
             </NavigationMenuList>
           </NavigationMenu>
           <div className="flex items-center gap-3">

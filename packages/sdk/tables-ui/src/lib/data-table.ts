@@ -1,10 +1,11 @@
 import type { Column } from "@tanstack/react-table";
-import { dataTableConfig } from "@/config/data-table";
+
+import { dataTableConfig } from "@bedrock/sdk-tables-ui/lib/config";
 import type {
   ExtendedColumnFilter,
   FilterOperator,
   FilterVariant,
-} from "@/types/data-table";
+} from "@bedrock/sdk-tables-ui/lib/types";
 
 export function getCommonPinningStyles<TData>({
   column,
@@ -37,7 +38,7 @@ export function getCommonPinningStyles<TData>({
   };
 }
 
-function getFilterOperators(filterVariant: FilterVariant) {
+export function getFilterOperators(filterVariant: FilterVariant) {
   const operatorMap: Record<
     FilterVariant,
     { label: string; value: FilterOperator }[]
@@ -55,15 +56,13 @@ function getFilterOperators(filterVariant: FilterVariant) {
   return operatorMap[filterVariant] ?? dataTableConfig.textOperators;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Default filter operator is used in the code.
-function getDefaultFilterOperator(filterVariant: FilterVariant) {
+export function getDefaultFilterOperator(filterVariant: FilterVariant) {
   const operators = getFilterOperators(filterVariant);
 
   return operators[0]?.value ?? (filterVariant === "text" ? "iLike" : "eq");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Default filter operator is used in the code.
-function getValidFilters<TData>(
+export function getValidFilters<TData>(
   filters: ExtendedColumnFilter<TData>[],
 ): ExtendedColumnFilter<TData>[] {
   return filters.filter(

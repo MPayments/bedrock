@@ -7,16 +7,17 @@ import * as React from "react";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
+
 import {
   DataTableDateFilter,
   DataTableDateRangeFilter,
-} from "@/components/data-table/date-filter";
+} from "@bedrock/sdk-tables-ui/components/data-table-date-filter";
 import {
   DataTableFacetedFilter,
   DataTableFacetedMultiFilter,
-} from "@/components/data-table/faceted-filter";
-import { DataTableSliderFilter } from "@/components/data-table/slider-filter";
-import { DataTableViewOptions } from "@/components/data-table/view-options";
+} from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
+import { DataTableSliderFilter } from "@bedrock/sdk-tables-ui/components/data-table-slider-filter";
+import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
 
 interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
   table: Table<TData>;

@@ -1,6 +1,6 @@
 import { BookOpen } from "lucide-react";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { OperationsJournalTable } from "@/features/operations/journal/components/operations-journal-table";
 import { getOperations } from "@/features/operations/journal/lib/queries";
