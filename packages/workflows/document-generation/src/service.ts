@@ -45,7 +45,12 @@ import {
   assembleInvoiceData,
   bufferToImageContent,
 } from "./data-assembly";
-import type { DocumentFormat, DocumentLang, OrgFiles } from "./data-assembly";
+import type {
+  DocumentFormat,
+  DocumentLang,
+  OrgFiles,
+  PartialOrgFiles,
+} from "./data-assembly";
 import type {
   ContractClientData,
   ContractOrganizationData,
@@ -518,13 +523,78 @@ export function createDocumentGenerationWorkflow(
     }
   }
 
+  async function fetchConfiguredOrgFilesBestEffort(
+    organization: Organization,
+  ): Promise<PartialOrgFiles> {
+    if (!deps.objectStorage) {
+      return {};
+    }
+
+    const objectStorage = deps.objectStorage;
+    const organizationId = organization.id;
+
+    async function loadOptionalFile(input: {
+      height: number;
+      key: string | null;
+      kind: "seal" | "signature";
+      width: number;
+    }) {
+      if (!input.key) {
+        return undefined;
+      }
+
+      try {
+        const buffer = await objectStorage.download(input.key);
+        return bufferToImageContent(buffer, input.width, input.height);
+      } catch (error) {
+        deps.logger.warn(
+          "Could not load organization signing asset for DOCX contract generation",
+          {
+            assetKind: input.kind,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unknown object storage error",
+            key: input.key,
+            organizationId,
+          },
+        );
+        return undefined;
+      }
+    }
+
+    const [signature, stamp] = await Promise.all([
+      loadOptionalFile({
+        height: 50,
+        key: organization.signatureKey,
+        kind: "signature",
+        width: 150,
+      }),
+      loadOptionalFile({
+        height: 200,
+        key: organization.sealKey,
+        kind: "seal",
+        width: 200,
+      }),
+    ]);
+
+    return {
+      ...(signature ? { signature } : {}),
+      ...(stamp ? { stamp } : {}),
+    };
+  }
+
   async function renderClientContractInternal(
     input: RenderClientContractInput,
   ): Promise<GeneratedDocument> {
     const format = (input.format ?? "docx") as DocumentFormat;
     const lang = (input.lang ?? "ru") as DocumentLang;
+    const orgFilesPromise: Promise<OrgFiles | PartialOrgFiles> =
+      format === "pdf"
+        ? fetchConfiguredOrgFiles(input.organization)
+        : fetchConfiguredOrgFilesBestEffort(input.organization);
     const [orgFiles, organizationCurrency] = await Promise.all([
-      fetchConfiguredOrgFiles(input.organization),
+      orgFilesPromise,
       deps.currencies.findById(input.organizationRequisite.currencyId),
     ]);
     const client = mapContractClientData({

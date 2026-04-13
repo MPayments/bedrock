@@ -10,4 +10,5 @@ export {
   type DocumentLang,
   type ImageContent,
   type OrgFiles,
+  type PartialOrgFiles,
 } from "./types";

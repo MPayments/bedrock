@@ -60,6 +60,22 @@ export function percentStringToBps(
   return (parts.digits * 100n + denominator / 2n) / denominator;
 }
 
+function decimalStringToRoundedInteger(
+  value: string | null | undefined,
+  field: string,
+) {
+  const normalized = normalizeOptionalDecimalString(value, field);
+
+  if (normalized === undefined || normalized === null) {
+    return 0n;
+  }
+
+  const parts = parseDecimalParts(normalized, field);
+  const denominator = 10n ** BigInt(parts.scale);
+
+  return (parts.digits + denominator / 2n) / denominator;
+}
+
 export function calculatePercentAmountMinorHalfUp(
   amountMinor: bigint,
   bps: bigint,
@@ -89,7 +105,10 @@ export function extractAgreementCommercialDefaults(input: {
 
   for (const rule of input.agreement.currentVersion.feeRules) {
     if (rule.kind === "agent_fee") {
-      agreementFeeBps = BigInt(rule.value);
+      agreementFeeBps = decimalStringToRoundedInteger(
+        rule.value,
+        "agreement.agentFeeBps",
+      );
       continue;
     }
 

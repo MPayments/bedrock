@@ -902,6 +902,98 @@ describe("deals routes", () => {
     );
   });
 
+  it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {
+    const {
+      app,
+      agreementsModule,
+      dealsModule,
+      treasuryModule,
+    } = createTestApp();
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+    agreementsModule.agreements.queries.findById.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      organizationId: "00000000-0000-4000-8000-000000000020",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
+      isActive: true,
+      createdAt: new Date("2026-03-30T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+      currentVersion: {
+        id: "00000000-0000-4000-8000-000000000099",
+        versionNumber: 1,
+        contractNumber: null,
+        contractDate: null,
+        createdAt: new Date("2026-03-30T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+        parties: [],
+        feeRules: [
+          {
+            id: "00000000-0000-4000-8000-000000000201",
+            kind: "agent_fee",
+            value: "100.00000000",
+            currencyCode: null,
+          },
+        ],
+      },
+    });
+    treasuryModule.quotes.queries.previewQuote.mockResolvedValue({
+      fromCurrency: "RUB",
+      toCurrency: "USD",
+      fromAmountMinor: 100000n,
+      toAmountMinor: 1100n,
+      pricingMode: "auto_cross",
+      pricingTrace: {},
+      commercialTerms: {
+        agreementVersionId: "00000000-0000-4000-8000-000000000099",
+        agreementFeeBps: 100n,
+        quoteMarkupBps: 0n,
+        totalFeeBps: 100n,
+        fixedFeeAmountMinor: null,
+        fixedFeeCurrency: null,
+      },
+      dealDirection: null,
+      dealForm: null,
+      rateNum: 11n,
+      rateDen: 1000n,
+      expiresAt: new Date("2026-03-30T01:00:00.000Z"),
+      legs: [],
+      feeComponents: [],
+      financialLines: [],
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "auto_cross",
+          fromAmountMinor: "100000",
+          fromCurrency: "RUB",
+          toCurrency: "USD",
+          asOf: "2026-03-30T00:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(treasuryModule.quotes.queries.previewQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commercialTerms: expect.objectContaining({
+          agreementVersionId: "00000000-0000-4000-8000-000000000099",
+          agreementFeeBps: "100",
+          quoteMarkupBps: "0",
+        }),
+      }),
+    );
+  });
+
   it("delegates CRM deals list projections to the workflow", async () => {
     const { app, dealProjectionsWorkflow } = createTestApp();
     dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({

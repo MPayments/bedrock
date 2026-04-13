@@ -29,6 +29,25 @@ function createAgreement(feeRules: Array<{
 }
 
 describe("commercial pricing defaults", () => {
+  it("rounds decimal agreement fee bps strings before converting to bigint", () => {
+    const defaults = extractAgreementCommercialDefaults({
+      agreement: createAgreement([
+        {
+          kind: "agent_fee",
+          value: "100.00000000",
+        },
+      ]) as any,
+      fallbackFixedFeeCurrency: "USD",
+    });
+
+    expect(defaults).toEqual({
+      agreementVersionId: "agreement-version-1",
+      agreementFeeBps: 100n,
+      fixedFeeAmount: null,
+      fixedFeeCurrency: null,
+    });
+  });
+
   it("does not emit fixed fee currency when agreement has no fixed fee", () => {
     const defaults = extractAgreementCommercialDefaults({
       agreement: createAgreement([

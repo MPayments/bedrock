@@ -6,7 +6,7 @@ import {
 } from "../localized-text";
 import { declineBasisToGenitive, formatDirector } from "../russian-language";
 import { resolveDocumentNumber } from "./document-number";
-import type { DocumentLang, OrgFiles } from "./types";
+import type { DocumentLang, PartialOrgFiles } from "./types";
 import { prune } from "./types";
 
 export interface ContractClientData {
@@ -68,7 +68,7 @@ export function assembleClientContractData(
   agreement: ClientContractAgreement,
   organization: ContractOrganizationData,
   organizationRequisite: ContractOrganizationRequisiteData,
-  orgFiles: OrgFiles,
+  orgFiles: PartialOrgFiles,
   lang: DocumentLang,
 ): Record<string, unknown> {
   const contractNumber = resolveDocumentNumber(
@@ -119,8 +119,10 @@ export function assembleClientContractData(
     agentBankCurrencyCode: organizationRequisite.currencyCode,
     agentBankName: organizationRequisite.institutionName,
     agentBankSwiftCode: organizationRequisite.swift,
-    signature: orgFiles.signature,
-    stamp: orgFiles.stamp,
+    showSignature: Boolean(orgFiles.signature),
+    showStamp: Boolean(orgFiles.stamp),
+    ...(orgFiles.signature ? { signature: orgFiles.signature } : {}),
+    ...(orgFiles.stamp ? { stamp: orgFiles.stamp } : {}),
   };
 
   applyLocalizedTemplateField(raw, "orgName", client, "orgName", lang);

@@ -84,7 +84,7 @@ export function CreateCalculationDialog({
             {summaryItems.map((item) => (
               <div key={item.label} className="rounded-md border bg-muted/20 p-3">
                 <div className="text-xs text-muted-foreground">{item.label}</div>
-                <div className="mt-1 break-words text-sm font-medium text-foreground">
+                <div className="mt-1 wrap-break-word text-sm font-medium text-foreground">
                   {item.value}
                 </div>
               </div>
