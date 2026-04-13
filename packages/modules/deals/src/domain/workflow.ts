@@ -260,12 +260,12 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
   }
 }
 
-function hasPostedFxExecuteDocument(
+function hasPostedConvertDocument(
   documents: DealRelatedFormalDocument[],
 ): boolean {
   return documents.some(
     (document) =>
-      document.docType === "fx_execute" &&
+      ["exchange", "fx_execute"].includes(document.docType) &&
       document.lifecycleStatus === "active" &&
       document.postingStatus === "posted",
   );
@@ -310,7 +310,7 @@ export function buildEffectiveDealExecutionPlan(input: {
   });
   const hasExecutedConvert =
     input.acceptance?.quoteStatus === "used" ||
-    hasPostedFxExecuteDocument(input.documents);
+    hasPostedConvertDocument(input.documents);
   const downstreamLegs = merged.filter((leg) =>
     ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
   );
@@ -400,14 +400,6 @@ export function deriveDealNextAction(input: {
           (item) => item.targetStatus === nextProgressStatus,
         )?.blockers
       : null) ?? allBlockers;
-
-  if (
-    relevantBlockers.some((blocker) =>
-      ["capability_pending", "capability_disabled"].includes(blocker.code),
-    )
-  ) {
-    return "Resolve operational capability";
-  }
 
   if (
     relevantBlockers.some((blocker) =>

@@ -21,13 +21,15 @@ import {
   Workflow,
 } from "lucide-react";
 
-import {
-  Alert,
-  AlertDescription,
-} from "@bedrock/sdk-ui/components/alert";
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
@@ -43,9 +45,7 @@ import {
   buildDocumentCreateHref,
   buildDocumentDetailsHref,
 } from "@/features/documents/lib/routes";
-import {
-  formatRate,
-} from "@/features/treasury/rates/lib/format";
+import { formatRate } from "@/features/treasury/rates/lib/format";
 import type {
   FinanceDealQuoteItem,
   FinanceDealWorkbench,
@@ -56,15 +56,11 @@ import {
   getFinanceDealExecutionProgress,
 } from "@/features/treasury/deals/lib/execution-summary";
 import {
-  formatCapabilityIssue,
   formatDealNextAction,
   formatDealWorkflowMessage,
   formatOperationalPositionIssue,
   getAttachmentVisibilityLabel,
   getDealAttachmentRequirementStateLabel,
-  getDealCapabilityLabel,
-  getDealCapabilityStatusLabel,
-  getDealCapabilityStatusVariant,
   getDealFormalDocumentRequirementStateLabel,
   getDealLegKindLabel,
   getDealLegStateLabel,
@@ -214,17 +210,21 @@ function getCalculationDisabledReason(deal: FinanceDealWorkbench) {
   return null;
 }
 
-function formatQuoteAmountsSummary(quote: Pick<
-  FinanceDealQuoteItem,
-  "fromAmount" | "fromCurrency" | "toAmount" | "toCurrency"
->) {
+function formatQuoteAmountsSummary(
+  quote: Pick<
+    FinanceDealQuoteItem,
+    "fromAmount" | "fromCurrency" | "toAmount" | "toCurrency"
+  >,
+) {
   return `${quote.fromAmount} ${quote.fromCurrency} → ${quote.toAmount} ${quote.toCurrency}`;
 }
 
-function formatQuoteRateSummary(quote: Pick<
-  FinanceDealQuoteItem,
-  "fromCurrency" | "rateDen" | "rateNum" | "toCurrency"
->) {
+function formatQuoteRateSummary(
+  quote: Pick<
+    FinanceDealQuoteItem,
+    "fromCurrency" | "rateDen" | "rateNum" | "toCurrency"
+  >,
+) {
   return `${formatMajorAmount(formatRate(quote.rateNum, quote.rateDen))} ${
     quote.toCurrency
   } за 1 ${quote.fromCurrency}`;
@@ -241,7 +241,9 @@ function getAcceptedQuoteDetails(deal: FinanceDealWorkbench) {
     return deal.acceptedQuoteDetails;
   }
 
-  return deal.quoteHistory.find((quote) => quote.id === acceptedQuoteId) ?? null;
+  return (
+    deal.quoteHistory.find((quote) => quote.id === acceptedQuoteId) ?? null
+  );
 }
 
 function getQuoteItemsForDisplay(deal: FinanceDealWorkbench) {
@@ -300,7 +302,10 @@ function DealContextContent({ deal }: DealContextContentProps) {
       <div className="space-y-1 text-sm">
         <div className="text-muted-foreground">Статус</div>
         <div>
-          <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
+          <Badge
+            data-testid="finance-deal-status-badge"
+            variant={getFinanceDealStatusVariant(deal.summary.status)}
+          >
             {getFinanceDealStatusLabel(deal.summary.status)}
           </Badge>
         </div>
@@ -348,7 +353,9 @@ function OverviewTab({ deal }: OverviewTabProps) {
             <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
               {getFinanceDealStatusLabel(deal.summary.status)}
             </Badge>
-            <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
+            <Badge
+              variant={getFinanceDealQueueVariant(deal.queueContext.queue)}
+            >
               {getFinanceDealQueueLabel(deal.queueContext.queue)}
             </Badge>
           </div>
@@ -471,7 +478,9 @@ function PricingTab({
   const activeCalculation =
     deal.calculationHistory.find(
       (item) => item.calculationId === deal.summary.calculationId,
-    ) ?? deal.calculationHistory[0] ?? null;
+    ) ??
+    deal.calculationHistory[0] ??
+    null;
   const activeCalculationQuote =
     findQuoteDetailsById(deal, activeCalculation?.sourceQuoteId) ??
     acceptedQuoteDetails;
@@ -510,7 +519,11 @@ function PricingTab({
                 </div>
               </div>
               {deal.acceptedQuote ? (
-                <Badge variant={getDealQuoteStatusVariant(deal.acceptedQuote.quoteStatus)}>
+                <Badge
+                  variant={getDealQuoteStatusVariant(
+                    deal.acceptedQuote.quoteStatus,
+                  )}
+                >
                   {getDealQuoteStatusLabel(deal.acceptedQuote.quoteStatus)}
                 </Badge>
               ) : null}
@@ -529,7 +542,9 @@ function PricingTab({
                 ) : null}
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Валютная пара</div>
+                    <div className="text-xs text-muted-foreground">
+                      Валютная пара
+                    </div>
                     <div className="text-sm font-medium">
                       {acceptedQuoteDetails
                         ? `${acceptedQuoteDetails.fromCurrency} / ${acceptedQuoteDetails.toCurrency}`
@@ -537,7 +552,9 @@ function PricingTab({
                     </div>
                   </div>
                   <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Срок действия</div>
+                    <div className="text-xs text-muted-foreground">
+                      Срок действия
+                    </div>
                     <div className="text-sm font-medium">
                       {deal.acceptedQuote.expiresAt
                         ? formatDate(deal.acceptedQuote.expiresAt)
@@ -545,7 +562,9 @@ function PricingTab({
                     </div>
                   </div>
                   <div className="rounded-md bg-muted/40 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">Использование</div>
+                    <div className="text-xs text-muted-foreground">
+                      Использование
+                    </div>
                     <div className="text-sm font-medium">
                       {deal.acceptedQuote.usedAt
                         ? `Исполнена ${formatDate(deal.acceptedQuote.usedAt)}`
@@ -613,7 +632,9 @@ function PricingTab({
                           disabled={!canAccept}
                           onClick={() => onAcceptQuote(quote.id)}
                         >
-                          {isAcceptingQuoteId === quote.id ? "Принимаем..." : "Принять"}
+                          {isAcceptingQuoteId === quote.id
+                            ? "Принимаем..."
+                            : "Принять"}
                         </Button>
                       ) : null}
                     </div>
@@ -634,7 +655,9 @@ function PricingTab({
           <Button
             size="sm"
             variant="outline"
-            disabled={Boolean(calculationDisabledReason) || isCreatingCalculation}
+            disabled={
+              Boolean(calculationDisabledReason) || isCreatingCalculation
+            }
             onClick={onCreateCalculation}
           >
             {isCreatingCalculation ? "Создаем..." : "Создать расчет"}
@@ -686,8 +709,12 @@ function PricingTab({
             ) : (
               <div className="space-y-2">
                 {deal.calculationHistory.map((item, index) => {
-                  const isActive = deal.summary.calculationId === item.calculationId;
-                  const sourceQuote = findQuoteDetailsById(deal, item.sourceQuoteId);
+                  const isActive =
+                    deal.summary.calculationId === item.calculationId;
+                  const sourceQuote = findQuoteDetailsById(
+                    deal,
+                    item.sourceQuoteId,
+                  );
 
                   return (
                     <div
@@ -699,7 +726,9 @@ function PricingTab({
                           <span className="font-medium">
                             Расчет {deal.calculationHistory.length - index}
                           </span>
-                          {isActive ? <Badge variant="secondary">Актуальный</Badge> : null}
+                          {isActive ? (
+                            <Badge variant="secondary">Актуальный</Badge>
+                          ) : null}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Создан {formatDate(item.createdAt)}
@@ -715,11 +744,17 @@ function PricingTab({
                           </>
                         ) : item.sourceQuoteId ? (
                           <div className="text-xs text-muted-foreground">
-                            Основан на котировке, курс {formatMajorAmount(formatRate(item.rateNum, item.rateDen))}
+                            Основан на котировке, курс{" "}
+                            {formatMajorAmount(
+                              formatRate(item.rateNum, item.rateDen),
+                            )}
                           </div>
                         ) : (
                           <div className="text-xs text-muted-foreground">
-                            Курс {formatMajorAmount(formatRate(item.rateNum, item.rateDen))}
+                            Курс{" "}
+                            {formatMajorAmount(
+                              formatRate(item.rateNum, item.rateDen),
+                            )}
                           </div>
                         )}
                       </div>
@@ -821,9 +856,13 @@ function DocumentsTab({
                   className="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="shrink-0">{getFileIcon(attachment.mimeType)}</div>
+                    <div className="shrink-0">
+                      {getFileIcon(attachment.mimeType)}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{attachment.fileName}</div>
+                      <div className="truncate font-medium">
+                        {attachment.fileName}
+                      </div>
                       {attachment.description ? (
                         <div className="truncate text-sm text-muted-foreground">
                           {attachment.description}
@@ -910,6 +949,7 @@ function DocumentsTab({
                     <div className="flex items-center gap-2">
                       {actionHref ? (
                         <Button
+                          data-testid={`finance-deal-formal-document-action-${requirement.stage}-${requirement.docType}`}
                           size="sm"
                           variant="outline"
                           nativeButton={false}
@@ -918,7 +958,10 @@ function DocumentsTab({
                           {createHref ? "Создать" : "Открыть"}
                         </Button>
                       ) : null}
-                      <Badge variant="outline">
+                      <Badge
+                        data-testid={`finance-deal-formal-document-state-${requirement.stage}-${requirement.docType}`}
+                        variant="outline"
+                      >
                         {getDealFormalDocumentRequirementStateLabel(
                           requirement.state,
                         )}
@@ -944,7 +987,10 @@ function DocumentsTab({
           ) : (
             <div className="space-y-3">
               {deal.relatedResources.formalDocuments.map((document) => {
-                const href = buildDocumentDetailsHref(document.docType, document.id);
+                const href = buildDocumentDetailsHref(
+                  document.docType,
+                  document.id,
+                );
                 const showOpenAction =
                   href !== null && !activeRequiredDocumentIds.has(document.id);
 
@@ -956,7 +1002,9 @@ function DocumentsTab({
                           {getFormalDocumentLabel(document.docType)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {formatDate(document.createdAt ?? document.occurredAt ?? "")}
+                          {formatDate(
+                            document.createdAt ?? document.occurredAt ?? "",
+                          )}
                         </div>
                       </div>
                       {showOpenAction ? (
@@ -973,17 +1021,20 @@ function DocumentsTab({
                     <div className="mt-3 flex flex-wrap gap-2">
                       {document.submissionStatus ? (
                         <Badge variant="outline">
-                          Отправка: {getSubmissionStatusLabel(document.submissionStatus)}
+                          Отправка:{" "}
+                          {getSubmissionStatusLabel(document.submissionStatus)}
                         </Badge>
                       ) : null}
                       {document.approvalStatus ? (
                         <Badge variant="outline">
-                          Согласование: {getApprovalStatusLabel(document.approvalStatus)}
+                          Согласование:{" "}
+                          {getApprovalStatusLabel(document.approvalStatus)}
                         </Badge>
                       ) : null}
                       {document.postingStatus ? (
                         <Badge variant="outline">
-                          Проведение: {getPostingStatusLabel(document.postingStatus)}
+                          Проведение:{" "}
+                          {getPostingStatusLabel(document.postingStatus)}
                         </Badge>
                       ) : null}
                     </div>
@@ -1045,43 +1096,48 @@ function formatProfitabilityAmounts(
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
   executionTabReturnTo: string;
+  ignoringExceptionId: string | null;
   isClosingDeal: boolean;
   isCreatingLegOperationId: string | null;
   isRequestingExecution: boolean;
-  isResolvingCapabilityKind: string | null;
+  isRunningReconciliation: boolean;
   isResolvingLegId: string | null;
   onCloseDeal: () => void;
   onCreateLegOperation: (legId: string) => void;
+  onIgnoreReconciliationException: (exceptionId: string) => void;
   onRequestExecution: () => void;
-  onResolveCapability: (kind: string) => void;
+  onRunReconciliation: () => void;
   onResolveLeg: (legId: string) => void;
 };
 
 function ExecutionTab({
   deal,
   executionTabReturnTo,
+  ignoringExceptionId,
   isClosingDeal,
   isCreatingLegOperationId,
   isRequestingExecution,
-  isResolvingCapabilityKind,
+  isRunningReconciliation,
   isResolvingLegId,
   onCloseDeal,
   onCreateLegOperation,
+  onIgnoreReconciliationException,
   onRequestExecution,
-  onResolveCapability,
+  onRunReconciliation,
   onResolveLeg,
 }: ExecutionTabProps) {
-  const capabilityIssues = deal.operationalState.capabilities.filter(
-    (item) => item.status !== "enabled",
-  );
   const visiblePositions = deal.operationalState.positions.filter(
     (item) =>
       isPrimaryOperationalPositionVisible(item.kind) &&
       item.state !== "not_applicable",
   );
-  const blockedPositions = visiblePositions.filter((item) => item.state === "blocked");
+  const blockedPositions = visiblePositions.filter(
+    (item) => item.state === "blocked",
+  );
   const operationsById = new Map(
-    deal.relatedResources.operations.map((operation) => [operation.id, operation] as const),
+    deal.relatedResources.operations.map(
+      (operation) => [operation.id, operation] as const,
+    ),
   );
   const closeReadinessBlockers = deal.closeReadiness.blockers.map((blocker) =>
     formatDealWorkflowMessage(blocker),
@@ -1100,16 +1156,20 @@ function ExecutionTab({
         <CardContent className="flex flex-wrap gap-2">
           {deal.actions.canRequestExecution ? (
             <Button
+              data-testid="finance-deal-request-execution"
               size="sm"
               disabled={isRequestingExecution}
               onClick={onRequestExecution}
             >
-              {isRequestingExecution ? "Материализуем..." : "Запросить исполнение"}
+              {isRequestingExecution
+                ? "Материализуем..."
+                : "Запросить исполнение"}
             </Button>
           ) : null}
           {!deal.actions.canRequestExecution ? (
             <div className="text-sm text-muted-foreground">
-              Дополнительные действия по инструкции доступны в карточках этапов и операций.
+              Дополнительные действия по инструкции доступны в карточках этапов
+              и операций.
             </div>
           ) : null}
         </CardContent>
@@ -1169,13 +1229,31 @@ function ExecutionTab({
             <div className="rounded-lg border px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="font-medium">Результат сверки</div>
-                <Badge
-                  variant={getReconciliationStateVariant(
-                    deal.reconciliationSummary.state,
-                  )}
-                >
-                  {getReconciliationStateLabel(deal.reconciliationSummary.state)}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {deal.actions.canRunReconciliation ? (
+                    <Button
+                      data-testid="finance-deal-run-reconciliation"
+                      size="sm"
+                      variant="outline"
+                      disabled={isRunningReconciliation}
+                      onClick={onRunReconciliation}
+                    >
+                      {isRunningReconciliation
+                        ? "Повторяем..."
+                        : "Повторить сверку"}
+                    </Button>
+                  ) : null}
+                  <Badge
+                    data-testid="finance-deal-reconciliation-state"
+                    variant={getReconciliationStateVariant(
+                      deal.reconciliationSummary.state,
+                    )}
+                  >
+                    {getReconciliationStateLabel(
+                      deal.reconciliationSummary.state,
+                    )}
+                  </Badge>
+                </div>
               </div>
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center justify-between gap-3">
@@ -1204,6 +1282,7 @@ function ExecutionTab({
                 <div className="font-medium">Закрытие сделки</div>
                 {deal.actions.canCloseDeal ? (
                   <Button
+                    data-testid="finance-deal-close"
                     size="sm"
                     disabled={isClosingDeal}
                     onClick={onCloseDeal}
@@ -1229,7 +1308,8 @@ function ExecutionTab({
                   </div>
                 ))}
               </div>
-              {!deal.actions.canCloseDeal && closeReadinessBlockers.length > 0 ? (
+              {!deal.actions.canCloseDeal &&
+              closeReadinessBlockers.length > 0 ? (
                 <div className="mt-3 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
                   {closeReadinessBlockers.join(" ")}
                 </div>
@@ -1253,19 +1333,27 @@ function ExecutionTab({
             </div>
           ) : (
             deal.relatedResources.reconciliationExceptions.map((exception) => (
-              <div key={`${exception.id}:${exception.operationId}`} className="rounded-lg border p-3">
+              <div
+                key={`${exception.id}:${exception.operationId}`}
+                className="rounded-lg border p-3"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     variant={exception.blocking ? "destructive" : "outline"}
                   >
-                    {exception.state === "open" ? "Открыто" : exception.state === "resolved" ? "Разрешено" : "Игнорируется"}
+                    {exception.state === "open"
+                      ? "Открыто"
+                      : exception.state === "resolved"
+                        ? "Разрешено"
+                        : "Игнорируется"}
                   </Badge>
                   <span className="text-sm font-medium">
                     {exception.reasonCode}
                   </span>
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
-                  Источник: {exception.source} · Операция: {exception.operationId}
+                  Источник: {exception.source} · Операция:{" "}
+                  {exception.operationId}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   Создано: {formatDate(exception.createdAt)}
@@ -1273,6 +1361,48 @@ function ExecutionTab({
                     ? ` · Закрыто: ${formatDate(exception.resolvedAt)}`
                     : ""}
                 </div>
+                {exception.state === "open" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {exception.actions.adjustmentDocumentDocType ? (
+                      <Button
+                        data-testid={`finance-deal-reconciliation-exception-create-adjustment-${exception.id}`}
+                        render={
+                          <Link
+                            href={
+                              buildDocumentCreateHref(
+                                exception.actions.adjustmentDocumentDocType,
+                                {
+                                  dealId: deal.summary.id,
+                                  reconciliationExceptionId: exception.id,
+                                  returnTo: executionTabReturnTo,
+                                },
+                              ) ?? "/documents"
+                            }
+                          />
+                        }
+                        size="sm"
+                        variant="outline"
+                      >
+                        Создать корректировочный документ
+                      </Button>
+                    ) : null}
+                    {exception.actions.canIgnore ? (
+                      <Button
+                        data-testid={`finance-deal-reconciliation-exception-ignore-${exception.id}`}
+                        size="sm"
+                        variant="outline"
+                        disabled={ignoringExceptionId === exception.id}
+                        onClick={() =>
+                          onIgnoreReconciliationException(exception.id)
+                        }
+                      >
+                        {ignoringExceptionId === exception.id
+                          ? "Игнорируем..."
+                          : "Игнорировать"}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))
           )}
@@ -1319,6 +1449,7 @@ function ExecutionTab({
             return (
               <div
                 key={leg.id ?? `${leg.idx}:${leg.kind}`}
+                data-testid={`finance-deal-leg-${leg.idx}`}
                 className="rounded-lg border p-4 transition-colors hover:bg-accent/30"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1336,7 +1467,12 @@ function ExecutionTab({
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{getDealLegStateLabel(leg.state)}</Badge>
+                    <Badge
+                      data-testid={`finance-deal-leg-state-${leg.idx}`}
+                      variant="outline"
+                    >
+                      {getDealLegStateLabel(leg.state)}
+                    </Badge>
                     {canResolveLegBlocker && leg.id ? (
                       <Button
                         size="sm"
@@ -1344,7 +1480,9 @@ function ExecutionTab({
                         disabled={isResolvingLegId === leg.id}
                         onClick={() => onResolveLeg(leg.id!)}
                       >
-                        {isResolvingLegId === leg.id ? "Устраняем..." : "Устранить блокер"}
+                        {isResolvingLegId === leg.id
+                          ? "Устраняем..."
+                          : "Устранить блокер"}
                       </Button>
                     ) : null}
                     {canCreateLegOperation && leg.id ? (
@@ -1361,12 +1499,15 @@ function ExecutionTab({
                     ) : null}
                     {exchangeDocumentActionHref ? (
                       <Button
+                        data-testid={`finance-deal-exchange-document-action-${leg.idx}`}
                         size="sm"
                         variant="outline"
                         nativeButton={false}
                         render={<Link href={exchangeDocumentActionHref} />}
                       >
-                        {exchangeDocumentCreateHref ? "Создать обмен" : "Открыть обмен"}
+                        {exchangeDocumentCreateHref
+                          ? "Создать обмен"
+                          : "Открыть обмен"}
                       </Button>
                     ) : null}
                   </div>
@@ -1383,7 +1524,9 @@ function ExecutionTab({
                           <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge
-                                variant={getTreasuryOperationKindVariant(operation.kind)}
+                                variant={getTreasuryOperationKindVariant(
+                                  operation.kind,
+                                )}
                               >
                                 {getTreasuryOperationKindLabel(operation.kind)}
                               </Badge>
@@ -1402,6 +1545,7 @@ function ExecutionTab({
                             </div>
                           </div>
                           <Button
+                            data-testid={`finance-deal-operation-open-${operation.id}`}
                             size="sm"
                             variant="outline"
                             nativeButton={false}
@@ -1415,7 +1559,8 @@ function ExecutionTab({
                   </div>
                 ) : leg.operationRefs.length > 0 ? (
                   <div className="mt-4 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
-                    Операция привязана к этапу, но карточка операции сейчас недоступна.
+                    Операция привязана к этапу, но карточка операции сейчас
+                    недоступна.
                   </div>
                 ) : null}
               </div>
@@ -1432,41 +1577,18 @@ function ExecutionTab({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {capabilityIssues.length > 0 || blockedPositions.length > 0 ? (
+          {blockedPositions.length > 0 ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <AlertCircle className="h-4 w-4" />
                 Что мешает продолжить
               </div>
               <div className="space-y-2">
-                {capabilityIssues.map((capability) => (
-                  <div key={capability.kind} className="rounded-lg border px-3 py-2 text-sm">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span>
-                        {formatCapabilityIssue({
-                          kind: capability.kind,
-                          status: capability.status,
-                        })}
-                      </span>
-                      {deal.actions.canResolveExecutionBlocker &&
-                      capability.applicantCounterpartyId &&
-                      capability.internalEntityOrganizationId ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isResolvingCapabilityKind === capability.kind}
-                          onClick={() => onResolveCapability(capability.kind)}
-                        >
-                          {isResolvingCapabilityKind === capability.kind
-                            ? "Устраняем..."
-                            : "Разрешить"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
                 {blockedPositions.map((position) => (
-                  <div key={position.kind} className="rounded-lg border px-3 py-2 text-sm">
+                  <div
+                    key={position.kind}
+                    className="rounded-lg border px-3 py-2 text-sm"
+                  >
                     {formatOperationalPositionIssue({
                       kind: position.kind,
                     })}
@@ -1491,55 +1613,18 @@ function ExecutionTab({
                   <div key={position.kind} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-medium">
-                        {getFinancePrimaryOperationalPositionLabel(position.kind)}
+                        {getFinancePrimaryOperationalPositionLabel(
+                          position.kind,
+                        )}
                       </div>
                       <Badge
-                        variant={getDealOperationalPositionStateVariant(position.state)}
+                        variant={getDealOperationalPositionStateVariant(
+                          position.state,
+                        )}
                       >
                         {getDealOperationalPositionStateLabel(position.state)}
                       </Badge>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {deal.operationalState.capabilities.length > 0 ? (
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-muted-foreground">
-                Казначейские возможности
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {deal.operationalState.capabilities.map((capability) => (
-                  <div key={capability.kind} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">
-                        {getDealCapabilityLabel(capability.kind)}
-                      </div>
-                      <Badge
-                        variant={getDealCapabilityStatusVariant(capability.status)}
-                      >
-                        {getDealCapabilityStatusLabel(capability.status)}
-                      </Badge>
-                    </div>
-                    {capability.status !== "enabled" &&
-                    deal.actions.canResolveExecutionBlocker &&
-                    capability.applicantCounterpartyId &&
-                    capability.internalEntityOrganizationId ? (
-                      <div className="mt-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isResolvingCapabilityKind === capability.kind}
-                          onClick={() => onResolveCapability(capability.kind)}
-                        >
-                          {isResolvingCapabilityKind === capability.kind
-                            ? "Устраняем..."
-                            : "Разрешить блокер"}
-                        </Button>
-                      </div>
-                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1562,18 +1647,25 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
-  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(null);
+  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
+    null,
+  );
   const [isClosingDeal, setIsClosingDeal] = useState(false);
-  const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<string | null>(null);
-  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<
+    string | null
+  >(null);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
+    string | null
+  >(null);
   const [isRequestingExecution, setIsRequestingExecution] = useState(false);
-  const [isResolvingCapabilityKind, setIsResolvingCapabilityKind] = useState<string | null>(null);
+  const [isRunningReconciliation, setIsRunningReconciliation] = useState(false);
   const [isResolvingLegId, setIsResolvingLegId] = useState<string | null>(null);
+  const [ignoringExceptionId, setIgnoringExceptionId] = useState<string | null>(
+    null,
+  );
 
   const tabParam = searchParams.get("tab");
-  const activeTab = isDealPageTab(tabParam)
-    ? tabParam
-    : DEFAULT_DEAL_PAGE_TAB;
+  const activeTab = isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
   const quoteCreationDisabledReason = getQuoteCreationDisabledReason(deal);
   const calculationDisabledReason = getCalculationDisabledReason(deal);
   const workspaceTabs: EntityWorkspaceTab[] = DEAL_PAGE_TAB_META.map((tab) => ({
@@ -1587,8 +1679,16 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     id: deal.summary.id,
     type: deal.summary.type,
   });
-  const documentsTabReturnTo = getDealTabHref(pathname, searchParams, "documents");
-  const executionTabReturnTo = getDealTabHref(pathname, searchParams, "execution");
+  const documentsTabReturnTo = getDealTabHref(
+    pathname,
+    searchParams,
+    "documents",
+  );
+  const executionTabReturnTo = getDealTabHref(
+    pathname,
+    searchParams,
+    "execution",
+  );
 
   async function handleAcceptQuote(quoteId: string) {
     setIsAcceptingQuoteId(quoteId);
@@ -1694,15 +1794,18 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     const result = await executeMutation({
       fallbackMessage: "Не удалось запросить исполнение",
       request: () =>
-        fetch(`/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": createIdempotencyKey(),
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({}),
           },
-          body: JSON.stringify({}),
-        }),
+        ),
     });
 
     setIsRequestingExecution(false);
@@ -1764,7 +1867,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
             },
             body: JSON.stringify({
               legId,
-              target: "leg",
             }),
           },
         ),
@@ -1781,37 +1883,58 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     refreshPage(router);
   }
 
-  async function handleResolveCapability(capabilityKind: string) {
-    setIsResolvingCapabilityKind(capabilityKind);
+  async function handleRunReconciliation() {
+    setIsRunningReconciliation(true);
 
     const result = await executeMutation({
-      fallbackMessage: "Не удалось устранить операционный блокер",
+      fallbackMessage: "Не удалось повторить сверку",
       request: () =>
         fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/blockers/resolve`,
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/reconciliation/run`,
           {
             method: "POST",
             credentials: "include",
             headers: {
-              "Content-Type": "application/json",
               "Idempotency-Key": createIdempotencyKey(),
             },
-            body: JSON.stringify({
-              capabilityKind,
-              target: "capability",
-            }),
           },
         ),
     });
 
-    setIsResolvingCapabilityKind(null);
+    setIsRunningReconciliation(false);
 
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
 
-    toast.success("Операционный блокер устранен");
+    toast.success("Сверка обновлена");
+    refreshPage(router);
+  }
+
+  async function handleIgnoreReconciliationException(exceptionId: string) {
+    setIgnoringExceptionId(exceptionId);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось игнорировать исключение сверки",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/reconciliation/exceptions/${encodeURIComponent(exceptionId)}/ignore`,
+          {
+            method: "POST",
+            credentials: "include",
+          },
+        ),
+    });
+
+    setIgnoringExceptionId(null);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Исключение сверки помечено как игнорируемое");
     refreshPage(router);
   }
 
@@ -1852,9 +1975,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <div className="space-y-6">
-              {activeTab === "overview" ? (
-                <OverviewTab deal={deal} />
-              ) : null}
+              {activeTab === "overview" ? <OverviewTab deal={deal} /> : null}
               {activeTab === "pricing" ? (
                 <PricingTab
                   calculationDisabledReason={calculationDisabledReason}
@@ -1881,15 +2002,19 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <ExecutionTab
                   deal={deal}
                   executionTabReturnTo={executionTabReturnTo}
+                  ignoringExceptionId={ignoringExceptionId}
                   isClosingDeal={isClosingDeal}
                   isCreatingLegOperationId={isCreatingLegOperationId}
                   isRequestingExecution={isRequestingExecution}
-                  isResolvingCapabilityKind={isResolvingCapabilityKind}
+                  isRunningReconciliation={isRunningReconciliation}
                   isResolvingLegId={isResolvingLegId}
                   onCloseDeal={handleCloseDeal}
                   onCreateLegOperation={handleCreateLegOperation}
+                  onIgnoreReconciliationException={
+                    handleIgnoreReconciliationException
+                  }
                   onRequestExecution={handleRequestExecution}
-                  onResolveCapability={handleResolveCapability}
+                  onRunReconciliation={handleRunReconciliation}
                   onResolveLeg={handleResolveLeg}
                 />
               ) : null}
@@ -1898,7 +2023,11 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
             <div className="space-y-6">
               <ExecutionSummaryRail deal={deal} />
 
-              <DealTimelineCard timeline={deal.timeline} maxItems={8} />
+              <DealTimelineCard
+                executionPlan={deal.executionPlan}
+                timeline={deal.timeline}
+                maxItems={8}
+              />
 
               {activeTab !== "overview" ? (
                 <Card>

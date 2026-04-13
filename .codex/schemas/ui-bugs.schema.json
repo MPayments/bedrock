@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "properties": {
+    "run_status": {
+      "type": "string",
+      "enum": ["passed", "blocked", "failed"]
+    },
+    "path_reached": { "type": "string" },
+    "summary": { "type": "string" },
+    "bugs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "major", "minor"]
+          },
+          "step": { "type": "string" },
+          "url": { "type": "string" },
+          "expected": { "type": "string" },
+          "actual": { "type": "string" },
+          "suspected_layer": {
+            "type": "string",
+            "enum": [
+              "crm-ui",
+              "iam",
+              "parties",
+              "agreements",
+              "deals",
+              "calculations",
+              "files",
+              "treasury",
+              "api",
+              "test-data",
+              "unknown"
+            ]
+          },
+          "artifact_paths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "suggested_fix": { "type": "string" }
+        },
+        "required": [
+          "title",
+          "severity",
+          "step",
+          "expected",
+          "actual",
+          "suspected_layer"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["run_status", "path_reached", "summary", "bugs"],
+  "additionalProperties": false
+}

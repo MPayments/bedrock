@@ -102,8 +102,8 @@ export function DocumentTypedFormSections() {
   if (!definition) {
     return (
       <div className="text-sm text-muted-foreground">
-        Для типа <span className="font-mono">{docType}</span> типизированная форма
-        недоступна.
+        Для типа <span className="font-mono">{docType}</span> типизированная
+        форма недоступна.
       </div>
     );
   }
@@ -169,6 +169,7 @@ export function DocumentTypedFormSubmitButton({
 
   return (
     <Button
+      data-testid="finance-document-form-submit"
       type="submit"
       form={formId}
       className={className}
@@ -176,7 +177,11 @@ export function DocumentTypedFormSubmitButton({
       variant={variant}
       disabled={submitDisabled}
     >
-      {submitting ? <Spinner className="size-4" /> : <Save className="size-4" />}
+      {submitting ? (
+        <Spinner className="size-4" />
+      ) : (
+        <Save className="size-4" />
+      )}
       {submitting
         ? mode === "create"
           ? "Создание..."
@@ -200,6 +205,7 @@ export function DocumentTypedFormResetButton({
 
   return (
     <Button
+      data-testid="finance-document-form-reset"
       type="reset"
       form={formId}
       className={className}

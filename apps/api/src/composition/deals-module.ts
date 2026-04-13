@@ -210,6 +210,10 @@ export function createApiDealsModule(input: {
   persistence?: PersistenceContext;
   quoteReads: {
     findById(id: string): Promise<{
+      agreementVersionId?: string | null;
+      commercialTerms?: {
+        agreementVersionId: string | null;
+      } | null;
       dealId: string | null;
       expiresAt: Date | null;
       id: string;
@@ -294,6 +298,10 @@ export function createApiDealsModule(input: {
         }
 
         return {
+          agreementVersionId:
+            quote.agreementVersionId ??
+            quote.commercialTerms?.agreementVersionId ??
+            null,
           dealId: quote.dealId,
           expiresAt: quote.expiresAt,
           id: quote.id,

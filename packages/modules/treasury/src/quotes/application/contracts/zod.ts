@@ -21,6 +21,25 @@ function parseStrictMinorAmountString(value: string): bigint | null {
   return parseMinorAmount(value);
 }
 
+function isNonNegativeDecimalString(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+
+  const parts = trimmed.split(".");
+  if (parts.length > 2) {
+    return false;
+  }
+
+  const [whole = "", fraction] = parts;
+  if (!/^(0|[1-9][0-9]*)$/u.test(whole)) {
+    return false;
+  }
+
+  return fraction === undefined || /^[0-9]+$/u.test(fraction);
+}
+
 const positiveMinorAmountStringSchema = z
   .string()
   .refine((value) => parseStrictMinorAmountString(value) !== null, {
@@ -41,6 +60,16 @@ const signedMinorAmountStringSchema = z
   })
   .refine((value) => parseStrictMinorAmountString(value) !== 0n, {
     message: "Must be non-zero",
+  });
+const nonNegativeIntegerStringSchema = z
+  .string()
+  .trim()
+  .regex(/^(0|[1-9]\d*)$/, "Must be a non-negative integer string");
+const nonNegativeDecimalStringSchema = z
+  .string()
+  .trim()
+  .refine(isNonNegativeDecimalString, {
+    message: "Must be a non-negative decimal string",
   });
 
 const financialLineSourceSchema = z.enum(["rule", "manual"]);
@@ -89,6 +118,36 @@ export const QuotePricingTraceSchema = z
     metadata: z.record(z.string(), z.string().max(255)).optional(),
   })
   .passthrough();
+
+export const QuoteCommercialTermsInputSchema = z
+  .object({
+    agreementVersionId: uuidSchema.nullish(),
+    agreementFeeBps: nonNegativeIntegerStringSchema.optional(),
+    quoteMarkupBps: nonNegativeIntegerStringSchema.optional(),
+    fixedFeeAmount: nonNegativeDecimalStringSchema.nullish(),
+    fixedFeeCurrency: currencySchema.nullish(),
+  })
+  .superRefine((value, ctx) => {
+    const fixedFeeAmount = value.fixedFeeAmount ?? null;
+    const fixedFeeCurrency = value.fixedFeeCurrency ?? null;
+
+    if ((fixedFeeAmount === null) !== (fixedFeeCurrency === null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "fixedFeeAmount and fixedFeeCurrency must be provided together",
+        path: fixedFeeAmount === null ? ["fixedFeeAmount"] : ["fixedFeeCurrency"],
+      });
+    }
+  });
+
+export const QuoteCommercialTermsSchema = z.object({
+  agreementVersionId: uuidSchema.nullable(),
+  agreementFeeBps: nonNegativeIntegerStringSchema,
+  quoteMarkupBps: nonNegativeIntegerStringSchema,
+  totalFeeBps: nonNegativeIntegerStringSchema,
+  fixedFeeAmountMinor: nonNegativeIntegerStringSchema.nullable(),
+  fixedFeeCurrency: currencySchema.nullable(),
+});
 
 export const quoteMinorAmountInputSchema = z.union([
   positiveAmountSchema,
@@ -146,6 +205,7 @@ export const pricingTraceInputSchema = QuotePricingTraceSchema.transform(
 );
 
 const quotePricingBaseSchema = z.object({
+  commercialTerms: QuoteCommercialTermsInputSchema.optional(),
   fromCurrency: currencySchema,
   toCurrency: currencySchema,
   manualFinancialLines: z.array(quoteFinancialLineInputSchema).optional(),

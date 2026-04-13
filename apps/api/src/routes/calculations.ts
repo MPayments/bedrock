@@ -82,15 +82,26 @@ function serializeCalculationForDocumentGeneration(input: {
       snapshot.originalAmountMinor,
       calculationCurrency.precision,
     ),
-    feePercentage: feeBpsToPercentString(snapshot.feeBps),
-    feeAmount: minorToDecimalString(
-      snapshot.feeAmountMinor,
+    agreementFeePercentage: feeBpsToPercentString(snapshot.agreementFeeBps),
+    agreementFeeAmount: minorToDecimalString(
+      snapshot.agreementFeeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    quoteMarkupPercentage: feeBpsToPercentString(snapshot.quoteMarkupBps),
+    quoteMarkupAmount: minorToDecimalString(
+      snapshot.quoteMarkupAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalFeePercentage: feeBpsToPercentString(snapshot.totalFeeBps),
+    totalFeeAmount: minorToDecimalString(
+      snapshot.totalFeeAmountMinor,
       calculationCurrency.precision,
     ),
     totalAmount: minorToDecimalString(
       snapshot.totalAmountMinor,
       calculationCurrency.precision,
     ),
+    finalRate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
     rateSource: serializeRateSource(snapshot.rateSource),
     rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
     additionalExpenses: minorToDecimalString(
@@ -98,10 +109,21 @@ function serializeCalculationForDocumentGeneration(input: {
       additionalExpensesCurrency?.precision ?? baseCurrency.precision,
     ),
     baseCurrencyCode: baseCurrency.code,
-    feeAmountInBase: minorToDecimalString(
-      snapshot.feeAmountInBaseMinor,
+    totalFeeAmountInBase: minorToDecimalString(
+      snapshot.totalFeeAmountInBaseMinor,
       baseCurrency.precision,
     ),
+    fixedFeeAmount: snapshot.fixedFeeCurrencyId
+      ? minorToDecimalString(
+          snapshot.fixedFeeAmountMinor,
+          input.currencies.get(snapshot.fixedFeeCurrencyId)?.precision ??
+            baseCurrency.precision,
+        )
+      : minorToDecimalString(snapshot.fixedFeeAmountMinor, baseCurrency.precision),
+    fixedFeeCurrencyCode:
+      snapshot.fixedFeeCurrencyId != null
+        ? (input.currencies.get(snapshot.fixedFeeCurrencyId)?.code ?? null)
+        : null,
     totalInBase: minorToDecimalString(
       snapshot.totalInBaseMinor,
       baseCurrency.precision,

@@ -9,13 +9,13 @@ import { CompleteDealAttachmentIngestionCommand } from "./commands/complete-deal
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
 import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
 import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
+import { LinkCalculationCommand } from "./commands/link-calculation";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
 import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
-import { UpsertDealCapabilityStateCommand } from "./commands/upsert-deal-capability-state";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
@@ -27,7 +27,6 @@ import { FindDealWorkflowsByIdsQuery } from "./queries/find-deal-workflows-by-id
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
-import { ListDealCapabilityStatesQuery } from "./queries/list-deal-capability-states";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -74,6 +73,11 @@ export function createDealsService(deps: DealsServiceDeps) {
       deps.commandUow,
       deps.references,
     );
+  const linkCalculation = new LinkCalculationCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
   const transitionDealStatus = new TransitionDealStatusCommand(
     deps.runtime,
     deps.commandUow,
@@ -84,10 +88,6 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.references,
   );
   const updateDealLegState = new UpdateDealLegStateCommand(
-    deps.runtime,
-    deps.commandUow,
-  );
-  const upsertDealCapabilityState = new UpsertDealCapabilityStateCommand(
     deps.runtime,
     deps.commandUow,
   );
@@ -111,7 +111,6 @@ export function createDealsService(deps: DealsServiceDeps) {
   const findDealWorkflowsByIds = new FindDealWorkflowsByIdsQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
   const findDealTraceById = new FindDealTraceByIdQuery(deps.reads);
-  const listCapabilityStates = new ListDealCapabilityStatesQuery(deps.reads);
   const listAttachmentIngestions = new ListDealAttachmentIngestionsQuery(
     deps.reads,
   );
@@ -137,13 +136,11 @@ export function createDealsService(deps: DealsServiceDeps) {
         linkCalculationFromAcceptedQuote.execute.bind(
           linkCalculationFromAcceptedQuote,
         ),
+      linkCalculation: linkCalculation.execute.bind(linkCalculation),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       updateComment: updateDealComment.execute.bind(updateDealComment),
-      upsertCapabilityState: upsertDealCapabilityState.execute.bind(
-        upsertDealCapabilityState,
-      ),
       updateLegState: updateDealLegState.execute.bind(updateDealLegState),
     },
     queries: {
@@ -159,9 +156,6 @@ export function createDealsService(deps: DealsServiceDeps) {
         findDealWorkflowsByIds.execute.bind(findDealWorkflowsByIds),
       listAttachmentIngestions:
         listAttachmentIngestions.execute.bind(listAttachmentIngestions),
-      listCapabilityStates: listCapabilityStates.execute.bind(
-        listCapabilityStates,
-      ),
       listCalculationHistory: listCalculationHistory.execute.bind(
         listCalculationHistory,
       ),

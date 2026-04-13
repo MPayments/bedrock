@@ -54,6 +54,9 @@ export function FormalDocumentsCard({
   documents,
   requirements = [],
 }: FormalDocumentsCardProps) {
+  const hasRequirements = requirements.length > 0;
+  const hasDocuments = documents.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -63,8 +66,11 @@ export function FormalDocumentsCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {requirements.length > 0 ? (
+        {hasRequirements ? (
           <div className="space-y-3">
+            <div className="text-sm font-medium text-muted-foreground">
+              Требуемые документы
+            </div>
             {requirements.map((requirement) => (
               <div key={`${requirement.stage}:${requirement.docType}`} className="rounded-lg border p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -94,12 +100,17 @@ export function FormalDocumentsCard({
             ))}
           </div>
         ) : null}
-        {documents.length === 0 ? (
+        {!hasDocuments ? (
           <div className="text-sm text-muted-foreground">
             По сделке еще нет формальных документов.
           </div>
         ) : (
           <div className="space-y-3">
+            {hasRequirements ? (
+              <div className="text-sm font-medium text-muted-foreground">
+                Созданные документы
+              </div>
+            ) : null}
             {documents.map((document) => (
               <div
                 key={document.id}

@@ -32,14 +32,20 @@ describe("document routes", () => {
     expect(
       buildDocumentCreateHref("invoice", {
         dealId: "deal-123",
+        reconciliationExceptionId: "exception-1",
         returnTo: buildDealDocumentsTabHref("deal-123"),
       }),
     ).toBe(
-      "/documents/create/invoice?dealId=deal-123&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Ddocuments",
+      "/documents/create/invoice?dealId=deal-123&reconciliationExceptionId=exception-1&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Ddocuments",
     );
     expect(
-      buildDocumentDetailsHref("period_close", "doc-123"),
-    ).toBe("/documents/ifrs/period_close/doc-123");
+      buildDocumentDetailsHref("period_close", "doc-123", {
+        reconciliationExceptionId: "exception-2",
+        returnTo: "/treasury/deals/deal-123?tab=execution",
+      }),
+    ).toBe(
+      "/documents/ifrs/period_close/doc-123?reconciliationExceptionId=exception-2&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Dexecution",
+    );
   });
 
   it("returns null for non-documents-workspace types", () => {

@@ -1,7 +1,4 @@
 import {
-  dealCapabilityKindEnum,
-  dealCapabilityStates,
-  dealCapabilityStatusEnum,
   dealAttachmentIngestionStatusEnum,
   dealAttachmentIngestions,
   dealAgentBonuses,
@@ -30,9 +27,6 @@ import {
 } from "./adapters/drizzle/schema";
 
 export {
-  dealCapabilityKindEnum,
-  dealCapabilityStates,
-  dealCapabilityStatusEnum,
   dealAttachmentIngestionStatusEnum,
   dealAttachmentIngestions,
   dealAgentBonuses,
@@ -63,7 +57,6 @@ export {
 export const schema = {
   deals,
   dealAttachmentIngestions,
-  dealCapabilityStates,
   dealOperationalPositions,
   dealIntakeSnapshots,
   dealLegs,
@@ -80,8 +73,6 @@ export const schema = {
   dealLegOperationKindEnum,
   dealLegStateEnum,
   dealParticipantRoleEnum,
-  dealCapabilityKindEnum,
-  dealCapabilityStatusEnum,
   dealAttachmentIngestionStatusEnum,
   dealOperationalPositionKindEnum,
   dealOperationalPositionStateEnum,

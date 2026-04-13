@@ -72,6 +72,7 @@ export function UploadAttachmentDialog({
             <Label htmlFor="deal-attachment-file">Файл</Label>
             <Input
               id="deal-attachment-file"
+              data-testid="deal-attachment-file-input"
               onChange={(event) => {
                 onFileChange(event.target.files?.[0] ?? null);
               }}
@@ -87,6 +88,7 @@ export function UploadAttachmentDialog({
             <Label htmlFor="deal-attachment-description">Описание</Label>
             <Input
               id="deal-attachment-description"
+              data-testid="deal-attachment-description-input"
               onChange={(event) => onDescriptionChange(event.target.value)}
               placeholder="Например: подписанный комплект"
               value={uploadDescription}
@@ -97,12 +99,16 @@ export function UploadAttachmentDialog({
             <Select
               value={uploadPurpose}
               onValueChange={(value) => {
-                if (value === "invoice" || value === "contract" || value === "other") {
+                if (
+                  value === "invoice" ||
+                  value === "contract" ||
+                  value === "other"
+                ) {
                   onPurposeChange(value);
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger data-testid="deal-attachment-purpose-select">
                 <SelectValue placeholder="Выберите тип файла">
                   {uploadPurposeLabel}
                 </SelectValue>
@@ -130,7 +136,7 @@ export function UploadAttachmentDialog({
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger data-testid="deal-attachment-visibility-select">
                 <SelectValue placeholder="Выберите видимость">
                   {uploadVisibilityLabel}
                 </SelectValue>
@@ -150,7 +156,11 @@ export function UploadAttachmentDialog({
           <Button onClick={onCancel} variant="outline">
             Отмена
           </Button>
-          <Button disabled={!uploadFile || isUploading} onClick={onSubmit}>
+          <Button
+            data-testid="deal-attachment-submit"
+            disabled={!uploadFile || isUploading}
+            onClick={onSubmit}
+          >
             {isUploading ? "Загрузка..." : "Загрузить"}
           </Button>
         </DialogFooter>

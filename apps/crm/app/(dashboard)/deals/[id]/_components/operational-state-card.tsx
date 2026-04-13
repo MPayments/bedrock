@@ -4,7 +4,6 @@ import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
 import {
-  DEAL_CAPABILITY_LABELS,
   DEAL_OPERATIONAL_POSITION_STATE_COLORS,
   DEAL_OPERATIONAL_POSITION_STATE_LABELS,
 } from "./constants";
@@ -39,16 +38,6 @@ function getCrmPositionLabel(
   return CRM_POSITION_LABELS[kind] ?? kind;
 }
 
-function formatCapabilityIssue(
-  capability: ApiDealOperationalState["capabilities"][number],
-) {
-  const label = DEAL_CAPABILITY_LABELS[capability.kind].toLowerCase();
-
-  return capability.status === "disabled"
-    ? `Операция недоступна: ${label}.`
-    : `Нужно настроить: ${label}.`;
-}
-
 function formatPositionIssue(
   position: ApiDealOperationalState["positions"][number],
 ) {
@@ -60,9 +49,6 @@ function formatPositionIssue(
 export function OperationalStateCard({
   operationalState,
 }: OperationalStateCardProps) {
-  const capabilityIssues = operationalState.capabilities.filter(
-    (capability) => capability.status !== "enabled",
-  );
   const visiblePositions = operationalState.positions.filter(
     (position) =>
       !HIDDEN_POSITION_KINDS.has(position.kind) &&
@@ -81,18 +67,13 @@ export function OperationalStateCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {capabilityIssues.length > 0 || blockedPositions.length > 0 ? (
+        {blockedPositions.length > 0 ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               Что мешает продолжить
             </div>
             <div className="space-y-2">
-              {capabilityIssues.map((capability) => (
-                <div key={capability.kind} className="rounded-lg border px-3 py-2 text-sm">
-                  {formatCapabilityIssue(capability)}
-                </div>
-              ))}
               {blockedPositions.map((position) => (
                 <div key={position.kind} className="rounded-lg border px-3 py-2 text-sm">
                   {formatPositionIssue(position)}

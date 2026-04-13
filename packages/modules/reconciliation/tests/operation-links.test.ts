@@ -5,6 +5,7 @@ import { createListOperationLinksHandler } from "../src/application/links/querie
 function createMatchRow(input: {
   createdAt?: Date;
   matchedOperationId: string | null;
+  matchedOperationKind?: "ledger" | "treasury";
 }) {
   return {
     createdAt: input.createdAt ?? new Date("2026-04-03T09:00:00.000Z"),
@@ -16,7 +17,20 @@ function createMatchRow(input: {
     externalRecordId: "external-record-1",
     id: "match-1",
     matchedDocumentId: null,
-    matchedOperationId: input.matchedOperationId,
+    matchedOperationId:
+      input.matchedOperationKind === "treasury"
+        ? null
+        : input.matchedOperationId,
+    matchedOperationRef: input.matchedOperationId
+      ? {
+          id: input.matchedOperationId,
+          kind: input.matchedOperationKind ?? "ledger",
+        }
+      : null,
+    matchedTreasuryOperationId:
+      input.matchedOperationKind === "treasury"
+        ? input.matchedOperationId
+        : null,
     runId: "run-1",
     status: "matched",
   } as const;
@@ -87,6 +101,7 @@ function createHandler(input?: {
     },
     ledgerLookup: {
       operationExists: vi.fn(async () => true),
+      treasuryOperationExists: vi.fn(async () => true),
     },
     log: {
       child: vi.fn(),
@@ -140,6 +155,27 @@ describe("createListOperationLinksHandler", () => {
         operationId: "operation-2",
       }),
     ]);
+  });
+
+  it("counts treasury reconciliation matches by matched operation ref", async () => {
+    const listOperationLinks = createHandler({
+      matchedRows: [
+        createMatchRow({
+          matchedOperationId: "treasury-operation-1",
+          matchedOperationKind: "treasury",
+        }),
+      ],
+    });
+
+    const [result] = await listOperationLinks({
+      operationIds: ["treasury-operation-1"],
+    });
+
+    expect(result).toMatchObject({
+      exceptions: [],
+      matchCount: 1,
+      operationId: "treasury-operation-1",
+    });
   });
 
   it("links exceptions by normalizedPayload.operationId before candidate fallbacks", async () => {

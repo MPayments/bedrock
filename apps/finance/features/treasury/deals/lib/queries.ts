@@ -222,6 +222,7 @@ const FinanceDealWorkspaceActionsSchema = z.object({
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
   canRequestExecution: z.boolean(),
+  canRunReconciliation: z.boolean(),
   canResolveExecutionBlocker: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
@@ -366,7 +367,7 @@ const FinanceDealCalculationHistoryItemSchema = z.object({
   calculationId: z.string().uuid(),
   calculationTimestamp: z.iso.datetime(),
   createdAt: z.iso.datetime(),
-  feeAmountMinor: z.string(),
+  totalFeeAmountMinor: z.string(),
   fxQuoteId: z.string().uuid().nullable(),
   originalAmountMinor: z.string(),
   rateDen: z.string(),
@@ -421,6 +422,10 @@ const FinanceDealInstructionSummarySchema = z.object({
 });
 
 const FinanceDealReconciliationExceptionSchema = z.object({
+  actions: z.object({
+    adjustmentDocumentDocType: z.string().nullable(),
+    canIgnore: z.boolean(),
+  }),
   blocking: z.boolean(),
   createdAt: ApiDateTimeStringSchema,
   externalRecordId: z.string(),
@@ -488,24 +493,6 @@ const FinanceDealWorkspaceSchema = z.object({
   instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: z.object({
-    capabilities: z.array(
-      z.object({
-        applicantCounterpartyId: z.string().uuid().nullable().optional().default(null),
-        dealType: FinanceDealTypeSchema.optional(),
-        internalEntityOrganizationId: z
-          .string()
-          .uuid()
-          .nullable()
-          .optional()
-          .default(null),
-        kind: z.string(),
-        note: z.string().nullable(),
-        reasonCode: z.string().nullable(),
-        status: z.string(),
-        updatedAt: NullableApiDateTimeStringSchema.optional().default(null),
-        updatedByUserId: z.string().nullable().optional().default(null),
-      }),
-    ),
     positions: z.array(
       z.object({
         amountMinor: z.string().nullable(),
@@ -548,6 +535,7 @@ const FinanceDealWorkspaceSchema = z.object({
         .nullable(),
       id: z.string().uuid(),
       occurredAt: z.iso.datetime(),
+      payload: z.record(z.string(), z.unknown()),
       type: z.string(),
     }),
   ),

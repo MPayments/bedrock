@@ -8,6 +8,7 @@ import type {
 
 import {
   createGetAdjustmentResolutionHandler,
+  createIgnoreExceptionHandler,
   createResolveAdjustmentHandler,
 } from "./application/exceptions/commands";
 import type { ReconciliationExceptionsTxRepository } from "./application/exceptions/ports";
@@ -110,6 +111,9 @@ function createExceptionsTxRepository(input: {
     },
     markResolved(update) {
       return input.exceptions.markResolvedTx(input.tx, update);
+    },
+    markIgnored(update) {
+      return input.exceptions.markIgnoredTx(input.tx, update);
     },
   };
 }
@@ -225,6 +229,7 @@ function createReconciliationServiceFromContext(input: Parameters<
       runReconciliation: createRunReconciliationHandler(context),
     },
     exceptions: {
+      ignore: createIgnoreExceptionHandler(context),
       listExceptions: createListExceptionsHandler(context),
       explainMatch: createExplainMatchHandler(context),
       getAdjustmentResolution: createGetAdjustmentResolutionHandler(context),

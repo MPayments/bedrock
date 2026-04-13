@@ -33,6 +33,8 @@ interface ClientComboboxProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  triggerTestId?: string;
+  searchInputTestId?: string;
 }
 
 // Custom hook для debounce
@@ -58,6 +60,8 @@ export function ClientCombobox({
   placeholder = "Выберите клиента...",
   className,
   disabled = false,
+  triggerTestId,
+  searchInputTestId,
 }: ClientComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [clients, setClients] = React.useState<Client[]>([]);
@@ -85,7 +89,7 @@ export function ClientCombobox({
         }
 
         const url = `${API_BASE_URL}/customers?q=${encodeURIComponent(
-          query
+          query,
         )}&offset=${currentOffset}&limit=20`;
         const res = await fetch(url, {
           credentials: "include",
@@ -124,7 +128,7 @@ export function ClientCombobox({
         setLoadingMore(false);
       }
     },
-    []
+    [],
   );
 
   // Загружаем клиентов при открытии или изменении debounced запроса
@@ -150,7 +154,7 @@ export function ClientCombobox({
         fetchClients(debouncedSearchQuery, newOffset, true);
       }
     },
-    [hasMore, loading, loadingMore, offset, debouncedSearchQuery, fetchClients]
+    [hasMore, loading, loadingMore, offset, debouncedSearchQuery, fetchClients],
   );
 
   // Обработчик выбора клиента
@@ -173,6 +177,7 @@ export function ClientCombobox({
             role="combobox"
             aria-expanded={open}
             className={cn("w-[300px] justify-between", className)}
+            data-testid={triggerTestId}
             disabled={disabled}
           />
         }
@@ -193,6 +198,7 @@ export function ClientCombobox({
       >
         <Command shouldFilter={false}>
           <CommandInput
+            data-testid={searchInputTestId}
             placeholder="Поиск клиента..."
             value={searchQuery}
             onValueChange={setSearchQuery}
@@ -214,13 +220,14 @@ export function ClientCombobox({
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          value === client.id
-                            ? "opacity-100"
-                            : "opacity-0"
+                          value === client.id ? "opacity-100" : "opacity-0",
                         )}
                       />
                       <div className="flex flex-col min-w-0">
-                        <OverflowTooltip tooltipText={client.orgName} className="font-medium">
+                        <OverflowTooltip
+                          tooltipText={client.orgName}
+                          className="font-medium"
+                        >
                           {client.orgName}
                         </OverflowTooltip>
                         {client.inn && (

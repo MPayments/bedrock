@@ -10,8 +10,6 @@ import {
   DealAttachmentIngestionStatusSchema,
   DealApprovalStatusSchema,
   DealApprovalTypeSchema,
-  DealCapabilityKindSchema,
-  DealCapabilityStatusSchema,
   DealLegKindSchema,
   DealLegOperationKindSchema,
   DealLegStateSchema,
@@ -386,20 +384,6 @@ export const DealQuoteAcceptanceSchema = z.object({
 
 export type DealQuoteAcceptance = z.infer<typeof DealQuoteAcceptanceSchema>;
 
-export const DealCapabilityStateSchema = z.object({
-  applicantCounterpartyId: z.uuid().nullable(),
-  dealType: DealTypeSchema,
-  internalEntityOrganizationId: z.uuid().nullable(),
-  kind: DealCapabilityKindSchema,
-  note: z.string().nullable(),
-  reasonCode: z.string().nullable(),
-  status: DealCapabilityStatusSchema,
-  updatedAt: z.date().nullable(),
-  updatedByUserId: z.string().nullable(),
-});
-
-export type DealCapabilityState = z.infer<typeof DealCapabilityStateSchema>;
-
 export const DealOperationalPositionSchema = z.object({
   amountMinor: z.string().nullable(),
   currencyId: z.uuid().nullable(),
@@ -415,7 +399,6 @@ export type DealOperationalPosition = z.infer<
 >;
 
 export const DealOperationalStateSchema = z.object({
-  capabilities: z.array(DealCapabilityStateSchema),
   positions: z.array(DealOperationalPositionSchema),
 });
 
@@ -590,7 +573,7 @@ export const DealCalculationHistoryItemSchema = z.object({
   calculationId: z.uuid(),
   calculationTimestamp: z.date(),
   createdAt: z.date(),
-  feeAmountMinor: z.string(),
+  totalFeeAmountMinor: z.string(),
   fxQuoteId: z.uuid().nullable(),
   originalAmountMinor: z.string(),
   rateDen: z.string(),

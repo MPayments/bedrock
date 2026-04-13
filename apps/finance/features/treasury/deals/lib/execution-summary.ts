@@ -1,8 +1,6 @@
 import {
-  formatCapabilityIssue,
   formatDealWorkflowMessage,
   formatOperationalPositionIssue,
-  getDealCapabilityLabel,
   getFinancePrimaryOperationalPositionLabel,
   isPrimaryOperationalPositionVisible,
 } from "@/features/treasury/deals/labels";
@@ -39,18 +37,12 @@ type FinanceDealExecutionLeg = {
   state: string;
 };
 
-type FinanceDealCapabilityState = {
-  kind: string;
-  status: string;
-};
-
 type FinanceDealOperationalPosition = {
   kind: string;
   state: string;
 };
 
 type FinanceDealOperationalState = {
-  capabilities: FinanceDealCapabilityState[];
   positions: FinanceDealOperationalPosition[];
 };
 
@@ -68,21 +60,11 @@ type FinanceDealExecutionInput = {
 
 export type FinanceDealExecutionLegSummary = {
   blocker: string | null;
-  capabilityKind: string | null;
-  capabilityLabel: string | null;
   idx: number;
   kind: string;
   primaryPositionKind: string | null;
   primaryPositionLabel: string | null;
   state: string;
-};
-
-const LEG_CAPABILITY_KIND_MAP: Record<string, string | null> = {
-  collect: "can_collect",
-  convert: "can_fx",
-  payout: "can_payout",
-  settle_exporter: "can_exporter_settle",
-  transit_hold: "can_transit",
 };
 
 const LEG_PRIMARY_POSITION_KIND_MAP: Record<string, string | null> = {
@@ -124,8 +106,6 @@ export function getFinanceDealExecutionIssueCount(
 ) {
   return (
     deal.executionPlan.filter((leg) => leg.state === "blocked").length +
-    deal.operationalState.capabilities.filter((capability) => capability.status !== "enabled")
-      .length +
     deal.operationalState.positions.filter(
       (position) =>
         isPrimaryOperationalPositionVisible(position.kind) &&
@@ -163,17 +143,6 @@ export function collectFinanceDealTopBlockers(
       ),
     );
 
-  deal.operationalState.capabilities
-    .filter((capability) => capability.status !== "enabled")
-    .forEach((capability) =>
-      messages.add(
-        formatCapabilityIssue({
-          kind: capability.kind,
-          status: capability.status,
-        }),
-      ),
-    );
-
   deal.operationalState.positions
     .filter(
       (position) =>
@@ -195,14 +164,7 @@ export function deriveFinanceDealExecutionLegSummaries(
   deal: Pick<FinanceDealExecutionInput, "executionPlan" | "operationalState">,
 ): FinanceDealExecutionLegSummary[] {
   return deal.executionPlan.map((leg) => {
-    const capabilityKind = LEG_CAPABILITY_KIND_MAP[leg.kind] ?? null;
     const primaryPositionKind = LEG_PRIMARY_POSITION_KIND_MAP[leg.kind] ?? null;
-    const capability =
-      capabilityKind === null
-        ? null
-        : deal.operationalState.capabilities.find(
-            (item) => item.kind === capabilityKind,
-          ) ?? null;
     const primaryPosition =
       primaryPositionKind === null
         ? null
@@ -214,11 +176,6 @@ export function deriveFinanceDealExecutionLegSummaries(
 
     if (leg.state === "blocked") {
       blocker = formatDealWorkflowMessage(`Execution leg is blocked: ${leg.kind}`);
-    } else if (capability && capability.status !== "enabled") {
-      blocker = formatCapabilityIssue({
-        kind: capability.kind,
-        status: capability.status,
-      });
     } else if (primaryPosition?.state === "blocked") {
       blocker = formatOperationalPositionIssue({
         kind: primaryPosition.kind,
@@ -227,9 +184,6 @@ export function deriveFinanceDealExecutionLegSummaries(
 
     return {
       blocker,
-      capabilityKind,
-      capabilityLabel:
-        capabilityKind === null ? null : getDealCapabilityLabel(capabilityKind),
       idx: leg.idx,
       kind: leg.kind,
       primaryPositionKind,

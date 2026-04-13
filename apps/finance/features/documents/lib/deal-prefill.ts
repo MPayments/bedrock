@@ -44,6 +44,24 @@ function getOpeningInvoiceDocumentId(
   );
 }
 
+function getLatestTransferDocumentId(
+  deal: Pick<FinanceDealWorkbench, "relatedResources">,
+) {
+  const transferDocuments = deal.relatedResources.formalDocuments
+    .filter(
+      (document) =>
+        document.docType === "transfer_intercompany" ||
+        document.docType === "transfer_intra",
+    )
+    .sort((left, right) => {
+      const leftTime = left.createdAt ? Date.parse(left.createdAt) : 0;
+      const rightTime = right.createdAt ? Date.parse(right.createdAt) : 0;
+      return rightTime - leftTime;
+    });
+
+  return transferDocuments[0]?.id ?? null;
+}
+
 function getCalculationCurrencyCode(
   deal: Pick<FinanceDealWorkbench, "calculationHistory" | "summary">,
   options: Pick<DocumentFormOptions, "currencies">,
@@ -115,10 +133,15 @@ export function buildDealScopedDocumentInitialPayload(input: {
   options: Pick<DocumentFormOptions, "currencies">;
   deal: Pick<
     FinanceDealWorkbench,
-    "calculationHistory" | "formalDocumentRequirements" | "summary" | "workflow"
+    | "calculationHistory"
+    | "formalDocumentRequirements"
+    | "relatedResources"
+    | "summary"
+    | "workflow"
   >;
   docType: string;
   organizationRequisites?: Pick<SerializedRequisite, "currencyId" | "id" | "isDefault">[];
+  reconciliationExceptionId?: string | null;
 }): Record<string, unknown> | undefined {
   switch (input.docType) {
     case "invoice": {
@@ -162,6 +185,26 @@ export function buildDealScopedDocumentInitialPayload(input: {
       return compactPayload({
         invoiceDocumentId: getOpeningInvoiceDocumentId(input.deal),
       });
+    }
+
+    case "transfer_resolution": {
+      const initialPayload: Record<string, unknown> = {
+        pendingIndex: 0,
+      };
+      const transferDocumentId = getLatestTransferDocumentId(input.deal);
+
+      if (transferDocumentId) {
+        initialPayload.transferDocumentId = transferDocumentId;
+      }
+
+      if (input.reconciliationExceptionId) {
+        initialPayload.eventIdempotencyKey =
+          `reconciliation:${input.reconciliationExceptionId}`;
+      }
+
+      return Object.keys(initialPayload).length > 0
+        ? initialPayload
+        : undefined;
     }
 
     default:

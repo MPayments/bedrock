@@ -99,6 +99,42 @@ export async function createDealScopedDocumentDraft(input: {
   });
 }
 
+export async function resolveDealReconciliationExceptionWithAdjustmentDocument(
+  input: {
+    dealId: string;
+    docType: string;
+    documentId: string;
+    exceptionId: string;
+  },
+): Promise<ApiMutationResult<unknown>> {
+  const idempotencyKey = generateIdempotencyKey(
+    "deals.reconciliation.adjustment",
+  );
+
+  return executeApiMutation({
+    request: () =>
+      fetch(
+        buildDocumentUrl(
+          `/v1/deals/${encodeURIComponent(input.dealId)}/reconciliation/exceptions/${encodeURIComponent(input.exceptionId)}/adjustment-document`,
+        ),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...mutationHeaders(idempotencyKey),
+          },
+          body: JSON.stringify({
+            docType: input.docType,
+            documentId: input.documentId,
+          }),
+        },
+      ),
+    schema: z.unknown(),
+    fallbackMessage:
+      "Не удалось разрешить исключение сверки корректировочным документом",
+  });
+}
+
 export async function updateDocumentDraft(input: {
   docType: string;
   documentId: string;

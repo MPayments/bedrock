@@ -10,10 +10,10 @@ const RequisiteListItemSchema = z.object({
   currencyId: z.uuid(),
   providerId: z.uuid(),
   label: z.string(),
-  accountNo: z.string().nullable(),
-  iban: z.string().nullable(),
-  address: z.string().nullable().optional(),
-  accountRef: z.string().nullable().optional(),
+  accountNo: z.string().nullish().transform((value) => value ?? null),
+  iban: z.string().nullish().transform((value) => value ?? null),
+  address: z.string().nullish().transform((value) => value ?? null),
+  accountRef: z.string().nullish().transform((value) => value ?? null),
 });
 
 const RequisitesResponseSchema = createPaginatedResponseSchema(

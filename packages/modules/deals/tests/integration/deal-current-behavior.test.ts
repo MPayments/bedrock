@@ -228,7 +228,7 @@ describe("deals integration characterization", () => {
     });
 
     expect(submitted.summary.status).toBe("submitted");
-    expect(submitted.nextAction).toBe("Resolve operational capability");
+    expect(submitted.nextAction).toBe("Accept quote");
 
     await expect(
       fixture.runtime.modules.deals.deals.commands.transitionStatus({

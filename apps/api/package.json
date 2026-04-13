@@ -42,6 +42,7 @@
     "@bedrock/workflow-document-generation": "workspace:*",
     "@bedrock/workflow-document-posting": "workspace:*",
     "@bedrock/workflow-organization-bootstrap": "workspace:*",
+    "@bedrock/workflow-reconciliation-adjustments": "workspace:*",
     "@bedrock/workflow-requisite-accounting": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",

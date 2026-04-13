@@ -157,6 +157,7 @@ function InstructionActions({
         <div className="flex flex-wrap gap-2">
           {operation.actions.canPrepareInstruction ? (
             <Button
+              data-testid="finance-operation-prepare"
               size="sm"
               disabled={activeAction === "prepare"}
               onClick={() =>
@@ -174,6 +175,7 @@ function InstructionActions({
 
           {operation.actions.canSubmitInstruction && instructionId ? (
             <Button
+              data-testid="finance-operation-submit"
               size="sm"
               disabled={activeAction === "submit"}
               onClick={() =>
@@ -239,7 +241,9 @@ function InstructionActions({
                 })
               }
             >
-              {activeAction === "return" ? "Запрашиваем..." : "Запросить возврат"}
+              {activeAction === "return"
+                ? "Запрашиваем..."
+                : "Запросить возврат"}
             </Button>
           ) : null}
         </div>
@@ -253,6 +257,7 @@ function InstructionActions({
               {operation.availableOutcomeTransitions.map((outcome) => (
                 <Button
                   key={outcome}
+                  data-testid={`finance-operation-outcome-${outcome}`}
                   size="sm"
                   variant="outline"
                   disabled={activeAction === `outcome:${outcome}`}
@@ -339,7 +344,9 @@ export function TreasuryOperationDetailsView({
               <DetailValue
                 label="Операция"
                 value={
-                  <Badge variant={getTreasuryOperationKindVariant(operation.kind)}>
+                  <Badge
+                    variant={getTreasuryOperationKindVariant(operation.kind)}
+                  >
                     {getTreasuryOperationKindLabel(operation.kind)}
                   </Badge>
                 }
@@ -348,6 +355,7 @@ export function TreasuryOperationDetailsView({
                 label="Статус инструкции"
                 value={
                   <Badge
+                    data-testid="finance-operation-instruction-status"
                     variant={getTreasuryOperationInstructionStatusVariant(
                       operation.instructionStatus,
                     )}
@@ -362,7 +370,10 @@ export function TreasuryOperationDetailsView({
                 label="Состояние"
                 value={getTreasuryOperationStateLabel(operation.state)}
               />
-              <DetailValue label="Создана" value={formatDate(operation.createdAt)} />
+              <DetailValue
+                label="Создана"
+                value={formatDate(operation.createdAt)}
+              />
               <DetailValue label="Сумма" value={operation.amount.formatted} />
               <DetailValue
                 label="Контрсумма"
@@ -400,7 +411,10 @@ export function TreasuryOperationDetailsView({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              <DetailValue label="Провайдер / маршрут" value={operation.providerRoute} />
+              <DetailValue
+                label="Провайдер / маршрут"
+                value={operation.providerRoute}
+              />
               {operation.queueContext ? (
                 <>
                   <DetailValue
@@ -412,7 +426,9 @@ export function TreasuryOperationDetailsView({
                             operation.queueContext.queue,
                           )}
                         >
-                          {getFinanceDealQueueLabel(operation.queueContext.queue)}
+                          {getFinanceDealQueueLabel(
+                            operation.queueContext.queue,
+                          )}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           {formatDealWorkflowMessage(
@@ -509,7 +525,9 @@ export function TreasuryOperationDetailsView({
                     label="Возврат"
                     value={
                       operation.latestInstruction.returnRequestedAt
-                        ? formatDate(operation.latestInstruction.returnRequestedAt)
+                        ? formatDate(
+                            operation.latestInstruction.returnRequestedAt,
+                          )
                         : operation.latestInstruction.returnedAt
                           ? formatDate(operation.latestInstruction.returnedAt)
                           : "—"

@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatCapabilityIssue,
   formatDealNextAction,
   formatDealWorkflowMessage,
-  getDealCapabilityLabel,
   getDealTimelineEventLabel,
   getFinanceDealDisplayTitle,
   getFinanceDealQueueLabel,
@@ -36,7 +34,9 @@ describe("treasury deal labels", () => {
     expect(getFinanceDealStageLabel("awaiting_reconciliation")).toBe(
       "Ожидание сверки",
     );
-    expect(getDealCapabilityLabel("can_fx")).toBe("Конвертация");
+    expect(getDealTimelineEventLabel("execution_requested")).toBe(
+      "Запущено исполнение сделки",
+    );
     expect(getDealTimelineEventLabel("attachment_ingested")).toBe(
       "Файл распознан",
     );
@@ -59,13 +59,7 @@ describe("treasury deal labels", () => {
     ).toBe("Не заполнен обязательный участник: получатель выплаты.");
   });
 
-  it("formats finance-only blockers without raw technical codes", () => {
-    expect(
-      formatCapabilityIssue({
-        kind: "can_payout",
-        status: "pending",
-      }),
-    ).toBe("Нужно настроить: выплата.");
+  it("keeps operational position visibility rules for the execution UI", () => {
     expect(isPrimaryOperationalPositionVisible("provider_payable")).toBe(true);
     expect(isPrimaryOperationalPositionVisible("spread_revenue")).toBe(false);
   });

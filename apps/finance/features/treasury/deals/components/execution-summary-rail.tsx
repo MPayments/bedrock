@@ -24,10 +24,6 @@ type ExecutionSummaryRailProps = {
       state: string;
     }>;
     operationalState: {
-      capabilities: Array<{
-        kind: string;
-        status: string;
-      }>;
       positions: Array<{
         kind: string;
         state: string;

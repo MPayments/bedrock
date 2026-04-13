@@ -25,7 +25,6 @@ import {
 import {
   dealAttachmentIngestions,
   dealApprovals,
-  dealCapabilityStates,
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
@@ -39,7 +38,6 @@ import type {
   DealApproval,
   DealAttachmentIngestion,
   DealCalculationHistoryItem,
-  DealCapabilityState,
   DealDetails,
   DealFundingResolution,
   DealIntakeDraft,
@@ -134,11 +132,8 @@ function mapQuoteAcceptance(row: {
   usedAt: Date | string | null;
   usedDocumentId: string | null;
 }): DealQuoteAcceptance {
-  const toDateOrNull = (value: Date | string | null) =>
-    value ? new Date(value) : null;
-
   return {
-    acceptedAt: new Date(row.acceptedAt),
+    acceptedAt: toDate(row.acceptedAt),
     acceptedByUserId: row.acceptedByUserId,
     agreementVersionId: row.agreementVersionId,
     dealId: row.dealId,
@@ -154,28 +149,12 @@ function mapQuoteAcceptance(row: {
   };
 }
 
-function mapCapabilityState(row: {
-  applicantCounterpartyId: string;
-  capabilityKind: DealCapabilityState["kind"];
-  dealType: DealCapabilityState["dealType"];
-  internalEntityOrganizationId: string;
-  note: string | null;
-  reasonCode: string | null;
-  status: DealCapabilityState["status"];
-  updatedAt: Date;
-  updatedByUserId: string | null;
-}): DealCapabilityState {
-  return {
-    applicantCounterpartyId: row.applicantCounterpartyId,
-    dealType: row.dealType,
-    internalEntityOrganizationId: row.internalEntityOrganizationId,
-    kind: row.capabilityKind,
-    note: row.note,
-    reasonCode: row.reasonCode,
-    status: row.status,
-    updatedAt: row.updatedAt,
-    updatedByUserId: row.updatedByUserId,
-  };
+function toDate(value: Date | string) {
+  return value instanceof Date ? new Date(value) : new Date(value);
+}
+
+function toDateOrNull(value: Date | string | null | undefined) {
+  return value ? toDate(value) : null;
 }
 
 function mapAttachmentIngestion(row: {
@@ -342,7 +321,16 @@ interface DealSummaryRow {
   updatedAt: Date;
 }
 
-interface DealQuoteRow extends Record<string, unknown> {
+interface RawDealQuoteRow extends Record<string, unknown> {
+  createdAt: Date | string;
+  dealId: string | null;
+  expiresAt: Date | string | null;
+  id: string;
+  status: string;
+  usedDocumentId: string | null;
+}
+
+interface DealQuoteRow {
   createdAt: Date;
   dealId: string | null;
   expiresAt: Date;
@@ -568,22 +556,6 @@ export class DrizzleDealReads implements DealReads {
     }));
   }
 
-  private async loadCapabilityStatesForWorkflow(input: {
-    applicantCounterpartyId: string | null;
-    dealType: DealCapabilityState["dealType"];
-    internalEntityOrganizationId: string | null;
-  }): Promise<DealCapabilityState[]> {
-    if (!input.applicantCounterpartyId || !input.internalEntityOrganizationId) {
-      return [];
-    }
-
-    return this.listCapabilityStates({
-      applicantCounterpartyId: input.applicantCounterpartyId,
-      dealType: input.dealType,
-      internalEntityOrganizationId: input.internalEntityOrganizationId,
-    });
-  }
-
   private async loadAcceptedQuote(
     dealId: string,
     revision: number,
@@ -755,7 +727,7 @@ export class DrizzleDealReads implements DealReads {
   }
 
   private async loadQuotes(dealId: string) {
-    const result = await this.db.execute<DealQuoteRow>(sql`
+    const result = await this.db.execute<RawDealQuoteRow>(sql`
       select
         id,
         deal_id as "dealId",
@@ -768,7 +740,11 @@ export class DrizzleDealReads implements DealReads {
       order by created_at desc
     `);
 
-    return result.rows;
+    return result.rows.map((row): DealQuoteRow => ({
+      ...row,
+      createdAt: toDate(row.createdAt),
+      expiresAt: toDate(row.expiresAt ?? new Date(0)),
+    }));
   }
 
   private async loadCalculationRefs(dealId: string) {
@@ -850,26 +826,14 @@ export class DrizzleDealReads implements DealReads {
       now,
       storedLegs,
     });
-    const [capabilityStates, calculationOperationalLines] = await Promise.all([
-      this.loadCapabilityStatesForWorkflow({
-        applicantCounterpartyId:
-          participants.find((participant) => participant.role === "applicant")
-            ?.counterpartyId ?? null,
-        dealType: summary.type,
-        internalEntityOrganizationId:
-          participants.find(
-            (participant) => participant.role === "internal_entity",
-          )?.organizationId ?? null,
-      }),
+    const [calculationOperationalLines] = await Promise.all([
       this.loadCalculationOperationalLines(summary.calculationId),
     ]);
     const operationalState = buildDealOperationalState({
       calculationId: summary.calculationId,
       calculationLines: calculationOperationalLines,
-      capabilityStates,
       executionPlan,
       intake: summary.snapshot,
-      participants,
       sectionCompleteness,
       status: summary.status,
       updatedAt: summary.updatedAt,
@@ -979,67 +943,6 @@ export class DrizzleDealReads implements DealReads {
       .limit(1);
 
     return row ? mapAttachmentIngestion(row) : null;
-  }
-
-  async listCapabilityStates(input: {
-    applicantCounterpartyId?: string;
-    capabilityKind?: DealCapabilityState["kind"];
-    dealType?: DealCapabilityState["dealType"];
-    internalEntityOrganizationId?: string;
-    status?: DealCapabilityState["status"];
-  }): Promise<DealCapabilityState[]> {
-    const conditions: SQL[] = [];
-
-    if (input.applicantCounterpartyId) {
-      conditions.push(
-        eq(
-          dealCapabilityStates.applicantCounterpartyId,
-          input.applicantCounterpartyId,
-        ),
-      );
-    }
-    if (input.internalEntityOrganizationId) {
-      conditions.push(
-        eq(
-          dealCapabilityStates.internalEntityOrganizationId,
-          input.internalEntityOrganizationId,
-        ),
-      );
-    }
-    if (input.dealType) {
-      conditions.push(eq(dealCapabilityStates.dealType, input.dealType));
-    }
-    if (input.capabilityKind) {
-      conditions.push(
-        eq(dealCapabilityStates.capabilityKind, input.capabilityKind),
-      );
-    }
-    if (input.status) {
-      conditions.push(eq(dealCapabilityStates.status, input.status));
-    }
-
-    const rows = await this.db
-      .select({
-        applicantCounterpartyId: dealCapabilityStates.applicantCounterpartyId,
-        capabilityKind: dealCapabilityStates.capabilityKind,
-        dealType: dealCapabilityStates.dealType,
-        internalEntityOrganizationId:
-          dealCapabilityStates.internalEntityOrganizationId,
-        note: dealCapabilityStates.note,
-        reasonCode: dealCapabilityStates.reasonCode,
-        status: dealCapabilityStates.status,
-        updatedAt: dealCapabilityStates.updatedAt,
-        updatedByUserId: dealCapabilityStates.updatedByUserId,
-      })
-      .from(dealCapabilityStates)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(
-        asc(dealCapabilityStates.dealType),
-        asc(dealCapabilityStates.capabilityKind),
-        asc(dealCapabilityStates.updatedAt),
-      );
-
-    return rows.map(mapCapabilityState);
   }
 
   async listAttachmentIngestionsByDealId(
@@ -1335,7 +1238,7 @@ export class DrizzleDealReads implements DealReads {
         calculationId: calculations.id,
         calculationTimestamp: calculationSnapshots.calculationTimestamp,
         createdAt: dealCalculationLinks.createdAt,
-        feeAmountMinor: calculationSnapshots.feeAmountMinor,
+        totalFeeAmountMinor: calculationSnapshots.totalFeeAmountMinor,
         fxQuoteId: calculationSnapshots.fxQuoteId,
         originalAmountMinor: calculationSnapshots.originalAmountMinor,
         rateDen: calculationSnapshots.rateDen,
@@ -1361,7 +1264,7 @@ export class DrizzleDealReads implements DealReads {
       calculationId: row.calculationId,
       calculationTimestamp: row.calculationTimestamp,
       createdAt: row.createdAt,
-      feeAmountMinor: row.feeAmountMinor.toString(),
+      totalFeeAmountMinor: row.totalFeeAmountMinor.toString(),
       fxQuoteId: row.fxQuoteId,
       originalAmountMinor: row.originalAmountMinor.toString(),
       rateDen: row.rateDen.toString(),

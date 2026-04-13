@@ -285,7 +285,7 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
       request: () =>
         client.v1.organizations.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: OrganizationOptionsResponseSchema,
       context: "Не удалось загрузить организации",
@@ -294,14 +294,14 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
       request: () =>
         client.v1.requisites.providers.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: RequisiteProviderOptionsResponseSchema,
       context: "Не удалось загрузить провайдеров реквизитов",
     }),
     readOptionsList({
       request: () =>
-        client.v1.currencies.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.currencies.options.$get({}, { init: { cache: "no-store" } }),
       schema: CurrencyOptionsResponseSchema,
       context: "Не удалось загрузить валюты",
     }),

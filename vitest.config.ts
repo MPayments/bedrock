@@ -5,6 +5,7 @@ export default defineConfig({
     projects: [
       "tests/guardrails/vitest.config.ts",
       "apps/api/vitest.config.ts",
+      "apps/crm/vitest.config.ts",
       "apps/db/vitest.config.ts",
       "apps/finance/vitest.config.ts",
       "apps/workers/vitest.config.ts",

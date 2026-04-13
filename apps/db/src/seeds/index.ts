@@ -1,6 +1,9 @@
 export { CURRENCY_IDS, currencyIdForCode, seedCurrencies } from "./currencies";
 export { seedAccounting } from "./accounting";
+export { seedAgreements } from "./agreements";
 export { seedCounterparties } from "./counterparties";
+export { PAYMENT_DEAL_IDS, seedDealPayment } from "./deal-payment";
+export { seedOrganizationAssets } from "./organization-assets";
 export { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
 export {
   REQUISITE_PROVIDER_IDS,
@@ -8,7 +11,4 @@ export {
 } from "./requisite-providers";
 export { REQUISITE_IDS, seedRequisites } from "./requisites";
 export { USER_IDS, seedUsers, type HashPasswordFn } from "./users";
-export {
-  CUSTOMER_IDS,
-  COUNTERPARTY_IDS,
-} from "./fixtures";
+export { CUSTOMER_IDS, COUNTERPARTY_IDS } from "./fixtures";

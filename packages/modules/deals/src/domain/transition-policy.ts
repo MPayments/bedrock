@@ -249,38 +249,6 @@ function collectPreparingDocumentsBlockers(input: {
   return blockers;
 }
 
-function collectCapabilityBlockers(input: {
-  capabilities: DealOperationalState["capabilities"];
-}): DealTransitionBlocker[] {
-  const blockers: DealTransitionBlocker[] = [];
-
-  for (const capability of input.capabilities) {
-    if (capability.status === "enabled") {
-      continue;
-    }
-
-    blockers.push({
-      code:
-        capability.status === "disabled"
-          ? "capability_disabled"
-          : "capability_pending",
-      message:
-        capability.status === "disabled"
-          ? `Operational capability is disabled: ${capability.kind}`
-          : `Operational capability is not enabled: ${capability.kind}`,
-      meta: {
-        applicantCounterpartyId: capability.applicantCounterpartyId,
-        dealType: capability.dealType,
-        internalEntityOrganizationId: capability.internalEntityOrganizationId,
-        kind: capability.kind,
-        reasonCode: capability.reasonCode,
-      },
-    });
-  }
-
-  return blockers;
-}
-
 function collectPositionBlockers(input: {
   minimum: "done" | "ready";
   positions: DealOperationalState["positions"];
@@ -503,9 +471,6 @@ export function evaluateDealTransitionReadiness(input: {
 
   if (requiresPreparingChecks) {
     blockers.push(
-      ...collectCapabilityBlockers({
-        capabilities: input.operationalState.capabilities,
-      }),
       ...collectPreparingDocumentsBlockers({
         acceptance: input.acceptance,
         approvals: input.approvals,

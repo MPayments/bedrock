@@ -215,7 +215,21 @@ export class DrizzleTreasuryRatesRepository implements RatesRepository {
   }
 
   async insertManualRate(input: ManualRateWriteModel): Promise<void> {
-    await this.db.insert(fxSchema.fxRates).values(input);
+    await this.db
+      .insert(fxSchema.fxRates)
+      .values(input)
+      .onConflictDoUpdate({
+        target: [
+          fxSchema.fxRates.source,
+          fxSchema.fxRates.baseCurrencyId,
+          fxSchema.fxRates.quoteCurrencyId,
+          fxSchema.fxRates.asOf,
+        ],
+        set: {
+          rateNum: sql`excluded.rate_num`,
+          rateDen: sql`excluded.rate_den`,
+        },
+      });
   }
 
   async listPairs(): Promise<RatePairView[]> {

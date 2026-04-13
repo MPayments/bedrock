@@ -204,11 +204,7 @@ function toDatePickerValue(value: string | null) {
     return undefined;
   }
 
-  return new Date(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 function toDateStorageValue(value: Date | undefined) {
@@ -257,7 +253,8 @@ export function createDealIntakeFormContext({
   const applicantSnapshot =
     intake.incomingReceipt.payerSnapshot ?? emptyCounterpartySnapshot();
   const beneficiarySnapshot =
-    intake.externalBeneficiary.beneficiarySnapshot ?? emptyCounterpartySnapshot();
+    intake.externalBeneficiary.beneficiarySnapshot ??
+    emptyCounterpartySnapshot();
   const beneficiaryBank =
     intake.externalBeneficiary.bankInstructionSnapshot ??
     emptyBankInstructionSnapshot();
@@ -315,7 +312,9 @@ export function createDealIntakeFormContext({
   const expectedDateLabel = isPaymentDeal
     ? "Плановая дата выплаты"
     : "Ожидаемая дата поступления";
-  const shouldRenderPayerDetails = shouldRenderIncomingReceiptPayer(intake.type);
+  const shouldRenderPayerDetails = shouldRenderIncomingReceiptPayer(
+    intake.type,
+  );
   const primaryAmountValue = isPaymentDeal
     ? snapshotFieldValue(intake.incomingReceipt.expectedAmount)
     : snapshotFieldValue(intake.moneyRequest.sourceAmount);
@@ -552,9 +551,7 @@ type DealIntakeSectionProps = {
   context: DealIntakeFormContext;
 };
 
-export function DealIntakeCommonSection({
-  context,
-}: DealIntakeSectionProps) {
+export function DealIntakeCommonSection({ context }: DealIntakeSectionProps) {
   const {
     intake,
     counterparties,
@@ -671,10 +668,13 @@ export function DealIntakeMoneyRequestSection({
           <Label htmlFor="deal-primary-amount">{primaryAmountLabel}</Label>
           <Input
             id="deal-primary-amount"
+            data-testid="deal-primary-amount-input"
             disabled={readOnly}
             inputMode="decimal"
             value={primaryAmountValue}
-            onChange={(event) => updatePrimaryAmount(event.target.value || null)}
+            onChange={(event) =>
+              updatePrimaryAmount(event.target.value || null)
+            }
           />
         </div>
         <div className="min-w-0 space-y-2">
@@ -689,7 +689,10 @@ export function DealIntakeMoneyRequestSection({
               )
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger
+              className="w-full"
+              data-testid="deal-target-currency-select"
+            >
               <SelectValue placeholder="Выберите валюту">
                 {targetCurrencyLabel}
               </SelectValue>
@@ -722,7 +725,10 @@ export function DealIntakeMoneyRequestSection({
               )
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger
+              className="w-full"
+              data-testid="deal-source-currency-select"
+            >
               <SelectValue placeholder="Выберите валюту">
                 {sourceCurrencyLabel}
               </SelectValue>
@@ -743,6 +749,7 @@ export function DealIntakeMoneyRequestSection({
           <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
           <Input
             id="deal-source-amount"
+            data-testid="deal-source-amount-input"
             disabled={readOnly}
             inputMode="decimal"
             value={snapshotFieldValue(intake.moneyRequest.sourceAmount)}
@@ -756,6 +763,7 @@ export function DealIntakeMoneyRequestSection({
         <Label htmlFor="deal-purpose">Назначение</Label>
         <Textarea
           id="deal-purpose"
+          data-testid="deal-purpose-input"
           disabled={readOnly}
           rows={3}
           value={snapshotFieldValue(intake.moneyRequest.purpose)}
@@ -852,6 +860,7 @@ export function DealIntakeIncomingReceiptSection({
           <Label htmlFor="deal-invoice-number">Номер инвойса</Label>
           <Input
             id="deal-invoice-number"
+            data-testid="deal-invoice-number-input"
             disabled={readOnly}
             value={snapshotFieldValue(intake.incomingReceipt.invoiceNumber)}
             onChange={(event) =>
@@ -863,6 +872,7 @@ export function DealIntakeIncomingReceiptSection({
           <Label htmlFor="deal-contract-number">Номер контракта</Label>
           <Input
             id="deal-contract-number"
+            data-testid="deal-contract-number-input"
             disabled={readOnly}
             value={snapshotFieldValue(intake.incomingReceipt.contractNumber)}
             onChange={(event) =>
@@ -967,6 +977,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-display-name">Получатель</Label>
           <Input
             id="deal-beneficiary-display-name"
+            data-testid="deal-beneficiary-display-name-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiarySnapshot.displayName)}
             onChange={(event) =>
@@ -978,16 +989,16 @@ export function DealIntakeExternalBeneficiarySection({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="deal-beneficiary-legal-name">Полное наименование</Label>
+          <Label htmlFor="deal-beneficiary-legal-name">
+            Полное наименование
+          </Label>
           <Input
             id="deal-beneficiary-legal-name"
+            data-testid="deal-beneficiary-legal-name-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiarySnapshot.legalName)}
             onChange={(event) =>
-              updateBeneficiarySnapshot(
-                "legalName",
-                event.target.value || null,
-              )
+              updateBeneficiarySnapshot("legalName", event.target.value || null)
             }
           />
         </div>
@@ -995,6 +1006,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-inn">ИНН / рег. номер</Label>
           <Input
             id="deal-beneficiary-inn"
+            data-testid="deal-beneficiary-inn-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiarySnapshot.inn)}
             onChange={(event) =>
@@ -1006,6 +1018,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-country">Страна</Label>
           <CountrySelect
             id="deal-beneficiary-country"
+            triggerTestId="deal-beneficiary-country-input"
             value={snapshotFieldValue(beneficiarySnapshot.country)}
             onValueChange={(nextValue) =>
               updateBeneficiarySnapshot("country", nextValue || null)
@@ -1024,6 +1037,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-bank-name">Банк получателя</Label>
           <Input
             id="deal-beneficiary-bank-name"
+            data-testid="deal-beneficiary-bank-name-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.bankName)}
             onChange={(event) =>
@@ -1035,6 +1049,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-bank-country">Страна банка</Label>
           <Input
             id="deal-beneficiary-bank-country"
+            data-testid="deal-beneficiary-bank-country-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.bankCountry)}
             onChange={(event) =>
@@ -1046,6 +1061,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-account">Счет</Label>
           <Input
             id="deal-beneficiary-account"
+            data-testid="deal-beneficiary-account-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.accountNo)}
             onChange={(event) =>
@@ -1057,6 +1073,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-iban">IBAN</Label>
           <Input
             id="deal-beneficiary-iban"
+            data-testid="deal-beneficiary-iban-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.iban)}
             onChange={(event) =>
@@ -1068,6 +1085,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-bic">BIC</Label>
           <Input
             id="deal-beneficiary-bic"
+            data-testid="deal-beneficiary-bic-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.bic)}
             onChange={(event) =>
@@ -1079,6 +1097,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-swift">SWIFT</Label>
           <Input
             id="deal-beneficiary-swift"
+            data-testid="deal-beneficiary-swift-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.swift)}
             onChange={(event) =>
@@ -1090,6 +1109,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-name">Имя получателя в банке</Label>
           <Input
             id="deal-beneficiary-name"
+            data-testid="deal-beneficiary-name-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.beneficiaryName)}
             onChange={(event) =>
@@ -1104,6 +1124,7 @@ export function DealIntakeExternalBeneficiarySection({
           <Label htmlFor="deal-beneficiary-label">Метка реквизитов</Label>
           <Input
             id="deal-beneficiary-label"
+            data-testid="deal-beneficiary-label-input"
             disabled={readOnly}
             value={snapshotFieldValue(beneficiaryBank.label)}
             onChange={(event) =>
@@ -1140,8 +1161,8 @@ export function DealIntakeSettlementDestinationSection({
       <div>
         <h3 className="font-medium">Куда зачислить средства</h3>
         <p className="text-sm text-muted-foreground">
-          Выберите, куда отправить деньги после сделки: на реквизиты
-          заявителя или на отдельные реквизиты.
+          Выберите, куда отправить деньги после сделки: на реквизиты заявителя
+          или на отдельные реквизиты.
         </p>
       </div>
       <div className="space-y-2">
@@ -1205,7 +1226,9 @@ export function DealIntakeSettlementDestinationSection({
               {applicantRequisites.map((requisite) => (
                 <SelectItem key={requisite.id} value={requisite.id}>
                   {requisite.label}
-                  {requisite.providerLabel ? ` · ${requisite.providerLabel}` : ""}
+                  {requisite.providerLabel
+                    ? ` · ${requisite.providerLabel}`
+                    : ""}
                 </SelectItem>
               ))}
             </SelectContent>

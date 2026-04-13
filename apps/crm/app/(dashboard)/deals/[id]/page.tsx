@@ -72,6 +72,7 @@ import type {
   ApiDealWorkflowProjection,
   ApiFormalDocument,
   ApiOrganization,
+  ApiQuotePreview,
   ApiRequisite,
   ApiRequisiteProvider,
   CalculationHistoryView,
@@ -363,13 +364,13 @@ function buildCalculationFeeDefaults(input: {
   agreement: ApiAgreementDetails;
   fallbackCurrencyCode: string | null;
 }) {
-  let agentFeePercent = "";
+  let agreementFeePercentage = "";
   let fixedFeeAmount = "";
   let fixedFeeCurrencyCode = input.fallbackCurrencyCode;
 
   for (const rule of input.agreement.currentVersion.feeRules) {
     if (rule.kind === "agent_fee") {
-      agentFeePercent = shiftDecimalString(rule.value, -2) ?? "";
+      agreementFeePercentage = shiftDecimalString(rule.value, -2) ?? "";
       continue;
     }
 
@@ -380,10 +381,54 @@ function buildCalculationFeeDefaults(input: {
   }
 
   return {
-    agentFeePercent,
+    agreementFeePercentage,
     fixedFeeAmount,
     fixedFeeCurrencyCode,
   };
+}
+
+function formatCurrencyDisplayName(
+  currencyOptions: ApiCurrencyOption[],
+  code: string | null | undefined,
+) {
+  if (!code) {
+    return "—";
+  }
+
+  const option = currencyOptions.find((item) => item.code === code);
+  if (!option) {
+    return code;
+  }
+
+  return `${option.name} (${option.code})`;
+}
+
+function formatQuoteDisplayPair(input: {
+  amountSide: "source" | "target";
+  currencyOptions: ApiCurrencyOption[];
+  fromCurrency: string;
+  toCurrency: string;
+}) {
+  if (input.amountSide === "target") {
+    return `${formatCurrencyDisplayName(input.currencyOptions, input.toCurrency)} / ${formatCurrencyDisplayName(input.currencyOptions, input.fromCurrency)}`;
+  }
+
+  return `${formatCurrencyDisplayName(input.currencyOptions, input.fromCurrency)} / ${formatCurrencyDisplayName(input.currencyOptions, input.toCurrency)}`;
+}
+
+function formatQuoteDisplayRate(input: {
+  amountSide: "source" | "target";
+  currencyOptions: ApiCurrencyOption[];
+  fromCurrency: string;
+  rateDen: string;
+  rateNum: string;
+  toCurrency: string;
+}) {
+  if (input.amountSide === "target") {
+    return `1 ${formatCurrencyDisplayName(input.currencyOptions, input.toCurrency)} = ${rationalToDecimalString(input.rateDen, input.rateNum)} ${formatCurrencyDisplayName(input.currencyOptions, input.fromCurrency)}`;
+  }
+
+  return `1 ${formatCurrencyDisplayName(input.currencyOptions, input.fromCurrency)} = ${rationalToDecimalString(input.rateNum, input.rateDen)} ${formatCurrencyDisplayName(input.currencyOptions, input.toCurrency)}`;
 }
 
 function findAcceptedQuoteDetails(
@@ -422,6 +467,146 @@ function formatBlockers(blockers: ApiDealTransitionBlocker[]) {
     .join("\n");
 }
 
+type DealQuoteValidationError = {
+  message: string;
+  title: string;
+};
+
+type DealQuoteRequestBody = {
+  asOf: string;
+  fixedFeeAmount: string | null;
+  fixedFeeCurrency: string | null;
+  fromCurrency: string;
+  fromAmountMinor?: string;
+  mode: "auto_cross";
+  quoteMarkupPercent: string | null;
+  toAmountMinor?: string;
+  toCurrency: string;
+};
+
+function prepareDealQuoteRequest(input: {
+  calculationAmount: string;
+  calculationAsOf: string;
+  calculationToCurrency: string;
+  currency: ApiCurrency | null;
+  fixedFeeAmount: string;
+  fixedFeeCurrencyCode: string | null;
+  overrideCalculationAmount: boolean;
+  quoteMarkupPercent: string;
+  quoteRequest: ReturnType<typeof buildQuoteRequestContext> | null;
+  sourceCurrency: ApiCurrency | null;
+}): {
+  body: DealQuoteRequestBody | null;
+  validationError: DealQuoteValidationError | null;
+} {
+  const amountSource = input.overrideCalculationAmount
+    ? input.calculationAmount
+    : (input.quoteRequest?.amount ?? "");
+
+  if (!input.sourceCurrency || !amountSource) {
+    return {
+      body: null,
+      validationError: {
+        message: "Для запроса котировки нужны сумма и валюта списания.",
+        title: "Недостаточно данных",
+      },
+    };
+  }
+
+  if (!input.calculationToCurrency) {
+    return {
+      body: null,
+      validationError: {
+        message: "Выберите валюту назначения.",
+        title: "Недостаточно данных",
+      },
+    };
+  }
+
+  if (input.calculationToCurrency === input.sourceCurrency.code) {
+    return {
+      body: null,
+      validationError: {
+        message: "Выберите другую валюту.",
+        title: "Недопустимая валютная пара",
+      },
+    };
+  }
+
+  const amountMinor = decimalToMinorString(
+    amountSource,
+    input.quoteRequest?.amountSide === "target"
+      ? (input.currency?.precision ?? input.sourceCurrency.precision)
+      : input.sourceCurrency.precision,
+  );
+
+  if (!amountMinor || BigInt(amountMinor) <= 0n) {
+    return {
+      body: null,
+      validationError: {
+        message: "Введите сумму больше нуля в формате 1000.00.",
+        title: "Некорректная сумма",
+      },
+    };
+  }
+
+  const asOfDate = input.calculationAsOf
+    ? new Date(input.calculationAsOf)
+    : new Date();
+
+  if (Number.isNaN(asOfDate.getTime())) {
+    return {
+      body: null,
+      validationError: {
+        message: "Выберите дату котировки.",
+        title: "Некорректная дата",
+      },
+    };
+  }
+
+  const normalizedFixedFeeAmount = input.fixedFeeAmount.trim()
+    ? normalizeDecimalString(input.fixedFeeAmount)
+    : null;
+
+  if (input.fixedFeeAmount.trim() && !normalizedFixedFeeAmount) {
+    return {
+      body: null,
+      validationError: {
+        message: "Введите фиксированную комиссию в формате 25.00.",
+        title: "Некорректная фиксированная комиссия",
+      },
+    };
+  }
+
+  if (normalizedFixedFeeAmount && !input.fixedFeeCurrencyCode) {
+    return {
+      body: null,
+      validationError: {
+        message: "Для фиксированной комиссии выберите валюту.",
+        title: "Недостаточно данных",
+      },
+    };
+  }
+
+  return {
+    body: {
+      mode: "auto_cross",
+      ...(input.quoteRequest?.amountSide === "target"
+        ? { toAmountMinor: amountMinor }
+        : { fromAmountMinor: amountMinor }),
+      fromCurrency: input.sourceCurrency.code,
+      toCurrency: input.calculationToCurrency,
+      asOf: asOfDate.toISOString(),
+      fixedFeeAmount: normalizedFixedFeeAmount,
+      fixedFeeCurrency: normalizedFixedFeeAmount
+        ? input.fixedFeeCurrencyCode
+        : null,
+      quoteMarkupPercent: input.quoteMarkupPercent.trim() || null,
+    },
+    validationError: null,
+  };
+}
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -442,6 +627,7 @@ async function fetchCalculationViewFromDetails(
   calculation: ApiCalculationDetails,
 ): Promise<CalculationView> {
   const currencyIds = [
+    calculation.currentSnapshot.fixedFeeCurrencyId,
     calculation.currentSnapshot.calculationCurrencyId,
     calculation.currentSnapshot.baseCurrencyId,
     calculation.currentSnapshot.additionalExpensesCurrencyId,
@@ -474,6 +660,9 @@ async function fetchCalculationViewFromDetails(
         calculation.currentSnapshot.additionalExpensesCurrencyId,
       ) ?? null)
     : null;
+  const fixedFeeCurrency = calculation.currentSnapshot.fixedFeeCurrencyId
+    ? (currenciesById.get(calculation.currentSnapshot.fixedFeeCurrencyId) ?? null)
+    : null;
 
   return {
     additionalExpenses: minorToDecimalString(
@@ -485,24 +674,45 @@ async function fetchCalculationViewFromDetails(
       calculation.currentSnapshot.additionalExpensesInBaseMinor,
       baseCurrency.precision,
     ),
-    baseCurrencyCode: baseCurrency.code,
-    currencyCode: calculationCurrency.code,
-    feeAmount: minorToDecimalString(
-      calculation.currentSnapshot.feeAmountMinor,
+    agreementFeeAmount: minorToDecimalString(
+      calculation.currentSnapshot.agreementFeeAmountMinor,
       calculationCurrency.precision,
     ),
-    feeAmountInBase: minorToDecimalString(
-      calculation.currentSnapshot.feeAmountInBaseMinor,
-      baseCurrency.precision,
+    agreementFeePercentage: feeBpsToPercentString(
+      calculation.currentSnapshot.agreementFeeBps,
     ),
-    feePercentage: feeBpsToPercentString(calculation.currentSnapshot.feeBps),
+    baseCurrencyCode: baseCurrency.code,
+    currencyCode: calculationCurrency.code,
+    finalRate: rationalToDecimalString(
+      calculation.currentSnapshot.rateNum,
+      calculation.currentSnapshot.rateDen,
+    ),
+    fixedFeeAmount: minorToDecimalString(
+      calculation.currentSnapshot.fixedFeeAmountMinor,
+      fixedFeeCurrency?.precision ?? baseCurrency.precision,
+    ),
+    fixedFeeCurrencyCode: fixedFeeCurrency?.code ?? null,
     originalAmount: minorToDecimalString(
       calculation.currentSnapshot.originalAmountMinor,
       calculationCurrency.precision,
     ),
-    rate: rationalToDecimalString(
-      calculation.currentSnapshot.rateNum,
-      calculation.currentSnapshot.rateDen,
+    quoteMarkupAmount: minorToDecimalString(
+      calculation.currentSnapshot.quoteMarkupAmountMinor,
+      calculationCurrency.precision,
+    ),
+    quoteMarkupPercentage: feeBpsToPercentString(
+      calculation.currentSnapshot.quoteMarkupBps,
+    ),
+    totalFeeAmount: minorToDecimalString(
+      calculation.currentSnapshot.totalFeeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalFeeAmountInBase: minorToDecimalString(
+      calculation.currentSnapshot.totalFeeAmountInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalFeePercentage: feeBpsToPercentString(
+      calculation.currentSnapshot.totalFeeBps,
     ),
     totalAmount: minorToDecimalString(
       calculation.currentSnapshot.totalAmountMinor,
@@ -621,12 +831,18 @@ export default function DealDetailPage() {
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
   const [isCreateCalculationDialogOpen, setIsCreateCalculationDialogOpen] =
     useState(false);
-  const [calculationAgentFeePercent, setCalculationAgentFeePercent] =
-    useState("");
-  const [calculationFixedFeeAmount, setCalculationFixedFeeAmount] =
-    useState("");
-  const [calculationFixedFeeCurrencyCode, setCalculationFixedFeeCurrencyCode] =
-    useState<string | null>(null);
+  const [quoteMarkupPercent, setQuoteMarkupPercent] = useState("");
+  const [fixedFeeAmount, setFixedFeeAmount] = useState("");
+  const [fixedFeeCurrencyCode, setFixedFeeCurrencyCode] = useState<
+    string | null
+  >(null);
+  const [quotePreview, setQuotePreview] = useState<ApiQuotePreview | null>(
+    null,
+  );
+  const [quotePreviewError, setQuotePreviewError] = useState<string | null>(
+    null,
+  );
+  const [isQuotePreviewLoading, setIsQuotePreviewLoading] = useState(false);
   const [overrideCalculationAmount, setOverrideCalculationAmount] =
     useState(false);
   const [calculationAmount, setCalculationAmount] = useState("");
@@ -647,6 +863,76 @@ export default function DealDetailPage() {
 
     return findAcceptedQuoteDetails(data.workbench);
   }, [data]);
+  const agreementCommercialDefaults = useMemo(() => {
+    if (!data) {
+      return {
+        agreementFeePercentage: "",
+        fixedFeeAmount: "",
+        fixedFeeCurrencyCode: null,
+      };
+    }
+
+    return buildCalculationFeeDefaults({
+      agreement: data.agreement,
+      fallbackCurrencyCode: calculationToCurrency || data.currency?.code || null,
+    });
+  }, [calculationToCurrency, data]);
+  const acceptedQuoteCommercialSummary = useMemo(() => {
+    if (!acceptedQuoteDetails) {
+      return {
+        agreementFeePercentage: "0",
+        finalRate: "",
+        fixedFeeAmount: "",
+        fixedFeeCurrencyCode: null,
+        quoteMarkupPercentage: "0",
+        totalFeePercentage: "0",
+      };
+    }
+
+    const quoteAmountSide = data
+      ? buildQuoteRequestContext(data.workbench).amountSide
+      : "source";
+
+    return {
+      agreementFeePercentage: feeBpsToPercentString(
+        acceptedQuoteDetails.commercialTerms?.agreementFeeBps ?? "0",
+      ),
+      finalRate: formatQuoteDisplayRate({
+        amountSide: quoteAmountSide,
+        currencyOptions: data?.currencyOptions ?? [],
+        fromCurrency: acceptedQuoteDetails.fromCurrency,
+        rateDen: acceptedQuoteDetails.rateDen,
+        rateNum: acceptedQuoteDetails.rateNum,
+        toCurrency: acceptedQuoteDetails.toCurrency,
+      }),
+      fixedFeeAmount: acceptedQuoteDetails.commercialTerms?.fixedFeeAmountMinor
+        ? minorToDecimalString(
+            acceptedQuoteDetails.commercialTerms.fixedFeeAmountMinor,
+            acceptedQuoteDetails.commercialTerms.fixedFeeCurrency
+              ? (() => {
+                  try {
+                    return new Intl.NumberFormat("ru-RU", {
+                      currency:
+                        acceptedQuoteDetails.commercialTerms.fixedFeeCurrency,
+                      style: "currency",
+                    }).resolvedOptions().maximumFractionDigits ?? 2;
+                  } catch {
+                    return 2;
+                  }
+                })()
+              : 2,
+          )
+        : "",
+      fixedFeeCurrencyCode:
+        acceptedQuoteDetails.commercialTerms?.fixedFeeCurrency ?? null,
+      quoteMarkupPercentage: feeBpsToPercentString(
+        acceptedQuoteDetails.commercialTerms?.quoteMarkupBps ?? "0",
+      ),
+      totalFeePercentage: feeBpsToPercentString(
+        acceptedQuoteDetails.commercialTerms?.totalFeeBps ?? "0",
+      ),
+    };
+  }, [acceptedQuoteDetails, data]);
 
   const showError = useCallback(
     (
@@ -882,56 +1168,53 @@ export default function DealDetailPage() {
           ),
     );
     setCalculationAsOf(formatDateTimeInput(new Date()));
+    setQuoteMarkupPercent(
+      acceptedQuoteDetails?.commercialTerms?.quoteMarkupBps
+        ? feeBpsToPercentString(acceptedQuoteDetails.commercialTerms.quoteMarkupBps)
+        : "",
+    );
+    setFixedFeeAmount(
+      acceptedQuoteCommercialSummary.fixedFeeAmount ||
+        agreementCommercialDefaults.fixedFeeAmount,
+    );
+    setFixedFeeCurrencyCode(
+      acceptedQuoteCommercialSummary.fixedFeeCurrencyCode ??
+        agreementCommercialDefaults.fixedFeeCurrencyCode,
+    );
     setIsQuoteDialogOpen(true);
-  }, [data]);
+  }, [
+    acceptedQuoteCommercialSummary.fixedFeeAmount,
+    acceptedQuoteCommercialSummary.fixedFeeCurrencyCode,
+    acceptedQuoteDetails,
+    agreementCommercialDefaults.fixedFeeAmount,
+    agreementCommercialDefaults.fixedFeeCurrencyCode,
+    data,
+  ]);
 
   const handleCreateQuote = useCallback(async () => {
     if (!data) {
       return;
     }
 
-    const quoteRequest = buildQuoteRequestContext(data.workbench);
-    const amountSource = overrideCalculationAmount
-      ? calculationAmount
-      : (quoteRequest.amount ?? "");
+    const preparedQuoteRequest = prepareDealQuoteRequest({
+      calculationAmount,
+      calculationAsOf,
+      calculationToCurrency,
+      currency: data.currency,
+      fixedFeeAmount,
+      fixedFeeCurrencyCode,
+      overrideCalculationAmount,
+      quoteMarkupPercent,
+      quoteRequest: buildQuoteRequestContext(data.workbench),
+      sourceCurrency: data.sourceCurrency,
+    });
 
-    if (!data.sourceCurrency || !amountSource) {
+    if (!preparedQuoteRequest.body) {
       showError(
-        "Недостаточно данных",
-        "Для запроса котировки нужны сумма и валюта списания.",
+        preparedQuoteRequest.validationError?.title ?? "Ошибка котировки",
+        preparedQuoteRequest.validationError?.message ??
+          "Не удалось подготовить запрос котировки.",
       );
-      return;
-    }
-
-    if (!calculationToCurrency) {
-      showError("Недостаточно данных", "Выберите валюту назначения.");
-      return;
-    }
-
-    if (calculationToCurrency === data.sourceCurrency.code) {
-      showError("Недопустимая валютная пара", "Выберите другую валюту.");
-      return;
-    }
-
-    const amountMinor = decimalToMinorString(
-      amountSource,
-      quoteRequest.amountSide === "target"
-        ? (data.currency?.precision ?? data.sourceCurrency.precision)
-        : data.sourceCurrency.precision,
-    );
-
-    if (!amountMinor || BigInt(amountMinor) <= 0n) {
-      showError(
-        "Некорректная сумма",
-        "Введите сумму больше нуля в формате 1000.00.",
-      );
-      return;
-    }
-
-    const asOfDate = calculationAsOf ? new Date(calculationAsOf) : new Date();
-
-    if (Number.isNaN(asOfDate.getTime())) {
-      showError("Некорректная дата", "Выберите дату котировки.");
       return;
     }
 
@@ -946,15 +1229,7 @@ export default function DealDetailPage() {
             "Content-Type": "application/json",
             "Idempotency-Key": createIdempotencyKey(),
           },
-          body: JSON.stringify({
-            mode: "auto_cross",
-            ...(quoteRequest.amountSide === "target"
-              ? { toAmountMinor: amountMinor }
-              : { fromAmountMinor: amountMinor }),
-            fromCurrency: data.sourceCurrency.code,
-            toCurrency: calculationToCurrency,
-            asOf: asOfDate.toISOString(),
-          }),
+          body: JSON.stringify(preparedQuoteRequest.body),
         },
       );
 
@@ -977,8 +1252,11 @@ export default function DealDetailPage() {
     calculationToCurrency,
     data,
     dealId,
+    fixedFeeAmount,
+    fixedFeeCurrencyCode,
     loadDeal,
     overrideCalculationAmount,
+    quoteMarkupPercent,
     showError,
   ]);
 
@@ -988,9 +1266,10 @@ export default function DealDetailPage() {
   const quoteStatusAllowed = data
     ? !["draft", "rejected", "done", "cancelled"].includes(data.deal.status)
     : false;
-  const quoteRequest = data
-    ? buildQuoteRequestContext(data.workbench)
-    : null;
+  const quoteRequest = useMemo(
+    () => (data ? buildQuoteRequestContext(data.workbench) : null),
+    [data],
+  );
   const quoteHasRequestedAmount = Boolean(
     quoteRequest?.amount &&
       quoteRequest.sourceCurrencyId &&
@@ -1006,6 +1285,33 @@ export default function DealDetailPage() {
         : !quoteHasRequestedAmount
           ? "У сделки нет суммы или валют для запроса котировки."
           : null;
+  const quotePreviewRequest = useMemo(
+    () =>
+      prepareDealQuoteRequest({
+        calculationAmount,
+        calculationAsOf,
+        calculationToCurrency,
+        currency: data?.currency ?? null,
+        fixedFeeAmount,
+        fixedFeeCurrencyCode,
+        overrideCalculationAmount,
+        quoteMarkupPercent,
+        quoteRequest,
+        sourceCurrency: data?.sourceCurrency ?? null,
+      }),
+    [
+      calculationAmount,
+      calculationAsOf,
+      calculationToCurrency,
+      data?.currency,
+      data?.sourceCurrency,
+      fixedFeeAmount,
+      fixedFeeCurrencyCode,
+      overrideCalculationAmount,
+      quoteMarkupPercent,
+      quoteRequest,
+    ],
+  );
   const calculationDisabledReason = !data
     ? "Данные сделки еще загружаются."
     : quoteCreationDisabledReason
@@ -1015,6 +1321,88 @@ export default function DealDetailPage() {
         : data.workbench.acceptedQuote.quoteStatus !== "active"
           ? "Создать расчет можно только по действующей принятой котировке."
           : null;
+
+  useEffect(() => {
+    if (!isQuoteDialogOpen) {
+      setQuotePreview(null);
+      setQuotePreviewError(null);
+      setIsQuotePreviewLoading(false);
+      return;
+    }
+
+    if (quoteCreationDisabledReason) {
+      setQuotePreview(null);
+      setQuotePreviewError(quoteCreationDisabledReason);
+      setIsQuotePreviewLoading(false);
+      return;
+    }
+
+    if (!quotePreviewRequest.body) {
+      setQuotePreview(null);
+      setQuotePreviewError(quotePreviewRequest.validationError?.message ?? null);
+      setIsQuotePreviewLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const preview = await fetchJson<ApiQuotePreview>(
+          `${API_BASE_URL}/deals/${dealId}/quotes/preview`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(quotePreviewRequest.body),
+            signal: controller.signal,
+          },
+        );
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        startTransition(() => {
+          setQuotePreview(preview);
+          setQuotePreviewError(null);
+        });
+      } catch (nextError) {
+        if (
+          controller.signal.aborted ||
+          (nextError instanceof DOMException &&
+            nextError.name === "AbortError")
+        ) {
+          return;
+        }
+
+        startTransition(() => {
+          setQuotePreview(null);
+          setQuotePreviewError(
+            nextError instanceof Error
+              ? nextError.message
+              : "Не удалось получить предварительную котировку.",
+          );
+        });
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsQuotePreviewLoading(false);
+        }
+      }
+    }, 250);
+
+    setIsQuotePreviewLoading(true);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    dealId,
+    isQuoteDialogOpen,
+    quoteCreationDisabledReason,
+    quotePreviewRequest,
+  ]);
 
   const handleAcceptQuote = useCallback(
     async (quoteId: string) => {
@@ -1058,17 +1446,8 @@ export default function DealDetailPage() {
       return;
     }
 
-    const defaults = buildCalculationFeeDefaults({
-      agreement: data.agreement,
-      fallbackCurrencyCode:
-        acceptedQuoteDetails?.toCurrency ?? data.currency?.code ?? null,
-    });
-
-    setCalculationAgentFeePercent(defaults.agentFeePercent);
-    setCalculationFixedFeeAmount(defaults.fixedFeeAmount);
-    setCalculationFixedFeeCurrencyCode(defaults.fixedFeeCurrencyCode);
     setIsCreateCalculationDialogOpen(true);
-  }, [acceptedQuoteDetails, data, showError]);
+  }, [data, showError]);
 
   const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
     if (!data?.workbench.acceptedQuote) {
@@ -1080,17 +1459,6 @@ export default function DealDetailPage() {
       showError(
         "Котировка недоступна",
         "Создать расчет можно только по действующей принятой котировке.",
-      );
-      return;
-    }
-
-    const agentFeePercent = calculationAgentFeePercent.trim();
-    const fixedFeeAmount = calculationFixedFeeAmount.trim();
-
-    if (fixedFeeAmount && !calculationFixedFeeCurrencyCode) {
-      showError(
-        "Недостаточно данных",
-        "Для фиксированной комиссии нужна валюта.",
       );
       return;
     }
@@ -1107,10 +1475,6 @@ export default function DealDetailPage() {
             "Idempotency-Key": createIdempotencyKey(),
           },
           body: JSON.stringify({
-            agentFeePercent: agentFeePercent.length > 0 ? agentFeePercent : null,
-            fixedFeeAmount: fixedFeeAmount.length > 0 ? fixedFeeAmount : null,
-            fixedFeeCurrencyCode:
-              fixedFeeAmount.length > 0 ? calculationFixedFeeCurrencyCode : null,
             quoteId: data.workbench.acceptedQuote.quoteId,
           }),
         },
@@ -1129,15 +1493,7 @@ export default function DealDetailPage() {
     } finally {
       setIsCreatingCalculation(false);
     }
-  }, [
-    calculationAgentFeePercent,
-    calculationFixedFeeAmount,
-    calculationFixedFeeCurrencyCode,
-    data,
-    dealId,
-    loadDeal,
-    showError,
-  ]);
+  }, [data, dealId, loadDeal, showError]);
 
   const handleStatusUpdate = useCallback(
     async (status: DealStatus) => {
@@ -1604,14 +1960,10 @@ export default function DealDetailPage() {
       data.workflow.operationalState.positions.filter(
         (position) => position.state === "blocked",
       ).length;
-    const capabilityIssueCount =
-      data.workflow.operationalState.capabilities.filter(
-        (capability) => capability.status !== "enabled",
-      ).length;
 
     return {
       documents: missingEvidenceCount + missingDocumentCount,
-      execution: blockedLegCount + blockedPositionCount + capabilityIssueCount,
+      execution: blockedLegCount + blockedPositionCount,
       intake:
         incompleteSectionCount > 0
           ? incompleteSectionCount
@@ -1712,6 +2064,7 @@ export default function DealDetailPage() {
                 onAcceptQuote={handleAcceptQuote}
                 onCreateCalculation={handleOpenCreateCalculationDialog}
                 onCreateQuote={handleOpenQuoteDialog}
+                quoteAmountSide={quoteRequest?.amountSide ?? "source"}
                 quoteCreationDisabledReason={quoteCreationDisabledReason}
                 quotes={data.workbench.pricing.quotes}
               />
@@ -1765,19 +2118,26 @@ export default function DealDetailPage() {
             onAgreementChange={handleAgreementChange}
             onAssigneeChange={handleAssigneeChange}
           />
-          <DealTimelineCard timeline={data.workflow.timeline} />
+          <DealTimelineCard
+            executionPlan={data.workbench.executionPlan}
+            timeline={data.workflow.timeline}
+          />
           <AgreementCard agreement={data.agreement} />
         </div>
       </div>
 
       <CalculationDialog
+        agreementFeePercentage={agreementCommercialDefaults.agreementFeePercentage}
         asOf={calculationAsOf}
         amount={calculationAmount}
         amountSide={quoteRequest?.amountSide ?? "source"}
         currencyOptions={data.currencyOptions}
         description="Получите котировку для сделки. После этого ее можно принять и создать расчет."
         disabledReason={quoteCreationDisabledReason}
+        fixedFeeAmount={fixedFeeAmount}
+        fixedFeeCurrencyCode={fixedFeeCurrencyCode}
         isCreating={isCreatingQuote}
+        isPreviewLoading={isQuotePreviewLoading}
         onOpenChange={(open) => {
           setIsQuoteDialogOpen(open);
           if (!open) {
@@ -1787,11 +2147,19 @@ export default function DealDetailPage() {
         onAmountChange={setCalculationAmount}
         onAsOfChange={setCalculationAsOf}
         onCancel={() => setIsQuoteDialogOpen(false)}
+        onFixedFeeAmountChange={setFixedFeeAmount}
+        onFixedFeeCurrencyChange={(value) =>
+          setFixedFeeCurrencyCode(value || null)
+        }
+        onQuoteMarkupPercentChange={setQuoteMarkupPercent}
         onSubmit={handleCreateQuote}
         onToCurrencyChange={setCalculationToCurrency}
         onToggleOverride={setOverrideCalculationAmount}
         open={isQuoteDialogOpen}
         overrideAmount={overrideCalculationAmount}
+        preview={quotePreview}
+        previewError={quotePreviewError}
+        quoteMarkupPercent={quoteMarkupPercent}
         sourceCurrency={data.sourceCurrency}
         loadingLabel="Запрашиваем..."
         submitLabel="Запросить котировку"
@@ -1800,21 +2168,31 @@ export default function DealDetailPage() {
       />
 
       <CreateCalculationDialog
-        agentFeePercent={calculationAgentFeePercent}
-        fixedFeeAmount={calculationFixedFeeAmount}
-        fixedFeeCurrencyCode={calculationFixedFeeCurrencyCode}
+        agreementFeePercentage={
+          acceptedQuoteCommercialSummary.agreementFeePercentage
+        }
+        finalRate={acceptedQuoteCommercialSummary.finalRate}
+        fixedFeeAmount={acceptedQuoteCommercialSummary.fixedFeeAmount}
+        fixedFeeCurrencyCode={acceptedQuoteCommercialSummary.fixedFeeCurrencyCode}
         isCreating={isCreatingCalculation}
-        onAgentFeePercentChange={setCalculationAgentFeePercent}
         onCancel={() => setIsCreateCalculationDialogOpen(false)}
-        onFixedFeeAmountChange={setCalculationFixedFeeAmount}
         onOpenChange={setIsCreateCalculationDialogOpen}
         onSubmit={handleCreateCalculationFromAcceptedQuote}
         open={isCreateCalculationDialogOpen}
         quotePairLabel={
           acceptedQuoteDetails
-            ? `${acceptedQuoteDetails.fromCurrency} → ${acceptedQuoteDetails.toCurrency}`
+            ? formatQuoteDisplayPair({
+                amountSide: quoteRequest?.amountSide ?? "source",
+                currencyOptions: data.currencyOptions,
+                fromCurrency: acceptedQuoteDetails.fromCurrency,
+                toCurrency: acceptedQuoteDetails.toCurrency,
+              })
             : null
         }
+        quoteMarkupPercentage={
+          acceptedQuoteCommercialSummary.quoteMarkupPercentage
+        }
+        totalFeePercentage={acceptedQuoteCommercialSummary.totalFeePercentage}
       />
 
       <UploadAttachmentDialog

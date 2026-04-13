@@ -28,6 +28,22 @@ function createStubDb() {
   };
 }
 
+function makeSelectAllResult(rows: unknown[]) {
+  return {
+    from: vi.fn(async () => rows),
+  };
+}
+
+function makeSelectFirstResult(row: unknown | null) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        limit: vi.fn(async () => (row ? [row] : [])),
+      })),
+    })),
+  };
+}
+
 describe("createCurrenciesService", () => {
   it("lists currencies with pagination", async () => {
     const usd = makeCurrency();
@@ -119,9 +135,10 @@ describe("createCurrenciesService", () => {
 
   it("throws CurrencyNotFoundError for unknown code and id", async () => {
     const db = createStubDb();
-    db.select.mockReturnValue({
-      from: vi.fn(async () => [makeCurrency()]),
-    });
+    db.select
+      .mockReturnValueOnce(makeSelectAllResult([makeCurrency()]))
+      .mockReturnValueOnce(makeSelectFirstResult(null))
+      .mockReturnValueOnce(makeSelectFirstResult(null));
 
     const service = createCurrenciesService({ db: db as any });
 
@@ -131,6 +148,20 @@ describe("createCurrenciesService", () => {
     await expect(service.findById("missing-id")).rejects.toThrow(
       CurrencyNotFoundError,
     );
+  });
+
+  it("recovers from a stale empty cache when currencies appear later", async () => {
+    const usd = makeCurrency();
+    const db = createStubDb();
+    db.select
+      .mockReturnValueOnce(makeSelectAllResult([]))
+      .mockReturnValueOnce(makeSelectFirstResult(usd));
+
+    const service = createCurrenciesService({ db: db as any });
+
+    await expect(service.findByCode("USD")).resolves.toEqual(usd);
+    await expect(service.findById(usd.id)).resolves.toEqual(usd);
+    expect(db.select).toHaveBeenCalledTimes(2);
   });
 
   it("invalidates cache after create", async () => {
@@ -217,12 +248,9 @@ describe("createCurrenciesService", () => {
     const usd = makeCurrency();
     const db = createStubDb();
     db.select
-      .mockReturnValueOnce({
-        from: vi.fn(async () => [usd]),
-      })
-      .mockReturnValueOnce({
-        from: vi.fn(async () => []),
-      });
+      .mockReturnValueOnce(makeSelectAllResult([usd]))
+      .mockReturnValueOnce(makeSelectAllResult([]))
+      .mockReturnValueOnce(makeSelectFirstResult(null));
     db.delete.mockReturnValue({
       where: vi.fn(() => ({
         returning: vi.fn(async () => [{ id: usd.id }]),
@@ -237,7 +265,7 @@ describe("createCurrenciesService", () => {
     await expect(service.findByCode("USD")).rejects.toThrow(
       CurrencyNotFoundError,
     );
-    expect(db.select).toHaveBeenCalledTimes(2);
+    expect(db.select).toHaveBeenCalledTimes(3);
   });
 
   it("throws CurrencyNotFoundError when remove target is missing", async () => {

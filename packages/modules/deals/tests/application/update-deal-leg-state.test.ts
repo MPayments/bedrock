@@ -75,7 +75,6 @@ function createWorkflow() {
     },
     nextAction: "Update execution leg state",
     operationalState: {
-      capabilities: [],
       positions: [
         {
           amountMinor: null,

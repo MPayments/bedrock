@@ -24,13 +24,24 @@ export class SetManualRateCommand {
       validated.quote,
     );
 
+    const asOf = validated.asOf ?? this.now();
+    const source = validated.source ?? "manual";
+
     await this.ratesRepository.insertManualRate({
       baseCurrencyId,
       quoteCurrencyId,
       rateNum: validated.rateNum,
       rateDen: validated.rateDen,
-      asOf: validated.asOf ?? this.now(),
-      source: validated.source ?? "manual",
+      asOf,
+      source,
+    });
+    await this.ratesRepository.insertManualRate({
+      baseCurrencyId: quoteCurrencyId,
+      quoteCurrencyId: baseCurrencyId,
+      rateNum: validated.rateDen,
+      rateDen: validated.rateNum,
+      asOf,
+      source,
     });
 
     this.invalidateRateCache();

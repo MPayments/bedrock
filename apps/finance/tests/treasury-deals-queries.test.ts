@@ -5,11 +5,19 @@ import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries
 const headers = vi.fn();
 const fetchMock = vi.fn();
 
+type SerializedDates<T> = T extends Date
+  ? string | Date
+  : T extends (infer U)[]
+    ? SerializedDates<U>[]
+    : T extends object
+      ? { [K in keyof T]: SerializedDates<T[K]> }
+      : T;
+
 vi.mock("next/headers", () => ({
   headers,
 }));
 
-function createFinanceWorkspacePayload(): FinanceDealWorkspace {
+function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> {
   const fundingResolution = {
     availableMinor: null,
     fundingOrganizationId: "84bb2b72-886b-43b2-bdc5-1d4d6d03120d",
@@ -61,6 +69,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
       canCreateCalculation: true,
       canCreateQuote: true,
       canRequestExecution: false,
+      canRunReconciliation: false,
       canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
@@ -121,18 +130,6 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
     },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
-      capabilities: [
-        {
-          applicantCounterpartyId: null,
-          internalEntityOrganizationId: null,
-          kind: "can_collect",
-          note: null,
-          reasonCode: null,
-          status: "enabled",
-          updatedAt: null,
-          updatedByUserId: null,
-        },
-      ],
       positions: [
         {
           amountMinor: null,
@@ -209,6 +206,7 @@ function createFinanceWorkspacePayload(): FinanceDealWorkspace {
         },
         id: "bb36a82b-7a9b-4a88-91d7-39818114e79d",
         occurredAt: "2026-04-02T08:07:00.000Z",
+        payload: {},
         type: "deal_created",
       },
     ],
@@ -597,6 +595,73 @@ describe("treasury deals queries", () => {
     );
   });
 
+  it("accepts treasury instruction timestamps serialized as strings in deal operations", async () => {
+    const workspacePayload = createFinanceWorkspacePayload();
+
+    workspacePayload.relatedResources.operations = [
+      {
+        actions: {
+          canPrepareInstruction: false,
+          canRequestReturn: false,
+          canRetryInstruction: false,
+          canSubmitInstruction: true,
+          canVoidInstruction: false,
+        },
+        availableOutcomeTransitions: [],
+        id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        instructionStatus: "prepared",
+        kind: "payout",
+        latestInstruction: {
+          attempt: 1,
+          createdAt: "2026-04-02T08:20:00.000Z",
+          failedAt: null,
+          id: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          operationId: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          providerRef: null,
+          providerSnapshot: null,
+          returnRequestedAt: null,
+          returnedAt: null,
+          settledAt: null,
+          sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
+          state: "prepared",
+          submittedAt: null,
+          updatedAt: "2026-04-02T08:21:00.000Z",
+          voidedAt: null,
+        },
+        operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
+        state: "planned",
+      },
+    ];
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => workspacePayload,
+    });
+
+    const { getFinanceDealWorkspaceById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    await expect(
+      getFinanceDealWorkspaceById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        relatedResources: expect.objectContaining({
+          operations: [
+            expect.objectContaining({
+              latestInstruction: expect.objectContaining({
+                createdAt: expect.any(Date),
+                updatedAt: expect.any(Date),
+              }),
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("merges finance workspace with quotes and calculations for the treasury workbench", async () => {
     fetchMock
       .mockResolvedValueOnce({
@@ -670,7 +735,7 @@ describe("treasury deals queries", () => {
             calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
             calculationTimestamp: "2026-04-02T08:30:00.000Z",
             createdAt: "2026-04-02T08:30:00.000Z",
-            feeAmountMinor: "0",
+            totalFeeAmountMinor: "0",
             fxQuoteId: null,
             originalAmountMinor: "12500000",
             rateDen: "1",
@@ -686,7 +751,7 @@ describe("treasury deals queries", () => {
             calculationId: "df65ce76-7cb4-4eb0-b4c0-080cf2a70413",
             calculationTimestamp: "2026-04-02T08:12:00.000Z",
             createdAt: "2026-04-02T08:12:00.000Z",
-            feeAmountMinor: "0",
+            totalFeeAmountMinor: "0",
             fxQuoteId: null,
             originalAmountMinor: "12000000",
             rateDen: "1",

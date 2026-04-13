@@ -4,8 +4,6 @@ import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
-  DEAL_CAPABILITY_KIND_VALUES,
-  DEAL_CAPABILITY_STATUS_VALUES,
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,
   DEAL_LEG_OPERATION_KIND_VALUES,
   DEAL_LEG_STATE_VALUES,
@@ -37,12 +35,6 @@ export const DealLegOperationKindSchema = z.enum(
   DEAL_LEG_OPERATION_KIND_VALUES,
 );
 export type DealLegOperationKind = z.infer<typeof DealLegOperationKindSchema>;
-
-export const DealCapabilityKindSchema = z.enum(DEAL_CAPABILITY_KIND_VALUES);
-export type DealCapabilityKind = z.infer<typeof DealCapabilityKindSchema>;
-
-export const DealCapabilityStatusSchema = z.enum(DEAL_CAPABILITY_STATUS_VALUES);
-export type DealCapabilityStatus = z.infer<typeof DealCapabilityStatusSchema>;
 
 export const DealAttachmentIngestionStatusSchema = z.enum(
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,

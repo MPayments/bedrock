@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildDealOperationalState,
-  listRequiredDealCapabilityKinds,
-} from "../../src/domain/operational-state";
+import { buildDealOperationalState } from "../../src/domain/operational-state";
 
 function createExecutionLeg(
   idx: number,
@@ -20,49 +17,10 @@ function createExecutionLeg(
 }
 
 describe("deal operational state", () => {
-  it("maps required capabilities by deal type", () => {
-    expect(
-      listRequiredDealCapabilityKinds({
-        common: {
-          applicantCounterpartyId: null,
-          customerNote: null,
-          requestedExecutionDate: null,
-        },
-        externalBeneficiary: {
-          bankInstructionSnapshot: null,
-          beneficiaryCounterpartyId: null,
-          beneficiarySnapshot: null,
-        },
-        incomingReceipt: {
-          contractNumber: null,
-          expectedAmount: null,
-          expectedAt: null,
-          expectedCurrencyId: null,
-          invoiceNumber: null,
-          payerCounterpartyId: null,
-          payerSnapshot: null,
-        },
-        moneyRequest: {
-          purpose: null,
-          sourceAmount: null,
-          sourceCurrencyId: "currency-1",
-          targetCurrencyId: "currency-2",
-        },
-        settlementDestination: {
-          bankInstructionSnapshot: null,
-          mode: null,
-          requisiteId: null,
-        },
-        type: "currency_transit",
-      }),
-    ).toEqual(["can_collect", "can_fx", "can_transit", "can_payout"]);
-  });
-
-  it("defaults missing capability rows to pending", () => {
+  it("derives execution-backed positions directly from the leg states", () => {
     const operationalState = buildDealOperationalState({
       calculationId: null,
       calculationLines: [],
-      capabilityStates: [],
       executionPlan: [
         createExecutionLeg(1, "collect", "pending"),
         createExecutionLeg(2, "payout", "pending"),
@@ -100,41 +58,25 @@ describe("deal operational state", () => {
         },
         type: "payment",
       },
-      participants: [
-        {
-          counterpartyId: "applicant-1",
-          customerId: null,
-          displayName: "Applicant",
-          id: "participant-applicant",
-          organizationId: null,
-          role: "applicant",
-        },
-        {
-          counterpartyId: null,
-          customerId: null,
-          displayName: "Internal entity",
-          id: "participant-internal",
-          organizationId: "org-1",
-          role: "internal_entity",
-        },
-      ],
       sectionCompleteness: [],
       status: "submitted",
       updatedAt: new Date("2026-04-01T12:00:00.000Z"),
     });
 
-    expect(operationalState.capabilities).toEqual([
-      expect.objectContaining({
-        kind: "can_collect",
-        reasonCode: "capability_missing",
-        status: "pending",
-      }),
-      expect.objectContaining({
-        kind: "can_payout",
-        reasonCode: "capability_missing",
-        status: "pending",
-      }),
-    ]);
+    expect(operationalState.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "customer_receivable",
+          reasonCode: "execution_pending",
+          state: "pending",
+        }),
+        expect.objectContaining({
+          kind: "provider_payable",
+          reasonCode: "execution_pending",
+          state: "pending",
+        }),
+      ]),
+    );
   });
 
   it("keeps reserved positions as not applicable and derives fee/spread positions", () => {
@@ -154,7 +96,6 @@ describe("deal operational state", () => {
           updatedAt: new Date("2026-04-01T11:00:00.000Z"),
         },
       ],
-      capabilityStates: [],
       executionPlan: [
         createExecutionLeg(1, "collect", "done"),
         createExecutionLeg(2, "payout", "ready"),
@@ -192,24 +133,6 @@ describe("deal operational state", () => {
         },
         type: "payment",
       },
-      participants: [
-        {
-          counterpartyId: "applicant-1",
-          customerId: null,
-          displayName: "Applicant",
-          id: "participant-applicant",
-          organizationId: null,
-          role: "applicant",
-        },
-        {
-          counterpartyId: null,
-          customerId: null,
-          displayName: "Internal entity",
-          id: "participant-internal",
-          organizationId: "org-1",
-          role: "internal_entity",
-        },
-      ],
       sectionCompleteness: [],
       status: "awaiting_payment",
       updatedAt: new Date("2026-04-01T12:00:00.000Z"),

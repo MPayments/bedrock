@@ -58,19 +58,23 @@ async function uploadOrganizationAsset(input: {
 
 export async function seedOrganizations(db: Database | Transaction) {
   const objectStorage = createSeedObjectStorage();
+  const uploadAssets = Boolean(objectStorage);
   let seededFilesCount = 0;
 
-  for (const organization of ORGANIZATIONS) {
-    const requiresFiles = Boolean(
-      organization.signatureAssetFileName || organization.sealAssetFileName,
-    );
+  if (!uploadAssets) {
+    const organizationsWithAssets = ORGANIZATIONS.filter(
+      (organization) =>
+        organization.signatureAssetFileName || organization.sealAssetFileName,
+    ).length;
 
-    if (requiresFiles && !objectStorage) {
-      throw new Error(
-        `[seed:organizations] S3 storage is required to seed files for organization ${organization.id}`,
+    if (organizationsWithAssets > 0) {
+      console.warn(
+        `[seed:organizations] S3 storage is not configured; seeding ${organizationsWithAssets} organizations without signature/seal files`,
       );
     }
+  }
 
+  for (const organization of ORGANIZATIONS) {
     const signatureKey =
       organization.signatureAssetFileName && objectStorage
         ? await uploadOrganizationAsset({
@@ -92,6 +96,17 @@ export async function seedOrganizations(db: Database | Transaction) {
       seededFilesCount += 1;
     }
 
+    const organizationUpdateSet = {
+      externalRef: organization.externalRef,
+      shortName: organization.shortName,
+      fullName: organization.fullName,
+      description: organization.description ?? null,
+      kind: organization.kind,
+      country: organization.country ?? null,
+      isActive: true,
+      ...(uploadAssets ? { signatureKey, sealKey } : {}),
+    };
+
     await db
       .insert(schema.organizations)
       .values({
@@ -108,17 +123,7 @@ export async function seedOrganizations(db: Database | Transaction) {
       })
       .onConflictDoUpdate({
         target: schema.organizations.id,
-        set: {
-          externalRef: organization.externalRef,
-          shortName: organization.shortName,
-          fullName: organization.fullName,
-          description: organization.description ?? null,
-          kind: organization.kind,
-          country: organization.country ?? null,
-          isActive: true,
-          signatureKey,
-          sealKey,
-        },
+        set: organizationUpdateSet,
       });
 
     const [profile] = await db

@@ -29,7 +29,7 @@ function createWorkflow(overrides?: {
             ({
               acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
               acceptedByUserId: "user-1",
-              agreementVersionId: null,
+              agreementVersionId: "agreement-version-1",
               dealId: "deal-1",
               dealRevision: 2,
               expiresAt: new Date("2099-04-01T11:00:00.000Z"),
@@ -170,6 +170,14 @@ function createWorkflow(overrides?: {
             legs: [],
             pricingTrace: {},
             quote: {
+              commercialTerms: {
+                agreementVersionId: "agreement-version-1",
+                agreementFeeBps: 100n,
+                quoteMarkupBps: 0n,
+                totalFeeBps: 100n,
+                fixedFeeAmountMinor: 50n,
+                fixedFeeCurrency: "EUR",
+              },
               createdAt: new Date("2026-04-01T10:00:00.000Z"),
               dealDirection: null,
               dealForm: null,
@@ -461,33 +469,8 @@ describe("deal quote workflow", () => {
     expect(calculation).toEqual({ id: "calculation-1" });
   });
 
-  it("applies active agreement fee defaults when creating a calculation", async () => {
-    const { calculations, workflow } = createWorkflow({
-      agreement: {
-        feeRules: [
-          {
-            id: "rule-agent-fee",
-            kind: "agent_fee",
-            unit: "bps",
-            value: "100",
-            currencyId: null,
-            currencyCode: null,
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-          {
-            id: "rule-fixed-fee",
-            kind: "fixed_fee",
-            unit: "money",
-            value: "150",
-            currencyId: "cur-eur",
-            currencyCode: "EUR",
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-        ],
-      },
-    });
+  it("uses accepted quote commercial terms when creating a calculation", async () => {
+    const { calculations, workflow } = createWorkflow();
 
     await workflow.createCalculationFromAcceptedQuote({
       actorUserId: "user-1",
@@ -498,51 +481,67 @@ describe("deal quote workflow", () => {
 
     expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        additionalExpensesAmountMinor: "15050",
+        agreementFeeAmountMinor: "100",
+        agreementFeeBps: "100",
+        additionalExpensesAmountMinor: "50",
         additionalExpensesCurrencyId: "cur-eur",
-        additionalExpensesInBaseMinor: "15050",
-        feeAmountInBaseMinor: "180",
-        feeAmountMinor: "200",
-        feeBps: "200",
-        totalAmountMinor: "10200",
-        totalWithExpensesInBaseMinor: "24230",
+        additionalExpensesInBaseMinor: "50",
+        fixedFeeAmountMinor: "50",
+        fixedFeeCurrencyId: "cur-eur",
+        quoteMarkupAmountMinor: "0",
+        quoteMarkupBps: "0",
+        totalFeeAmountInBaseMinor: "90",
+        totalFeeAmountMinor: "100",
+        totalFeeBps: "100",
+        totalAmountMinor: "10100",
+        totalWithExpensesInBaseMinor: "9140",
       }),
     );
   });
 
-  it("allows clearing agreement fee defaults explicitly", async () => {
-    const { calculations, workflow } = createWorkflow({
-      agreement: {
-        feeRules: [
-          {
-            id: "rule-agent-fee",
-            kind: "agent_fee",
-            unit: "bps",
-            value: "100",
-            currencyId: null,
-            currencyCode: null,
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-          {
-            id: "rule-fixed-fee",
-            kind: "fixed_fee",
-            unit: "money",
-            value: "150",
-            currencyId: "cur-eur",
-            currencyCode: "EUR",
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-        ],
+  it("falls back to zeroed commercial totals when the accepted quote has no commercial terms", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [
+        {
+          amountMinor: 50n,
+          bucket: "pass_through",
+          currency: "EUR",
+          source: "rule",
+        },
+      ],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        commercialTerms: null,
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 10000n,
+        fromCurrency: "USD",
+        fromCurrencyId: "cur-usd",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "auto_cross",
+        pricingTrace: {},
+        rateDen: 10n,
+        rateNum: 9n,
+        status: "active",
+        toAmountMinor: 9000n,
+        toCurrency: "EUR",
+        toCurrencyId: "cur-eur",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
       },
-    });
+    }));
+    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
 
     await workflow.createCalculationFromAcceptedQuote({
       actorUserId: "user-1",
-      agentFeePercent: null,
       dealId: "deal-1",
-      fixedFeeAmount: null,
       idempotencyKey: "idem-1",
       quoteId: "quote-1",
     });
@@ -552,11 +551,17 @@ describe("deal quote workflow", () => {
         additionalExpensesAmountMinor: "50",
         additionalExpensesCurrencyId: "cur-eur",
         additionalExpensesInBaseMinor: "50",
-        feeAmountInBaseMinor: "90",
-        feeAmountMinor: "100",
-        feeBps: "100",
-        totalAmountMinor: "10100",
-        totalWithExpensesInBaseMinor: "9140",
+        agreementFeeAmountMinor: "0",
+        agreementFeeBps: "0",
+        fixedFeeAmountMinor: "0",
+        fixedFeeCurrencyId: null,
+        quoteMarkupAmountMinor: "0",
+        quoteMarkupBps: "0",
+        totalFeeAmountInBaseMinor: "0",
+        totalFeeAmountMinor: "0",
+        totalFeeBps: "0",
+        totalAmountMinor: "10000",
+        totalWithExpensesInBaseMinor: "9050",
       }),
     );
   });
@@ -568,6 +573,14 @@ describe("deal quote workflow", () => {
       legs: [],
       pricingTrace: {},
       quote: {
+        commercialTerms: {
+          agreementVersionId: "agreement-version-1",
+          agreementFeeBps: 100n,
+          quoteMarkupBps: 0n,
+          totalFeeBps: 100n,
+          fixedFeeAmountMinor: null,
+          fixedFeeCurrency: null,
+        },
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         dealDirection: null,
         dealForm: null,
@@ -591,23 +604,7 @@ describe("deal quote workflow", () => {
         usedDocumentId: null,
       },
     }));
-    const { calculations, workflow } = createWorkflow({
-      agreement: {
-        feeRules: [
-          {
-            id: "rule-agent-fee",
-            kind: "agent_fee",
-            unit: "bps",
-            value: "100",
-            currencyId: null,
-            currencyCode: null,
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-        ],
-      },
-      getQuoteDetails,
-    });
+    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
 
     await workflow.createCalculationFromAcceptedQuote({
       actorUserId: "user-1",
@@ -618,9 +615,10 @@ describe("deal quote workflow", () => {
 
     expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        feeAmountInBaseMinor: "31999",
-        feeAmountMinor: "2551338",
-        feeBps: "100",
+        agreementFeeAmountMinor: "2551338",
+        totalFeeAmountInBaseMinor: "31999",
+        totalFeeAmountMinor: "2551338",
+        totalFeeBps: "100",
         totalAmountMinor: "257685098",
       }),
     );
@@ -629,10 +627,25 @@ describe("deal quote workflow", () => {
   it("rounds percentage fees and converted components with half-up minor-unit policy", async () => {
     const getQuoteDetails = vi.fn(async () => ({
       feeComponents: [],
-      financialLines: [],
+      financialLines: [
+        {
+          amountMinor: 1n,
+          bucket: "pass_through",
+          currency: "USD",
+          source: "manual",
+        },
+      ],
       legs: [],
       pricingTrace: {},
       quote: {
+        commercialTerms: {
+          agreementVersionId: "agreement-version-1",
+          agreementFeeBps: 100n,
+          quoteMarkupBps: 0n,
+          totalFeeBps: 100n,
+          fixedFeeAmountMinor: 1n,
+          fixedFeeCurrency: "USD",
+        },
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         dealDirection: null,
         dealForm: null,
@@ -656,29 +669,11 @@ describe("deal quote workflow", () => {
         usedDocumentId: null,
       },
     }));
-    const { calculations, workflow } = createWorkflow({
-      agreement: {
-        feeRules: [
-          {
-            id: "rule-agent-fee",
-            kind: "agent_fee",
-            unit: "bps",
-            value: "100",
-            currencyId: null,
-            currencyCode: null,
-            createdAt: new Date("2026-04-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-          },
-        ],
-      },
-      getQuoteDetails,
-    });
+    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
 
     await workflow.createCalculationFromAcceptedQuote({
       actorUserId: "user-1",
       dealId: "deal-1",
-      fixedFeeAmount: "0.01",
-      fixedFeeCurrencyCode: "USD",
       idempotencyKey: "idem-1",
       quoteId: "quote-1",
     });
@@ -688,8 +683,11 @@ describe("deal quote workflow", () => {
         additionalExpensesAmountMinor: "1",
         additionalExpensesCurrencyId: "cur-usd",
         additionalExpensesInBaseMinor: "1",
-        feeAmountInBaseMinor: "1",
-        feeAmountMinor: "1",
+        agreementFeeAmountMinor: "1",
+        fixedFeeAmountMinor: "1",
+        fixedFeeCurrencyId: "cur-usd",
+        totalFeeAmountInBaseMinor: "1",
+        totalFeeAmountMinor: "1",
         totalAmountMinor: "51",
         totalWithExpensesInBaseMinor: "27",
       }),

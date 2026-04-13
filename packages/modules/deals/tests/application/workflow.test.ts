@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildEffectiveDealExecutionPlan,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
 } from "../../src/domain/workflow";
@@ -160,5 +161,84 @@ describe("deal workflow", () => {
     });
 
     expect(nextAction).toBe("Continue processing");
+  });
+
+  it("marks the payment convert leg done after a posted exchange document exists", () => {
+    const executionPlan = buildEffectiveDealExecutionPlan({
+      acceptance: null,
+      documents: [
+        {
+          approvalStatus: "not_required",
+          createdAt: new Date("2026-04-05T09:00:00.000Z"),
+          docType: "exchange",
+          id: "document-1",
+          lifecycleStatus: "active",
+          occurredAt: new Date("2026-04-05T09:00:00.000Z"),
+          postingStatus: "posted",
+          submissionStatus: "submitted",
+        },
+      ],
+      fundingResolution: {
+        availableMinor: "1450000",
+        fundingOrganizationId: "00000000-0000-4000-8000-000000000001",
+        fundingRequisiteId: "00000000-0000-4000-8000-000000000002",
+        reasonCode: null,
+        requiredAmountMinor: "1450000",
+        state: "resolved",
+        strategy: "external_fx",
+        targetCurrency: "USD",
+        targetCurrencyId: "00000000-0000-4000-8000-000000000003",
+      },
+      intake: {
+        common: {
+          applicantCounterpartyId: "applicant-1",
+          customerNote: null,
+          requestedExecutionDate: new Date("2026-04-05T00:00:00.000Z"),
+        },
+        externalBeneficiary: {
+          bankInstructionSnapshot: {
+            accountNo: "AE640970000000103000009876543210",
+            bankAddress: null,
+            bankCountry: "AE",
+            bankName: "Dubai Islamic Bank",
+            beneficiaryName: "ALMUTLAG GENERAL TRADING LLC",
+            bic: "DUIBAEAD",
+            corrAccount: null,
+            iban: "AE640970000000103000009876543210",
+            label: "Primary beneficiary account",
+            swift: "DUIBAEAD",
+          },
+          beneficiaryCounterpartyId: "beneficiary-1",
+          beneficiarySnapshot: null,
+        },
+        incomingReceipt: {
+          contractNumber: "WP-PO-2026-001",
+          expectedAmount: "14500.00",
+          expectedAt: null,
+          expectedCurrencyId: "currency-usd",
+          invoiceNumber: "WP-INV-2026-001",
+          payerCounterpartyId: "payer-1",
+          payerSnapshot: null,
+        },
+        moneyRequest: {
+          purpose: "Payment for invoice WP-INV-2026-001",
+          sourceAmount: "14500.00",
+          sourceCurrencyId: "currency-aed",
+          targetCurrencyId: "currency-usd",
+        },
+        settlementDestination: {
+          bankInstructionSnapshot: null,
+          mode: null,
+          requisiteId: null,
+        },
+        type: "payment",
+      },
+      now: new Date("2026-04-05T10:00:00.000Z"),
+      storedLegs: [],
+    });
+
+    expect(executionPlan.find((leg) => leg.kind === "convert")?.state).toBe(
+      "done",
+    );
   });
 });

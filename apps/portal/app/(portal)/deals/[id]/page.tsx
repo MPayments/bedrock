@@ -633,12 +633,38 @@ export default function PortalDealDetailPage() {
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">
                       <div className="text-xs text-muted-foreground">
-                        Комиссия
+                        Договорная комиссия
                       </div>
                       <div className="text-sm font-medium">
-                        {data.calculation.feePercentage}% (
+                        {data.calculation.agreementFeePercentage}% (
                         {formatCurrencyAmount(
-                          data.calculation.feeAmount,
+                          data.calculation.agreementFeeAmount,
+                          data.calculation.currencyCode,
+                        )}
+                        )
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Надбавка к котировке
+                      </div>
+                      <div className="text-sm font-medium">
+                        {data.calculation.quoteMarkupPercentage}% (
+                        {formatCurrencyAmount(
+                          data.calculation.quoteMarkupAmount,
+                          data.calculation.currencyCode,
+                        )}
+                        )
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Суммарная комиссия
+                      </div>
+                      <div className="text-sm font-medium">
+                        {data.calculation.totalFeePercentage}% (
+                        {formatCurrencyAmount(
+                          data.calculation.totalFeeAmount,
                           data.calculation.currencyCode,
                         )}
                         )
@@ -656,7 +682,9 @@ export default function PortalDealDetailPage() {
                       </div>
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">
-                      <div className="text-xs text-muted-foreground">Курс</div>
+                      <div className="text-xs text-muted-foreground">
+                        Финальный курс клиента
+                      </div>
                       <div className="text-sm font-medium">
                         {formatCalculationRate(data.calculation)}
                       </div>
@@ -675,11 +703,36 @@ export default function PortalDealDetailPage() {
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2">
                       <div className="text-xs text-muted-foreground">
+                        Фиксированная комиссия
+                      </div>
+                      <div className="text-sm font-medium">
+                        {data.calculation.fixedFeeAmount &&
+                        data.calculation.fixedFeeCurrencyCode
+                          ? formatCurrencyAmount(
+                              data.calculation.fixedFeeAmount,
+                              data.calculation.fixedFeeCurrencyCode,
+                            )
+                          : "Нет"}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
                         Итого без расходов
                       </div>
                       <div className="text-sm font-medium">
                         {formatCurrencyAmount(
                           data.calculation.totalInBase,
+                          data.calculation.baseCurrencyCode,
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Комиссия в базовой валюте
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrencyAmount(
+                          data.calculation.totalFeeAmountInBase,
                           data.calculation.baseCurrencyCode,
                         )}
                       </div>

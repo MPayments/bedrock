@@ -22,17 +22,29 @@ const FinancialLineInputSchema = z.object({
 
 export const CreateCalculationInputSchema = z
   .object({
+    agreementVersionId: z.uuid().nullable().optional(),
+    agreementFeeBps: NonNegativeIntegerStringSchema,
+    agreementFeeAmountMinor: NonNegativeIntegerStringSchema,
     calculationCurrencyId: z.uuid(),
     originalAmountMinor: NonNegativeIntegerStringSchema,
-    feeBps: NonNegativeIntegerStringSchema,
-    feeAmountMinor: NonNegativeIntegerStringSchema,
+    totalFeeBps: NonNegativeIntegerStringSchema,
+    totalFeeAmountMinor: NonNegativeIntegerStringSchema,
     totalAmountMinor: NonNegativeIntegerStringSchema,
     baseCurrencyId: z.uuid(),
-    feeAmountInBaseMinor: NonNegativeIntegerStringSchema,
+    totalFeeAmountInBaseMinor: NonNegativeIntegerStringSchema,
     totalInBaseMinor: NonNegativeIntegerStringSchema,
     additionalExpensesCurrencyId: z.uuid().nullable().optional(),
     additionalExpensesAmountMinor: NonNegativeIntegerStringSchema,
     additionalExpensesInBaseMinor: NonNegativeIntegerStringSchema,
+    fixedFeeAmountMinor: NonNegativeIntegerStringSchema,
+    fixedFeeCurrencyId: z.uuid().nullable().optional(),
+    pricingProvenance: z.record(z.string(), z.unknown()).nullable().optional(),
+    quoteMarkupAmountMinor: NonNegativeIntegerStringSchema,
+    quoteMarkupBps: NonNegativeIntegerStringSchema,
+    referenceRateAsOf: z.coerce.date().nullable().optional(),
+    referenceRateSource: CalculationRateSourceSchema.nullable().optional(),
+    referenceRateNum: NonNegativeIntegerStringSchema.nullable().optional(),
+    referenceRateDen: NonNegativeIntegerStringSchema.nullable().optional(),
     totalWithExpensesInBaseMinor: NonNegativeIntegerStringSchema,
     rateSource: CalculationRateSourceSchema,
     rateNum: NonNegativeIntegerStringSchema,
@@ -152,6 +164,74 @@ export const CreateCalculationInputSchema = z
           "fxQuoteId is required when additionalExpensesRateSource is fx_quote",
       });
     }
+
+    const fixedFeeCurrencyId = value.fixedFeeCurrencyId ?? null;
+    if (value.fixedFeeAmountMinor === "0" && fixedFeeCurrencyId !== null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fixedFeeCurrencyId"],
+        message:
+          "fixedFeeCurrencyId must be null when fixedFeeAmountMinor is zero",
+      });
+    }
+
+    if (value.fixedFeeAmountMinor !== "0" && fixedFeeCurrencyId === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fixedFeeCurrencyId"],
+        message:
+          "fixedFeeCurrencyId is required when fixedFeeAmountMinor is non-zero",
+      });
+    }
+
+    const referenceRateSource = value.referenceRateSource ?? null;
+    const referenceRateNum = value.referenceRateNum ?? null;
+    const referenceRateDen = value.referenceRateDen ?? null;
+    const referenceRateAsOf = value.referenceRateAsOf ?? null;
+
+    if (referenceRateSource === null) {
+      if (
+        referenceRateNum !== null ||
+        referenceRateDen !== null ||
+        referenceRateAsOf !== null
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["referenceRateSource"],
+          message:
+            "referenceRateSource is required when reference rate fields are provided",
+        });
+      }
+    } else {
+      if (
+        referenceRateNum === null ||
+        referenceRateDen === null ||
+        referenceRateAsOf === null
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["referenceRateNum"],
+          message:
+            "referenceRateNum, referenceRateDen, and referenceRateAsOf are required when referenceRateSource is provided",
+        });
+      }
+
+      if (referenceRateNum === "0") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["referenceRateNum"],
+          message: "referenceRateNum must be positive",
+        });
+      }
+
+      if (referenceRateDen === "0") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["referenceRateDen"],
+          message: "referenceRateDen must be positive",
+        });
+      }
+    }
   });
 
 export type CreateCalculationInput = z.infer<
@@ -161,13 +241,20 @@ export type CreateCalculationInput = z.infer<
 export type NormalizedCreateCalculationInput = Omit<
   z.infer<typeof CreateCalculationInputSchema>,
   | "originalAmountMinor"
-  | "feeBps"
-  | "feeAmountMinor"
+  | "agreementFeeBps"
+  | "agreementFeeAmountMinor"
+  | "totalFeeBps"
+  | "totalFeeAmountMinor"
   | "totalAmountMinor"
-  | "feeAmountInBaseMinor"
+  | "totalFeeAmountInBaseMinor"
   | "totalInBaseMinor"
   | "additionalExpensesAmountMinor"
   | "additionalExpensesInBaseMinor"
+  | "fixedFeeAmountMinor"
+  | "quoteMarkupAmountMinor"
+  | "quoteMarkupBps"
+  | "referenceRateDen"
+  | "referenceRateNum"
   | "totalWithExpensesInBaseMinor"
   | "rateNum"
   | "rateDen"
@@ -175,6 +262,7 @@ export type NormalizedCreateCalculationInput = Omit<
   | "additionalExpensesRateSource"
   | "additionalExpensesRateNum"
   | "additionalExpensesRateDen"
+  | "fixedFeeCurrencyId"
   | "fxQuoteId"
   | "financialLines"
 > & {
@@ -184,9 +272,10 @@ export type NormalizedCreateCalculationInput = Omit<
     | null;
   additionalExpensesRateNum: bigint | null;
   additionalExpensesRateDen: bigint | null;
-  feeAmountInBaseMinor: bigint;
-  feeAmountMinor: bigint;
-  feeBps: bigint;
+  agreementFeeAmountMinor: bigint;
+  agreementFeeBps: bigint;
+  fixedFeeAmountMinor: bigint;
+  fixedFeeCurrencyId: string | null;
   fxQuoteId: string | null;
   financialLines: {
     amountMinor: bigint;
@@ -194,8 +283,18 @@ export type NormalizedCreateCalculationInput = Omit<
     kind: z.infer<typeof CalculationLineKindSchema>;
   }[];
   originalAmountMinor: bigint;
+  pricingProvenance: Record<string, unknown> | null;
   rateDen: bigint;
   rateNum: bigint;
+  referenceRateAsOf: Date | null;
+  referenceRateSource: z.infer<typeof CalculationRateSourceSchema> | null;
+  referenceRateNum: bigint | null;
+  referenceRateDen: bigint | null;
+  quoteMarkupAmountMinor: bigint;
+  quoteMarkupBps: bigint;
+  totalFeeAmountInBaseMinor: bigint;
+  totalFeeAmountMinor: bigint;
+  totalFeeBps: bigint;
   totalAmountMinor: bigint;
   totalInBaseMinor: bigint;
   additionalExpensesAmountMinor: bigint;
@@ -216,11 +315,14 @@ export function normalizeCreateCalculationInput(
 
   return {
     ...validated,
+    agreementVersionId: validated.agreementVersionId ?? null,
+    agreementFeeBps: BigInt(validated.agreementFeeBps),
+    agreementFeeAmountMinor: BigInt(validated.agreementFeeAmountMinor),
     originalAmountMinor: BigInt(validated.originalAmountMinor),
-    feeBps: BigInt(validated.feeBps),
-    feeAmountMinor: BigInt(validated.feeAmountMinor),
+    totalFeeBps: BigInt(validated.totalFeeBps),
+    totalFeeAmountMinor: BigInt(validated.totalFeeAmountMinor),
     totalAmountMinor: BigInt(validated.totalAmountMinor),
-    feeAmountInBaseMinor: BigInt(validated.feeAmountInBaseMinor),
+    totalFeeAmountInBaseMinor: BigInt(validated.totalFeeAmountInBaseMinor),
     totalInBaseMinor: BigInt(validated.totalInBaseMinor),
     additionalExpensesCurrencyId: validated.additionalExpensesCurrencyId ?? null,
     additionalExpensesAmountMinor: BigInt(
@@ -229,6 +331,23 @@ export function normalizeCreateCalculationInput(
     additionalExpensesInBaseMinor: BigInt(
       validated.additionalExpensesInBaseMinor,
     ),
+    fixedFeeAmountMinor: BigInt(validated.fixedFeeAmountMinor),
+    fixedFeeCurrencyId: validated.fixedFeeCurrencyId ?? null,
+    pricingProvenance: validated.pricingProvenance ?? null,
+    quoteMarkupAmountMinor: BigInt(validated.quoteMarkupAmountMinor),
+    quoteMarkupBps: BigInt(validated.quoteMarkupBps),
+    referenceRateAsOf: validated.referenceRateAsOf ?? null,
+    referenceRateSource: validated.referenceRateSource ?? null,
+    referenceRateNum:
+      validated.referenceRateNum !== undefined &&
+      validated.referenceRateNum !== null
+        ? BigInt(validated.referenceRateNum)
+        : null,
+    referenceRateDen:
+      validated.referenceRateDen !== undefined &&
+      validated.referenceRateDen !== null
+        ? BigInt(validated.referenceRateDen)
+        : null,
     totalWithExpensesInBaseMinor: BigInt(
       validated.totalWithExpensesInBaseMinor,
     ),

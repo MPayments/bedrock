@@ -178,7 +178,10 @@ export default function DealsPage() {
               </span>
             </div>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button
+            data-testid="crm-new-deal-button"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Новая сделка
           </Button>

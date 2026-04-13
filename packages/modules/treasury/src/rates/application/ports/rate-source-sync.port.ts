@@ -4,7 +4,6 @@ import type {
 } from "./rates.repository";
 import type { RateSource } from "../../../shared/application/external-ports";
 
-
 export interface RateSourceSyncPort {
   getRateSourceStatuses(now?: Date): Promise<RateSourceStatus[]>;
   ensureSourceFresh(

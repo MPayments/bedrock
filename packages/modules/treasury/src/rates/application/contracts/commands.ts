@@ -7,7 +7,6 @@ import {
 } from "../../../fees/application/contracts/zod";
 import { positiveMinorAmountStringSchema } from "../../../quotes/application/contracts/zod";
 
-
 const rateAmountInputSchema = z.union([
   positiveAmountSchema,
   positiveMinorAmountStringSchema.transform((value) => BigInt(value)),
