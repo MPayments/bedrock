@@ -74,12 +74,12 @@ export function UserCombobox({
     }
   }, []);
 
-  // Загружаем пользователей при открытии
+  // Загружаем пользователей при открытии или когда есть значение, но список ещё не загружен
   React.useEffect(() => {
-    if (open) {
+    if (open || (value && users.length === 0)) {
       fetchUsers();
     }
-  }, [open, fetchUsers]);
+  }, [open, value, users.length, fetchUsers]);
 
   // Фильтрация пользователей по поисковому запросу
   const filteredUsers = React.useMemo(() => {

@@ -73,12 +73,12 @@ export function AgentCombobox({
     }
   }, []);
 
-  // Загружаем агентов при открытии
+  // Загружаем агентов при открытии или когда есть значение, но список ещё не загружен
   React.useEffect(() => {
-    if (open) {
+    if (open || (value && agents.length === 0)) {
       fetchAgents();
     }
-  }, [open, fetchAgents]);
+  }, [open, value, agents.length, fetchAgents]);
 
   // Фильтрация агентов по поисковому запросу
   const filteredAgents = React.useMemo(() => {

@@ -46,7 +46,7 @@ function trimToNull(value: string | null | undefined): string | null {
 function buildDefaultCustomerAgreementContractNumber(
   customerId: string,
 ): string {
-  return `contract-${getUuidPrefix(customerId).toUpperCase()}`;
+  return `contract#${getUuidPrefix(customerId).toUpperCase()}`;
 }
 
 function trimLeadingZeros(value: string): string {
