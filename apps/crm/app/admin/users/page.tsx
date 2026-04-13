@@ -9,6 +9,7 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   SortingState,
+  VisibilityState,
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronLeft, Loader2, Plus, Search } from "lucide-react";
@@ -20,6 +21,7 @@ import { Input } from "@bedrock/sdk-ui/components/input";
 
 import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
 import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
 
 import { UserRowActions } from "@bedrock/sdk-users-ui/components/user-row-actions";
 import { UserStatusBadge } from "@bedrock/sdk-users-ui/components/user-status-badge";
@@ -42,8 +44,8 @@ export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
 
   useEffect(() => {
@@ -52,7 +54,6 @@ export default function UsersPage() {
     async function loadUsers() {
       try {
         setLoading(true);
-        setError(null);
         const res = await apiClient.v1.users.$get({ query: {} });
         if (!res.ok) {
           throw new Error(`Ошибка загрузки: ${res.status}`);
@@ -62,7 +63,7 @@ export default function UsersPage() {
         setUsers(Array.isArray(payload.data) ? payload.data : []);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Ошибка загрузки");
+        console.error("Users fetch error:", err);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -152,8 +153,9 @@ export default function UsersPage() {
   const table = useReactTable({
     data: users,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, columnVisibility, globalFilter },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -200,7 +202,7 @@ export default function UsersPage() {
                 },
               ]}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center justify-between gap-2">
                 <div className="relative w-[300px]">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -210,6 +212,7 @@ export default function UsersPage() {
                     className="pl-10"
                   />
                 </div>
+                <DataTableViewOptions table={table} align="end" />
               </div>
             </DataTable>
           </div>
