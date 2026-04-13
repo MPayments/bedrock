@@ -1,4 +1,5 @@
 import type {
+  ApiDealTimelineEvent,
   DealLegKind,
   DealLegState,
   DealOperationalPositionKind,
@@ -47,6 +48,7 @@ export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
 };
 
 export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
+  acceptance: "Акт / подтверждение исполнения",
   exchange: "Документ по обмену валюты",
   fx_execute: "Исполнение конвертации",
   fx_resolution: "Сверка по конвертации",
@@ -177,22 +179,36 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
     "Принятая котировка больше не действует.",
 };
 
-export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
+export const DEAL_TIMELINE_EVENT_LABELS: Record<
+  ApiDealTimelineEvent["type"],
+  string
+> = {
   attachment_deleted: "Вложение удалено",
   attachment_ingested: "Файл распознан",
   attachment_ingestion_failed: "Ошибка распознавания файла",
   attachment_uploaded: "Вложение загружено",
   calculation_attached: "Расчет привязан",
   deal_created: "Сделка создана",
+  deal_closed: "Сделка закрыта",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
+  execution_requested: "Запущено исполнение сделки",
   intake_saved: "Анкета сохранена",
+  instruction_failed: "Инструкция завершилась ошибкой",
+  instruction_prepared: "Инструкция подготовлена",
+  instruction_retried: "Инструкция отправлена на повтор",
+  instruction_returned: "Инструкция возвращена",
+  instruction_settled: "Инструкция исполнена",
+  instruction_submitted: "Инструкция отправлена",
+  instruction_voided: "Инструкция отменена",
+  leg_operation_created: "Создана казначейская операция",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
   quote_expired: "Котировка истекла",
   quote_used: "Котировка исполнена",
+  return_requested: "Запрошен возврат",
   status_changed: "Статус сделки изменен",
 };
 

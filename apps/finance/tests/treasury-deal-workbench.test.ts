@@ -258,6 +258,7 @@ function createDeal(): FinanceDealWorkbenchData {
         },
         id: "bb36a82b-7a9b-4a88-91d7-39818114e79d",
         occurredAt: "2026-04-02T08:07:00.000Z",
+        payload: {},
         type: "deal_created",
       },
     ],

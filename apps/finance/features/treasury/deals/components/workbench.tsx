@@ -1383,6 +1383,7 @@ function ExecutionTab({
             return (
               <div
                 key={leg.id ?? `${leg.idx}:${leg.kind}`}
+                data-testid={`finance-deal-leg-${leg.idx}`}
                 className="rounded-lg border p-4 transition-colors hover:bg-accent/30"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1432,6 +1433,7 @@ function ExecutionTab({
                     ) : null}
                     {exchangeDocumentActionHref ? (
                       <Button
+                        data-testid={`finance-deal-exchange-document-action-${leg.idx}`}
                         size="sm"
                         variant="outline"
                         nativeButton={false}
@@ -1890,7 +1892,11 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
             <div className="space-y-6">
               <ExecutionSummaryRail deal={deal} />
 
-              <DealTimelineCard timeline={deal.timeline} maxItems={8} />
+              <DealTimelineCard
+                executionPlan={deal.executionPlan}
+                timeline={deal.timeline}
+                maxItems={8}
+              />
 
               {activeTab !== "overview" ? (
                 <Card>

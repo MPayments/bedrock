@@ -34,9 +34,6 @@ The only substantive issue found in this pass was outside the CRM flow itself: `
 
 ## Next steps
 
-1. Extend the exploratory or e2e flow to request an AED -> USD quote from the pricing tab.
-2. Accept the quote and create the calculation once those actions are available in the workspace.
-3. Check `Обзор` for blockers after quote acceptance and calculation creation.
-4. Advance the deal status beyond `Черновик` and verify the allowed transitions in the header menu.
-5. Open `Исполнение` and validate the `collect -> convert -> payout` sequence for this `payment` deal.
-6. Recheck `Документы` after OCR finishes and confirm whether internal document generation becomes available.
+1. Keep the exploratory note for the original CRM-only smoke pass, but use `tests/e2e/deal-payment.spec.ts` as the current source of truth for the full CRM-to-finance regression.
+2. Add operator-facing reconciliation coverage once finance exposes a supported UI or API path instead of relying on the test-side fixture.
+3. Recheck `Документы` after OCR finishes and confirm whether internal document generation becomes available.

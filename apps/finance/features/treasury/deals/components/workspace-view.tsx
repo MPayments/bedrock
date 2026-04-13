@@ -337,7 +337,11 @@ export function FinanceDealWorkspaceView({
         </Card>
       </div>
 
-      <DealTimelineCard timeline={deal.timeline} maxItems={6} />
+      <DealTimelineCard
+        executionPlan={deal.executionPlan}
+        timeline={deal.timeline}
+        maxItems={6}
+      />
     </div>
   );
 }

@@ -72,9 +72,17 @@ export type ApiDealWorkflowParticipant = {
     | "external_beneficiary";
 };
 
+export type ApiDealLegOperationRef = {
+  kind: string;
+  operationId: string;
+  sourceRef: string;
+};
+
 export type ApiDealWorkflowLeg = {
+  id: string | null;
   idx: number;
   kind: DealLegKind;
+  operationRefs: ApiDealLegOperationRef[];
   state: DealLegState;
 };
 
@@ -103,6 +111,18 @@ export type ApiDealTimelineEvent = {
     | "intake_saved"
     | "participant_changed"
     | "status_changed"
+    | "leg_state_changed"
+    | "execution_requested"
+    | "leg_operation_created"
+    | "instruction_prepared"
+    | "instruction_submitted"
+    | "instruction_settled"
+    | "instruction_failed"
+    | "instruction_retried"
+    | "instruction_voided"
+    | "return_requested"
+    | "instruction_returned"
+    | "deal_closed"
     | "quote_created"
     | "quote_accepted"
     | "quote_expired"
@@ -113,8 +133,7 @@ export type ApiDealTimelineEvent = {
     | "attachment_ingested"
     | "attachment_ingestion_failed"
     | "document_created"
-    | "document_status_changed"
-    | "leg_state_changed";
+    | "document_status_changed";
   visibility: "customer_safe" | "internal";
 };
 

@@ -33,6 +33,12 @@ export const WORKER_CATALOG = [
     description: "Refreshes stale treasury rate sources.",
   },
   {
+    id: "reconciliation",
+    envKey: "RECONCILIATION_WORKER_INTERVAL_MS",
+    defaultIntervalMs: 60_000,
+    description: "Обрабатывает внешние записи сверки и связывает их с операциями.",
+  },
+  {
     id: "deal-attachment-ingestion",
     envKey: "DEAL_ATTACHMENT_INGESTION_WORKER_INTERVAL_MS",
     defaultIntervalMs: 15_000,

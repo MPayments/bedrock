@@ -2118,7 +2118,10 @@ export default function DealDetailPage() {
             onAgreementChange={handleAgreementChange}
             onAssigneeChange={handleAssigneeChange}
           />
-          <DealTimelineCard timeline={data.workflow.timeline} />
+          <DealTimelineCard
+            executionPlan={data.workbench.executionPlan}
+            timeline={data.workflow.timeline}
+          />
           <AgreementCard agreement={data.agreement} />
         </div>
       </div>

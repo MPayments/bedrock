@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts all",
+    "dev": "tsx src/main.ts all",
     "worker:all": "tsx src/main.ts all",
     "worker:ledger": "tsx src/main.ts ledger",
     "worker:documents": "tsx src/main.ts documents",
     "worker:documents-period-close": "tsx src/main.ts documents-period-close",
     "worker:balances": "tsx src/main.ts balances",
     "worker:treasury-rates": "tsx src/main.ts treasury-rates",
+    "worker:reconciliation": "tsx src/main.ts reconciliation",
     "worker:deal-attachment-ingestion": "tsx src/main.ts deal-attachment-ingestion",
     "build": "tsgo",
     "check-types": "tsgo --noEmit",
@@ -33,6 +34,7 @@
     "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "@bedrock/platform": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1"
   },

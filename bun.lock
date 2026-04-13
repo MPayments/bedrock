@@ -263,6 +263,7 @@
         "@bedrock/platform": "workspace:*",
         "@bedrock/plugin-documents-ifrs": "workspace:*",
         "@bedrock/plugin-documents-sdk": "workspace:*",
+        "@bedrock/reconciliation": "workspace:*",
         "@bedrock/treasury": "workspace:*",
         "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
         "@bedrock/workflow-document-drafts": "workspace:*",

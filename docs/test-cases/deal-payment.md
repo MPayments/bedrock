@@ -1,6 +1,6 @@
 # DEAL-PAYMENT-AED-USD
 
-Purpose: verify that a CRM operator can create the canonical payment deal payment deal, attach the invoice PDF, request and accept an AED -> USD quote, create the calculation, and reach the expected execution path.
+Purpose: verify that a CRM operator and a finance operator can drive the canonical `payment` deal from CRM draft creation through finance documents, treasury execution, reconciliation readiness, and final close.
 
 Preconditions:
 
@@ -28,7 +28,15 @@ Steps:
 14. Accept the returned quote.
 15. Create the calculation from the accepted quote.
 16. Move the deal to `Подготовка документов`.
-17. Open `Исполнение` and verify the `Сбор средств -> Конвертация -> Выплата` path.
+17. In finance, create and post the opening `invoice` formal document.
+18. In finance, request execution and settle the materialized treasury operations.
+19. In finance, create and post the `exchange` document for the convert leg.
+20. Resolve reconciliation artifacts for the linked operations.
+21. In CRM, move the deal to `Ожидание средств`, then to `Ожидание оплаты`, then to `Закрывающие документы`.
+22. In CRM, verify the `Сбор средств -> Конвертация -> Выплата` path reaches the expected terminal state for this run.
+23. In finance, create the closing `acceptance` document.
+24. In finance, close the deal.
+25. Verify the deal status is `Завершена` in both finance and CRM.
 
 Expected outcome:
 
@@ -38,21 +46,23 @@ Expected outcome:
 - the deal can move to `Отправлена`
 - the quote can be requested and accepted for the AED -> USD path
 - the calculation can be created from the accepted quote
-- the deal can move to `Подготовка документов`
-- the execution workspace shows the expected `collect -> convert -> payout` sequence
+- the deal can move through `Подготовка документов`, `Ожидание средств`, `Ожидание оплаты`, and `Закрывающие документы`
+- finance can create the opening `invoice` document and the convert-leg `exchange` document
+- the linked treasury instructions can be settled for all legs
+- the closing `acceptance` document can be created
+- finance can close the deal and CRM reflects the terminal `Завершена` status
 
-Next steps for coverage expansion:
+Current automation notes:
 
-1. Recheck `Обзор` and assert that blockers move forward after quote acceptance and calculation creation.
-2. Mark or validate the collection, conversion, and payout legs as they progress through `pending`, `ready`, `in_progress`, and `done`.
-3. Revisit `Документы` and verify OCR / ingestion side effects and internal document generation if the local extractor and storage are configured.
-4. Extend coverage beyond `Подготовка документов` into the remaining lifecycle transitions for a completed payment deal.
+1. The Playwright flow creates reconciliation artifacts through a test-side helper because there is no operator-facing reconciliation UI in finance today.
+2. The convert leg becomes finance-complete off the posted `exchange` document.
+3. The run validates end-to-end closure at the deal status level in both apps.
 
 Out of scope:
 
-- downstream treasury execution
-- real quote acceptance against external pricing
-- formal-document generation correctness
+- real external pricing and bank integrations
+- operator-facing reconciliation workflows beyond the internal test helper
+- formal-document content correctness beyond successful create/post transitions
 - OCR/attachment ingestion side effects beyond successful upload
 
 Owning modules:
@@ -64,3 +74,4 @@ Owning modules:
 - `@bedrock/calculations`
 - `@bedrock/files`
 - `@bedrock/treasury`
+- `@bedrock/reconciliation`

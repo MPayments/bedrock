@@ -34,6 +34,9 @@ describe("treasury deal labels", () => {
     expect(getFinanceDealStageLabel("awaiting_reconciliation")).toBe(
       "Ожидание сверки",
     );
+    expect(getDealTimelineEventLabel("execution_requested")).toBe(
+      "Запущено исполнение сделки",
+    );
     expect(getDealTimelineEventLabel("attachment_ingested")).toBe(
       "Файл распознан",
     );

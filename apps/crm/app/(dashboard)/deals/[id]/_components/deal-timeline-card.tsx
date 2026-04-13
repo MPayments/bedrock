@@ -11,7 +11,7 @@ import {
   STATUS_LABELS,
 } from "./constants";
 import { formatDate } from "./format";
-import type { ApiDealTimelineEvent } from "./types";
+import type { ApiDealTimelineEvent, ApiDealWorkflowLeg } from "./types";
 
 function isVisibleTimelineEvent(event: ApiDealTimelineEvent) {
   return event.type !== "attachment_ingestion_failed";
@@ -31,7 +31,121 @@ function getTimelineActorLabel(event: ApiDealTimelineEvent) {
   return actorUserId;
 }
 
-function renderTimelineDetails(event: ApiDealTimelineEvent) {
+function getPayloadString(event: ApiDealTimelineEvent, key: string) {
+  const value = event.payload[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function getPayloadNumber(event: ApiDealTimelineEvent, key: string) {
+  const value = event.payload[key];
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function findExecutionLeg(
+  event: ApiDealTimelineEvent,
+  executionPlan: ApiDealWorkflowLeg[],
+) {
+  const legId = getPayloadString(event, "legId");
+  if (legId) {
+    const matchingLeg = executionPlan.find((leg) => leg.id === legId);
+    if (matchingLeg) {
+      return matchingLeg;
+    }
+  }
+
+  const legIdx = getPayloadNumber(event, "legIdx");
+  if (legIdx !== null) {
+    const matchingLeg = executionPlan.find((leg) => leg.idx === legIdx);
+    if (matchingLeg) {
+      return matchingLeg;
+    }
+  }
+
+  const operationId = getPayloadString(event, "operationId");
+  if (operationId) {
+    return executionPlan.find((leg) =>
+      leg.operationRefs.some((operationRef) => operationRef.operationId === operationId),
+    );
+  }
+
+  return null;
+}
+
+function getExecutionLegLabel(
+  event: ApiDealTimelineEvent,
+  executionPlan: ApiDealWorkflowLeg[],
+) {
+  const leg = findExecutionLeg(event, executionPlan);
+  if (!leg) {
+    return null;
+  }
+
+  return DEAL_LEG_KIND_LABELS[leg.kind] ?? `Этап ${leg.idx}`;
+}
+
+function getTimelineTitle(
+  event: ApiDealTimelineEvent,
+  executionPlan: ApiDealWorkflowLeg[],
+) {
+  const legLabel = getExecutionLegLabel(event, executionPlan);
+
+  if (event.type === "execution_requested") {
+    return "Запущено исполнение сделки";
+  }
+
+  if (event.type === "leg_operation_created" && legLabel) {
+    return `${legLabel}: создана казначейская операция`;
+  }
+
+  if (event.type === "instruction_prepared" && legLabel) {
+    return `${legLabel}: инструкция подготовлена`;
+  }
+
+  if (event.type === "instruction_submitted" && legLabel) {
+    return `${legLabel}: инструкция отправлена`;
+  }
+
+  if (event.type === "instruction_settled" && legLabel) {
+    return `${legLabel}: инструкция исполнена`;
+  }
+
+  if (event.type === "instruction_failed" && legLabel) {
+    return `${legLabel}: инструкция завершилась ошибкой`;
+  }
+
+  if (event.type === "instruction_retried" && legLabel) {
+    return `${legLabel}: инструкция отправлена повторно`;
+  }
+
+  if (event.type === "instruction_voided" && legLabel) {
+    return `${legLabel}: инструкция отменена`;
+  }
+
+  if (event.type === "return_requested" && legLabel) {
+    return `${legLabel}: запрошен возврат`;
+  }
+
+  if (event.type === "instruction_returned" && legLabel) {
+    return `${legLabel}: возврат исполнен`;
+  }
+
+  return DEAL_TIMELINE_EVENT_LABELS[event.type] ?? event.type;
+}
+
+function renderTimelineDetails(
+  event: ApiDealTimelineEvent,
+  executionPlan: ApiDealWorkflowLeg[],
+) {
   if (event.type === "status_changed" && typeof event.payload.status === "string") {
     return STATUS_LABELS[event.payload.status as keyof typeof STATUS_LABELS];
   }
@@ -76,18 +190,48 @@ function renderTimelineDetails(event: ApiDealTimelineEvent) {
     return `${purpose}: ошибка распознавания`;
   }
 
-  if (typeof event.payload.comment === "string" && event.payload.comment.trim()) {
-    return event.payload.comment;
+  const details: string[] = [];
+
+  if (event.type === "execution_requested") {
+    const operationCount = getPayloadNumber(event, "operationCount");
+    if (operationCount !== null) {
+      details.push(`Подготовлено операций: ${operationCount}`);
+    }
   }
 
-  return null;
+  if (
+    event.type === "instruction_prepared" ||
+    event.type === "instruction_submitted" ||
+    event.type === "instruction_settled" ||
+    event.type === "instruction_failed" ||
+    event.type === "instruction_retried" ||
+    event.type === "instruction_voided" ||
+    event.type === "return_requested" ||
+    event.type === "instruction_returned"
+  ) {
+    const attempt = getPayloadNumber(event, "attempt");
+    if (attempt !== null && attempt > 1) {
+      details.push(`Попытка ${attempt}`);
+    }
+  }
+
+  const comment = getPayloadString(event, "comment");
+  if (comment) {
+    details.push(comment);
+  }
+
+  return details.length > 0 ? details.join(" · ") : null;
 }
 
 type DealTimelineCardProps = {
+  executionPlan?: ApiDealWorkflowLeg[];
   timeline: ApiDealTimelineEvent[];
 };
 
-export function DealTimelineCard({ timeline }: DealTimelineCardProps) {
+export function DealTimelineCard({
+  executionPlan = [],
+  timeline,
+}: DealTimelineCardProps) {
   const visibleTimeline = timeline.filter(isVisibleTimelineEvent);
 
   return (
@@ -106,14 +250,14 @@ export function DealTimelineCard({ timeline }: DealTimelineCardProps) {
         ) : (
           <div className="space-y-4">
             {visibleTimeline.map((event) => {
-              const details = renderTimelineDetails(event);
+              const details = renderTimelineDetails(event, executionPlan);
               const actorLabel = getTimelineActorLabel(event);
 
               return (
                 <div key={event.id} className="border-l-2 pl-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div className="font-medium">
-                      {DEAL_TIMELINE_EVENT_LABELS[event.type] ?? event.type}
+                      {getTimelineTitle(event, executionPlan)}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {formatDate(event.occurredAt)}

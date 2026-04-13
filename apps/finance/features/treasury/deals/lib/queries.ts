@@ -530,6 +530,7 @@ const FinanceDealWorkspaceSchema = z.object({
         .nullable(),
       id: z.string().uuid(),
       occurredAt: z.iso.datetime(),
+      payload: z.record(z.string(), z.unknown()),
       type: z.string(),
     }),
   ),
