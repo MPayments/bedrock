@@ -82,8 +82,13 @@ export function CreateCalculationDialog({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {summaryItems.map((item) => (
-              <div key={item.label} className="rounded-md border bg-muted/20 p-3">
-                <div className="text-xs text-muted-foreground">{item.label}</div>
+              <div
+                key={item.label}
+                className="rounded-md border bg-muted/20 p-3"
+              >
+                <div className="text-xs text-muted-foreground">
+                  {item.label}
+                </div>
                 <div className="mt-1 wrap-break-word text-sm font-medium text-foreground">
                   {item.value}
                 </div>
@@ -100,7 +105,11 @@ export function CreateCalculationDialog({
           <Button type="button" variant="outline" onClick={onCancel}>
             Отмена
           </Button>
-          <Button onClick={onSubmit} disabled={isCreating}>
+          <Button
+            data-testid="deal-create-calculation-confirm"
+            onClick={onSubmit}
+            disabled={isCreating}
+          >
             {isCreating ? "Создаем..." : "Создать расчет"}
           </Button>
         </DialogFooter>

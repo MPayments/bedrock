@@ -83,21 +83,25 @@ function StatusBadges({
 
   const items = [
     {
+      id: "submission",
       label: "Статус",
       value: getSubmissionStatusLabel(submissionStatus),
       variant: getStatusBadgeVariant(submissionStatus, "submission"),
     },
     {
+      id: "approval",
       label: "Согласование",
       value: getApprovalStatusLabel(approvalStatus),
       variant: getStatusBadgeVariant(approvalStatus, "approval"),
     },
     {
+      id: "posting",
       label: "Учет",
       value: getPostingStatusLabel(postingStatus),
       variant: getStatusBadgeVariant(postingStatus, "posting"),
     },
     {
+      id: "lifecycle",
       label: "Жизненный цикл",
       value: getLifecycleStatusLabel(lifecycleStatus),
       variant: getStatusBadgeVariant(lifecycleStatus, "lifecycle"),
@@ -107,7 +111,11 @@ function StatusBadges({
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <Badge key={item.label} variant={item.variant}>
+        <Badge
+          key={item.label}
+          data-testid={`finance-document-status-${item.id}`}
+          variant={item.variant}
+        >
           {item.label}: {item.value}
         </Badge>
       ))}
@@ -156,7 +164,12 @@ export function DocumentDetailsView({
         <CardHeader className="gap-4 border-b">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
-              <CardTitle className="text-2xl">{document.docNo}</CardTitle>
+              <CardTitle
+                className="text-2xl"
+                data-testid="finance-document-doc-no"
+              >
+                {document.docNo}
+              </CardTitle>
               <CardDescription>{document.title}</CardDescription>
               <StatusBadges
                 submissionStatus={document.submissionStatus}
@@ -190,6 +203,7 @@ export function DocumentDetailsView({
               <div>
                 <span className="text-muted-foreground">Журнал:</span>{" "}
                 <Link
+                  data-testid="finance-document-posting-operation-link"
                   href={`/documents/journal/${document.postingOperationId}`}
                   className="font-mono hover:underline"
                 >

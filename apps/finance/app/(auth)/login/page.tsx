@@ -70,6 +70,7 @@ export default function LoginPage() {
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
+                  data-testid="finance-login-email"
                   id="email"
                   type="email"
                   placeholder="m@example.com"
@@ -84,6 +85,7 @@ export default function LoginPage() {
                   <FieldLabel htmlFor="password">Пароль</FieldLabel>
                 </div>
                 <Input
+                  data-testid="finance-login-password"
                   id="password"
                   type="password"
                   required
@@ -97,6 +99,7 @@ export default function LoginPage() {
               ) : null}
               <Field>
                 <Button
+                  data-testid="finance-login-submit"
                   type="submit"
                   className="h-12 w-full text-base font-medium"
                   disabled={isPending}

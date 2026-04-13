@@ -1,6 +1,11 @@
 import { ChevronDown, Plus, Wallet } from "lucide-react";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +58,8 @@ export function FinancialCard({
                 <DropdownMenuSeparator />
                 <div className="space-y-1">
                   {calculationHistory.map((item) => {
-                    const isCurrent = item.calculationId === activeCalculationId;
+                    const isCurrent =
+                      item.calculationId === activeCalculationId;
                     return (
                       <div
                         key={item.calculationId}
@@ -74,6 +80,7 @@ export function FinancialCard({
             </DropdownMenu>
           )}
           <Button
+            data-testid="deal-create-calculation-button"
             size="sm"
             onClick={onCreate}
             disabled={Boolean(disabledReason) || isCreating}

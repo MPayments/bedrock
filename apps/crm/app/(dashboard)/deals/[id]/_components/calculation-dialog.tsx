@@ -23,11 +23,7 @@ import {
   minorToDecimalString,
   rationalToDecimalString,
 } from "./format";
-import type {
-  ApiCurrency,
-  ApiCurrencyOption,
-  ApiQuotePreview,
-} from "./types";
+import type { ApiCurrency, ApiCurrencyOption, ApiQuotePreview } from "./types";
 
 function parsePercent(value: string) {
   const normalized = value.trim().replace(",", ".");
@@ -160,12 +156,11 @@ export function CalculationDialog({
     previewCommercialTerms.fixedFeeCurrency === preview.fromCurrency
       ? BigInt(previewCommercialTerms.fixedFeeAmountMinor)
       : 0n;
-  const totalCustomerDebitMinor =
-    preview
-      ? BigInt(preview.fromAmountMinor) +
-        percentageFeeMinor +
-        fixedFeeInFromCurrencyMinor
-      : 0n;
+  const totalCustomerDebitMinor = preview
+    ? BigInt(preview.fromAmountMinor) +
+      percentageFeeMinor +
+      fixedFeeInFromCurrencyMinor
+    : 0n;
   const effectiveCustomerRate = preview
     ? amountSide === "target"
       ? `1 ${formatCurrencyLabel(preview.toCurrency)} = ${rationalToDecimalString(
@@ -232,6 +227,7 @@ export function CalculationDialog({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Checkbox
             id="deal-calculation-amount-override"
+            data-testid="deal-quote-override-amount-checkbox"
             checked={overrideAmount}
             onCheckedChange={(checked) => onToggleOverride(Boolean(checked))}
           />
@@ -245,6 +241,7 @@ export function CalculationDialog({
       </div>
       <Input
         id="deal-calculation-amount"
+        data-testid="deal-quote-amount-input"
         disabled={!overrideAmount}
         inputMode="decimal"
         placeholder="Например 1000.00"
@@ -261,7 +258,10 @@ export function CalculationDialog({
         value={toCurrency}
         onValueChange={(value) => onToCurrencyChange(value ?? "")}
       >
-        <SelectTrigger disabled={amountSide === "target"}>
+        <SelectTrigger
+          data-testid="deal-quote-to-currency-select"
+          disabled={amountSide === "target"}
+        >
           <SelectValue placeholder="Выберите валюту" />
         </SelectTrigger>
         <SelectContent>
@@ -310,6 +310,7 @@ export function CalculationDialog({
                 <Label htmlFor="deal-calculation-asof">Дата котировки</Label>
                 <Input
                   id="deal-calculation-asof"
+                  data-testid="deal-quote-asof-input"
                   type="datetime-local"
                   value={asOf}
                   onChange={(event) => onAsOfChange(event.target.value)}
@@ -332,6 +333,7 @@ export function CalculationDialog({
                 </Label>
                 <Input
                   id="deal-quote-markup-percent"
+                  data-testid="deal-quote-markup-input"
                   inputMode="decimal"
                   placeholder="Например 0.5"
                   value={quoteMarkupPercent}
@@ -347,6 +349,7 @@ export function CalculationDialog({
                 <div className="grid grid-cols-[minmax(0,1fr)_11rem] gap-3">
                   <Input
                     id="deal-fixed-fee-amount"
+                    data-testid="deal-quote-fixed-fee-amount-input"
                     inputMode="decimal"
                     placeholder="Например 25.00"
                     value={fixedFeeAmount}
@@ -360,7 +363,7 @@ export function CalculationDialog({
                       onFixedFeeCurrencyChange(value || "")
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="deal-quote-fixed-fee-currency-select">
                       <SelectValue placeholder="Валюта" />
                     </SelectTrigger>
                     <SelectContent>
@@ -378,13 +381,14 @@ export function CalculationDialog({
                 </p>
               </div>
               <div className="flex items-center justify-between rounded-md bg-background px-3 py-2 text-sm">
-                <span className="text-muted-foreground">Суммарная комиссия</span>
+                <span className="text-muted-foreground">
+                  Суммарная комиссия
+                </span>
                 <span className="font-medium">{totalFeePercentage}%</span>
               </div>
             </div>
           </div>
           <div className="grid content-start gap-4">
- 
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium">
@@ -427,7 +431,11 @@ export function CalculationDialog({
           <Button type="button" variant="outline" onClick={onCancel}>
             Отмена
           </Button>
-          <Button onClick={onSubmit} disabled={isCreating || Boolean(disabledReason)}>
+          <Button
+            data-testid="deal-create-quote-confirm"
+            onClick={onSubmit}
+            disabled={isCreating || Boolean(disabledReason)}
+          >
             {isCreating ? loadingLabel : submitLabel}
           </Button>
         </DialogFooter>

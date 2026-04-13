@@ -121,6 +121,7 @@ export function DealTabs({
               <TabsTrigger
                 key={tab.value}
                 className="h-auto min-w-fit"
+                data-testid={`deal-tab-${tab.value}`}
                 value={tab.value}
               >
                 <Icon className="h-4 w-4" />

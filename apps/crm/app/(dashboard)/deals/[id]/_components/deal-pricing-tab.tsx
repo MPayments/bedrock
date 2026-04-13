@@ -2,7 +2,12 @@ import { CheckCircle2, Clock3, Wallet } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import { DEAL_QUOTE_STATUS_LABELS } from "./constants";
 import { FinancialCard } from "./financial-card";
@@ -60,8 +65,8 @@ function getCurrencyPrecision(currencyCode: string) {
   try {
     return (
       new Intl.NumberFormat("ru-RU", {
-      currency: currencyCode,
-      style: "currency",
+        currency: currencyCode,
+        style: "currency",
       }).resolvedOptions().maximumFractionDigits ?? 2
     );
   } catch {
@@ -131,7 +136,7 @@ export function DealPricingTab({
   quotes,
 }: DealPricingTabProps) {
   const acceptedDetailedQuote = acceptedQuote
-    ? quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null
+    ? (quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null)
     : null;
 
   return (
@@ -143,6 +148,7 @@ export function DealPricingTab({
             Котировка и курс
           </CardTitle>
           <Button
+            data-testid="deal-request-quote-button"
             disabled={Boolean(quoteCreationDisabledReason) || isCreatingQuote}
             onClick={onCreateQuote}
             size="sm"
@@ -280,7 +286,9 @@ export function DealPricingTab({
                 {quotes.map((quote) => {
                   const isAccepted = acceptedQuote?.quoteId === quote.id;
                   const canAccept =
-                    quote.status === "active" && !isAccepted && !isCreatingQuote;
+                    quote.status === "active" &&
+                    !isAccepted &&
+                    !isCreatingQuote;
 
                   return (
                     <div
@@ -328,7 +336,9 @@ export function DealPricingTab({
                               quote.commercialTerms?.totalFeeBps,
                             )}
                           </span>
-                          <span>Фиксированная комиссия {formatQuoteFixedFee(quote)}</span>
+                          <span>
+                            Фиксированная комиссия {formatQuoteFixedFee(quote)}
+                          </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                           <span>{formatQuoteStatus(quote.status)}</span>
@@ -344,6 +354,7 @@ export function DealPricingTab({
                       <div className="flex items-center gap-2">
                         {canAccept ? (
                           <Button
+                            data-testid={`deal-accept-quote-button-${quote.id}`}
                             disabled={isAcceptingQuoteId === quote.id}
                             onClick={() => onAcceptQuote(quote.id)}
                             size="sm"

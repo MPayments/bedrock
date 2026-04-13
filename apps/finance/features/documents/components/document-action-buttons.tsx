@@ -113,7 +113,9 @@ export function DocumentActionButtons({
     const result = await input.execute();
 
     if (!result.ok) {
-      toast.error(result.message ?? `Не удалось выполнить действие ${input.title}`);
+      toast.error(
+        result.message ?? `Не удалось выполнить действие ${input.title}`,
+      );
       setActiveAction(null);
       return;
     }
@@ -128,13 +130,16 @@ export function DocumentActionButtons({
       {actionButtons.map((action) => (
         <Button
           key={action.actionId}
+          data-testid={`finance-document-action-${action.actionId}`}
           type="button"
           size="lg"
           variant={action.variant}
           disabled={activeAction !== null}
           onClick={() => void runAction(action)}
         >
-          {activeAction === action.actionId ? action.pendingLabel : action.label}
+          {activeAction === action.actionId
+            ? action.pendingLabel
+            : action.label}
         </Button>
       ))}
     </div>
