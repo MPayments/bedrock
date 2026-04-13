@@ -28,7 +28,6 @@ import {
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
-import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import {
@@ -208,12 +207,12 @@ export function dealsRoutes(ctx: AppContext) {
   async function listPendingDealReconciliationExternalRecordIds(dealId: string) {
     const result = await ctx.persistence.db.execute(sql`
       select er.id::text as id
-      from ${reconciliationSchema.reconciliationExternalRecords} er
+      from "reconciliation_external_records" er
       where er.source = ${TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE}
-        and (${reconciliationSchema.reconciliationExternalRecords.normalizedPayload} ->> 'dealId') = ${dealId}
+        and (er.normalized_payload ->> 'dealId') = ${dealId}
         and not exists (
           select 1
-          from ${reconciliationSchema.reconciliationMatches} rm
+          from "reconciliation_matches" rm
           where rm.external_record_id = er.id
         )
       order by er.received_at asc, er.id asc

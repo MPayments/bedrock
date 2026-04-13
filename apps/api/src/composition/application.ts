@@ -1,5 +1,3 @@
-import { eq } from "drizzle-orm";
-
 import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
@@ -20,7 +18,6 @@ import {
   createDrizzleDocumentsReadModel,
   type DocumentsReadModel,
 } from "@bedrock/documents/read-model";
-import { documents as documentsTable } from "@bedrock/documents/schema";
 import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";
@@ -272,13 +269,9 @@ export function createApplicationServices(
       idempotency,
       documents: {
         async existsById(documentId: string) {
-          const [document] = await tx
-            .select({ id: documentsTable.id })
-            .from(documentsTable)
-            .where(eq(documentsTable.id, documentId))
-            .limit(1);
-
-          return Boolean(document);
+          return createDrizzleDocumentsReadModel({ db: tx }).existsById(
+            documentId,
+          );
         },
       },
       ledgerLookup: {
@@ -303,14 +296,8 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
     idempotency,
     documents: {
-      async existsById(documentId: string) {
-        const [document] = await db
-          .select({ id: documentsTable.id })
-          .from(documentsTable)
-          .where(eq(documentsTable.id, documentId))
-          .limit(1);
-
-        return Boolean(document);
+      existsById(documentId: string) {
+        return documentsReadModel.existsById(documentId);
       },
     },
     ledgerLookup: {

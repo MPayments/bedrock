@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-
 
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { createCurrenciesService } from "@bedrock/currencies";
@@ -11,7 +9,6 @@ import {
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { documents as documentsTable } from "@bedrock/documents/schema";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFilesModule } from "@bedrock/files";
 import {
@@ -285,14 +282,8 @@ export function createWorkerImplementations(
     ...createWorkerMetadata("reconciliation", deps.env),
     db: deps.db,
     documents: {
-      async existsById(documentId: string) {
-        const [document] = await deps.db
-          .select({ id: documentsTable.id })
-          .from(documentsTable)
-          .where(eq(documentsTable.id, documentId))
-          .limit(1);
-
-        return Boolean(document);
+      existsById(documentId: string) {
+        return documentsReadModel.existsById(documentId);
       },
     },
     idempotency: reconciliationIdempotency,
