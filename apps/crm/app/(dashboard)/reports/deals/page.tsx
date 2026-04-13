@@ -53,10 +53,10 @@ import {
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
 import type { DealsRow } from "@/lib/hooks/useDealsTable";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
-  formatCurrency,
   CURRENCY_OPTIONS,
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
@@ -293,7 +293,7 @@ export default function DealsReportsPage() {
   // Используем переиспользуемые колонки
   const columns = useMemo(() => createDealsColumns(), []);
 
-  const table = useReactTable({
+  const table = useReactTable<DealsRow>({
     data,
     columns,
     pageCount: totalPages,
@@ -671,12 +671,12 @@ export default function DealsReportsPage() {
             <DataTable
               table={table}
               onRowDoubleClick={(row) =>
-                router.push(`/deals/${(row.original as DealsRow).id}`)
+                router.push(`/deals/${row.original.id}`)
               }
               contextMenuItems={(row) => [
                 {
                   label: "Открыть",
-                  onClick: () => router.push(`/deals/${(row.original as DealsRow).id}`),
+                  onClick: () => router.push(`/deals/${row.original.id}`),
                 },
               ]}
             />

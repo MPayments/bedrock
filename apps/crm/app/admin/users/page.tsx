@@ -4,24 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ColumnDef,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  type VisibilityState,
   getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
-  VisibilityState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Users } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
-import { Input } from "@bedrock/sdk-ui/components/input";
 
 import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
 import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
-import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
+import { DataTableToolbar } from "@bedrock/sdk-tables-ui/components/data-table-toolbar";
 
 import { UserRowActions } from "@bedrock/sdk-users-ui/components/user-row-actions";
 import { UserStatusBadge } from "@bedrock/sdk-users-ui/components/user-status-badge";
@@ -45,8 +47,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -92,12 +94,20 @@ export default function UsersPage() {
       },
       {
         accessorKey: "name",
-        meta: { label: "Имя" },
+        meta: {
+          label: "Имя",
+          variant: "text" as const,
+          placeholder: "Поиск по имени...",
+        },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} label="Имя" />
         ),
+        enableColumnFilter: true,
         cell: ({ row }) => (
-          <div className="max-w-[300px] font-medium truncate" title={row.original.name}>
+          <div
+            className="max-w-[300px] font-medium truncate"
+            title={row.original.name}
+          >
             {row.original.name}
           </div>
         ),
@@ -153,71 +163,64 @@ export default function UsersPage() {
   const table = useReactTable({
     data: users,
     columns,
-    state: { sorting, columnVisibility, globalFilter },
+    state: { sorting, columnFilters, columnVisibility },
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-          <h1 className="text-2xl font-bold">Пользователи</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            Всего:{" "}
-            <span className="font-bold text-foreground">{users.length}</span>
+    <div className="flex flex-col gap-4">
+      <div className="flex w-full flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-muted rounded-lg p-2.5">
+            <Users className="text-muted-foreground h-5 w-5" />
           </div>
-          <Button onClick={() => router.push("/admin/users/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Добавить пользователя
-          </Button>
+          <div>
+            <h3 className="mb-1 text-xl font-semibold">Пользователи</h3>
+            <p className="text-muted-foreground hidden text-sm md:block">
+              Управление пользователями и ролями.
+            </p>
+          </div>
         </div>
+        <Button
+          size="lg"
+          onClick={() => router.push("/admin/users/new")}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden md:block">Добавить</span>
+        </Button>
       </div>
 
-      <Card>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            <DataTable
-              table={table}
-              onRowDoubleClick={(row) =>
-                router.push(`/admin/users/${row.original.id}`)
-              }
-              contextMenuItems={(row) => [
-                {
-                  label: "Открыть",
-                  onClick: () => router.push(`/admin/users/${row.original.id}`),
-                },
-              ]}
-            >
-              <div className="flex w-full items-center justify-between gap-2">
-                <div className="relative w-[300px]">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Поиск по имени, email..."
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <DataTableViewOptions table={table} align="end" />
-              </div>
-            </DataTable>
+      <div className="bg-background h-px w-full" />
+
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
           </div>
-        </CardContent>
-      </Card>
+        )}
+        <DataTable
+          table={table}
+          onRowDoubleClick={(row) =>
+            router.push(`/admin/users/${row.original.id}`)
+          }
+          contextMenuItems={(row) => [
+            {
+              label: "Открыть",
+              onClick: () => router.push(`/admin/users/${row.original.id}`),
+            },
+          ]}
+        >
+          <DataTableToolbar table={table} />
+        </DataTable>
+      </div>
     </div>
   );
 }

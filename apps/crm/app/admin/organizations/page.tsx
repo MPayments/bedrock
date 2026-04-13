@@ -74,17 +74,7 @@ export default function OrganizationsPage() {
           ? response
           : (response.data ?? []);
 
-        const items: OrganizationListItem[] = rawItems.map(
-          (item: Record<string, unknown>) => ({
-            id: item.id as string,
-            shortName: (item.shortName as string) ?? "",
-            fullName: (item.fullName as string) ?? "",
-            country: (item.country as string | null) ?? null,
-            kind:
-              (item.kind as OrganizationListItem["kind"]) ?? "legal_entity",
-            updatedAt: (item.updatedAt as string) ?? "",
-          }),
-        );
+        const items = rawItems as OrganizationListItem[];
         setData(items);
       } catch (err) {
         console.error("Organizations fetch error:", err);

@@ -12,10 +12,6 @@ import type {
 } from "@/lib/hooks/useDealsTable";
 import { formatCurrency, formatDate } from "@/lib/utils/currency";
 
-// Re-export for backward compat
-export { formatCurrency, formatDate };
-
-// Опции для фильтров (Option[] format)
 export const CURRENCY_OPTIONS: Option[] = [
   { value: "USD", label: "USD" },
   { value: "EUR", label: "EUR" },
@@ -25,19 +21,6 @@ export const CURRENCY_OPTIONS: Option[] = [
   { value: "AED", label: "AED" },
 ];
 
-export const STATUS_OPTIONS: Option[] = [
-  { value: "draft", label: "Черновик" },
-  { value: "submitted", label: "Отправлена" },
-  { value: "rejected", label: "Отклонена" },
-  { value: "preparing_documents", label: "Подготовка документов" },
-  { value: "awaiting_funds", label: "Ожидание средств" },
-  { value: "awaiting_payment", label: "Ожидание оплаты" },
-  { value: "closing_documents", label: "Закрывающие документы" },
-  { value: "done", label: "Завершена" },
-  { value: "cancelled", label: "Отменена" },
-];
-
-// Lookup map for cell rendering (status badge colors)
 const STATUS_DISPLAY: Record<DealStatus, { label: string; colorClass: string }> = {
   draft: { label: "Черновик", colorClass: "bg-slate-100 text-slate-800" },
   submitted: { label: "Отправлена", colorClass: "bg-sky-100 text-sky-800" },
@@ -49,6 +32,10 @@ const STATUS_DISPLAY: Record<DealStatus, { label: string; colorClass: string }> 
   done: { label: "Завершена", colorClass: "bg-green-100 text-green-800" },
   cancelled: { label: "Отменена", colorClass: "bg-red-100 text-red-800" },
 };
+
+export const STATUS_OPTIONS: Option[] = Object.entries(STATUS_DISPLAY).map(
+  ([value, { label }]) => ({ value, label }),
+);
 
 export interface DealsColumnsOptions {
   isAdmin: boolean;

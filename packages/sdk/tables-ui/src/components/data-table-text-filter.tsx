@@ -15,12 +15,10 @@ export function DataTableTextFilter<TData, TValue>({
   const valueFromTable = (column?.getFilterValue() as string) ?? "";
   const [inputValue, setInputValue] = useState<string>(valueFromTable);
 
-  // Синхронизация при внешнем сбросе фильтра
   useEffect(() => {
     setInputValue(valueFromTable);
   }, [valueFromTable]);
 
-  // Debounce 300ms
   useEffect(() => {
     const id = setTimeout(() => {
       column?.setFilterValue(inputValue || undefined);

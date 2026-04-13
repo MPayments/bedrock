@@ -20,14 +20,14 @@ import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-tab
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
-import { DataTableTextFilter } from "@/components/data-table/DataTableTextFilter";
+import { DataTableTextFilter } from "@bedrock/sdk-tables-ui/components/data-table-text-filter";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
 import { API_BASE_URL } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
-  formatCurrency,
   CURRENCY_OPTIONS,
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
