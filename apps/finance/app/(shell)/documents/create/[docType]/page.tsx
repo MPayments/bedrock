@@ -73,6 +73,13 @@ export default async function DocumentCreateByTypePage({
 
   const rawDealId = getFirstSearchParamValue(rawSearchParams.dealId);
   const dealId = rawDealId && isUuid(rawDealId) ? rawDealId : null;
+  const rawReconciliationExceptionId = getFirstSearchParamValue(
+    rawSearchParams.reconciliationExceptionId,
+  );
+  const reconciliationExceptionId =
+    rawReconciliationExceptionId && isUuid(rawReconciliationExceptionId)
+      ? rawReconciliationExceptionId
+      : null;
   const requestedReturnTo = normalizeInternalReturnToPath(
     getFirstSearchParamValue(rawSearchParams.returnTo),
   );
@@ -109,6 +116,7 @@ export default async function DocumentCreateByTypePage({
         docType,
         options,
         organizationRequisites,
+        reconciliationExceptionId,
       })
     : undefined;
 
@@ -125,6 +133,9 @@ export default async function DocumentCreateByTypePage({
         initialPayload={initialPayload}
         userRole={session.role}
         options={options}
+        reconciliationAdjustmentExceptionId={
+          reconciliationExceptionId ?? undefined
+        }
         successHref={successHref}
       />
     </EntityListPageShell>

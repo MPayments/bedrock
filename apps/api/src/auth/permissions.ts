@@ -15,6 +15,7 @@ const statements = {
   deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
+  reconciliation: ["list", "run", "resolve", "ignore"],
   documents: [
     "create",
     "list",
@@ -58,6 +59,7 @@ export const admin = ac.newRole({
   deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list", "sync"],
   organizations: ["create", "list", "update", "delete"],
+  reconciliation: ["list", "run", "resolve", "ignore"],
   documents: [
     "create",
     "list",
@@ -111,6 +113,7 @@ export const finance = ac.newRole({
   deals: ["create", "list", "update", "delete"],
   treasury_rates: ["list"],
   organizations: ["list"],
+  reconciliation: ["list", "run", "resolve", "ignore"],
   documents: ["create", "list", "get", "update", "submit", "post", "cancel"],
   accounting: ["list"],
   balances: ["get"],

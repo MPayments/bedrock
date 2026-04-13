@@ -11,6 +11,15 @@ export function createDrizzleDocumentsReadModel(input: {
   const { db } = input;
 
   return {
+    async existsById(documentId: string) {
+      const [row] = await db
+        .select({ id: schema.documents.id })
+        .from(schema.documents)
+        .where(eq(schema.documents.id, documentId))
+        .limit(1);
+
+      return Boolean(row);
+    },
     async getDocumentByType(query) {
       const selection = db
         .select()

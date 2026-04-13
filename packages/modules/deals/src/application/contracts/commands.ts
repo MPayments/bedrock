@@ -9,8 +9,6 @@ import {
 } from "./dto";
 import {
   DealAttachmentIngestionStatusSchema,
-  DealCapabilityKindSchema,
-  DealCapabilityStatusSchema,
   DealLegStateSchema,
   DealStatusSchema,
   DealTypeSchema,
@@ -155,6 +153,15 @@ export type LinkDealCalculationFromAcceptedQuoteInput = z.infer<
   typeof LinkDealCalculationFromAcceptedQuoteInputSchema
 >;
 
+export const LinkDealCalculationInputSchema = z.object({
+  calculationId: z.uuid(),
+  sourceQuoteId: z.uuid().nullable().optional(),
+});
+
+export type LinkDealCalculationInput = z.infer<
+  typeof LinkDealCalculationInputSchema
+>;
+
 export const AcceptDealQuoteInputSchema = z.object({
   quoteId: z.uuid(),
 });
@@ -177,30 +184,10 @@ export type CreateDealLegOperationInput = z.infer<
   typeof CreateDealLegOperationInputSchema
 >;
 
-export const ResolveDealExecutionBlockerInputSchema = z
-  .object({
-    capabilityKind: DealCapabilityKindSchema.optional(),
-    comment: nullableText.optional(),
-    legId: z.uuid().optional(),
-    target: z.enum(["capability", "leg"]),
-  })
-  .superRefine((value, ctx) => {
-    if (value.target === "capability" && !value.capabilityKind) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "capabilityKind is required when resolving a capability blocker",
-        path: ["capabilityKind"],
-      });
-    }
-
-    if (value.target === "leg" && !value.legId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "legId is required when resolving a leg blocker",
-        path: ["legId"],
-      });
-    }
-  });
+export const ResolveDealExecutionBlockerInputSchema = z.object({
+  comment: nullableText.optional(),
+  legId: z.uuid(),
+});
 
 export type ResolveDealExecutionBlockerInput = z.infer<
   typeof ResolveDealExecutionBlockerInputSchema
@@ -231,7 +218,6 @@ export const AppendDealTimelineEventInputSchema = z.object({
     "instruction_voided",
     "return_requested",
     "instruction_returned",
-    "execution_blocker_resolved",
     "attachment_uploaded",
     "attachment_deleted",
     "attachment_ingested",
@@ -262,32 +248,6 @@ export const UpdateDealLegStateInputSchema = z.object({
 
 export type UpdateDealLegStateInput = z.infer<
   typeof UpdateDealLegStateInputSchema
->;
-
-export const ListDealCapabilityStatesQuerySchema = z.object({
-  applicantCounterpartyId: z.uuid().optional(),
-  capabilityKind: DealCapabilityKindSchema.optional(),
-  dealType: DealTypeSchema.optional(),
-  internalEntityOrganizationId: z.uuid().optional(),
-  status: DealCapabilityStatusSchema.optional(),
-});
-
-export type ListDealCapabilityStatesQuery = z.infer<
-  typeof ListDealCapabilityStatesQuerySchema
->;
-
-export const UpsertDealCapabilityStateInputSchema = z.object({
-  applicantCounterpartyId: z.uuid(),
-  capabilityKind: DealCapabilityKindSchema,
-  dealType: DealTypeSchema,
-  internalEntityOrganizationId: z.uuid(),
-  note: nullableText,
-  reasonCode: nullableShortText,
-  status: DealCapabilityStatusSchema,
-});
-
-export type UpsertDealCapabilityStateInput = z.infer<
-  typeof UpsertDealCapabilityStateInputSchema
 >;
 
 export const EnqueueDealAttachmentIngestionInputSchema = z.object({

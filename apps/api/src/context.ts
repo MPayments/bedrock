@@ -17,6 +17,7 @@ import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres"
 import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { PersistenceContext } from "@bedrock/platform/persistence";
+import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
@@ -26,6 +27,7 @@ import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
+import type { ReconciliationAdjustmentsWorkflow } from "@bedrock/workflow-reconciliation-adjustments";
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
@@ -113,10 +115,12 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
+  reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   iamService: IamService;
@@ -151,11 +155,14 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
+    reconciliationAdjustmentsWorkflow:
+      applicationServices.reconciliationAdjustmentsWorkflow,
     organizationBootstrapWorkflow:
       applicationServices.organizationBootstrapWorkflow,
     requisiteAccountingWorkflow:

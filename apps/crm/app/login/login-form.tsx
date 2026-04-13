@@ -62,6 +62,7 @@ export function LoginForm() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                data-testid="login-email"
                 placeholder="m@example.com"
                 required
                 value={email}
@@ -76,6 +77,7 @@ export function LoginForm() {
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                data-testid="login-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -83,12 +85,18 @@ export function LoginForm() {
               />
             </Field>
             {error ? (
-              <p className="text-center text-sm text-destructive">{error}</p>
+              <p
+                className="text-center text-sm text-destructive"
+                data-testid="login-error"
+              >
+                {error}
+              </p>
             ) : null}
             <Field>
               <Button
                 type="submit"
                 className="h-12 w-full text-base font-medium"
+                data-testid="login-submit"
                 disabled={loading}
               >
                 {loading ? "Вход..." : "Войти"}

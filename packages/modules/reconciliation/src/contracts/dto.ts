@@ -12,8 +12,16 @@ export const ReconciliationMatchStatusSchema = z.enum(
 export const ReconciliationExceptionStateSchema = z.enum(
   RECONCILIATION_EXCEPTION_STATES,
 );
+export const ReconciliationMatchedOperationKindSchema = z.enum([
+  "ledger",
+  "treasury",
+]);
 
 export const ReconciliationMatchExplanationSchema = RecordShapeSchema;
+export const ReconciliationMatchedOperationRefSchema = z.object({
+  id: StringIdSchema,
+  kind: ReconciliationMatchedOperationKindSchema,
+});
 
 export const ReconciliationRunSummarySchema = z.object({
   total: z.number().int().nonnegative(),
@@ -97,8 +105,14 @@ export type ReconciliationMatchStatus = z.infer<
 export type ReconciliationExceptionState = z.infer<
   typeof ReconciliationExceptionStateSchema
 >;
+export type ReconciliationMatchedOperationKind = z.infer<
+  typeof ReconciliationMatchedOperationKindSchema
+>;
 export type ReconciliationMatchExplanation = z.infer<
   typeof ReconciliationMatchExplanationSchema
+>;
+export type ReconciliationMatchedOperationRef = z.infer<
+  typeof ReconciliationMatchedOperationRefSchema
 >;
 export type ReconciliationRunSummary = z.infer<
   typeof ReconciliationRunSummarySchema

@@ -11,6 +11,7 @@ export interface ReconciliationDocumentsPort {
 
 export interface ReconciliationLedgerLookupPort {
   operationExists(operationId: string): Promise<boolean>;
+  treasuryOperationExists(operationId: string): Promise<boolean>;
 }
 
 type JsonRecord = Record<string, unknown>;

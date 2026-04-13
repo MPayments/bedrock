@@ -70,6 +70,7 @@ function formatDecimalCurrency(
 
   try {
     formattedNumber = formatDecimalString(value, {
+      decimalSeparator: ",",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });

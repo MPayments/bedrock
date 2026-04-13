@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { TreasuryInstructionSchema } from "../src/instructions/application/contracts/dto";
 import {
     CreateQuoteInputSchema,
     MarkQuoteUsedInputSchema,
@@ -113,5 +114,29 @@ describe("Treasury validation", () => {
         const result = schema.safeParse({ nested: { value: "x" } });
 
         expect(result.success).toBe(false);
+    });
+
+    it("accepts treasury instruction timestamps serialized as ISO strings", () => {
+        const parsed = TreasuryInstructionSchema.parse({
+            attempt: 1,
+            createdAt: "2026-04-11T08:00:00.000Z",
+            failedAt: null,
+            id: "550e8400-e29b-41d4-a716-446655440000",
+            operationId: "550e8400-e29b-41d4-a716-446655440001",
+            providerRef: null,
+            providerSnapshot: null,
+            returnRequestedAt: null,
+            returnedAt: null,
+            settledAt: null,
+            sourceRef: "deal:1:leg:1:payin:1",
+            state: "prepared",
+            submittedAt: "2026-04-11T08:01:00.000Z",
+            updatedAt: "2026-04-11T08:02:00.000Z",
+            voidedAt: null,
+        });
+
+        expect(parsed.createdAt).toBeInstanceOf(Date);
+        expect(parsed.submittedAt).toBeInstanceOf(Date);
+        expect(parsed.updatedAt).toBeInstanceOf(Date);
     });
 });

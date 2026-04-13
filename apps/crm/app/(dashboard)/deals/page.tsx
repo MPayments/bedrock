@@ -193,7 +193,10 @@ export default function DealsPage() {
               </span>
             </div>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button
+            data-testid="crm-new-deal-button"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Новая сделка
           </Button>
@@ -205,25 +208,33 @@ export default function DealsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Черновики</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.drafts}</div>
+              <div className="mt-1 text-2xl font-semibold">
+                {board.counts.drafts}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Прайсинг</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.pricing}</div>
+              <div className="mt-1 text-2xl font-semibold">
+                {board.counts.pricing}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Документы</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.documents}</div>
+              <div className="mt-1 text-2xl font-semibold">
+                {board.counts.documents}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Активные</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.active}</div>
+              <div className="mt-1 text-2xl font-semibold">
+                {board.counts.active}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -303,7 +314,7 @@ export default function DealsPage() {
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext()
+                              header.getContext(),
                             )}
                       </TableHead>
                     ))}
@@ -323,7 +334,7 @@ export default function DealsPage() {
                         <TableCell key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </TableCell>
                       ))}

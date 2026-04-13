@@ -1,4 +1,8 @@
 import { Building2, Landmark } from "lucide-react";
+import {
+  getCountryByAlpha2,
+  normalizeToAlpha2,
+} from "@bedrock/shared/reference-data";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
@@ -18,6 +22,22 @@ type BeneficiaryDraftCardProps = {
 function formatValue(value: string | null | undefined) {
   const normalized = value?.trim();
   return normalized ? normalized : "Не указано";
+}
+
+function renderCountryValue(value: string | null | undefined) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return "Не указано";
+  }
+
+  const alpha2 = normalizeToAlpha2(normalized);
+  const country = alpha2 ? getCountryByAlpha2(alpha2) : null;
+
+  if (!country) {
+    return normalized;
+  }
+
+  return `${country.emoji} ${country.name}`;
 }
 
 export function BeneficiaryDraftCard({
@@ -75,7 +95,7 @@ export function BeneficiaryDraftCard({
             </div>
             <div>
               <dt className="text-muted-foreground">Страна</dt>
-              <dd>{formatValue(beneficiary?.country)}</dd>
+              <dd>{renderCountryValue(beneficiary?.country)}</dd>
             </div>
           </dl>
         </div>
@@ -92,7 +112,7 @@ export function BeneficiaryDraftCard({
             </div>
             <div>
               <dt className="text-muted-foreground">Страна банка</dt>
-              <dd>{formatValue(bank?.bankCountry)}</dd>
+              <dd>{renderCountryValue(bank?.bankCountry)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Получатель</dt>

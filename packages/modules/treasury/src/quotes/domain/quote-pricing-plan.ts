@@ -5,6 +5,7 @@ import { stableStringify } from "@bedrock/shared/core/canon";
 import { invariant } from "@bedrock/shared/core/domain";
 import { DAY_IN_SECONDS, effectiveRateFromAmounts } from "@bedrock/shared/money/math";
 
+import type { QuoteCommercialTermsSnapshot } from "./commercial-terms";
 import {
   financialLinesFromFeeComponents,
   normalizeFinancialLines,
@@ -23,6 +24,7 @@ export interface QuotePricingPlanSnapshot {
   toAmountMinor: bigint;
   pricingMode: QuotePricingMode;
   pricingTrace: Record<string, unknown>;
+  commercialTerms: QuoteCommercialTermsSnapshot | null;
   dealDirection: string | null;
   dealForm: string | null;
   rateNum: bigint;
@@ -43,6 +45,7 @@ interface QuotePricingPlanBaseInput {
   asOf: Date;
   manualFinancialLines?: FinancialLine[];
   feeComponents: FeeComponent[];
+  commercialTerms?: QuoteCommercialTermsSnapshot | null;
 }
 
 export class QuotePricingPlan {
@@ -139,6 +142,9 @@ export class QuotePricingPlan {
     return {
       ...this.snapshot,
       pricingTrace: { ...this.snapshot.pricingTrace },
+      commercialTerms: this.snapshot.commercialTerms
+        ? { ...this.snapshot.commercialTerms }
+        : null,
       legs: this.snapshot.legs.map((leg) => ({ ...leg })),
       feeComponents: this.snapshot.feeComponents.map((component) => ({
         ...component,
@@ -206,6 +212,7 @@ function buildPricingPlanSnapshot(input: QuotePricingPlanBaseInput & {
     toAmountMinor: input.route.toAmountMinor,
     pricingMode: input.pricingMode,
     pricingTrace: input.pricingTrace,
+    commercialTerms: input.commercialTerms ?? null,
     dealDirection: input.dealDirection ?? null,
     dealForm: input.dealForm ?? null,
     rateNum: input.rateNum,

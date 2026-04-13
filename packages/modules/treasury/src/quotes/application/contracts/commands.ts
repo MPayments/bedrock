@@ -5,7 +5,6 @@ import {
 } from "./zod";
 import { uuidSchema } from "../../../fees/application/contracts/zod";
 
-
 export const CreateQuoteInputSchema = z.object({
   dealId: uuidSchema.optional(),
   idempotencyKey: z.string().min(1).max(255),

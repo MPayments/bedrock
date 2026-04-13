@@ -57,6 +57,7 @@ function createDeal(): FinanceDealWorkspace {
       canCreateCalculation: true,
       canCreateQuote: true,
       canRequestExecution: false,
+      canRunReconciliation: true,
       canResolveExecutionBlocker: true,
       canUploadAttachment: true,
     },
@@ -125,18 +126,6 @@ function createDeal(): FinanceDealWorkspace {
     },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
-      capabilities: [
-        {
-          applicantCounterpartyId: null,
-          internalEntityOrganizationId: null,
-          kind: "can_payout",
-          note: null,
-          reasonCode: "capability_missing",
-          status: "pending",
-          updatedAt: null,
-          updatedByUserId: null,
-        },
-      ],
       positions: [
         {
           amountMinor: "12500000",
@@ -199,6 +188,10 @@ function createDeal(): FinanceDealWorkspace {
       ],
       reconciliationExceptions: [
         {
+          actions: {
+            adjustmentDocumentDocType: "transfer_resolution",
+            canIgnore: true,
+          },
           blocking: true,
           createdAt: "2026-04-02T10:00:00.000Z",
           externalRecordId: "external-record-1",
@@ -228,6 +221,7 @@ function createDeal(): FinanceDealWorkspace {
         },
         id: "bb36a82b-7a9b-4a88-91d7-39818114e79d",
         occurredAt: "2026-04-02T08:07:00.000Z",
+        payload: {},
         type: "deal_created",
       },
     ],

@@ -29,6 +29,7 @@ type DocumentCreateTypedFormClientProps = {
   initialPayload?: Record<string, unknown>;
   userRole: UserRole;
   options: DocumentFormOptions;
+  reconciliationAdjustmentExceptionId?: string;
   successHref?: string;
 };
 
@@ -65,6 +66,7 @@ export function DocumentCreateTypedFormClient({
   initialPayload,
   userRole,
   options,
+  reconciliationAdjustmentExceptionId,
   successHref,
 }: DocumentCreateTypedFormClientProps) {
   const router = useRouter();
@@ -77,10 +79,15 @@ export function DocumentCreateTypedFormClient({
       userRole={userRole}
       options={options}
       onSuccess={(document) => {
+        const detailsHref = buildDocumentDetailsHref(document.docType, document.id, {
+          reconciliationExceptionId: reconciliationAdjustmentExceptionId,
+          returnTo: successHref,
+        });
+
         router.push(
-          successHref ??
-            buildDocumentDetailsHref(document.docType, document.id) ??
-            "/documents",
+          reconciliationAdjustmentExceptionId
+            ? detailsHref ?? "/documents"
+            : successHref ?? detailsHref ?? "/documents",
         );
       }}
     >

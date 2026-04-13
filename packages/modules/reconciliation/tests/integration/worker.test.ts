@@ -63,6 +63,9 @@ const ledgerLookup = {
 
     return Boolean(row);
   },
+  async treasuryOperationExists() {
+    return false;
+  },
 };
 
 async function cleanupRows() {

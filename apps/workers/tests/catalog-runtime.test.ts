@@ -44,4 +44,13 @@ describe("workers runtime taxonomy", () => {
       expect(turboEnv.has(envKey)).toBe(true);
     }
   });
+
+  it("keeps reconciliation responsive for operator close flows", () => {
+    const reconciliation = WORKER_CATALOG.find(
+      (entry) => entry.id === "reconciliation",
+    );
+
+    expect(reconciliation).toBeDefined();
+    expect(reconciliation?.defaultIntervalMs).toBeLessThanOrEqual(5_000);
+  });
 });

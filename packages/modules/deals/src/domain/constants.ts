@@ -42,20 +42,6 @@ export const DEAL_LEG_OPERATION_KIND_VALUES = [
   "intercompany_funding",
 ] as const;
 
-export const DEAL_CAPABILITY_KIND_VALUES = [
-  "can_collect",
-  "can_fx",
-  "can_payout",
-  "can_transit",
-  "can_exporter_settle",
-] as const;
-
-export const DEAL_CAPABILITY_STATUS_VALUES = [
-  "enabled",
-  "disabled",
-  "pending",
-] as const;
-
 export const DEAL_OPERATIONAL_POSITION_KIND_VALUES = [
   "customer_receivable",
   "provider_payable",
@@ -121,7 +107,6 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "instruction_voided",
   "return_requested",
   "instruction_returned",
-  "execution_blocker_resolved",
   "deal_closed",
   "quote_created",
   "quote_accepted",
@@ -157,8 +142,6 @@ export const DEAL_APPROVAL_STATUS_VALUES = [
 export const DEAL_TRANSITION_BLOCKER_CODE_VALUES = [
   "intake_incomplete",
   "participant_missing",
-  "capability_pending",
-  "capability_disabled",
   "accepted_quote_missing",
   "accepted_quote_inactive",
   "calculation_missing",

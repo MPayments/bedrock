@@ -66,3 +66,36 @@ export function createResolveAdjustmentHandler(
     });
   };
 }
+
+export function createIgnoreExceptionHandler(
+  context: ReconciliationServiceContext,
+) {
+  return async function ignoreException(exceptionId: string) {
+    return context.transactions.withTransaction(async ({ exceptions }) => {
+      const exception = await exceptions.findByIdForUpdate(exceptionId);
+      if (!exception) {
+        throw new ReconciliationExceptionNotFoundError(exceptionId);
+      }
+
+      const resolution = ReconciliationException.fromSnapshot(exception).ignore({
+        ignoredAt: new Date(),
+      });
+
+      if (resolution.alreadyIgnored || resolution.ignoredBlockedByResolution) {
+        return {
+          alreadyIgnored: resolution.alreadyIgnored,
+          exceptionId: resolution.exceptionId,
+          state: exception.state,
+        };
+      }
+
+      await exceptions.markIgnored(resolution.update!);
+
+      return {
+        alreadyIgnored: false,
+        exceptionId: resolution.exceptionId,
+        state: "ignored" as const,
+      };
+    });
+  };
+}

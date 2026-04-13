@@ -1,9 +1,23 @@
 import js from "@eslint/js";
+import { SourceCode } from "eslint";
 import eslintConfigPrettier from "eslint-config-prettier";
 import importPlugin from "eslint-plugin-import";
 import securityPlugin from "eslint-plugin-security";
 import turboPlugin from "eslint-plugin-turbo";
 import tseslint from "typescript-eslint";
+
+// eslint-plugin-import still calls pre-ESLint-10 SourceCode helpers.
+if (typeof SourceCode.prototype.getTokenOrCommentBefore !== "function") {
+  SourceCode.prototype.getTokenOrCommentBefore = function (node) {
+    return this.getTokenBefore(node, { includeComments: true });
+  };
+}
+
+if (typeof SourceCode.prototype.getTokenOrCommentAfter !== "function") {
+  SourceCode.prototype.getTokenOrCommentAfter = function (node) {
+    return this.getTokenAfter(node, { includeComments: true });
+  };
+}
 
 /**
  * Stricter backend-focused ESLint config for Node/TypeScript services.

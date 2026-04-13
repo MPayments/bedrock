@@ -26,6 +26,7 @@ import {
 } from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
+import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { createPersistenceContext } from "@bedrock/platform/persistence";
@@ -34,6 +35,7 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/platform/worker-runtime";
+import { createReconciliationWorkerDefinition } from "@bedrock/reconciliation/worker";
 import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzleTreasuryFeeRulesRepository,
@@ -51,6 +53,7 @@ import { createDealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-at
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
+import { createWorkerLedgerModule } from "../ledger-module";
 import { createPeriodCloseWorkerDefinition } from "./period-close";
 
 interface WorkerModuleDeps {
@@ -266,6 +269,36 @@ export function createWorkerImplementations(
     treasuryModule,
     logger: deps.logger,
   });
+  const reconciliationIdempotency = createIdempotencyService({
+    logger: deps.logger,
+  });
+  const ledgerModule = createWorkerLedgerModule({
+    db: deps.db,
+    idempotency: reconciliationIdempotency,
+    logger: deps.logger,
+    persistence: createPersistenceContext(deps.db),
+  });
+  const reconciliation = createReconciliationWorkerDefinition({
+    ...createWorkerMetadata("reconciliation", deps.env),
+    db: deps.db,
+    documents: {
+      existsById(documentId: string) {
+        return documentsReadModel.existsById(documentId);
+      },
+    },
+    idempotency: reconciliationIdempotency,
+    ledgerLookup: {
+      async operationExists(operationId: string) {
+        return (
+          (await ledgerModule.operations.queries.getDetails(operationId)) !== null
+        );
+      },
+      async treasuryOperationExists(operationId: string) {
+        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
+      },
+    },
+    logger: deps.logger,
+  });
   const dealAttachmentIngestion = {
     ...createWorkerMetadata("deal-attachment-ingestion", deps.env),
     async runOnce(ctx) {
@@ -279,6 +312,7 @@ export function createWorkerImplementations(
     [documentsPeriodClose.id]: documentsPeriodClose,
     [balances.id]: balances,
     [treasuryRates.id]: treasuryRates,
+    [reconciliation.id]: reconciliation,
     [dealAttachmentIngestion.id]: dealAttachmentIngestion,
   };
 }

@@ -16,6 +16,8 @@ export interface OrgFiles {
   stamp: ImageContent;
 }
 
+export type PartialOrgFiles = Partial<OrgFiles>;
+
 export function bufferToImageContent(
   buffer: Buffer,
   width?: number,

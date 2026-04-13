@@ -5,6 +5,12 @@ import {
 
 type DocumentCreateRouteOptions = {
   dealId?: string;
+  reconciliationExceptionId?: string;
+  returnTo?: string;
+};
+
+type DocumentDetailsRouteOptions = {
+  reconciliationExceptionId?: string;
   returnTo?: string;
 };
 
@@ -67,6 +73,13 @@ export function buildDocumentCreateHref(
     query.set("dealId", options.dealId);
   }
 
+  if (options?.reconciliationExceptionId) {
+    query.set(
+      "reconciliationExceptionId",
+      options.reconciliationExceptionId,
+    );
+  }
+
   if (options?.returnTo) {
     query.set("returnTo", options.returnTo);
   }
@@ -78,11 +91,27 @@ export function buildDocumentCreateHref(
 export function buildDocumentDetailsHref(
   docType: string,
   id: string,
+  options?: DocumentDetailsRouteOptions,
 ): string | null {
   const family = getDocumentsWorkspaceFamily(docType);
   if (!family) {
     return null;
   }
 
-  return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/${encodeSegment(id)}`;
+  const href = `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/${encodeSegment(id)}`;
+  const query = new URLSearchParams();
+
+  if (options?.reconciliationExceptionId) {
+    query.set(
+      "reconciliationExceptionId",
+      options.reconciliationExceptionId,
+    );
+  }
+
+  if (options?.returnTo) {
+    query.set("returnTo", options.returnTo);
+  }
+
+  const search = query.toString();
+  return search ? `${href}?${search}` : href;
 }

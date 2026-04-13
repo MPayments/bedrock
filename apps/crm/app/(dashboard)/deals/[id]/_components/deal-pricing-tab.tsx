@@ -2,11 +2,17 @@ import { CheckCircle2, Clock3, Wallet } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import { DEAL_QUOTE_STATUS_LABELS } from "./constants";
 import { FinancialCard } from "./financial-card";
 import {
+  feeBpsToPercentString,
   formatCurrency,
   formatDate,
   minorToDecimalString,
@@ -31,6 +37,7 @@ type DealPricingTabProps = {
   onAcceptQuote: (quoteId: string) => void;
   onCreateCalculation: () => void;
   onCreateQuote: () => void;
+  quoteAmountSide: "source" | "target";
   quoteCreationDisabledReason: string | null;
   quotes: ApiDealPricingQuote[];
 };
@@ -39,16 +46,27 @@ function formatQuoteStatus(status: string) {
   return DEAL_QUOTE_STATUS_LABELS[status] ?? status;
 }
 
-function formatQuotePair(quote: ApiDealPricingQuote) {
+function formatQuoteFlow(quote: ApiDealPricingQuote) {
   return `${quote.fromCurrency} → ${quote.toCurrency}`;
+}
+
+function formatQuotePair(
+  quote: ApiDealPricingQuote,
+  amountSide: "source" | "target",
+) {
+  if (amountSide === "target") {
+    return `${quote.toCurrency}/${quote.fromCurrency}`;
+  }
+
+  return `${quote.fromCurrency}/${quote.toCurrency}`;
 }
 
 function getCurrencyPrecision(currencyCode: string) {
   try {
     return (
       new Intl.NumberFormat("ru-RU", {
-      currency: currencyCode,
-      style: "currency",
+        currency: currencyCode,
+        style: "currency",
       }).resolvedOptions().maximumFractionDigits ?? 2
     );
   } catch {
@@ -69,8 +87,36 @@ function formatQuoteAmounts(quote: ApiDealPricingQuote) {
   return `${formatCurrency(fromAmount, quote.fromCurrency)} → ${formatCurrency(toAmount, quote.toCurrency)}`;
 }
 
-function formatQuoteRate(quote: ApiDealPricingQuote) {
+function formatQuoteRate(
+  quote: ApiDealPricingQuote,
+  amountSide: "source" | "target",
+) {
+  if (amountSide === "target") {
+    return `1 ${quote.toCurrency} = ${rationalToDecimalString(quote.rateDen, quote.rateNum)} ${quote.fromCurrency}`;
+  }
+
   return `1 ${quote.fromCurrency} = ${rationalToDecimalString(quote.rateNum, quote.rateDen)} ${quote.toCurrency}`;
+}
+
+function formatQuoteFeePercent(bps: string | null | undefined) {
+  return `${feeBpsToPercentString(bps ?? "0")}%`;
+}
+
+function formatQuoteFixedFee(quote: ApiDealPricingQuote) {
+  if (
+    !quote.commercialTerms?.fixedFeeAmountMinor ||
+    !quote.commercialTerms.fixedFeeCurrency
+  ) {
+    return "Нет";
+  }
+
+  return formatCurrency(
+    minorToDecimalString(
+      quote.commercialTerms.fixedFeeAmountMinor,
+      getCurrencyPrecision(quote.commercialTerms.fixedFeeCurrency),
+    ),
+    quote.commercialTerms.fixedFeeCurrency,
+  );
 }
 
 export function DealPricingTab({
@@ -85,11 +131,12 @@ export function DealPricingTab({
   onAcceptQuote,
   onCreateCalculation,
   onCreateQuote,
+  quoteAmountSide,
   quoteCreationDisabledReason,
   quotes,
 }: DealPricingTabProps) {
   const acceptedDetailedQuote = acceptedQuote
-    ? quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null
+    ? (quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null)
     : null;
 
   return (
@@ -101,6 +148,7 @@ export function DealPricingTab({
             Котировка и курс
           </CardTitle>
           <Button
+            data-testid="deal-request-quote-button"
             disabled={Boolean(quoteCreationDisabledReason) || isCreatingQuote}
             onClick={onCreateQuote}
             size="sm"
@@ -122,7 +170,10 @@ export function DealPricingTab({
                 {acceptedDetailedQuote ? (
                   <>
                     <div className="text-sm font-medium text-foreground">
-                      {formatQuotePair(acceptedDetailedQuote)}
+                      {formatQuotePair(acceptedDetailedQuote, quoteAmountSide)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Поток сделки: {formatQuoteFlow(acceptedDetailedQuote)}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {formatQuoteAmounts(acceptedDetailedQuote)}
@@ -148,24 +199,72 @@ export function DealPricingTab({
                   <div className="rounded-md bg-muted/40 px-3 py-2">
                     <div className="text-xs text-muted-foreground">Курс</div>
                     <div className="text-sm font-medium">
-                      {formatQuoteRate(acceptedDetailedQuote)}
+                      {formatQuoteRate(acceptedDetailedQuote, quoteAmountSide)}
                     </div>
                   </div>
                 ) : null}
                 <div className="rounded-md bg-muted/40 px-3 py-2">
                   <div className="text-xs text-muted-foreground">
-                    Срок действия
+                    Суммарная комиссия
                   </div>
                   <div className="text-sm font-medium">
-                    {formatDate(acceptedQuote.expiresAt)}
+                    {acceptedDetailedQuote
+                      ? formatQuoteFeePercent(
+                          acceptedDetailedQuote.commercialTerms?.totalFeeBps,
+                        )
+                      : "0%"}
                   </div>
                 </div>
                 <div className="rounded-md bg-muted/40 px-3 py-2">
                   <div className="text-xs text-muted-foreground">
+                    Фиксированная комиссия
+                  </div>
+                  <div className="text-sm font-medium">
+                    {acceptedDetailedQuote
+                      ? formatQuoteFixedFee(acceptedDetailedQuote)
+                      : "Нет"}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {acceptedDetailedQuote ? (
+              <div className="mt-3 grid gap-3 md:grid-cols-4">
+                <div className="rounded-md border bg-background px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    Договорная комиссия
+                  </div>
+                  <div className="text-sm font-medium">
+                    {formatQuoteFeePercent(
+                      acceptedDetailedQuote.commercialTerms?.agreementFeeBps,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-md border bg-background px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    Надбавка к котировке
+                  </div>
+                  <div className="text-sm font-medium">
+                    {formatQuoteFeePercent(
+                      acceptedDetailedQuote.commercialTerms?.quoteMarkupBps,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-md border bg-background px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    Срок действия
+                  </div>
+                  <div className="text-sm font-medium">
+                    {acceptedQuote?.expiresAt
+                      ? formatDate(acceptedQuote.expiresAt)
+                      : "—"}
+                  </div>
+                </div>
+                <div className="rounded-md border bg-background px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
                     Использование
                   </div>
                   <div className="text-sm font-medium">
-                    {acceptedQuote.usedAt
+                    {acceptedQuote?.usedAt
                       ? `Исполнена ${formatDate(acceptedQuote.usedAt)}`
                       : "Еще не исполнена"}
                   </div>
@@ -187,7 +286,9 @@ export function DealPricingTab({
                 {quotes.map((quote) => {
                   const isAccepted = acceptedQuote?.quoteId === quote.id;
                   const canAccept =
-                    quote.status === "active" && !isAccepted && !isCreatingQuote;
+                    quote.status === "active" &&
+                    !isAccepted &&
+                    !isCreatingQuote;
 
                   return (
                     <div
@@ -196,7 +297,9 @@ export function DealPricingTab({
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{formatQuotePair(quote)}</span>
+                          <span className="font-medium">
+                            {formatQuotePair(quote, quoteAmountSide)}
+                          </span>
                           {isAccepted ? (
                             <Badge variant="secondary">
                               <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -208,7 +311,34 @@ export function DealPricingTab({
                           {formatQuoteAmounts(quote)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {formatQuoteRate(quote)}
+                          Поток сделки: {formatQuoteFlow(quote)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Финальный курс клиента:{" "}
+                          {formatQuoteRate(quote, quoteAmountSide)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                          <span>
+                            Договорная комиссия{" "}
+                            {formatQuoteFeePercent(
+                              quote.commercialTerms?.agreementFeeBps,
+                            )}
+                          </span>
+                          <span>
+                            Надбавка{" "}
+                            {formatQuoteFeePercent(
+                              quote.commercialTerms?.quoteMarkupBps,
+                            )}
+                          </span>
+                          <span>
+                            Итого{" "}
+                            {formatQuoteFeePercent(
+                              quote.commercialTerms?.totalFeeBps,
+                            )}
+                          </span>
+                          <span>
+                            Фиксированная комиссия {formatQuoteFixedFee(quote)}
+                          </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                           <span>{formatQuoteStatus(quote.status)}</span>
@@ -224,6 +354,7 @@ export function DealPricingTab({
                       <div className="flex items-center gap-2">
                         {canAccept ? (
                           <Button
+                            data-testid={`deal-accept-quote-button-${quote.id}`}
                             disabled={isAcceptingQuoteId === quote.id}
                             onClick={() => onAcceptQuote(quote.id)}
                             size="sm"

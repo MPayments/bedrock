@@ -70,6 +70,7 @@ function createWorkflow(overrides?: {
   agreement?: Record<string, unknown> | null;
   counterparty?: Record<string, unknown> | null;
   counterpartyBankRequisite?: Record<string, unknown> | null;
+  downloadImpl?: ((key: string) => Buffer | Promise<Buffer>) | null;
   downloadError?: Error | null;
   organization?: Record<string, unknown> | null;
   organizationProvider?: Record<string, unknown> | null;
@@ -506,7 +507,11 @@ function createWorkflow(overrides?: {
   };
   const objectStorage = {
     upload: vi.fn(),
-    download: vi.fn(async () => {
+    download: vi.fn(async (key: string) => {
+      if (overrides?.downloadImpl) {
+        return overrides.downloadImpl(key);
+      }
+
       if (overrides?.downloadError) {
         throw overrides.downloadError;
       }
@@ -723,6 +728,7 @@ describe("document generation workflow", () => {
         clientBankProvider: null,
         clientBankRequisite: null,
         clientCounterparty: fixtures.counterparty as any,
+        format: "pdf",
         organization: {
           ...fixtures.organization,
           signatureKey: null,
@@ -745,8 +751,97 @@ describe("document generation workflow", () => {
       workflow.generateCustomerContract({
         customerId: IDS.customer,
         counterpartyId: IDS.counterparty,
+        format: "pdf",
       }),
     ).rejects.toBeInstanceOf(OrganizationFileMissingInStorageError);
+  });
+
+  it("renders DOCX without sign or seal when organization signing metadata is missing", async () => {
+    const { fixtures, objectStorage, templateRenderer, workflow } = createWorkflow();
+
+    const result = await workflow.renderClientContract({
+      agreement: {
+        id: IDS.agreement,
+        contractNumber: "AG-typed",
+        contractDate: "2026-04-01",
+        agentFee: null,
+        fixedFee: null,
+      },
+      clientBankProvider: null,
+      clientBankRequisite: null,
+      clientCounterparty: fixtures.counterparty as any,
+      format: "docx",
+      organization: {
+        ...fixtures.organization,
+        signatureKey: null,
+        sealKey: null,
+      } as any,
+      organizationRequisite: fixtures.organizationRequisite as any,
+      organizationRequisiteProvider: fixtures.organizationProvider as any,
+    });
+
+    expect(result.mimeType).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    expect(objectStorage.download).not.toHaveBeenCalled();
+    expect(templateRenderer.renderDocx).toHaveBeenCalledWith(
+      "contract",
+      expect.objectContaining({
+        showSignature: false,
+        showStamp: false,
+      }),
+      "ru",
+      IDS.organization,
+    );
+
+    const payload = (templateRenderer.renderDocx.mock.calls as unknown[][])[0]?.[
+      1
+    ] as Record<string, unknown> | undefined;
+    expect(payload).toBeDefined();
+    if (!payload) {
+      throw new Error("Expected renderDocx payload");
+    }
+    expect(payload).not.toHaveProperty("signature");
+    expect(payload).not.toHaveProperty("stamp");
+  });
+
+  it("renders DOCX with the available signing asset only", async () => {
+    const { objectStorage, templateRenderer, workflow } = createWorkflow({
+      downloadImpl: async (key: string) => {
+        if (key.endsWith("/seal.png")) {
+          throw new Error("seal not found");
+        }
+
+        return Buffer.from("image");
+      },
+    });
+
+    await workflow.generateCustomerContract({
+      customerId: IDS.customer,
+      counterpartyId: IDS.counterparty,
+      format: "docx",
+    });
+
+    expect(objectStorage.download).toHaveBeenCalledTimes(2);
+    expect(templateRenderer.renderDocx).toHaveBeenCalledWith(
+      "contract",
+      expect.objectContaining({
+        showSignature: true,
+        showStamp: false,
+      }),
+      "ru",
+      IDS.organization,
+    );
+
+    const payload = (templateRenderer.renderDocx.mock.calls as unknown[][])[0]?.[
+      1
+    ] as Record<string, unknown> | undefined;
+    expect(payload).toBeDefined();
+    if (!payload) {
+      throw new Error("Expected renderDocx payload");
+    }
+    expect(payload).toHaveProperty("signature");
+    expect(payload).not.toHaveProperty("stamp");
   });
 
   it("falls back to an 8-character uuid prefix when the contract number is missing", async () => {

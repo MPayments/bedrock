@@ -1,7 +1,12 @@
 import { Download, Paperclip, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import {
   ATTACHMENT_INGESTION_STATUS_LABELS,
@@ -39,9 +44,7 @@ function getIngestionFailureDescription(ingestion: ApiDealAttachmentIngestion) {
   }
 }
 
-function getIngestionView(
-  ingestion: ApiDealAttachmentIngestion | null,
-): {
+function getIngestionView(ingestion: ApiDealAttachmentIngestion | null): {
   description: string | null;
   status:
     | "applied"
@@ -99,9 +102,7 @@ function getIngestionView(
   };
 }
 
-function getMissingIngestionView(input: {
-  purpose: ApiAttachment["purpose"];
-}) {
+function getMissingIngestionView(input: { purpose: ApiAttachment["purpose"] }) {
   if (input.purpose !== "invoice" && input.purpose !== "contract") {
     return null;
   }
@@ -134,7 +135,12 @@ export function AttachmentsCard({
             <Paperclip className="h-5 w-5 text-muted-foreground" />
             Подтверждающие файлы
           </CardTitle>
-          <Button onClick={onUpload} size="sm" variant="outline">
+          <Button
+            data-testid="deal-upload-attachment-button"
+            onClick={onUpload}
+            size="sm"
+            variant="outline"
+          >
             <Upload className="mr-2 h-4 w-4" />
             Загрузить
           </Button>
@@ -148,7 +154,8 @@ export function AttachmentsCard({
         ) : (
           <div className="space-y-2">
             {attachments.map((attachment) => {
-              const ingestion = ingestionsByAttachmentId.get(attachment.id) ?? null;
+              const ingestion =
+                ingestionsByAttachmentId.get(attachment.id) ?? null;
               const ingestionView =
                 getIngestionView(ingestion) ??
                 getMissingIngestionView({ purpose: attachment.purpose });
@@ -162,85 +169,89 @@ export function AttachmentsCard({
                   key={attachment.id}
                   className="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <div className="shrink-0">
-                    {getFileIcon(attachment.mimeType)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">
-                      {attachment.fileName}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="shrink-0">
+                      {getFileIcon(attachment.mimeType)}
                     </div>
-                    {attachment.description && (
-                      <div className="truncate text-sm text-muted-foreground">
-                        {attachment.description}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">
+                        {attachment.fileName}
                       </div>
-                    )}
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <Badge variant="outline">
-                        {ATTACHMENT_PURPOSE_LABELS[attachment.purpose ?? "other"]}
-                      </Badge>
-                      <Badge variant="outline">
-                        {
-                          ATTACHMENT_VISIBILITY_LABELS[
-                            attachment.visibility ?? "internal"
-                          ]
-                        }
-                      </Badge>
-                      {ingestionView ? (
+                      {attachment.description && (
+                        <div className="truncate text-sm text-muted-foreground">
+                          {attachment.description}
+                        </div>
+                      )}
+                      <div className="mt-1 flex flex-wrap gap-2">
                         <Badge variant="outline">
                           {
-                            ATTACHMENT_INGESTION_STATUS_LABELS[
-                              ingestionView.status
+                            ATTACHMENT_PURPOSE_LABELS[
+                              attachment.purpose ?? "other"
                             ]
                           }
                         </Badge>
-                      ) : null}
-                    </div>
-                    {ingestionView?.description ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {ingestionView.description}
+                        <Badge variant="outline">
+                          {
+                            ATTACHMENT_VISIBILITY_LABELS[
+                              attachment.visibility ?? "internal"
+                            ]
+                          }
+                        </Badge>
+                        {ingestionView ? (
+                          <Badge variant="outline">
+                            {
+                              ATTACHMENT_INGESTION_STATUS_LABELS[
+                                ingestionView.status
+                              ]
+                            }
+                          </Badge>
+                        ) : null}
                       </div>
-                    ) : null}
-                    <div className="text-xs text-muted-foreground">
-                      {formatFileSize(attachment.fileSize)} ·{" "}
-                      {formatDate(attachment.createdAt)}
+                      {ingestionView?.description ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {ingestionView.description}
+                        </div>
+                      ) : null}
+                      <div className="text-xs text-muted-foreground">
+                        {formatFileSize(attachment.fileSize)} ·{" "}
+                        {formatDate(attachment.createdAt)}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    className="h-8 w-8 p-0"
-                    onClick={() => onDownload(attachment.id)}
-                    size="sm"
-                    title="Скачать"
-                    variant="ghost"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  {canReingest ? (
+                  <div className="flex shrink-0 gap-1">
                     <Button
                       className="h-8 w-8 p-0"
-                      disabled={reingestingAttachmentId === attachment.id}
-                      onClick={() => onReingest(attachment.id)}
+                      onClick={() => onDownload(attachment.id)}
                       size="sm"
-                      title="Запустить распознавание повторно"
+                      title="Скачать"
                       variant="ghost"
                     >
-                      <RotateCcw className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
                     </Button>
-                  ) : null}
-                  <Button
-                    className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    disabled={deletingAttachmentId === attachment.id}
-                    onClick={() => onDelete(attachment.id)}
-                    size="sm"
-                    title="Удалить"
-                    variant="ghost"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    {canReingest ? (
+                      <Button
+                        className="h-8 w-8 p-0"
+                        disabled={reingestingAttachmentId === attachment.id}
+                        onClick={() => onReingest(attachment.id)}
+                        size="sm"
+                        title="Запустить распознавание повторно"
+                        variant="ghost"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      disabled={deletingAttachmentId === attachment.id}
+                      onClick={() => onDelete(attachment.id)}
+                      size="sm"
+                      title="Удалить"
+                      variant="ghost"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
               );
             })}
           </div>

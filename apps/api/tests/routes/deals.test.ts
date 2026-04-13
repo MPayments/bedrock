@@ -103,9 +103,11 @@ function createDealsModuleStub() {
         listCalculationHistory: vi.fn(),
       },
       commands: {
+        appendTimelineEvent: vi.fn(),
         acceptQuote: vi.fn(),
         assignAgent: vi.fn(),
         createDraft: vi.fn(),
+        linkCalculation: vi.fn(),
         transitionStatus: vi.fn(),
         updateAgreement: vi.fn(),
         updateComment: vi.fn(),
@@ -171,7 +173,6 @@ function createWorkflowProjection() {
     },
     nextAction: "Update execution leg state",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     participants: [
@@ -247,7 +248,6 @@ function createFinanceQueueProjection() {
         internalEntityName: "Multihansa",
         nextAction: "Close deal",
         operationalState: {
-          capabilities: [],
           positions: [],
         },
         profitabilitySnapshot: {
@@ -302,6 +302,7 @@ function createFinanceWorkspaceProjection() {
       canCreateCalculation: false,
       canCreateQuote: false,
       canRequestExecution: false,
+      canRunReconciliation: true,
       canResolveExecutionBlocker: false,
       canUploadAttachment: true,
     },
@@ -350,7 +351,6 @@ function createFinanceWorkspaceProjection() {
     },
     nextAction: "Close deal",
     operationalState: {
-      capabilities: [],
       positions: [],
     },
     pricing: {
@@ -413,10 +413,14 @@ function createFinanceWorkspaceProjection() {
       quotes: [],
       reconciliationExceptions: [
         {
+          actions: {
+            adjustmentDocumentDocType: "transfer_resolution",
+            canIgnore: true,
+          },
           blocking: true,
           createdAt: new Date("2026-04-03T11:00:00.000Z"),
           externalRecordId: "external-1",
-          id: "exception-1",
+          id: "00000000-0000-4000-8000-000000000111",
           operationId: "operation-1",
           reasonCode: "no_match",
           resolvedAt: null,
@@ -442,6 +446,13 @@ function createFinanceWorkspaceProjection() {
 
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
+  const agreementsModule = {
+    agreements: {
+      queries: {
+        findById: vi.fn(),
+      },
+    },
+  };
   const dealProjectionsWorkflow = {
     getCrmDealsStats: vi.fn(),
     getCrmDealWorkbenchProjection: vi.fn(),
@@ -463,8 +474,12 @@ function createTestApp() {
   };
   const treasuryModule = {
     quotes: {
+      commands: {
+        createQuote: vi.fn(),
+      },
       queries: {
         listQuotes: vi.fn(),
+        previewQuote: vi.fn(),
         getQuoteDetails: vi.fn(),
       },
     },
@@ -495,6 +510,23 @@ function createTestApp() {
       findById: vi.fn(),
     },
   };
+  const reconciliationService = {
+    exceptions: {
+      ignore: vi.fn(),
+      resolveWithAdjustment: vi.fn(),
+    },
+    runs: {
+      runReconciliation: vi.fn(),
+    },
+  };
+  const documentsService = {
+    get: vi.fn(),
+  };
+  const persistence = {
+    db: {
+      execute: vi.fn(async () => ({ rows: [] })),
+    },
+  };
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -516,11 +548,15 @@ function createTestApp() {
       dealExecutionWorkflow,
       dealQuoteWorkflow,
       dealsModule,
+      agreementsModule,
       iamService,
       treasuryModule,
       calculationsModule,
       partiesModule,
       currenciesService,
+      reconciliationService,
+      documentsService,
+      persistence,
     } as any),
   );
 
@@ -530,11 +566,15 @@ function createTestApp() {
     dealExecutionWorkflow,
     dealQuoteWorkflow,
     dealsModule,
+    agreementsModule,
     treasuryModule,
     calculationsModule,
     iamService,
     partiesModule,
     currenciesService,
+    reconciliationService,
+    documentsService,
+    persistence,
   };
 }
 
@@ -695,6 +735,293 @@ describe("deals routes", () => {
     expect(dealProjectionsWorkflow.listCrmDealBoard).toHaveBeenCalledOnce();
   });
 
+  it("creates a deal quote with markup and fixed fee overrides", async () => {
+    const {
+      app,
+      agreementsModule,
+      dealsModule,
+      treasuryModule,
+    } = createTestApp();
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+    agreementsModule.agreements.queries.findById.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      organizationId: "00000000-0000-4000-8000-000000000020",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
+      isActive: true,
+      createdAt: new Date("2026-03-30T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+      currentVersion: {
+        id: "00000000-0000-4000-8000-000000000099",
+        versionNumber: 1,
+        contractNumber: null,
+        contractDate: null,
+        createdAt: new Date("2026-03-30T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+        parties: [],
+        feeRules: [
+          {
+            id: "00000000-0000-4000-8000-000000000201",
+            kind: "agent_fee",
+            value: "125",
+            currencyCode: null,
+          },
+        ],
+      },
+    });
+    treasuryModule.quotes.commands.createQuote.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000210",
+      fromCurrencyId: "currency-rub",
+      toCurrencyId: "currency-usd",
+      fromCurrency: "RUB",
+      toCurrency: "USD",
+      fromAmountMinor: 100000n,
+      toAmountMinor: 1100n,
+      pricingMode: "auto_cross",
+      pricingTrace: {},
+      commercialTerms: {
+        agreementVersionId: "00000000-0000-4000-8000-000000000099",
+        agreementFeeBps: 125n,
+        quoteMarkupBps: 50n,
+        totalFeeBps: 175n,
+        fixedFeeAmountMinor: 1500n,
+        fixedFeeCurrency: "USD",
+      },
+      dealDirection: null,
+      dealForm: null,
+      rateNum: 11n,
+      rateDen: 1000n,
+      status: "active",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      usedByRef: null,
+      usedDocumentId: null,
+      usedAt: null,
+      expiresAt: new Date("2026-03-30T01:00:00.000Z"),
+      idempotencyKey: "quote-create-1",
+      createdAt: new Date("2026-03-30T00:00:00.000Z"),
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "quote-create-1",
+        },
+        body: JSON.stringify({
+          mode: "auto_cross",
+          fromAmountMinor: "100000",
+          fromCurrency: "RUB",
+          toCurrency: "USD",
+          asOf: "2026-03-30T00:00:00.000Z",
+          quoteMarkupPercent: "0.5",
+          fixedFeeAmount: "15.00",
+          fixedFeeCurrency: "USD",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(treasuryModule.quotes.commands.createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commercialTerms: expect.objectContaining({
+          agreementVersionId: "00000000-0000-4000-8000-000000000099",
+          agreementFeeBps: "125",
+          quoteMarkupBps: "50",
+          fixedFeeAmount: "15.00",
+          fixedFeeCurrency: "USD",
+        }),
+        dealId: "00000000-0000-4000-8000-000000000010",
+        idempotencyKey: "quote-create-1",
+      }),
+    );
+  });
+
+  it("previews a deal quote with commercial terms before creation", async () => {
+    const {
+      app,
+      agreementsModule,
+      dealsModule,
+      treasuryModule,
+    } = createTestApp();
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+    agreementsModule.agreements.queries.findById.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      organizationId: "00000000-0000-4000-8000-000000000020",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
+      isActive: true,
+      createdAt: new Date("2026-03-30T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+      currentVersion: {
+        id: "00000000-0000-4000-8000-000000000099",
+        versionNumber: 1,
+        contractNumber: null,
+        contractDate: null,
+        createdAt: new Date("2026-03-30T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+        parties: [],
+        feeRules: [],
+      },
+    });
+    treasuryModule.quotes.queries.previewQuote.mockResolvedValue({
+      fromCurrency: "RUB",
+      toCurrency: "USD",
+      fromAmountMinor: 100000n,
+      toAmountMinor: 1100n,
+      pricingMode: "auto_cross",
+      pricingTrace: {},
+      commercialTerms: {
+        agreementVersionId: "00000000-0000-4000-8000-000000000099",
+        agreementFeeBps: 0n,
+        quoteMarkupBps: 50n,
+        totalFeeBps: 50n,
+        fixedFeeAmountMinor: 2500n,
+        fixedFeeCurrency: "USD",
+      },
+      dealDirection: null,
+      dealForm: null,
+      rateNum: 11n,
+      rateDen: 1000n,
+      expiresAt: new Date("2026-03-30T01:00:00.000Z"),
+      legs: [],
+      feeComponents: [],
+      financialLines: [],
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "auto_cross",
+          fromAmountMinor: "100000",
+          fromCurrency: "RUB",
+          toCurrency: "USD",
+          asOf: "2026-03-30T00:00:00.000Z",
+          quoteMarkupPercent: "0.5",
+          fixedFeeAmount: "25.00",
+          fixedFeeCurrency: "USD",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(treasuryModule.quotes.queries.previewQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commercialTerms: expect.objectContaining({
+          quoteMarkupBps: "50",
+          fixedFeeAmount: "25.00",
+          fixedFeeCurrency: "USD",
+        }),
+      }),
+    );
+  });
+
+  it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {
+    const {
+      app,
+      agreementsModule,
+      dealsModule,
+      treasuryModule,
+    } = createTestApp();
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+    agreementsModule.agreements.queries.findById.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000002",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      organizationId: "00000000-0000-4000-8000-000000000020",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
+      isActive: true,
+      createdAt: new Date("2026-03-30T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+      currentVersion: {
+        id: "00000000-0000-4000-8000-000000000099",
+        versionNumber: 1,
+        contractNumber: null,
+        contractDate: null,
+        createdAt: new Date("2026-03-30T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
+        parties: [],
+        feeRules: [
+          {
+            id: "00000000-0000-4000-8000-000000000201",
+            kind: "agent_fee",
+            value: "100.00000000",
+            currencyCode: null,
+          },
+        ],
+      },
+    });
+    treasuryModule.quotes.queries.previewQuote.mockResolvedValue({
+      fromCurrency: "RUB",
+      toCurrency: "USD",
+      fromAmountMinor: 100000n,
+      toAmountMinor: 1100n,
+      pricingMode: "auto_cross",
+      pricingTrace: {},
+      commercialTerms: {
+        agreementVersionId: "00000000-0000-4000-8000-000000000099",
+        agreementFeeBps: 100n,
+        quoteMarkupBps: 0n,
+        totalFeeBps: 100n,
+        fixedFeeAmountMinor: null,
+        fixedFeeCurrency: null,
+      },
+      dealDirection: null,
+      dealForm: null,
+      rateNum: 11n,
+      rateDen: 1000n,
+      expiresAt: new Date("2026-03-30T01:00:00.000Z"),
+      legs: [],
+      feeComponents: [],
+      financialLines: [],
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "auto_cross",
+          fromAmountMinor: "100000",
+          fromCurrency: "RUB",
+          toCurrency: "USD",
+          asOf: "2026-03-30T00:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(treasuryModule.quotes.queries.previewQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commercialTerms: expect.objectContaining({
+          agreementVersionId: "00000000-0000-4000-8000-000000000099",
+          agreementFeeBps: "100",
+          quoteMarkupBps: "0",
+        }),
+      }),
+    );
+  });
+
   it("delegates CRM deals list projections to the workflow", async () => {
     const { app, dealProjectionsWorkflow } = createTestApp();
     dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
@@ -784,7 +1111,7 @@ describe("deals routes", () => {
         calculationCurrencyId: "00000000-0000-4000-8000-000000000101",
         baseCurrencyId: "00000000-0000-4000-8000-000000000102",
         originalAmountMinor: "10000",
-        feeAmountMinor: "100",
+        totalFeeAmountMinor: "100",
         totalAmountMinor: "10100",
         totalInBaseMinor: "9000",
         totalWithExpensesInBaseMinor: "9100",
@@ -912,17 +1239,29 @@ describe("deals routes", () => {
       currentSnapshot: {
         id: "00000000-0000-4000-8000-000000000502",
         snapshotNumber: 1,
+        agreementVersionId: null,
+        agreementFeeBps: "10000",
+        agreementFeeAmountMinor: "100",
         calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
         originalAmountMinor: "10000",
-        feeBps: "10000",
-        feeAmountMinor: "100",
+        totalFeeBps: "10000",
+        totalFeeAmountMinor: "100",
         totalAmountMinor: "10100",
         baseCurrencyId: "00000000-0000-4000-8000-000000000302",
-        feeAmountInBaseMinor: "90",
+        totalFeeAmountInBaseMinor: "90",
         totalInBaseMinor: "9000",
         additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000302",
         additionalExpensesAmountMinor: "50",
         additionalExpensesInBaseMinor: "50",
+        fixedFeeAmountMinor: "0",
+        fixedFeeCurrencyId: null,
+        pricingProvenance: null,
+        quoteMarkupAmountMinor: "0",
+        quoteMarkupBps: "0",
+        referenceRateAsOf: null,
+        referenceRateSource: null,
+        referenceRateNum: null,
+        referenceRateDen: null,
         totalWithExpensesInBaseMinor: "9140",
         rateSource: "fx_quote",
         rateNum: "9",
@@ -950,9 +1289,6 @@ describe("deals routes", () => {
           "idempotency-key": "from-quote-1",
         },
         body: JSON.stringify({
-          agentFeePercent: "1",
-          fixedFeeAmount: "150",
-          fixedFeeCurrencyCode: "USD",
           quoteId: "00000000-0000-4000-8000-000000000210",
         }),
       },
@@ -962,13 +1298,164 @@ describe("deals routes", () => {
     expect(
       dealQuoteWorkflow.createCalculationFromAcceptedQuote,
     ).toHaveBeenCalledWith({
-      agentFeePercent: "1",
       actorUserId: "user-1",
       dealId: detail.id,
-      fixedFeeAmount: "150",
-      fixedFeeCurrencyCode: "USD",
       idempotencyKey: "from-quote-1",
       quoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("imports a historical calculation and links it directly to the deal", async () => {
+    const { app, calculationsModule, dealsModule } = createTestApp();
+    const detail = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    const importedCalculation = {
+      id: "00000000-0000-4000-8000-000000000601",
+      isActive: true,
+      currentSnapshot: {
+        id: "00000000-0000-4000-8000-000000000602",
+        snapshotNumber: 1,
+        agreementVersionId: "00000000-0000-4000-8000-000000000699",
+        agreementFeeBps: "100",
+        agreementFeeAmountMinor: "100",
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+        originalAmountMinor: "10000",
+        totalFeeBps: "150",
+        totalFeeAmountMinor: "150",
+        totalAmountMinor: "10150",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+        totalFeeAmountInBaseMinor: "135",
+        totalInBaseMinor: "9000",
+        additionalExpensesCurrencyId: null,
+        additionalExpensesAmountMinor: "0",
+        additionalExpensesInBaseMinor: "0",
+        fixedFeeAmountMinor: "0",
+        fixedFeeCurrencyId: null,
+        quoteMarkupBps: "50",
+        quoteMarkupAmountMinor: "50",
+        referenceRateSource: "manual",
+        referenceRateNum: "9",
+        referenceRateDen: "10",
+        referenceRateAsOf: new Date("2026-03-01T00:00:00.000Z"),
+        pricingProvenance: { source: "historical_import" },
+        totalWithExpensesInBaseMinor: "9135",
+        rateSource: "manual",
+        rateNum: "9",
+        rateDen: "10",
+        additionalExpensesRateSource: null,
+        additionalExpensesRateNum: null,
+        additionalExpensesRateDen: null,
+        calculationTimestamp: new Date("2026-03-01T00:00:00.000Z"),
+        fxQuoteId: null,
+        quoteSnapshot: null,
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-01T00:00:00.000Z"),
+      },
+      createdAt: new Date("2026-03-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-01T00:00:00.000Z"),
+      lines: [],
+    };
+    calculationsModule.calculations.commands.create.mockResolvedValue(
+      importedCalculation,
+    );
+    dealsModule.deals.commands.linkCalculation.mockResolvedValue({
+      ...createWorkflowProjection(),
+      summary: {
+        ...createWorkflowProjection().summary,
+        calculationId: importedCalculation.id,
+      },
+    });
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/import`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "historical-import-1",
+        },
+        body: JSON.stringify({
+          agreementVersionId: "00000000-0000-4000-8000-000000000699",
+          agreementFeeBps: "100",
+          agreementFeeAmountMinor: "100",
+          calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+          originalAmountMinor: "10000",
+          totalFeeBps: "150",
+          totalFeeAmountMinor: "150",
+          totalAmountMinor: "10150",
+          baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+          totalFeeAmountInBaseMinor: "135",
+          totalInBaseMinor: "9000",
+          additionalExpensesCurrencyId: null,
+          additionalExpensesAmountMinor: "0",
+          additionalExpensesInBaseMinor: "0",
+          fixedFeeAmountMinor: "0",
+          fixedFeeCurrencyId: null,
+          quoteMarkupBps: "50",
+          quoteMarkupAmountMinor: "50",
+          referenceRateSource: "manual",
+          referenceRateNum: "9",
+          referenceRateDen: "10",
+          referenceRateAsOf: "2026-03-01T00:00:00.000Z",
+          pricingProvenance: { source: "historical_import" },
+          totalWithExpensesInBaseMinor: "9135",
+          rateSource: "manual",
+          rateNum: "9",
+          rateDen: "10",
+          additionalExpensesRateSource: null,
+          additionalExpensesRateNum: null,
+          additionalExpensesRateDen: null,
+          calculationTimestamp: "2026-03-01T00:00:00.000Z",
+          fxQuoteId: null,
+          sourceQuoteId: null,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      calculationsModule.calculations.commands.create,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      agreementVersionId: "00000000-0000-4000-8000-000000000699",
+      agreementFeeBps: "100",
+      agreementFeeAmountMinor: "100",
+      calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
+      originalAmountMinor: "10000",
+      totalFeeBps: "150",
+      totalFeeAmountMinor: "150",
+      totalAmountMinor: "10150",
+      baseCurrencyId: "00000000-0000-4000-8000-000000000302",
+      totalFeeAmountInBaseMinor: "135",
+      totalInBaseMinor: "9000",
+      additionalExpensesCurrencyId: null,
+      additionalExpensesAmountMinor: "0",
+      additionalExpensesInBaseMinor: "0",
+      fixedFeeAmountMinor: "0",
+      fixedFeeCurrencyId: null,
+      quoteMarkupBps: "50",
+      quoteMarkupAmountMinor: "50",
+      referenceRateSource: "manual",
+      referenceRateNum: "9",
+      referenceRateDen: "10",
+      referenceRateAsOf: new Date("2026-03-01T00:00:00.000Z"),
+      pricingProvenance: { source: "historical_import" },
+      totalWithExpensesInBaseMinor: "9135",
+      rateSource: "manual",
+      rateNum: "9",
+      rateDen: "10",
+      additionalExpensesRateSource: null,
+      additionalExpensesRateNum: null,
+      additionalExpensesRateDen: null,
+      calculationTimestamp: new Date("2026-03-01T00:00:00.000Z"),
+      fxQuoteId: null,
+      idempotencyKey: "historical-import-1",
+    });
+    expect(dealsModule.deals.commands.linkCalculation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      calculationId: importedCalculation.id,
+      dealId: detail.id,
+      sourceQuoteId: null,
     });
   });
 
@@ -1176,8 +1663,7 @@ describe("deals routes", () => {
           "idempotency-key": "execution-blocker-resolve-1",
         },
         body: JSON.stringify({
-          capabilityKind: "can_payout",
-          target: "capability",
+          legId: "00000000-0000-4000-8000-000000000102",
         }),
       },
     );
@@ -1185,12 +1671,10 @@ describe("deals routes", () => {
     expect(response.status).toBe(200);
     expect(dealExecutionWorkflow.resolveExecutionBlocker).toHaveBeenCalledWith({
       actorUserId: "user-1",
-      capabilityKind: "can_payout",
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idempotencyKey: "execution-blocker-resolve-1",
-      legId: undefined,
-      target: "capability",
+      legId: "00000000-0000-4000-8000-000000000102",
     });
   });
 
@@ -1275,10 +1759,164 @@ describe("deals routes", () => {
     });
     expect(body.relatedResources.reconciliationExceptions).toEqual([
       expect.objectContaining({
-        id: "exception-1",
+        actions: {
+          adjustmentDocumentDocType: "transfer_resolution",
+          canIgnore: true,
+        },
+        id: "00000000-0000-4000-8000-000000000111",
         source: "bank_statement",
       }),
     ]);
+  });
+
+  it("lists deal-scoped reconciliation exceptions from the finance workspace", async () => {
+    const { app, dealProjectionsWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({
+        actions: {
+          adjustmentDocumentDocType: "transfer_resolution",
+          canIgnore: true,
+        },
+        id: "00000000-0000-4000-8000-000000000111",
+      }),
+    ]);
+  });
+
+  it("runs deal-scoped reconciliation for pending treasury outcome records", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      persistence,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection
+      .mockResolvedValueOnce(createFinanceWorkspaceProjection())
+      .mockResolvedValueOnce({
+        ...createFinanceWorkspaceProjection(),
+        actions: {
+          ...createFinanceWorkspaceProjection().actions,
+          canRunReconciliation: false,
+        },
+        reconciliationSummary: {
+          ...createFinanceWorkspaceProjection().reconciliationSummary,
+          pendingOperationCount: 0,
+          reconciledOperationCount: 1,
+          state: "clear",
+        },
+      });
+    persistence.db.execute.mockResolvedValue({
+      rows: [{ id: "external-record-1" }],
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/run",
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": "reconciliation-run-1",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(reconciliationService.runs.runReconciliation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      idempotencyKey: "reconciliation-run-1",
+      inputQuery: {
+        externalRecordIds: ["external-record-1"],
+      },
+      requestContext: {
+        causationId: null,
+        correlationId: "corr-1",
+        idempotencyKey: "reconciliation-run-1",
+        requestId: "req-1",
+        traceId: null,
+      },
+      rulesetChecksum: "core-default-v1",
+      source: "treasury_instruction_outcomes",
+    });
+  });
+
+  it("ignores deal-scoped reconciliation exceptions", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions/00000000-0000-4000-8000-000000000111/ignore",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(reconciliationService.exceptions.ignore).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000111",
+    );
+  });
+
+  it("resolves deal-scoped reconciliation exceptions with an adjustment document", async () => {
+    const {
+      app,
+      dealProjectionsWorkflow,
+      dealsModule,
+      documentsService,
+      reconciliationService,
+    } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
+    dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
+      createFinanceWorkspaceProjection(),
+    );
+    documentsService.get.mockResolvedValue({
+      dealId: "00000000-0000-4000-8000-000000000010",
+      id: "00000000-0000-4000-8000-000000000555",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/exceptions/00000000-0000-4000-8000-000000000111/adjustment-document",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          docType: "transfer_resolution",
+          documentId: "00000000-0000-4000-8000-000000000555",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.get).toHaveBeenCalledWith(
+      "transfer_resolution",
+      "00000000-0000-4000-8000-000000000555",
+      "user-1",
+    );
+    expect(
+      reconciliationService.exceptions.resolveWithAdjustment,
+    ).toHaveBeenCalledWith({
+      adjustmentDocumentId: "00000000-0000-4000-8000-000000000555",
+      exceptionId: "00000000-0000-4000-8000-000000000111",
+    });
   });
 
   it("updates a deal execution leg state", async () => {

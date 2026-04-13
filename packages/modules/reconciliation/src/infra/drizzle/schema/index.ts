@@ -12,6 +12,7 @@ import {
 
 import { documents } from "@bedrock/documents/schema";
 import { ledgerOperations } from "@bedrock/ledger/schema";
+import { treasuryOperations } from "@bedrock/treasury/schema";
 
 import type { ReconciliationExceptionState } from "../../../domain/exceptions";
 import type { ReconciliationMatchStatus } from "../../../domain/matching";
@@ -85,6 +86,10 @@ export const reconciliationMatches = pgTable(
       () => ledgerOperations.id,
       { onDelete: "set null" },
     ),
+    matchedTreasuryOperationId: uuid("matched_treasury_operation_id").references(
+      () => treasuryOperations.id,
+      { onDelete: "set null" },
+    ),
     matchedDocumentId: uuid("matched_document_id").references(() => documents.id, {
       onDelete: "set null",
     }),
@@ -98,6 +103,9 @@ export const reconciliationMatches = pgTable(
     index("recon_matches_run_idx").on(table.runId),
     index("recon_matches_external_record_idx").on(table.externalRecordId),
     index("recon_matches_matched_operation_idx").on(table.matchedOperationId),
+    index("recon_matches_matched_treasury_operation_idx").on(
+      table.matchedTreasuryOperationId,
+    ),
   ],
 );
 

@@ -7,10 +7,7 @@ import {
   DealTransitionBlockedError,
   type DealsModule,
 } from "@bedrock/deals";
-import type {
-  DealCapabilityKind,
-  DealWorkflowProjection,
-} from "@bedrock/deals/contracts";
+import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
@@ -43,6 +40,8 @@ const DEAL_EXECUTION_REQUEST_RETURN_SCOPE =
   "workflow-deal-execution.request-return";
 const DEAL_EXECUTION_RECORD_OUTCOME_SCOPE =
   "workflow-deal-execution.record-outcome";
+const TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE =
+  "treasury_instruction_outcomes";
 
 const EXECUTION_REQUESTABLE_STATUSES = new Set([
   "awaiting_funds",
@@ -51,7 +50,6 @@ const EXECUTION_REQUESTABLE_STATUSES = new Set([
 ]);
 type ExecutionLifecycleEventType =
   | "deal_closed"
-  | "execution_blocker_resolved"
   | "execution_requested"
   | "instruction_failed"
   | "instruction_prepared"
@@ -110,7 +108,7 @@ interface OperationMutationResult {
 interface DealExecutionTxDeps {
   dealStore: DealExecutionStore;
   dealsModule: Pick<DealsModule, "deals">;
-  reconciliation: Pick<ReconciliationService, "links">;
+  reconciliation: Pick<ReconciliationService, "links" | "records">;
   treasuryModule: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
 }
 
@@ -123,7 +121,7 @@ export interface DealExecutionWorkflowDeps {
   createDealsModule(tx: Transaction): Pick<DealsModule, "deals">;
   createReconciliationService(
     tx: Transaction,
-  ): Pick<ReconciliationService, "links">;
+  ): Pick<ReconciliationService, "links" | "records">;
   createTreasuryModule(tx: Transaction): Pick<
     TreasuryModule,
     "instructions" | "operations" | "quotes"
@@ -531,6 +529,54 @@ function buildInstructionRetrySourceRef(operationId: string, attempt: number) {
   return `operation:${operationId}:instruction:${attempt}`;
 }
 
+async function ingestTreasuryOutcomeReconciliationRecord(input: {
+  actorUserId: string;
+  dealId: string;
+  instruction: Awaited<
+    ReturnType<TreasuryModule["instructions"]["queries"]["findById"]>
+  >;
+  operation: Awaited<
+    ReturnType<TreasuryModule["operations"]["queries"]["findById"]>
+  >;
+  reconciliation: Pick<ReconciliationService, "records">;
+}) {
+  if (!input.instruction || !input.operation) {
+    return;
+  }
+
+  if (
+    input.instruction.state !== "settled" &&
+    input.instruction.state !== "returned"
+  ) {
+    return;
+  }
+
+  await input.reconciliation.records.ingestExternalRecord({
+    source: TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE,
+    sourceRecordId: `${input.instruction.id}:${input.instruction.state}`,
+    rawPayload: {
+      dealId: input.dealId,
+      instructionId: input.instruction.id,
+      instructionState: input.instruction.state,
+      operationId: input.operation.id,
+      operationKind: input.operation.kind,
+      providerRef: input.instruction.providerRef,
+      providerSnapshot: input.instruction.providerSnapshot,
+    },
+    normalizedPayload: {
+      dealId: input.dealId,
+      instructionId: input.instruction.id,
+      instructionState: input.instruction.state,
+      operationId: input.operation.id,
+      operationKind: "treasury",
+      treasuryOperationKind: input.operation.kind,
+    },
+    normalizationVersion: 1,
+    actorUserId: input.actorUserId,
+    idempotencyKey: `reconciliation:auto:${input.instruction.id}:${input.instruction.state}`,
+  });
+}
+
 async function runIdempotent<TResult, TStoredResult extends Record<string, unknown>>(
   deps: DealExecutionWorkflowDeps,
   input: {
@@ -578,7 +624,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<DealWorkflowProjection> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
 
           if (workflow.executionPlan.some((leg) => leg.operationRefs.length > 0)) {
@@ -652,7 +702,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<DealWorkflowProjection> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
           const leg = findLegById(workflow, input.legId);
 
@@ -737,114 +791,34 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
 
     async resolveExecutionBlocker(input: {
       actorUserId: string;
-      capabilityKind?: DealCapabilityKind;
       comment?: string | null;
       dealId: string;
       idempotencyKey: string;
-      legId?: string;
-      target: "capability" | "leg";
+      legId: string;
     }): Promise<DealWorkflowProjection> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule }) => {
+        handler: async ({ dealsModule }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-          if (input.target === "leg") {
-            if (!input.legId) {
-              throw new ValidationError("legId is required");
-            }
-
-            const leg = findLegById(workflow, input.legId);
-            if (!leg) {
-              throw new ValidationError(
-                `Deal ${input.dealId} does not have execution leg ${input.legId}`,
-              );
-            }
-
-            if (leg.state !== "blocked") {
-              return workflow;
-            }
-
-            const updated = await dealsModule.deals.commands.updateLegState({
-              actorUserId: input.actorUserId,
-              comment: input.comment ?? null,
-              dealId: input.dealId,
-              idx: leg.idx,
-              state: "ready",
-            });
-
-            await dealStore.createDealTimelineEvents([
-              buildTimelineEvent({
-                actorUserId: input.actorUserId,
-                dealId: input.dealId,
-                payload: {
-                  comment: input.comment ?? null,
-                  legId: leg.id,
-                  legIdx: leg.idx,
-                  target: "leg",
-                },
-                sourceRef: `execution:${input.dealId}:blocker:leg:${leg.id}:resolve:${input.idempotencyKey}`,
-                type: "execution_blocker_resolved",
-              }),
-            ]);
-
-            return updated;
-          }
-
-          if (!input.capabilityKind) {
-            throw new ValidationError("capabilityKind is required");
-          }
-
-          const capability = workflow.operationalState.capabilities.find(
-            (item) => item.kind === input.capabilityKind,
-          );
-
-          if (!capability) {
+          const leg = findLegById(workflow, input.legId);
+          if (!leg) {
             throw new ValidationError(
-              `Deal ${input.dealId} does not expose capability ${input.capabilityKind}`,
+              `Deal ${input.dealId} does not have execution leg ${input.legId}`,
             );
           }
 
-          if (capability.status === "enabled") {
+          if (leg.state !== "blocked") {
             return workflow;
           }
 
-          if (
-            !capability.applicantCounterpartyId ||
-            !capability.internalEntityOrganizationId
-          ) {
-            throw new ValidationError(
-              `Capability ${capability.kind} is missing applicant or internal entity context`,
-            );
-          }
-
-          await dealsModule.deals.commands.upsertCapabilityState({
+          return dealsModule.deals.commands.updateLegState({
             actorUserId: input.actorUserId,
-            applicantCounterpartyId: capability.applicantCounterpartyId,
-            capabilityKind: capability.kind,
-            dealType: capability.dealType ?? workflow.summary.type,
-            internalEntityOrganizationId:
-              capability.internalEntityOrganizationId,
-            note: input.comment ?? capability.note ?? null,
-            reasonCode: null,
-            status: "enabled",
+            comment: input.comment ?? null,
+            dealId: input.dealId,
+            idx: leg.idx,
+            state: "ready",
           });
-
-          await dealStore.createDealTimelineEvents([
-            buildTimelineEvent({
-              actorUserId: input.actorUserId,
-              dealId: input.dealId,
-              payload: {
-                capabilityKind: capability.kind,
-                comment: input.comment ?? null,
-                target: "capability",
-              },
-              sourceRef: `execution:${input.dealId}:blocker:capability:${capability.kind}:resolve:${input.idempotencyKey}`,
-              type: "execution_blocker_resolved",
-            }),
-          ]);
-
-          return requireWorkflow(dealsModule, input.dealId);
         },
         idempotencyKey: input.idempotencyKey,
         loadReplayResult: async ({ dealsModule }, storedResult) => {
@@ -852,11 +826,9 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           return requireWorkflow(dealsModule, dealId);
         },
         request: {
-          capabilityKind: input.capabilityKind ?? null,
           comment: input.comment ?? null,
           dealId: input.dealId,
-          legId: input.legId ?? null,
-          target: input.target,
+          legId: input.legId,
         },
         scope: DEAL_EXECUTION_RESOLVE_BLOCKER_SCOPE,
         serializeResult: (result) => ({ dealId: result.summary.id }),
@@ -872,7 +844,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<OperationMutationResult> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const { operation, workflow } = await requireDealForOperation(
             treasuryModule,
             dealsModule,
@@ -954,7 +930,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<OperationMutationResult> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const { instruction: existing, operation, workflow } =
             await requireInstructionForMutation(
               treasuryModule,
@@ -1026,7 +1006,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<OperationMutationResult> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const { instruction: existing, operation, workflow } =
             await requireInstructionForMutation(
               treasuryModule,
@@ -1104,7 +1088,11 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<OperationMutationResult> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          treasuryModule,
+        }) => {
           const { instruction: existing, operation, workflow } =
             await requireInstructionForMutation(
               treasuryModule,
@@ -1249,7 +1237,12 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
     }): Promise<OperationMutationResult> {
       return runIdempotent(deps, {
         actorUserId: input.actorUserId,
-        handler: async ({ dealStore, dealsModule, treasuryModule }) => {
+        handler: async ({
+          dealStore,
+          dealsModule,
+          reconciliation,
+          treasuryModule,
+        }) => {
           const { instruction: existing, operation, workflow } =
             await requireInstructionForMutation(
               treasuryModule,
@@ -1261,6 +1254,14 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             outcome: input.outcome,
             providerRef: input.providerRef ?? null,
             providerSnapshot: input.providerSnapshot ?? null,
+          });
+
+          await ingestTreasuryOutcomeReconciliationRecord({
+            actorUserId: input.actorUserId,
+            dealId: workflow.summary.id,
+            instruction: updated,
+            operation,
+            reconciliation,
           });
 
           if (existing.state !== updated.state) {

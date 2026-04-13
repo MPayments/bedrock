@@ -41,6 +41,7 @@ export interface DealTraceDocumentRow {
 }
 
 export interface DocumentsReadModel {
+  existsById: (documentId: string) => Promise<boolean>;
   getDocumentByType: (input: {
     documentId: string;
     docType: string;

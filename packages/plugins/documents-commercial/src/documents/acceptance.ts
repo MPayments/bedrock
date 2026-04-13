@@ -24,10 +24,7 @@ import type { CommercialModuleDeps } from "./internal/types";
 
 export function createAcceptanceDocumentModule(
   deps: CommercialModuleDeps,
-): DocumentModule<
-  AcceptanceInput,
-  AcceptanceInput
-> {
+): DocumentModule<AcceptanceInput, AcceptanceInput> {
   return {
     moduleId: "acceptance",
     accountingSourceIds: [],
@@ -72,6 +69,7 @@ export function createAcceptanceDocumentModule(
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
         exchangeDocumentId: exchange?.id,
+        invoiceDocumentId: input.invoiceDocumentId,
         memo: input.memo,
       });
     },

@@ -3,7 +3,6 @@ import type { PaginatedList } from "@bedrock/shared/core/pagination";
 import type {
   Deal,
   DealAttachmentIngestion,
-  DealCapabilityState,
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
@@ -32,13 +31,6 @@ export interface DealReads {
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
   findWorkflowsByIds(ids: string[]): Promise<DealWorkflowProjection[]>;
-  listCapabilityStates(input: {
-    applicantCounterpartyId?: string;
-    capabilityKind?: DealCapabilityState["kind"];
-    dealType?: DealCapabilityState["dealType"];
-    internalEntityOrganizationId?: string;
-    status?: DealCapabilityState["status"];
-  }): Promise<DealCapabilityState[]>;
   listAttachmentIngestionsByDealId(
     dealId: string,
   ): Promise<DealAttachmentIngestion[]>;

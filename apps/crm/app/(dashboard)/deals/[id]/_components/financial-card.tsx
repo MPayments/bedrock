@@ -1,6 +1,11 @@
 import { ChevronDown, Plus, Wallet } from "lucide-react";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +58,8 @@ export function FinancialCard({
                 <DropdownMenuSeparator />
                 <div className="space-y-1">
                   {calculationHistory.map((item) => {
-                    const isCurrent = item.calculationId === activeCalculationId;
+                    const isCurrent =
+                      item.calculationId === activeCalculationId;
                     return (
                       <div
                         key={item.calculationId}
@@ -74,6 +80,7 @@ export function FinancialCard({
             </DropdownMenu>
           )}
           <Button
+            data-testid="deal-create-calculation-button"
             size="sm"
             onClick={onCreate}
             disabled={Boolean(disabledReason) || isCreating}
@@ -99,23 +106,38 @@ export function FinancialCard({
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Сумма без комиссии
+                Договорная комиссия
               </div>
-              <div className="text-base font-medium">
+              <div className="text-base">
+                {calculation.agreementFeePercentage}% (
                 {formatCurrency(
-                  calculation.originalAmount,
+                  calculation.agreementFeeAmount,
                   calculation.currencyCode,
                 )}
+                )
               </div>
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Комиссия
+                Надбавка к котировке
               </div>
               <div className="text-base">
-                {calculation.feePercentage}% (
+                {calculation.quoteMarkupPercentage}% (
                 {formatCurrency(
-                  calculation.feeAmount,
+                  calculation.quoteMarkupAmount,
+                  calculation.currencyCode,
+                )}
+                )
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Суммарная комиссия
+              </div>
+              <div className="text-base">
+                {calculation.totalFeePercentage}% (
+                {formatCurrency(
+                  calculation.totalFeeAmount,
                   calculation.currencyCode,
                 )}
                 )
@@ -134,9 +156,9 @@ export function FinancialCard({
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Курс
+                Финальный курс клиента
               </div>
-              <div className="text-base">{calculation.rate}</div>
+              <div className="text-base">{calculation.finalRate}</div>
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
@@ -152,12 +174,36 @@ export function FinancialCard({
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
-                Итого в базе
+                Фиксированная комиссия
+              </div>
+              <div className="text-base">
+                {calculation.fixedFeeAmount && calculation.fixedFeeCurrencyCode
+                  ? formatCurrency(
+                      calculation.fixedFeeAmount,
+                      calculation.fixedFeeCurrencyCode,
+                    )
+                  : "Нет"}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Комиссия в базе
+              </div>
+              <div className="text-base">
+                {formatCurrency(
+                  calculation.totalFeeAmountInBase,
+                  calculation.baseCurrencyCode,
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Оригинальная сумма
               </div>
               <div className="text-lg font-bold text-primary">
                 {formatCurrency(
-                  calculation.totalWithExpensesInBase,
-                  calculation.baseCurrencyCode,
+                  calculation.originalAmount,
+                  calculation.currencyCode,
                 )}
               </div>
             </div>

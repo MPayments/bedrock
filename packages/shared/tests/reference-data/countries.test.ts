@@ -17,6 +17,7 @@ describe("countries constants", () => {
     it("normalizes alpha2, alpha3 and country names", () => {
         expect(normalizeToAlpha2("US")).toBe("US");
         expect(normalizeToAlpha2("usa")).toBe("US");
+        expect(normalizeToAlpha2("UAE")).toBe("AE");
         expect(normalizeToAlpha2("Франция")).toBe("FR");
         expect(normalizeToAlpha2("Соединенные Штаты")).toBe("US");
         expect(normalizeToAlpha2("France")).toBe("FR");

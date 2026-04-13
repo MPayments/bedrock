@@ -1,10 +1,6 @@
-import {
-  ACCOUNTING_SOURCE_ID,
-} from "@bedrock/accounting/posting-contracts";
+import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
-import {
-  DocumentValidationError,
-} from "@bedrock/plugin-documents-sdk";
+import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
@@ -92,12 +88,19 @@ export function createInvoiceDocumentModule(
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
+        amount: input.amount,
+        amountMinor: input.amountMinor,
+        counterpartyId: input.counterpartyId,
+        currency: input.currency,
+        customerId: input.customerId,
         financialLines: compileInvoiceDirectFinancialLines({
           financialLines: input.financialLines,
           amountMinor: input.amountMinor,
           currency: input.currency,
         }),
         memo: input.memo,
+        organizationId: input.organizationId,
+        organizationRequisiteId: input.organizationRequisiteId,
       });
     },
     async updateDraft(context, document, input) {
@@ -150,7 +153,10 @@ export function createInvoiceDocumentModule(
         input.organizationRequisiteId,
       );
 
-      if (input.organizationId && input.organizationId !== binding.organizationId) {
+      if (
+        input.organizationId &&
+        input.organizationId !== binding.organizationId
+      ) {
         throw new DocumentValidationError(
           "organizationId does not match selected organization requisite",
         );
@@ -183,7 +189,10 @@ export function createInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
-      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+      const dealFxContext = await resolveInvoiceDealFxContext(
+        deps,
+        document.id,
+      );
 
       if (dealFxContext?.hasConvertLeg) {
         assertDealLinkedInvoiceMatchesCalculation({
@@ -221,7 +230,10 @@ export function createInvoiceDocumentModule(
         deps,
         payload.organizationRequisiteId,
       );
-      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+      const dealFxContext = await resolveInvoiceDealFxContext(
+        deps,
+        document.id,
+      );
 
       if (dealFxContext?.hasConvertLeg) {
         assertDealLinkedInvoiceMatchesCalculation({
@@ -266,7 +278,10 @@ export function createInvoiceDocumentModule(
       });
     },
     async resolveAccountingSourceId(_context, document) {
-      const dealFxContext = await resolveInvoiceDealFxContext(deps, document.id);
+      const dealFxContext = await resolveInvoiceDealFxContext(
+        deps,
+        document.id,
+      );
 
       if (dealFxContext?.hasConvertLeg) {
         if (
