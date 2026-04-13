@@ -5,11 +5,11 @@ import { stableStringify } from "@bedrock/shared/core/canon";
 import { invariant } from "@bedrock/shared/core/domain";
 import { DAY_IN_SECONDS, effectiveRateFromAmounts } from "@bedrock/shared/money/math";
 
+import type { QuoteCommercialTermsSnapshot } from "./commercial-terms";
 import {
   financialLinesFromFeeComponents,
   normalizeFinancialLines,
 } from "./fee-financial-lines";
-import type { QuoteCommercialTermsSnapshot } from "./commercial-terms";
 import type { QuoteLegSnapshot } from "./quote-leg";
 import { QuoteRoute } from "./quote-route";
 import type { QuotePricingMode } from "./quote-types";

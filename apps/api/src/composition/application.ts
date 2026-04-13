@@ -16,11 +16,11 @@ import {
   type DocumentsService,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import { documents as documentsTable } from "@bedrock/documents/schema";
 import {
   createDrizzleDocumentsReadModel,
   type DocumentsReadModel,
 } from "@bedrock/documents/read-model";
+import { documents as documentsTable } from "@bedrock/documents/schema";
 import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
 import type { PartiesModule } from "@bedrock/parties";

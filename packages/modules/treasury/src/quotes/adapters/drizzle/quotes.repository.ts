@@ -12,10 +12,6 @@ import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import { schema } from "../../../schema";
-import {
-  deserializeQuoteCommercialTerms,
-  serializeQuoteCommercialTerms,
-} from "../../domain/commercial-terms";
 import type {
   MarkQuoteUsedInput,
   QuoteLegRecord,
@@ -25,6 +21,10 @@ import type {
   QuotesRepository,
   QuoteWriteModel,
 } from "../../application/ports";
+import {
+  deserializeQuoteCommercialTerms,
+  serializeQuoteCommercialTerms,
+} from "../../domain/commercial-terms";
 
 function mapQuoteRecord(record: typeof schema.fxQuotes.$inferSelect): QuoteRecord {
   return {

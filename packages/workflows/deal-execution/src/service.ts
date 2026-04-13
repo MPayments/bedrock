@@ -627,7 +627,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
@@ -706,7 +705,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
@@ -849,7 +847,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const { operation, workflow } = await requireDealForOperation(
@@ -936,7 +933,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const { instruction: existing, operation, workflow } =
@@ -1013,7 +1009,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const { instruction: existing, operation, workflow } =
@@ -1096,7 +1091,6 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         handler: async ({
           dealStore,
           dealsModule,
-          reconciliation,
           treasuryModule,
         }) => {
           const { instruction: existing, operation, workflow } =

@@ -148,10 +148,7 @@ function getTimelineTitle(
   return getDealTimelineEventLabel(event.type);
 }
 
-function renderTimelineDetails(
-  event: FinanceDealTimelineEvent,
-  executionPlan: FinanceDealExecutionLeg[],
-) {
+function renderTimelineDetails(event: FinanceDealTimelineEvent) {
   if (event.type === "status_changed") {
     return getFinanceDealStatusLabel(getPayloadString(event, "status"));
   }
@@ -222,7 +219,7 @@ export function DealTimelineCard({
           <div className="space-y-4">
             {limitedTimeline.map((event) => {
               const actorLabel = getTimelineActorLabel(event);
-              const details = renderTimelineDetails(event, executionPlan);
+              const details = renderTimelineDetails(event);
 
               return (
                 <div key={event.id} className="border-l-2 pl-3">

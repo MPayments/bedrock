@@ -588,7 +588,7 @@ describe("treasury deals queries", () => {
   });
 
   it("accepts treasury instruction timestamps serialized as strings in deal operations", async () => {
-    const workspacePayload = createFinanceWorkspacePayload() as any;
+    const workspacePayload = createFinanceWorkspacePayload();
 
     workspacePayload.relatedResources.operations = [
       {

@@ -142,10 +142,7 @@ function getTimelineTitle(
   return DEAL_TIMELINE_EVENT_LABELS[event.type] ?? event.type;
 }
 
-function renderTimelineDetails(
-  event: ApiDealTimelineEvent,
-  executionPlan: ApiDealWorkflowLeg[],
-) {
+function renderTimelineDetails(event: ApiDealTimelineEvent) {
   if (event.type === "status_changed" && typeof event.payload.status === "string") {
     return STATUS_LABELS[event.payload.status as keyof typeof STATUS_LABELS];
   }
@@ -250,7 +247,7 @@ export function DealTimelineCard({
         ) : (
           <div className="space-y-4">
             {visibleTimeline.map((event) => {
-              const details = renderTimelineDetails(event, executionPlan);
+              const details = renderTimelineDetails(event);
               const actorLabel = getTimelineActorLabel(event);
 
               return (

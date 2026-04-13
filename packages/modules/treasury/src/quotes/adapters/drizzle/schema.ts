@@ -22,14 +22,14 @@ import type {
 } from "../../domain/quote-types";
 
 export type FeeComponentSource = "rule" | "manual";
-export type SerializedQuoteCommercialTerms = {
+export interface SerializedQuoteCommercialTerms {
   agreementVersionId: string | null;
   agreementFeeBps: string;
   quoteMarkupBps: string;
   totalFeeBps: string;
   fixedFeeAmountMinor: string | null;
   fixedFeeCurrency: string | null;
-};
+}
 
 export const fxQuotes = pgTable(
   "fx_quotes",

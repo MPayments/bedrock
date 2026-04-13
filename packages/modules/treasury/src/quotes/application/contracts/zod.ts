@@ -21,6 +21,25 @@ function parseStrictMinorAmountString(value: string): bigint | null {
   return parseMinorAmount(value);
 }
 
+function isNonNegativeDecimalString(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+
+  const parts = trimmed.split(".");
+  if (parts.length > 2) {
+    return false;
+  }
+
+  const [whole = "", fraction] = parts;
+  if (!/^(0|[1-9][0-9]*)$/u.test(whole)) {
+    return false;
+  }
+
+  return fraction === undefined || /^[0-9]+$/u.test(fraction);
+}
+
 const positiveMinorAmountStringSchema = z
   .string()
   .refine((value) => parseStrictMinorAmountString(value) !== null, {
@@ -49,7 +68,9 @@ const nonNegativeIntegerStringSchema = z
 const nonNegativeDecimalStringSchema = z
   .string()
   .trim()
-  .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/, "Must be a non-negative decimal string");
+  .refine(isNonNegativeDecimalString, {
+    message: "Must be a non-negative decimal string",
+  });
 
 const financialLineSourceSchema = z.enum(["rule", "manual"]);
 const financialLineSettlementModeSchema = z.enum([

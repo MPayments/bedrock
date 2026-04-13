@@ -932,7 +932,7 @@ export default function DealDetailPage() {
         acceptedQuoteDetails.commercialTerms?.totalFeeBps ?? "0",
       ),
     };
-  }, [acceptedQuoteDetails, data?.currencyOptions, data?.workbench]);
+  }, [acceptedQuoteDetails, data]);
 
   const showError = useCallback(
     (
@@ -1268,7 +1268,7 @@ export default function DealDetailPage() {
     : false;
   const quoteRequest = useMemo(
     () => (data ? buildQuoteRequestContext(data.workbench) : null),
-    [data?.workbench],
+    [data],
   );
   const quoteHasRequestedAmount = Boolean(
     quoteRequest?.amount &&
@@ -1447,7 +1447,7 @@ export default function DealDetailPage() {
     }
 
     setIsCreateCalculationDialogOpen(true);
-  }, [acceptedQuoteDetails, data, showError]);
+  }, [data, showError]);
 
   const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
     if (!data?.workbench.acceptedQuote) {

@@ -7,19 +7,14 @@ import {
   DealQuoteNotAcceptedError,
   type DealsModule,
 } from "@bedrock/deals";
-import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
-import {
-  BPS_SCALE,
-  mulDivRoundHalfUp,
-  toMinorAmountString,
-} from "@bedrock/shared/money";
+import { ValidationError } from "@bedrock/shared/core/errors";
+import { mulDivRoundHalfUp } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 
-import { serializeQuoteDetails } from "../routes/internal/treasury-quote-dto";
 import {
   calculatePercentAmountMinorHalfUp,
-  ratioToRoundedBps,
 } from "./commercial-pricing";
+import { serializeQuoteDetails } from "../routes/internal/treasury-quote-dto";
 
 type CanonicalCalculation = Awaited<
   ReturnType<CalculationsModule["calculations"]["commands"]["create"]>

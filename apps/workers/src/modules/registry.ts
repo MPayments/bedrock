@@ -1,6 +1,6 @@
+import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
 
 import { DrizzleAgreementReads } from "@bedrock/agreements/adapters/drizzle";
 import { createCurrenciesService } from "@bedrock/currencies";
@@ -10,8 +10,8 @@ import {
   DrizzleDealReads,
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
-import { documents as documentsTable } from "@bedrock/documents/schema";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import { documents as documentsTable } from "@bedrock/documents/schema";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFilesModule } from "@bedrock/files";
 import {
