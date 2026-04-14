@@ -25,7 +25,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_OWNER: deathpresence
+  # ghcr namespaces are lowercase — "mpayments", not "MPayments"
+  IMAGE_OWNER: mpayments
 
 jobs:
   build:
