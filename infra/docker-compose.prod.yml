@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Bedrock — production compose for Dokploy/Traefik deployment
 #
-# All application images are pulled from ghcr.io/deathpresence, produced by
+# All application images are pulled from ghcr.io/mpayments, produced by
 # the release-images workflow on each push to main. tigerbeetle is still
 # built locally from ./tigerbeetle since its Dockerfile is a thin wrapper.
 #
@@ -108,7 +108,7 @@ services:
   # Init containers (run once per deploy, then exit)
   # ---------------------------------------------------------------------------
   db-migrate:
-    image: ghcr.io/deathpresence/bedrock-db:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-db:${IMAGE_TAG:-latest}
     container_name: bedrock-db-migrate
     environment:
       DB_HOST: ${DB_HOST}
@@ -122,7 +122,7 @@ services:
     restart: "no"
 
   db-seed:
-    image: ghcr.io/deathpresence/bedrock-db:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-db:${IMAGE_TAG:-latest}
     container_name: bedrock-db-seed
     command: ["node", "--import=tsx", "src/seeds/run-all.ts"]
     depends_on:
@@ -151,7 +151,7 @@ services:
   # Application services
   # ---------------------------------------------------------------------------
   api:
-    image: ghcr.io/deathpresence/bedrock-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-api:${IMAGE_TAG:-latest}
     container_name: bedrock-api
     depends_on:
       db-migrate:
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 
   finance:
-    image: ghcr.io/deathpresence/bedrock-finance:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-finance:${IMAGE_TAG:-latest}
     container_name: bedrock-finance
     depends_on:
       - api
@@ -220,7 +220,7 @@ services:
       - "traefik.http.services.bedrock-finance.loadbalancer.server.port=3000"
 
   crm:
-    image: ghcr.io/deathpresence/bedrock-crm:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-crm:${IMAGE_TAG:-latest}
     container_name: bedrock-crm
     depends_on:
       - api
@@ -253,7 +253,7 @@ services:
       - "traefik.http.services.bedrock-crm.loadbalancer.server.port=3000"
 
   portal:
-    image: ghcr.io/deathpresence/bedrock-portal:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-portal:${IMAGE_TAG:-latest}
     container_name: bedrock-portal
     depends_on:
       - api
@@ -278,7 +278,7 @@ services:
       - "traefik.http.services.bedrock-portal.loadbalancer.server.port=3000"
 
   workers:
-    image: ghcr.io/deathpresence/bedrock-workers:${IMAGE_TAG:-latest}
+    image: ghcr.io/mpayments/bedrock-workers:${IMAGE_TAG:-latest}
     container_name: bedrock-workers
     depends_on:
       db-migrate:

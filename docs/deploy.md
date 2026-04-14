@@ -1,7 +1,7 @@
 # Deployment Guide — GHCR + Dokploy
 
 Bedrock больше не собирает образы на Dokploy-хосте. Теперь сборка живёт в
-GitHub Actions, готовые образы лежат в `ghcr.io/deathpresence`, а Dokploy
+GitHub Actions, готовые образы лежат в `ghcr.io/mpayments`, а Dokploy
 только pull'ит и переподнимает контейнеры через webhook.
 
 ## Архитектура
@@ -13,8 +13,8 @@ push → main
 GitHub Actions (.github/workflows/release-images.yml)
    ├─ matrix: api / crm / finance / portal / workers / db
    ├─ docker buildx build --push
-   │     ghcr.io/deathpresence/bedrock-<app>:latest
-   │     ghcr.io/deathpresence/bedrock-<app>:sha-<short>
+   │     ghcr.io/mpayments/bedrock-<app>:latest
+   │     ghcr.io/mpayments/bedrock-<app>:sha-<short>
    └─ curl POST ${DOKPLOY_WEBHOOK_URL}
                   │
                   ▼
@@ -42,11 +42,29 @@ GitHub Actions (.github/workflows/release-images.yml)
   него workflow отрабатывает до push, но Dokploy не перезапускает стек
   (в логах появится `::warning::DOKPLOY_WEBHOOK_URL secret not set`).
 
-Первый раз образы публикуются в `ghcr.io/deathpresence` как приватные.
-После первой успешной сборки нужно прийти на
-<https://github.com/users/deathpresence/packages> и убедиться, что пакеты
-привязаны к репозиторию (GitHub это делает автоматически по
-`repository.url` из Dockerfile или label, но проверить лишним не будет).
+Важно: namespace — **organization** `MPayments` (в URL-ах ghcr — lowercase
+`mpayments`). Это важно, потому что для org-namespace `GITHUB_TOKEN`
+workflow'а имеет достаточно прав для push через GitHub App installation.
+Для личного user-namespace пришлось бы заводить PAT — тут не надо.
+
+**Organization settings → Packages:**
+- Убедиться, что в *Settings → Actions → General → Workflow permissions*
+  для репо включено "Read and write permissions" (или explicit
+  `packages: write` в workflow — у нас он уже выставлен).
+- Если в организации включён policy "Restrict publishing to public
+  visibility" — ок, мы всё равно публикуем приватно.
+
+Первая успешная сборка автоматически создаст 6 packages и привяжет их к
+репозиторию через `org.opencontainers.image.source` (устанавливается
+`docker/build-push-action` по default). После этого на
+<https://github.com/orgs/MPayments/packages> появятся `bedrock-api`,
+`bedrock-crm`, `bedrock-finance`, `bedrock-portal`, `bedrock-workers`,
+`bedrock-db` — все private.
+
+Если после первого билда какой-то package остался **не** привязанным к
+репо (редко, но бывает при ручном предварительном push'е): зайти в
+*Package settings → Manage Actions access → Add repository →
+MPayments/bedrock → Role: Write*.
 
 ### 2. Ghcr creds на Dokploy-хосте
 
@@ -55,10 +73,12 @@ GitHub Actions (.github/workflows/release-images.yml)
 **Option A — через Dokploy UI (рекомендуется).**
 1. В Dokploy: *Settings → Registries → Add Registry*.
 2. Registry URL: `ghcr.io`.
-3. Username: GitHub user, у которого есть доступ к пакетам
-   (`deathpresence` или любой коллаборатор).
+3. Username: GitHub user, у которого есть доступ к пакетам организации
+   MPayments (любой member с пакет-правами, например `deathpresence`).
 4. Password: Personal Access Token (classic) с scope `read:packages`.
-   Создаётся на <https://github.com/settings/tokens>.
+   Создаётся на <https://github.com/settings/tokens>. Для fine-grained
+   PAT — Account permission "Packages: Read-only" в resource owner
+   MPayments.
 5. Привязать registry к приложению (compose) в его настройках.
 
 **Option B — docker login на хосте.**
@@ -147,10 +167,18 @@ IMAGE_TAG=latest docker compose -f infra/docker-compose.prod.yml config --quiet
 
 - **GHA падает на `docker/login-action`, 403 write:packages.**
   Repository Settings → Actions → Workflow permissions → "Read and write
-  permissions". Или у репо выключено разрешение публиковать packages;
-  включи на организационном уровне.
+  permissions".
+- **GHA падает на push с `denied: permission_denied: The requested
+  installation does not exist`.**
+  Такое бывает, если кто-то в прошлом запускал этот workflow под
+  **личным** namespace (`ghcr.io/<user>/...`) — для user-packages
+  `GITHUB_TOKEN` не работает (app installation отсутствует). Сейчас
+  workflow использует org `mpayments` — должно работать. Если ошибка
+  всплывёт снова, проверь `IMAGE_OWNER` в workflow и org policy
+  `Settings → Packages`.
 - **GHA падает на push: `unauthorized: authentication required`.**
-  То же самое — токена `GITHUB_TOKEN` не хватает `write:packages`.
+  Токена `GITHUB_TOKEN` не хватает `write:packages`. Проверить
+  `permissions:` блок в workflow и workflow-permissions на уровне репо.
 - **Dokploy не pull'ит: `pull access denied for ghcr.io/...`.**
   Не залогинен. Сделать Option A или Option B из раздела 2.
 - **Dokploy pull'ит, но сервис стартует со старой версией.**
