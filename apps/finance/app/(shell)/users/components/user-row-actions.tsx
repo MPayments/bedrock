@@ -1,15 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, MoreHorizontal } from "lucide-react";
 
-import { Button } from "@bedrock/sdk-ui/components/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@bedrock/sdk-ui/components/dropdown-menu";
+import { UserRowActions as BaseUserRowActions } from "@bedrock/sdk-users-ui/components/user-row-actions";
 
 type UserRowActionModel = {
   id: string;
@@ -22,27 +15,9 @@ type UserRowActionsProps = {
 
 export function UserRowActions({ user }: UserRowActionsProps) {
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="icon"
-              variant="ghost"
-              type="button"
-              aria-label={`Действия для пользователя ${user.name}`}
-            />
-          }
-        >
-          <MoreHorizontal size={16} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-34">
-          <DropdownMenuItem render={<Link href={`/users/${user.id}`} />}>
-            <Eye size={16} />
-            Открыть
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <BaseUserRowActions
+      user={user}
+      viewLink={<Link href={`/users/${user.id}`} />}
+    />
   );
 }

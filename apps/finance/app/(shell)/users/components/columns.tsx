@@ -2,9 +2,15 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { UserStatusBadge } from "@bedrock/sdk-users-ui/components/user-status-badge";
+import { createRoleLabelResolver } from "@bedrock/sdk-users-ui/lib/role-label";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import { formatDate } from "@/lib/format";
+import {
+  FINANCE_USER_ROLE_DISPLAY_OPTIONS,
+  FINANCE_USER_ROLE_OPTIONS,
+} from "../lib/role-options";
 import { UserRowActions } from "./user-row-actions";
 
 export type SerializedUser = {
@@ -22,10 +28,9 @@ export type SerializedUser = {
   updatedAt: string;
 };
 
-function roleLabel(role: string | null) {
-  if (role === "admin") return "Админ";
-  return "Казначей";
-}
+const resolveRoleLabel = createRoleLabelResolver(
+  FINANCE_USER_ROLE_DISPLAY_OPTIONS,
+);
 
 export function getColumns(): ColumnDef<SerializedUser>[] {
   return [
@@ -66,17 +71,17 @@ export function getColumns(): ColumnDef<SerializedUser>[] {
         const role = row.getValue<string | null>("role");
         return (
           <Badge variant={role === "admin" ? "default" : "secondary"}>
-            {roleLabel(role)}
+            {resolveRoleLabel(role)}
           </Badge>
         );
       },
       meta: {
         label: "Роль",
         variant: "multiSelect",
-        options: [
-          { value: "admin", label: "Админ" },
-          { value: "finance", label: "Казначей" },
-        ],
+        options: FINANCE_USER_ROLE_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
       },
       enableColumnFilter: true,
       enableSorting: true,
@@ -87,14 +92,9 @@ export function getColumns(): ColumnDef<SerializedUser>[] {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Статус" />
       ),
-      cell: ({ row }) => {
-        const banned = row.getValue<boolean | null>("banned");
-        return banned ? (
-          <Badge variant="destructive">Заблокирован</Badge>
-        ) : (
-          <Badge variant="outline">Активен</Badge>
-        );
-      },
+      cell: ({ row }) => (
+        <UserStatusBadge banned={row.getValue<boolean | null>("banned")} />
+      ),
       meta: {
         label: "Статус",
         variant: "select",

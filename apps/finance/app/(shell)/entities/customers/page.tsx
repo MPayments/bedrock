@@ -1,6 +1,6 @@
 import { Handshake } from "lucide-react";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
 import { CustomersTable } from "@/features/entities/customers/components/customers-table";

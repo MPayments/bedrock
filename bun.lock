@@ -85,8 +85,12 @@
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/sdk-api-client": "workspace:*",
+        "@bedrock/sdk-clients-ui": "workspace:*",
+        "@bedrock/sdk-organizations-ui": "workspace:*",
         "@bedrock/sdk-parties-ui": "workspace:*",
+        "@bedrock/sdk-tables-ui": "workspace:*",
         "@bedrock/sdk-ui": "workspace:*",
+        "@bedrock/sdk-users-ui": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/modifiers": "^9.0.0",
@@ -179,8 +183,12 @@
         "@bedrock/plugin-documents-ifrs": "workspace:*",
         "@bedrock/plugin-documents-sdk": "workspace:*",
         "@bedrock/sdk-api-client": "workspace:*",
+        "@bedrock/sdk-clients-ui": "workspace:*",
+        "@bedrock/sdk-organizations-ui": "workspace:*",
         "@bedrock/sdk-parties-ui": "workspace:*",
+        "@bedrock/sdk-tables-ui": "workspace:*",
         "@bedrock/sdk-ui": "workspace:*",
+        "@bedrock/sdk-users-ui": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/treasury": "workspace:*",
         "@hookform/resolvers": "^5.2.2",
@@ -656,6 +664,49 @@
         "typescript": "^6.0.2",
       },
     },
+    "packages/sdk/clients-ui": {
+      "name": "@bedrock/sdk-clients-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/sdk-tables-ui": "workspace:*",
+        "@bedrock/sdk-ui": "workspace:*",
+        "@tanstack/react-table": "^8.21.3",
+        "lucide-react": "^0.577.0",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^22.15.3",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+      },
+    },
+    "packages/sdk/organizations-ui": {
+      "name": "@bedrock/sdk-organizations-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/sdk-tables-ui": "workspace:*",
+        "@bedrock/sdk-ui": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+        "@tanstack/react-table": "^8.21.3",
+        "lucide-react": "^0.577.0",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^22.15.3",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/sdk/parties-ui": {
       "name": "@bedrock/sdk-parties-ui",
       "version": "0.0.0",
@@ -667,6 +718,29 @@
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "react-hook-form": "^7.71.2",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^22.15.3",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+      },
+    },
+    "packages/sdk/tables-ui": {
+      "name": "@bedrock/sdk-tables-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/sdk-ui": "workspace:*",
+        "@tanstack/react-table": "^8.21.3",
+        "date-fns": "^4.1.0",
+        "lucide-react": "^0.577.0",
+        "nuqs": "^2.8.8",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -709,6 +783,28 @@
         "@types/react-dom": "19.2.3",
         "eslint": "^10.2.0",
         "tailwindcss": "^4.1.18",
+        "typescript": "^6.0.2",
+      },
+    },
+    "packages/sdk/users-ui": {
+      "name": "@bedrock/sdk-users-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/sdk-ui": "workspace:*",
+        "@hookform/resolvers": "^5.2.2",
+        "lucide-react": "^0.577.0",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "react-hook-form": "^7.71.2",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^22.15.3",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "eslint": "^10.2.0",
         "typescript": "^6.0.2",
       },
     },
@@ -1147,9 +1243,17 @@
 
     "@bedrock/sdk-api-client": ["@bedrock/sdk-api-client@workspace:packages/sdk/api-client"],
 
+    "@bedrock/sdk-clients-ui": ["@bedrock/sdk-clients-ui@workspace:packages/sdk/clients-ui"],
+
+    "@bedrock/sdk-organizations-ui": ["@bedrock/sdk-organizations-ui@workspace:packages/sdk/organizations-ui"],
+
     "@bedrock/sdk-parties-ui": ["@bedrock/sdk-parties-ui@workspace:packages/sdk/parties-ui"],
 
+    "@bedrock/sdk-tables-ui": ["@bedrock/sdk-tables-ui@workspace:packages/sdk/tables-ui"],
+
     "@bedrock/sdk-ui": ["@bedrock/sdk-ui@workspace:packages/sdk/ui"],
+
+    "@bedrock/sdk-users-ui": ["@bedrock/sdk-users-ui@workspace:packages/sdk/users-ui"],
 
     "@bedrock/shared": ["@bedrock/shared@workspace:packages/shared"],
 
@@ -3123,9 +3227,17 @@
 
     "@bedrock/reconciliation/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/sdk-clients-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
+
+    "@bedrock/sdk-organizations-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
+
     "@bedrock/sdk-parties-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
 
+    "@bedrock/sdk-tables-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
+
     "@bedrock/sdk-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
+
+    "@bedrock/sdk-users-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
 
     "@bedrock/shared/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
@@ -3431,9 +3543,17 @@
 
     "@bedrock/reconciliation/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
+    "@bedrock/sdk-clients-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "@bedrock/sdk-organizations-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
     "@bedrock/sdk-parties-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
+    "@bedrock/sdk-tables-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
     "@bedrock/sdk-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "@bedrock/sdk-users-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@bedrock/shared/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import type { CurrencyListItem } from "@/features/entities/currencies/lib/types";
 import { formatDate } from "@/lib/format";
 import { CurrencyRowActions } from "../currency-row-actions";

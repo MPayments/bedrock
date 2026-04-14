@@ -5,7 +5,7 @@ import {
   parseAsString,
 } from "nuqs/server";
 
-import { getSortingStateParser } from "@/lib/parsers";
+import { getSortingStateParser } from "@bedrock/sdk-tables-ui/lib/parsers";
 import type { ResourceSearchParams } from "@/lib/resources/search-params";
 
 const OPERATIONS_SORTABLE_COLUMNS = ["createdAt", "postingDate", "postedAt"] as const;

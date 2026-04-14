@@ -27,7 +27,7 @@ vi.mock("@bedrock/sdk-ui/components/button", () => ({
   Button: ({ children }: { children?: unknown }) => children ?? null,
 }));
 
-vi.mock("@/components/data-table/skeleton", () => ({
+vi.mock("@bedrock/sdk-tables-ui/components/data-table-skeleton", () => ({
   DataTableSkeleton: () => null,
 }));
 

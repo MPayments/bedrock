@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import { EntityTableShell } from "@/components/entities/entity-table-shell";
+import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 
 import type { TreasuryOperationsListResult } from "../lib/queries";
 import type { TreasuryOperationWorkspaceItem } from "@bedrock/treasury/contracts";
