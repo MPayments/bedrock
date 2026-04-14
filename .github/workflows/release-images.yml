@@ -1,0 +1,135 @@
+name: Release Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "patches/**"
+      - "bun.lock"
+      - "package.json"
+      - "turbo.json"
+      - ".dockerignore"
+      - ".github/workflows/release-images.yml"
+  workflow_dispatch:
+    inputs:
+      extra_tag:
+        description: "Extra tag to apply (besides :latest and :sha-<short>)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: deathpresence
+
+jobs:
+  build:
+    name: build / ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            image: bedrock-api
+            dockerfile: apps/api/Dockerfile
+          - app: crm
+            image: bedrock-crm
+            dockerfile: apps/crm/Dockerfile
+            build_args: |
+              API_INTERNAL_URL=http://bedrock-api:3000
+              NEXT_BUILD_MAX_OLD_SPACE_SIZE=3072
+              NEXT_PUBLIC_PORTAL_URL=https://portal.multihansa.com
+              NEXT_PUBLIC_APP_URL=https://crm.multihansa.com
+              NEXT_PUBLIC_APP_TITLE=Multihansa CRM
+              NEXT_PUBLIC_APP_DESCRIPTION=Multihansa CRM
+          - app: finance
+            image: bedrock-finance
+            dockerfile: apps/finance/Dockerfile
+            build_args: |
+              API_INTERNAL_URL=http://bedrock-api:3000
+              NEXT_BUILD_MAX_OLD_SPACE_SIZE=3072
+          - app: portal
+            image: bedrock-portal
+            dockerfile: apps/portal/Dockerfile
+            build_args: |
+              API_INTERNAL_URL=http://bedrock-api:3000
+              NEXT_BUILD_MAX_OLD_SPACE_SIZE=3072
+              NEXT_PUBLIC_CRM_URL=https://crm.multihansa.com
+              NEXT_PUBLIC_APP_URL=https://portal.multihansa.com
+              NEXT_PUBLIC_APP_TITLE=Multihansa Portal
+              NEXT_PUBLIC_APP_DESCRIPTION=Multihansa customer portal
+          - app: workers
+            image: bedrock-workers
+            dockerfile: apps/workers/Dockerfile
+          - app: db
+            image: bedrock-db
+            dockerfile: apps/db/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        env:
+          EXTRA_TAG: ${{ inputs.extra_tag }}
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          base="${REGISTRY}/${IMAGE_OWNER}/${{ matrix.image }}"
+          {
+            echo 'tags<<EOF'
+            echo "${base}:latest"
+            echo "${base}:sha-${short_sha}"
+            if [ -n "${EXTRA_TAG}" ]; then
+              echo "${base}:${EXTRA_TAG}"
+            fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+          provenance: false
+
+  notify-dokploy:
+    name: Trigger Dokploy redeploy
+    needs: build
+    if: success() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Dokploy webhook
+        env:
+          WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::warning::DOKPLOY_WEBHOOK_URL secret not set — skipping redeploy."
+            exit 0
+          fi
+          echo "Triggering Dokploy redeploy…"
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+               -X POST "${WEBHOOK}"
+          echo " → Dokploy webhook accepted."
