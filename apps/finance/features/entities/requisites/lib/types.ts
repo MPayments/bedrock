@@ -5,7 +5,7 @@ import type {
   RequisiteOwnerType,
   SerializedRequisite,
 } from "@/features/entities/requisites-shared/lib/constants";
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 export type RequisitesListResult = ListResult<SerializedRequisite>;
 

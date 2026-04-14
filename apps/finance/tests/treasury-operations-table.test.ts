@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("@/components/entities/entity-table-shell", () => ({
+vi.mock("@bedrock/sdk-tables-ui/components/entity-table-shell", () => ({
   EntityTableShell: (props: unknown) => {
     renderEntityTableShell(props);
     return null;

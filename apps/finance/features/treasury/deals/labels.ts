@@ -1,6 +1,6 @@
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 
-import type { Option } from "@/types/data-table";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 
 type DealBadgeVariant = "default" | "secondary" | "destructive" | "outline";
 

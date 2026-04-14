@@ -6,7 +6,7 @@ import * as React from "react";
 
 import {
   EntityTableShell,
-} from "@/components/entities/entity-table-shell";
+} from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import type {
   CounterpartiesListResult,
   SerializedCounterparty,

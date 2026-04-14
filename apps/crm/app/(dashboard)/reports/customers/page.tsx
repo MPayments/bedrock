@@ -2,8 +2,6 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
-  type Column,
-  flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -31,14 +29,6 @@ import { ru } from "date-fns/locale";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/sdk-ui/components/table";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Select,
@@ -47,9 +37,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
-import { DataTableFacetedFilter } from "@/components/data-table/DataTableFacetedFilter";
-import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
+import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
+import { DataTableFacetedMultiFilter } from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
+import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
 import type { DateRange } from "react-day-picker";
@@ -65,15 +55,11 @@ import {
 } from "@bedrock/sdk-ui/components/chart";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
-import type {
-  CurrencyCode,
-  DealsRow,
-  DealStatus,
-} from "@/lib/hooks/useDealsTable";
+import type { DealsRow } from "@/lib/hooks/useDealsTable";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
-  formatCurrency,
   CURRENCY_OPTIONS,
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
@@ -291,7 +277,7 @@ export default function ClientsReportsPage() {
   // Используем переиспользуемые колонки
   const columns = useMemo(() => createDealsColumns(), []);
 
-  const table = useReactTable({
+  const table = useReactTable<DealsRow>({
     data,
     columns,
     pageCount: totalPages,
@@ -571,21 +557,13 @@ export default function ClientsReportsPage() {
                   className="w-[250px]"
                 />
               )}
-              <DataTableFacetedFilter
-                column={
-                  table.getColumn("currency") as
-                    | Column<DealsRow, CurrencyCode>
-                    | undefined
-                }
+              <DataTableFacetedMultiFilter
+                column={table.getColumn("currency")}
                 title="Валюта"
                 options={CURRENCY_OPTIONS}
               />
-              <DataTableFacetedFilter
-                column={
-                  table.getColumn("status") as
-                    | Column<DealsRow, DealStatus>
-                    | undefined
-                }
+              <DataTableFacetedMultiFilter
+                column={table.getColumn("status")}
                 title="Статус"
                 options={STATUS_OPTIONS}
               />
@@ -605,57 +583,19 @@ export default function ClientsReportsPage() {
                 <div className="text-sm text-muted-foreground">Загрузка...</div>
               </div>
             )}
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => router.push(`/deals/${row.original.id}`)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      {loading ? "Загрузка..." : "Нет данных"}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              table={table}
+              onRowDoubleClick={(row) =>
+                router.push(`/deals/${row.original.id}`)
+              }
+              contextMenuItems={(row) => [
+                {
+                  label: "Открыть",
+                  onClick: () => router.push(`/deals/${row.original.id}`),
+                },
+              ]}
+            />
           </div>
-
-          <DataTablePagination table={table} />
         </CardContent>
       </Card>
     </div>

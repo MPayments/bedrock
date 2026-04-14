@@ -3,7 +3,8 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 
-import { DataTableColumnHeader } from "@/components/data-table/DataTableColumnHeader";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
 import type {
   DealsRow,
   DealStatus,
@@ -11,92 +12,30 @@ import type {
 } from "@/lib/hooks/useDealsTable";
 import { formatCurrency, formatDate } from "@/lib/utils/currency";
 
-// Re-export for backward compat
-export { formatCurrency, formatDate };
+export const CURRENCY_OPTIONS: Option[] = [
+  { value: "USD", label: "USD" },
+  { value: "EUR", label: "EUR" },
+  { value: "RUB", label: "RUB" },
+  { value: "CNY", label: "CNY" },
+  { value: "TRY", label: "TRY" },
+  { value: "AED", label: "AED" },
+];
 
-// Опции для фильтров
-export const CURRENCY_OPTIONS: Record<
-  CurrencyCode,
-  { value: CurrencyCode; label: string; colorClass: string }
-> = {
-  USD: { value: "USD", label: "USD", colorClass: "bg-blue-100 text-blue-800" },
-  EUR: {
-    value: "EUR",
-    label: "EUR",
-    colorClass: "bg-indigo-100 text-indigo-800",
-  },
-  RUB: {
-    value: "RUB",
-    label: "RUB",
-    colorClass: "bg-green-100 text-green-800",
-  },
-  CNY: {
-    value: "CNY",
-    label: "CNY",
-    colorClass: "bg-yellow-100 text-yellow-800",
-  },
-  TRY: {
-    value: "TRY",
-    label: "TRY",
-    colorClass: "bg-red-100 text-red-800",
-  },
-  AED: {
-    value: "AED",
-    label: "AED",
-    colorClass: "bg-purple-100 text-purple-800",
-  },
+const STATUS_DISPLAY: Record<DealStatus, { label: string; colorClass: string }> = {
+  draft: { label: "Черновик", colorClass: "bg-slate-100 text-slate-800" },
+  submitted: { label: "Отправлена", colorClass: "bg-sky-100 text-sky-800" },
+  rejected: { label: "Отклонена", colorClass: "bg-rose-100 text-rose-800" },
+  preparing_documents: { label: "Подготовка документов", colorClass: "bg-gray-100 text-gray-800" },
+  awaiting_funds: { label: "Ожидание средств", colorClass: "bg-blue-100 text-blue-800" },
+  awaiting_payment: { label: "Ожидание оплаты", colorClass: "bg-yellow-100 text-yellow-800" },
+  closing_documents: { label: "Закрывающие документы", colorClass: "bg-orange-100 text-orange-800" },
+  done: { label: "Завершена", colorClass: "bg-green-100 text-green-800" },
+  cancelled: { label: "Отменена", colorClass: "bg-red-100 text-red-800" },
 };
 
-export const STATUS_OPTIONS: Record<
-  DealStatus,
-  { value: DealStatus; label: string; colorClass: string }
-> = {
-  draft: {
-    value: "draft",
-    label: "Черновик",
-    colorClass: "bg-slate-100 text-slate-800",
-  },
-  submitted: {
-    value: "submitted",
-    label: "Отправлена",
-    colorClass: "bg-sky-100 text-sky-800",
-  },
-  rejected: {
-    value: "rejected",
-    label: "Отклонена",
-    colorClass: "bg-rose-100 text-rose-800",
-  },
-  preparing_documents: {
-    value: "preparing_documents",
-    label: "Подготовка документов",
-    colorClass: "bg-gray-100 text-gray-800",
-  },
-  awaiting_funds: {
-    value: "awaiting_funds",
-    label: "Ожидание средств",
-    colorClass: "bg-blue-100 text-blue-800",
-  },
-  awaiting_payment: {
-    value: "awaiting_payment",
-    label: "Ожидание оплаты",
-    colorClass: "bg-yellow-100 text-yellow-800",
-  },
-  closing_documents: {
-    value: "closing_documents",
-    label: "Закрывающие документы",
-    colorClass: "bg-orange-100 text-orange-800",
-  },
-  done: {
-    value: "done",
-    label: "Завершена",
-    colorClass: "bg-green-100 text-green-800",
-  },
-  cancelled: {
-    value: "cancelled",
-    label: "Отменена",
-    colorClass: "bg-red-100 text-red-800",
-  },
-};
+export const STATUS_OPTIONS: Option[] = Object.entries(STATUS_DISPLAY).map(
+  ([value, { label }]) => ({ value, label }),
+);
 
 export interface DealsColumnsOptions {
   isAdmin: boolean;
@@ -112,7 +51,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       id: "rowNumber",
       meta: { label: "№" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="№" align="left" />
+        <DataTableColumnHeader column={column} label="№" />
       ),
       enableSorting: false,
       enableHiding: false,
@@ -125,7 +64,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "id",
       meta: { label: "№ сделки" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="№ сделки" />
+        <DataTableColumnHeader column={column} label="№ сделки" />
       ),
       enableSorting: true,
       cell: ({ getValue }) => `#${formatCompactId(getValue<string>())}`,
@@ -134,7 +73,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "createdAt",
       meta: { label: "Дата создания" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Дата создания" />
+        <DataTableColumnHeader column={column} label="Дата создания" />
       ),
       enableSorting: true,
       cell: ({ getValue }) => formatDate(getValue<string>()),
@@ -143,7 +82,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "client",
       meta: { label: "Клиент" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Клиент" />
+        <DataTableColumnHeader column={column} label="Клиент" />
       ),
       enableSorting: true,
       cell: ({ getValue }) => getValue<string>() || "—",
@@ -153,11 +92,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "amount",
       meta: { label: "Сумма (валюта)" },
       header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title="Сумма (валюта)"
-          align="right"
-        />
+        <DataTableColumnHeader column={column} label="Сумма (валюта)" />
       ),
       enableSorting: true,
       cell: ({ row }) => (
@@ -170,11 +105,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "amountInBase",
       meta: { label: "Итого (баз.)" },
       header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title="Итого (баз.)"
-          align="right"
-        />
+        <DataTableColumnHeader column={column} label="Итого (баз.)" />
       ),
       enableSorting: true,
       cell: ({ row }) => {
@@ -191,11 +122,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "feePercentage",
       meta: { label: "Комиссия (%)" },
       header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title="Комиссия (%)"
-          align="right"
-        />
+        <DataTableColumnHeader column={column} label="Комиссия (%)" />
       ),
       enableSorting: false,
       cell: ({ getValue }) => {
@@ -211,7 +138,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "currency",
       meta: { label: "Валюта" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Валюта" />
+        <DataTableColumnHeader column={column} label="Валюта" />
       ),
       enableSorting: false,
       cell: ({ getValue }) => getValue<string>(),
@@ -224,17 +151,17 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "status",
       meta: { label: "Статус" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Статус" />
+        <DataTableColumnHeader column={column} label="Статус" />
       ),
       enableSorting: false,
       cell: ({ getValue }) => {
         const status = getValue<DealStatus>();
-        const option = STATUS_OPTIONS[status];
+        const display = STATUS_DISPLAY[status];
         return (
           <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${option.colorClass}`}
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${display.colorClass}`}
           >
-            {option.label}
+            {display.label}
           </span>
         );
       },
@@ -247,7 +174,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "agentName",
       meta: { label: "Агент" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Агент" />
+        <DataTableColumnHeader column={column} label="Агент" />
       ),
       enableSorting: true,
       cell: ({ getValue }) => getValue<string>() || "—",
@@ -256,7 +183,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "closedAt",
       meta: { label: "Дата закрытия" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Дата закрытия" />
+        <DataTableColumnHeader column={column} label="Дата закрытия" />
       ),
       enableSorting: true,
       cell: ({ getValue }) => {
@@ -268,7 +195,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       accessorKey: "comment",
       meta: { label: "Комментарий" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Комментарий" />
+        <DataTableColumnHeader column={column} label="Комментарий" />
       ),
       enableSorting: false,
     },

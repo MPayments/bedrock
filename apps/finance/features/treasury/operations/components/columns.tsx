@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import { formatDate } from "@/lib/format";
 import {
   formatDealNextAction,
