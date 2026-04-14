@@ -128,4 +128,51 @@ describe("customers routes", () => {
       ownerId: IDS.counterparty,
     });
   });
+
+  it("returns DOCX contracts and persists the generated DOCX file", async () => {
+    const { app, documentGenerationWorkflow, filesModule } = createTestApp();
+
+    documentGenerationWorkflow.generateCustomerContract.mockResolvedValueOnce({
+      buffer: Buffer.from("contract-docx"),
+      fileName: "contract.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    const response = await app.request(
+      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=docx&lang=ru`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("contract-docx");
+    expect(response.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="contract.docx"',
+    );
+
+    expect(
+      documentGenerationWorkflow.generateCustomerContract,
+    ).toHaveBeenCalledWith({
+      counterpartyId: IDS.counterparty,
+      customerId: IDS.customer,
+      format: "docx",
+      lang: "ru",
+    });
+    expect(
+      filesModule.files.commands.persistGeneratedCounterpartyFile,
+    ).toHaveBeenCalledWith({
+      buffer: Buffer.from("contract-docx"),
+      createdBy: "user-1",
+      fileName: "contract.docx",
+      fileSize: Buffer.byteLength("contract-docx"),
+      generatedFormat: "docx",
+      generatedLang: "ru",
+      linkKind: "legal_entity_contract",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ownerId: IDS.counterparty,
+    });
+  });
 });

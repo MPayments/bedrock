@@ -72,6 +72,10 @@ import {
   type OrganizationBootstrapWorkflow,
 } from "@bedrock/workflow-organization-bootstrap";
 import {
+  createReconciliationAdjustmentsWorkflow,
+  type ReconciliationAdjustmentsWorkflow,
+} from "@bedrock/workflow-reconciliation-adjustments";
+import {
   createRequisiteAccountingWorkflow,
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
@@ -113,6 +117,7 @@ export interface ApiApplicationServices {
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
+  reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
@@ -263,14 +268,23 @@ export function createApplicationServices(
       persistence: bindPersistenceSession(tx),
       idempotency,
       documents: {
-        async existsById() {
-          return false;
+        async existsById(documentId: string) {
+          return createDrizzleDocumentsReadModel({ db: tx }).existsById(
+            documentId,
+          );
         },
       },
       ledgerLookup: {
         async operationExists(operationId: string) {
           return (
             (await createLedgerModuleForTransaction(tx).operations.queries.getDetails(
+              operationId,
+            )) !== null
+          );
+        },
+        async treasuryOperationExists(operationId: string) {
+          return (
+            (await createTreasuryModuleForTransaction(tx).operations.queries.findById(
               operationId,
             )) !== null
           );
@@ -282,13 +296,16 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
     idempotency,
     documents: {
-      async existsById() {
-        return false;
+      existsById(documentId: string) {
+        return documentsReadModel.existsById(documentId);
       },
     },
     ledgerLookup: {
       async operationExists(operationId: string) {
         return (await ledgerModule.operations.queries.getDetails(operationId)) !== null;
+      },
+      async treasuryOperationExists(operationId: string) {
+        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
       },
     },
     logger,
@@ -531,6 +548,14 @@ export function createApplicationServices(
     createLedgerModule: createLedgerModuleForTransaction,
     createDocumentsService: createDocumentsServiceForTransaction,
   });
+  const reconciliationAdjustmentsWorkflow =
+    createReconciliationAdjustmentsWorkflow({
+      db,
+      idempotency,
+      createDocumentsService: (tx) => createDocumentsServiceForTransaction(tx),
+      createReconciliationService: (tx) =>
+        createReconciliationServiceForTransaction(tx),
+    });
 
   const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
       ? new S3ObjectStorageAdapter({
@@ -627,6 +652,7 @@ export function createApplicationServices(
     dealExecutionWorkflow,
     dealQuoteWorkflow,
     dealProjectionsWorkflow,
+    reconciliationAdjustmentsWorkflow,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,

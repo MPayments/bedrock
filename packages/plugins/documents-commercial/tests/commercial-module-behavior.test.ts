@@ -154,48 +154,44 @@ describe("commercial document modules", () => {
     const module = createInvoiceDocumentModule(deps as any);
 
     await expect(
-      module.canCreate?.(
-        { db: {} } as any,
-        {
-          occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-          customerId: "00000000-0000-4000-8000-000000000301",
-          counterpartyId: "00000000-0000-4000-8000-000000000302",
-          organizationId: "00000000-0000-4000-8000-000000000113",
-          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-          amount: "100.00",
-          amountMinor: "10000",
-          currency: "EUR",
-          financialLines: [],
-          memo: "invoice",
-        },
-      ),
+      module.canCreate?.({ db: {} } as any, {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        amount: "100.00",
+        amountMinor: "10000",
+        currency: "EUR",
+        financialLines: [],
+        memo: "invoice",
+      }),
     ).rejects.toThrow("Currency mismatch: invoice=EUR, account=USD");
   });
 
   it("rejects invoice creation when referenced parties are missing", async () => {
     const deps = createDeps();
     deps.partyReferences.assertCounterpartyExists = vi.fn(async () => {
-      throw new Error("Counterparty not found: 00000000-0000-4000-8000-000000000302");
+      throw new Error(
+        "Counterparty not found: 00000000-0000-4000-8000-000000000302",
+      );
     });
 
     const module = createInvoiceDocumentModule(deps as any);
 
     await expect(
-      module.canCreate?.(
-        { db: {} } as any,
-        {
-          occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-          customerId: "00000000-0000-4000-8000-000000000301",
-          counterpartyId: "00000000-0000-4000-8000-000000000302",
-          organizationId: "00000000-0000-4000-8000-000000000113",
-          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-          amount: "100.00",
-          currency: "USD",
-          financialLines: [],
-          memo: "invoice",
-          amountMinor: "10000",
-        },
-      ),
+      module.canCreate?.({ db: {} } as any, {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        amount: "100.00",
+        currency: "USD",
+        financialLines: [],
+        memo: "invoice",
+        amountMinor: "10000",
+      }),
     ).rejects.toThrow(
       "Counterparty not found: 00000000-0000-4000-8000-000000000302",
     );
@@ -210,30 +206,32 @@ describe("commercial document modules", () => {
   it("compiles percent financial lines into direct invoice draft payload", async () => {
     const module = createInvoiceDocumentModule(createDeps() as any);
 
-    const draft = await module.createDraft?.(
-      { db: {} } as any,
-      {
-        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-        customerId: "00000000-0000-4000-8000-000000000301",
-        counterpartyId: "00000000-0000-4000-8000-000000000302",
-        organizationId: "00000000-0000-4000-8000-000000000113",
-        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
-        amount: "100.00",
-        amountMinor: "10000",
-        currency: "USD",
-        financialLines: [
-          {
-            calcMethod: "percent",
-            bucket: "fee_revenue",
-            currency: "USD",
-            percent: "1.25",
-          },
-        ],
-        memo: "invoice",
-      },
-    );
+    const draft = await module.createDraft?.({ db: {} } as any, {
+      occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+      customerId: "00000000-0000-4000-8000-000000000301",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+      amount: "100.00",
+      amountMinor: "10000",
+      currency: "USD",
+      financialLines: [
+        {
+          calcMethod: "percent",
+          bucket: "fee_revenue",
+          currency: "USD",
+          percent: "1.25",
+        },
+      ],
+      memo: "invoice",
+    });
 
     expect(draft?.payload).toMatchObject({
+      amount: "100.00",
+      amountMinor: "10000",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      currency: "USD",
+      customerId: "00000000-0000-4000-8000-000000000301",
       financialLines: [
         {
           calcMethod: "percent",
@@ -243,6 +241,8 @@ describe("commercial document modules", () => {
           source: "manual",
         },
       ],
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
     });
   });
 
@@ -269,6 +269,12 @@ describe("commercial document modules", () => {
     );
 
     expect(draft?.payload).toMatchObject({
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      customerId: "00000000-0000-4000-8000-000000000301",
+      executionRef: "exec-1",
+      invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
       quoteSnapshot: expect.objectContaining({
         quoteId: "00000000-0000-4000-8000-000000000010",
       }),
@@ -304,8 +310,8 @@ describe("commercial document modules", () => {
     deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
       async () => "00000000-0000-4000-8000-000000000402",
     );
-    deps.dealFx.resolveDealFxContext = vi.fn(
-      async () => createInventoryFundedDealFxContext(),
+    deps.dealFx.resolveDealFxContext = vi.fn(async () =>
+      createInventoryFundedDealFxContext(),
     );
 
     const module = createInvoiceDocumentModule(deps as any);
@@ -340,8 +346,8 @@ describe("commercial document modules", () => {
     deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
       async () => "00000000-0000-4000-8000-000000000402",
     );
-    deps.dealFx.resolveDealFxContext = vi.fn(
-      async () => createInventoryFundedDealFxContext(),
+    deps.dealFx.resolveDealFxContext = vi.fn(async () =>
+      createInventoryFundedDealFxContext(),
     );
 
     const module = createInvoiceDocumentModule(deps as any);
@@ -350,7 +356,9 @@ describe("commercial document modules", () => {
       createPostedInvoice() as any,
     );
 
-    expect(accountingSourceId).toBe(ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE);
+    expect(accountingSourceId).toBe(
+      ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE,
+    );
   });
 
   it("allows acceptance without exchange when the linked invoice is funded from existing inventory", async () => {
@@ -360,8 +368,8 @@ describe("commercial document modules", () => {
     deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
       async () => "00000000-0000-4000-8000-000000000402",
     );
-    deps.dealFx.resolveDealFxContext = vi.fn(
-      async () => createInventoryFundedDealFxContext(),
+    deps.dealFx.resolveDealFxContext = vi.fn(async () =>
+      createInventoryFundedDealFxContext(),
     );
 
     const module = createAcceptanceDocumentModule(deps as any);
@@ -376,7 +384,10 @@ describe("commercial document modules", () => {
       },
     );
 
-    expect(draft?.payload.exchangeDocumentId).toBeUndefined();
+    expect(draft?.payload).toMatchObject({
+      exchangeDocumentId: undefined,
+      invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+    });
   });
 
   it("builds an exchange parent link from the draft payload", async () => {
@@ -424,14 +435,11 @@ describe("commercial document modules", () => {
     const module = createAcceptanceDocumentModule(deps as any);
 
     await expect(
-      module.createDraft?.(
-        { db: {} } as any,
-        {
-          occurredAt: new Date("2026-03-05T10:00:00.000Z"),
-          invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
-          memo: "acceptance",
-        },
-      ),
+      module.createDraft?.({ db: {} } as any, {
+        occurredAt: new Date("2026-03-05T10:00:00.000Z"),
+        invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+        memo: "acceptance",
+      }),
     ).rejects.toThrow(
       "acceptance requires a posted exchange for FX-linked invoices",
     );

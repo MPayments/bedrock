@@ -49,7 +49,13 @@ export type ChangePasswordValues = z.infer<typeof ChangePasswordSchema>;
 
 export const BanUserFormSchema = z.object({
   banReason: z.string().optional(),
-  banExpires: z.string().optional(),
+  banExpires: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || new Date(val) > new Date(),
+      "Дата должна быть в будущем",
+    ),
 });
 
 export type BanUserFormValues = z.infer<typeof BanUserFormSchema>;

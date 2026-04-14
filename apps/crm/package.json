@@ -24,6 +24,8 @@
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/sdk-api-client": "workspace:*",
+    "@bedrock/sdk-clients-ui": "workspace:*",
+    "@bedrock/sdk-organizations-ui": "workspace:*",
     "@bedrock/sdk-parties-ui": "workspace:*",
     "@bedrock/sdk-tables-ui": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",

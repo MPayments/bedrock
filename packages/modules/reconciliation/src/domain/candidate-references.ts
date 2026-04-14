@@ -2,6 +2,7 @@ export interface ReconciliationCandidateReferences {
   candidateOperationIds: string[];
   candidateDocumentIds: string[];
   operationId: string | null;
+  operationKind: "ledger" | "treasury" | null;
   documentId: string | null;
 }
 
@@ -29,6 +30,11 @@ export function extractCandidateReferences(
     candidateOperationIds,
     candidateDocumentIds,
     operationId: readString(normalizedPayload.operationId),
+    operationKind:
+      normalizedPayload.operationKind === "ledger" ||
+      normalizedPayload.operationKind === "treasury"
+        ? normalizedPayload.operationKind
+        : null,
     documentId: readString(normalizedPayload.documentId),
   };
 }

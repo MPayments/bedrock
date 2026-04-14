@@ -54,6 +54,10 @@ export interface ReconciliationExceptionsTxRepository {
     adjustmentDocumentId: string;
     resolvedAt: Date;
   }) => Promise<void>;
+  markIgnored: (input: {
+    id: string;
+    ignoredAt: Date;
+  }) => Promise<void>;
 }
 
 export interface ReconciliationPendingSourcesPort {

@@ -81,7 +81,6 @@ describe("accept deal quote command", () => {
       },
       nextAction: "Create calculation from accepted quote",
       operationalState: {
-        capabilities: [],
         positions: [],
       },
       participants: [],
@@ -200,7 +199,6 @@ describe("accept deal quote command", () => {
       },
       nextAction: "Accept quote",
       operationalState: {
-        capabilities: [],
         positions: [],
       },
       participants: [],

@@ -77,6 +77,8 @@ export class AcceptDealQuoteCommand {
       const agreement = await this.references.findAgreementById(
         existing.summary.agreementId,
       );
+      const agreementVersionId =
+        quote.agreementVersionId ?? agreement?.currentVersionId ?? null;
 
       await tx.dealStore.supersedeCurrentQuoteAcceptances({
         dealId: validated.dealId,
@@ -87,7 +89,7 @@ export class AcceptDealQuoteCommand {
       await tx.dealStore.createDealQuoteAcceptance({
         acceptedAt: now,
         acceptedByUserId: validated.actorUserId,
-        agreementVersionId: agreement?.currentVersionId ?? null,
+        agreementVersionId,
         dealId: validated.dealId,
         dealRevision: existing.revision,
         id: acceptanceId,
@@ -98,7 +100,7 @@ export class AcceptDealQuoteCommand {
         acceptance: {
           acceptedAt: now,
           acceptedByUserId: validated.actorUserId,
-          agreementVersionId: agreement?.currentVersionId ?? null,
+          agreementVersionId,
           dealId: validated.dealId,
           dealRevision: existing.revision,
           expiresAt: quote.expiresAt ?? null,

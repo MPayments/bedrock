@@ -9,20 +9,20 @@ const JsonRecordSchema = z.record(z.string(), z.unknown());
 
 export const TreasuryInstructionSchema = z.object({
   attempt: z.number().int().positive(),
-  createdAt: z.date(),
-  failedAt: z.date().nullable(),
+  createdAt: z.coerce.date(),
+  failedAt: z.coerce.date().nullable(),
   id: z.uuid(),
   operationId: z.uuid(),
   providerRef: z.string().nullable(),
   providerSnapshot: JsonRecordSchema.nullable(),
-  returnRequestedAt: z.date().nullable(),
-  returnedAt: z.date().nullable(),
-  settledAt: z.date().nullable(),
+  returnRequestedAt: z.coerce.date().nullable(),
+  returnedAt: z.coerce.date().nullable(),
+  settledAt: z.coerce.date().nullable(),
   sourceRef: z.string(),
   state: TreasuryInstructionStateSchema,
-  submittedAt: z.date().nullable(),
-  updatedAt: z.date(),
-  voidedAt: z.date().nullable(),
+  submittedAt: z.coerce.date().nullable(),
+  updatedAt: z.coerce.date(),
+  voidedAt: z.coerce.date().nullable(),
 });
 
 export const TreasuryInstructionActionsSchema = z.object({

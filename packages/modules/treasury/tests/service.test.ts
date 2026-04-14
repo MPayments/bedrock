@@ -74,6 +74,14 @@ function makeQuote(overrides: Record<string, unknown> = {}) {
         toAmountMinor: 35_000n,
         pricingMode: "explicit_route",
         pricingTrace: { version: "v1", mode: "explicit_route" },
+        commercialTerms: {
+            agreementVersionId: null,
+            agreementFeeBps: 0n,
+            quoteMarkupBps: 0n,
+            totalFeeBps: 0n,
+            fixedFeeAmountMinor: null,
+            fixedFeeCurrency: null,
+        },
         dealDirection: "cash_to_usdt",
         dealForm: "conversion",
         rateNum: 7n,
@@ -92,7 +100,16 @@ function makeQuote(overrides: Record<string, unknown> = {}) {
 
 describe("createTreasuryTestService", () => {
     it("quotes explicit route and persists computed legs + fee snapshot", async () => {
-        const createdQuote = makeQuote();
+        const createdQuote = makeQuote({
+            commercialTerms: {
+                agreementVersionId: "550e8400-e29b-41d4-a716-446655440099",
+                agreementFeeBps: 100n,
+                quoteMarkupBps: 50n,
+                totalFeeBps: 150n,
+                fixedFeeAmountMinor: 250n,
+                fixedFeeCurrency: "AED",
+            },
+        });
         const insertedLegRows: any[] = [];
         const insertedFeeComponentRows: any[] = [];
         const insertedFinancialLineRows: any[] = [];
@@ -164,6 +181,13 @@ describe("createTreasuryTestService", () => {
             fromCurrency: "RUB",
             toCurrency: "AED",
             fromAmountMinor: 1_000_000n,
+            commercialTerms: {
+                agreementVersionId: "550e8400-e29b-41d4-a716-446655440099",
+                agreementFeeBps: "100",
+                quoteMarkupBps: "50",
+                fixedFeeAmount: "2.50",
+                fixedFeeCurrency: "AED",
+            },
             dealDirection: "cash_to_usdt",
             dealForm: "conversion",
             asOf: new Date("2026-02-14T00:00:00Z"),
@@ -222,6 +246,33 @@ describe("createTreasuryTestService", () => {
                 source: "rule",
                 settlementMode: "in_ledger",
             }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 2,
+                kind: "agreement_fee",
+                currencyId: "cur-rub",
+                amountMinor: 10_000n,
+                source: "manual",
+                settlementMode: "in_ledger",
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 3,
+                kind: "quote_markup",
+                currencyId: "cur-rub",
+                amountMinor: 5_000n,
+                source: "manual",
+                settlementMode: "in_ledger",
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 4,
+                kind: "agreement_fixed_fee",
+                currencyId: "cur-aed",
+                amountMinor: 250n,
+                source: "manual",
+                settlementMode: "in_ledger",
+            }),
         ]);
         expect(insertedFinancialLineRows).toEqual([
             expect.objectContaining({
@@ -233,6 +284,33 @@ describe("createTreasuryTestService", () => {
                 source: "rule",
                 settlementMode: "in_ledger",
                 metadata: { feeKind: "fx_fee" },
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 2,
+                bucket: "fee_revenue",
+                currencyId: "cur-rub",
+                amountMinor: 10_000n,
+                source: "manual",
+                settlementMode: "in_ledger",
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 3,
+                bucket: "fee_revenue",
+                currencyId: "cur-rub",
+                amountMinor: 5_000n,
+                source: "manual",
+                settlementMode: "in_ledger",
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 4,
+                bucket: "pass_through",
+                currencyId: "cur-aed",
+                amountMinor: 250n,
+                source: "manual",
+                settlementMode: "in_ledger",
             }),
         ]);
     });

@@ -265,7 +265,6 @@ export function createTimelinePayloadEvent(input: {
     | "instruction_voided"
     | "return_requested"
     | "instruction_returned"
-    | "execution_blocker_resolved"
     | "calculation_attached"
     | "attachment_uploaded"
     | "attachment_deleted"

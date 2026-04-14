@@ -263,6 +263,10 @@ function buildReconciliationState(input: {
 
     for (const exception of link?.exceptions ?? []) {
       reconciliationExceptions.push({
+        actions: {
+          adjustmentDocumentDocType: null,
+          canIgnore: exception.state === "open",
+        },
         blocking: exception.state === "open",
         createdAt: exception.createdAt,
         externalRecordId: exception.externalRecordId,
@@ -485,16 +489,12 @@ export function deriveFinanceDealReadiness(input: {
     : [];
   const executionBlocked =
     input.workflow.executionPlan.some((leg) => leg.state === "blocked") ||
-    input.workflow.operationalState.capabilities.some(
-      (capability) => capability.status !== "enabled",
-    ) ||
     input.workflow.operationalState.positions.some(
       (position) => position.state === "blocked",
     ) ||
     existingBlockers.some(
       (message) =>
         message.includes("Execution leg is blocked") ||
-        message.includes("Operational capability is") ||
         message.includes("Operational position is blocked"),
     );
   const instructionSummary = buildInstructionSummary(input);

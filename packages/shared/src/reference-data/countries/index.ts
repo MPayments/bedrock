@@ -20,6 +20,7 @@ const COUNTRY_BY_ALPHA3 = new Map(
 );
 
 const ENGLISH_REGION_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
+const COUNTRY_ALIAS_TO_ALPHA2 = new Map<string, string>([["uae", "AE"]]);
 
 const NAME_TO_ALPHA2 = new Map<string, string>();
 
@@ -77,6 +78,11 @@ export function normalizeToAlpha2(input: string): string | null {
   const byAlpha3 = COUNTRY_BY_ALPHA3.get(upper);
   if (byAlpha3) {
     return byAlpha3.alpha2;
+  }
+
+  const byAlias = COUNTRY_ALIAS_TO_ALPHA2.get(normalizeCountryLookupValue(raw));
+  if (byAlias) {
+    return byAlias;
   }
 
   const byName = NAME_TO_ALPHA2.get(normalizeCountryLookupValue(raw));

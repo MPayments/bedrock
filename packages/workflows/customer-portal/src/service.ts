@@ -146,21 +146,27 @@ interface CustomerPortalCalculation {
   additionalExpenses: string;
   additionalExpensesCurrencyCode: string | null;
   additionalExpensesInBase: string;
+  agreementFeeAmount: string;
+  agreementFeePercentage: string;
   baseCurrencyCode: string;
   calculationTimestamp: string;
   createdAt: string;
   currencyCode: string;
   dealId: string | null;
-  feeAmount: string;
-  feeAmountInBase: string;
-  feePercentage: string;
   fxQuoteId: string | null;
+  fixedFeeAmount: string;
+  fixedFeeCurrencyCode: string | null;
   id: string;
   originalAmount: string;
+  quoteMarkupAmount: string;
+  quoteMarkupPercentage: string;
   rate: string;
   rateSource: string;
   sentToClient: number;
   status: "active" | "archived";
+  totalFeeAmount: string;
+  totalFeeAmountInBase: string;
+  totalFeePercentage: string;
   totalAmount: string;
   totalInBase: string;
   totalWithExpensesInBase: string;
@@ -465,9 +471,19 @@ async function serializePortalCalculationForDeal(
       snapshot.originalAmountMinor,
       calculationCurrency.precision,
     ),
-    feePercentage: feeBpsToPercentString(snapshot.feeBps),
-    feeAmount: minorToDecimalString(
-      snapshot.feeAmountMinor,
+    agreementFeePercentage: feeBpsToPercentString(snapshot.agreementFeeBps),
+    agreementFeeAmount: minorToDecimalString(
+      snapshot.agreementFeeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    quoteMarkupPercentage: feeBpsToPercentString(snapshot.quoteMarkupBps),
+    quoteMarkupAmount: minorToDecimalString(
+      snapshot.quoteMarkupAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalFeePercentage: feeBpsToPercentString(snapshot.totalFeeBps),
+    totalFeeAmount: minorToDecimalString(
+      snapshot.totalFeeAmountMinor,
       calculationCurrency.precision,
     ),
     totalAmount: minorToDecimalString(
@@ -482,10 +498,22 @@ async function serializePortalCalculationForDeal(
       additionalExpensesCurrency?.precision ?? baseCurrency.precision,
     ),
     baseCurrencyCode: baseCurrency.code,
-    feeAmountInBase: minorToDecimalString(
-      snapshot.feeAmountInBaseMinor,
+    totalFeeAmountInBase: minorToDecimalString(
+      snapshot.totalFeeAmountInBaseMinor,
       baseCurrency.precision,
     ),
+    fixedFeeAmount: snapshot.fixedFeeCurrencyId
+      ? minorToDecimalString(
+          snapshot.fixedFeeAmountMinor,
+          additionalExpensesCurrency?.id === snapshot.fixedFeeCurrencyId
+            ? (additionalExpensesCurrency?.precision ?? baseCurrency.precision)
+            : baseCurrency.precision,
+        )
+      : minorToDecimalString(snapshot.fixedFeeAmountMinor, baseCurrency.precision),
+    fixedFeeCurrencyCode:
+      snapshot.fixedFeeCurrencyId != null
+        ? (currencyMetadata.get(snapshot.fixedFeeCurrencyId)?.code ?? null)
+        : null,
     totalInBase: minorToDecimalString(
       snapshot.totalInBaseMinor,
       baseCurrency.precision,

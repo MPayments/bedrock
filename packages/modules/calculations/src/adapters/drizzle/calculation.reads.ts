@@ -30,13 +30,16 @@ const calculationSelect = {
   updatedAt: calculations.updatedAt,
   currentSnapshotId: calculationSnapshots.id,
   snapshotNumber: calculationSnapshots.snapshotNumber,
+  agreementVersionId: calculationSnapshots.agreementVersionId,
+  agreementFeeBps: calculationSnapshots.agreementFeeBps,
+  agreementFeeAmountMinor: calculationSnapshots.agreementFeeAmountMinor,
   calculationCurrencyId: calculationSnapshots.calculationCurrencyId,
   originalAmountMinor: calculationSnapshots.originalAmountMinor,
-  feeBps: calculationSnapshots.feeBps,
-  feeAmountMinor: calculationSnapshots.feeAmountMinor,
+  totalFeeBps: calculationSnapshots.totalFeeBps,
+  totalFeeAmountMinor: calculationSnapshots.totalFeeAmountMinor,
   totalAmountMinor: calculationSnapshots.totalAmountMinor,
   baseCurrencyId: calculationSnapshots.baseCurrencyId,
-  feeAmountInBaseMinor: calculationSnapshots.feeAmountInBaseMinor,
+  totalFeeAmountInBaseMinor: calculationSnapshots.totalFeeAmountInBaseMinor,
   totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
   additionalExpensesCurrencyId:
     calculationSnapshots.additionalExpensesCurrencyId,
@@ -44,6 +47,15 @@ const calculationSelect = {
     calculationSnapshots.additionalExpensesAmountMinor,
   additionalExpensesInBaseMinor:
     calculationSnapshots.additionalExpensesInBaseMinor,
+  fixedFeeAmountMinor: calculationSnapshots.fixedFeeAmountMinor,
+  fixedFeeCurrencyId: calculationSnapshots.fixedFeeCurrencyId,
+  quoteMarkupBps: calculationSnapshots.quoteMarkupBps,
+  quoteMarkupAmountMinor: calculationSnapshots.quoteMarkupAmountMinor,
+  referenceRateSource: calculationSnapshots.referenceRateSource,
+  referenceRateNum: calculationSnapshots.referenceRateNum,
+  referenceRateDen: calculationSnapshots.referenceRateDen,
+  referenceRateAsOf: calculationSnapshots.referenceRateAsOf,
+  pricingProvenance: calculationSnapshots.pricingProvenance,
   totalWithExpensesInBaseMinor:
     calculationSnapshots.totalWithExpensesInBaseMinor,
   rateSource: calculationSnapshots.rateSource,
@@ -67,17 +79,35 @@ interface CalculationRow {
   updatedAt: Date;
   currentSnapshotId: string;
   snapshotNumber: number;
+  agreementVersionId: string | null;
+  agreementFeeBps: bigint;
+  agreementFeeAmountMinor: bigint;
   calculationCurrencyId: string;
   originalAmountMinor: bigint;
-  feeBps: bigint;
-  feeAmountMinor: bigint;
+  totalFeeBps: bigint;
+  totalFeeAmountMinor: bigint;
   totalAmountMinor: bigint;
   baseCurrencyId: string;
-  feeAmountInBaseMinor: bigint;
+  totalFeeAmountInBaseMinor: bigint;
   totalInBaseMinor: bigint;
   additionalExpensesCurrencyId: string | null;
   additionalExpensesAmountMinor: bigint;
   additionalExpensesInBaseMinor: bigint;
+  fixedFeeAmountMinor: bigint;
+  fixedFeeCurrencyId: string | null;
+  quoteMarkupBps: bigint;
+  quoteMarkupAmountMinor: bigint;
+  referenceRateSource:
+    | "cbr"
+    | "investing"
+    | "xe"
+    | "manual"
+    | "fx_quote"
+    | null;
+  referenceRateNum: bigint | null;
+  referenceRateDen: bigint | null;
+  referenceRateAsOf: Date | null;
+  pricingProvenance: Record<string, unknown> | null;
   totalWithExpensesInBaseMinor: bigint;
   rateSource: "cbr" | "investing" | "xe" | "manual" | "fx_quote";
   rateNum: bigint;
@@ -102,17 +132,29 @@ function mapSnapshot(row: CalculationRow): CalculationSnapshot {
   return {
     id: row.currentSnapshotId,
     snapshotNumber: Number(row.snapshotNumber),
+    agreementVersionId: row.agreementVersionId,
+    agreementFeeBps: row.agreementFeeBps.toString(),
+    agreementFeeAmountMinor: row.agreementFeeAmountMinor.toString(),
     calculationCurrencyId: row.calculationCurrencyId,
     originalAmountMinor: row.originalAmountMinor.toString(),
-    feeBps: row.feeBps.toString(),
-    feeAmountMinor: row.feeAmountMinor.toString(),
+    totalFeeBps: row.totalFeeBps.toString(),
+    totalFeeAmountMinor: row.totalFeeAmountMinor.toString(),
     totalAmountMinor: row.totalAmountMinor.toString(),
     baseCurrencyId: row.baseCurrencyId,
-    feeAmountInBaseMinor: row.feeAmountInBaseMinor.toString(),
+    totalFeeAmountInBaseMinor: row.totalFeeAmountInBaseMinor.toString(),
     totalInBaseMinor: row.totalInBaseMinor.toString(),
     additionalExpensesCurrencyId: row.additionalExpensesCurrencyId,
     additionalExpensesAmountMinor: row.additionalExpensesAmountMinor.toString(),
     additionalExpensesInBaseMinor: row.additionalExpensesInBaseMinor.toString(),
+    fixedFeeAmountMinor: row.fixedFeeAmountMinor.toString(),
+    fixedFeeCurrencyId: row.fixedFeeCurrencyId,
+    quoteMarkupBps: row.quoteMarkupBps.toString(),
+    quoteMarkupAmountMinor: row.quoteMarkupAmountMinor.toString(),
+    referenceRateSource: row.referenceRateSource,
+    referenceRateNum: row.referenceRateNum?.toString() ?? null,
+    referenceRateDen: row.referenceRateDen?.toString() ?? null,
+    referenceRateAsOf: row.referenceRateAsOf,
+    pricingProvenance: row.pricingProvenance,
     totalWithExpensesInBaseMinor: row.totalWithExpensesInBaseMinor.toString(),
     rateSource: row.rateSource,
     rateNum: row.rateNum.toString(),

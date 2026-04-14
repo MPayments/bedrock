@@ -118,7 +118,6 @@ function createWorkflow(input?: {
     },
     nextAction: "Prepare closing documents",
     operationalState: {
-      capabilities: [],
       positions: input?.positions ?? [],
     },
     participants: [

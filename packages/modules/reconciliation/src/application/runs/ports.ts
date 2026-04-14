@@ -1,5 +1,6 @@
 import type {
   ReconciliationMatchExplanation,
+  ReconciliationMatchedOperationRef,
   ReconciliationMatchStatus,
   ReconciliationRunSummary,
 } from "../../contracts";
@@ -22,6 +23,8 @@ export interface ReconciliationMatchRecord {
   runId: string;
   externalRecordId: string;
   matchedOperationId: string | null;
+  matchedOperationRef: ReconciliationMatchedOperationRef | null;
+  matchedTreasuryOperationId: string | null;
   matchedDocumentId: string | null;
   status: ReconciliationMatchStatus;
   explanation: ReconciliationMatchExplanation;
@@ -42,6 +45,9 @@ export interface ReconciliationMatchesQueryRepository {
 
 export interface ReconciliationMatchesTxRepository {
   createMany: (
-    input: Omit<ReconciliationMatchRecord, "id" | "createdAt">[],
+    input: Omit<
+      ReconciliationMatchRecord,
+      "id" | "createdAt" | "matchedOperationRef"
+    >[],
   ) => Promise<void>;
 }

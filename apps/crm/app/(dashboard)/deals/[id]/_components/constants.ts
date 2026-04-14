@@ -1,6 +1,5 @@
 import type {
-  DealCapabilityKind,
-  DealCapabilityStatus,
+  ApiDealTimelineEvent,
   DealLegKind,
   DealLegState,
   DealOperationalPositionKind,
@@ -49,6 +48,7 @@ export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
 };
 
 export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
+  acceptance: "Акт / подтверждение исполнения",
   exchange: "Документ по обмену валюты",
   fx_execute: "Исполнение конвертации",
   fx_resolution: "Сверка по конвертации",
@@ -82,32 +82,6 @@ export const DEAL_LEG_STATE_COLORS: Record<DealLegState, string> = {
   pending: "bg-slate-100 text-slate-800",
   ready: "bg-amber-100 text-amber-800",
   skipped: "bg-zinc-100 text-zinc-700",
-};
-
-export const DEAL_CAPABILITY_LABELS: Record<DealCapabilityKind, string> = {
-  can_collect: "Сбор средств",
-  can_exporter_settle: "Расчеты экспортера",
-  can_fx: "Конвертация",
-  can_payout: "Выплата",
-  can_transit: "Транзит",
-};
-
-export const DEAL_CAPABILITY_STATUS_LABELS: Record<
-  DealCapabilityStatus,
-  string
-> = {
-  disabled: "Выключена",
-  enabled: "Включена",
-  pending: "Ожидает настройки",
-};
-
-export const DEAL_CAPABILITY_STATUS_COLORS: Record<
-  DealCapabilityStatus,
-  string
-> = {
-  disabled: "bg-red-100 text-red-800",
-  enabled: "bg-emerald-100 text-emerald-800",
-  pending: "bg-slate-100 text-slate-800",
 };
 
 export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
@@ -174,7 +148,6 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Prepare closing documents": "Подготовить закрывающие документы",
   "Prepare documents": "Подготовить документы",
   "Resolve approvals": "Завершить согласование",
-  "Resolve operational capability": "Настроить операционные возможности",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
   "Update execution leg state": "Обновить этап исполнения",
@@ -206,23 +179,36 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
     "Принятая котировка больше не действует.",
 };
 
-export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
+export const DEAL_TIMELINE_EVENT_LABELS: Record<
+  ApiDealTimelineEvent["type"],
+  string
+> = {
   attachment_deleted: "Вложение удалено",
   attachment_ingested: "Файл распознан",
   attachment_ingestion_failed: "Ошибка распознавания файла",
   attachment_uploaded: "Вложение загружено",
   calculation_attached: "Расчет привязан",
   deal_created: "Сделка создана",
+  deal_closed: "Сделка закрыта",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
-  execution_blocker_resolved: "Блокер исполнения устранен",
+  execution_requested: "Запущено исполнение сделки",
   intake_saved: "Анкета сохранена",
+  instruction_failed: "Инструкция завершилась ошибкой",
+  instruction_prepared: "Инструкция подготовлена",
+  instruction_retried: "Инструкция отправлена на повтор",
+  instruction_returned: "Инструкция возвращена",
+  instruction_settled: "Инструкция исполнена",
+  instruction_submitted: "Инструкция отправлена",
+  instruction_voided: "Инструкция отменена",
+  leg_operation_created: "Создана казначейская операция",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
   quote_expired: "Котировка истекла",
   quote_used: "Котировка исполнена",
+  return_requested: "Запрошен возврат",
   status_changed: "Статус сделки изменен",
 };
 
@@ -305,28 +291,6 @@ export function formatDealWorkflowMessage(message: string) {
   const approvalRejectedMatch = message.match(/^Approval was rejected: (.+)$/);
   if (approvalRejectedMatch) {
     return `Согласование отклонено: ${approvalRejectedMatch[1]}.`;
-  }
-
-  const capabilityDisabledMatch = message.match(
-    /^Operational capability is disabled: ([a-z_]+)$/,
-  );
-  if (capabilityDisabledMatch) {
-    const kind = capabilityDisabledMatch[1] ?? "";
-    return `Операционная возможность отключена: ${
-      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ??
-      formatFallbackLabel(kind)
-    }.`;
-  }
-
-  const capabilityPendingMatch = message.match(
-    /^Operational capability is not enabled: ([a-z_]+)$/,
-  );
-  if (capabilityPendingMatch) {
-    const kind = capabilityPendingMatch[1] ?? "";
-    return `Операционная возможность не настроена: ${
-      DEAL_CAPABILITY_LABELS[kind as DealCapabilityKind] ??
-      formatFallbackLabel(kind)
-    }.`;
   }
 
   const positionMatch = message.match(

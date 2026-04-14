@@ -14,7 +14,12 @@ node_modules
 
 # Testing
 coverage
-
+artifacts/deal-a/
+artifacts/playwright-cli/
+artifacts/playwright-test/
+playwright/.auth/
+.playwright/.auth/
+.playwright/user-data/
 # Turbo
 .turbo
 

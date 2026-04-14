@@ -25,6 +25,7 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteListItem,
   TreasuryInstruction,
+  TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
 
 import {
@@ -226,7 +227,7 @@ function buildCrmDealMoneySummary(input: {
         )
       : parseMinorOrZero(amountMinor, sourcePrecision);
   const feePercentage = input.calculation
-    ? parseMinorOrZero(input.calculation.currentSnapshot.feeBps, 2)
+    ? parseMinorOrZero(input.calculation.currentSnapshot.totalFeeBps, 2)
     : 0;
 
   return {
@@ -332,6 +333,17 @@ function serializeCrmPricingQuote(quote: TreasuryQuoteRecord): QuoteListItem {
 
   return {
     createdAt: quote.createdAt.toISOString(),
+    commercialTerms: quote.commercialTerms
+      ? {
+          agreementVersionId: quote.commercialTerms.agreementVersionId,
+          agreementFeeBps: quote.commercialTerms.agreementFeeBps.toString(),
+          quoteMarkupBps: quote.commercialTerms.quoteMarkupBps.toString(),
+          totalFeeBps: quote.commercialTerms.totalFeeBps.toString(),
+          fixedFeeAmountMinor:
+            quote.commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
+          fixedFeeCurrency: quote.commercialTerms.fixedFeeCurrency ?? null,
+        }
+      : null,
     dealDirection: quote.dealDirection,
     dealForm: quote.dealForm,
     dealId: quote.dealId,
@@ -423,8 +435,8 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
 
   const activeOrLatestQuote = [...workflow.relatedResources.quotes].sort(
     (left, right) => {
-      const leftTime = left.expiresAt?.getTime() ?? 0;
-      const rightTime = right.expiresAt?.getTime() ?? 0;
+      const leftTime = getDateTimeValue(left.expiresAt);
+      const rightTime = getDateTimeValue(right.expiresAt);
       return rightTime - leftTime;
     },
   )[0];
@@ -434,10 +446,23 @@ function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
   }
 
   return {
-    expiresAt: activeOrLatestQuote.expiresAt,
+    expiresAt: toDateOrNull(activeOrLatestQuote.expiresAt),
     quoteId: activeOrLatestQuote.id,
     status: activeOrLatestQuote.status,
   };
+}
+
+function toDateOrNull(value: Date | string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return value instanceof Date ? value : new Date(value);
+}
+
+function getDateTimeValue(value: Date | string | null | undefined) {
+  const date = toDateOrNull(value);
+  return date?.getTime() ?? 0;
 }
 
 function hasAttachmentPurpose(
@@ -1090,6 +1115,16 @@ function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
     sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
     targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
   };
+}
+
+function resolveAdjustmentDocumentDocType(input: {
+  operationKind: TreasuryOperationKind | null;
+}) {
+  if (!input.operationKind || input.operationKind === "fx_conversion") {
+    return null;
+  }
+
+  return "transfer_resolution";
 }
 
 function getPositionByKind(
@@ -2145,6 +2180,9 @@ export function createDealProjectionsWorkflow(
       await deps.treasury.instructions.queries.listLatestByOperationIds(
         operationsResult.data.map((operation) => operation.id),
       );
+    const operationsById = new Map(
+      operationsResult.data.map((operation) => [operation.id, operation] as const),
+    );
     const latestInstructionByOperationId = new Map(
       latestInstructions.map(
         (instruction) => [instruction.operationId, instruction] as const,
@@ -2165,13 +2203,25 @@ export function createDealProjectionsWorkflow(
     const {
       closeReadiness,
       instructionSummary,
-      reconciliationExceptions,
+      reconciliationExceptions: readinessReconciliationExceptions,
       reconciliationSummary,
     } = deriveFinanceDealReadiness({
       latestInstructionByOperationId,
       reconciliationLinksByOperationId,
       workflow,
     });
+    const reconciliationExceptions = readinessReconciliationExceptions.map(
+      (exception) => ({
+        ...exception,
+        actions: {
+          adjustmentDocumentDocType: resolveAdjustmentDocumentDocType({
+            operationKind:
+              operationsById.get(exception.operationId)?.kind ?? null,
+          }),
+          canIgnore: exception.state === "open",
+        },
+      }),
+    );
     const queueBlocked =
       queueContext.blockers.length > 0 ||
       workflow.executionPlan.some((leg) => leg.state === "blocked");
@@ -2190,15 +2240,18 @@ export function createDealProjectionsWorkflow(
       acceptedQuoteDetails,
       actions: {
         canCloseDeal: closeReadiness.ready,
-        canCreateCalculation: actions.canCreateCalculation,
-        canCreateQuote: actions.canCreateQuote,
+        canCreateCalculation: false,
+        canCreateQuote: false,
         canRequestExecution:
           !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
+        canRunReconciliation:
+          instructionSummary.totalOperations > 0 &&
+          instructionSummary.terminalOperations ===
+            instructionSummary.totalOperations &&
+          (reconciliationSummary.state === "pending" ||
+            reconciliationSummary.state === "blocked"),
         canResolveExecutionBlocker:
-          workflow.executionPlan.some((leg) => leg.state === "blocked") ||
-          workflow.operationalState.capabilities.some(
-            (capability) => capability.status !== "enabled",
-          ),
+          workflow.executionPlan.some((leg) => leg.state === "blocked"),
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,

@@ -3,8 +3,6 @@ import type {
   DealAttachmentIngestionStatus,
   DealApprovalStatus,
   DealApprovalType,
-  DealCapabilityKind,
-  DealCapabilityStatus,
   DealLegKind,
   DealLegOperationKind,
   DealLegState,
@@ -113,18 +111,6 @@ export interface CreateDealApprovalStoredInput {
   status: DealApprovalStatus;
 }
 
-export interface UpsertDealCapabilityStateStoredInput {
-  applicantCounterpartyId: string;
-  capabilityKind: DealCapabilityKind;
-  dealType: DealType;
-  id: string;
-  internalEntityOrganizationId: string;
-  note: string | null;
-  reasonCode: string | null;
-  status: DealCapabilityStatus;
-  updatedByUserId: string | null;
-}
-
 export interface ReplaceDealOperationalPositionStoredInput {
   amountMinor: bigint | null;
   currencyId: string | null;
@@ -230,9 +216,6 @@ export interface DealStore {
     id: string;
     observedRevision: number;
   }): Promise<void>;
-  upsertDealCapabilityState(
-    input: UpsertDealCapabilityStateStoredInput,
-  ): Promise<void>;
   updateDealLegState(input: {
     dealId: string;
     idx: number;

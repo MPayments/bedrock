@@ -28,7 +28,7 @@ type ChartContextProps = {
   config: ChartConfig
 }
 
-type ChartTooltipValue = number | string | ReadonlyArray<number | string>
+type ChartTooltipValue = number | string | Array<number | string>
 type ChartTooltipName = number | string
 
 export type ChartTooltipPayload = NonNullable<

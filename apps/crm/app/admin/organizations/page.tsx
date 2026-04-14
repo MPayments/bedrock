@@ -1,33 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
-  ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  type VisibilityState,
   getCoreRowModel,
-  useReactTable,
-  getSortedRowModel,
-  SortingState,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Search,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  Loader2,
-  ChevronLeft,
-} from "lucide-react";
+import { Plus, Loader2, Building2, Trash2 } from "lucide-react";
 
-import { getCountryByAlpha2 } from "@bedrock/shared/reference-data/countries";
-import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
-import { Input } from "@bedrock/sdk-ui/components/input";
+import { DropdownMenuItem } from "@bedrock/sdk-ui/components/dropdown-menu";
 
 import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
-import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import { DataTableToolbar } from "@bedrock/sdk-tables-ui/components/data-table-toolbar";
+
+import { getOrganizationColumns } from "@bedrock/sdk-organizations-ui/components/organization-columns";
+import { OrganizationRowActions } from "@bedrock/sdk-organizations-ui/components/organization-row-actions";
+import type { OrganizationListItem } from "@bedrock/sdk-organizations-ui/lib/contracts";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -41,50 +39,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface OrganizationRow {
-  id: string;
-  name: string;
-  orgType: string | null;
-  country: string | null;
-  inn: string | null;
-  directorName: string | null;
-  isActive: boolean;
-  hasFiles: boolean;
-  banksCount: number;
-  createdAt: string;
-}
-
-type OrganizationListItem = Partial<OrganizationRow> & Record<string, unknown>;
-
-function getCountryLabel(countryCode: string | null): string {
-  if (!countryCode) {
-    return "—";
-  }
-
-  const country = getCountryByAlpha2(countryCode);
-  if (!country) {
-    const normalizedCode = countryCode.trim().toUpperCase();
-    return normalizedCode || "—";
-  }
-
-  return `${country.emoji} ${country.name}`;
-}
-
 export default function OrganizationsPage() {
   const router = useRouter();
-  const [data, setData] = useState<OrganizationRow[]>([]);
+  const [data, setData] = useState<OrganizationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "updatedAt", desc: true },
+  ]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-  // Состояние для диалога удаления
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [organizationToDelete, setOrganizationToDelete] =
-    useState<OrganizationRow | null>(null);
+    useState<OrganizationListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Загрузка данных
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -100,23 +70,17 @@ export default function OrganizationsPage() {
         }
 
         const response = await res.json();
-        const rawItems = Array.isArray(response) ? response : response.data ?? [];
-        const items: OrganizationRow[] = rawItems.map((item: OrganizationListItem) => ({
-          banksCount: item.banksCount ?? 0,
-          country: item.country ?? null,
-          createdAt: item.createdAt,
-          directorName: item.directorName ?? null,
-          hasFiles: item.hasFiles ?? false,
-          id: item.id,
-          inn: item.inn ?? null,
-          isActive: item.isActive ?? true,
-          name: item.shortName ?? item.fullName ?? "",
-          orgType: item.orgType ?? null,
-        }));
+        const rawItems = Array.isArray(response)
+          ? response
+          : (response.data ?? []);
+
+        const items = rawItems as OrganizationListItem[];
         setData(items);
       } catch (err) {
         console.error("Organizations fetch error:", err);
-        setError(err instanceof Error ? err.message : "Ошибка загрузки данных");
+        setError(
+          err instanceof Error ? err.message : "Ошибка загрузки данных",
+        );
       } finally {
         setLoading(false);
       }
@@ -125,7 +89,6 @@ export default function OrganizationsPage() {
     fetchData();
   }, []);
 
-  // Удаление организации
   const handleDelete = async () => {
     if (!organizationToDelete) return;
 
@@ -143,7 +106,6 @@ export default function OrganizationsPage() {
         throw new Error("Ошибка удаления организации");
       }
 
-      // Обновляем список
       setData((prev) =>
         prev.filter((org) => org.id !== organizationToDelete.id),
       );
@@ -157,108 +119,30 @@ export default function OrganizationsPage() {
     }
   };
 
-  const columns = useMemo<ColumnDef<OrganizationRow, unknown>[]>(
-    () => [
-      {
-        id: "rowNumber",
-        meta: { label: "№" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="№" />
+  const columns = useMemo(
+    () =>
+      getOrganizationColumns({
+        renderActions: (org) => (
+          <OrganizationRowActions
+            organization={org}
+            viewLink={<Link href={`/admin/organizations/${org.id}`} />}
+            extraItems={
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => {
+                  setOrganizationToDelete(org);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 size={16} />
+                Удалить
+              </DropdownMenuItem>
+            }
+          />
         ),
-        enableSorting: false,
-        cell: ({ row }) => row.index + 1,
-        size: 50,
-      },
-      {
-        accessorKey: "name",
-        meta: { label: "Название" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Название" />
-        ),
-        cell: ({ row }) => (
-          <div className="max-w-[300px]">
-            <div className="font-medium truncate" title={row.original.name}>
-              {row.original.name}
-            </div>
-            {row.original.orgType && (
-              <div className="text-xs text-muted-foreground">
-                {row.original.orgType}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "inn",
-        meta: { label: "ИНН" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="ИНН" />
-        ),
-        cell: ({ getValue }) => getValue<string | null>() || "—",
-      },
-      {
-        accessorKey: "country",
-        meta: { label: "Страна" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Страна" />
-        ),
-        cell: ({ row }) => getCountryLabel(row.original.country),
-      },
-      {
-        accessorKey: "directorName",
-        meta: { label: "Директор" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Директор" />
-        ),
-        cell: ({ getValue }) => getValue<string | null>() || "—",
-      },
-      {
-        accessorKey: "banksCount",
-        meta: { label: "Реквизиты" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Реквизиты" />
-        ),
-        cell: ({ getValue }) => (
-          <Badge variant="secondary">{getValue<number>()}</Badge>
-        ),
-      },
-      {
-        accessorKey: "hasFiles",
-        meta: { label: "Файлы" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Печать/Подпись" />
-        ),
-        cell: ({ getValue }) =>
-          getValue<boolean>() ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          ) : (
-            <XCircle className="h-4 w-4 text-red-500" />
-          ),
-      },
-      {
-        id: "actions",
-        meta: { label: "Действия" },
-        header: () => <div className="text-right">Действия</div>,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOrganizationToDelete(row.original);
-                setDeleteDialogOpen(true);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ),
-        enableSorting: false,
-      },
-    ],
-    [],
+      }),
+    [deleting],
   );
 
   const table = useReactTable({
@@ -266,81 +150,81 @@ export default function OrganizationsPage() {
     columns,
     state: {
       sorting,
-      globalFilter,
+      columnFilters,
+      columnVisibility,
     },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
   return (
-    <div className="space-y-4">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>{" "}
-          <h1 className="text-2xl font-bold">Юрлица</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            Всего:{" "}
-            <span className="font-bold text-foreground">{data.length}</span>
+    <div className="flex flex-col gap-4">
+      <div className="flex w-full flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-muted rounded-lg p-2.5">
+            <Building2 className="text-muted-foreground h-5 w-5" />
           </div>
-          <Button onClick={() => router.push("/admin/organizations/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Добавить юрлицо
-          </Button>
+          <div>
+            <h3 className="mb-1 text-xl font-semibold">Юрлица</h3>
+            <p className="text-muted-foreground hidden text-sm md:block">
+              Управление юридическими лицами.
+            </p>
+          </div>
         </div>
+        <Button
+          size="lg"
+          onClick={() => router.push("/admin/organizations/new")}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden md:block">Добавить</span>
+        </Button>
       </div>
 
-      <Card>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            <DataTable
-              table={table}
-              onRowDoubleClick={(row) =>
-                router.push(`/admin/organizations/${row.original.id}`)
-              }
-              contextMenuItems={(row) => [
-                {
-                  label: "Открыть",
-                  onClick: () => router.push(`/admin/organizations/${row.original.id}`),
-                },
-              ]}
-            >
-              {/* Поиск */}
-              <div className="flex items-center gap-2">
-                <div className="relative w-[300px]">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Поиск по названию, ИНН..."
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </DataTable>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-background h-px w-full" />
 
-      {/* Диалог подтверждения удаления */}
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800">
+            {error}
+          </div>
+        )}
+        <DataTable
+          table={table}
+          onRowDoubleClick={(row) =>
+            router.push(`/admin/organizations/${row.original.id}`)
+          }
+          contextMenuItems={(row) => [
+            {
+              label: "Открыть",
+              onClick: () =>
+                router.push(`/admin/organizations/${row.original.id}`),
+            },
+          ]}
+        >
+          <DataTableToolbar table={table} />
+        </DataTable>
+      </div>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Удалить юрлицо?</AlertDialogTitle>
             <AlertDialogDescription>
               Вы уверены, что хотите удалить организацию &quot;
-              {organizationToDelete?.name}&quot;? Это действие можно отменить.
+              {organizationToDelete?.shortName}&quot;? Это действие можно
+              отменить.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -226,7 +226,6 @@ function createWorkflow(input: {
     },
     nextAction: "Prepare documents",
     operationalState: {
-      capabilities: [],
       positions: input.legState === "blocked"
         ? [
             {

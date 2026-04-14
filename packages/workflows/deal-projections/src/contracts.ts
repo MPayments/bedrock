@@ -573,6 +573,7 @@ export const FinanceDealWorkspaceActionsSchema = z.object({
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
   canRequestExecution: z.boolean(),
+  canRunReconciliation: z.boolean(),
   canResolveExecutionBlocker: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
@@ -645,6 +646,10 @@ export type FinanceDealReconciliationState = z.infer<
 >;
 
 export const FinanceDealReconciliationExceptionSchema = z.object({
+  actions: z.object({
+    adjustmentDocumentDocType: z.string().nullable(),
+    canIgnore: z.boolean(),
+  }),
   blocking: z.boolean(),
   createdAt: z.date(),
   externalRecordId: z.string(),

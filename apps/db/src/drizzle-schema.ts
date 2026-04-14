@@ -17,9 +17,6 @@ export {
   calculationSnapshots,
 } from "@bedrock/calculations/schema";
 export {
-  dealCapabilityKindEnum,
-  dealCapabilityStates,
-  dealCapabilityStatusEnum,
   dealAttachmentIngestionStatusEnum,
   dealAttachmentIngestions,
   dealAgentBonuses,

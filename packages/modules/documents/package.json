@@ -10,7 +10,7 @@
     "./plugins": "./src/plugins.ts",
     "./read-model": "./src/read-model.ts",
     "./repository": "./src/infra/drizzle/repository.ts",
-    "./schema": "./src/infra/drizzle/schema.ts",
+    "./schema": "./src/schema.ts",
     "./worker": "./src/infra/workers/posting.ts"
   },
   "scripts": {

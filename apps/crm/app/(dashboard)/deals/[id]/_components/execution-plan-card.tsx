@@ -1,7 +1,12 @@
 import { ChevronDown, ListChecks, Workflow } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +74,8 @@ export function ExecutionPlanCard({
               <div key={section.sectionId} className="rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="font-medium">
-                    {DEAL_SECTION_LABELS[section.sectionId] ?? section.sectionId}
+                    {DEAL_SECTION_LABELS[section.sectionId] ??
+                      section.sectionId}
                   </div>
                   <Badge variant={section.complete ? "default" : "secondary"}>
                     {section.complete ? "Готово" : "Нужно заполнить"}
@@ -104,7 +110,9 @@ export function ExecutionPlanCard({
                 type="button"
               >
                 <div className="space-y-1">
-                  <div className="font-medium">{STATUS_LABELS[item.targetStatus]}</div>
+                  <div className="font-medium">
+                    {STATUS_LABELS[item.targetStatus]}
+                  </div>
                   {!item.allowed && item.blockers[0] && (
                     <div className="text-sm text-muted-foreground">
                       {formatDealWorkflowMessage(item.blockers[0].message)}
@@ -142,13 +150,16 @@ export function ExecutionPlanCard({
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className={DEAL_LEG_STATE_COLORS[leg.state]}>
-                        {DEAL_LEG_STATE_LABELS[leg.state]}
+                        <span data-testid={`deal-leg-state-badge-${leg.idx}`}>
+                          {DEAL_LEG_STATE_LABELS[leg.state]}
+                        </span>
                       </Badge>
                       {nextStates.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
                               <Button
+                                data-testid={`deal-leg-state-button-${leg.idx}`}
                                 size="sm"
                                 variant="outline"
                                 disabled={isUpdatingLegKey === legKey}
@@ -162,6 +173,7 @@ export function ExecutionPlanCard({
                             {nextStates.map((state) => (
                               <DropdownMenuItem
                                 key={state}
+                                data-testid={`deal-leg-state-option-${leg.idx}-${state}`}
                                 disabled={isUpdatingLegKey === legKey}
                                 onClick={() => onUpdateLegState(leg.idx, state)}
                               >

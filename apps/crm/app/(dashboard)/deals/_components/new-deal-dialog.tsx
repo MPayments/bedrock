@@ -127,16 +127,26 @@ export function NewDealDialog({
 }: NewDealDialogProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
-  const [selectedAgreementId, setSelectedAgreementId] = useState<string | undefined>();
-  const [selectedApplicantId, setSelectedApplicantId] = useState<string | undefined>();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<
+    string | undefined
+  >();
+  const [selectedAgreementId, setSelectedAgreementId] = useState<
+    string | undefined
+  >();
+  const [selectedApplicantId, setSelectedApplicantId] = useState<
+    string | undefined
+  >();
   const [dealType, setDealType] = useState<CrmDealType>("payment");
-  const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
+  const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(
+    null,
+  );
   const [agreements, setAgreements] = useState<AgreementOption[]>([]);
   const [applicantRequisites, setApplicantRequisites] = useState<
     CrmApplicantRequisiteOption[]
   >([]);
-  const [currencyOptions, setCurrencyOptions] = useState<CrmCurrencyOption[]>([]);
+  const [currencyOptions, setCurrencyOptions] = useState<CrmCurrencyOption[]>(
+    [],
+  );
   const [intake, setIntake] = useState<CrmDealIntakeDraft>(
     createEmptyCrmDealIntake({
       applicantCounterpartyId: null,
@@ -161,7 +171,9 @@ export function NewDealDialog({
       (partyProfile) => partyProfile.counterpartyId === selectedApplicantId,
     ) ?? null;
   const selectedAgreement =
-    agreementOptions.find((agreement) => agreement.id === selectedAgreementId) ?? null;
+    agreementOptions.find(
+      (agreement) => agreement.id === selectedAgreementId,
+    ) ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -183,7 +195,9 @@ export function NewDealDialog({
       return;
     }
 
-    void fetchJson<{ data: CrmCurrencyOption[] }>(`${API_BASE_URL}/currencies/options`)
+    void fetchJson<{ data: CrmCurrencyOption[] }>(
+      `${API_BASE_URL}/currencies/options`,
+    )
       .then((payload) => setCurrencyOptions(payload.data))
       .catch((fetchError) => {
         console.error("Failed to load currency options", fetchError);
@@ -214,7 +228,8 @@ export function NewDealDialog({
               ({
                 id: currentSelectedCustomerId,
                 counterparties,
-                primaryCounterpartyId: counterparties[0]?.counterpartyId ?? null,
+                primaryCounterpartyId:
+                  counterparties[0]?.counterpartyId ?? null,
               }) satisfies CustomerDetail,
           ),
           fetchJson<{ data: AgreementOption[] }>(
@@ -233,7 +248,9 @@ export function NewDealDialog({
           customer.primaryCounterpartyId ??
           customer.counterparties[0]?.counterpartyId ??
           undefined;
-        const defaultAgreementId = agreementsPayload.data.find((item) => item.isActive)?.id;
+        const defaultAgreementId = agreementsPayload.data.find(
+          (item) => item.isActive,
+        )?.id;
 
         setSelectedApplicantId(defaultApplicantId);
         setSelectedAgreementId(defaultAgreementId);
@@ -325,8 +342,8 @@ export function NewDealDialog({
               sourceCurrencyId:
                 current.type !== "payment"
                   ? defaultPaymentSourceCurrencyId
-                  : current.moneyRequest.sourceCurrencyId ??
-                    defaultPaymentSourceCurrencyId,
+                  : (current.moneyRequest.sourceCurrencyId ??
+                    defaultPaymentSourceCurrencyId),
             }
           : current.moneyRequest,
       type: dealType,
@@ -405,7 +422,10 @@ export function NewDealDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        data-testid="deal-create-dialog"
+      >
         <DialogHeader>
           <DialogTitle>Новая сделка</DialogTitle>
           <DialogDescription>
@@ -441,6 +461,8 @@ export function NewDealDialog({
                 onValueChange={setSelectedCustomerId}
                 placeholder="Выберите клиента"
                 className="w-full"
+                searchInputTestId="deal-customer-search"
+                triggerTestId="deal-customer-select"
               />
             </div>
           ) : null}
@@ -458,7 +480,10 @@ export function NewDealDialog({
                     );
                   }}
                 >
-                  <SelectTrigger className="w-full min-w-0">
+                  <SelectTrigger
+                    className="w-full min-w-0"
+                    data-testid="deal-applicant-select"
+                  >
                     <SelectValue placeholder="Выберите контрагента">
                       <span className="truncate">
                         {selectedApplicant
@@ -498,7 +523,10 @@ export function NewDealDialog({
                     );
                   }}
                 >
-                  <SelectTrigger className="w-full min-w-0">
+                  <SelectTrigger
+                    className="w-full min-w-0"
+                    data-testid="deal-agreement-select"
+                  >
                     <SelectValue
                       className="min-w-0 truncate"
                       placeholder="Выберите договор"
@@ -529,6 +557,7 @@ export function NewDealDialog({
                 <button
                   key={option.value}
                   type="button"
+                  data-testid={`deal-type-${option.value}`}
                   onClick={() => {
                     setDealType(option.value);
                     setIntake((current) => ({
@@ -574,23 +603,42 @@ export function NewDealDialog({
 
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              data-testid="deal-dialog-cancel"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Отмена
             </Button>
             {step > 1 ? (
-              <Button variant="outline" onClick={() => setStep((current) => current - 1)}>
+              <Button
+                data-testid="deal-dialog-back"
+                variant="outline"
+                onClick={() => setStep((current) => current - 1)}
+              >
                 Назад
               </Button>
             ) : null}
           </div>
 
           {step < 4 ? (
-            <Button onClick={() => validateCurrentStep() && setStep((current) => current + 1)}>
+            <Button
+              data-testid="deal-dialog-next"
+              onClick={() =>
+                validateCurrentStep() && setStep((current) => current + 1)
+              }
+            >
               Далее
             </Button>
           ) : (
-            <Button disabled={creating} onClick={handleCreate}>
-              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <Button
+              data-testid="deal-create-draft"
+              disabled={creating}
+              onClick={handleCreate}
+            >
+              {creating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Создать черновик
             </Button>
           )}

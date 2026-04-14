@@ -1,6 +1,4 @@
-import {
-  ACCOUNTING_SOURCE_ID,
-} from "@bedrock/accounting/posting-contracts";
+import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import {
@@ -117,16 +115,19 @@ export function createExchangeDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
-      const { invoicePayload, quoteSnapshot } = await resolveExchangeDraftContext(
-        deps,
-        context,
-        input.invoiceDocumentId,
-      );
+      const { invoicePayload, quoteSnapshot } =
+        await resolveExchangeDraftContext(
+          deps,
+          context,
+          input.invoiceDocumentId,
+        );
 
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
         customerId: invoicePayload.customerId,
         counterpartyId: invoicePayload.counterpartyId,
+        executionRef: input.executionRef,
+        invoiceDocumentId: input.invoiceDocumentId,
         organizationId: invoicePayload.organizationId,
         organizationRequisiteId: invoicePayload.organizationRequisiteId,
         quoteSnapshot,
@@ -171,11 +172,7 @@ export function createExchangeDocumentModule(
       };
     },
     async canCreate(context, input) {
-      await resolveExchangeDraftContext(
-        deps,
-        context,
-        input.invoiceDocumentId,
-      );
+      await resolveExchangeDraftContext(deps, context, input.invoiceDocumentId);
     },
     async canEdit(context, document) {
       if (await getExchangeAcceptance(deps, context.runtime, document.id)) {
@@ -211,8 +208,9 @@ export function createExchangeDocumentModule(
 
       return buildExchangePostingPlan({
         document,
-        financialLines:
-          dealFxContext?.hasConvertLeg ? dealFxContext.financialLines : undefined,
+        financialLines: dealFxContext?.hasConvertLeg
+          ? dealFxContext.financialLines
+          : undefined,
         payload,
         bookId: binding.bookId,
       });

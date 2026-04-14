@@ -15,6 +15,7 @@ function pickRandom(charset: string): string {
 }
 
 export function generatePassword(length = 20): string {
+  const safeLength = Math.max(length, 4);
   const required = [
     pickRandom(UPPER),
     pickRandom(LOWER),
@@ -22,7 +23,7 @@ export function generatePassword(length = 20): string {
     pickRandom(SPECIAL),
   ];
 
-  const rest = Array.from({ length: length - required.length }, () =>
+  const rest = Array.from({ length: safeLength - required.length }, () =>
     pickRandom(ALL),
   );
 

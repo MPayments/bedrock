@@ -15,14 +15,55 @@ import type { ReconciliationServiceContext } from "../shared/context";
 async function findOperationById(
   context: ReconciliationServiceContext,
   operationId: string | null,
-): Promise<string | null> {
+  operationKind: "ledger" | "treasury" | null,
+): Promise<{
+  matchedOperationId: string | null;
+  matchedTreasuryOperationId: string | null;
+}> {
   if (!operationId) {
-    return null;
+    return {
+      matchedOperationId: null,
+      matchedTreasuryOperationId: null,
+    };
   }
 
-  return (await context.ledgerLookup.operationExists(operationId))
-    ? operationId
-    : null;
+  if (operationKind === "treasury") {
+    return {
+      matchedOperationId: null,
+      matchedTreasuryOperationId: (await context.ledgerLookup.treasuryOperationExists(
+        operationId,
+      ))
+        ? operationId
+        : null,
+    };
+  }
+
+  if (operationKind === "ledger") {
+    return {
+      matchedOperationId: (await context.ledgerLookup.operationExists(
+        operationId,
+      ))
+        ? operationId
+        : null,
+      matchedTreasuryOperationId: null,
+    };
+  }
+
+  if (await context.ledgerLookup.operationExists(operationId)) {
+    return {
+      matchedOperationId: operationId,
+      matchedTreasuryOperationId: null,
+    };
+  }
+
+  return {
+    matchedOperationId: null,
+    matchedTreasuryOperationId: (await context.ledgerLookup.treasuryOperationExists(
+      operationId,
+    ))
+      ? operationId
+      : null,
+  };
 }
 
 async function findDocumentById(
@@ -49,19 +90,22 @@ async function resolveRecordMatch(
     return resolveMatchFromCandidates({
       ...candidates,
       matchedOperationId: null,
+      matchedTreasuryOperationId: null,
       matchedDocumentId: null,
     });
   }
 
-  const matchedOperationId = await findOperationById(
+  const matchedOperation = await findOperationById(
     context,
     candidates.operationId,
+    candidates.operationKind,
   );
   const matchedDocumentId = await findDocumentById(context, candidates.documentId);
 
   return resolveMatchFromCandidates({
     ...candidates,
-    matchedOperationId,
+    matchedOperationId: matchedOperation.matchedOperationId,
+    matchedTreasuryOperationId: matchedOperation.matchedTreasuryOperationId,
     matchedDocumentId,
   });
 }
@@ -125,6 +169,8 @@ export function createRunReconciliationHandler(
                 runId: createdRun.id,
                 externalRecordId: record.id,
                 matchedOperationId: resolution.matchedOperationId,
+                matchedTreasuryOperationId:
+                  resolution.matchedTreasuryOperationId,
                 matchedDocumentId: resolution.matchedDocumentId,
                 status: resolution.status,
                 explanation: resolution.explanation,

@@ -55,7 +55,10 @@ export function DealHeader({
             <h1 className="truncate text-2xl font-bold">
               {DEAL_TYPE_LABELS[type]}
             </h1>
-            <Badge className={STATUS_COLORS[status]}>
+            <Badge
+              className={STATUS_COLORS[status]}
+              data-testid="deal-status-badge"
+            >
               {STATUS_LABELS[status]}
             </Badge>
           </div>
@@ -67,7 +70,15 @@ export function DealHeader({
 
       {hasTransitions && (
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="default" size="sm" />}>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                data-testid="deal-change-status-button"
+                variant="default"
+                size="sm"
+              />
+            }
+          >
             Изменить статус
             <ChevronDown className="ml-2 h-4 w-4" />
           </DropdownMenuTrigger>
@@ -79,6 +90,7 @@ export function DealHeader({
             {transitionReadiness.map((item) => (
               <DropdownMenuItem
                 key={item.targetStatus}
+                data-testid={`deal-change-status-option-${item.targetStatus}`}
                 disabled={isUpdatingStatus}
                 onClick={() =>
                   item.allowed

@@ -65,30 +65,6 @@ function createBaseInput() {
     },
     now: new Date("2026-04-01T12:00:00.000Z"),
     operationalState: {
-      capabilities: [
-        {
-          applicantCounterpartyId: "applicant-1",
-          dealType: "payment" as const,
-          internalEntityOrganizationId: "org-1",
-          kind: "can_collect" as const,
-          note: null,
-          reasonCode: null,
-          status: "enabled" as const,
-          updatedAt: new Date("2026-04-01T11:00:00.000Z"),
-          updatedByUserId: "user-1",
-        },
-        {
-          applicantCounterpartyId: "applicant-1",
-          dealType: "payment" as const,
-          internalEntityOrganizationId: "org-1",
-          kind: "can_payout" as const,
-          note: null,
-          reasonCode: null,
-          status: "enabled" as const,
-          updatedAt: new Date("2026-04-01T11:00:00.000Z"),
-          updatedByUserId: "user-1",
-        },
-      ],
       positions: [
         {
           amountMinor: null,
@@ -233,41 +209,6 @@ describe("deal transition policy", () => {
     input.intake.moneyRequest.targetCurrencyId = "currency-2";
     input.status = "submitted";
     input.targetStatus = "preparing_documents";
-    input.operationalState.capabilities = [
-      {
-        applicantCounterpartyId: "applicant-1",
-        dealType: "currency_exchange",
-        internalEntityOrganizationId: "org-1",
-        kind: "can_collect",
-        note: null,
-        reasonCode: null,
-        status: "enabled",
-        updatedAt: new Date("2026-04-01T11:00:00.000Z"),
-        updatedByUserId: "user-1",
-      },
-      {
-        applicantCounterpartyId: "applicant-1",
-        dealType: "currency_exchange",
-        internalEntityOrganizationId: "org-1",
-        kind: "can_fx",
-        note: null,
-        reasonCode: null,
-        status: "enabled",
-        updatedAt: new Date("2026-04-01T11:00:00.000Z"),
-        updatedByUserId: "user-1",
-      },
-      {
-        applicantCounterpartyId: "applicant-1",
-        dealType: "currency_exchange",
-        internalEntityOrganizationId: "org-1",
-        kind: "can_payout",
-        note: null,
-        reasonCode: null,
-        status: "enabled",
-        updatedAt: new Date("2026-04-01T11:00:00.000Z"),
-        updatedByUserId: "user-1",
-      },
-    ];
 
     const readiness = evaluateDealTransitionReadiness(input);
 
@@ -343,22 +284,15 @@ describe("deal transition policy", () => {
     ).toBe(false);
   });
 
-  it("blocks submitted -> preparing_documents when a required capability is disabled", () => {
+  it("allows submitted -> preparing_documents when only the removed capability checks used to block", () => {
     const input = createBaseInput();
     input.status = "submitted";
     input.targetStatus = "preparing_documents";
-    input.operationalState.capabilities[1] = {
-      ...input.operationalState.capabilities[1]!,
-      reasonCode: "manual_hold",
-      status: "disabled",
-    };
 
     const readiness = evaluateDealTransitionReadiness(input);
 
-    expect(readiness.allowed).toBe(false);
-    expect(
-      readiness.blockers.some((blocker) => blocker.code === "capability_disabled"),
-    ).toBe(true);
+    expect(readiness.allowed).toBe(true);
+    expect(readiness.blockers).toEqual([]);
   });
 
   it("blocks awaiting_funds -> awaiting_payment when collect or convert legs are not done", () => {

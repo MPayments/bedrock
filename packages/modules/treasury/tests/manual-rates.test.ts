@@ -25,11 +25,12 @@ describe("manual rate handlers", () => {
   it("persists manual source by default and invalidates cache", async () => {
     const { currencies, insertManualRate, ratesRepository } =
       createManualRateHarness();
+    const invalidateRateCache = vi.fn();
     const command = new SetManualRateCommand(
       () => new Date("2026-02-19T00:00:00.000Z"),
       currencies as any,
       ratesRepository as any,
-      vi.fn(),
+      invalidateRateCache,
     );
 
     const asOf = new Date("2026-02-19T00:00:00.000Z");
@@ -41,7 +42,7 @@ describe("manual rate handlers", () => {
       asOf,
     });
 
-    expect(insertManualRate).toHaveBeenCalledWith({
+    expect(insertManualRate).toHaveBeenNthCalledWith(1, {
       baseCurrencyId: "cur-usd",
       quoteCurrencyId: "cur-eur",
       rateNum: 100n,
@@ -49,6 +50,15 @@ describe("manual rate handlers", () => {
       asOf,
       source: "manual",
     });
+    expect(insertManualRate).toHaveBeenNthCalledWith(2, {
+      baseCurrencyId: "cur-eur",
+      quoteCurrencyId: "cur-usd",
+      rateNum: 99n,
+      rateDen: 100n,
+      asOf,
+      source: "manual",
+    });
+    expect(invalidateRateCache).toHaveBeenCalledTimes(1);
   });
 
   it("persists explicit non-cbr source", async () => {
@@ -70,7 +80,14 @@ describe("manual rate handlers", () => {
       source: "bank",
     });
 
-    expect(insertManualRate).toHaveBeenCalledWith(
+    expect(insertManualRate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        source: "bank",
+      }),
+    );
+    expect(insertManualRate).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         source: "bank",
       }),
