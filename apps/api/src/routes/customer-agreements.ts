@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { z } from "@hono/zod-openapi";
 
 import {
@@ -11,7 +13,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/shared/core/errors";
-import { getUuidPrefix } from "@bedrock/shared/core/uuid";
+import { formatCompactUuid } from "@bedrock/shared/core/uuid";
 
 import type { AppContext } from "../context";
 
@@ -46,7 +48,7 @@ function trimToNull(value: string | null | undefined): string | null {
 function buildDefaultCustomerAgreementContractNumber(
   customerId: string,
 ): string {
-  return `contract#${getUuidPrefix(customerId).toUpperCase()}`;
+  return `contract#${formatCompactUuid(customerId)}-${formatCompactUuid(randomUUID())}`;
 }
 
 function trimLeadingZeros(value: string): string {
@@ -388,8 +390,7 @@ export async function updateCustomerAgreement(
     contractNumber:
       input.contractNumber === undefined
         ? undefined
-        : (trimToNull(input.contractNumber) ??
-          buildDefaultCustomerAgreementContractNumber(current.customerId)),
+        : trimToNull(input.contractNumber),
     feeRules:
       input.agentFee === undefined && input.fixedFee === undefined
         ? undefined

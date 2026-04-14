@@ -20,6 +20,7 @@ import {
 } from "@bedrock/sdk-ui/components/popover";
 import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
+import { useFetchedOptions } from "@/lib/hooks/useFetchedOptions";
 
 interface User {
   id: string;
@@ -44,42 +45,28 @@ export function UserCombobox({
   disabled = false,
 }: UserComboboxProps) {
   const [open, setOpen] = React.useState(false);
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [loading, setLoading] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  // Найти выбранного пользователя
-  const selectedUser = users.find((user) => user.id === value);
+  const fetchUsers = React.useCallback(async (): Promise<User[]> => {
+    const res = await fetch(`${API_BASE_URL}/agents`, {
+      credentials: "include",
+    });
 
-  // Загрузка пользователей с сервера
-  const fetchUsers = React.useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const res = await fetch(`${API_BASE_URL}/agents`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Ошибка загрузки: ${res.status}`);
-      }
-
-      const raw = await res.json();
-      const data: User[] = Array.isArray(raw) ? raw : raw.data ?? [];
-      setUsers(data);
-    } catch (err) {
-      console.error("Users fetch error:", err);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error(`Ошибка загрузки: ${res.status}`);
     }
+
+    const raw = await res.json();
+    return Array.isArray(raw) ? raw : raw.data ?? [];
   }, []);
 
-  // Загружаем пользователей при открытии или когда есть значение, но список ещё не загружен
-  React.useEffect(() => {
-    if (open || (value && users.length === 0)) {
-      fetchUsers();
-    }
-  }, [open, value, users.length, fetchUsers]);
+  const { items: users, loading } = useFetchedOptions<User>({
+    fetcher: fetchUsers,
+    open,
+    value,
+  });
+
+  const selectedUser = users.find((user) => user.id === value);
 
   // Фильтрация пользователей по поисковому запросу
   const filteredUsers = React.useMemo(() => {

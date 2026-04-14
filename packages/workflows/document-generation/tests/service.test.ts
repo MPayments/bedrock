@@ -607,7 +607,7 @@ describe("document generation workflow", () => {
     expect(result.mimeType).toBe(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
-    expect(result.fileName).toMatch(/^contract-[0-9A-F]{8}\.docx$/);
+    expect(result.fileName).toMatch(/^contract-[0-9A-F]{8}-[0-9A-F]{8}\.docx$/);
     expect(objectStorage.download).toHaveBeenCalledWith(
       `organizations/${IDS.organization}/signature.png`,
     );
@@ -869,5 +869,98 @@ describe("document generation workflow", () => {
       "ru",
       IDS.organization,
     );
+  });
+
+  it("generate() embeds the template type and a random suffix in the filename", async () => {
+    const { workflow } = createWorkflow();
+
+    const result = await workflow.generate({
+      templateType: "invoice",
+      data: {},
+      locale: "ru",
+      outputFormat: "docx",
+    });
+
+    expect(result.fileName).toMatch(/^invoice-[0-9A-F]{8}\.docx$/);
+  });
+
+  it("generateCalculation() embeds the calculation id and a random suffix in the filename", async () => {
+    const { workflow } = createWorkflow();
+    const calculationId = "11111111-2222-4333-8444-555555555555";
+
+    const result = await workflow.generateCalculation({
+      calculationData: {
+        additionalExpenses: "0",
+        additionalExpensesInBase: "0",
+        agreementFeeAmount: "0",
+        agreementFeePercentage: "0",
+        baseCurrencyCode: "USD",
+        calculationTimestamp: "2026-04-01T00:00:00.000Z",
+        currencyCode: "USD",
+        fixedFeeAmount: "0",
+        fixedFeeCurrencyCode: null,
+        finalRate: "1",
+        id: calculationId,
+        originalAmount: "100",
+        quoteMarkupAmount: "0",
+        quoteMarkupPercentage: "0",
+        rate: "1",
+        rateSource: "manual",
+        totalFeeAmount: "0",
+        totalFeeAmountInBase: "0",
+        totalFeePercentage: "0",
+        totalAmount: "100",
+        totalInBase: "100",
+        totalWithExpensesInBase: "100",
+      },
+      format: "docx",
+    });
+
+    expect(result.fileName).toMatch(/^calculation-11111111-[0-9A-F]{8}\.docx$/);
+  });
+
+  it("generateDealDocument() embeds the deal id and a random suffix in the filename", async () => {
+    const { workflow } = createWorkflow();
+    const dealId = "22222222-3333-4444-8555-666666666666";
+
+    const result = await workflow.generateDealDocument({
+      templateType: "application",
+      deal: { id: dealId },
+      calculation: {},
+      client: {},
+      contract: {},
+      organization: { id: IDS.organization },
+      organizationRequisite: {},
+    });
+
+    expect(result.fileName).toMatch(/^application-22222222-[0-9A-F]{8}\.docx$/);
+  });
+
+  it("generateDealDocument() falls back to a kind-only filename when deal id is missing", async () => {
+    const { workflow } = createWorkflow();
+
+    const result = await workflow.generateDealDocument({
+      templateType: "invoice",
+      deal: {},
+      calculation: {},
+      client: {},
+      contract: {},
+      organization: { id: IDS.organization },
+      organizationRequisite: {},
+    });
+
+    expect(result.fileName).toMatch(/^invoice-[0-9A-F]{8}\.docx$/);
+  });
+
+  it("generateFromRawData() uses the template name and a random suffix", async () => {
+    const { workflow } = createWorkflow();
+
+    const result = await workflow.generateFromRawData({
+      templateName: "custom-template.docx",
+      data: {},
+      format: "docx",
+    });
+
+    expect(result.fileName).toMatch(/^custom-template-[0-9A-F]{8}\.docx$/);
   });
 });

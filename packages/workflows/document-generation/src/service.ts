@@ -25,7 +25,7 @@ import type {
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { hasOnlyAsciiDigits } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
-import { getUuidPrefix } from "@bedrock/shared/core/uuid";
+import { formatCompactUuid } from "@bedrock/shared/core/uuid";
 
 import {
   GenerateCustomerContractInputSchema,
@@ -198,10 +198,16 @@ function formatContractDate(value: Date | null): string | null {
 
 function buildGeneratedFileName(
   kind: string,
-  sourceId: string,
   ext: string,
+  sourceId?: string,
 ): string {
-  return `${kind}-${getUuidPrefix(sourceId).toUpperCase()}.${ext}`;
+  const uniqueSegment = formatCompactUuid(randomUUID());
+
+  if (sourceId === undefined) {
+    return `${kind}-${uniqueSegment}.${ext}`;
+  }
+
+  return `${kind}-${formatCompactUuid(sourceId)}-${uniqueSegment}.${ext}`;
 }
 
 function serializeAgreementFees(agreement: AgreementDetails) {
@@ -638,7 +644,7 @@ export function createDocumentGenerationWorkflow(
     );
 
     const ext = format === "pdf" ? "pdf" : "docx";
-    const fileName = buildGeneratedFileName("contract", input.agreement.id, ext);
+    const fileName = buildGeneratedFileName("contract", ext, input.agreement.id);
 
     return { fileName, mimeType, buffer };
   }
@@ -656,7 +662,6 @@ export function createDocumentGenerationWorkflow(
 
       const fileName = buildGeneratedFileName(
         validated.templateType,
-        randomUUID(),
         validated.outputFormat,
       );
 
@@ -798,8 +803,8 @@ export function createDocumentGenerationWorkflow(
 
       const ext = format === "pdf" ? "pdf" : "docx";
       const dealId =
-        typeof input.deal.id === "string" ? input.deal.id : randomUUID();
-      const fileName = buildGeneratedFileName(input.templateType, dealId, ext);
+        typeof input.deal.id === "string" ? input.deal.id : undefined;
+      const fileName = buildGeneratedFileName(input.templateType, ext, dealId);
 
       return { fileName, mimeType, buffer };
     },
@@ -826,8 +831,8 @@ export function createDocumentGenerationWorkflow(
       const ext = format === "pdf" ? "pdf" : "docx";
       const fileName = buildGeneratedFileName(
         "calculation",
-        input.calculationData.id,
         ext,
+        input.calculationData.id,
       );
 
       return { fileName, mimeType, buffer };
@@ -867,7 +872,7 @@ export function createDocumentGenerationWorkflow(
       );
 
       const ext = format === "pdf" ? "pdf" : "docx";
-      const fileName = buildGeneratedFileName(templateType, randomUUID(), ext);
+      const fileName = buildGeneratedFileName(templateType, ext);
 
       return { fileName, mimeType, buffer };
     },
