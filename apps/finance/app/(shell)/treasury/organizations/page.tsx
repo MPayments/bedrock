@@ -3,7 +3,7 @@ import { Building2, Plus } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { OrganizationsTable } from "@/features/entities/organizations/components/table";
 import { getOrganizations } from "@/features/entities/organizations/lib/queries";

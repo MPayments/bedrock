@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import type { ColumnDef, Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
-import { EntityTableShell } from "@/components/entities/entity-table-shell";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import { formatDate } from "@/lib/format";
 
 import type {

@@ -2,7 +2,7 @@
 
 import {
   EntityTableShell,
-} from "@/components/entities/entity-table-shell";
+} from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import type {
   FxQuoteListItem,
   FxQuotesListResult,

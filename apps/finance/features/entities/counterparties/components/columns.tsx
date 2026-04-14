@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Users, Vault } from "lucide-react";
 
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import type { SerializedCounterparty } from "@/features/entities/counterparties/lib/types";
 import { formatDate } from "@/lib/format";
 import {

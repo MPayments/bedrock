@@ -3,9 +3,7 @@
 import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import {
-  type Column,
   VisibilityState,
-  flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -14,33 +12,22 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Plus } from "lucide-react";
 
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/sdk-ui/components/table";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { DataTableFacetedFilter } from "@/components/data-table/DataTableFacetedFilter";
-import { DataTableTextFilter } from "@/components/data-table/DataTableTextFilter";
-import { DataTablePagination } from "@/components/data-table/DataTablePagination";
-import { DataTableViewOptions } from "@/components/data-table/DataTableViewOptions";
+
+import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
+import { DataTableFacetedMultiFilter } from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
+import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
+
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
+import { DataTableTextFilter } from "@bedrock/sdk-tables-ui/components/data-table-text-filter";
 
 import { useDealsTable } from "@/lib/hooks/useDealsTable";
 import { API_BASE_URL } from "@/lib/constants";
-import type {
-  CurrencyCode,
-  DealsRow,
-  DealStatus,
-} from "@/lib/hooks/useDealsTable";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
-  formatCurrency,
   CURRENCY_OPTIONS,
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
@@ -108,8 +95,6 @@ export default function DealsPage() {
             setBoard(null);
           }
 
-          // The board projection is additive. Older or stale API processes can
-          // still serve the deals page without this route, so don't fail the page.
           if (response.status === 400 || response.status === 404) {
             console.warn(
               "CRM board projection unavailable; continuing without board cards",
@@ -208,33 +193,25 @@ export default function DealsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Черновики</div>
-              <div className="mt-1 text-2xl font-semibold">
-                {board.counts.drafts}
-              </div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.drafts}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Прайсинг</div>
-              <div className="mt-1 text-2xl font-semibold">
-                {board.counts.pricing}
-              </div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.pricing}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Документы</div>
-              <div className="mt-1 text-2xl font-semibold">
-                {board.counts.documents}
-              </div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.documents}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Активные</div>
-              <div className="mt-1 text-2xl font-semibold">
-                {board.counts.active}
-              </div>
+              <div className="mt-1 text-2xl font-semibold">{board.counts.active}</div>
             </CardContent>
           </Card>
           <Card>
@@ -250,48 +227,6 @@ export default function DealsPage() {
 
       <Card>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <ClientCombobox
-                value={selectedClientId}
-                onValueChange={setSelectedClientId}
-                placeholder="Выбрать клиента..."
-                className="w-[250px]"
-              />
-              {isAdmin && (
-                <AgentCombobox
-                  value={selectedAgentId}
-                  onValueChange={setSelectedAgentId}
-                  placeholder="Выбрать агента..."
-                  className="w-[250px]"
-                />
-              )}
-              <DataTableTextFilter
-                column={table.getColumn("comment")}
-                title="Поиск по комментарию"
-              />
-              <DataTableFacetedFilter
-                column={
-                  table.getColumn("status") as
-                    | Column<DealsRow, DealStatus>
-                    | undefined
-                }
-                title="Статус"
-                options={STATUS_OPTIONS}
-              />
-              <DataTableFacetedFilter
-                column={
-                  table.getColumn("currency") as
-                    | Column<DealsRow, CurrencyCode>
-                    | undefined
-                }
-                title="Валюта"
-                options={CURRENCY_OPTIONS}
-              />
-            </div>
-            <DataTableViewOptions table={table} />
-          </div>
-
           {error && (
             <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
               {error}
@@ -304,57 +239,53 @@ export default function DealsPage() {
                 <div className="text-sm text-muted-foreground">Загрузка...</div>
               </div>
             )}
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => router.push(`/deals/${row.original.id}`)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      {loading ? "Загрузка..." : "Нет данных"}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              table={table}
+              onRowDoubleClick={(row) =>
+                router.push(`/deals/${row.original.id}`)
+              }
+              contextMenuItems={(row) => [
+                {
+                  label: "Открыть",
+                  onClick: () => router.push(`/deals/${row.original.id}`),
+                },
+              ]}
+            >
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <ClientCombobox
+                    value={selectedClientId}
+                    onValueChange={setSelectedClientId}
+                    placeholder="Выбрать клиента..."
+                    className="w-[250px]"
+                  />
+                  {isAdmin && (
+                    <AgentCombobox
+                      value={selectedAgentId}
+                      onValueChange={setSelectedAgentId}
+                      placeholder="Выбрать агента..."
+                      className="w-[250px]"
+                    />
+                  )}
+                  <DataTableTextFilter
+                    column={table.getColumn("comment")}
+                    title="Поиск по комментарию"
+                  />
+                  <DataTableFacetedMultiFilter
+                    column={table.getColumn("status")}
+                    title="Статус"
+                    options={STATUS_OPTIONS}
+                  />
+                  <DataTableFacetedMultiFilter
+                    column={table.getColumn("currency")}
+                    title="Валюта"
+                    options={CURRENCY_OPTIONS}
+                  />
+                </div>
+                <DataTableViewOptions table={table} />
+              </div>
+            </DataTable>
           </div>
-
-          <DataTablePagination table={table} />
         </CardContent>
       </Card>
 
