@@ -1,6 +1,4 @@
-import {
-  COMMERCIAL_DOCUMENT_DEFINITIONS,
-} from "@bedrock/plugin-documents-commercial/contracts";
+import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-commercial/contracts";
 import {
   IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_TYPE_ORDER,
@@ -97,6 +95,7 @@ describe("document form registry", () => {
 
     expect(fieldNames).toContain("amount");
     expect(fieldNames).toContain("currency");
+    expect(fieldNames).not.toContain("financialLines");
     expect(fieldNames).not.toContain("targetCurrency");
     expect(fieldNames).not.toContain("quoteRef");
     expect(fieldNames).not.toContain("quotePreview");
@@ -121,26 +120,25 @@ describe("document form registry", () => {
     });
   });
 
-  it("exposes percent-enabled financial-lines metadata for invoice and fx_execute", () => {
+  it("exposes percent-enabled financial-lines metadata for fx_execute", () => {
     const definitions = [
       ...COMMERCIAL_DOCUMENT_DEFINITIONS,
       ...IFRS_DOCUMENT_DEFINITIONS,
     ];
 
-    for (const docType of ["invoice", "fx_execute"]) {
-      const definition = definitions.find((item) => item.docType === docType)
-        ?.formDefinition;
-      const financialLinesField = definition?.sections
-        .flatMap((section) => section.fields)
-        .find((field) => field.name === "financialLines");
+    const definition = definitions.find(
+      (item) => item.docType === "fx_execute",
+    )?.formDefinition;
+    const financialLinesField = definition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "financialLines");
 
-      expect(financialLinesField).toMatchObject({
-        kind: "financialLines",
-        supportedCalcMethods: ["fixed", "percent"],
-        baseAmountFieldName: "amount",
-        baseCurrencyFieldName: "currency",
-      });
-    }
+    expect(financialLinesField).toMatchObject({
+      kind: "financialLines",
+      supportedCalcMethods: ["fixed", "percent"],
+      baseAmountFieldName: "amount",
+      baseCurrencyFieldName: "currency",
+    });
   });
 
   it("keeps layout metadata valid for current typed definitions", () => {

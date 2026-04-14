@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type {
-  DocumentPostingPlanRequest,
-} from "@bedrock/accounting/contracts";
+import type { DocumentPostingPlanRequest } from "@bedrock/accounting/contracts";
 import {
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
@@ -56,7 +54,9 @@ function resolveDealFundingStrategy(
   return dealFxContext.fundingResolution.strategy;
 }
 
-export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
+export function buildQuoteSnapshotHash(
+  snapshot: Omit<QuoteSnapshot, "snapshotHash">,
+) {
   return createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
 }
 
@@ -300,10 +300,7 @@ export function buildFinancialLineRequests(input: {
     if (line.bucket === "provider_fee_expense" && !input.includeProviderLines) {
       return;
     }
-    if (
-      line.bucket !== "provider_fee_expense" &&
-      !input.includeCustomerLines
-    ) {
+    if (line.bucket !== "provider_fee_expense" && !input.includeCustomerLines) {
       return;
     }
 
@@ -388,30 +385,6 @@ export function buildDirectInvoicePostingPlan(input: {
         },
         memo: input.payload.memo ?? null,
       }),
-      ...buildFinancialLineRequests({
-        document: input.document,
-        bookId: input.bookId,
-        customerId: input.payload.customerId,
-        orderId: input.document.id,
-        counterpartyId: input.payload.counterpartyId,
-        quoteRef,
-        chainId,
-        lines: input.payload.financialLines.map((line) =>
-          normalizeFinancialLine({
-            id: line.id,
-            bucket: line.bucket,
-            currency: line.currency,
-            amountMinor: BigInt(line.amountMinor),
-            source: line.source,
-            settlementMode: line.settlementMode,
-            memo: line.memo ?? undefined,
-            metadata: line.metadata ?? undefined,
-          }),
-        ),
-        includeCustomerLines: true,
-        includeProviderLines: true,
-        postingPhase: "direct",
-      }),
     ],
   });
 }
@@ -419,11 +392,7 @@ export function buildDirectInvoicePostingPlan(input: {
 export async function buildDealLinkedInvoicePostingPlan(input: {
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
   dealFxContext: NonNullable<
-    Awaited<
-      ReturnType<
-        typeof resolveInvoiceDealFxContext
-      >
-    >
+    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
   >;
   context: DocumentModuleContext;
   document: Document;
@@ -701,10 +670,7 @@ export function parseInvoicePayload(document: Document) {
 }
 
 export async function invoiceRequiresExchange(
-  deps: Pick<
-    CommercialModuleDeps,
-    "dealFx" | "documentBusinessLinks"
-  >,
+  deps: Pick<CommercialModuleDeps, "dealFx" | "documentBusinessLinks">,
   invoice: Document,
 ) {
   const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
