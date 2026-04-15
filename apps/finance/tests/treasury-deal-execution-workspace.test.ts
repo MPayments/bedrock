@@ -98,8 +98,7 @@ function createData(): FinanceDealExecutionWorkspace {
       },
     ],
     deal: {
-      acceptedQuote: null,
-      acceptedQuoteDetails: null,
+      acceptedCalculation: null,
       actions: {
         canCloseDeal: false,
         canCreateCalculation: true,
@@ -329,42 +328,75 @@ function createData(): FinanceDealExecutionWorkspace {
         createdAt: "2026-04-02T08:07:00.000Z",
         id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         internalEntityDisplayName: "Мультиханса",
-        status: "awaiting_payment",
+        status: "executing",
         type: "payment",
         updatedAt: "2026-04-02T08:07:00.000Z",
       },
       timeline: [],
     },
-    facts: [
+    cashMovements: [
       {
+        accountRef: null,
         amountMinor: "1214375000",
+        bookedAt: "2026-04-02T08:30:00.000Z",
+        calculationSnapshotId: null,
         confirmedAt: "2026-04-02T08:30:00.000Z",
-        counterAmountMinor: null,
-        counterCurrencyId: null,
         createdAt: "2026-04-02T08:30:00.000Z",
         currencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
         dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        direction: "debit",
         externalRecordId: "ext-1",
-        feeAmountMinor: "25000",
-        feeCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
         id: "b14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         instructionId: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         metadata: null,
         notes: null,
         operationId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        providerCounterpartyId: null,
         providerRef: "provider-1",
-        recordedAt: "2026-04-02T08:30:00.000Z",
+        requisiteId: null,
         routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        routeVersionId: null,
         sourceKind: "provider",
-        sourceRef: "outcome-1",
+        sourceRef: "outcome-1:cash",
+        statementRef: null,
+        updatedAt: "2026-04-02T08:30:00.000Z",
+        valueDate: "2026-04-02T08:30:00.000Z",
+      },
+    ],
+    fees: [
+      {
+        amountMinor: "25000",
+        calculationSnapshotId: null,
+        chargedAt: "2026-04-02T08:30:00.000Z",
+        componentCode: null,
+        confirmedAt: "2026-04-02T08:30:00.000Z",
+        createdAt: "2026-04-02T08:30:00.000Z",
+        currencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+        dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        externalRecordId: "ext-1",
+        feeFamily: "provider_fee",
+        fillId: null,
+        id: "c14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        instructionId: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        metadata: null,
+        notes: null,
+        operationId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        providerCounterpartyId: null,
+        providerRef: "provider-1",
+        routeComponentId: null,
+        routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        routeVersionId: null,
+        sourceKind: "provider",
+        sourceRef: "outcome-1:fee",
         updatedAt: "2026-04-02T08:30:00.000Z",
       },
     ],
+    fills: [],
   };
 }
 
 describe("treasury deal execution workspace", () => {
-  it("renders the variance summary, operations, facts, and close blockers", async () => {
+  it("renders the variance summary, operations, actuals, and close blockers", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -383,7 +415,7 @@ describe("treasury deal execution workspace", () => {
 
     expect(markup).toContain("Expected vs Actual");
     expect(markup).toContain("Treasury operations");
-    expect(markup).toContain("Actual execution facts");
+    expect(markup).toContain("Actual execution actuals");
     expect(markup).toContain("provider fee");
     expect(markup).toContain("Close blockers");
     expect(markup).toContain("Провайдер");

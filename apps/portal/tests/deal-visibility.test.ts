@@ -54,7 +54,7 @@ describe("PortalDealVisibility", () => {
             totalInBase: "14590.00",
             totalWithExpensesInBase: "14640.00",
           },
-          customerSafeIntake: {
+          customerSafeHeader: {
             contractNumber: "WP-PO-2026-001",
             customerNote: "Срочная оплата",
             expectedAmount: "14500.00 AED",
@@ -81,7 +81,7 @@ describe("PortalDealVisibility", () => {
             applicantDisplayName: "WHITE PRIDE LLC",
             createdAt: "2026-04-14T09:00:00.000Z",
             id: "deal-1",
-            status: "awaiting_funds",
+            status: "awaiting_customer_approval",
             type: "payment",
           },
           timeline: [
@@ -118,7 +118,7 @@ describe("PortalDealVisibility", () => {
     const normalizedMarkup = normalizeMarkupWhitespace(markup);
 
     expect(normalizedMarkup).toContain("Сделка #DEAL");
-    expect(normalizedMarkup).toContain("Ожидание средств");
+    expect(normalizedMarkup).toContain("Ожидание одобрения клиента");
     expect(normalizedMarkup).toContain("Расчет привязан к сделке");
     expect(normalizedMarkup).toContain("invoice.pdf");
     expect(normalizedMarkup).toContain("Данные учтены");

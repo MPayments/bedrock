@@ -44,9 +44,11 @@ import {
 import { createReconciliationWorkerDefinition } from "@bedrock/reconciliation/worker";
 import { createTreasuryModule } from "@bedrock/treasury";
 import {
+  DrizzleTreasuryCashMovementsRepository,
+  DrizzleTreasuryExecutionFeesRepository,
+  DrizzleTreasuryExecutionFillsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionsRepository,
-  DrizzleTreasuryOperationFactsRepository,
   DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
@@ -210,9 +212,6 @@ export function createWorkerImplementations(
       async findOrganizationById(id: string) {
         return organizationReads.findById(id);
       },
-      async findQuoteById() {
-        return null;
-      },
       async findRequisiteById(id: string) {
         return requisiteReads.findById(id);
       },
@@ -271,10 +270,16 @@ export function createWorkerImplementations(
       now: () => new Date(),
       generateUuid: randomUUID,
       currencies: currenciesService,
-      instructionsRepository: new DrizzleTreasuryInstructionsRepository(session),
-      operationFactsRepository: new DrizzleTreasuryOperationFactsRepository(
+      cashMovementsRepository: new DrizzleTreasuryCashMovementsRepository(
         session,
       ),
+      executionFeesRepository: new DrizzleTreasuryExecutionFeesRepository(
+        session,
+      ),
+      executionFillsRepository: new DrizzleTreasuryExecutionFillsRepository(
+        session,
+      ),
+      instructionsRepository: new DrizzleTreasuryInstructionsRepository(session),
       operationsRepository: new DrizzleTreasuryOperationsRepository(session),
       ratesRepository: new DrizzleTreasuryRatesRepository(session),
       quotesRepository: new DrizzleTreasuryQuotesRepository(session),
@@ -332,22 +337,23 @@ export function createWorkerImplementations(
       );
 
       return {
-        async recordTreasuryOperationFact(input) {
-          const existingFacts = await treasuryTxModule.operations.queries.listFacts({
-            limit: 100,
-            offset: 0,
-            operationId: input.operationId,
-            sortBy: "recordedAt",
-            sortOrder: "desc",
-          });
+        async recordExecutionFill(input) {
+          const existingFills =
+            await treasuryTxModule.operations.queries.listExecutionFills({
+              limit: 100,
+              offset: 0,
+              operationId: input.operationId,
+              sortBy: "executedAt",
+              sortOrder: "desc",
+            });
 
-          const duplicate = existingFacts.data.some(
-            (fact) =>
-              fact.sourceRef === input.sourceRef ||
+          const duplicate = existingFills.data.some(
+            (fill) =>
+              fill.sourceRef === input.sourceRef ||
               (input.externalRecordId !== null &&
-                fact.externalRecordId === input.externalRecordId) ||
+                fill.externalRecordId === input.externalRecordId) ||
               (input.instructionId !== null &&
-                fact.instructionId === input.instructionId),
+                fill.instructionId === input.instructionId),
           );
 
           if (duplicate) {
@@ -362,28 +368,138 @@ export function createWorkerImplementations(
             return;
           }
 
-          await treasuryTxModule.operations.commands.recordActualFact({
-            amountMinor: input.amountMinor,
+          await treasuryTxModule.operations.commands.recordExecutionFill({
+            actualRateDen: input.actualRateDen,
+            actualRateNum: input.actualRateNum,
+            boughtAmountMinor: input.boughtAmountMinor,
+            boughtCurrencyId:
+              input.boughtCurrencyId ?? operation.counterCurrencyId,
+            calculationSnapshotId: input.calculationSnapshotId,
             confirmedAt: input.confirmedAt,
-            counterAmountMinor: input.counterAmountMinor,
-            counterCurrencyId:
-              input.counterCurrencyId ?? operation.counterCurrencyId,
-            currencyId: input.currencyId ?? operation.currencyId,
+            executedAt: input.executedAt,
             externalRecordId: input.externalRecordId,
-            feeAmountMinor: input.feeAmountMinor,
-            feeCurrencyId:
-              input.feeAmountMinor !== null
-                ? input.feeCurrencyId ?? input.currencyId ?? operation.currencyId
-                : null,
+            fillSequence: null,
             instructionId: input.instructionId,
             metadata: input.metadata,
             notes: input.notes,
             operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
             providerRef: input.providerRef,
-            recordedAt: input.recordedAt,
             routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            soldAmountMinor: input.soldAmountMinor,
+            soldCurrencyId: input.soldCurrencyId ?? operation.currencyId,
             sourceKind: "reconciliation",
             sourceRef: input.sourceRef,
+          });
+        },
+        async recordExecutionFee(input) {
+          const existingFees =
+            await treasuryTxModule.operations.queries.listExecutionFees({
+              limit: 100,
+              offset: 0,
+              operationId: input.operationId,
+              sortBy: "chargedAt",
+              sortOrder: "desc",
+            });
+
+          const duplicate = existingFees.data.some(
+            (fee) =>
+              fee.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                fee.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                fee.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordExecutionFee({
+            amountMinor: input.amountMinor,
+            calculationSnapshotId: input.calculationSnapshotId,
+            chargedAt: input.chargedAt,
+            componentCode: input.componentCode,
+            confirmedAt: input.confirmedAt,
+            currencyId: input.currencyId ?? operation.currencyId,
+            externalRecordId: input.externalRecordId,
+            feeFamily: input.feeFamily,
+            fillId: input.fillId,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
+            providerRef: input.providerRef,
+            routeComponentId: input.routeComponentId,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+          });
+        },
+        async recordCashMovement(input) {
+          const existingMovements =
+            await treasuryTxModule.operations.queries.listCashMovements({
+            limit: 100,
+            offset: 0,
+            operationId: input.operationId,
+            sortBy: "bookedAt",
+            sortOrder: "desc",
+          });
+
+          const duplicate = existingMovements.data.some(
+            (movement) =>
+              movement.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                movement.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                movement.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordCashMovement({
+            accountRef: input.accountRef,
+            amountMinor: input.amountMinor,
+            bookedAt: input.bookedAt,
+            calculationSnapshotId: input.calculationSnapshotId,
+            confirmedAt: input.confirmedAt,
+            currencyId: input.currencyId ?? operation.currencyId,
+            direction: input.direction,
+            externalRecordId: input.externalRecordId,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
+            providerRef: input.providerRef,
+            requisiteId: input.requisiteId,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+            statementRef: input.statementRef,
+            valueDate: input.valueDate,
           });
         },
       };

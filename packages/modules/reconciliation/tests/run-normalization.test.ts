@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createRunReconciliationHandler } from "../src/application/runs/commands";
 
 describe("reconciliation run normalization", () => {
-  it("writes treasury operation facts for matched treasury records with economics", async () => {
+  it("writes treasury execution actuals for matched treasury records with economics", async () => {
     const record = {
       causationId: null,
       correlationId: null,
@@ -26,7 +26,8 @@ describe("reconciliation run normalization", () => {
       sourceRecordId: "statement-line-1",
       traceId: null,
     };
-    const recordTreasuryOperationFact = vi.fn(async () => undefined);
+    const recordExecutionFee = vi.fn(async () => undefined);
+    const recordExecutionFill = vi.fn(async () => undefined);
     const createManyMatches = vi.fn(async () => undefined);
     const createManyExceptions = vi.fn(async () => undefined);
     const findTreasuryOperation = vi.fn(async () => true);
@@ -60,7 +61,9 @@ describe("reconciliation run normalization", () => {
               markResolved: vi.fn(),
             },
             executionFacts: {
-              recordTreasuryOperationFact,
+              recordCashMovement: vi.fn(async () => undefined),
+              recordExecutionFee,
+              recordExecutionFill,
             },
             externalRecords: {
               create: vi.fn(),
@@ -99,17 +102,19 @@ describe("reconciliation run normalization", () => {
     );
     expect(createManyMatches).toHaveBeenCalledTimes(1);
     expect(createManyExceptions).not.toHaveBeenCalled();
-    expect(recordTreasuryOperationFact).toHaveBeenCalledWith({
-      amountMinor: 9950n,
+    expect(recordExecutionFill).toHaveBeenCalledWith({
+      actualRateDen: null,
+      actualRateNum: null,
+      boughtAmountMinor: null,
+      boughtCurrencyId: null,
+      calculationSnapshotId: null,
       confirmedAt: new Date("2026-04-14T09:00:00.000Z"),
-      counterAmountMinor: null,
-      counterCurrencyId: null,
-      currencyId: "00000000-0000-4000-8000-000000000401",
+      executedAt: new Date("2026-04-14T09:00:00.000Z"),
       externalRecordId: "statement-line-1",
-      feeAmountMinor: 50n,
-      feeCurrencyId: "00000000-0000-4000-8000-000000000401",
       instructionId: null,
       metadata: {
+        classification: null,
+        componentFamily: null,
         normalizationVersion: 1,
         reconciliationExternalRecordId:
           "00000000-0000-4000-8000-000000000111",
@@ -119,16 +124,51 @@ describe("reconciliation run normalization", () => {
       },
       notes: "Reconciliation matched external record",
       operationId: "00000000-0000-4000-8000-000000000201",
+      providerCounterpartyId: null,
       providerRef: null,
-      recordedAt: new Date("2026-04-14T09:00:00.000Z"),
       routeLegId: null,
+      routeVersionId: null,
+      soldAmountMinor: 9950n,
+      soldCurrencyId: "00000000-0000-4000-8000-000000000401",
       sourceRef:
-        "reconciliation-external-record:00000000-0000-4000-8000-000000000111",
+        "reconciliation-external-record:00000000-0000-4000-8000-000000000111:fill",
+    });
+    expect(recordExecutionFee).toHaveBeenCalledWith({
+      amountMinor: 50n,
+      calculationSnapshotId: null,
+      chargedAt: new Date("2026-04-14T09:00:00.000Z"),
+      componentCode: null,
+      confirmedAt: new Date("2026-04-14T09:00:00.000Z"),
+      currencyId: "00000000-0000-4000-8000-000000000401",
+      externalRecordId: "statement-line-1",
+      feeFamily: "provider_fee",
+      fillId: null,
+      instructionId: null,
+      metadata: {
+        classification: null,
+        componentFamily: null,
+        normalizationVersion: 1,
+        reconciliationExternalRecordId:
+          "00000000-0000-4000-8000-000000000111",
+        reconciliationRunId: "00000000-0000-4000-8000-000000000301",
+        reconciliationSource: "bank_statement",
+        reconciliationSourceRecordId: "statement-line-1",
+      },
+      notes: "Reconciliation matched external record",
+      operationId: "00000000-0000-4000-8000-000000000201",
+      providerCounterpartyId: null,
+      providerRef: null,
+      routeComponentId: null,
+      routeLegId: null,
+      routeVersionId: null,
+      sourceRef:
+        "reconciliation-external-record:00000000-0000-4000-8000-000000000111:fee",
     });
   });
 
-  it("does not write treasury facts for unmatched records", async () => {
-    const recordTreasuryOperationFact = vi.fn(async () => undefined);
+  it("does not write treasury execution actuals for unmatched records", async () => {
+    const recordExecutionFee = vi.fn(async () => undefined);
+    const recordExecutionFill = vi.fn(async () => undefined);
     const runReconciliation = createRunReconciliationHandler({
       documents: {
         existsById: vi.fn(async () => false),
@@ -159,7 +199,9 @@ describe("reconciliation run normalization", () => {
               markResolved: vi.fn(),
             },
             executionFacts: {
-              recordTreasuryOperationFact,
+              recordCashMovement: vi.fn(async () => undefined),
+              recordExecutionFee,
+              recordExecutionFill,
             },
             externalRecords: {
               create: vi.fn(),
@@ -211,6 +253,7 @@ describe("reconciliation run normalization", () => {
       source: "bank_statement",
     });
 
-    expect(recordTreasuryOperationFact).not.toHaveBeenCalled();
+    expect(recordExecutionFee).not.toHaveBeenCalled();
+    expect(recordExecutionFill).not.toHaveBeenCalled();
   });
 });

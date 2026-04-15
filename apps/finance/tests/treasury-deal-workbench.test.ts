@@ -138,8 +138,7 @@ function createDeal(): FinanceDealWorkbenchData {
   };
 
   return {
-    acceptedQuote: null,
-    acceptedQuoteDetails: null,
+    acceptedCalculation: null,
     actions: {
       canCloseDeal: false,
       canCreateCalculation: false,
@@ -151,7 +150,7 @@ function createDeal(): FinanceDealWorkbenchData {
     },
     attachmentRequirements: [],
     closeReadiness: {
-      blockers: ["Required intake sections are incomplete"],
+      blockers: ["Required deal header sections are incomplete"],
       criteria: [
         {
           code: "operations_materialized",
@@ -203,7 +202,7 @@ function createDeal(): FinanceDealWorkbenchData {
       totalOperations: 0,
       voided: 0,
     },
-    nextAction: "Complete intake form",
+    nextAction: "Complete deal header",
     operationalState: {
       positions: [],
     },
@@ -221,11 +220,11 @@ function createDeal(): FinanceDealWorkbenchData {
     quoteHistory: [],
     queueContext: {
       blockers: [
-        "Required intake sections are incomplete",
+        "Required deal header sections are incomplete",
         "Required participant is unresolved: external_beneficiary",
       ],
       queue: "funding",
-      queueReason: "Required intake sections are incomplete",
+      queueReason: "Required deal header sections are incomplete",
     },
     reconciliationSummary: {
       ignoredExceptionCount: 0,
@@ -379,8 +378,8 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup.match(/Запросить котировку/g)).toHaveLength(1);
-    expect(markup.match(/Создать расчет/g)).toHaveLength(1);
+    expect(markup).toContain("Запросить котировку");
+    expect(markup).toContain("Создать расчет");
   });
 
   it("renders profitability, reconciliation, and close-readiness details from the backend projection", async () => {

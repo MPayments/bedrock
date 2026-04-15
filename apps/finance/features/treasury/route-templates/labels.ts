@@ -29,11 +29,11 @@ export const ROUTE_TEMPLATE_BINDING_LABELS: Record<string, string> = {
 
 export const ROUTE_TEMPLATE_BINDING_HINTS: Record<string, string> = {
   deal_applicant:
-    "Система подставит applicant counterparty из deal intake.",
+    "Система подставит applicant counterparty из canonical deal header.",
   deal_beneficiary:
-    "Система подставит beneficiary counterparty из deal intake.",
+    "Система подставит beneficiary counterparty из canonical deal header.",
   deal_customer: "Система подставит customer root сделки.",
-  deal_payer: "Система подставит payer counterparty из deal intake.",
+  deal_payer: "Система подставит payer counterparty из canonical deal header.",
   fixed_party: "Выберите конкретную customer / organization / counterparty запись.",
 };
 

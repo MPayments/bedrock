@@ -27,7 +27,6 @@ import {
   dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
-  dealIntakeSnapshots,
   dealRouteCostComponents,
   dealRouteLegs,
   dealRouteParticipants,
@@ -45,13 +44,13 @@ import {
 } from "./schema";
 import type {
   Deal,
+  DealAcceptedCalculation,
   DealApproval,
   DealAttachmentIngestion,
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
-  DealIntakeDraft,
-  DealQuoteAcceptance,
+  DealHeader,
   DealRouteTemplate,
   DealRouteTemplateSummary,
   DealRouteVersion,
@@ -73,7 +72,7 @@ import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
-  dealIntakeHasConvertLeg,
+  dealHeaderHasConvertLeg,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -142,38 +141,6 @@ function mapTimelineEvent(row: {
     payload: row.payload ?? {},
     type: row.type,
     visibility: row.visibility,
-  };
-}
-
-function mapQuoteAcceptance(row: {
-  acceptedAt: Date | string;
-  acceptedByUserId: string;
-  agreementVersionId: string | null;
-  dealId: string;
-  dealRevision: number;
-  expiresAt: Date | string | null;
-  id: string;
-  quoteId: string;
-  quoteStatus: string;
-  replacedByQuoteId: string | null;
-  revokedAt: Date | null;
-  usedAt: Date | string | null;
-  usedDocumentId: string | null;
-}): DealQuoteAcceptance {
-  return {
-    acceptedAt: toDate(row.acceptedAt),
-    acceptedByUserId: row.acceptedByUserId,
-    agreementVersionId: row.agreementVersionId,
-    dealId: row.dealId,
-    dealRevision: Number(row.dealRevision),
-    expiresAt: toDateOrNull(row.expiresAt),
-    id: row.id,
-    quoteId: row.quoteId,
-    quoteStatus: row.quoteStatus,
-    replacedByQuoteId: row.replacedByQuoteId,
-    revokedAt: row.revokedAt,
-    usedAt: toDateOrNull(row.usedAt),
-    usedDocumentId: row.usedDocumentId,
   };
 }
 
@@ -294,15 +261,15 @@ function buildDealSummaryView(input: {
   comment: string | null;
   createdAt: Date;
   customerId: string;
+  header: DealHeader;
   id: string;
-  intake: DealIntakeDraft;
   nextAction: string | null;
   revision: number;
   status: Deal["status"];
   type: Deal["type"];
   updatedAt: Date;
 }): Deal {
-  const primaryAmountFields = getPrimaryDealAmountFields(input.intake);
+  const primaryAmountFields = getPrimaryDealAmountFields(input.header);
 
   return {
     agreementId: input.agreementId,
@@ -314,9 +281,9 @@ function buildDealSummaryView(input: {
     createdAt: input.createdAt,
     customerId: input.customerId,
     id: input.id,
-    intakeComment: input.intake.common.customerNote,
+    intakeComment: input.header.common.customerNote,
     nextAction: input.nextAction,
-    reason: input.intake.moneyRequest.purpose,
+    reason: input.header.moneyRequest.purpose,
     revision: input.revision,
     status: input.status,
     type: input.type,
@@ -331,10 +298,10 @@ interface DealSummaryRow {
   comment: string | null;
   createdAt: Date;
   customerId: string;
+  header: DealHeader;
+  headerRevision: number;
   id: string;
-  intakeRevision: number;
   nextAction: string | null;
-  snapshot: DealIntakeDraft;
   sourceAmountMinor: bigint | null;
   sourceCurrencyId: string | null;
   status: Deal["status"];
@@ -398,10 +365,10 @@ export class DrizzleDealReads implements DealReads {
         comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
+        header: deals.headerSnapshot,
+        headerRevision: deals.headerRevision,
         id: deals.id,
-        intakeRevision: dealIntakeSnapshots.revision,
         nextAction: deals.nextAction,
-        snapshot: dealIntakeSnapshots.snapshot,
         sourceAmountMinor: deals.sourceAmountMinor,
         sourceCurrencyId: deals.sourceCurrencyId,
         status: deals.status,
@@ -410,7 +377,6 @@ export class DrizzleDealReads implements DealReads {
         updatedAt: deals.updatedAt,
       })
       .from(deals)
-      .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
       .where(eq(deals.id, id))
       .limit(1);
 
@@ -432,10 +398,10 @@ export class DrizzleDealReads implements DealReads {
         comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
+        header: deals.headerSnapshot,
+        headerRevision: deals.headerRevision,
         id: deals.id,
-        intakeRevision: dealIntakeSnapshots.revision,
         nextAction: deals.nextAction,
-        snapshot: dealIntakeSnapshots.snapshot,
         sourceAmountMinor: deals.sourceAmountMinor,
         sourceCurrencyId: deals.sourceCurrencyId,
         status: deals.status,
@@ -444,7 +410,6 @@ export class DrizzleDealReads implements DealReads {
         updatedAt: deals.updatedAt,
       })
       .from(deals)
-      .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
       .where(inArray(deals.id, uniqueIds));
 
     const rowById = new Map(rows.map((row) => [row.id, row] as const));
@@ -578,59 +543,69 @@ export class DrizzleDealReads implements DealReads {
     }));
   }
 
-  private async loadAcceptedQuote(
-    dealId: string,
-    revision: number,
-  ): Promise<DealQuoteAcceptance | null> {
-    const result = await this.db.execute<{
-      acceptedAt: Date;
-      acceptedByUserId: string;
-      agreementVersionId: string | null;
-      dealId: string;
-      dealRevision: number;
-      expiresAt: Date | null;
-      id: string;
-      quoteId: string;
-      quoteStatus: string;
-      replacedByQuoteId: string | null;
-      revokedAt: Date | null;
-      usedAt: Date | null;
-      usedDocumentId: string | null;
-    }>(sql`
-      select
-        a.accepted_at as "acceptedAt",
-        a.accepted_by_user_id as "acceptedByUserId",
-        a.agreement_version_id as "agreementVersionId",
-        a.deal_id as "dealId",
-        a.deal_revision as "dealRevision",
-        q.expires_at as "expiresAt",
-        a.id,
-        a.quote_id as "quoteId",
-        q.status as "quoteStatus",
-        a.replaced_by_quote_id as "replacedByQuoteId",
-        a.revoked_at as "revokedAt",
-        q.used_at as "usedAt",
-        q.used_document_id as "usedDocumentId"
-      from deal_quote_acceptances a
-      inner join fx_quotes q
-        on q.id = a.quote_id
-      where a.deal_id = ${dealId}
-        and a.deal_revision = ${revision}
-        and a.revoked_at is null
-      order by a.accepted_at desc
-      limit 1
-    `);
-    const [row] = result.rows;
+  private async loadAcceptedCalculation(
+    calculationId: string | null,
+  ): Promise<DealAcceptedCalculation | null> {
+    if (!calculationId) {
+      return null;
+    }
 
-    return row ? mapQuoteAcceptance(row) : null;
+    const [row] = await this.db
+      .select({
+        calculationId: calculations.id,
+        calculationTimestamp: calculationSnapshots.calculationTimestamp,
+        fxQuoteId: calculationSnapshots.fxQuoteId,
+        pricingProvenance: calculationSnapshots.pricingProvenance,
+        quoteSnapshot: calculationSnapshots.quoteSnapshot,
+        routeVersionId: calculationSnapshots.routeVersionId,
+        snapshotCreatedAt: calculationSnapshots.createdAt,
+        snapshotId: calculationSnapshots.id,
+        sourceQuoteId: dealCalculationLinks.sourceQuoteId,
+        state: calculationSnapshots.state,
+      })
+      .from(calculations)
+      .innerJoin(
+        calculationSnapshots,
+        eq(calculations.currentSnapshotId, calculationSnapshots.id),
+      )
+      .leftJoin(
+        dealCalculationLinks,
+        and(
+          eq(dealCalculationLinks.calculationId, calculations.id),
+          eq(dealCalculationLinks.dealId, calculationSnapshots.dealId),
+        ),
+      )
+      .where(eq(calculations.id, calculationId))
+      .limit(1);
+
+    if (!row || row.state !== "accepted") {
+      return null;
+    }
+
+    return {
+      acceptedAt: row.snapshotCreatedAt,
+      calculationId: row.calculationId,
+      calculationTimestamp: row.calculationTimestamp,
+      pricingProvenance:
+        (row.pricingProvenance as Record<string, unknown> | null) ?? null,
+      quoteProvenance: {
+        fxQuoteId: row.fxQuoteId,
+        quoteSnapshot:
+          (row.quoteSnapshot as Record<string, unknown> | null) ?? null,
+        sourceQuoteId: row.sourceQuoteId ?? null,
+      },
+      routeVersionId: row.routeVersionId,
+      snapshotId: row.snapshotId,
+      state: row.state,
+    };
   }
 
   private async assessFundingResolution(input: {
-    acceptedQuote: DealQuoteAcceptance | null;
-    intake: DealIntakeDraft;
+    acceptedCalculation: DealAcceptedCalculation | null;
+    header: DealHeader;
     participants: DealWorkflowParticipant[];
   }): Promise<DealFundingResolution> {
-    const hasConvertLeg = dealIntakeHasConvertLeg(input.intake);
+    const hasConvertLeg = dealHeaderHasConvertLeg(input.header);
 
     if (!this.fundingAssessment) {
       return {
@@ -644,18 +619,21 @@ export class DrizzleDealReads implements DealReads {
         state: hasConvertLeg ? "blocked" : "not_applicable",
         strategy: null,
         targetCurrency: null,
-        targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+        targetCurrencyId: input.header.moneyRequest.targetCurrencyId ?? null,
       };
     }
 
     return this.fundingAssessment.assessFunding({
-      acceptedQuoteId: input.acceptedQuote?.quoteId ?? null,
       hasConvertLeg,
       internalEntityOrganizationId:
         input.participants.find(
           (participant) => participant.role === "internal_entity",
         )?.organizationId ?? null,
-      targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+      pricingQuoteId:
+        input.acceptedCalculation?.quoteProvenance?.sourceQuoteId ??
+        input.acceptedCalculation?.quoteProvenance?.fxQuoteId ??
+        null,
+      targetCurrencyId: input.header.moneyRequest.targetCurrencyId ?? null,
     });
   }
 
@@ -813,7 +791,7 @@ export class DrizzleDealReads implements DealReads {
     const [
       participants,
       timeline,
-      acceptedQuote,
+      acceptedCalculation,
       approvals,
       storedLegs,
       calculationRefs,
@@ -824,7 +802,7 @@ export class DrizzleDealReads implements DealReads {
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
         this.loadTimeline(summary.id),
-        this.loadAcceptedQuote(summary.id, Number(summary.intakeRevision)),
+        this.loadAcceptedCalculation(summary.calculationId),
         this.loadApprovals(summary.id),
         this.loadStoredLegs(summary.id),
         this.loadCalculationRefs(summary.id),
@@ -833,18 +811,18 @@ export class DrizzleDealReads implements DealReads {
         this.loadAttachmentIngestions(summary.id),
       ]);
     const fundingResolution = await this.assessFundingResolution({
-      acceptedQuote,
-      intake: summary.snapshot,
+      acceptedCalculation,
+      header: summary.header,
       participants,
     });
 
-    const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
+    const sectionCompleteness = evaluateDealSectionCompleteness(summary.header);
     const now = new Date();
     const executionPlan = buildEffectiveDealExecutionPlan({
-      acceptance: acceptedQuote,
+      acceptedCalculation,
       documents: formalDocuments,
       fundingResolution,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       storedLegs,
     });
@@ -855,41 +833,39 @@ export class DrizzleDealReads implements DealReads {
       calculationId: summary.calculationId,
       calculationLines: calculationOperationalLines,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       sectionCompleteness,
       status: summary.status,
       updatedAt: summary.updatedAt,
     });
     const transitionReadiness = listDealTransitionReadiness({
-      acceptance: acceptedQuote,
       approvals,
       calculationId: summary.calculationId,
       completeness: sectionCompleteness,
       documents: formalDocuments,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       operationalState,
       participants,
       status: summary.status,
     });
     const nextAction = deriveDealNextAction({
-      acceptance: acceptedQuote,
       calculationId: summary.calculationId,
       completeness: sectionCompleteness,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       status: summary.status,
       transitionReadiness,
     });
 
     return {
-      acceptedQuote,
+      acceptedCalculation,
       attachmentIngestions,
       executionPlan,
       fundingResolution,
-      intake: summary.snapshot,
+      header: summary.header,
       nextAction,
       operationalState,
       participants,
@@ -907,7 +883,7 @@ export class DrizzleDealReads implements DealReads {
           status: row.status,
         })),
       },
-      revision: Number(summary.intakeRevision),
+      revision: Number(summary.headerRevision),
       sectionCompleteness,
       summary: {
         agreementId: summary.agreementId,
@@ -1502,17 +1478,17 @@ export class DrizzleDealReads implements DealReads {
 
     return {
       calculationSummary,
-      customerSafeIntake: {
-        contractNumber: workflow.intake.incomingReceipt.contractNumber,
-        customerNote: workflow.intake.common.customerNote,
-        expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
-        expectedCurrencyId: workflow.intake.incomingReceipt.expectedCurrencyId,
-        invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
-        purpose: workflow.intake.moneyRequest.purpose,
-        requestedExecutionDate: workflow.intake.common.requestedExecutionDate,
-        sourceAmount: workflow.intake.moneyRequest.sourceAmount,
-        sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
-        targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId,
+      customerSafeHeader: {
+        contractNumber: workflow.header.incomingReceipt.contractNumber,
+        customerNote: workflow.header.common.customerNote,
+        expectedAmount: workflow.header.incomingReceipt.expectedAmount,
+        expectedCurrencyId: workflow.header.incomingReceipt.expectedCurrencyId,
+        invoiceNumber: workflow.header.incomingReceipt.invoiceNumber,
+        purpose: workflow.header.moneyRequest.purpose,
+        requestedExecutionDate: workflow.header.common.requestedExecutionDate,
+        sourceAmount: workflow.header.moneyRequest.sourceAmount,
+        sourceCurrencyId: workflow.header.moneyRequest.sourceCurrencyId,
+        targetCurrencyId: workflow.header.moneyRequest.targetCurrencyId,
       },
       nextAction: workflow.nextAction,
       summary: {
@@ -1588,8 +1564,8 @@ export class DrizzleDealReads implements DealReads {
       customerId:
         workflow.participants.find((participant) => participant.role === "customer")
           ?.customerId ?? "",
+      header: workflow.header,
       id: summary.id,
-      intake: workflow.intake,
       nextAction: workflow.nextAction,
       revision: workflow.revision,
       status: summary.status,
@@ -1697,10 +1673,10 @@ export class DrizzleDealReads implements DealReads {
           comment: DEAL_COMMENT_SQL,
           createdAt: deals.createdAt,
           customerId: deals.customerId,
+          header: deals.headerSnapshot,
+          headerRevision: deals.headerRevision,
           id: deals.id,
-          intakeRevision: dealIntakeSnapshots.revision,
           nextAction: deals.nextAction,
-          snapshot: dealIntakeSnapshots.snapshot,
           sourceAmountMinor: deals.sourceAmountMinor,
           sourceCurrencyId: deals.sourceCurrencyId,
           status: deals.status,
@@ -1709,7 +1685,6 @@ export class DrizzleDealReads implements DealReads {
           updatedAt: deals.updatedAt,
         })
         .from(deals)
-        .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
@@ -1731,7 +1706,7 @@ export class DrizzleDealReads implements DealReads {
         const precision = row.sourceCurrencyId
           ? extraCurrenciesById.get(row.sourceCurrencyId)?.precision ?? null
           : null;
-        const primaryAmountFields = getPrimaryDealAmountFields(row.snapshot);
+        const primaryAmountFields = getPrimaryDealAmountFields(row.header);
         const amount =
           row.type !== "payment" &&
           row.sourceAmountMinor != null &&
@@ -1745,10 +1720,10 @@ export class DrizzleDealReads implements DealReads {
           comment: row.comment,
           createdAt: row.createdAt,
           customerId: row.customerId,
+          header: row.header,
           id: row.id,
-          intake: row.snapshot,
           nextAction: row.nextAction,
-          revision: Number(row.intakeRevision),
+          revision: Number(row.headerRevision),
           status: row.status,
           type: row.type,
           updatedAt: row.updatedAt,

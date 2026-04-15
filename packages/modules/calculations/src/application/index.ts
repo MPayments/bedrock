@@ -3,6 +3,7 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { ArchiveCalculationCommand } from "./commands/archive-calculation";
 import { CreateCalculationCommand } from "./commands/create-calculation";
+import { UpdateCalculationStateCommand } from "./commands/update-calculation-state";
 import type { CalculationReads } from "./ports/calculation.reads";
 import type { CalculationsCommandUnitOfWork } from "./ports/calculations.uow";
 import type { CalculationReferencesPort } from "./ports/references.port";
@@ -29,6 +30,9 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
+  const updateCalculationState = new UpdateCalculationStateCommand(
+    deps.commandUow,
+  );
   const compareCalculations = new CompareCalculationsQuery(deps.reads);
   const findCalculationById = new FindCalculationByIdQuery(deps.reads);
   const listCalculations = new ListCalculationsQuery(deps.reads);
@@ -37,6 +41,7 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
     commands: {
       archive: archiveCalculation.execute.bind(archiveCalculation),
       create: createCalculation.execute.bind(createCalculation),
+      updateState: updateCalculationState.execute.bind(updateCalculationState),
     },
     queries: {
       compare: compareCalculations.execute.bind(compareCalculations),

@@ -18,7 +18,7 @@ import {
   DealSectionCompletenessSchema,
   DealOperationalStateSchema,
   PortalDealCalculationSummarySchema,
-  PortalDealIntakeSummarySchema,
+  PortalDealHeaderSummarySchema,
 } from "@bedrock/deals/contracts";
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import {
@@ -86,7 +86,7 @@ export type PortalDealAttachment = z.infer<typeof PortalDealAttachmentSchema>;
 export const PortalDealProjectionSchema = z.object({
   attachments: z.array(PortalDealAttachmentSchema),
   calculationSummary: PortalDealCalculationSummarySchema,
-  customerSafeIntake: PortalDealIntakeSummarySchema,
+  customerSafeHeader: PortalDealHeaderSummarySchema,
   nextAction: z.string(),
   quoteSummary: PortalDealQuoteSummarySchema,
   requiredActions: z.array(z.string()),
@@ -147,12 +147,11 @@ export const DealPricingSummarySchema = z.object({
 export type DealPricingSummary = z.infer<typeof DealPricingSummarySchema>;
 
 export const CrmDealWorkbenchActionsSchema = z.object({
-  canAcceptQuote: z.boolean(),
   canChangeAgreement: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateFormalDocument: z.boolean(),
   canCreateQuote: z.boolean(),
-  canEditIntake: z.boolean(),
+  canEditHeader: z.boolean(),
   canReassignAssignee: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
@@ -164,7 +163,7 @@ export type CrmDealWorkbenchActions = z.infer<
 export const CrmDealWorkbenchEditabilitySchema = z.object({
   agreement: z.boolean(),
   assignee: z.boolean(),
-  intake: z.boolean(),
+  header: z.boolean(),
 });
 
 export type CrmDealWorkbenchEditability = z.infer<
@@ -241,7 +240,7 @@ export type CrmDealDocumentRequirement = z.infer<
 >;
 
 export const CrmDealWorkbenchProjectionSchema = z.object({
-  acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
+  acceptedCalculation: DealWorkflowProjectionSchema.shape.acceptedCalculation,
   actions: CrmDealWorkbenchActionsSchema,
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
@@ -260,7 +259,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   editability: CrmDealWorkbenchEditabilitySchema,
   evidenceRequirements: z.array(CrmDealEvidenceRequirementSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
-  intake: DealWorkflowProjectionSchema.shape.intake,
+  header: DealWorkflowProjectionSchema.shape.header,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   participants: z.array(DealWorkflowParticipantSchema),
@@ -861,8 +860,7 @@ export type FinanceDealPricingContext = z.infer<
 >;
 
 export const FinanceDealWorkspaceProjectionSchema = z.object({
-  acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
-  acceptedQuoteDetails: QuoteListItemSchema.nullable(),
+  acceptedCalculation: DealWorkflowProjectionSchema.shape.acceptedCalculation,
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   closeReadiness: FinanceDealCloseReadinessSchema,
@@ -871,6 +869,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     FinanceDealFormalDocumentRequirementSchema,
   ),
   instructionSummary: FinanceDealInstructionSummarySchema,
+  header: DealWorkflowProjectionSchema.shape.header,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   pricing: FinanceDealPricingContextSchema,

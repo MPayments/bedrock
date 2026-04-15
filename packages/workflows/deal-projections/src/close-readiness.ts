@@ -26,6 +26,7 @@ const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
   currency_exchange: null,
   currency_transit: "acceptance",
   exporter_settlement: "acceptance",
+  internal_treasury: null,
   payment: "acceptance",
 };
 
@@ -498,7 +499,7 @@ export function deriveFinanceDealReadiness(input: {
   reconciliationSummary: FinanceDealReconciliationSummary;
 } {
   const readiness = input.workflow.transitionReadiness.find(
-    (item) => item.targetStatus === "done",
+    (item) => item.targetStatus === "closed",
   );
   const existingBlockers = readiness?.allowed === false
     ? readiness.blockers.map((blocker) => blocker.message)
@@ -531,7 +532,7 @@ export function deriveFinanceDealReadiness(input: {
   const blockers = [...existingBlockers];
 
   if (
-    input.workflow.summary.status === "done" ||
+    input.workflow.summary.status === "closed" ||
     input.workflow.summary.status === "cancelled"
   ) {
     addUniqueBlocker(blockers, "Сделка уже находится в конечном статусе");

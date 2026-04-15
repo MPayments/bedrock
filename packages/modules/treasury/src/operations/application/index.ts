@@ -1,17 +1,25 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { RecordTreasuryCashMovementCommand } from "./commands/record-cash-movement";
+import { RecordTreasuryExecutionFeeCommand } from "./commands/record-execution-fee";
+import { RecordTreasuryExecutionFillCommand } from "./commands/record-execution-fill";
 import { CreateOrGetPlannedTreasuryOperationCommand } from "./commands/create-or-get-planned-operation";
-import { RecordTreasuryOperationFactCommand } from "./commands/record-operation-fact";
 import type {
-  TreasuryOperationFactsRepository,
+  TreasuryCashMovementsRepository,
+  TreasuryExecutionFeesRepository,
+  TreasuryExecutionFillsRepository,
   TreasuryOperationsRepository,
 } from "./ports/operations.repository";
 import { GetTreasuryOperationByIdQuery } from "./queries/get-operation-by-id";
-import { ListTreasuryOperationFactsQuery } from "./queries/list-operation-facts";
+import { ListTreasuryCashMovementsQuery } from "./queries/list-cash-movements";
+import { ListTreasuryExecutionFeesQuery } from "./queries/list-execution-fees";
+import { ListTreasuryExecutionFillsQuery } from "./queries/list-execution-fills";
 import { ListTreasuryOperationsQuery } from "./queries/list-operations";
 
 export interface TreasuryOperationsServiceDeps {
-  factsRepository: TreasuryOperationFactsRepository;
+  cashMovementsRepository: TreasuryCashMovementsRepository;
+  executionFeesRepository: TreasuryExecutionFeesRepository;
+  executionFillsRepository: TreasuryExecutionFillsRepository;
   operationsRepository: TreasuryOperationsRepository;
   runtime: ModuleRuntime;
 }
@@ -21,8 +29,20 @@ export function createTreasuryOperationsService(
 ) {
   const createOrGetPlannedOperation =
     new CreateOrGetPlannedTreasuryOperationCommand(deps.operationsRepository);
-  const recordOperationFact = new RecordTreasuryOperationFactCommand(
-    deps.factsRepository,
+  const recordExecutionFill = new RecordTreasuryExecutionFillCommand(
+    deps.executionFillsRepository,
+    deps.operationsRepository,
+    deps.runtime.generateUuid,
+    deps.runtime.now,
+  );
+  const recordExecutionFee = new RecordTreasuryExecutionFeeCommand(
+    deps.executionFeesRepository,
+    deps.operationsRepository,
+    deps.runtime.generateUuid,
+    deps.runtime.now,
+  );
+  const recordCashMovement = new RecordTreasuryCashMovementCommand(
+    deps.cashMovementsRepository,
     deps.operationsRepository,
     deps.runtime.generateUuid,
     deps.runtime.now,
@@ -33,20 +53,35 @@ export function createTreasuryOperationsService(
   const listOperations = new ListTreasuryOperationsQuery(
     deps.operationsRepository,
   );
-  const listOperationFacts = new ListTreasuryOperationFactsQuery(
-    deps.factsRepository,
+  const listExecutionFills = new ListTreasuryExecutionFillsQuery(
+    deps.executionFillsRepository,
+  );
+  const listExecutionFees = new ListTreasuryExecutionFeesQuery(
+    deps.executionFeesRepository,
+  );
+  const listCashMovements = new ListTreasuryCashMovementsQuery(
+    deps.cashMovementsRepository,
   );
 
   return {
     commands: {
       createOrGetPlanned:
         createOrGetPlannedOperation.execute.bind(createOrGetPlannedOperation),
-      recordActualFact:
-        recordOperationFact.execute.bind(recordOperationFact),
+      recordCashMovement:
+        recordCashMovement.execute.bind(recordCashMovement),
+      recordExecutionFee:
+        recordExecutionFee.execute.bind(recordExecutionFee),
+      recordExecutionFill:
+        recordExecutionFill.execute.bind(recordExecutionFill),
     },
     queries: {
+      listCashMovements:
+        listCashMovements.execute.bind(listCashMovements),
+      listExecutionFees:
+        listExecutionFees.execute.bind(listExecutionFees),
+      listExecutionFills:
+        listExecutionFills.execute.bind(listExecutionFills),
       findById: getOperationById.execute.bind(getOperationById),
-      listFacts: listOperationFacts.execute.bind(listOperationFacts),
       list: listOperations.execute.bind(listOperations),
     },
   };

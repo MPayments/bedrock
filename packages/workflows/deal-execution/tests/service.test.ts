@@ -11,7 +11,7 @@ import {
 type ExecutionRecipeRoute = Parameters<typeof compileRouteExecutionRecipe>[0]["route"];
 
 function createWorkflowProjection(input?: {
-  acceptedQuoteId?: string | null;
+  sourceQuoteId?: string | null;
   formalDocuments?: {
     approvalStatus: string | null;
     createdAt: Date;
@@ -88,21 +88,20 @@ function createWorkflowProjection(input?: {
             ];
 
   return {
-    acceptedQuote: input?.acceptedQuoteId
+    acceptedCalculation: input?.sourceQuoteId
       ? {
           acceptedAt: new Date("2026-04-03T10:00:00.000Z"),
-          acceptedByUserId: "user-1",
-          agreementVersionId: null,
-          dealId: "deal-1",
-          dealRevision: 1,
-          expiresAt: new Date("2099-04-03T12:00:00.000Z"),
-          id: "acceptance-1",
-          quoteId: input.acceptedQuoteId,
-          quoteStatus: "active",
-          replacedByQuoteId: null,
-          revokedAt: null,
-          usedAt: null,
-          usedDocumentId: null,
+          calculationId: "calc-1",
+          calculationTimestamp: new Date("2026-04-03T10:00:00.000Z"),
+          pricingProvenance: null,
+          quoteProvenance: {
+            fxQuoteId: input.sourceQuoteId,
+            quoteSnapshot: null,
+            sourceQuoteId: input.sourceQuoteId,
+          },
+          routeVersionId: null,
+          snapshotId: "calc-snapshot-1",
+          state: "accepted",
         }
       : null,
     attachmentIngestions: [],
@@ -133,7 +132,7 @@ function createWorkflowProjection(input?: {
           targetCurrency: null,
           targetCurrencyId: null,
         },
-    intake: {
+    header: {
       common: {
         applicantCounterpartyId: "counterparty-1",
         customerNote: null,
@@ -199,10 +198,10 @@ function createWorkflowProjection(input?: {
     summary: {
       agreementId: "agreement-1",
       agentId: null,
-      calculationId: null,
+      calculationId: input?.sourceQuoteId ? "calc-1" : null,
       createdAt: new Date("2026-04-03T09:00:00.000Z"),
       id: "deal-1",
-      status: input?.status ?? "submitted",
+      status: input?.status ?? "approved_for_execution",
       type,
       updatedAt: new Date("2026-04-03T09:00:00.000Z"),
     },
@@ -218,41 +217,28 @@ function createWorkflowProjection(input?: {
               },
             ]
           : [],
-        targetStatus: "awaiting_funds",
+        targetStatus: "approved_for_execution",
       },
     ],
   } as any;
 }
 
-function createAcceptedQuoteDetails() {
+function createCurrentCalculationRecord(input?: {
+  fxQuoteId?: string | null;
+  routeSnapshot?: unknown;
+  state?: string;
+}) {
   return {
-    feeComponents: [],
-    financialLines: [],
-    legs: [],
-    pricingTrace: {},
-    quote: {
-      createdAt: new Date("2026-04-03T10:00:00.000Z"),
-      dealDirection: null,
-      dealForm: null,
-      dealId: "deal-1",
-      expiresAt: new Date("2099-04-03T12:00:00.000Z"),
-      fromAmountMinor: 10000n,
-      fromCurrency: "USD",
-      fromCurrencyId: "cur-usd",
-      id: "quote-1",
-      idempotencyKey: "quote-1",
-      pricingMode: "auto_cross",
-      pricingTrace: {},
-      rateDen: 100n,
-      rateNum: 90n,
-      status: "active",
-      toAmountMinor: 9000n,
-      toCurrency: "EUR",
-      toCurrencyId: "cur-eur",
-      usedAt: null,
-      usedByRef: null,
-      usedDocumentId: null,
+    currentSnapshot: {
+      baseCurrencyId: "cur-eur",
+      calculationCurrencyId: "cur-usd",
+      fxQuoteId: input?.fxQuoteId ?? "quote-1",
+      originalAmountMinor: "10000",
+      routeSnapshot: input?.routeSnapshot ?? null,
+      state: input?.state ?? "accepted",
+      totalInBaseMinor: "9000",
     },
+    id: "calc-1",
   } as any;
 }
 
@@ -382,7 +368,7 @@ function createCloseDealHarness(input?: {
         [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
         [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:payout:1" }],
       ],
-      status: "closing_documents",
+      status: "reconciling",
       type: "payment",
       withConvert: false,
       }),
@@ -393,7 +379,7 @@ function createCloseDealHarness(input?: {
             [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
             [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:payout:1" }],
           ],
-          status: "closing_documents",
+          status: "reconciling",
           type: "payment",
           withConvert: false,
         }).summary,
@@ -404,7 +390,7 @@ function createCloseDealHarness(input?: {
     ...workflow,
     summary: {
       ...workflow.summary,
-      status: "done",
+      status: "closed",
     },
   }));
   const createDealTimelineEvents = vi.fn(async () => undefined);
@@ -464,34 +450,50 @@ function createCloseDealHarness(input?: {
           createOrGetPlanned: vi.fn(),
         },
         queries: {
-          listFacts: vi.fn(async () => ({
+          listCashMovements: vi.fn(async () => ({
             data:
               input?.operationFacts?.map((fact, index) => ({
-                amountMinor: null,
+                accountRef: null,
+                amountMinor: "1",
+                bookedAt: new Date("2026-04-03T10:00:00.000Z"),
+                calculationSnapshotId: null,
                 confirmedAt: null,
-                counterAmountMinor: null,
-                counterCurrencyId: null,
                 createdAt: new Date("2026-04-03T10:00:00.000Z"),
-                currencyId: null,
+                currencyId: "cur-usd",
                 dealId: "deal-1",
+                direction: "debit",
                 externalRecordId: null,
-                feeAmountMinor: null,
-                feeCurrencyId: null,
-                id: `fact-${index + 1}`,
+                id: `cash-${index + 1}`,
                 instructionId: null,
                 metadata: null,
                 notes: null,
                 operationId: fact.operationId,
+                providerCounterpartyId: null,
                 providerRef: null,
-                recordedAt: new Date("2026-04-03T10:00:00.000Z"),
+                requisiteId: null,
                 routeLegId: null,
+                routeVersionId: null,
                 sourceKind: "provider",
-                sourceRef: `fact:${index + 1}`,
+                sourceRef: `cash:${index + 1}`,
+                statementRef: null,
                 updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+                valueDate: null,
               })) ?? [],
             limit: 1000,
             offset: 0,
             total: input?.operationFacts?.length ?? 0,
+          })),
+          listExecutionFees: vi.fn(async () => ({
+            data: [],
+            limit: 1000,
+            offset: 0,
+            total: 0,
+          })),
+          listExecutionFills: vi.fn(async () => ({
+            data: [],
+            limit: 1000,
+            offset: 0,
+            total: 0,
           })),
         },
       },
@@ -519,8 +521,8 @@ describe("deal execution workflow", () => {
 
     expect(
       compileDealExecutionRecipe({
-        acceptedQuote: null,
         agreementOrganizationId: "org-1",
+        currentCalculation: null,
         internalEntityOrganizationId: "org-1",
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
@@ -532,15 +534,15 @@ describe("deal execution workflow", () => {
 
   it("compiles currency_exchange into payin, fx conversion, and payout refs", () => {
     const workflow = createWorkflowProjection({
-      acceptedQuoteId: "quote-1",
+      sourceQuoteId: "quote-1",
       type: "currency_exchange",
       withConvert: true,
     });
 
     expect(
       compileDealExecutionRecipe({
-        acceptedQuote: createAcceptedQuoteDetails(),
         agreementOrganizationId: "org-1",
+        currentCalculation: createCurrentCalculationRecord(),
         internalEntityOrganizationId: "org-1",
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
@@ -553,15 +555,15 @@ describe("deal execution workflow", () => {
 
   it("compiles currency_transit into transfer funding on the transit leg", () => {
     const workflow = createWorkflowProjection({
-      acceptedQuoteId: "quote-1",
+      sourceQuoteId: "quote-1",
       type: "currency_transit",
       withConvert: true,
     });
 
     expect(
       compileDealExecutionRecipe({
-        acceptedQuote: createAcceptedQuoteDetails(),
         agreementOrganizationId: "org-1",
+        currentCalculation: createCurrentCalculationRecord(),
         internalEntityOrganizationId: "org-1",
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
@@ -579,15 +581,15 @@ describe("deal execution workflow", () => {
 
   it("compiles exporter settlement into payout, payin, fx conversion, and funding using the same organization rule", () => {
     const workflow = createWorkflowProjection({
-      acceptedQuoteId: "quote-1",
+      sourceQuoteId: "quote-1",
       type: "exporter_settlement",
       withConvert: true,
     });
 
     expect(
       compileDealExecutionRecipe({
-        acceptedQuote: createAcceptedQuoteDetails(),
         agreementOrganizationId: "org-external",
+        currentCalculation: createCurrentCalculationRecord(),
         internalEntityOrganizationId: "org-1",
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
@@ -614,7 +616,7 @@ describe("deal execution workflow", () => {
 
     expect(
       compileRouteExecutionRecipe({
-        acceptedQuote: null,
+        currentCalculation: null,
         route,
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.legId, item.sourceRef]),
@@ -632,12 +634,12 @@ describe("deal execution workflow", () => {
 
   it("does not duplicate operation materialization on repeated execution requests", async () => {
     const initialWorkflow = createWorkflowProjection({
-      acceptedQuoteId: "quote-1",
+      sourceQuoteId: "quote-1",
       type: "currency_exchange",
       withConvert: true,
     });
     const materializedWorkflow = createWorkflowProjection({
-      acceptedQuoteId: "quote-1",
+      sourceQuoteId: "quote-1",
       type: "currency_exchange",
       withConvert: true,
       operationRefs: [
@@ -645,7 +647,7 @@ describe("deal execution workflow", () => {
         [{ kind: "fx_conversion", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:fx_conversion:1" }],
         [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:leg:3:payout:1" }],
       ],
-      status: "awaiting_funds",
+      status: "approved_for_execution",
     });
     const findWorkflowById = vi
       .fn()
@@ -664,6 +666,13 @@ describe("deal execution workflow", () => {
         agreements: {
           queries: {
             findById: vi.fn(async () => ({ id: "agreement-1", organizationId: "org-1" })),
+          },
+        },
+      } as any,
+      calculations: {
+        calculations: {
+          queries: {
+            findById: vi.fn(async () => createCurrentCalculationRecord()),
           },
         },
       } as any,
@@ -705,7 +714,7 @@ describe("deal execution workflow", () => {
         },
         quotes: {
           queries: {
-            getQuoteDetails: vi.fn(async () => createAcceptedQuoteDetails()),
+            getQuoteDetails: vi.fn(async () => null),
           },
         },
       } as any),
@@ -774,7 +783,7 @@ describe("deal execution workflow", () => {
           },
         ],
       ],
-      status: "awaiting_funds",
+      status: "approved_for_execution",
     });
     const acceptedRouteSnapshot = createExecutionRouteSnapshot({
       withInternalTransfer: true,
@@ -1074,19 +1083,19 @@ describe("deal execution workflow", () => {
       idempotencyKey: "close-3",
     });
 
-    expect(result.summary.status).toBe("done");
+    expect(result.summary.status).toBe("closed");
     expect(harness.transitionStatus).toHaveBeenCalledWith({
       actorUserId: "user-1",
       comment: "Close ready deal",
       dealId: "deal-1",
-      status: "done",
+      status: "closed",
     });
     expect(harness.createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 
   it("resolves blocked legs through updateLegState without emitting a separate blocker event", async () => {
     const blockedWorkflow = createWorkflowProjection({
-      status: "awaiting_payment",
+      status: "executing",
       type: "payment",
       withConvert: false,
     });
@@ -1191,12 +1200,14 @@ describe("deal execution workflow", () => {
         ],
         [],
       ],
-      status: "awaiting_payment",
+      status: "executing",
       type: "payment",
       withConvert: false,
     });
     const ingestExternalRecord = vi.fn(async () => undefined);
-    const recordActualFact = vi.fn(async () => undefined);
+    const recordCashMovement = vi.fn(async () => undefined);
+    const recordExecutionFee = vi.fn(async () => undefined);
+    const recordExecutionFill = vi.fn(async () => undefined);
     const createDealTimelineEvents = vi.fn(async () => undefined);
 
     const workflow = createDealExecutionWorkflow({
@@ -1285,7 +1296,9 @@ describe("deal execution workflow", () => {
         },
         operations: {
           commands: {
-            recordActualFact,
+            recordCashMovement,
+            recordExecutionFee,
+            recordExecutionFill,
           },
           queries: {
             findById: vi.fn(async () => ({
@@ -1315,15 +1328,16 @@ describe("deal execution workflow", () => {
       providerSnapshot: { providerStatus: "settled" },
     });
 
-    expect(recordActualFact).toHaveBeenCalledWith({
+    expect(recordExecutionFill).not.toHaveBeenCalled();
+    expect(recordCashMovement).toHaveBeenCalledWith({
+      accountRef: null,
       amountMinor: 9950n,
+      bookedAt: new Date("2026-04-03T10:05:00.000Z"),
+      calculationSnapshotId: null,
       confirmedAt: new Date("2026-04-03T10:05:00.000Z"),
-      counterAmountMinor: null,
-      counterCurrencyId: null,
       currencyId: "cur-usd",
+      direction: "debit",
       externalRecordId: "statement-1",
-      feeAmountMinor: 50n,
-      feeCurrencyId: "cur-usd",
       instructionId: "instruction-1",
       metadata: {
         instructionState: "settled",
@@ -1336,11 +1350,45 @@ describe("deal execution workflow", () => {
       },
       notes: "Instruction outcome: settled",
       operationId: "op-1",
+      providerCounterpartyId: null,
       providerRef: "provider-ref-1",
-      recordedAt: new Date("2026-04-03T10:05:00.000Z"),
+      requisiteId: null,
       routeLegId: "route-leg-1",
+      routeVersionId: null,
       sourceKind: "provider",
-      sourceRef: "treasury-instruction-outcome:instruction-1:settled",
+      sourceRef: "treasury-instruction-outcome:instruction-1:settled:cash",
+      statementRef: null,
+      valueDate: new Date("2026-04-03T10:05:00.000Z"),
+    });
+    expect(recordExecutionFee).toHaveBeenCalledWith({
+      amountMinor: 50n,
+      calculationSnapshotId: null,
+      chargedAt: new Date("2026-04-03T10:05:00.000Z"),
+      componentCode: null,
+      confirmedAt: new Date("2026-04-03T10:05:00.000Z"),
+      currencyId: "cur-usd",
+      externalRecordId: "statement-1",
+      feeFamily: "provider_fee",
+      fillId: null,
+      instructionId: "instruction-1",
+      metadata: {
+        instructionState: "settled",
+        providerSnapshot: {
+          amountMinor: "9950",
+          externalRecordId: "statement-1",
+          feeAmountMinor: "50",
+          providerStatus: "settled",
+        },
+      },
+      notes: "Instruction outcome: settled",
+      operationId: "op-1",
+      providerCounterpartyId: null,
+      providerRef: "provider-ref-1",
+      routeComponentId: null,
+      routeLegId: "route-leg-1",
+      routeVersionId: null,
+      sourceKind: "provider",
+      sourceRef: "treasury-instruction-outcome:instruction-1:settled:fee",
     });
     expect(ingestExternalRecord).toHaveBeenCalledWith({
       actorUserId: "user-1",

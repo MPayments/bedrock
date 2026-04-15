@@ -9,4 +9,4 @@ It does not describe the current supported runtime after the route-composer cuto
 - Calculations still persisted their own snapshot and line model even when the source rate came from a treasury FX quote. That split was intentionally preserved and characterized before the later route-based pricing work.
 - Non-payment deal planning already existed in the write model, but Phase 0 only documented behavior; it did not tighten business enforcement.
 
-For the current release gate and acceptance suite, use `/Users/alexey.eramasov/dev/ledger/docs/cutover/route-composer-release-gate.md`.
+For the current release gate and acceptance suite, use `docs/cutover/route-composer-release-gate.md`.

@@ -26,3 +26,11 @@ export const TreasuryOperationFactSourceKindSchema = z.enum(
 export type TreasuryOperationFactSourceKind = z.infer<
   typeof TreasuryOperationFactSourceKindSchema
 >;
+
+export const TreasuryCashMovementDirectionSchema = z.enum([
+  "credit",
+  "debit",
+]);
+export type TreasuryCashMovementDirection = z.infer<
+  typeof TreasuryCashMovementDirectionSchema
+>;

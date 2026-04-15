@@ -32,7 +32,6 @@ import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-ac
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
-import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
 const EnvSchema = z.object({
@@ -118,7 +117,6 @@ export interface AppContext {
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
-  dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -159,7 +157,6 @@ export function createAppContext(env: Env): AppContext {
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
-    dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     reconciliationAdjustmentsWorkflow:
       applicationServices.reconciliationAdjustmentsWorkflow,

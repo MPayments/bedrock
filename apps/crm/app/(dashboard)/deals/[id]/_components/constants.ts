@@ -9,33 +9,46 @@ import type {
 } from "./types";
 
 export const STATUS_LABELS: Record<DealStatus, string> = {
-  awaiting_funds: "Ожидание средств",
-  awaiting_payment: "Ожидание оплаты",
+  approved_for_execution: "Одобрена к исполнению",
+  awaiting_customer_approval: "Ожидание одобрения клиента",
+  awaiting_internal_approval: "Ожидание внутреннего одобрения",
   cancelled: "Отменена",
-  closing_documents: "Закрывающие документы",
-  done: "Завершена",
+  closed: "Закрыта",
   draft: "Черновик",
-  preparing_documents: "Подготовка документов",
+  executed: "Исполнена",
+  executing: "В исполнении",
+  expired: "Истекла",
+  failed: "Ошибка",
+  partially_executed: "Частично исполнена",
+  pricing: "Маршрут и расчет",
+  quoted: "Расчет предложен",
   rejected: "Отклонена",
-  submitted: "Отправлена",
+  reconciling: "Сверка",
 };
 
 export const STATUS_COLORS: Record<DealStatus, string> = {
-  awaiting_funds: "bg-orange-100 text-orange-800",
-  awaiting_payment: "bg-yellow-100 text-yellow-800",
+  approved_for_execution: "bg-emerald-100 text-emerald-800",
+  awaiting_customer_approval: "bg-amber-100 text-amber-800",
+  awaiting_internal_approval: "bg-amber-100 text-amber-800",
   cancelled: "bg-red-100 text-red-800",
-  closing_documents: "bg-cyan-100 text-cyan-800",
-  done: "bg-emerald-100 text-emerald-800",
+  closed: "bg-emerald-100 text-emerald-800",
   draft: "bg-slate-100 text-slate-800",
-  preparing_documents: "bg-amber-100 text-amber-800",
+  executed: "bg-emerald-100 text-emerald-800",
+  executing: "bg-blue-100 text-blue-800",
+  expired: "bg-zinc-100 text-zinc-700",
+  failed: "bg-rose-100 text-rose-800",
+  partially_executed: "bg-blue-100 text-blue-800",
+  pricing: "bg-indigo-100 text-indigo-800",
+  quoted: "bg-sky-100 text-sky-800",
   rejected: "bg-rose-100 text-rose-800",
-  submitted: "bg-sky-100 text-sky-800",
+  reconciling: "bg-cyan-100 text-cyan-800",
 };
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   currency_exchange: "Обмен валюты",
   currency_transit: "Валютный транзит",
   exporter_settlement: "Расчеты с экспортером",
+  internal_treasury: "Внутреннее казначейство",
   payment: "Платеж поставщику",
 };
 
@@ -139,14 +152,19 @@ export const DEAL_SECTION_LABELS: Record<string, string> = {
 };
 
 const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
-  "Accept quote": "Принять котировку",
-  "Complete intake": "Заполнить анкету",
+  "Accept calculation": "Принять расчет",
+  "Collect customer approval": "Получить одобрение клиента",
+  "Collect internal approval": "Получить внутреннее одобрение",
+  "Complete deal header": "Заполнить заголовок сделки",
+  "Compose route": "Собрать маршрут",
   "Continue processing": "Продолжить обработку",
-  "Create calculation from accepted quote":
-    "Создать расчет по принятой котировке",
+  "Create calculation from route": "Создать расчет по маршруту",
   "No action": "Действий не требуется",
   "Prepare closing documents": "Подготовить закрывающие документы",
   "Prepare documents": "Подготовить документы",
+  "Reconcile and close": "Сверить и закрыть сделку",
+  "Record execution actuals": "Занести фактическое исполнение",
+  "Request execution": "Передать в исполнение",
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
@@ -154,10 +172,8 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {
-  "A calculation derived from the accepted quote is required":
-    "Нужно создать расчет по принятой котировке.",
-  "An accepted quote is required for convert deals":
-    "Для сделки с конвертацией нужна принятая котировка.",
+  "A route-based calculation is required":
+    "Нужно создать расчет по маршруту.",
   "Applicant requisite is required": "Выберите реквизиты контрагента.",
   "Beneficiary bank instructions are required":
     "Заполните банковские реквизиты получателя.",
@@ -171,12 +187,11 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
   "Invoice number is required": "Укажите номер инвойса.",
   "Manual settlement bank instructions are required":
     "Заполните банковские реквизиты для зачисления средств.",
-  "Required intake sections are incomplete": "Анкета заполнена не полностью.",
+  "Required deal header sections are incomplete":
+    "Заголовок сделки заполнен не полностью.",
   "Settlement mode is required": "Укажите, куда зачислить средства.",
   "Source amount is required": "Укажите сумму сделки.",
   "Source currency is required": "Укажите валюту сделки.",
-  "The accepted quote is no longer executable":
-    "Принятая котировка больше не действует.",
 };
 
 export const DEAL_TIMELINE_EVENT_LABELS: Record<
@@ -187,13 +202,18 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<
   attachment_ingested: "Файл распознан",
   attachment_ingestion_failed: "Ошибка распознавания файла",
   attachment_uploaded: "Вложение загружено",
+  calculation_accepted: "Расчет принят",
   calculation_attached: "Расчет привязан",
+  calculation_created: "Расчет создан",
+  calculation_superseded: "Расчет заменен",
   deal_created: "Сделка создана",
+  deal_approved: "Сделка одобрена",
   deal_closed: "Сделка закрыта",
+  deal_header_updated: "Заголовок сделки обновлен",
+  deal_rejected: "Сделка отклонена",
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
   execution_requested: "Запущено исполнение сделки",
-  intake_saved: "Анкета сохранена",
   instruction_failed: "Инструкция завершилась ошибкой",
   instruction_prepared: "Инструкция подготовлена",
   instruction_retried: "Инструкция отправлена на повтор",
@@ -204,7 +224,6 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<
   leg_operation_created: "Создана казначейская операция",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
-  quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
   quote_expired: "Котировка истекла",
   quote_used: "Котировка исполнена",
@@ -248,7 +267,7 @@ const WARNING_DEAL_WORKFLOW_MESSAGES = new Set<string>([
   "External payer is required",
   "Invoice number is required",
   "Manual settlement bank instructions are required",
-  "Required intake sections are incomplete",
+  "Required deal header sections are incomplete",
   "Settlement mode is required",
   "Source amount is required",
   "Source currency is required",

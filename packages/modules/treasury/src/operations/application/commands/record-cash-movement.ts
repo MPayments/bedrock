@@ -1,54 +1,58 @@
 import { ValidationError } from "../../../errors";
 import { TreasuryOperationNotFoundError } from "../../../errors";
 import {
-  RecordTreasuryOperationFactInputSchema,
-  type RecordTreasuryOperationFactInput,
+  RecordTreasuryCashMovementInputSchema,
+  type RecordTreasuryCashMovementInput,
 } from "../contracts/commands";
-import type { TreasuryOperationFact } from "../contracts/dto";
+import type { TreasuryCashMovement } from "../contracts/dto";
 import type {
-  TreasuryOperationFactRecord,
-  TreasuryOperationFactsRepository,
+  TreasuryCashMovementRecord,
+  TreasuryCashMovementsRepository,
   TreasuryOperationsRepository,
 } from "../ports/operations.repository";
 
-function mapOperationFact(input: TreasuryOperationFactRecord): TreasuryOperationFact {
+function mapCashMovement(input: TreasuryCashMovementRecord): TreasuryCashMovement {
   return {
+    accountRef: input.accountRef,
     amountMinor: input.amountMinor?.toString() ?? null,
+    bookedAt: input.bookedAt,
+    calculationSnapshotId: input.calculationSnapshotId,
     confirmedAt: input.confirmedAt,
-    counterAmountMinor: input.counterAmountMinor?.toString() ?? null,
-    counterCurrencyId: input.counterCurrencyId,
     createdAt: input.createdAt,
     currencyId: input.currencyId,
     dealId: input.dealId,
+    direction: input.direction,
     externalRecordId: input.externalRecordId,
-    feeAmountMinor: input.feeAmountMinor?.toString() ?? null,
-    feeCurrencyId: input.feeCurrencyId,
     id: input.id,
     instructionId: input.instructionId,
     metadata: input.metadata,
     notes: input.notes,
     operationId: input.operationId,
+    providerCounterpartyId: input.providerCounterpartyId,
     providerRef: input.providerRef,
-    recordedAt: input.recordedAt,
+    requisiteId: input.requisiteId,
     routeLegId: input.routeLegId,
+    routeVersionId: input.routeVersionId,
     sourceKind: input.sourceKind,
     sourceRef: input.sourceRef,
+    statementRef: input.statementRef,
     updatedAt: input.updatedAt,
+    valueDate: input.valueDate,
   };
 }
 
-export class RecordTreasuryOperationFactCommand {
+export class RecordTreasuryCashMovementCommand {
   constructor(
-    private readonly factsRepository: TreasuryOperationFactsRepository,
+    private readonly cashMovementsRepository: TreasuryCashMovementsRepository,
     private readonly operationsRepository: TreasuryOperationsRepository,
     private readonly generateUuid: () => string,
     private readonly now: () => Date,
   ) {}
 
   async execute(
-    raw: RecordTreasuryOperationFactInput,
-  ): Promise<TreasuryOperationFact> {
-    const validated = RecordTreasuryOperationFactInputSchema.parse(raw);
+    raw: RecordTreasuryCashMovementInput,
+  ): Promise<TreasuryCashMovement> {
+    const validated = RecordTreasuryCashMovementInputSchema.parse(raw);
     const operation = await this.operationsRepository.findOperationById(
       validated.operationId,
     );
@@ -58,70 +62,54 @@ export class RecordTreasuryOperationFactCommand {
     }
 
     const currencyId = validated.currencyId ?? operation.currencyId;
-    const counterCurrencyId =
-      validated.counterCurrencyId ?? operation.counterCurrencyId;
     const routeLegId = validated.routeLegId ?? operation.routeLegId;
 
     if (validated.amountMinor !== null && currencyId === null) {
       throw new ValidationError(
-        `Treasury operation fact ${validated.sourceRef} requires currencyId when amountMinor is set`,
+        `Treasury cash movement ${validated.sourceRef} requires currencyId when amountMinor is set`,
       );
     }
 
-    if (
-      validated.counterAmountMinor !== null &&
-      counterCurrencyId === null
-    ) {
-      throw new ValidationError(
-        `Treasury operation fact ${validated.sourceRef} requires counterCurrencyId when counterAmountMinor is set`,
-      );
-    }
-
-    if (
-      validated.feeAmountMinor !== null &&
-      validated.feeCurrencyId === null
-    ) {
-      throw new ValidationError(
-        `Treasury operation fact ${validated.sourceRef} requires feeCurrencyId when feeAmountMinor is set`,
-      );
-    }
-
-    const inserted = await this.factsRepository.insertFact({
+    const inserted = await this.cashMovementsRepository.insertCashMovement({
+      accountRef: validated.accountRef,
       amountMinor: validated.amountMinor,
+      bookedAt: validated.bookedAt ?? this.now(),
+      calculationSnapshotId: validated.calculationSnapshotId,
       confirmedAt: validated.confirmedAt,
-      counterAmountMinor: validated.counterAmountMinor,
-      counterCurrencyId,
       currencyId,
       dealId: operation.dealId,
+      direction: validated.direction,
       externalRecordId: validated.externalRecordId,
-      feeAmountMinor: validated.feeAmountMinor,
-      feeCurrencyId: validated.feeCurrencyId,
       id: this.generateUuid(),
       instructionId: validated.instructionId,
       metadata: validated.metadata,
       notes: validated.notes,
       operationId: operation.id,
+      providerCounterpartyId: validated.providerCounterpartyId,
       providerRef: validated.providerRef,
-      recordedAt: validated.recordedAt ?? this.now(),
+      requisiteId: validated.requisiteId,
       routeLegId,
+      routeVersionId: validated.routeVersionId,
       sourceKind: validated.sourceKind,
       sourceRef: validated.sourceRef,
+      statementRef: validated.statementRef,
+      valueDate: validated.valueDate,
     });
 
     if (inserted) {
-      return mapOperationFact(inserted);
+      return mapCashMovement(inserted);
     }
 
-    const existing = await this.factsRepository.findFactBySourceRef(
+    const existing = await this.cashMovementsRepository.findCashMovementBySourceRef(
       validated.sourceRef,
     );
 
     if (!existing) {
       throw new Error(
-        `Treasury operation fact ${validated.sourceRef} was not found after conflict`,
+        `Treasury cash movement ${validated.sourceRef} was not found after conflict`,
       );
     }
 
-    return mapOperationFact(existing);
+    return mapCashMovement(existing);
   }
 }

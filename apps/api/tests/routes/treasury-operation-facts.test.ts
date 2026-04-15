@@ -25,43 +25,78 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import { treasuryOperationFactsRoutes } from "../../src/routes/treasury-operation-facts";
+import { treasuryExecutionActualsRoutes } from "../../src/routes/treasury-execution-actuals";
 
 function uuid(value: number) {
   return `00000000-0000-4000-8000-${value.toString().padStart(12, "0")}`;
 }
 
-function createFact(overrides: Record<string, unknown> = {}) {
+function createExecutionFill(overrides: Record<string, unknown> = {}) {
   return {
-    amountMinor: "9950",
+    actualRateDen: null,
+    actualRateNum: null,
+    boughtAmountMinor: null,
+    boughtCurrencyId: null,
+    calculationSnapshotId: null,
     confirmedAt: new Date("2026-04-03T10:15:00.000Z"),
-    counterAmountMinor: null,
-    counterCurrencyId: null,
     createdAt: new Date("2026-04-03T10:10:00.000Z"),
-    currencyId: uuid(201),
     dealId: uuid(301),
+    executedAt: new Date("2026-04-03T10:10:00.000Z"),
     externalRecordId: "statement:1",
-    feeAmountMinor: "50",
-    feeCurrencyId: uuid(201),
+    fillSequence: null,
     id: uuid(401),
     instructionId: uuid(501),
     metadata: { provider: "bank-a" },
     notes: "manual confirmation",
     operationId: uuid(101),
+    providerCounterpartyId: null,
     providerRef: "provider-1",
-    recordedAt: new Date("2026-04-03T10:10:00.000Z"),
     routeLegId: uuid(601),
+    routeVersionId: null,
+    soldAmountMinor: "9950",
+    soldCurrencyId: uuid(201),
     sourceKind: "manual",
-    sourceRef: `treasury-operation-fact:${uuid(101)}:idem-1`,
+    sourceRef: `treasury-execution-fill:${uuid(101)}:idem-1`,
     updatedAt: new Date("2026-04-03T10:10:00.000Z"),
     ...overrides,
   };
 }
 
+function createCashMovement(overrides: Record<string, unknown> = {}) {
+  return {
+    accountRef: null,
+    amountMinor: "9950",
+    bookedAt: new Date("2026-04-03T10:10:00.000Z"),
+    calculationSnapshotId: null,
+    confirmedAt: null,
+    createdAt: new Date("2026-04-03T10:10:00.000Z"),
+    currencyId: uuid(201),
+    dealId: uuid(301),
+    direction: "debit",
+    externalRecordId: "statement:1",
+    id: uuid(701),
+    instructionId: uuid(501),
+    metadata: { provider: "bank-a" },
+    notes: "manual confirmation",
+    operationId: uuid(101),
+    providerCounterpartyId: null,
+    providerRef: "provider-1",
+    requisiteId: null,
+    routeLegId: uuid(601),
+    routeVersionId: null,
+    sourceKind: "manual",
+    sourceRef: `treasury-cash-movement:${uuid(101)}:idem-1`,
+    statementRef: null,
+    updatedAt: new Date("2026-04-03T10:10:00.000Z"),
+    valueDate: null,
+    ...overrides,
+  };
+}
+
 function createTestApp() {
-  const listFacts = vi.fn(async (input: any) => ({
+  const listExecutionFills = vi.fn(async (input: any) => ({
     data: [
-      createFact({
+      createExecutionFill({
         dealId: input.dealId ?? uuid(301),
         operationId: input.operationId ?? uuid(101),
         routeLegId: input.routeLegId ?? uuid(601),
@@ -72,11 +107,11 @@ function createTestApp() {
     offset: input.offset,
     total: 1,
   }));
-  const recordActualFact = vi.fn(async (input: any) =>
-    createFact({
+  const recordCashMovement = vi.fn(async (input: any) =>
+    createCashMovement({
       amountMinor: input.amountMinor?.toString() ?? null,
-      counterAmountMinor: input.counterAmountMinor?.toString() ?? null,
-      feeAmountMinor: input.feeAmountMinor?.toString() ?? null,
+      bookedAt: input.bookedAt ?? new Date("2026-04-03T10:10:00.000Z"),
+      currencyId: input.currencyId ?? null,
       operationId: input.operationId,
       routeLegId: input.routeLegId ?? uuid(601),
       sourceKind: input.sourceKind,
@@ -99,14 +134,14 @@ function createTestApp() {
 
   app.route(
     "/treasury",
-    treasuryOperationFactsRoutes({
+    treasuryExecutionActualsRoutes({
       treasuryModule: {
         operations: {
           commands: {
-            recordActualFact,
+            recordCashMovement,
           },
           queries: {
-            listFacts,
+            listExecutionFills,
           },
         },
       },
@@ -115,32 +150,32 @@ function createTestApp() {
 
   return {
     app,
-    listFacts,
-    recordActualFact,
+    listExecutionFills,
+    recordCashMovement,
   };
 }
 
-describe("treasury operation facts routes", () => {
+describe("treasury execution actuals routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userHasPermission.mockResolvedValue({ success: true });
   });
 
-  it("lists facts filtered by deal, route leg, and source kind", async () => {
-    const { app, listFacts } = createTestApp();
+  it("lists execution fills filtered by deal, route leg, and source kind", async () => {
+    const { app, listExecutionFills } = createTestApp();
 
     const response = await app.request(
-      `http://localhost/treasury/operation-facts?dealId=${uuid(301)}&routeLegId=${uuid(601)}&sourceKind=manual&limit=10&offset=0`,
+      `http://localhost/treasury/execution-fills?dealId=${uuid(301)}&routeLegId=${uuid(601)}&sourceKind=manual&limit=10&offset=0`,
     );
 
     expect(response.status).toBe(200);
-    expect(listFacts).toHaveBeenCalledWith({
+    expect(listExecutionFills).toHaveBeenCalledWith({
       dealId: uuid(301),
       limit: 10,
       offset: 0,
       operationId: undefined,
       routeLegId: uuid(601),
-      sortBy: "recordedAt",
+      sortBy: "executedAt",
       sortOrder: "desc",
       sourceKind: ["manual"],
     });
@@ -158,16 +193,17 @@ describe("treasury operation facts routes", () => {
     });
   });
 
-  it("records an operation fact and derives sourceRef from idempotency", async () => {
-    const { app, recordActualFact } = createTestApp();
+  it("records a cash movement and derives sourceRef from idempotency", async () => {
+    const { app, recordCashMovement } = createTestApp();
 
     const response = await app.request(
-      `http://localhost/treasury/operations/${uuid(101)}/facts`,
+      `http://localhost/treasury/operations/${uuid(101)}/cash-movements`,
       {
         body: JSON.stringify({
           amountMinor: "9950",
-          feeAmountMinor: "50",
-          feeCurrencyId: uuid(201),
+          bookedAt: "2026-04-03T10:10:00.000Z",
+          currencyId: uuid(201),
+          direction: "debit",
           notes: "manual confirmation",
           routeLegId: uuid(601),
           sourceKind: "manual",
@@ -181,33 +217,36 @@ describe("treasury operation facts routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(recordActualFact).toHaveBeenCalledWith({
+    expect(recordCashMovement).toHaveBeenCalledWith({
+      accountRef: null,
       amountMinor: 9950n,
+      bookedAt: new Date("2026-04-03T10:10:00.000Z"),
+      calculationSnapshotId: null,
       confirmedAt: null,
-      counterAmountMinor: null,
-      counterCurrencyId: null,
-      currencyId: null,
+      currencyId: uuid(201),
+      direction: "debit",
       externalRecordId: null,
-      feeAmountMinor: 50n,
-      feeCurrencyId: uuid(201),
       instructionId: null,
       metadata: null,
       notes: "manual confirmation",
       operationId: uuid(101),
+      providerCounterpartyId: null,
       providerRef: null,
-      recordedAt: null,
+      requisiteId: null,
       routeLegId: uuid(601),
+      routeVersionId: null,
       sourceKind: "manual",
-      sourceRef: `treasury-operation-fact:${uuid(101)}:idem-1`,
+      sourceRef: `treasury-cash-movement:${uuid(101)}:idem-1`,
+      statementRef: null,
+      valueDate: null,
     });
     await expect(response.json()).resolves.toEqual(
       expect.objectContaining({
         amountMinor: "9950",
-        feeAmountMinor: "50",
         operationId: uuid(101),
         routeLegId: uuid(601),
         sourceKind: "manual",
-        sourceRef: `treasury-operation-fact:${uuid(101)}:idem-1`,
+        sourceRef: `treasury-cash-movement:${uuid(101)}:idem-1`,
       }),
     );
   });

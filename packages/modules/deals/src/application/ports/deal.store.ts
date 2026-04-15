@@ -1,5 +1,5 @@
 import type {
-  DealIntakeDraft,
+  DealHeader,
   DealRouteValidationIssue,
 } from "../contracts/dto";
 import type {
@@ -30,6 +30,8 @@ export interface CreateDealRootInput {
   agentId: string | null;
   calculationId: string | null;
   customerId: string;
+  header: DealHeader;
+  headerRevision: number;
   id: string;
   nextAction: string | null;
   sourceAmountMinor: bigint | null;
@@ -37,12 +39,6 @@ export interface CreateDealRootInput {
   status?: DealStatus;
   targetCurrencyId: string | null;
   type: DealType;
-}
-
-export interface CreateDealIntakeSnapshotStoredInput {
-  dealId: string;
-  revision: number;
-  snapshot: DealIntakeDraft;
 }
 
 export interface CreateDealLegStoredInput {
@@ -230,16 +226,6 @@ export interface CreateDealAttachmentIngestionStoredInput {
   status: DealAttachmentIngestionStatus;
 }
 
-export interface CreateDealQuoteAcceptanceStoredInput {
-  acceptedAt: Date;
-  acceptedByUserId: string;
-  agreementVersionId: string | null;
-  dealId: string;
-  dealRevision: number;
-  id: string;
-  quoteId: string;
-}
-
 export interface CreateDealApprovalStoredInput {
   approvalType: DealApprovalType;
   comment: string | null;
@@ -314,14 +300,8 @@ export interface DealStore {
       sourceQuoteId?: string | null;
     }[],
   ): Promise<void>;
-  createDealIntakeSnapshot(
-    input: CreateDealIntakeSnapshotStoredInput,
-  ): Promise<void>;
   createDealLegOperationLinks(
     input: CreateDealLegOperationLinkStoredInput[],
-  ): Promise<void>;
-  createDealQuoteAcceptance(
-    input: CreateDealQuoteAcceptanceStoredInput,
   ): Promise<void>;
   createDealRoot(input: CreateDealRootInput): Promise<void>;
   createDealTimelineEvents(
@@ -351,11 +331,11 @@ export interface DealStore {
     dealId: string;
     participants: CreateDealParticipantStoredInput[];
   }): Promise<void>;
-  replaceIntakeSnapshot(input: {
+  replaceDealHeader(input: {
     dealId: string;
     expectedRevision: number;
     nextRevision: number;
-    snapshot: DealIntakeDraft;
+    header: DealHeader;
   }): Promise<boolean>;
   setDealRoot(input: {
     agreementId?: string;
@@ -380,11 +360,6 @@ export interface DealStore {
     name?: string;
     status?: DealRouteTemplateStatus;
     templateId: string;
-  }): Promise<void>;
-  supersedeCurrentQuoteAcceptances(input: {
-    dealId: string;
-    replacedByQuoteId: string;
-    revokedAt: Date;
   }): Promise<void>;
   upsertDealAttachmentIngestion(input: {
     availableAt: Date;

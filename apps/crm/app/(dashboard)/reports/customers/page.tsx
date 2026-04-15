@@ -168,17 +168,25 @@ export default function ClientsReportsPage() {
 
   // Начальные фильтры: все статусы кроме cancelled
   const initialStatusFilter: Array<
-    | "preparing_documents"
-    | "awaiting_funds"
-    | "awaiting_payment"
-    | "closing_documents"
-    | "done"
+    | "pricing"
+    | "quoted"
+    | "awaiting_customer_approval"
+    | "awaiting_internal_approval"
+    | "approved_for_execution"
+    | "executing"
+    | "partially_executed"
+    | "executed"
+    | "reconciling"
   > = [
-    "preparing_documents",
-    "awaiting_funds",
-    "awaiting_payment",
-    "closing_documents",
-    "done",
+    "pricing",
+    "quoted",
+    "awaiting_customer_approval",
+    "awaiting_internal_approval",
+    "approved_for_execution",
+    "executing",
+    "partially_executed",
+    "executed",
+    "reconciling",
   ];
 
   // Используем переиспользуемый хук с начальными фильтрами

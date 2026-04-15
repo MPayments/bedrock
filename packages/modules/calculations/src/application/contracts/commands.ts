@@ -278,6 +278,15 @@ export type CreateCalculationInput = z.infer<
   typeof CreateCalculationInputSchema
 >;
 
+export const UpdateCalculationStateInputSchema = z.object({
+  calculationId: z.uuid(),
+  state: CalculationStateSchema,
+});
+
+export type UpdateCalculationStateInput = z.infer<
+  typeof UpdateCalculationStateInputSchema
+>;
+
 type NormalizedFinancialLineInput = {
   amountMinor: bigint;
   basisAmountMinor: bigint | null;

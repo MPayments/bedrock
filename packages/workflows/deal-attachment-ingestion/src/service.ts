@@ -9,7 +9,7 @@ import type {
   DealAttachmentIngestionNormalizedPayload,
   DealBankInstructionSnapshot,
   DealCounterpartySnapshot,
-  DealIntakeDraft,
+  DealHeader,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
 import type { FilesModule } from "@bedrock/files";
@@ -93,7 +93,7 @@ type PaymentAttachmentMetadata = Pick<
 interface MergeResult {
   appliedFields: string[];
   changed: boolean;
-  intake: DealIntakeDraft;
+  header: DealHeader;
   skippedFields: string[];
 }
 
@@ -468,20 +468,20 @@ function applyBankInstructionSnapshot(
   return compactBankInstructionSnapshot(target);
 }
 
-export function mergeNormalizedPayloadIntoIntake(input: {
-  intake: DealIntakeDraft;
+export function mergeNormalizedPayloadIntoHeader(input: {
+  header: DealHeader;
   normalizedPayload: DealAttachmentIngestionNormalizedPayload;
   purpose: EligibleAttachmentPurpose;
 }): MergeResult {
   const appliedFields: string[] = [];
   const skippedFields: string[] = [];
-  const intake: DealIntakeDraft = {
-    ...input.intake,
-    common: { ...input.intake.common },
-    externalBeneficiary: { ...input.intake.externalBeneficiary },
-    incomingReceipt: { ...input.intake.incomingReceipt },
-    moneyRequest: { ...input.intake.moneyRequest },
-    settlementDestination: { ...input.intake.settlementDestination },
+  const header: DealHeader = {
+    ...input.header,
+    common: { ...input.header.common },
+    externalBeneficiary: { ...input.header.externalBeneficiary },
+    incomingReceipt: { ...input.header.incomingReceipt },
+    moneyRequest: { ...input.header.moneyRequest },
+    settlementDestination: { ...input.header.settlementDestination },
   };
 
   if (input.purpose === "invoice") {
@@ -490,7 +490,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.invoiceNumber,
       path: "incomingReceipt.invoiceNumber",
       skippedFields,
-      target: intake.incomingReceipt,
+      target: header.incomingReceipt,
       targetKey: "invoiceNumber",
     });
     applyTextField({
@@ -498,7 +498,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.amount,
       path: "incomingReceipt.expectedAmount",
       skippedFields,
-      target: intake.incomingReceipt,
+      target: header.incomingReceipt,
       targetKey: "expectedAmount",
     });
     applyCurrencyField({
@@ -506,7 +506,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.currencyId,
       path: "incomingReceipt.expectedCurrencyId",
       skippedFields,
-      target: intake.incomingReceipt,
+      target: header.incomingReceipt,
       targetKey: "expectedCurrencyId",
     });
     applyCurrencyField({
@@ -514,7 +514,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.currencyId,
       path: "moneyRequest.targetCurrencyId",
       skippedFields,
-      target: intake.moneyRequest,
+      target: header.moneyRequest,
       targetKey: "targetCurrencyId",
     });
     applyTextField({
@@ -522,19 +522,19 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.paymentPurpose,
       path: "moneyRequest.purpose",
       skippedFields,
-      target: intake.moneyRequest,
+      target: header.moneyRequest,
       targetKey: "purpose",
     });
-    intake.externalBeneficiary.beneficiarySnapshot = applyCounterpartySnapshot(
-      intake.externalBeneficiary.beneficiarySnapshot,
+    header.externalBeneficiary.beneficiarySnapshot = applyCounterpartySnapshot(
+      header.externalBeneficiary.beneficiarySnapshot,
       input.normalizedPayload.beneficiarySnapshot,
       "externalBeneficiary.beneficiarySnapshot",
       appliedFields,
       skippedFields,
     );
-    intake.externalBeneficiary.bankInstructionSnapshot =
+    header.externalBeneficiary.bankInstructionSnapshot =
       applyBankInstructionSnapshot(
-        intake.externalBeneficiary.bankInstructionSnapshot,
+        header.externalBeneficiary.bankInstructionSnapshot,
         input.normalizedPayload.bankInstructionSnapshot,
         "externalBeneficiary.bankInstructionSnapshot",
         appliedFields,
@@ -548,7 +548,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
       nextValue: input.normalizedPayload.contractNumber,
       path: "incomingReceipt.contractNumber",
       skippedFields,
-      target: intake.incomingReceipt,
+      target: header.incomingReceipt,
       targetKey: "contractNumber",
     });
   }
@@ -556,7 +556,7 @@ export function mergeNormalizedPayloadIntoIntake(input: {
   return {
     appliedFields,
     changed: appliedFields.length > 0,
-    intake,
+    header,
     skippedFields,
   };
 }
@@ -654,8 +654,8 @@ async function applyNormalizedPayload(input: {
   let workflow = input.workflow;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const merge = mergeNormalizedPayloadIntoIntake({
-      intake: workflow.intake,
+    const merge = mergeNormalizedPayloadIntoHeader({
+      header: workflow.header,
       normalizedPayload: input.normalizedPayload,
       purpose: input.purpose,
     });
@@ -669,12 +669,12 @@ async function applyNormalizedPayload(input: {
     }
 
     try {
-      const updated = await input.deps.deals.deals.commands.replaceIntake({
+      const updated = await input.deps.deals.deals.commands.updateHeader({
         actorLabel: SYSTEM_ACTOR_LABEL,
         actorUserId: null,
         dealId: workflow.summary.id,
         expectedRevision: workflow.revision,
-        intake: merge.intake,
+        header: merge.header,
       });
 
       return {

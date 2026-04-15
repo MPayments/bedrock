@@ -1,6 +1,8 @@
 export {
   CreateCalculationInputSchema,
+  UpdateCalculationStateInputSchema,
   type CreateCalculationInput,
+  type UpdateCalculationStateInput,
 } from "./application/contracts/commands";
 export {
   CalculationDetailsSchema,

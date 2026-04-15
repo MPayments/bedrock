@@ -4,7 +4,7 @@ import {
   type RunReconciliationInput,
 } from "../../contracts";
 import { extractCandidateReferences } from "../../domain/candidate-references";
-import { extractTreasuryOperationFactFromReconciliationRecord } from "../../domain/execution-fact-normalization";
+import { extractTreasuryExecutionActualsFromReconciliationRecord } from "../../domain/execution-fact-normalization";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { resolveMatchFromCandidates } from "../../domain/matching";
 import { ReconciliationException } from "../../domain/reconciliation-exception";
@@ -203,19 +203,27 @@ export function createRunReconciliationHandler(
           }
 
           for (const { record, resolution } of resolutions) {
-            const normalizedFact =
-              extractTreasuryOperationFactFromReconciliationRecord({
+            const normalizedActuals =
+              extractTreasuryExecutionActualsFromReconciliationRecord({
                 matchedTreasuryOperationId:
                   resolution.matchedTreasuryOperationId,
                 reconciliationRunId: createdRun.id,
                 record,
               });
 
-            if (!normalizedFact) {
-              continue;
+            if (normalizedActuals.fill) {
+              await executionFacts.recordExecutionFill(normalizedActuals.fill);
             }
 
-            await executionFacts.recordTreasuryOperationFact(normalizedFact);
+            if (normalizedActuals.fee) {
+              await executionFacts.recordExecutionFee(normalizedActuals.fee);
+            }
+
+            if (normalizedActuals.cashMovement) {
+              await executionFacts.recordCashMovement(
+                normalizedActuals.cashMovement,
+              );
+            }
           }
 
           return createdRun;

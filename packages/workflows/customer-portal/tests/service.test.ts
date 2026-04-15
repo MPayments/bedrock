@@ -94,7 +94,7 @@ function createWorkflow(overrides?: {
         findPortalById: vi.fn(async () => ({
           attachments: [],
           calculationSummary: null,
-          customerSafeIntake: {
+          customerSafeHeader: {
             contractNumber: null,
             customerNote: null,
             expectedAmount: null,

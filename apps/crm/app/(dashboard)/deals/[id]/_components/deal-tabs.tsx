@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import {
-  ClipboardList,
   FileText,
   LayoutDashboard,
   Wallet,
@@ -18,7 +17,6 @@ import {
 
 export type DealPageTab =
   | "overview"
-  | "intake"
   | "pricing"
   | "documents"
   | "execution";
@@ -28,7 +26,6 @@ export const DEFAULT_DEAL_PAGE_TAB: DealPageTab = "overview";
 export function isDealPageTab(value: string | null): value is DealPageTab {
   return (
     value === "overview" ||
-    value === "intake" ||
     value === "pricing" ||
     value === "documents" ||
     value === "execution"
@@ -42,7 +39,6 @@ type DealTabsProps = {
   badges?: Partial<Record<DealPageTab, DealPageTabBadge>>;
   documents: ReactNode;
   execution: ReactNode;
-  intake: ReactNode;
   onTabChange: (tab: DealPageTab) => void;
   overview: ReactNode;
   pricing: ReactNode;
@@ -57,11 +53,6 @@ const DEAL_TAB_META: Array<{
     icon: LayoutDashboard,
     label: "Обзор",
     value: "overview",
-  },
-  {
-    icon: ClipboardList,
-    label: "Анкета",
-    value: "intake",
   },
   {
     icon: Wallet,
@@ -97,7 +88,6 @@ export function DealTabs({
   badges,
   documents,
   execution,
-  intake,
   onTabChange,
   overview,
   pricing,
@@ -134,9 +124,6 @@ export function DealTabs({
 
         <TabsContent className="space-y-6" value="overview">
           {overview}
-        </TabsContent>
-        <TabsContent className="space-y-6" value="intake">
-          {intake}
         </TabsContent>
         <TabsContent className="space-y-6" value="pricing">
           {pricing}

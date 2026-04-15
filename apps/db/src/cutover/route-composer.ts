@@ -16,6 +16,9 @@ export const ROUTE_COMPOSER_REQUIRED_TABLES = [
   "deal_routes",
   "deal_route_versions",
   "calculations",
+  "treasury_execution_fills",
+  "treasury_execution_fees",
+  "treasury_cash_movements",
   "file_assets",
   "file_links",
 ] as const;
@@ -44,6 +47,7 @@ export const ROUTE_COMPOSER_BACKUP_TABLES = [
   "deals",
   "deal_participants",
   "deal_intake_snapshots",
+  "deal_quote_acceptances",
   "deal_legs",
   "deal_approvals",
   "deal_timeline_events",
@@ -56,6 +60,7 @@ export const ROUTE_COMPOSER_BACKUP_TABLES = [
   "calculations",
   "calculation_snapshots",
   "calculation_lines",
+  "treasury_operation_facts",
   "file_assets",
   "file_versions",
   "file_links",
@@ -63,6 +68,9 @@ export const ROUTE_COMPOSER_BACKUP_TABLES = [
 
 export const ROUTE_COMPOSER_LEGACY_COMMERCIAL_TABLE_NAMES = [
   "applications",
+  "deal_intake_snapshots",
+  "deal_quote_acceptances",
+  "treasury_operation_facts",
 ] as const;
 
 export const ROUTE_COMPOSER_LEGACY_COMMERCIAL_TABLE_PREFIXES = [

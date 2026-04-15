@@ -85,10 +85,6 @@ function findQuoteDetailsById(
     return null;
   }
 
-  if (deal.acceptedQuoteDetails?.id === quoteId) {
-    return deal.acceptedQuoteDetails;
-  }
-
   return deal.quoteHistory.find((quote) => quote.id === quoteId) ?? null;
 }
 

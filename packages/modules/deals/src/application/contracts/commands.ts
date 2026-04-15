@@ -4,11 +4,12 @@ import { trimToNull } from "@bedrock/shared/core";
 
 import {
   DealAttachmentIngestionNormalizedPayloadSchema,
-  DealIntakeDraftSchema,
+  DealHeaderSchema,
   DealSettlementDestinationModeSchema,
 } from "./dto";
 import {
   DealAttachmentIngestionStatusSchema,
+  DealApprovalScopeSchema,
   DealLegStateSchema,
   DealRouteComponentBasisTypeSchema,
   DealRouteComponentClassificationSchema,
@@ -100,6 +101,12 @@ const routeTemplateNameSchema = z.string().trim().min(1).max(255);
 const routeRoleSchema = z.string().trim().min(1).max(64);
 const settlementModelSchema = z.string().trim().min(1).max(64);
 const roundingModeSchema = z.string().trim().min(1).max(32);
+const CustomerFacingDealTypeSchema = z.enum([
+  "payment",
+  "currency_exchange",
+  "currency_transit",
+  "exporter_settlement",
+]);
 
 export const CreatePortalDealInputSchema = z.object({
   common: z.object({
@@ -129,7 +136,7 @@ export const CreatePortalDealInputSchema = z.object({
     sourceCurrencyId: nullablePortalCurrencyReference,
     targetCurrencyId: nullablePortalCurrencyReference.optional().default(null),
   }),
-  type: DealTypeSchema,
+  type: CustomerFacingDealTypeSchema,
 });
 
 export type CreatePortalDealInput = z.infer<typeof CreatePortalDealInputSchema>;
@@ -137,10 +144,17 @@ export type CreatePortalDealInput = z.infer<typeof CreatePortalDealInputSchema>;
 export const CreateDealDraftInputSchema = z.object({
   agreementId: z.uuid().optional(),
   customerId: z.uuid(),
-  intake: DealIntakeDraftSchema,
+  header: DealHeaderSchema,
 });
 
 export type CreateDealDraftInput = z.infer<typeof CreateDealDraftInputSchema>;
+
+export const UpdateDealHeaderInputSchema = z.object({
+  expectedRevision: z.number().int().positive(),
+  header: DealHeaderSchema,
+});
+
+export type UpdateDealHeaderInput = z.infer<typeof UpdateDealHeaderInputSchema>;
 
 export const CreateDealRouteDraftInputSchema = z.object({}).strict();
 export type CreateDealRouteDraftInput = z.infer<
@@ -308,13 +322,6 @@ export type ApplyDealRouteTemplateInput = z.infer<
   typeof ApplyDealRouteTemplateInputSchema
 >;
 
-export const ReplaceDealIntakeInputSchema = z.object({
-  expectedRevision: z.number().int().positive(),
-  intake: DealIntakeDraftSchema,
-});
-
-export type ReplaceDealIntakeInput = z.infer<typeof ReplaceDealIntakeInputSchema>;
-
 export const UpdateDealAgreementInputSchema = z.object({
   agreementId: z.uuid(),
 });
@@ -335,15 +342,6 @@ export const UpdateDealCommentInputSchema = z.object({
 
 export type UpdateDealCommentInput = z.infer<typeof UpdateDealCommentInputSchema>;
 
-export const LinkDealCalculationFromAcceptedQuoteInputSchema = z.object({
-  calculationId: z.uuid(),
-  quoteId: z.uuid(),
-});
-
-export type LinkDealCalculationFromAcceptedQuoteInput = z.infer<
-  typeof LinkDealCalculationFromAcceptedQuoteInputSchema
->;
-
 export const LinkDealCalculationInputSchema = z.object({
   calculationId: z.uuid(),
   sourceQuoteId: z.uuid().nullable().optional(),
@@ -353,11 +351,36 @@ export type LinkDealCalculationInput = z.infer<
   typeof LinkDealCalculationInputSchema
 >;
 
-export const AcceptDealQuoteInputSchema = z.object({
-  quoteId: z.uuid(),
+export const ApproveDealInputSchema = z.object({
+  comment: nullableText.optional(),
+  scope: DealApprovalScopeSchema,
 });
 
-export type AcceptDealQuoteInput = z.infer<typeof AcceptDealQuoteInputSchema>;
+export type ApproveDealInput = z.infer<typeof ApproveDealInputSchema>;
+
+export const RejectDealInputSchema = z.object({
+  reason: nullableText,
+  scope: DealApprovalScopeSchema,
+});
+
+export type RejectDealInput = z.infer<typeof RejectDealInputSchema>;
+
+export const AcceptDealCalculationInputSchema = z.object({
+  calculationId: z.uuid(),
+});
+
+export type AcceptDealCalculationInput = z.infer<
+  typeof AcceptDealCalculationInputSchema
+>;
+
+export const SupersedeDealCalculationInputSchema = z.object({
+  calculationId: z.uuid(),
+  reason: nullableText.optional(),
+});
+
+export type SupersedeDealCalculationInput = z.infer<
+  typeof SupersedeDealCalculationInputSchema
+>;
 
 export const RequestDealExecutionInputSchema = z.object({
   comment: nullableText.optional(),
@@ -396,7 +419,6 @@ export const AppendDealTimelineEventInputSchema = z.object({
   type: z.enum([
     "deal_closed",
     "quote_created",
-    "quote_accepted",
     "quote_expired",
     "quote_used",
     "execution_requested",

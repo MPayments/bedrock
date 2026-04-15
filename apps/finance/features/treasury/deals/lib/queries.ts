@@ -398,7 +398,7 @@ const FinanceDealWorkflowParticipantSchema = z.object({
 
 const FinanceDealWorkflowContextSchema = z.object({
   fundingResolution: FinanceDealPricingContextSchema.shape.fundingResolution,
-  intake: z.object({
+  header: z.object({
     common: z.object({
       applicantCounterpartyId: z.string().uuid().nullable(),
     }),
@@ -509,16 +509,24 @@ const FinanceDealCloseReadinessSchema = z.object({
 });
 
 const FinanceDealWorkspaceSchema = z.object({
-  acceptedQuote: z
+  acceptedCalculation: z
     .object({
       acceptedAt: ApiDateTimeStringSchema,
-      expiresAt: NullableApiDateTimeStringSchema,
-      quoteId: z.string().uuid(),
-      quoteStatus: z.string(),
-      usedAt: NullableApiDateTimeStringSchema,
+      calculationId: z.string().uuid(),
+      calculationTimestamp: ApiDateTimeStringSchema,
+      pricingProvenance: z.record(z.string(), z.unknown()).nullable(),
+      quoteProvenance: z
+        .object({
+          fxQuoteId: z.string().uuid().nullable(),
+          quoteSnapshot: z.record(z.string(), z.unknown()).nullable(),
+          sourceQuoteId: z.string().uuid().nullable(),
+        })
+        .nullable(),
+      routeVersionId: z.string().uuid().nullable(),
+      snapshotId: z.string().uuid(),
+      state: z.string(),
     })
     .nullable(),
-  acceptedQuoteDetails: FinanceDealQuoteItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   closeReadiness: FinanceDealCloseReadinessSchema,

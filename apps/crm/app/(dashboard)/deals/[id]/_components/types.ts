@@ -56,7 +56,6 @@ export type ApiCrmDealBoardProjection = SerializedDates<CrmDealBoardProjection>;
 export type ApiCrmDealWorkbenchProjection = SerializedCrmDealWorkbenchProjection;
 export type ApiCurrency = Currency;
 export type ApiCurrencyOption = CurrencyOption;
-export type ApiDealAcceptedQuote = SerializedDealWorkflowProjection["acceptedQuote"];
 export type ApiDealAttachmentIngestion =
   SerializedDealWorkflowProjection["attachmentIngestions"][number];
 export type ApiDealBankInstructionSnapshot =

@@ -89,9 +89,9 @@ function createDealFundingAssessmentPort(input: {
 }) {
   return {
     async assessFunding(inputParams: {
-      acceptedQuoteId: string | null;
       hasConvertLeg: boolean;
       internalEntityOrganizationId: string | null;
+      pricingQuoteId: string | null;
       targetCurrencyId: string | null;
     }) {
       const fallbackTargetCurrency = inputParams.targetCurrencyId
@@ -129,12 +129,12 @@ function createDealFundingAssessmentPort(input: {
         };
       }
 
-      if (!inputParams.acceptedQuoteId) {
+      if (!inputParams.pricingQuoteId) {
         return {
           availableMinor: null,
           fundingOrganizationId: inputParams.internalEntityOrganizationId,
           fundingRequisiteId: null,
-          reasonCode: "accepted_quote_missing",
+          reasonCode: "pricing_quote_missing",
           requiredAmountMinor: null,
           state: "blocked" as const,
           strategy: null,
@@ -147,14 +147,14 @@ function createDealFundingAssessmentPort(input: {
 
       try {
         quoteDetails = await input.quoteReads.getQuoteDetails({
-          quoteRef: inputParams.acceptedQuoteId,
+          quoteRef: inputParams.pricingQuoteId,
         });
       } catch {
         return {
           availableMinor: null,
           fundingOrganizationId: inputParams.internalEntityOrganizationId,
           fundingRequisiteId: null,
-          reasonCode: "accepted_quote_details_unavailable",
+          reasonCode: "pricing_quote_details_unavailable",
           requiredAmountMinor: null,
           state: "blocked" as const,
           strategy: null,
@@ -214,18 +214,6 @@ export function createApiDealsModule(input: {
   now?: DealsModuleDeps["now"];
   persistence?: PersistenceContext;
   quoteReads: {
-    findById(id: string): Promise<{
-      agreementVersionId?: string | null;
-      commercialTerms?: {
-        agreementVersionId: string | null;
-      } | null;
-      dealId: string | null;
-      expiresAt: Date | null;
-      id: string;
-      status: string;
-      usedAt: Date | null;
-      usedDocumentId: string | null;
-    } | null>;
     getQuoteDetails(input: {
       quoteRef: string;
     }): Promise<QuoteDetailsRecord>;
@@ -299,26 +287,6 @@ export function createApiDealsModule(input: {
       },
       async findOrganizationById(id: string) {
         return organizationReads.findById(id);
-      },
-      async findQuoteById(id: string) {
-        const quote = await input.quoteReads.findById(id);
-
-        if (!quote) {
-          return null;
-        }
-
-        return {
-          agreementVersionId:
-            quote.agreementVersionId ??
-            quote.commercialTerms?.agreementVersionId ??
-            null,
-          dealId: quote.dealId,
-          expiresAt: quote.expiresAt,
-          id: quote.id,
-          status: quote.status,
-          usedAt: quote.usedAt,
-          usedDocumentId: quote.usedDocumentId,
-        };
       },
       async findRequisiteById(id: string) {
         const requisite = await requisiteReads.findById(id);

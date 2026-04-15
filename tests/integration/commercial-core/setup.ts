@@ -30,13 +30,19 @@ const db = createTestDrizzleDb(pool, {
 async function cleanupCommercialCoreTables() {
   await deleteIfTableExists(pool, "deal_operational_positions");
   await deleteIfTableExists(pool, "deal_timeline_events");
-  await deleteIfTableExists(pool, "deal_quote_acceptances");
+  await deleteIfTableExists(pool, "treasury_cash_movements");
+  await deleteIfTableExists(pool, "treasury_execution_fees");
+  await deleteIfTableExists(pool, "treasury_execution_fills");
   await deleteIfTableExists(pool, "deal_capability_states");
   await deleteIfTableExists(pool, "deal_approvals");
   await deleteIfTableExists(pool, "deal_calculation_links");
   await deleteIfTableExists(pool, "deal_legs");
+  await deleteIfTableExists(pool, "deal_route_cost_components");
+  await deleteIfTableExists(pool, "deal_route_legs");
+  await deleteIfTableExists(pool, "deal_route_participants");
+  await deleteIfTableExists(pool, "deal_route_versions");
+  await deleteIfTableExists(pool, "deal_routes");
   await deleteIfTableExists(pool, "deal_participants");
-  await deleteIfTableExists(pool, "deal_intake_snapshots");
   await deleteIfTableExists(pool, "deals");
 
   await deleteIfTableExists(pool, "calculation_lines");

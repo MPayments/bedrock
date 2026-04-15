@@ -14,16 +14,6 @@ export interface DealCalculationReference {
   isActive: boolean;
 }
 
-export interface DealQuoteReference {
-  agreementVersionId: string | null;
-  dealId: string | null;
-  expiresAt: Date | null;
-  id: string;
-  status: string;
-  usedAt: Date | null;
-  usedDocumentId: string | null;
-}
-
 export interface DealCurrencyReference {
   code: string;
   id: string;
@@ -49,7 +39,6 @@ export interface DealReferencesPort {
   findOrganizationById(
     id: string,
   ): Promise<{ id: string; shortName?: string | null } | null>;
-  findQuoteById(id: string): Promise<DealQuoteReference | null>;
   findRequisiteById(
     id: string,
   ): Promise<{ id: string; ownerId: string; ownerType: "counterparty" | "organization" } | null>;

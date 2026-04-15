@@ -19,7 +19,7 @@ export type CrmDealType =
   | "currency_transit"
   | "exporter_settlement";
 
-export type CrmDealIntakeDraft = {
+export type CrmDealHeaderDraft = {
   common: {
     applicantCounterpartyId: string | null;
     customerNote: string | null;
@@ -100,10 +100,10 @@ export type CrmApplicantRequisiteOption = {
 export type DealIntakeFormProps = {
   applicantRequisites: CrmApplicantRequisiteOption[];
   currencyOptions: CrmCurrencyOption[];
-  intake: CrmDealIntakeDraft;
+  intake: CrmDealHeaderDraft;
   counterparties: CrmCustomerCounterpartyOption[];
   moneyRequestLayout?: "inline" | "stacked";
-  onChange: (next: CrmDealIntakeDraft) => void;
+  onChange: (next: CrmDealHeaderDraft) => void;
   readOnly?: boolean;
 };
 
@@ -154,10 +154,10 @@ function emptyBankInstructionSnapshot(): CrmBankInstructionSnapshot {
   };
 }
 
-export function createEmptyCrmDealIntake(input: {
+export function createEmptyCrmDealHeader(input: {
   applicantCounterpartyId: string | null;
   type: CrmDealType;
-}): CrmDealIntakeDraft {
+}): CrmDealHeaderDraft {
   return {
     common: {
       applicantCounterpartyId: input.applicantCounterpartyId,
@@ -375,7 +375,7 @@ export function createDealIntakeFormContext({
     value: intake.settlementDestination.requisiteId,
   });
 
-  function update(next: Partial<CrmDealIntakeDraft>) {
+  function update(next: Partial<CrmDealHeaderDraft>) {
     onChange({
       ...intake,
       ...next,
@@ -383,7 +383,7 @@ export function createDealIntakeFormContext({
   }
 
   function updateCommon(
-    key: keyof CrmDealIntakeDraft["common"],
+    key: keyof CrmDealHeaderDraft["common"],
     value: string | null,
   ) {
     update({
@@ -395,10 +395,10 @@ export function createDealIntakeFormContext({
   }
 
   function updateMoneyRequest(
-    key: keyof CrmDealIntakeDraft["moneyRequest"],
+    key: keyof CrmDealHeaderDraft["moneyRequest"],
     value: string | null,
   ) {
-    const nextIntake: Partial<CrmDealIntakeDraft> = {
+    const nextIntake: Partial<CrmDealHeaderDraft> = {
       moneyRequest: {
         ...intake.moneyRequest,
         [key]: value,
@@ -425,7 +425,7 @@ export function createDealIntakeFormContext({
   }
 
   function updateIncomingReceipt(
-    key: keyof CrmDealIntakeDraft["incomingReceipt"],
+    key: keyof CrmDealHeaderDraft["incomingReceipt"],
     value: string | null,
   ) {
     update({

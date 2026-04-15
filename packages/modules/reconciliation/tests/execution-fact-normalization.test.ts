@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractTreasuryOperationFactFromReconciliationRecord } from "../src/domain/execution-fact-normalization";
+import { extractTreasuryExecutionActualsFromReconciliationRecord } from "../src/domain/execution-fact-normalization";
 
 function createRecord(overrides?: {
   normalizedPayload?: Record<string, unknown>;
@@ -21,9 +21,9 @@ function createRecord(overrides?: {
   };
 }
 
-describe("execution fact normalization", () => {
-  it("extracts a treasury fact candidate from matched reconciliation payload", () => {
-    const candidate = extractTreasuryOperationFactFromReconciliationRecord({
+describe("execution actual normalization", () => {
+  it("extracts treasury execution actual candidates from matched reconciliation payload", () => {
+    const candidate = extractTreasuryExecutionActualsFromReconciliationRecord({
       matchedTreasuryOperationId:
         "00000000-0000-4000-8000-000000000201",
       reconciliationRunId: "00000000-0000-4000-8000-000000000301",
@@ -43,35 +43,74 @@ describe("execution fact normalization", () => {
     });
 
     expect(candidate).toEqual({
-      amountMinor: 9950n,
-      confirmedAt: new Date("2026-04-14T09:05:00.000Z"),
-      counterAmountMinor: null,
-      counterCurrencyId: null,
-      currencyId: "00000000-0000-4000-8000-000000000401",
-      externalRecordId: "statement-line-1",
-      feeAmountMinor: 50n,
-      feeCurrencyId: "00000000-0000-4000-8000-000000000401",
-      instructionId: "00000000-0000-4000-8000-000000000501",
-      metadata: {
-        normalizationVersion: 2,
-        reconciliationExternalRecordId:
-          "00000000-0000-4000-8000-000000000101",
-        reconciliationRunId: "00000000-0000-4000-8000-000000000301",
-        reconciliationSource: "bank_statement",
-        reconciliationSourceRecordId: "statement-line-1",
+      cashMovement: null,
+      fee: {
+        amountMinor: 50n,
+        calculationSnapshotId: null,
+        chargedAt: new Date("2026-04-14T09:00:00.000Z"),
+        componentCode: null,
+        confirmedAt: new Date("2026-04-14T09:05:00.000Z"),
+        currencyId: "00000000-0000-4000-8000-000000000401",
+        externalRecordId: "statement-line-1",
+        feeFamily: "provider_fee",
+        fillId: null,
+        instructionId: "00000000-0000-4000-8000-000000000501",
+        metadata: {
+          classification: null,
+          componentFamily: null,
+          normalizationVersion: 2,
+          reconciliationExternalRecordId:
+            "00000000-0000-4000-8000-000000000101",
+          reconciliationRunId: "00000000-0000-4000-8000-000000000301",
+          reconciliationSource: "bank_statement",
+          reconciliationSourceRecordId: "statement-line-1",
+        },
+        notes: "Bank booking confirmed",
+        operationId: "00000000-0000-4000-8000-000000000201",
+        providerCounterpartyId: null,
+        providerRef: "provider-1",
+        routeComponentId: null,
+        routeLegId: "00000000-0000-4000-8000-000000000601",
+        routeVersionId: null,
+        sourceRef:
+          "reconciliation-external-record:00000000-0000-4000-8000-000000000101:fee",
       },
-      notes: "Bank booking confirmed",
-      operationId: "00000000-0000-4000-8000-000000000201",
-      providerRef: "provider-1",
-      recordedAt: new Date("2026-04-14T09:00:00.000Z"),
-      routeLegId: "00000000-0000-4000-8000-000000000601",
-      sourceRef:
-        "reconciliation-external-record:00000000-0000-4000-8000-000000000101",
+      fill: {
+        actualRateDen: null,
+        actualRateNum: null,
+        boughtAmountMinor: null,
+        boughtCurrencyId: null,
+        calculationSnapshotId: null,
+        confirmedAt: new Date("2026-04-14T09:05:00.000Z"),
+        executedAt: new Date("2026-04-14T09:00:00.000Z"),
+        externalRecordId: "statement-line-1",
+        instructionId: "00000000-0000-4000-8000-000000000501",
+        metadata: {
+          classification: null,
+          componentFamily: null,
+          normalizationVersion: 2,
+          reconciliationExternalRecordId:
+            "00000000-0000-4000-8000-000000000101",
+          reconciliationRunId: "00000000-0000-4000-8000-000000000301",
+          reconciliationSource: "bank_statement",
+          reconciliationSourceRecordId: "statement-line-1",
+        },
+        notes: "Bank booking confirmed",
+        operationId: "00000000-0000-4000-8000-000000000201",
+        providerCounterpartyId: null,
+        providerRef: "provider-1",
+        routeLegId: "00000000-0000-4000-8000-000000000601",
+        routeVersionId: null,
+        soldAmountMinor: 9950n,
+        soldCurrencyId: "00000000-0000-4000-8000-000000000401",
+        sourceRef:
+          "reconciliation-external-record:00000000-0000-4000-8000-000000000101:fill",
+      },
     });
   });
 
   it("skips normalization when the payload opts out", () => {
-    const candidate = extractTreasuryOperationFactFromReconciliationRecord({
+    const candidate = extractTreasuryExecutionActualsFromReconciliationRecord({
       matchedTreasuryOperationId:
         "00000000-0000-4000-8000-000000000201",
       reconciliationRunId: "00000000-0000-4000-8000-000000000301",
@@ -83,11 +122,15 @@ describe("execution fact normalization", () => {
       }),
     });
 
-    expect(candidate).toBeNull();
+    expect(candidate).toEqual({
+      cashMovement: null,
+      fee: null,
+      fill: null,
+    });
   });
 
-  it("returns null when matched treasury records do not carry economics", () => {
-    const candidate = extractTreasuryOperationFactFromReconciliationRecord({
+  it("returns empty actuals when matched treasury records do not carry economics", () => {
+    const candidate = extractTreasuryExecutionActualsFromReconciliationRecord({
       matchedTreasuryOperationId:
         "00000000-0000-4000-8000-000000000201",
       reconciliationRunId: "00000000-0000-4000-8000-000000000301",
@@ -98,6 +141,10 @@ describe("execution fact normalization", () => {
       }),
     });
 
-    expect(candidate).toBeNull();
+    expect(candidate).toEqual({
+      cashMovement: null,
+      fee: null,
+      fill: null,
+    });
   });
 });

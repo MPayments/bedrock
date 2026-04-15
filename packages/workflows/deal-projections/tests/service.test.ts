@@ -20,8 +20,42 @@ function createExecutionLeg(
 }
 
 function createBaseWorkflow(): DealWorkflowProjection {
+  const header = {
+    common: {
+      applicantCounterpartyId: "counterparty-1",
+      customerNote: "customer note",
+      requestedExecutionDate: new Date("2026-04-01T00:00:00.000Z"),
+    },
+    externalBeneficiary: {
+      bankInstructionSnapshot: null,
+      beneficiaryCounterpartyId: null,
+      beneficiarySnapshot: null,
+    },
+    incomingReceipt: {
+      contractNumber: null,
+      expectedAmount: "1000",
+      expectedAt: null,
+      expectedCurrencyId: "currency-usd",
+      invoiceNumber: null,
+      payerCounterpartyId: null,
+      payerSnapshot: null,
+    },
+    moneyRequest: {
+      purpose: "Pay supplier",
+      sourceAmount: null,
+      sourceCurrencyId: "currency-rub",
+      targetCurrencyId: "currency-usd",
+    },
+    settlementDestination: {
+      bankInstructionSnapshot: null,
+      mode: null,
+      requisiteId: null,
+    },
+    type: "payment" as const,
+  };
+
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     attachmentIngestions: [],
     executionPlan: [
       createExecutionLeg(1, "collect", "ready"),
@@ -38,40 +72,8 @@ function createBaseWorkflow(): DealWorkflowProjection {
       targetCurrency: null,
       targetCurrencyId: null,
     },
-    intake: {
-      common: {
-        applicantCounterpartyId: "counterparty-1",
-        customerNote: "customer note",
-        requestedExecutionDate: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      externalBeneficiary: {
-        bankInstructionSnapshot: null,
-        beneficiaryCounterpartyId: null,
-        beneficiarySnapshot: null,
-      },
-      incomingReceipt: {
-        contractNumber: null,
-        expectedAmount: "1000",
-        expectedAt: null,
-        expectedCurrencyId: "currency-usd",
-        invoiceNumber: null,
-        payerCounterpartyId: null,
-        payerSnapshot: null,
-      },
-      moneyRequest: {
-        purpose: "Pay supplier",
-        sourceAmount: null,
-        sourceCurrencyId: "currency-rub",
-        targetCurrencyId: "currency-usd",
-      },
-      settlementDestination: {
-        bankInstructionSnapshot: null,
-        mode: null,
-        requisiteId: null,
-      },
-      type: "payment",
-    },
-    nextAction: "Accept quote",
+    header,
+    nextAction: "Accept calculation",
     operationalState: {
       positions: [
         {
@@ -145,7 +147,7 @@ function createBaseWorkflow(): DealWorkflowProjection {
       calculationId: null,
       createdAt: new Date("2026-04-01T00:00:00.000Z"),
       id: "deal-1",
-      status: "submitted",
+      status: "quoted",
       type: "payment",
       updatedAt: new Date("2026-04-01T00:00:00.000Z"),
     },
@@ -393,23 +395,23 @@ function createWorkflow(overrides?: {
               agreementId: workflow.summary.agreementId,
               amount:
                 workflow.summary.type === "payment"
-                  ? workflow.intake.incomingReceipt.expectedAmount
-                  : workflow.intake.moneyRequest.sourceAmount,
+                  ? workflow.header.incomingReceipt.expectedAmount
+                  : workflow.header.moneyRequest.sourceAmount,
               agentId: workflow.summary.agentId,
               calculationId: workflow.summary.calculationId,
-              comment: workflow.intake.common.customerNote,
+              comment: workflow.header.common.customerNote,
               currencyId:
                 workflow.summary.type === "payment"
-                  ? workflow.intake.moneyRequest.targetCurrencyId
-                  : workflow.intake.moneyRequest.sourceCurrencyId,
+                  ? workflow.header.moneyRequest.targetCurrencyId
+                  : workflow.header.moneyRequest.sourceCurrencyId,
               createdAt: workflow.summary.createdAt,
               customerId:
                 workflow.participants.find((participant) => participant.role === "customer")
                   ?.customerId ?? "customer-1",
               id: workflow.summary.id,
-              intakeComment: workflow.intake.common.customerNote,
+              intakeComment: workflow.header.common.customerNote,
               nextAction: workflow.nextAction,
-              reason: workflow.intake.moneyRequest.purpose,
+              reason: workflow.header.moneyRequest.purpose,
               revision: workflow.revision,
               status: workflow.summary.status,
               type: workflow.summary.type,
@@ -525,11 +527,138 @@ function createWorkflow(overrides?: {
       },
       operations: {
         queries: {
-          listFacts: vi.fn(async () => ({
-            data: overrides?.treasuryFacts ?? [],
+          listCashMovements: vi.fn(async () => ({
+            data:
+              overrides?.treasuryFacts
+                ?.filter((fact) => fact.amountMinor !== null && !fact.counterAmountMinor)
+                .map((fact) => ({
+                  accountRef: null,
+                  amountMinor: fact.amountMinor,
+                  bookedAt: fact.recordedAt,
+                  calculationSnapshotId: null,
+                  confirmedAt: fact.confirmedAt,
+                  createdAt: fact.createdAt,
+                  currencyId: fact.currencyId,
+                  dealId: fact.dealId,
+                  direction: "debit" as const,
+                  externalRecordId: fact.externalRecordId,
+                  id: `cash:${fact.id}`,
+                  instructionId: fact.instructionId,
+                  metadata: fact.metadata,
+                  notes: fact.notes,
+                  operationId: fact.operationId,
+                  providerCounterpartyId: null,
+                  providerRef: fact.providerRef,
+                  requisiteId: null,
+                  routeLegId: fact.routeLegId,
+                  routeVersionId: null,
+                  sourceKind: fact.sourceKind,
+                  sourceRef: `cash:${fact.sourceRef}`,
+                  statementRef: null,
+                  updatedAt: fact.updatedAt,
+                  valueDate: fact.confirmedAt,
+                })) ?? [],
             limit: MAX_QUERY_LIST_LIMIT,
             offset: 0,
-            total: overrides?.treasuryFacts?.length ?? 0,
+            total:
+              overrides?.treasuryFacts?.filter(
+                (fact) => fact.amountMinor !== null && !fact.counterAmountMinor,
+              ).length ?? 0,
+          })),
+          listExecutionFees: vi.fn(async () => ({
+            data:
+              overrides?.treasuryFacts
+                ?.filter((fact) => fact.feeAmountMinor !== null)
+                .map((fact) => ({
+                  amountMinor: fact.feeAmountMinor,
+                  calculationSnapshotId: null,
+                  chargedAt: fact.recordedAt,
+                  componentCode: null,
+                  confirmedAt: fact.confirmedAt,
+                  createdAt: fact.createdAt,
+                  currencyId: fact.feeCurrencyId ?? fact.currencyId,
+                  dealId: fact.dealId,
+                  externalRecordId: fact.externalRecordId,
+                  feeFamily:
+                    (fact.metadata?.feeComponentFamily as string | undefined) ??
+                    (fact.metadata?.componentFamily as string | undefined) ??
+                    "provider_fee",
+                  fillId: null,
+                  id: `fee:${fact.id}`,
+                  instructionId: fact.instructionId,
+                  metadata: fact.metadata
+                    ? {
+                        classification:
+                          (fact.metadata.feeClassification as string | undefined) ??
+                          (fact.metadata.classification as string | undefined) ??
+                          null,
+                        componentFamily:
+                          (fact.metadata.feeComponentFamily as string | undefined) ??
+                          (fact.metadata.componentFamily as string | undefined) ??
+                          null,
+                      }
+                    : null,
+                  notes: fact.notes,
+                  operationId: fact.operationId,
+                  providerCounterpartyId: null,
+                  providerRef: fact.providerRef,
+                  routeComponentId: null,
+                  routeLegId: fact.routeLegId,
+                  routeVersionId: null,
+                  sourceKind: fact.sourceKind,
+                  sourceRef: `fee:${fact.sourceRef}`,
+                  updatedAt: fact.updatedAt,
+                })) ?? [],
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            total:
+              overrides?.treasuryFacts?.filter(
+                (fact) => fact.feeAmountMinor !== null,
+              ).length ?? 0,
+          })),
+          listExecutionFills: vi.fn(async () => ({
+            data:
+              overrides?.treasuryFacts
+                ?.filter(
+                  (fact) =>
+                    fact.counterAmountMinor !== null ||
+                    fact.counterCurrencyId !== null,
+                )
+                .map((fact) => ({
+                  actualRateDen: fact.amountMinor,
+                  actualRateNum: fact.counterAmountMinor,
+                  boughtAmountMinor: fact.counterAmountMinor,
+                  boughtCurrencyId: fact.counterCurrencyId,
+                  calculationSnapshotId: null,
+                  confirmedAt: fact.confirmedAt,
+                  createdAt: fact.createdAt,
+                  dealId: fact.dealId,
+                  executedAt: fact.recordedAt,
+                  externalRecordId: fact.externalRecordId,
+                  fillSequence: null,
+                  id: `fill:${fact.id}`,
+                  instructionId: fact.instructionId,
+                  metadata: fact.metadata,
+                  notes: fact.notes,
+                  operationId: fact.operationId,
+                  providerCounterpartyId: null,
+                  providerRef: fact.providerRef,
+                  routeLegId: fact.routeLegId,
+                  routeVersionId: null,
+                  soldAmountMinor: fact.amountMinor,
+                  soldCurrencyId: fact.currencyId,
+                  sourceKind: fact.sourceKind,
+                  sourceRef: `fill:${fact.sourceRef}`,
+                  updatedAt: fact.updatedAt,
+                })) ?? [],
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            total:
+              overrides?.treasuryFacts?.filter(
+                (fact) =>
+                  fact.counterAmountMinor !== null ||
+                  fact.counterCurrencyId !== null,
+              ).length ?? 0,
           })),
           list: vi.fn(async () => ({
             data: overrides?.treasuryOperations ?? [],
@@ -572,7 +701,9 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection?.timeline).toHaveLength(1);
     expect(projection?.summary.applicantDisplayName).toBe("Applicant One");
     expect(projection?.submissionCompleteness.complete).toBe(true);
-    expect(projection?.requiredActions).toContain("Ожидайте или примите котировку");
+    expect(projection?.requiredActions).toContain(
+      "Ожидайте или подтвердите расчет",
+    );
   });
 
   it("marks payment portal submission incomplete when customer invoice is missing", async () => {
@@ -711,7 +842,7 @@ describe("createDealProjectionsWorkflow", () => {
               message: "Провайдерская выплата заблокирована",
             },
           ],
-          targetStatus: "awaiting_payment",
+          targetStatus: "executing",
         },
       ],
     };
@@ -853,24 +984,6 @@ describe("createDealProjectionsWorkflow", () => {
           usedDocumentId: null,
         },
       ],
-      workflow: {
-        ...createBaseWorkflow(),
-        acceptedQuote: {
-          acceptedAt: new Date("2026-04-01T10:05:00.000Z"),
-          acceptedByUserId: "user-1",
-          agreementVersionId: null,
-          dealId: "deal-1",
-          dealRevision: 1,
-          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
-          id: "acceptance-1",
-          quoteId: "quote-1",
-          quoteStatus: "active",
-          replacedByQuoteId: null,
-          revokedAt: null,
-          usedAt: null,
-          usedDocumentId: null,
-        },
-      },
     });
 
     const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
@@ -1203,6 +1316,52 @@ describe("createDealProjectionsWorkflow", () => {
     });
   });
 
+  it("prefers accepted calculation quote provenance in CRM board quote summary", async () => {
+    const workflow = createWorkflow({
+      workflow: {
+        ...createBaseWorkflow(),
+        acceptedCalculation: {
+          acceptedAt: new Date("2026-04-01T09:30:00.000Z"),
+          calculationId: "calculation-1",
+          calculationTimestamp: new Date("2026-04-01T09:25:00.000Z"),
+          pricingProvenance: null,
+          quoteProvenance: {
+            fxQuoteId: null,
+            quoteSnapshot: null,
+            sourceQuoteId: "quote-accepted",
+          },
+          routeVersionId: null,
+          snapshotId: "snapshot-1",
+          state: "accepted",
+        },
+        relatedResources: {
+          ...createBaseWorkflow().relatedResources,
+          quotes: [
+            {
+              expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+              id: "quote-accepted",
+              status: "used",
+            },
+            {
+              expiresAt: new Date("2026-04-01T14:00:00.000Z"),
+              id: "quote-latest",
+              status: "active",
+            },
+          ],
+        },
+      },
+    });
+
+    const projection = await workflow.listCrmDealBoard();
+
+    expect(projection.items).toHaveLength(1);
+    expect(projection.items[0]?.quoteSummary).toEqual({
+      expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+      quoteId: "quote-accepted",
+      status: "used",
+    });
+  });
+
   it("builds CRM list projections without route-owned SQL", async () => {
     const workflow = createWorkflow();
 
@@ -1225,7 +1384,7 @@ describe("createDealProjectionsWorkflow", () => {
           currency: "USD",
           feePercentage: 0,
           id: "deal-1",
-          status: "submitted",
+          status: "quoted",
         }),
       ],
       limit: 20,
@@ -1240,7 +1399,7 @@ describe("createDealProjectionsWorkflow", () => {
         ...createBaseWorkflow(),
         summary: {
           ...createBaseWorkflow().summary,
-          status: "done",
+          status: "closed",
         },
       },
     });
@@ -1257,7 +1416,7 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
 
     expect(stats).toEqual({
-      byStatus: { done: 1 },
+      byStatus: { closed: 1 },
       totalAmount: "100000",
       totalCount: 1,
     });
@@ -1471,20 +1630,19 @@ describe("createDealProjectionsWorkflow", () => {
             state: "ready",
           },
         ],
-        acceptedQuote: {
+        acceptedCalculation: {
           acceptedAt: new Date("2026-04-01T09:00:00.000Z"),
-          acceptedByUserId: "user-2",
-          agreementVersionId: null,
-          dealId: "deal-1",
-          dealRevision: 1,
-          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
-          id: "quote-acceptance-1",
-          quoteId: "quote-1",
-          quoteStatus: "active",
-          replacedByQuoteId: null,
-          revokedAt: null,
-          usedAt: null,
-          usedDocumentId: null,
+          calculationId: "calculation-1",
+          calculationTimestamp: new Date("2026-04-01T08:55:00.000Z"),
+          pricingProvenance: null,
+          quoteProvenance: {
+            fxQuoteId: "quote-1",
+            quoteSnapshot: null,
+            sourceQuoteId: "quote-1",
+          },
+          routeVersionId: null,
+          snapshotId: "snapshot-1",
+          state: "accepted",
         },
         relatedResources: {
           attachments: [],
@@ -1520,15 +1678,6 @@ describe("createDealProjectionsWorkflow", () => {
 
     expect(projection).not.toBeNull();
     expect(projection).toMatchObject({
-      acceptedQuoteDetails: {
-        fromAmount: "100000",
-        fromCurrency: "RUB",
-        id: "quote-1",
-        rateDen: "10000",
-        rateNum: "91",
-        toAmount: "910",
-        toCurrency: "USD",
-      },
       actions: {
         canCreateCalculation: false,
         canCreateQuote: false,
@@ -2007,7 +2156,7 @@ describe("createDealProjectionsWorkflow", () => {
 
     expect(projection?.profitabilityVariance).toMatchObject({
       actualCoverage: {
-        factCount: 2,
+        factCount: 4,
         legsWithFacts: 2,
         operationCount: 2,
         state: "complete",
@@ -2120,11 +2269,15 @@ describe("createDealProjectionsWorkflow", () => {
         }),
         expect.objectContaining({
           routeLegId: routeLegPayoutId,
-          varianceFrom: {
-            amountMinor: "-10",
-            currencyCode: "USD",
-            currencyId: "currency-usd",
-          },
+          actualFees: [
+            {
+              amountMinor: "15",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          varianceFrom: null,
+          varianceTo: null,
         }),
       ]),
     });

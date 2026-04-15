@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
+  DEAL_APPROVAL_SCOPE_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,
@@ -135,6 +136,9 @@ export type DealApprovalType = z.infer<typeof DealApprovalTypeSchema>;
 
 export const DealApprovalStatusSchema = z.enum(DEAL_APPROVAL_STATUS_VALUES);
 export type DealApprovalStatus = z.infer<typeof DealApprovalStatusSchema>;
+
+export const DealApprovalScopeSchema = z.enum(DEAL_APPROVAL_SCOPE_VALUES);
+export type DealApprovalScope = z.infer<typeof DealApprovalScopeSchema>;
 
 export const DealTransitionBlockerCodeSchema = z.enum(
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,

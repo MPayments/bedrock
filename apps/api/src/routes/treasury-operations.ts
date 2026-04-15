@@ -188,8 +188,11 @@ function classifyFinanceQueue(workflow: DealWorkflowRecord) {
   );
 
   if (
-    workflow.summary.status === "awaiting_payment" ||
-    workflow.summary.status === "closing_documents" ||
+    workflow.summary.status === "approved_for_execution" ||
+    workflow.summary.status === "executing" ||
+    workflow.summary.status === "partially_executed" ||
+    workflow.summary.status === "executed" ||
+    workflow.summary.status === "reconciling" ||
     downstreamReady
   ) {
     return {
@@ -200,8 +203,10 @@ function classifyFinanceQueue(workflow: DealWorkflowRecord) {
   }
 
   if (
-    workflow.summary.status === "preparing_documents" ||
-    workflow.summary.status === "awaiting_funds" ||
+    workflow.summary.status === "pricing" ||
+    workflow.summary.status === "quoted" ||
+    workflow.summary.status === "awaiting_customer_approval" ||
+    workflow.summary.status === "awaiting_internal_approval" ||
     customerReceivable?.state === "ready" ||
     customerReceivable?.state === "in_progress"
   ) {
@@ -271,7 +276,7 @@ function buildOrganizationAccountSummary(input: {
 }
 
 function buildBankInstructionAccountSummary(
-  snapshot: DealWorkflowRecord["intake"]["externalBeneficiary"]["bankInstructionSnapshot"] | DealWorkflowRecord["intake"]["settlementDestination"]["bankInstructionSnapshot"] | null,
+  snapshot: DealWorkflowRecord["header"]["externalBeneficiary"]["bankInstructionSnapshot"] | DealWorkflowRecord["header"]["settlementDestination"]["bankInstructionSnapshot"] | null,
 ) {
   if (!snapshot) {
     return null;
@@ -425,7 +430,7 @@ function resolvePayoutDestinationAccount(input: {
     return (
       buildRequisiteAccountSummary(input.settlementDestinationRequisite) ??
       buildBankInstructionAccountSummary(
-        input.workflow.intake.settlementDestination.bankInstructionSnapshot,
+        input.workflow.header.settlementDestination.bankInstructionSnapshot,
       ) ??
       buildEmptyAccountSummary()
     );
@@ -433,7 +438,7 @@ function resolvePayoutDestinationAccount(input: {
 
   return (
     buildBankInstructionAccountSummary(
-      input.workflow.intake.externalBeneficiary.bankInstructionSnapshot,
+      input.workflow.header.externalBeneficiary.bankInstructionSnapshot,
     ) ?? buildEmptyAccountSummary()
   );
 }
@@ -691,7 +696,7 @@ async function buildProjectionContext(
     (agreement) => agreement.organizationRequisiteId,
   );
   const settlementDestinationRequisiteIds = Array.from(workflowByDealId.values()).map(
-    (workflow) => workflow.intake.settlementDestination.requisiteId,
+    (workflow) => workflow.header.settlementDestination.requisiteId,
   );
 
   const requisiteById = await loadMapById({
@@ -779,9 +784,9 @@ function buildOperationProjection(input: {
     ? input.context.requisiteById.get(agreement.organizationRequisiteId) ?? null
     : null;
   const settlementDestinationRequisite =
-    workflow?.intake.settlementDestination.requisiteId
+    workflow?.header.settlementDestination.requisiteId
       ? input.context.requisiteById.get(
-          workflow.intake.settlementDestination.requisiteId,
+          workflow.header.settlementDestination.requisiteId,
         ) ?? null
       : null;
   const quoteDetails = input.operation.quoteId

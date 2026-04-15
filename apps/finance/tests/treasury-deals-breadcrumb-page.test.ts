@@ -408,7 +408,7 @@ describe("treasury deals breadcrumb page", () => {
       dealRef: {
         applicantName: "ООО Ромашка",
         dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        status: "awaiting_payment",
+        status: "executing",
         type: "payment",
       },
       id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",

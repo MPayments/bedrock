@@ -14,8 +14,7 @@ vi.mock("@/features/treasury/deals/lib/queries", () => ({
 
 function createDealWorkbenchPayload() {
   return {
-    acceptedQuote: null,
-    acceptedQuoteDetails: null,
+    acceptedCalculation: null,
     actions: {
       canCloseDeal: false,
       canCreateCalculation: true,
@@ -219,7 +218,7 @@ describe("treasury deal execution queries", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("loads execution workspace from workbench, facts, and currencies", async () => {
+  it("loads execution workspace from workbench, actuals, and currencies", async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -241,27 +240,106 @@ describe("treasury deal execution queries", () => {
         json: async () => ({
           data: [
             {
-              amountMinor: "1214375000",
+              actualRateDen: null,
+              actualRateNum: null,
+              boughtAmountMinor: null,
+              boughtCurrencyId: null,
+              calculationSnapshotId: null,
               confirmedAt: "2026-04-02T08:30:00.000Z",
-              counterAmountMinor: null,
-              counterCurrencyId: null,
               createdAt: "2026-04-02T08:30:00.000Z",
-              currencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
               dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              executedAt: "2026-04-02T08:30:00.000Z",
               externalRecordId: "ext-1",
-              feeAmountMinor: "25000",
-              feeCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+              fillSequence: null,
               id: "b14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
               instructionId: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
               metadata: null,
               notes: null,
               operationId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              providerCounterpartyId: null,
               providerRef: "provider-1",
-              recordedAt: "2026-04-02T08:30:00.000Z",
               routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              routeVersionId: null,
+              soldAmountMinor: null,
+              soldCurrencyId: null,
               sourceKind: "provider",
               sourceRef: "outcome-1",
               updatedAt: "2026-04-02T08:30:00.000Z",
+            },
+          ],
+          limit: 200,
+          offset: 0,
+          total: 1,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            {
+              amountMinor: "25000",
+              calculationSnapshotId: null,
+              chargedAt: "2026-04-02T08:30:00.000Z",
+              componentCode: null,
+              confirmedAt: "2026-04-02T08:30:00.000Z",
+              createdAt: "2026-04-02T08:30:00.000Z",
+              currencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+              dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              externalRecordId: "ext-1",
+              feeFamily: "provider_fee",
+              fillId: null,
+              id: "c14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              instructionId: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              metadata: null,
+              notes: null,
+              operationId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              providerCounterpartyId: null,
+              providerRef: "provider-1",
+              routeComponentId: null,
+              routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              routeVersionId: null,
+              sourceKind: "provider",
+              sourceRef: "outcome-1:fee",
+              updatedAt: "2026-04-02T08:30:00.000Z",
+            },
+          ],
+          limit: 200,
+          offset: 0,
+          total: 1,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            {
+              accountRef: null,
+              amountMinor: "1214375000",
+              bookedAt: "2026-04-02T08:30:00.000Z",
+              calculationSnapshotId: null,
+              confirmedAt: "2026-04-02T08:30:00.000Z",
+              createdAt: "2026-04-02T08:30:00.000Z",
+              currencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
+              dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              direction: "debit",
+              externalRecordId: "ext-1",
+              id: "d14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              instructionId: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              metadata: null,
+              notes: null,
+              operationId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              providerCounterpartyId: null,
+              providerRef: "provider-1",
+              requisiteId: null,
+              routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+              routeVersionId: null,
+              sourceKind: "provider",
+              sourceRef: "outcome-1:cash",
+              statementRef: null,
+              updatedAt: "2026-04-02T08:30:00.000Z",
+              valueDate: "2026-04-02T08:30:00.000Z",
             },
           ],
           limit: 200,
@@ -291,7 +369,29 @@ describe("treasury deal execution queries", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:3000/v1/treasury/operation-facts?dealId=614fb6eb-a1bd-429e-9628-e97d0f2efa0b&limit=200&sortBy=recordedAt&sortOrder=desc",
+      "http://localhost:3000/v1/treasury/execution-fills?dealId=614fb6eb-a1bd-429e-9628-e97d0f2efa0b&limit=200&sortBy=executedAt&sortOrder=desc",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://localhost:3000/v1/treasury/execution-fees?dealId=614fb6eb-a1bd-429e-9628-e97d0f2efa0b&limit=200&sortBy=chargedAt&sortOrder=desc",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "http://localhost:3000/v1/treasury/cash-movements?dealId=614fb6eb-a1bd-429e-9628-e97d0f2efa0b&limit=200&sortBy=bookedAt&sortOrder=desc",
       {
         cache: "no-store",
         headers: {
@@ -302,12 +402,24 @@ describe("treasury deal execution queries", () => {
     );
     expect(result).toEqual(
       expect.objectContaining({
+        cashMovements: [
+          expect.objectContaining({
+            externalRecordId: "ext-1",
+            sourceKind: "provider",
+          }),
+        ],
         deal: expect.objectContaining({
           summary: expect.objectContaining({
             status: "executing",
           }),
         }),
-        facts: [
+        fees: [
+          expect.objectContaining({
+            externalRecordId: "ext-1",
+            sourceKind: "provider",
+          }),
+        ],
+        fills: [
           expect.objectContaining({
             externalRecordId: "ext-1",
             sourceKind: "provider",
@@ -317,7 +429,7 @@ describe("treasury deal execution queries", () => {
     );
   });
 
-  it("keeps the execution page available when facts endpoint is unavailable", async () => {
+  it("keeps the execution page available when actuals endpoints are unavailable", async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -339,6 +451,20 @@ describe("treasury deal execution queries", () => {
         json: async () => ({
           message: "Boom",
         }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          message: "Boom",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          message: "Boom",
+        }),
       });
 
     const { getFinanceDealExecutionWorkspaceById } = await import(
@@ -351,7 +477,9 @@ describe("treasury deal execution queries", () => {
 
     expect(result).toEqual(
       expect.objectContaining({
-        facts: [],
+        cashMovements: [],
+        fees: [],
+        fills: [],
       }),
     );
   });

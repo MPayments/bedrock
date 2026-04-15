@@ -7,7 +7,9 @@ import type {
 } from "@bedrock/platform/persistence";
 import { createModuleRuntime } from "@bedrock/shared/core";
 
-import { DrizzleTreasuryOperationFactsRepository } from "../src/operations/adapters/drizzle/operation-facts.repository";
+import { DrizzleTreasuryCashMovementsRepository } from "../src/operations/adapters/drizzle/cash-movements.repository";
+import { DrizzleTreasuryExecutionFeesRepository } from "../src/operations/adapters/drizzle/execution-fees.repository";
+import { DrizzleTreasuryExecutionFillsRepository } from "../src/operations/adapters/drizzle/execution-fills.repository";
 import { DrizzleTreasuryOperationsRepository } from "../src/operations/adapters/drizzle/operations.repository";
 import { createTreasuryOperationsService } from "../src/operations/application";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../src/quotes/adapters/drizzle/quote-fee-components.repository";
@@ -50,7 +52,9 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     generateUuid: randomUUID,
     service: "treasury.operations",
   });
-  const operationFactsRepository = new DrizzleTreasuryOperationFactsRepository(
+  const cashMovementsRepository = new DrizzleTreasuryCashMovementsRepository(db);
+  const executionFeesRepository = new DrizzleTreasuryExecutionFeesRepository(db);
+  const executionFillsRepository = new DrizzleTreasuryExecutionFillsRepository(
     db,
   );
   const ratesRepository = new DrizzleTreasuryRatesRepository(db);
@@ -80,7 +84,9 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     commandUow: new DrizzleTreasuryUnitOfWork({ persistence: deps.persistence }),
   });
   const operations = createTreasuryOperationsService({
-    factsRepository: operationFactsRepository,
+    cashMovementsRepository,
+    executionFeesRepository,
+    executionFillsRepository,
     operationsRepository,
     runtime: operationsRuntime,
   });
@@ -115,10 +121,19 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
       operations: {
         createOrGetPlanned:
           treasuryModule.operations.commands.createOrGetPlanned,
-        recordActualFact:
-          treasuryModule.operations.commands.recordActualFact,
+        recordCashMovement:
+          treasuryModule.operations.commands.recordCashMovement,
+        recordExecutionFee:
+          treasuryModule.operations.commands.recordExecutionFee,
+        recordExecutionFill:
+          treasuryModule.operations.commands.recordExecutionFill,
         findById: treasuryModule.operations.queries.findById,
-        listFacts: treasuryModule.operations.queries.listFacts,
+        listCashMovements:
+          treasuryModule.operations.queries.listCashMovements,
+        listExecutionFees:
+          treasuryModule.operations.queries.listExecutionFees,
+        listExecutionFills:
+          treasuryModule.operations.queries.listExecutionFills,
         list: treasuryModule.operations.queries.list,
       },
     },

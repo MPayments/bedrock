@@ -103,15 +103,21 @@ const entityNamesNominative: Record<string, string> = {
 
 const statusLabels: Record<string, Record<string, string>> = {
   deal: {
-    awaiting_funds: "Ожидание средств",
-    awaiting_payment: "Ожидание оплаты",
+    approved_for_execution: "Одобрена к исполнению",
+    awaiting_customer_approval: "Ожидание одобрения клиента",
+    awaiting_internal_approval: "Ожидание внутреннего одобрения",
     cancelled: "Отменена",
-    closing_documents: "Закрывающие документы",
-    done: "Завершена",
+    closed: "Закрыта",
     draft: "Черновик",
-    preparing_documents: "Подготовка документов",
+    executed: "Исполнена",
+    executing: "В исполнении",
+    expired: "Истекла",
+    failed: "Ошибка",
+    partially_executed: "Частично исполнена",
+    pricing: "Маршрут и расчет",
+    quoted: "Расчет предложен",
     rejected: "Отклонена",
-    submitted: "Отправлена",
+    reconciling: "Сверка",
   },
 };
 

@@ -96,4 +96,8 @@ export interface CalculationStore {
     calculationId: string;
     currentSnapshotId: string;
   }): Promise<void>;
+  setCurrentSnapshotState(input: {
+    calculationId: string;
+    state: CalculationState;
+  }): Promise<void>;
 }

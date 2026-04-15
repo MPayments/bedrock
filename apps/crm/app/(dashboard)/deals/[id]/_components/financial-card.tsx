@@ -28,7 +28,7 @@ type FinancialCardProps = {
   activeCalculationId: string | null;
   disabledReason: string | null;
   isCreating: boolean;
-  onCreate: () => void;
+  onCreate?: (() => void) | null;
 };
 
 export function FinancialCard({
@@ -83,15 +83,17 @@ export function FinancialCard({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button
-            data-testid="deal-create-calculation-button"
-            size="sm"
-            onClick={onCreate}
-            disabled={Boolean(disabledReason) || isCreating}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {calculation ? "Новая версия" : "Создать расчет"}
-          </Button>
+          {onCreate ? (
+            <Button
+              data-testid="deal-create-calculation-button"
+              size="sm"
+              onClick={onCreate}
+              disabled={Boolean(disabledReason) || isCreating}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {calculation ? "Новая версия" : "Создать расчет"}
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>

@@ -55,7 +55,7 @@ describe("commercial document deps", () => {
     });
   });
 
-  it("exposes actual provider fee lines from treasury facts in deal fx context", async () => {
+  it("exposes actual provider fee lines from treasury execution fees in deal fx context", async () => {
     const deps = createCommercialDocumentDeps({
       calculationReads: {
         findById: vi.fn(async () => ({
@@ -128,30 +128,33 @@ describe("commercial document deps", () => {
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
       },
-      treasuryOperationFacts: {
-        listFacts: vi.fn(async () => ({
+      treasuryExecutionActuals: {
+        listExecutionFees: vi.fn(async () => ({
           data: [
             {
-              amountMinor: null,
+              amountMinor: "55",
+              calculationSnapshotId: null,
+              chargedAt: new Date("2026-04-05T08:40:00.000Z"),
               confirmedAt: null,
-              counterAmountMinor: null,
-              counterCurrencyId: null,
+              componentCode: null,
               createdAt: new Date("2026-04-05T08:40:00.000Z"),
-              currencyId: null,
+              currencyId: "00000000-0000-4000-8000-000000000001",
               dealId: "deal-1",
               externalRecordId: "record-1",
-              feeAmountMinor: "55",
-              feeCurrencyId: "00000000-0000-4000-8000-000000000001",
-              id: "fact-1",
+              feeFamily: "provider_fee",
+              fillId: null,
+              id: "fee-1",
               instructionId: null,
               metadata: null,
               notes: null,
               operationId: "operation-1",
+              providerCounterpartyId: null,
               providerRef: null,
-              recordedAt: new Date("2026-04-05T08:40:00.000Z"),
+              routeComponentId: null,
               routeLegId: null,
+              routeVersionId: null,
               sourceKind: "reconciliation",
-              sourceRef: "fact-source-1",
+              sourceRef: "fee-source-1",
               updatedAt: new Date("2026-04-05T08:40:00.000Z"),
             },
           ],

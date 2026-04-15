@@ -196,14 +196,6 @@ function getCalculationDisabledReason(deal: FinanceDealWorkbench) {
     return "По сделке уже привязан актуальный расчет.";
   }
 
-  if (!deal.acceptedQuote) {
-    return "Сначала примите котировку.";
-  }
-
-  if (deal.acceptedQuote.quoteStatus !== "active") {
-    return "Создать расчет можно только по действующей принятой котировке.";
-  }
-
   if (!deal.actions.canCreateCalculation) {
     return "Создать расчет сейчас нельзя.";
   }
@@ -231,36 +223,7 @@ export function formatQuoteRateSummary(
   } за 1 ${quote.fromCurrency}`;
 }
 
-function getAcceptedQuoteDetails(deal: FinanceDealWorkbench) {
-  const acceptedQuoteId = deal.acceptedQuote?.quoteId;
-
-  if (!acceptedQuoteId) {
-    return null;
-  }
-
-  if (deal.acceptedQuoteDetails?.id === acceptedQuoteId) {
-    return deal.acceptedQuoteDetails;
-  }
-
-  return (
-    deal.quoteHistory.find((quote) => quote.id === acceptedQuoteId) ?? null
-  );
-}
-
 function getQuoteItemsForDisplay(deal: FinanceDealWorkbench) {
-  const acceptedQuoteDetails = getAcceptedQuoteDetails(deal);
-
-  if (deal.quoteHistory.length === 0) {
-    return acceptedQuoteDetails ? [acceptedQuoteDetails] : [];
-  }
-
-  if (
-    acceptedQuoteDetails &&
-    !deal.quoteHistory.some((quote) => quote.id === acceptedQuoteDetails.id)
-  ) {
-    return [acceptedQuoteDetails, ...deal.quoteHistory];
-  }
-
   return deal.quoteHistory;
 }
 
@@ -272,11 +235,17 @@ function findQuoteDetailsById(
     return null;
   }
 
-  if (deal.acceptedQuoteDetails?.id === quoteId) {
-    return deal.acceptedQuoteDetails;
-  }
-
   return deal.quoteHistory.find((quote) => quote.id === quoteId) ?? null;
+}
+
+function getLockedQuoteId(
+  deal: FinanceDealWorkbench,
+  activeCalculationSourceQuoteId: string | null,
+) {
+  return (
+    deal.acceptedCalculation?.quoteProvenance?.sourceQuoteId ??
+    activeCalculationSourceQuoteId
+  );
 }
 
 export function refreshPage(router: ReturnType<typeof useRouter>) {
@@ -456,9 +425,7 @@ function DealExecutionHeaderSummary({ deal }: { deal: FinanceDealWorkbench }) {
 type PricingTabProps = {
   calculationDisabledReason: string | null;
   deal: FinanceDealWorkbench;
-  isAcceptingQuoteId: string | null;
   isCreatingCalculation: boolean;
-  onAcceptQuote: (quoteId: string) => void;
   onCreateCalculation: () => void;
   onOpenQuoteDialog: () => void;
   quoteCreationDisabledReason: string | null;
@@ -467,14 +434,11 @@ type PricingTabProps = {
 function PricingTab({
   calculationDisabledReason,
   deal,
-  isAcceptingQuoteId,
   isCreatingCalculation,
-  onAcceptQuote,
   onCreateCalculation,
   onOpenQuoteDialog,
   quoteCreationDisabledReason,
 }: PricingTabProps) {
-  const acceptedQuoteDetails = getAcceptedQuoteDetails(deal);
   const quoteItems = getQuoteItemsForDisplay(deal);
   const activeCalculation =
     deal.calculationHistory.find(
@@ -482,9 +446,15 @@ function PricingTab({
     ) ??
     deal.calculationHistory[0] ??
     null;
-  const activeCalculationQuote =
-    findQuoteDetailsById(deal, activeCalculation?.sourceQuoteId) ??
-    acceptedQuoteDetails;
+  const activeCalculationQuote = findQuoteDetailsById(
+    deal,
+    activeCalculation?.sourceQuoteId,
+  );
+  const lockedQuoteId = getLockedQuoteId(
+    deal,
+    activeCalculation?.sourceQuoteId ?? null,
+  );
+  const lockedQuoteDetails = findQuoteDetailsById(deal, lockedQuoteId);
 
   return (
     <div className="space-y-6">
@@ -512,67 +482,64 @@ function PricingTab({
           <div className="rounded-lg border p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <div className="font-medium">Текущая принятая котировка</div>
+                <div className="font-medium">Текущая зафиксированная версия</div>
                 <div className="text-sm text-muted-foreground">
-                  {deal.acceptedQuote
-                    ? `Принята ${formatDate(deal.acceptedQuote.acceptedAt)}`
-                    : "Котировка еще не принята"}
+                  {deal.acceptedCalculation
+                    ? `Расчет принят ${formatDate(deal.acceptedCalculation.acceptedAt)}`
+                    : "Расчет еще не принят"}
                 </div>
               </div>
-              {deal.acceptedQuote ? (
-                <Badge
-                  variant={getDealQuoteStatusVariant(
-                    deal.acceptedQuote.quoteStatus,
-                  )}
-                >
-                  {getDealQuoteStatusLabel(deal.acceptedQuote.quoteStatus)}
-                </Badge>
+              {deal.acceptedCalculation ? (
+                <Badge variant="default">Принят расчет</Badge>
               ) : null}
             </div>
-            {deal.acceptedQuote ? (
+            {deal.acceptedCalculation ? (
               <div className="mt-3 space-y-3">
-                {acceptedQuoteDetails ? (
-                  <div className="rounded-md bg-muted/40 px-3 py-3">
-                    <div className="text-sm font-medium text-foreground">
-                      {formatQuoteAmountsSummary(acceptedQuoteDetails)}
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      Курс: {formatQuoteRateSummary(acceptedQuoteDetails)}
-                    </div>
+                <div className="rounded-md bg-muted/40 px-3 py-3">
+                  <div className="text-sm font-medium text-foreground">
+                    Расчет #{deal.acceptedCalculation.calculationId.slice(0, 8)}
                   </div>
-                ) : null}
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Snapshot: {deal.acceptedCalculation.snapshotId.slice(0, 8)}
+                  </div>
+                </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="rounded-md bg-muted/40 px-3 py-2">
                     <div className="text-xs text-muted-foreground">
-                      Валютная пара
+                      Состояние
                     </div>
                     <div className="text-sm font-medium">
-                      {acceptedQuoteDetails
-                        ? `${acceptedQuoteDetails.fromCurrency} / ${acceptedQuoteDetails.toCurrency}`
-                        : "—"}
+                      {deal.acceptedCalculation.state}
                     </div>
                   </div>
                   <div className="rounded-md bg-muted/40 px-3 py-2">
                     <div className="text-xs text-muted-foreground">
-                      Срок действия
+                      Время расчета
                     </div>
                     <div className="text-sm font-medium">
-                      {deal.acceptedQuote.expiresAt
-                        ? formatDate(deal.acceptedQuote.expiresAt)
-                        : "Без срока"}
+                      {formatDate(deal.acceptedCalculation.calculationTimestamp)}
                     </div>
                   </div>
                   <div className="rounded-md bg-muted/40 px-3 py-2">
                     <div className="text-xs text-muted-foreground">
-                      Использование
+                      Route version
                     </div>
                     <div className="text-sm font-medium">
-                      {deal.acceptedQuote.usedAt
-                        ? `Исполнена ${formatDate(deal.acceptedQuote.usedAt)}`
-                        : "Еще не исполнена"}
+                      {deal.acceptedCalculation.routeVersionId ?? "—"}
                     </div>
                   </div>
                 </div>
+                {lockedQuoteDetails ? (
+                  <div className="rounded-md bg-muted/40 px-3 py-3">
+                    <div className="text-sm font-medium text-foreground">
+                      {formatQuoteAmountsSummary(lockedQuoteDetails)}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      Источник прайсинга:{" "}
+                      {formatQuoteRateSummary(lockedQuoteDetails)}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -588,26 +555,22 @@ function PricingTab({
             ) : (
               <div className="space-y-2">
                 {quoteItems.map((quote, index) => {
-                  const isAccepted = deal.acceptedQuote?.quoteId === quote.id;
-                  const canAccept =
-                    quote.status === "active" &&
-                    !isAccepted &&
-                    isAcceptingQuoteId !== quote.id;
+                  const isLockedQuote = lockedQuoteId === quote.id;
 
                   return (
                     <div
                       key={quote.id}
-                      className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="rounded-lg border p-3"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
                             Котировка {quoteItems.length - index}
                           </span>
-                          {isAccepted ? (
+                          {isLockedQuote ? (
                             <Badge variant="secondary">
                               <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Принята
+                              Использована в расчете
                             </Badge>
                           ) : null}
                         </div>
@@ -626,18 +589,6 @@ function PricingTab({
                           <span>Создана {formatDate(quote.createdAt)}</span>
                         </div>
                       </div>
-                      {quote.status === "active" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!canAccept}
-                          onClick={() => onAcceptQuote(quote.id)}
-                        >
-                          {isAcceptingQuoteId === quote.id
-                            ? "Принимаем..."
-                            : "Принять"}
-                        </Button>
-                      ) : null}
                     </div>
                   );
                 })}
@@ -1880,9 +1831,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
-  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
-    null,
-  );
   const [isClosingDeal, setIsClosingDeal] = useState(false);
   const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<
     string | null
@@ -1923,45 +1871,14 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     "execution",
   );
 
-  async function handleAcceptQuote(quoteId: string) {
-    setIsAcceptingQuoteId(quoteId);
-
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось принять котировку",
-      request: () =>
-        fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/quotes/${encodeURIComponent(quoteId)}/accept`,
-          {
-            method: "POST",
-            credentials: "include",
-          },
-        ),
-    });
-
-    setIsAcceptingQuoteId(null);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Котировка принята");
-    refreshPage(router);
-  }
-
   async function handleCreateCalculation() {
-    if (!deal.acceptedQuote) {
-      toast.error("Сначала примите котировку");
-      return;
-    }
-
     setIsCreatingCalculation(true);
 
     const result = await executeMutation({
-      fallbackMessage: "Не удалось создать расчет",
+      fallbackMessage: "Не удалось создать расчет по маршруту",
       request: () =>
         fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/calculations/from-quote`,
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/calculations/from-route`,
           {
             method: "POST",
             credentials: "include",
@@ -1969,9 +1886,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
               "Content-Type": "application/json",
               "Idempotency-Key": createIdempotencyKey(),
             },
-            body: JSON.stringify({
-              quoteId: deal.acceptedQuote?.quoteId,
-            }),
+            body: JSON.stringify({}),
           },
         ),
     });
@@ -1983,7 +1898,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
       return;
     }
 
-    toast.success("Расчет создан");
+    toast.success("Расчет по маршруту создан");
     refreshPage(router);
   }
 
@@ -2251,9 +2166,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <PricingTab
                   calculationDisabledReason={calculationDisabledReason}
                   deal={deal}
-                  isAcceptingQuoteId={isAcceptingQuoteId}
                   isCreatingCalculation={isCreatingCalculation}
-                  onAcceptQuote={handleAcceptQuote}
                   onCreateCalculation={handleCreateCalculation}
                   onOpenQuoteDialog={() => setIsQuoteDialogOpen(true)}
                   quoteCreationDisabledReason={quoteCreationDisabledReason}

@@ -16,7 +16,7 @@ function createHarness() {
     id: "00000000-0000-4000-8000-000000000010",
     intakeComment: "Intake comment",
     legs: [],
-    nextAction: "Complete intake",
+    nextAction: "Complete deal header",
     participants: [],
     reason: null,
     revision: 1,

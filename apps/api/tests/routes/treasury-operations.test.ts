@@ -163,9 +163,9 @@ function createWorkflow(input: {
   } | null;
   status:
     | "draft"
-    | "awaiting_funds"
-    | "awaiting_payment"
-    | "closing_documents";
+    | "approved_for_execution"
+    | "executing"
+    | "reconciling";
   transitionBlockers?: string[];
   type:
     | "payment"
@@ -174,7 +174,7 @@ function createWorkflow(input: {
     | "exporter_settlement";
 }) {
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     attachmentIngestions: [],
     executionPlan: [
       {
@@ -191,7 +191,7 @@ function createWorkflow(input: {
         state: input.legState,
       },
     ],
-    intake: {
+    header: {
       common: {
         applicantCounterpartyId: null,
         customerNote: null,
@@ -241,7 +241,7 @@ function createWorkflow(input: {
               kind: "customer_receivable",
               reasonCode: null,
               state:
-                input.status === "awaiting_funds" ? "ready" : "pending",
+                input.status === "approved_for_execution" ? "ready" : "pending",
             },
           ],
     },
@@ -289,7 +289,7 @@ function createWorkflow(input: {
           code: `blocker_${index + 1}`,
           message,
         })),
-        targetStatus: "awaiting_funds",
+        targetStatus: "approved_for_execution",
       },
     ],
   };
@@ -375,7 +375,7 @@ function createTestApp() {
         legState: "ready",
         operationId: incomingOperation.id,
         operationKind: incomingOperation.kind,
-        status: "awaiting_funds",
+        status: "approved_for_execution",
         type: "payment",
       }),
     ],
@@ -390,7 +390,7 @@ function createTestApp() {
         operationId: outgoingOperation.id,
         operationKind: outgoingOperation.kind,
         settlementDestinationRequisiteId: settlementRequisite.id,
-        status: "awaiting_payment",
+        status: "executing",
         type: "currency_exchange",
       }),
     ],
@@ -404,7 +404,7 @@ function createTestApp() {
         legState: "ready",
         operationId: fxOperation.id,
         operationKind: fxOperation.kind,
-        status: "awaiting_payment",
+        status: "executing",
         type: "currency_exchange",
       }),
     ],
@@ -418,7 +418,7 @@ function createTestApp() {
         legState: "ready",
         operationId: intracompanyOperation.id,
         operationKind: intracompanyOperation.kind,
-        status: "awaiting_payment",
+        status: "executing",
         type: "currency_transit",
       }),
     ],
@@ -432,7 +432,7 @@ function createTestApp() {
         legState: "ready",
         operationId: intercompanyOperation.id,
         operationKind: intercompanyOperation.kind,
-        status: "awaiting_payment",
+        status: "executing",
         type: "exporter_settlement",
       }),
     ],
@@ -447,7 +447,7 @@ function createTestApp() {
         operationId: blockedOperation.id,
         operationKind: blockedOperation.kind,
         status: "draft",
-        transitionBlockers: ["Required intake sections are incomplete"],
+        transitionBlockers: ["Required deal header sections are incomplete"],
         type: "payment",
       }),
     ],
@@ -466,7 +466,7 @@ function createTestApp() {
           beneficiaryName: "Beneficiary LLC",
           label: "Manual payout",
         },
-        status: "awaiting_payment",
+        status: "executing",
         type: "payment",
       }),
     ],

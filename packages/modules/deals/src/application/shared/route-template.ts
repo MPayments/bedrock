@@ -154,11 +154,11 @@ export function resolveRouteTemplateForDeal(input: {
       case "deal_customer":
         return customerId;
       case "deal_applicant":
-        return input.deal.intake.common.applicantCounterpartyId;
+        return input.deal.header.common.applicantCounterpartyId;
       case "deal_payer":
-        return input.deal.intake.incomingReceipt.payerCounterpartyId;
+        return input.deal.header.incomingReceipt.payerCounterpartyId;
       case "deal_beneficiary":
-        return input.deal.intake.externalBeneficiary.beneficiaryCounterpartyId;
+        return input.deal.header.externalBeneficiary.beneficiaryCounterpartyId;
     }
   };
 

@@ -766,7 +766,7 @@ export function buildRouteEstimateCalculationInput(
     referenceRateSource: null,
     routeSnapshot: input.route.routeSnapshot,
     routeVersionId: input.route.routeVersionId,
-    state: "draft",
+    state: "offered",
     totalAmountMinor: totalAmountMinor.toString(),
     totalFeeAmountInBaseMinor: totalFeeAmountInBaseMinor.toString(),
     totalFeeAmountMinor: totalFeeAmountMinor.toString(),

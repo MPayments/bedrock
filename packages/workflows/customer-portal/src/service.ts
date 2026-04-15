@@ -3,7 +3,7 @@ import type { DealsModule } from "@bedrock/deals";
 import type {
   CreatePortalDealInput,
   Deal,
-  DealIntakeDraft,
+  DealHeader,
   PortalDealListProjection,
   PortalDealProjection,
 } from "@bedrock/deals/contracts";
@@ -324,9 +324,9 @@ async function resolvePortalCurrencyId(
   return currency.id;
 }
 
-function createEmptyPortalDealIntakeDraft(
+function createEmptyPortalDealHeader(
   type: CreatePortalDealInput["type"],
-): DealIntakeDraft {
+): DealHeader {
   return {
     type,
     common: {
@@ -362,10 +362,10 @@ function createEmptyPortalDealIntakeDraft(
   };
 }
 
-function buildPortalDealIntakeDraft(
+function buildPortalDealHeader(
   input: CreatePortalDealInput,
-): DealIntakeDraft {
-  const intake = createEmptyPortalDealIntakeDraft(input.type);
+): DealHeader {
+  const intake = createEmptyPortalDealHeader(input.type);
 
   intake.common = {
     applicantCounterpartyId: input.common.applicantCounterpartyId,
@@ -729,7 +729,7 @@ export function createCustomerPortalWorkflow(
         actorUserId: ctx.userId,
         customerId: applicant.customerId,
         idempotencyKey: options.idempotencyKey,
-        intake: buildPortalDealIntakeDraft(normalizedInput),
+        header: buildPortalDealHeader(normalizedInput),
       });
 
       deps.logger.info("Customer created typed deal draft", {

@@ -34,8 +34,8 @@ export function DealInfoCard({
     workbench.summary.type === "payment" ? "Сумма оплаты" : "Запрошенная сумма";
   const amount =
     workbench.summary.type === "payment"
-      ? workbench.intake.incomingReceipt.expectedAmount
-      : workbench.intake.moneyRequest.sourceAmount;
+      ? workbench.header.incomingReceipt.expectedAmount
+      : workbench.header.moneyRequest.sourceAmount;
 
   return (
     <Card>
@@ -71,20 +71,20 @@ export function DealInfoCard({
               {formatCurrency(amount, currency?.code ?? null)}
             </div>
           </div>
-          {workbench.intake.moneyRequest.purpose && (
+          {workbench.header.moneyRequest.purpose && (
             <div className="md:col-span-2">
               <div className="text-sm font-medium text-muted-foreground">
                 Основание
               </div>
-              <div className="text-base">{workbench.intake.moneyRequest.purpose}</div>
+              <div className="text-base">{workbench.header.moneyRequest.purpose}</div>
             </div>
           )}
-          {workbench.intake.common.customerNote && (
+          {workbench.header.common.customerNote && (
             <div className="md:col-span-2">
               <div className="text-sm font-medium text-muted-foreground">
                 Комментарий к анкете
               </div>
-              <div className="text-base">{workbench.intake.common.customerNote}</div>
+              <div className="text-base">{workbench.header.common.customerNote}</div>
             </div>
           )}
         </div>

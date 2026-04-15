@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CreatePlannedTreasuryOperationInputSchema,
-  ListTreasuryOperationFactsQuerySchema,
-  RecordTreasuryOperationFactInputSchema,
+  ListTreasuryExecutionFeesQuerySchema,
+  RecordTreasuryExecutionFeeInputSchema,
   TreasuryOperationFactSourceKindSchema,
   TreasuryOperationKindSchema,
 } from "../src/contracts";
@@ -29,45 +29,66 @@ function createOperationRow() {
   };
 }
 
-function createOperationFactRow() {
+function createExecutionFeeRow() {
   return {
-    amountMinor: 9950n,
+    amountMinor: 50n,
+    calculationSnapshotId: null,
+    chargedAt: new Date("2026-04-03T10:10:00.000Z"),
+    componentCode: null,
     confirmedAt: new Date("2026-04-03T10:15:00.000Z"),
-    counterAmountMinor: null,
-    counterCurrencyId: null,
     createdAt: new Date("2026-04-03T10:10:00.000Z"),
     currencyId: "00000000-0000-4000-8000-000000000101",
     dealId: "00000000-0000-4000-8000-000000000301",
     externalRecordId: "statement:1",
-    feeAmountMinor: 50n,
-    feeCurrencyId: "00000000-0000-4000-8000-000000000101",
+    feeFamily: "provider_fee",
+    fillId: null,
     id: "00000000-0000-4000-8000-000000000701",
     instructionId: "00000000-0000-4000-8000-000000000801",
     metadata: { provider: "bank-a" },
     notes: "manual confirmation",
     operationId: "00000000-0000-4000-8000-000000000401",
+    providerCounterpartyId: null,
     providerRef: "provider-1",
-    recordedAt: new Date("2026-04-03T10:10:00.000Z"),
+    routeComponentId: null,
     routeLegId: "00000000-0000-4000-8000-000000000601",
+    routeVersionId: null,
     sourceKind: "manual" as const,
-    sourceRef: "fact:operation-1:manual-1",
+    sourceRef: "fee:operation-1:manual-1",
     updatedAt: new Date("2026-04-03T10:10:00.000Z"),
+  };
+}
+
+function createActualRepositories() {
+  return {
+    cashMovementsRepository: {
+      findCashMovementBySourceRef: vi.fn(),
+      insertCashMovement: vi.fn(),
+      listCashMovements: vi.fn(),
+    },
+    executionFeesRepository: {
+      findFeeBySourceRef: vi.fn(),
+      insertFee: vi.fn(),
+      listFees: vi.fn(),
+    },
+    executionFillsRepository: {
+      findFillBySourceRef: vi.fn(),
+      insertFill: vi.fn(),
+      listFills: vi.fn(),
+    },
   };
 }
 
 describe("treasury operations service", () => {
   it("returns the existing operation when sourceRef already exists", async () => {
     const existing = createOperationRow();
+    const repositories = createActualRepositories();
     const operations = createTreasuryOperationsService({
-      factsRepository: {
-        findFactBySourceRef: vi.fn(),
-        insertFact: vi.fn(),
-        listFacts: vi.fn(),
-      },
+      ...repositories,
       operationsRepository: {
         findOperationById: vi.fn(),
         findOperationBySourceRef: vi.fn(async () => existing),
         insertOperation: vi.fn(async () => null),
+        listOperations: vi.fn(),
       },
       runtime: {
         generateUuid: vi.fn(),
@@ -122,16 +143,13 @@ describe("treasury operations service", () => {
 
   it("lists operations with kind, internal-entity filters, sort, and pagination", async () => {
     const existing = createOperationRow();
+    const repositories = createActualRepositories();
     const listOperations = vi.fn(async () => ({
       rows: [existing],
       total: 1,
     }));
     const operations = createTreasuryOperationsService({
-      factsRepository: {
-        findFactBySourceRef: vi.fn(),
-        insertFact: vi.fn(),
-        listFacts: vi.fn(),
-      },
+      ...repositories,
       operationsRepository: {
         findOperationById: vi.fn(),
         findOperationBySourceRef: vi.fn(),
@@ -194,16 +212,13 @@ describe("treasury operations service", () => {
     });
   });
 
-  it("records actual facts and derives deal and route leg from the planned operation", async () => {
+  it("records execution fees and derives deal and route leg from the planned operation", async () => {
     const operation = createOperationRow();
-    const fact = createOperationFactRow();
-    const insertFact = vi.fn(async () => fact);
+    const fee = createExecutionFeeRow();
+    const repositories = createActualRepositories();
+    repositories.executionFeesRepository.insertFee.mockResolvedValue(fee);
     const operations = createTreasuryOperationsService({
-      factsRepository: {
-        findFactBySourceRef: vi.fn(),
-        insertFact,
-        listFacts: vi.fn(),
-      },
+      ...repositories,
       operationsRepository: {
         findOperationById: vi.fn(async () => operation),
         findOperationBySourceRef: vi.fn(),
@@ -211,72 +226,70 @@ describe("treasury operations service", () => {
         listOperations: vi.fn(),
       },
       runtime: {
-        generateUuid: vi.fn(() => fact.id),
+        generateUuid: vi.fn(() => fee.id),
         log: vi.fn(),
         logger: vi.fn(),
-        now: vi.fn(() => fact.recordedAt),
+        now: vi.fn(() => fee.chargedAt),
       } as any,
     });
 
-    const result = await operations.commands.recordActualFact({
-      amountMinor: 9950n,
-      feeAmountMinor: 50n,
-      feeCurrencyId: operation.currencyId,
+    const result = await operations.commands.recordExecutionFee({
+      amountMinor: 50n,
+      feeFamily: "provider_fee",
       operationId: operation.id,
       sourceKind: "manual",
-      sourceRef: fact.sourceRef,
+      sourceRef: fee.sourceRef,
     });
 
-    expect(insertFact).toHaveBeenCalledWith(
+    expect(repositories.executionFeesRepository.insertFee).toHaveBeenCalledWith(
       expect.objectContaining({
-        amountMinor: 9950n,
+        amountMinor: 50n,
         currencyId: operation.currencyId,
         dealId: operation.dealId,
-        feeAmountMinor: 50n,
-        feeCurrencyId: operation.currencyId,
+        feeFamily: "provider_fee",
         operationId: operation.id,
         routeLegId: operation.routeLegId,
         sourceKind: "manual",
-        sourceRef: fact.sourceRef,
+        sourceRef: fee.sourceRef,
       }),
     );
     expect(result).toEqual({
-      amountMinor: "9950",
-      confirmedAt: fact.confirmedAt,
-      counterAmountMinor: null,
-      counterCurrencyId: null,
-      createdAt: fact.createdAt,
-      currencyId: fact.currencyId,
-      dealId: fact.dealId,
-      externalRecordId: fact.externalRecordId,
-      feeAmountMinor: "50",
-      feeCurrencyId: fact.feeCurrencyId,
-      id: fact.id,
-      instructionId: fact.instructionId,
-      metadata: fact.metadata,
-      notes: fact.notes,
-      operationId: fact.operationId,
-      providerRef: fact.providerRef,
-      recordedAt: fact.recordedAt,
-      routeLegId: fact.routeLegId,
-      sourceKind: fact.sourceKind,
-      sourceRef: fact.sourceRef,
-      updatedAt: fact.updatedAt,
+      amountMinor: "50",
+      calculationSnapshotId: null,
+      chargedAt: fee.chargedAt,
+      componentCode: null,
+      confirmedAt: fee.confirmedAt,
+      createdAt: fee.createdAt,
+      currencyId: fee.currencyId,
+      dealId: fee.dealId,
+      externalRecordId: fee.externalRecordId,
+      feeFamily: fee.feeFamily,
+      fillId: null,
+      id: fee.id,
+      instructionId: fee.instructionId,
+      metadata: fee.metadata,
+      notes: fee.notes,
+      operationId: fee.operationId,
+      providerCounterpartyId: null,
+      providerRef: fee.providerRef,
+      routeComponentId: null,
+      routeLegId: fee.routeLegId,
+      routeVersionId: null,
+      sourceKind: fee.sourceKind,
+      sourceRef: fee.sourceRef,
+      updatedAt: fee.updatedAt,
     });
   });
 
-  it("lists operation facts with deal, route-leg, and source-kind filters", async () => {
-    const fact = createOperationFactRow();
-    const listFacts = vi.fn(async () => ({
-      rows: [fact],
+  it("lists execution fees with deal, route-leg, and source-kind filters", async () => {
+    const fee = createExecutionFeeRow();
+    const repositories = createActualRepositories();
+    repositories.executionFeesRepository.listFees.mockResolvedValue({
+      rows: [fee],
       total: 1,
-    }));
+    });
     const operations = createTreasuryOperationsService({
-      factsRepository: {
-        findFactBySourceRef: vi.fn(),
-        insertFact: vi.fn(),
-        listFacts,
-      },
+      ...repositories,
       operationsRepository: {
         findOperationById: vi.fn(),
         findOperationBySourceRef: vi.fn(),
@@ -291,51 +304,54 @@ describe("treasury operations service", () => {
       } as any,
     });
 
-    const result = await operations.queries.listFacts({
-      dealId: fact.dealId ?? undefined,
+    const result = await operations.queries.listExecutionFees({
+      dealId: fee.dealId ?? undefined,
       limit: 10,
       offset: 0,
-      operationId: fact.operationId,
-      routeLegId: fact.routeLegId ?? undefined,
-      sortBy: "recordedAt",
+      operationId: fee.operationId,
+      routeLegId: fee.routeLegId ?? undefined,
+      sortBy: "chargedAt",
       sortOrder: "desc",
       sourceKind: ["manual"],
     });
 
-    expect(listFacts).toHaveBeenCalledWith({
-      dealId: fact.dealId ?? undefined,
+    expect(repositories.executionFeesRepository.listFees).toHaveBeenCalledWith({
+      dealId: fee.dealId ?? undefined,
       limit: 10,
       offset: 0,
-      operationId: fact.operationId,
-      routeLegId: fact.routeLegId ?? undefined,
-      sortBy: "recordedAt",
+      operationId: fee.operationId,
+      routeLegId: fee.routeLegId ?? undefined,
+      sortBy: "chargedAt",
       sortOrder: "desc",
       sourceKind: ["manual"],
     });
     expect(result).toEqual({
       data: [
         {
-          amountMinor: "9950",
-          confirmedAt: fact.confirmedAt,
-          counterAmountMinor: null,
-          counterCurrencyId: null,
-          createdAt: fact.createdAt,
-          currencyId: fact.currencyId,
-          dealId: fact.dealId,
-          externalRecordId: fact.externalRecordId,
-          feeAmountMinor: "50",
-          feeCurrencyId: fact.feeCurrencyId,
-          id: fact.id,
-          instructionId: fact.instructionId,
-          metadata: fact.metadata,
-          notes: fact.notes,
-          operationId: fact.operationId,
-          providerRef: fact.providerRef,
-          recordedAt: fact.recordedAt,
-          routeLegId: fact.routeLegId,
-          sourceKind: fact.sourceKind,
-          sourceRef: fact.sourceRef,
-          updatedAt: fact.updatedAt,
+          amountMinor: "50",
+          calculationSnapshotId: null,
+          chargedAt: fee.chargedAt,
+          componentCode: null,
+          confirmedAt: fee.confirmedAt,
+          createdAt: fee.createdAt,
+          currencyId: fee.currencyId,
+          dealId: fee.dealId,
+          externalRecordId: fee.externalRecordId,
+          feeFamily: fee.feeFamily,
+          fillId: null,
+          id: fee.id,
+          instructionId: fee.instructionId,
+          metadata: fee.metadata,
+          notes: fee.notes,
+          operationId: fee.operationId,
+          providerCounterpartyId: null,
+          providerRef: fee.providerRef,
+          routeComponentId: null,
+          routeLegId: fee.routeLegId,
+          routeVersionId: null,
+          sourceKind: fee.sourceKind,
+          sourceRef: fee.sourceRef,
+          updatedAt: fee.updatedAt,
         },
       ],
       limit: 10,
@@ -344,19 +360,20 @@ describe("treasury operations service", () => {
     });
   });
 
-  it("validates fact contracts for source kind and list filters", () => {
+  it("validates execution fee contracts for source kind and list filters", () => {
     expect(TreasuryOperationFactSourceKindSchema.safeParse("provider").success).toBe(
       true,
     );
     expect(
-      RecordTreasuryOperationFactInputSchema.safeParse({
+      RecordTreasuryExecutionFeeInputSchema.safeParse({
+        feeFamily: "provider_fee",
         operationId: "00000000-0000-4000-8000-000000000401",
         sourceKind: "manual",
-        sourceRef: "fact:1",
+        sourceRef: "fee:1",
       }).success,
     ).toBe(true);
     expect(
-      ListTreasuryOperationFactsQuerySchema.safeParse({
+      ListTreasuryExecutionFeesQuerySchema.safeParse({
         limit: 10,
         offset: 0,
         routeLegId: "00000000-0000-4000-8000-000000000601",

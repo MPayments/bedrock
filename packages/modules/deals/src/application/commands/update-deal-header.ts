@@ -8,8 +8,8 @@ import {
   DealRevisionConflictError,
 } from "../../errors";
 import {
-  ReplaceDealIntakeInputSchema,
-  type ReplaceDealIntakeInput,
+  UpdateDealHeaderInputSchema,
+  type UpdateDealHeaderInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
@@ -22,7 +22,7 @@ import {
   deriveDealRootState,
 } from "../shared/workflow-state";
 
-const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend({
+const UpdateDealHeaderCommandInputSchema = UpdateDealHeaderInputSchema.extend({
   actorLabel: z.string().trim().max(255).nullable().optional(),
   actorUserId: z.string().trim().min(1).nullable().optional(),
   dealId: z.uuid(),
@@ -36,13 +36,13 @@ const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend(
   }
 });
 
-type ReplaceDealIntakeCommandInput = ReplaceDealIntakeInput & {
+type UpdateDealHeaderCommandInput = UpdateDealHeaderInput & {
   actorLabel?: string | null;
   actorUserId?: string | null;
   dealId: string;
 };
 
-function participantFingerprint(input: DealWorkflowProjection["intake"]) {
+function participantFingerprint(input: DealWorkflowProjection["header"]) {
   return JSON.stringify({
     applicantCounterpartyId: input.common.applicantCounterpartyId,
     beneficiaryCounterpartyId:
@@ -51,7 +51,7 @@ function participantFingerprint(input: DealWorkflowProjection["intake"]) {
   });
 }
 
-export class ReplaceDealIntakeCommand {
+export class UpdateDealHeaderCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
@@ -59,9 +59,9 @@ export class ReplaceDealIntakeCommand {
   ) {}
 
   async execute(
-    raw: ReplaceDealIntakeCommandInput,
+    raw: UpdateDealHeaderCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = ReplaceDealIntakeCommandInputSchema.parse(raw);
+    const validated = UpdateDealHeaderCommandInputSchema.parse(raw);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -85,54 +85,53 @@ export class ReplaceDealIntakeCommand {
       }
 
       if (
-        validated.intake.common.applicantCounterpartyId &&
+        validated.header.common.applicantCounterpartyId &&
         !(await this.references.findCounterpartyById(
-          validated.intake.common.applicantCounterpartyId,
+          validated.header.common.applicantCounterpartyId,
         ))
       ) {
         throw new NotFoundError(
           "Counterparty",
-          validated.intake.common.applicantCounterpartyId,
+          validated.header.common.applicantCounterpartyId,
         );
       }
 
       if (
-        validated.intake.moneyRequest.sourceCurrencyId &&
+        validated.header.moneyRequest.sourceCurrencyId &&
         !(await this.references.findCurrencyById(
-          validated.intake.moneyRequest.sourceCurrencyId,
+          validated.header.moneyRequest.sourceCurrencyId,
         ))
       ) {
         throw new NotFoundError(
           "Currency",
-          validated.intake.moneyRequest.sourceCurrencyId,
+          validated.header.moneyRequest.sourceCurrencyId,
         );
       }
 
       if (
-        validated.intake.moneyRequest.targetCurrencyId &&
+        validated.header.moneyRequest.targetCurrencyId &&
         !(await this.references.findCurrencyById(
-          validated.intake.moneyRequest.targetCurrencyId,
+          validated.header.moneyRequest.targetCurrencyId,
         ))
       ) {
         throw new NotFoundError(
           "Currency",
-          validated.intake.moneyRequest.targetCurrencyId,
+          validated.header.moneyRequest.targetCurrencyId,
         );
       }
 
       const nextRevision = validated.expectedRevision + 1;
       const rootState = await deriveDealRootState({
-        acceptance: null,
         calculationId: existing.summary.calculationId,
-        intake: validated.intake,
+        header: validated.header,
         references: this.references,
         status: existing.summary.status,
       });
-      const replaced = await tx.dealStore.replaceIntakeSnapshot({
+      const replaced = await tx.dealStore.replaceDealHeader({
         dealId: validated.dealId,
         expectedRevision: validated.expectedRevision,
+        header: validated.header,
         nextRevision,
-        snapshot: validated.intake,
       });
 
       if (!replaced) {
@@ -155,7 +154,7 @@ export class ReplaceDealIntakeCommand {
           dealId: validated.dealId,
           existingLegs: existing.executionPlan,
           generateUuid: () => this.runtime.generateUuid(),
-          intake: validated.intake,
+          header: validated.header,
         }),
       });
       await tx.dealStore.replaceDealParticipants({
@@ -165,7 +164,7 @@ export class ReplaceDealIntakeCommand {
           customerId: customerParticipant.customerId,
           dealId: validated.dealId,
           generateUuid: () => this.runtime.generateUuid(),
-          intake: validated.intake,
+          header: validated.header,
         }),
       });
 
@@ -178,14 +177,14 @@ export class ReplaceDealIntakeCommand {
           generateUuid: () => this.runtime.generateUuid(),
           occurredAt: now,
           payload: { revision: nextRevision },
-          type: "intake_saved",
+          type: "deal_header_updated",
           visibility: "internal",
         }),
       ];
 
       if (
-        participantFingerprint(existing.intake) !==
-        participantFingerprint(validated.intake)
+        participantFingerprint(existing.header) !==
+        participantFingerprint(validated.header)
       ) {
         events.push(
           createTimelinePayloadEvent({

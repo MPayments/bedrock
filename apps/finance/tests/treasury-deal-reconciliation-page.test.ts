@@ -22,6 +22,7 @@ describe("treasury deal reconciliation page", () => {
     vi.clearAllMocks();
 
     getFinanceDealReconciliationWorkspaceById.mockResolvedValue({
+      cashMovements: [],
       currencies: [],
       deal: {
         summary: {
@@ -35,7 +36,8 @@ describe("treasury deal reconciliation page", () => {
           updatedAt: "2026-04-02T08:07:00.000Z",
         },
       },
-      facts: [],
+      fees: [],
+      fills: [],
     });
   });
 

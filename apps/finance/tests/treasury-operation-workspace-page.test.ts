@@ -25,7 +25,7 @@ describe("treasury operation workspace page", () => {
       dealRef: {
         applicantName: "ООО Тест",
         dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        status: "awaiting_payment",
+        status: "executing",
         type: "payment",
       },
       id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",

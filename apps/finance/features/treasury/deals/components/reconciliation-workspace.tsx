@@ -60,6 +60,21 @@ function getReconciliationStateVariant(value: string) {
   }
 }
 
+function getFactSourceKindLabel(value: string) {
+  switch (value) {
+    case "manual":
+      return "Вручную";
+    case "provider":
+      return "Провайдер";
+    case "reconciliation":
+      return "Сверка";
+    case "system":
+      return "Система";
+    default:
+      return value;
+  }
+}
+
 function formatAmounts(items: FinanceProfitabilityAmount[] | null | undefined) {
   if (!items || items.length === 0) {
     return "0";
@@ -68,6 +83,17 @@ function formatAmounts(items: FinanceProfitabilityAmount[] | null | undefined) {
   return items
     .map((item) => formatMinorAmountWithCurrency(item.amountMinor, item.currencyCode))
     .join(" · ");
+}
+
+function getReconciliationActualCount(
+  data: FinanceDealReconciliationWorkspace,
+) {
+  return (
+    data.fills.filter((fill) => fill.sourceKind === "reconciliation").length +
+    data.fees.filter((fee) => fee.sourceKind === "reconciliation").length +
+    data.cashMovements.filter((movement) => movement.sourceKind === "reconciliation")
+      .length
+  );
 }
 
 function CloseBlockersPanel({ data }: { data: FinanceDealReconciliationWorkspace }) {
@@ -121,8 +147,14 @@ export function ReconciliationWorkspace({
     id: data.deal.summary.id,
     type: data.deal.summary.type,
   });
-  const reconciliationFacts = data.facts.filter(
-    (fact) => fact.sourceKind === "reconciliation",
+  const reconciliationFills = data.fills.filter(
+    (fill) => fill.sourceKind === "reconciliation",
+  );
+  const reconciliationFees = data.fees.filter(
+    (fee) => fee.sourceKind === "reconciliation",
+  );
+  const reconciliationCashMovements = data.cashMovements.filter(
+    (movement) => movement.sourceKind === "reconciliation",
   );
 
   return (
@@ -194,10 +226,10 @@ export function ReconciliationWorkspace({
               </div>
               <div className="rounded-lg border bg-background/70 px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Normalized facts
+                  Normalized actuals
                 </div>
                 <div className="mt-1 text-lg font-semibold">
-                  {reconciliationFacts.length}
+                  {getReconciliationActualCount(data)}
                 </div>
               </div>
             </div>
@@ -211,39 +243,117 @@ export function ReconciliationWorkspace({
               Matched records
             </CardTitle>
             <CardDescription>
-              Нормализованные reconciliation facts, подтвержденные внешними выписками.
+              Нормализованные reconciliation actuals, подтвержденные внешними выписками.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {reconciliationFacts.length === 0 ? (
+          <CardContent className="space-y-6">
+            {getReconciliationActualCount(data) === 0 ? (
               <div className="text-sm text-muted-foreground">
-                По сделке пока нет execution facts, пришедших именно из reconciliation.
+                По сделке пока нет execution actuals, пришедших именно из reconciliation.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Recorded</TableHead>
-                      <TableHead>External ref</TableHead>
-                      <TableHead>Operation</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Fee</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reconciliationFacts.map((fact) => (
-                      <TableRow key={fact.id}>
-                        <TableCell>{formatDate(fact.recordedAt)}</TableCell>
-                        <TableCell>{fact.externalRecordId ?? fact.providerRef ?? "—"}</TableCell>
-                        <TableCell>{fact.operationId.slice(0, 8)}</TableCell>
-                        <TableCell>{fact.amountMinor ?? "—"}</TableCell>
-                        <TableCell>{fact.feeAmountMinor ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <>
+                {reconciliationFills.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">Execution fills</div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Executed</TableHead>
+                            <TableHead>Operation</TableHead>
+                            <TableHead>Source</TableHead>
+                            <TableHead>Sold</TableHead>
+                            <TableHead>Bought</TableHead>
+                            <TableHead>External ref</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reconciliationFills.map((fill) => (
+                            <TableRow key={fill.id}>
+                              <TableCell>{formatDate(fill.executedAt)}</TableCell>
+                              <TableCell>{fill.operationId.slice(0, 8)}</TableCell>
+                              <TableCell>{getFactSourceKindLabel(fill.sourceKind)}</TableCell>
+                              <TableCell>{fill.soldAmountMinor ?? "—"}</TableCell>
+                              <TableCell>{fill.boughtAmountMinor ?? "—"}</TableCell>
+                              <TableCell>
+                                {fill.externalRecordId ?? fill.providerRef ?? "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ) : null}
+
+                {reconciliationFees.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">Execution fees</div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Charged</TableHead>
+                            <TableHead>Operation</TableHead>
+                            <TableHead>Family</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>External ref</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reconciliationFees.map((fee) => (
+                            <TableRow key={fee.id}>
+                              <TableCell>{formatDate(fee.chargedAt)}</TableCell>
+                              <TableCell>{fee.operationId.slice(0, 8)}</TableCell>
+                              <TableCell>{fee.feeFamily}</TableCell>
+                              <TableCell>{fee.amountMinor ?? "—"}</TableCell>
+                              <TableCell>
+                                {fee.externalRecordId ?? fee.providerRef ?? "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ) : null}
+
+                {reconciliationCashMovements.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">Cash movements</div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Booked</TableHead>
+                            <TableHead>Operation</TableHead>
+                            <TableHead>Direction</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>External ref</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reconciliationCashMovements.map((movement) => (
+                            <TableRow key={movement.id}>
+                              <TableCell>{formatDate(movement.bookedAt)}</TableCell>
+                              <TableCell>{movement.operationId.slice(0, 8)}</TableCell>
+                              <TableCell>{movement.direction}</TableCell>
+                              <TableCell>{movement.amountMinor ?? "—"}</TableCell>
+                              <TableCell>
+                                {movement.externalRecordId ??
+                                  movement.statementRef ??
+                                  movement.providerRef ??
+                                  "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
           </CardContent>
         </Card>
@@ -337,7 +447,7 @@ export function ReconciliationWorkspace({
                 <AlertTitle>Variance еще не рассчитана</AlertTitle>
                 <AlertDescription>
                   Реализованная прибыльность появится после достаточного покрытия execution
-                  facts.
+                  actuals.
                 </AlertDescription>
               </Alert>
             )}

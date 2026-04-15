@@ -10,9 +10,8 @@ import type {
   CreatePortalDealInput,
 } from "../contracts/commands";
 import type {
+  DealHeader,
   DealOperationalState,
-  DealIntakeDraft,
-  DealQuoteAcceptance,
   DealWorkflowLeg,
 } from "../contracts/dto";
 import type { DealStatus } from "../contracts/zod";
@@ -26,9 +25,9 @@ import type {
   DealReferencesPort,
 } from "../ports/references.port";
 
-export function createEmptyDealIntakeDraft(
-  type: CreateDealDraftInput["intake"]["type"],
-): DealIntakeDraft {
+export function createEmptyDealHeader(
+  type: CreateDealDraftInput["header"]["type"],
+): DealHeader {
   return {
     common: {
       applicantCounterpartyId: null,
@@ -64,8 +63,8 @@ export function createEmptyDealIntakeDraft(
   };
 }
 
-export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntakeDraft {
-  const draft = createEmptyDealIntakeDraft(input.type);
+export function buildPortalDealHeader(input: CreatePortalDealInput): DealHeader {
+  const draft = createEmptyDealHeader(input.type);
 
   draft.common = {
     applicantCounterpartyId: input.common.applicantCounterpartyId,
@@ -99,34 +98,34 @@ export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntake
 }
 
 export async function deriveDealRootState(input: {
-  acceptance: DealQuoteAcceptance | null;
   calculationId: string | null;
-  intake: DealIntakeDraft;
+  header: DealHeader;
   references: DealReferencesPort;
   status: DealStatus;
 }) {
-  const sourceCurrency = input.intake.moneyRequest.sourceCurrencyId
+  const { header } = input;
+
+  const sourceCurrency = header.moneyRequest.sourceCurrencyId
     ? await input.references.findCurrencyById(
-        input.intake.moneyRequest.sourceCurrencyId,
+        header.moneyRequest.sourceCurrencyId,
       )
     : null;
 
   const sourceAmountMinor =
-    input.intake.moneyRequest.sourceAmount && sourceCurrency
+    header.moneyRequest.sourceAmount && sourceCurrency
       ? BigInt(
           toMinorAmountString(
-            input.intake.moneyRequest.sourceAmount,
+            header.moneyRequest.sourceAmount,
             sourceCurrency.code,
           ),
         )
       : null;
 
-  const sectionCompleteness = evaluateDealSectionCompleteness(input.intake);
+  const sectionCompleteness = evaluateDealSectionCompleteness(header);
   const nextAction = deriveDealNextAction({
-    acceptance: input.acceptance,
     calculationId: input.calculationId,
     completeness: sectionCompleteness,
-    intake: input.intake,
+    header,
     status: input.status,
   });
 
@@ -134,8 +133,8 @@ export async function deriveDealRootState(input: {
     nextAction,
     sectionCompleteness,
     sourceAmountMinor,
-    sourceCurrencyId: input.intake.moneyRequest.sourceCurrencyId ?? null,
-    targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+    sourceCurrencyId: header.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: header.moneyRequest.targetCurrencyId ?? null,
   };
 }
 
@@ -143,13 +142,15 @@ export function buildDealLegRows(input: {
   dealId: string;
   existingLegs?: DealWorkflowLeg[];
   generateUuid: () => string;
-  intake: DealIntakeDraft;
+  header: DealHeader;
 }): CreateDealLegStoredInput[] {
+  const { header } = input;
+
   const existingLegStateByKey = new Map(
     (input.existingLegs ?? []).map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
   );
 
-  return buildDealExecutionPlan(input.intake).map((leg) => ({
+  return buildDealExecutionPlan(header).map((leg) => ({
     dealId: input.dealId,
     id: input.generateUuid(),
     idx: leg.idx,
@@ -163,8 +164,10 @@ export function buildDealParticipantRows(input: {
   customerId: string;
   dealId: string;
   generateUuid: () => string;
-  intake: DealIntakeDraft;
+  header: DealHeader;
 }): CreateDealParticipantStoredInput[] {
+  const { header } = input;
+
   const participants: CreateDealParticipantStoredInput[] = [
     {
       counterpartyId: null,
@@ -184,9 +187,9 @@ export function buildDealParticipantRows(input: {
     },
   ];
 
-  if (input.intake.common.applicantCounterpartyId) {
+  if (header.common.applicantCounterpartyId) {
     participants.push({
-      counterpartyId: input.intake.common.applicantCounterpartyId,
+      counterpartyId: header.common.applicantCounterpartyId,
       customerId: null,
       dealId: input.dealId,
       id: input.generateUuid(),
@@ -195,9 +198,9 @@ export function buildDealParticipantRows(input: {
     });
   }
 
-  if (input.intake.incomingReceipt.payerCounterpartyId) {
+  if (header.incomingReceipt.payerCounterpartyId) {
     participants.push({
-      counterpartyId: input.intake.incomingReceipt.payerCounterpartyId,
+      counterpartyId: header.incomingReceipt.payerCounterpartyId,
       customerId: null,
       dealId: input.dealId,
       id: input.generateUuid(),
@@ -206,9 +209,9 @@ export function buildDealParticipantRows(input: {
     });
   }
 
-  if (input.intake.externalBeneficiary.beneficiaryCounterpartyId) {
+  if (header.externalBeneficiary.beneficiaryCounterpartyId) {
     participants.push({
-      counterpartyId: input.intake.externalBeneficiary.beneficiaryCounterpartyId,
+      counterpartyId: header.externalBeneficiary.beneficiaryCounterpartyId,
       customerId: null,
       dealId: input.dealId,
       id: input.generateUuid(),
@@ -247,15 +250,19 @@ export function createTimelinePayloadEvent(input: {
   sourceRef?: string | null;
   type:
     | "deal_created"
-    | "intake_saved"
+    | "deal_header_updated"
+    | "deal_approved"
+    | "deal_rejected"
     | "participant_changed"
     | "status_changed"
     | "deal_closed"
     | "quote_created"
-    | "quote_accepted"
     | "quote_expired"
     | "quote_used"
     | "execution_requested"
+    | "calculation_created"
+    | "calculation_accepted"
+    | "calculation_superseded"
     | "leg_operation_created"
     | "instruction_prepared"
     | "instruction_submitted"

@@ -20,7 +20,7 @@ export { routeComposerRoutes } from "./route-composer";
 export { subAgentProfilesRoutes } from "./sub-agent-profiles";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
-export { treasuryOperationFactsRoutes } from "./treasury-operation-facts";
+export { treasuryExecutionActualsRoutes } from "./treasury-execution-actuals";
 export {
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,

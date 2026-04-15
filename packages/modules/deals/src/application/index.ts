@@ -1,8 +1,9 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
+import { AcceptDealCalculationCommand } from "./commands/accept-deal-calculation";
 import { ApplyDealRouteTemplateCommand } from "./commands/apply-deal-route-template";
+import { ApproveDealCommand } from "./commands/approve-deal";
 import { ArchiveDealRouteTemplateCommand } from "./commands/archive-deal-route-template";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
@@ -14,11 +15,12 @@ import { CreateDealRouteTemplateCommand } from "./commands/create-deal-route-tem
 import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
 import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
 import { LinkCalculationCommand } from "./commands/link-calculation";
-import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { PublishDealRouteTemplateCommand } from "./commands/publish-deal-route-template";
+import { RejectDealCommand } from "./commands/reject-deal";
 import { ReplaceDealRouteVersionCommand } from "./commands/replace-deal-route-version";
-import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
+import { SupersedeDealCalculationCommand } from "./commands/supersede-deal-calculation";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
+import { UpdateDealHeaderCommand } from "./commands/update-deal-header";
 import { UpdateDealRouteTemplateCommand } from "./commands/update-deal-route-template";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
@@ -68,7 +70,17 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
+  const acceptDealCalculation = new AcceptDealCalculationCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
   const applyDealRouteTemplate = new ApplyDealRouteTemplateCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const approveDeal = new ApproveDealCommand(
     deps.runtime,
     deps.commandUow,
     deps.references,
@@ -85,7 +97,7 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
-  const replaceDealIntake = new ReplaceDealIntakeCommand(
+  const updateDealHeader = new UpdateDealHeaderCommand(
     deps.runtime,
     deps.commandUow,
     deps.references,
@@ -107,12 +119,6 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
   );
   const updateDealComment = new UpdateDealCommentCommand(deps.commandUow);
-  const linkCalculationFromAcceptedQuote =
-    new LinkCalculationFromAcceptedQuoteCommand(
-      deps.runtime,
-      deps.commandUow,
-      deps.references,
-    );
   const linkCalculation = new LinkCalculationCommand(
     deps.runtime,
     deps.commandUow,
@@ -122,7 +128,11 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
-  const acceptDealQuote = new AcceptDealQuoteCommand(
+  const rejectDeal = new RejectDealCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const supersedeDealCalculation = new SupersedeDealCalculationCommand(
     deps.runtime,
     deps.commandUow,
     deps.references,
@@ -165,9 +175,11 @@ export function createDealsService(deps: DealsServiceDeps) {
 
   return {
     commands: {
-      acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
+      acceptCalculation:
+        acceptDealCalculation.execute.bind(acceptDealCalculation),
       applyRouteTemplate:
         applyDealRouteTemplate.execute.bind(applyDealRouteTemplate),
+      approve: approveDeal.execute.bind(approveDeal),
       archiveRouteTemplate:
         archiveDealRouteTemplate.execute.bind(archiveDealRouteTemplate),
       assignAgent: assignDealAgent.execute.bind(assignDealAgent),
@@ -184,19 +196,18 @@ export function createDealsService(deps: DealsServiceDeps) {
         enqueueAttachmentIngestion.execute.bind(enqueueAttachmentIngestion),
       failAttachmentIngestion:
         failAttachmentIngestion.execute.bind(failAttachmentIngestion),
-      linkCalculationFromAcceptedQuote:
-        linkCalculationFromAcceptedQuote.execute.bind(
-          linkCalculationFromAcceptedQuote,
-        ),
       linkCalculation: linkCalculation.execute.bind(linkCalculation),
       publishRouteTemplate:
         publishDealRouteTemplate.execute.bind(publishDealRouteTemplate),
-      replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
+      reject: rejectDeal.execute.bind(rejectDeal),
       replaceRouteVersion:
         replaceDealRouteVersion.execute.bind(replaceDealRouteVersion),
+      supersedeCalculation:
+        supersedeDealCalculation.execute.bind(supersedeDealCalculation),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       updateComment: updateDealComment.execute.bind(updateDealComment),
+      updateHeader: updateDealHeader.execute.bind(updateDealHeader),
       updateLegState: updateDealLegState.execute.bind(updateDealLegState),
       updateRouteTemplate:
         updateDealRouteTemplate.execute.bind(updateDealRouteTemplate),

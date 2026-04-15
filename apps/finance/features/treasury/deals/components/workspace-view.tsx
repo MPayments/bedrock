@@ -19,8 +19,6 @@ import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries
 import {
   formatDealNextAction,
   formatDealWorkflowMessage,
-  getDealQuoteStatusLabel,
-  getDealQuoteStatusVariant,
   getFinanceDealQueueLabel,
   getFinanceDealQueueVariant,
   getFinanceDealStatusLabel,
@@ -308,11 +306,11 @@ export function FinanceDealWorkspaceView({
               <span className="font-medium">{deal.relatedResources.quotes.length}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Принятая котировка</span>
+              <span className="text-muted-foreground">Зафиксированное ценообразование</span>
               <span className="font-medium">
-                {deal.acceptedQuote
-                  ? getDealQuoteStatusLabel(deal.acceptedQuote.quoteStatus)
-                  : "Не принята"}
+                {deal.acceptedCalculation
+                  ? "Принят расчет"
+                  : "Не зафиксировано"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -321,15 +319,13 @@ export function FinanceDealWorkspaceView({
                 {deal.summary.calculationId ? "Есть актуальная версия" : "Не создан"}
               </span>
             </div>
-            {deal.acceptedQuote ? (
+            {deal.acceptedCalculation ? (
               <div className="rounded-lg bg-muted/40 px-3 py-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant={getDealQuoteStatusVariant(deal.acceptedQuote.quoteStatus)}>
-                    {getDealQuoteStatusLabel(deal.acceptedQuote.quoteStatus)}
-                  </Badge>
+                  <Badge variant="default">Принят расчет</Badge>
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  Принята: {formatDate(deal.acceptedQuote.acceptedAt)}
+                  Зафиксирован: {formatDate(deal.acceptedCalculation.acceptedAt)}
                 </div>
               </div>
             ) : null}

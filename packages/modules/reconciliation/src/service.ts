@@ -48,7 +48,9 @@ export interface ReconciliationServiceDeps {
 }
 
 const noopExecutionFactsPort: ReconciliationExecutionFactsTxPort = {
-  async recordTreasuryOperationFact() {},
+  async recordCashMovement() {},
+  async recordExecutionFee() {},
+  async recordExecutionFill() {},
 };
 
 function createExternalRecordsTxRepository(input: {

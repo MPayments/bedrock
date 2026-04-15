@@ -56,11 +56,22 @@ function getFactSourceKindLabel(value: string) {
 function getCoverageLabel(value: string) {
   switch (value) {
     case "complete":
-      return "Факты собраны";
+      return "Actuals собраны";
     case "partial":
-      return "Факты частичные";
+      return "Actuals частичные";
     case "not_started":
-      return "Фактов нет";
+      return "Actuals нет";
+    default:
+      return value;
+  }
+}
+
+function getCashMovementDirectionLabel(value: string) {
+  switch (value) {
+    case "credit":
+      return "Credit";
+    case "debit":
+      return "Debit";
     default:
       return value;
   }
@@ -81,6 +92,10 @@ function getCoverageVariant(value: string) {
 
 function formatCompactId(value: string) {
   return value.slice(0, 8);
+}
+
+function getExecutionActualCount(data: FinanceDealExecutionWorkspace) {
+  return data.fills.length + data.fees.length + data.cashMovements.length;
 }
 
 function formatAmounts(
@@ -132,7 +147,7 @@ function VarianceSummaryCard({ data }: { data: FinanceDealExecutionWorkspace }) 
         <Activity className="h-4 w-4" />
         <AlertTitle>Фактическая вариативность пока не рассчитана</AlertTitle>
         <AlertDescription>
-          Система покажет expected vs actual после появления execution facts по
+          Система покажет expected vs actual после появления execution actuals по
           операциям сделки.
         </AlertDescription>
       </Alert>
@@ -200,7 +215,7 @@ function VarianceSummaryCard({ data }: { data: FinanceDealExecutionWorkspace }) 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="rounded-md border bg-muted/20 px-3 py-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Legs with facts
+                  Legs with actuals
                 </div>
                 <div className="mt-1 text-lg font-semibold">
                   {variance.actualCoverage.legsWithFacts}/
@@ -317,6 +332,295 @@ function VarianceSummaryCard({ data }: { data: FinanceDealExecutionWorkspace }) 
   );
 }
 
+function ExecutionActualsCard({
+  currencies,
+  data,
+  legsById,
+  operationsById,
+}: {
+  currencies: FinanceDealExecutionWorkspace["currencies"];
+  data: FinanceDealExecutionWorkspace;
+  legsById: Map<string, FinanceDealExecutionWorkspace["deal"]["executionPlan"][number]>;
+  operationsById: Map<
+    string,
+    FinanceDealExecutionWorkspace["deal"]["relatedResources"]["operations"][number]
+  >;
+}) {
+  const hasActuals = getExecutionActualCount(data) > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-muted-foreground" />
+          Actual execution actuals
+        </CardTitle>
+        <CardDescription>
+          Нормализованные fills, fees и cash movements из provider callbacks, manual
+          entry и reconciliation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {!hasActuals ? (
+          <div className="text-sm text-muted-foreground">
+            Execution actuals по сделке пока не записаны.
+          </div>
+        ) : null}
+
+        {data.fills.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium">Execution fills</div>
+              <Badge variant="outline">{data.fills.length}</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Executed</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Operation</TableHead>
+                    <TableHead>Leg</TableHead>
+                    <TableHead>Sold</TableHead>
+                    <TableHead>Bought</TableHead>
+                    <TableHead>External ref</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.fills.map((fill) => {
+                    const operation = operationsById.get(fill.operationId) ?? null;
+                    const leg = fill.routeLegId
+                      ? legsById.get(fill.routeLegId) ?? null
+                      : null;
+
+                    return (
+                      <TableRow key={fill.id}>
+                        <TableCell>
+                          <div className="text-sm">{formatDate(fill.executedAt)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {fill.confirmedAt ? formatDate(fill.confirmedAt) : "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {getFactSourceKindLabel(fill.sourceKind)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {operation ? (
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">
+                                {getTreasuryOperationKindLabel(operation.kind)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatCompactId(operation.id)}
+                              </div>
+                            </div>
+                          ) : (
+                            formatCompactId(fill.operationId)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{formatLegLabel(leg)}</div>
+                          {leg ? (
+                            <div className="text-xs text-muted-foreground">
+                              {getDealLegStateLabel(leg.state)}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          {formatAmountByCurrencyId(
+                            fill.soldAmountMinor,
+                            fill.soldCurrencyId,
+                            currencies,
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {formatAmountByCurrencyId(
+                            fill.boughtAmountMinor,
+                            fill.boughtCurrencyId,
+                            currencies,
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {fill.externalRecordId ?? fill.providerRef ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : null}
+
+        {data.fees.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium">Execution fees</div>
+              <Badge variant="outline">{data.fees.length}</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Charged</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Operation</TableHead>
+                    <TableHead>Leg</TableHead>
+                    <TableHead>Family</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>External ref</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.fees.map((fee) => {
+                    const operation = operationsById.get(fee.operationId) ?? null;
+                    const leg = fee.routeLegId ? legsById.get(fee.routeLegId) ?? null : null;
+
+                    return (
+                      <TableRow key={fee.id}>
+                        <TableCell>
+                          <div className="text-sm">{formatDate(fee.chargedAt)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {fee.confirmedAt ? formatDate(fee.confirmedAt) : "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {getFactSourceKindLabel(fee.sourceKind)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {operation ? (
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">
+                                {getTreasuryOperationKindLabel(operation.kind)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatCompactId(operation.id)}
+                              </div>
+                            </div>
+                          ) : (
+                            formatCompactId(fee.operationId)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{formatLegLabel(leg)}</div>
+                          {leg ? (
+                            <div className="text-xs text-muted-foreground">
+                              {getDealLegStateLabel(leg.state)}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-sm">{fee.feeFamily}</TableCell>
+                        <TableCell>
+                          {formatAmountByCurrencyId(
+                            fee.amountMinor,
+                            fee.currencyId,
+                            currencies,
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {fee.externalRecordId ?? fee.providerRef ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : null}
+
+        {data.cashMovements.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium">Cash movements</div>
+              <Badge variant="outline">{data.cashMovements.length}</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Booked</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Operation</TableHead>
+                    <TableHead>Leg</TableHead>
+                    <TableHead>Direction</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>External ref</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.cashMovements.map((movement) => {
+                    const operation = operationsById.get(movement.operationId) ?? null;
+                    const leg = movement.routeLegId
+                      ? legsById.get(movement.routeLegId) ?? null
+                      : null;
+
+                    return (
+                      <TableRow key={movement.id}>
+                        <TableCell>
+                          <div className="text-sm">{formatDate(movement.bookedAt)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {movement.valueDate ? formatDate(movement.valueDate) : "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {getFactSourceKindLabel(movement.sourceKind)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {operation ? (
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">
+                                {getTreasuryOperationKindLabel(operation.kind)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatCompactId(operation.id)}
+                              </div>
+                            </div>
+                          ) : (
+                            formatCompactId(movement.operationId)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{formatLegLabel(leg)}</div>
+                          {leg ? (
+                            <div className="text-xs text-muted-foreground">
+                              {getDealLegStateLabel(leg.state)}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{getCashMovementDirectionLabel(movement.direction)}</TableCell>
+                        <TableCell>
+                          {formatAmountByCurrencyId(
+                            movement.amountMinor,
+                            movement.currencyId,
+                            currencies,
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {movement.externalRecordId ??
+                            movement.statementRef ??
+                            movement.providerRef ??
+                            "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function CloseBlockersPanel({ data }: { data: FinanceDealExecutionWorkspace }) {
   return (
     <Card>
@@ -420,7 +724,7 @@ export function ExecutionWorkspace({ data }: { data: FinanceDealExecutionWorkspa
               <Badge variant="outline">
                 Operations: {data.deal.relatedResources.operations.length}
               </Badge>
-              <Badge variant="outline">Facts: {data.facts.length}</Badge>
+              <Badge variant="outline">Actuals: {getExecutionActualCount(data)}</Badge>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -556,112 +860,12 @@ export function ExecutionWorkspace({ data }: { data: FinanceDealExecutionWorkspa
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-muted-foreground" />
-              Actual execution facts
-            </CardTitle>
-            <CardDescription>
-              Фактические fills, fees и cash movements из provider callbacks, manual entry
-              и reconciliation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.facts.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                Execution facts по сделке пока не записаны.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Recorded</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Operation</TableHead>
-                      <TableHead>Leg</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Counter</TableHead>
-                      <TableHead>Fee</TableHead>
-                      <TableHead>External ref</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.facts.map((fact) => {
-                      const operation = operationsById.get(fact.operationId) ?? null;
-                      const leg = fact.routeLegId
-                        ? legsById.get(fact.routeLegId) ?? null
-                        : null;
-
-                      return (
-                        <TableRow key={fact.id}>
-                          <TableCell>
-                            <div className="text-sm">{formatDate(fact.recordedAt)}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {fact.confirmedAt ? formatDate(fact.confirmedAt) : "—"}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {getFactSourceKindLabel(fact.sourceKind)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {operation ? (
-                              <div className="space-y-1">
-                                <div className="text-sm font-medium">
-                                  {getTreasuryOperationKindLabel(operation.kind)}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {formatCompactId(operation.id)}
-                                </div>
-                              </div>
-                            ) : (
-                              formatCompactId(fact.operationId)
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">{formatLegLabel(leg)}</div>
-                            {leg ? (
-                              <div className="text-xs text-muted-foreground">
-                                {getDealLegStateLabel(leg.state)}
-                              </div>
-                            ) : null}
-                          </TableCell>
-                          <TableCell>
-                            {formatAmountByCurrencyId(
-                              fact.amountMinor,
-                              fact.currencyId,
-                              data.currencies,
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {formatAmountByCurrencyId(
-                              fact.counterAmountMinor,
-                              fact.counterCurrencyId,
-                              data.currencies,
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {formatAmountByCurrencyId(
-                              fact.feeAmountMinor,
-                              fact.feeCurrencyId,
-                              data.currencies,
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {fact.externalRecordId ?? fact.providerRef ?? "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ExecutionActualsCard
+          currencies={data.currencies}
+          data={data}
+          legsById={legsById}
+          operationsById={operationsById}
+        />
 
         <CloseBlockersPanel data={data} />
       </div>

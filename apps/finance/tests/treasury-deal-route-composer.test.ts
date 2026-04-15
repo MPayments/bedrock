@@ -315,8 +315,7 @@ function createData(): FinanceRouteComposerData {
       },
     ],
     workspace: {
-      acceptedQuote: null,
-      acceptedQuoteDetails: null,
+      acceptedCalculation: null,
       actions: {
         canCloseDeal: false,
         canCreateCalculation: true,

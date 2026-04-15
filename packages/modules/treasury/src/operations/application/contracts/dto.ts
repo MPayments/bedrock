@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  TreasuryCashMovementDirectionSchema,
   TreasuryOperationFactSourceKindSchema,
   TreasuryOperationKindSchema,
   TreasuryOperationStateSchema,
@@ -22,6 +23,7 @@ const TreasuryOperationDealTypeSchema = z.enum([
   "currency_exchange",
   "currency_transit",
   "exporter_settlement",
+  "internal_treasury",
 ]);
 
 const TreasuryOperationLegKindSchema = z.enum([
@@ -154,39 +156,6 @@ export const TreasuryOperationWorkspaceDetailSchema =
 
 const JsonRecordSchema = z.record(z.string(), z.unknown());
 
-export const TreasuryOperationFactSchema = z.object({
-  amountMinor: z.string().nullable(),
-  confirmedAt: z.date().nullable(),
-  counterAmountMinor: z.string().nullable(),
-  counterCurrencyId: z.uuid().nullable(),
-  createdAt: z.date(),
-  currencyId: z.uuid().nullable(),
-  dealId: z.uuid().nullable(),
-  externalRecordId: z.string().nullable(),
-  feeAmountMinor: z.string().nullable(),
-  feeCurrencyId: z.uuid().nullable(),
-  id: z.uuid(),
-  instructionId: z.uuid().nullable(),
-  metadata: JsonRecordSchema.nullable(),
-  notes: z.string().nullable(),
-  operationId: z.uuid(),
-  providerRef: z.string().nullable(),
-  recordedAt: z.date(),
-  routeLegId: z.uuid().nullable(),
-  sourceKind: TreasuryOperationFactSourceKindSchema,
-  sourceRef: z.string(),
-  updatedAt: z.date(),
-});
-
-export const TreasuryOperationFactsListResponseSchema = z.object({
-  data: z.array(TreasuryOperationFactSchema),
-  limit: z.number().int().positive(),
-  offset: z.number().int().nonnegative(),
-  total: z.number().int().nonnegative(),
-});
-
-export type TreasuryOperationFact = z.infer<typeof TreasuryOperationFactSchema>;
-
 export type TreasuryOperationInstructionStatus = z.infer<
   typeof TreasuryOperationInstructionStatusSchema
 >;
@@ -220,6 +189,122 @@ export type TreasuryOperationWorkspaceListResponse = z.infer<
 export type TreasuryOperationWorkspaceDetail = z.infer<
   typeof TreasuryOperationWorkspaceDetailSchema
 >;
-export type TreasuryOperationFactsListResponse = z.infer<
-  typeof TreasuryOperationFactsListResponseSchema
+
+export const TreasuryExecutionFillSchema = z.object({
+  actualRateDen: z.string().nullable(),
+  actualRateNum: z.string().nullable(),
+  boughtAmountMinor: z.string().nullable(),
+  boughtCurrencyId: z.uuid().nullable(),
+  calculationSnapshotId: z.uuid().nullable(),
+  confirmedAt: z.date().nullable(),
+  createdAt: z.date(),
+  dealId: z.uuid().nullable(),
+  executedAt: z.date(),
+  externalRecordId: z.string().nullable(),
+  fillSequence: z.number().int().positive().nullable(),
+  id: z.uuid(),
+  instructionId: z.uuid().nullable(),
+  metadata: JsonRecordSchema.nullable(),
+  notes: z.string().nullable(),
+  operationId: z.uuid(),
+  providerCounterpartyId: z.uuid().nullable(),
+  providerRef: z.string().nullable(),
+  routeLegId: z.uuid().nullable(),
+  routeVersionId: z.uuid().nullable(),
+  soldAmountMinor: z.string().nullable(),
+  soldCurrencyId: z.uuid().nullable(),
+  sourceKind: TreasuryOperationFactSourceKindSchema,
+  sourceRef: z.string(),
+  updatedAt: z.date(),
+});
+
+export const TreasuryExecutionFillListResponseSchema = z.object({
+  data: z.array(TreasuryExecutionFillSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export type TreasuryExecutionFill = z.infer<typeof TreasuryExecutionFillSchema>;
+export type TreasuryExecutionFillListResponse = z.infer<
+  typeof TreasuryExecutionFillListResponseSchema
+>;
+
+export const TreasuryExecutionFeeSchema = z.object({
+  amountMinor: z.string().nullable(),
+  calculationSnapshotId: z.uuid().nullable(),
+  chargedAt: z.date(),
+  componentCode: z.string().nullable(),
+  confirmedAt: z.date().nullable(),
+  createdAt: z.date(),
+  currencyId: z.uuid().nullable(),
+  dealId: z.uuid().nullable(),
+  externalRecordId: z.string().nullable(),
+  feeFamily: z.string(),
+  fillId: z.uuid().nullable(),
+  id: z.uuid(),
+  instructionId: z.uuid().nullable(),
+  metadata: JsonRecordSchema.nullable(),
+  notes: z.string().nullable(),
+  operationId: z.uuid(),
+  providerCounterpartyId: z.uuid().nullable(),
+  providerRef: z.string().nullable(),
+  routeComponentId: z.uuid().nullable(),
+  routeLegId: z.uuid().nullable(),
+  routeVersionId: z.uuid().nullable(),
+  sourceKind: TreasuryOperationFactSourceKindSchema,
+  sourceRef: z.string(),
+  updatedAt: z.date(),
+});
+
+export const TreasuryExecutionFeeListResponseSchema = z.object({
+  data: z.array(TreasuryExecutionFeeSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export type TreasuryExecutionFee = z.infer<typeof TreasuryExecutionFeeSchema>;
+export type TreasuryExecutionFeeListResponse = z.infer<
+  typeof TreasuryExecutionFeeListResponseSchema
+>;
+
+export const TreasuryCashMovementSchema = z.object({
+  accountRef: z.string().nullable(),
+  amountMinor: z.string().nullable(),
+  bookedAt: z.date(),
+  calculationSnapshotId: z.uuid().nullable(),
+  confirmedAt: z.date().nullable(),
+  createdAt: z.date(),
+  currencyId: z.uuid().nullable(),
+  dealId: z.uuid().nullable(),
+  direction: TreasuryCashMovementDirectionSchema,
+  externalRecordId: z.string().nullable(),
+  id: z.uuid(),
+  instructionId: z.uuid().nullable(),
+  metadata: JsonRecordSchema.nullable(),
+  notes: z.string().nullable(),
+  operationId: z.uuid(),
+  providerCounterpartyId: z.uuid().nullable(),
+  providerRef: z.string().nullable(),
+  requisiteId: z.uuid().nullable(),
+  routeLegId: z.uuid().nullable(),
+  routeVersionId: z.uuid().nullable(),
+  sourceKind: TreasuryOperationFactSourceKindSchema,
+  sourceRef: z.string(),
+  statementRef: z.string().nullable(),
+  updatedAt: z.date(),
+  valueDate: z.date().nullable(),
+});
+
+export const TreasuryCashMovementListResponseSchema = z.object({
+  data: z.array(TreasuryCashMovementSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export type TreasuryCashMovement = z.infer<typeof TreasuryCashMovementSchema>;
+export type TreasuryCashMovementListResponse = z.infer<
+  typeof TreasuryCashMovementListResponseSchema
 >;

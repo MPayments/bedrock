@@ -56,6 +56,7 @@ const REQUIRED_SECTION_IDS_BY_TYPE: Record<
     "incomingReceipt",
     "settlementDestination",
   ],
+  internal_treasury: ["common", "moneyRequest", "settlementDestination"],
 };
 
 function collectTopBlockers(

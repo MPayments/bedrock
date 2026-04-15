@@ -66,12 +66,7 @@ export const ListTreasuryOperationsQuerySchema = createListQuerySchemaFromContra
   TREASURY_OPERATIONS_LIST_CONTRACT,
 );
 
-const TREASURY_OPERATION_FACTS_SORTABLE_COLUMNS = [
-  "recordedAt",
-  "createdAt",
-] as const;
-
-interface TreasuryOperationFactsListFilters {
+interface TreasuryExecutionActualsListFilters {
   dealId: { kind: "string"; cardinality: "single" };
   operationId: { kind: "string"; cardinality: "single" };
   routeLegId: { kind: "string"; cardinality: "single" };
@@ -82,12 +77,17 @@ interface TreasuryOperationFactsListFilters {
   };
 }
 
-export const TREASURY_OPERATION_FACTS_LIST_CONTRACT: ListQueryContract<
-  typeof TREASURY_OPERATION_FACTS_SORTABLE_COLUMNS,
-  TreasuryOperationFactsListFilters
+const TREASURY_EXECUTION_FILLS_SORTABLE_COLUMNS = [
+  "executedAt",
+  "createdAt",
+] as const;
+
+export const TREASURY_EXECUTION_FILLS_LIST_CONTRACT: ListQueryContract<
+  typeof TREASURY_EXECUTION_FILLS_SORTABLE_COLUMNS,
+  TreasuryExecutionActualsListFilters
 > = {
-  sortableColumns: TREASURY_OPERATION_FACTS_SORTABLE_COLUMNS,
-  defaultSort: { id: "recordedAt", desc: true },
+  sortableColumns: TREASURY_EXECUTION_FILLS_SORTABLE_COLUMNS,
+  defaultSort: { id: "executedAt", desc: true },
   filters: {
     dealId: { kind: "string", cardinality: "single" },
     operationId: { kind: "string", cardinality: "single" },
@@ -100,13 +100,53 @@ export const TREASURY_OPERATION_FACTS_LIST_CONTRACT: ListQueryContract<
   },
 };
 
-export const ListTreasuryOperationFactsQuerySchema =
-  createListQuerySchemaFromContract(TREASURY_OPERATION_FACTS_LIST_CONTRACT);
+export const ListTreasuryExecutionFillsQuerySchema =
+  createListQuerySchemaFromContract(TREASURY_EXECUTION_FILLS_LIST_CONTRACT);
+
+const TREASURY_EXECUTION_FEES_SORTABLE_COLUMNS = [
+  "chargedAt",
+  "createdAt",
+] as const;
+
+export const TREASURY_EXECUTION_FEES_LIST_CONTRACT: ListQueryContract<
+  typeof TREASURY_EXECUTION_FEES_SORTABLE_COLUMNS,
+  TreasuryExecutionActualsListFilters
+> = {
+  sortableColumns: TREASURY_EXECUTION_FEES_SORTABLE_COLUMNS,
+  defaultSort: { id: "chargedAt", desc: true },
+  filters: TREASURY_EXECUTION_FILLS_LIST_CONTRACT.filters,
+};
+
+export const ListTreasuryExecutionFeesQuerySchema =
+  createListQuerySchemaFromContract(TREASURY_EXECUTION_FEES_LIST_CONTRACT);
+
+const TREASURY_CASH_MOVEMENTS_SORTABLE_COLUMNS = [
+  "bookedAt",
+  "createdAt",
+] as const;
+
+export const TREASURY_CASH_MOVEMENTS_LIST_CONTRACT: ListQueryContract<
+  typeof TREASURY_CASH_MOVEMENTS_SORTABLE_COLUMNS,
+  TreasuryExecutionActualsListFilters
+> = {
+  sortableColumns: TREASURY_CASH_MOVEMENTS_SORTABLE_COLUMNS,
+  defaultSort: { id: "bookedAt", desc: true },
+  filters: TREASURY_EXECUTION_FILLS_LIST_CONTRACT.filters,
+};
+
+export const ListTreasuryCashMovementsQuerySchema =
+  createListQuerySchemaFromContract(TREASURY_CASH_MOVEMENTS_LIST_CONTRACT);
 
 export type TreasuryOperationView = z.infer<typeof TreasuryOperationViewSchema>;
 export type ListTreasuryOperationsQuery = z.infer<
   typeof ListTreasuryOperationsQuerySchema
 >;
-export type ListTreasuryOperationFactsQuery = z.infer<
-  typeof ListTreasuryOperationFactsQuerySchema
+export type ListTreasuryExecutionFillsQuery = z.infer<
+  typeof ListTreasuryExecutionFillsQuerySchema
+>;
+export type ListTreasuryExecutionFeesQuery = z.infer<
+  typeof ListTreasuryExecutionFeesQuerySchema
+>;
+export type ListTreasuryCashMovementsQuery = z.infer<
+  typeof ListTreasuryCashMovementsQuerySchema
 >;

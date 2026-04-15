@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
@@ -6,7 +6,6 @@ import {
   dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
-  dealIntakeSnapshots,
   dealRouteCostComponents,
   dealRouteLegs,
   dealRouteParticipants,
@@ -17,7 +16,6 @@ import {
   dealOperationalPositions,
   dealParticipants,
   deals,
-  dealQuoteAcceptances,
   dealTimelineEvents,
   routeTemplateCostComponents,
   routeTemplateLegs,
@@ -27,11 +25,9 @@ import {
 import type {
   CreateDealApprovalStoredInput,
   CreateDealAttachmentIngestionStoredInput,
-  CreateDealIntakeSnapshotStoredInput,
   CreateDealLegOperationLinkStoredInput,
   CreateDealLegStoredInput,
   CreateDealParticipantStoredInput,
-  CreateDealQuoteAcceptanceStoredInput,
   CreateDealRouteCostComponentStoredInput,
   CreateDealRouteLegStoredInput,
   CreateDealRouteParticipantStoredInput,
@@ -141,6 +137,8 @@ export class DrizzleDealStore implements DealStore {
       agentId: input.agentId,
       calculationId: input.calculationId,
       customerId: input.customerId,
+      headerRevision: input.headerRevision,
+      headerSnapshot: input.header,
       id: input.id,
       nextAction: input.nextAction,
       sourceAmountMinor: input.sourceAmountMinor,
@@ -369,16 +367,6 @@ export class DrizzleDealStore implements DealStore {
     );
   }
 
-  async createDealIntakeSnapshot(
-    input: CreateDealIntakeSnapshotStoredInput,
-  ): Promise<void> {
-    await this.db.insert(dealIntakeSnapshots).values({
-      dealId: input.dealId,
-      revision: input.revision,
-      snapshot: input.snapshot,
-    });
-  }
-
   async createDealLegOperationLinks(
     input: CreateDealLegOperationLinkStoredInput[],
   ): Promise<void> {
@@ -402,25 +390,25 @@ export class DrizzleDealStore implements DealStore {
       });
   }
 
-  async replaceIntakeSnapshot(input: {
+  async replaceDealHeader(input: {
     dealId: string;
     expectedRevision: number;
+    header: CreateDealRootInput["header"];
     nextRevision: number;
-    snapshot: CreateDealIntakeSnapshotStoredInput["snapshot"];
   }): Promise<boolean> {
     const updated = await this.db
-      .update(dealIntakeSnapshots)
+      .update(deals)
       .set({
-        revision: input.nextRevision,
-        snapshot: input.snapshot,
+        headerRevision: input.nextRevision,
+        headerSnapshot: input.header,
       })
       .where(
         and(
-          eq(dealIntakeSnapshots.dealId, input.dealId),
-          eq(dealIntakeSnapshots.revision, input.expectedRevision),
+          eq(deals.id, input.dealId),
+          eq(deals.headerRevision, input.expectedRevision),
         ),
       )
-      .returning({ dealId: dealIntakeSnapshots.dealId });
+      .returning({ dealId: deals.id });
 
     return updated.length > 0;
   }
@@ -599,41 +587,6 @@ export class DrizzleDealStore implements DealStore {
       .update(dealAttachmentIngestions)
       .set(values)
       .where(eq(dealAttachmentIngestions.fileAssetId, input.fileAssetId));
-  }
-
-  async createDealQuoteAcceptance(
-    input: CreateDealQuoteAcceptanceStoredInput,
-  ): Promise<void> {
-    await this.db.insert(dealQuoteAcceptances).values({
-      acceptedAt: input.acceptedAt,
-      acceptedByUserId: input.acceptedByUserId,
-      agreementVersionId: input.agreementVersionId,
-      dealId: input.dealId,
-      dealRevision: input.dealRevision,
-      id: input.id,
-      quoteId: input.quoteId,
-      replacedByQuoteId: null,
-      revokedAt: null,
-    });
-  }
-
-  async supersedeCurrentQuoteAcceptances(input: {
-    dealId: string;
-    replacedByQuoteId: string;
-    revokedAt: Date;
-  }): Promise<void> {
-    await this.db
-      .update(dealQuoteAcceptances)
-      .set({
-        replacedByQuoteId: input.replacedByQuoteId,
-        revokedAt: input.revokedAt,
-      })
-      .where(
-        and(
-          eq(dealQuoteAcceptances.dealId, input.dealId),
-          isNull(dealQuoteAcceptances.revokedAt),
-        ),
-      );
   }
 
   async upsertDealAttachmentIngestion(input: {

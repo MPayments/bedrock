@@ -41,13 +41,19 @@ import type {
 
 export const PORTAL_DEAL_STATUS_LABELS: Record<PortalDealStatus, string> = {
   draft: "Черновик",
-  submitted: "Отправлена",
+  pricing: "Ценообразование",
+  quoted: "Расчет предложен",
+  awaiting_customer_approval: "Ожидание согласования клиента",
+  awaiting_internal_approval: "Ожидание внутреннего согласования",
+  approved_for_execution: "Готова к исполнению",
+  executing: "Исполняется",
+  partially_executed: "Частично исполнена",
+  executed: "Исполнена",
+  reconciling: "Сверка",
+  closed: "Закрыта",
+  failed: "Ошибка исполнения",
+  expired: "Истекла",
   rejected: "Отклонена",
-  preparing_documents: "Подготовка документов",
-  awaiting_funds: "Ожидание средств",
-  awaiting_payment: "Ожидание оплаты",
-  closing_documents: "Закрытие документов",
-  done: "Завершена",
   cancelled: "Отменена",
 };
 
@@ -56,6 +62,7 @@ export const PORTAL_DEAL_TYPE_LABELS: Record<PortalDealType, string> = {
   currency_exchange: "Обмен валюты",
   currency_transit: "Валютный транзит",
   exporter_settlement: "Экспортерское финансирование",
+  internal_treasury: "Внутреннее казначейство",
 };
 
 export const PORTAL_DEAL_TIMELINE_LABELS: Record<
@@ -63,7 +70,6 @@ export const PORTAL_DEAL_TIMELINE_LABELS: Record<
   string
 > = {
   deal_created: "Сделка создана",
-  intake_saved: "Анкета сохранена",
   participant_changed: "Участники обновлены",
   status_changed: "Статус изменен",
   leg_state_changed: "Статус этапа обновлен",
@@ -79,7 +85,6 @@ export const PORTAL_DEAL_TIMELINE_LABELS: Record<
   instruction_returned: "Возврат исполнен",
   deal_closed: "Сделка закрыта",
   quote_created: "Котировка создана",
-  quote_accepted: "Котировка принята",
   quote_expired: "Котировка истекла",
   quote_used: "Котировка использована",
   calculation_attached: "Расчет привязан",
@@ -89,6 +94,12 @@ export const PORTAL_DEAL_TIMELINE_LABELS: Record<
   attachment_ingestion_failed: "Ошибка обработки файла",
   document_created: "Документ создан",
   document_status_changed: "Статус документа обновлен",
+  deal_header_updated: "Заголовок сделки обновлен",
+  deal_approved: "Сделка одобрена",
+  deal_rejected: "Сделка отклонена",
+  calculation_created: "Расчет создан",
+  calculation_accepted: "Расчет принят",
+  calculation_superseded: "Расчет заменен",
 };
 
 const ATTACHMENT_PURPOSE_LABELS = {
@@ -204,8 +215,8 @@ export function PortalDealVisibility({
     data.summary.type === "payment" ? "Сумма оплаты" : "Сумма сделки";
   const primaryAmountValue =
     data.summary.type === "payment"
-      ? data.customerSafeIntake.expectedAmount
-      : data.customerSafeIntake.sourceAmount;
+      ? data.customerSafeHeader.expectedAmount
+      : data.customerSafeHeader.sourceAmount;
 
   return (
     <div className="space-y-4">
@@ -314,7 +325,7 @@ export function PortalDealVisibility({
           <div>
             <p className="text-xs uppercase text-muted-foreground">Цель</p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.purpose ?? "Не указана"}
+              {data.customerSafeHeader.purpose ?? "Не указана"}
             </p>
           </div>
           <div>
@@ -322,7 +333,7 @@ export function PortalDealVisibility({
               Дата исполнения
             </p>
             <p className="text-sm font-medium">
-              {formatDate(data.customerSafeIntake.requestedExecutionDate)}
+              {formatDate(data.customerSafeHeader.requestedExecutionDate)}
             </p>
           </div>
           <div>
@@ -330,7 +341,7 @@ export function PortalDealVisibility({
               Номер инвойса
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.invoiceNumber ?? "Не указан"}
+              {data.customerSafeHeader.invoiceNumber ?? "Не указан"}
             </p>
           </div>
           <div>
@@ -338,7 +349,7 @@ export function PortalDealVisibility({
               Номер контракта
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.contractNumber ?? "Не указан"}
+              {data.customerSafeHeader.contractNumber ?? "Не указан"}
             </p>
           </div>
           <div>
@@ -346,7 +357,7 @@ export function PortalDealVisibility({
               Ожидаемая сумма поступления
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.expectedAmount ?? "Не указана"}
+              {data.customerSafeHeader.expectedAmount ?? "Не указана"}
             </p>
           </div>
           <div className="md:col-span-2">
@@ -354,7 +365,7 @@ export function PortalDealVisibility({
               Комментарий клиента
             </p>
             <p className="text-sm">
-              {data.customerSafeIntake.customerNote ?? "Не указан"}
+              {data.customerSafeHeader.customerNote ?? "Не указан"}
             </p>
           </div>
         </CardContent>

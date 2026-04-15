@@ -14,7 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { agreements, agreementVersions } from "@bedrock/agreements/schema";
+import { agreements } from "@bedrock/agreements/schema";
 import { calculations } from "@bedrock/calculations/schema";
 import { currencies } from "@bedrock/currencies/schema";
 import { user } from "@bedrock/iam/schema";
@@ -25,7 +25,7 @@ import {
   requisites,
 } from "@bedrock/parties/schema";
 
-import type { DealIntakeDraft } from "../../application/contracts/dto";
+import type { DealHeader } from "../../application/contracts/dto";
 import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
@@ -134,6 +134,8 @@ export const deals = pgTable(
     agentId: text("agent_id").references(() => user.id),
     comment: text("comment"),
     nextAction: text("next_action"),
+    headerRevision: integer("header_revision").notNull().default(1),
+    headerSnapshot: jsonb("header_snapshot").$type<DealHeader>().notNull(),
     sourceAmountMinor: bigint("source_amount_minor", { mode: "bigint" }),
     sourceCurrencyId: uuid("source_currency_id").references(() => currencies.id),
     targetCurrencyId: uuid("target_currency_id").references(() => currencies.id),
@@ -154,47 +156,27 @@ export const deals = pgTable(
     index("deals_type_idx").on(table.type),
     index("deals_source_currency_idx").on(table.sourceCurrencyId),
     index("deals_target_currency_idx").on(table.targetCurrencyId),
-  ],
-);
-
-export const dealIntakeSnapshots = pgTable(
-  "deal_intake_snapshots",
-  {
-    dealId: uuid("deal_id")
-      .primaryKey()
-      .references(() => deals.id, { onDelete: "cascade" }),
-    revision: integer("revision").notNull(),
-    snapshot: jsonb("snapshot").$type<DealIntakeDraft>().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (table) => [
-    index("deal_intake_snapshots_revision_idx").on(table.revision),
-    index("deal_intake_snapshots_applicant_idx").on(
-      sql`((snapshot -> 'common' ->> 'applicantCounterpartyId'))`,
+    index("deals_header_revision_idx").on(table.headerRevision),
+    index("deals_header_applicant_idx").on(
+      sql`((header_snapshot -> 'common' ->> 'applicantCounterpartyId'))`,
     ),
-    index("deal_intake_snapshots_invoice_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'invoiceNumber'))`,
+    index("deals_header_invoice_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'invoiceNumber'))`,
     ),
-    index("deal_intake_snapshots_contract_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'contractNumber'))`,
+    index("deals_header_contract_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'contractNumber'))`,
     ),
-    index("deal_intake_snapshots_requested_execution_idx").on(
-      sql`((snapshot -> 'common' ->> 'requestedExecutionDate'))`,
+    index("deals_header_requested_execution_idx").on(
+      sql`((header_snapshot -> 'common' ->> 'requestedExecutionDate'))`,
     ),
-    index("deal_intake_snapshots_expected_at_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'expectedAt'))`,
+    index("deals_header_expected_at_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'expectedAt'))`,
     ),
-    index("deal_intake_snapshots_payer_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'payerCounterpartyId'))`,
+    index("deals_header_payer_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'payerCounterpartyId'))`,
     ),
-    index("deal_intake_snapshots_beneficiary_idx").on(
-      sql`((snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId'))`,
+    index("deals_header_beneficiary_idx").on(
+      sql`((header_snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId'))`,
     ),
   ],
 );
@@ -824,37 +806,6 @@ export const dealTimelineEvents = pgTable(
   ],
 );
 
-export const dealQuoteAcceptances = pgTable(
-  "deal_quote_acceptances",
-  {
-    id: uuid("id").primaryKey(),
-    dealId: uuid("deal_id")
-      .notNull()
-      .references(() => deals.id, { onDelete: "cascade" }),
-    quoteId: uuid("quote_id").notNull(),
-    acceptedByUserId: text("accepted_by_user_id")
-      .notNull()
-      .references(() => user.id),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    dealRevision: integer("deal_revision").notNull(),
-    agreementVersionId: uuid("agreement_version_id").references(
-      () => agreementVersions.id,
-      { onDelete: "set null" },
-    ),
-    replacedByQuoteId: uuid("replaced_by_quote_id"),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-  },
-  (table) => [
-    index("deal_quote_acceptances_deal_idx").on(table.dealId, table.acceptedAt),
-    index("deal_quote_acceptances_quote_idx").on(table.quoteId),
-    uniqueIndex("deal_quote_acceptances_deal_quote_uq").on(
-      table.dealId,
-      table.quoteId,
-    ),
-  ],
-);
 
 export const dealOperationalPositions = pgTable(
   "deal_operational_positions",
@@ -1013,10 +964,6 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
   approvals: many(dealApprovals),
   agentBonuses: many(dealAgentBonuses),
   calculationLinks: many(dealCalculationLinks),
-  intakeSnapshot: one(dealIntakeSnapshots, {
-    fields: [deals.id],
-    references: [dealIntakeSnapshots.dealId],
-  }),
   route: one(dealRoutes, {
     fields: [deals.id],
     references: [dealRoutes.dealId],
@@ -1024,20 +971,9 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
   legs: many(dealLegs),
   operationalPositions: many(dealOperationalPositions),
   participants: many(dealParticipants),
-  quoteAcceptances: many(dealQuoteAcceptances),
   attachmentIngestions: many(dealAttachmentIngestions),
   timelineEvents: many(dealTimelineEvents),
 }));
-
-export const dealIntakeSnapshotsRelations = relations(
-  dealIntakeSnapshots,
-  ({ one }) => ({
-    deal: one(deals, {
-      fields: [dealIntakeSnapshots.dealId],
-      references: [deals.id],
-    }),
-  }),
-);
 
 export const dealCalculationLinksRelations = relations(
   dealCalculationLinks,
@@ -1210,24 +1146,6 @@ export const dealTimelineEventsRelations = relations(
     }),
     deal: one(deals, {
       fields: [dealTimelineEvents.dealId],
-      references: [deals.id],
-    }),
-  }),
-);
-
-export const dealQuoteAcceptancesRelations = relations(
-  dealQuoteAcceptances,
-  ({ one }) => ({
-    acceptedBy: one(user, {
-      fields: [dealQuoteAcceptances.acceptedByUserId],
-      references: [user.id],
-    }),
-    agreementVersion: one(agreementVersions, {
-      fields: [dealQuoteAcceptances.agreementVersionId],
-      references: [agreementVersions.id],
-    }),
-    deal: one(deals, {
-      fields: [dealQuoteAcceptances.dealId],
       references: [deals.id],
     }),
   }),

@@ -53,8 +53,7 @@ describe("treasury deal route composer page", () => {
       route: null,
       templates: [],
       workspace: {
-        acceptedQuote: null,
-        acceptedQuoteDetails: null,
+        acceptedCalculation: null,
         actions: {
           canCloseDeal: false,
           canCreateCalculation: true,

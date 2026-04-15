@@ -20,7 +20,6 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 import { toMinorAmountString } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type {
-  QuoteDetailsRecord,
   TreasuryInstructionOutcome,
   TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
@@ -48,9 +47,9 @@ const TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE =
   "treasury_instruction_outcomes";
 
 const EXECUTION_REQUESTABLE_STATUSES = new Set([
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
+  "approved_for_execution",
+  "executing",
+  "partially_executed",
 ]);
 type ExecutionLifecycleEventType =
   | "deal_closed"
@@ -66,8 +65,8 @@ type ExecutionLifecycleEventType =
   | "return_requested";
 
 export type DealExecutionAmountRef =
-  | "accepted_quote_from"
-  | "accepted_quote_to"
+  | "accepted_calculation_source"
+  | "accepted_calculation_target"
   | "incoming_receipt_expected"
   | "money_request_source";
 
@@ -123,8 +122,13 @@ interface DealExecutionTxDeps {
 
 type DealExecutionCalculationRecord = {
   currentSnapshot: {
+    baseCurrencyId: string | null;
+    calculationCurrencyId: string | null;
+    fxQuoteId: string | null;
+    originalAmountMinor: string | null;
     routeSnapshot: unknown;
     state: string | null;
+    totalInBaseMinor: string | null;
   } | null;
 };
 
@@ -193,7 +197,7 @@ function resolvePayoutAmountRef(
   const hasConvert = workflow.executionPlan.some((leg) => leg.kind === "convert");
 
   if (hasConvert && workflow.summary.type !== "exporter_settlement") {
-    return "accepted_quote_to";
+    return "accepted_calculation_target";
   }
 
   return "money_request_source";
@@ -370,17 +374,17 @@ function resolveRouteFallbackAmountRef(input: {
         ? "incoming_receipt_expected"
         : "money_request_source";
     case "fx_conversion":
-      return "accepted_quote_from";
+      return "accepted_calculation_source";
     case "payout":
       return resolvePayoutAmountRef(input.workflow);
     case "intracompany_transfer":
     case "intercompany_funding":
       return input.workflow.summary.type === "exporter_settlement"
         ? hasRouteFxLeg(input.route)
-          ? "accepted_quote_to"
+          ? "accepted_calculation_target"
           : "incoming_receipt_expected"
         : hasRouteFxLeg(input.route)
-          ? "accepted_quote_to"
+          ? "accepted_calculation_target"
           : "money_request_source";
     case "return":
     case "adjustment":
@@ -411,7 +415,7 @@ function resolveRouteOperationKind(
 }
 
 export function compileRouteExecutionRecipe(input: {
-  acceptedQuote: QuoteDetailsRecord | null;
+  currentCalculation: DealExecutionCalculationRecord | null;
   route: ExecutionRouteSnapshot;
   workflow: DealWorkflowProjection;
 }): CompiledDealExecutionOperation[] {
@@ -444,7 +448,7 @@ export function compileRouteExecutionRecipe(input: {
       counterAmountMinor,
       counterAmountRef:
         routeLeg.kind === "fx_conversion" && counterAmountMinor === null
-          ? "accepted_quote_to"
+          ? "accepted_calculation_target"
           : null,
       counterCurrencyId:
         routeLeg.kind === "fx_conversion" ? routeLeg.toCurrencyId : null,
@@ -454,7 +458,7 @@ export function compileRouteExecutionRecipe(input: {
       operationKind,
       quoteId:
         routeLeg.kind === "fx_conversion"
-          ? (input.acceptedQuote?.quote.id ?? null)
+          ? (input.currentCalculation?.currentSnapshot?.fxQuoteId ?? null)
           : null,
       routeLegId: routeLeg.id,
       sourceRef: `deal:${input.workflow.summary.id}:route-leg:${routeLeg.id}:${operationKind}:1`,
@@ -463,7 +467,7 @@ export function compileRouteExecutionRecipe(input: {
 }
 
 export function compileDealExecutionRecipe(input: {
-  acceptedQuote: QuoteDetailsRecord | null;
+  currentCalculation: DealExecutionCalculationRecord | null;
   agreementOrganizationId: string | null;
   internalEntityOrganizationId: string | null;
   workflow: DealWorkflowProjection;
@@ -472,9 +476,9 @@ export function compileDealExecutionRecipe(input: {
     (leg) => leg.kind === "convert",
   );
 
-  if (hasConvert && !input.acceptedQuote) {
+  if (hasConvert && input.currentCalculation?.currentSnapshot?.state !== "accepted") {
     throw new ValidationError(
-      `Deal ${input.workflow.summary.id} requires accepted quote details for execution`,
+      `Deal ${input.workflow.summary.id} requires an accepted calculation for execution`,
     );
   }
 
@@ -502,9 +506,9 @@ export function compileDealExecutionRecipe(input: {
         break;
       case "convert":
         operationKind = "fx_conversion";
-        amountRef = "accepted_quote_from";
-        counterAmountRef = "accepted_quote_to";
-        quoteId = input.acceptedQuote?.quote.id ?? null;
+        amountRef = "accepted_calculation_source";
+        counterAmountRef = "accepted_calculation_target";
+        quoteId = input.currentCalculation?.currentSnapshot?.fxQuoteId ?? null;
         break;
       case "payout":
         operationKind = "payout";
@@ -519,10 +523,10 @@ export function compileDealExecutionRecipe(input: {
         amountRef =
           leg.kind === "settle_exporter"
             ? hasConvert
-              ? "accepted_quote_to"
+              ? "accepted_calculation_target"
               : "incoming_receipt_expected"
             : hasConvert
-              ? "accepted_quote_to"
+              ? "accepted_calculation_target"
               : "money_request_source";
         break;
     }
@@ -546,8 +550,8 @@ export function compileDealExecutionRecipe(input: {
 }
 
 async function resolveAmountRef(input: {
-  acceptedQuote: QuoteDetailsRecord | null;
   amountRef: DealExecutionAmountRef | null;
+  currentCalculation: DealExecutionCalculationRecord | null;
   currencyCodeById: Map<string, string>;
   currencies: DealExecutionWorkflowDeps["currencies"];
   workflow: DealWorkflowProjection;
@@ -559,36 +563,40 @@ async function resolveAmountRef(input: {
     };
   }
 
-  if (input.amountRef === "accepted_quote_from") {
-    if (!input.acceptedQuote) {
-      throw new ValidationError("Accepted quote details are required");
+  if (input.amountRef === "accepted_calculation_source") {
+    if (input.currentCalculation?.currentSnapshot?.state !== "accepted") {
+      throw new ValidationError("Accepted calculation snapshot is required");
     }
 
     return {
-      amountMinor: input.acceptedQuote.quote.fromAmountMinor,
-      currencyId: input.acceptedQuote.quote.fromCurrencyId,
+      amountMinor: input.currentCalculation.currentSnapshot.originalAmountMinor
+        ? BigInt(input.currentCalculation.currentSnapshot.originalAmountMinor)
+        : null,
+      currencyId: input.currentCalculation.currentSnapshot.calculationCurrencyId,
     };
   }
 
-  if (input.amountRef === "accepted_quote_to") {
-    if (!input.acceptedQuote) {
-      throw new ValidationError("Accepted quote details are required");
+  if (input.amountRef === "accepted_calculation_target") {
+    if (input.currentCalculation?.currentSnapshot?.state !== "accepted") {
+      throw new ValidationError("Accepted calculation snapshot is required");
     }
 
     return {
-      amountMinor: input.acceptedQuote.quote.toAmountMinor,
-      currencyId: input.acceptedQuote.quote.toCurrencyId,
+      amountMinor: input.currentCalculation.currentSnapshot.totalInBaseMinor
+        ? BigInt(input.currentCalculation.currentSnapshot.totalInBaseMinor)
+        : null,
+      currencyId: input.currentCalculation.currentSnapshot.baseCurrencyId,
     };
   }
 
   const rawAmount =
     input.amountRef === "money_request_source"
-      ? input.workflow.intake.moneyRequest.sourceAmount
-      : input.workflow.intake.incomingReceipt.expectedAmount;
+      ? input.workflow.header.moneyRequest.sourceAmount
+      : input.workflow.header.incomingReceipt.expectedAmount;
   const currencyId =
     input.amountRef === "money_request_source"
-      ? input.workflow.intake.moneyRequest.sourceCurrencyId
-      : input.workflow.intake.incomingReceipt.expectedCurrencyId;
+      ? input.workflow.header.moneyRequest.sourceCurrencyId
+      : input.workflow.header.incomingReceipt.expectedCurrencyId;
 
   if (!rawAmount || !currencyId) {
     return {
@@ -616,7 +624,7 @@ function assertExecutionRequestAllowed(workflow: DealWorkflowProjection) {
   }
 
   const readiness = workflow.transitionReadiness.find(
-    (item) => item.targetStatus === "awaiting_funds",
+    (item) => item.targetStatus === "approved_for_execution",
   );
 
   if (readiness?.allowed) {
@@ -624,7 +632,7 @@ function assertExecutionRequestAllowed(workflow: DealWorkflowProjection) {
   }
 
   throw new DealTransitionBlockedError(
-    "awaiting_funds",
+    "approved_for_execution",
     readiness?.blockers ?? [],
   );
 }
@@ -756,17 +764,19 @@ async function resolveRecipeContext(
   dealsModule: Pick<DealsModule, "deals">,
   workflow: DealWorkflowProjection,
 ) {
-  const acceptedCalculation =
+  const currentCalculationId =
+    workflow.acceptedCalculation?.calculationId ?? workflow.summary.calculationId;
+  const currentCalculation =
     deps.calculations &&
-    workflow.summary.calculationId
+    currentCalculationId
       ? await deps.calculations.calculations.queries.findById(
-          workflow.summary.calculationId,
+          currentCalculationId,
         )
       : null;
   const acceptedRoute =
-    acceptedCalculation?.currentSnapshot?.state === "accepted"
+    currentCalculation?.currentSnapshot?.state === "accepted"
       ? normalizeExecutionRouteSnapshot(
-          acceptedCalculation.currentSnapshot?.routeSnapshot,
+          currentCalculation.currentSnapshot?.routeSnapshot,
         )
       : null;
   const currentRoute =
@@ -776,21 +786,13 @@ async function resolveRecipeContext(
         workflow.summary.id,
       )) ?? null,
     );
-  const acceptedQuote =
-    workflow.acceptedQuote?.quoteId &&
-    ((currentRoute && hasRouteFxLeg(currentRoute)) ||
-      workflow.executionPlan.some((leg) => leg.kind === "convert"))
-      ? await treasuryModule.quotes.queries.getQuoteDetails({
-          quoteRef: workflow.acceptedQuote.quoteId,
-        })
-      : null;
 
   if (currentRoute) {
     return {
-      acceptedQuote,
+      currentCalculation,
       internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
       recipe: compileRouteExecutionRecipe({
-        acceptedQuote,
+        currentCalculation,
         route: currentRoute,
         workflow,
       }),
@@ -802,10 +804,10 @@ async function resolveRecipeContext(
   );
 
   return {
-    acceptedQuote,
+    currentCalculation,
     internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
     recipe: compileDealExecutionRecipe({
-      acceptedQuote,
+      currentCalculation,
       agreementOrganizationId: agreement?.organizationId ?? null,
       internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
       workflow,
@@ -814,8 +816,8 @@ async function resolveRecipeContext(
 }
 
 async function materializeCompiledOperation(input: {
-  acceptedQuote: QuoteDetailsRecord | null;
   compiled: CompiledDealExecutionOperation;
+  currentCalculation: DealExecutionCalculationRecord | null;
   currencies: DealExecutionWorkflowDeps["currencies"];
   currencyCodeById: Map<string, string>;
   customerId: string | null;
@@ -831,8 +833,8 @@ async function materializeCompiledOperation(input: {
           currencyId: input.compiled.amountCurrencyId,
         }
       : await resolveAmountRef({
-          acceptedQuote: input.acceptedQuote,
           amountRef: input.compiled.amountRef,
+          currentCalculation: input.currentCalculation,
           currencies: input.currencies,
           currencyCodeById: input.currencyCodeById,
           workflow: input.workflow,
@@ -845,8 +847,8 @@ async function materializeCompiledOperation(input: {
           currencyId: input.compiled.counterCurrencyId,
         }
       : await resolveAmountRef({
-          acceptedQuote: input.acceptedQuote,
           amountRef: input.compiled.counterAmountRef,
+          currentCalculation: input.currentCalculation,
           currencies: input.currencies,
           currencyCodeById: input.currencyCodeById,
           workflow: input.workflow,
@@ -971,6 +973,7 @@ async function ingestTreasuryInstructionOutcomeFact(input: {
     ReturnType<TreasuryModule["operations"]["queries"]["findById"]>
   >;
   treasuryModule: Pick<TreasuryModule, "operations">;
+  workflow: DealWorkflowProjection;
 }) {
   if (!input.instruction || !input.operation) {
     return;
@@ -1039,39 +1042,103 @@ async function ingestTreasuryInstructionOutcomeFact(input: {
     input.instruction.returnedAt ??
     input.instruction.failedAt ??
     input.instruction.updatedAt;
+  const sourceKind =
+    input.instruction.providerSnapshot || input.instruction.providerRef
+      ? "provider"
+      : "system";
+  const externalRecordId =
+    (findNestedValueByKeys(snapshot, [
+      "externalRecordId",
+      "sourceRecordId",
+      "recordId",
+      "providerRecordId",
+      "externalId",
+    ]) as string | null) ?? null;
+  const metadata = {
+    instructionState: input.instruction.state,
+    providerSnapshot: input.instruction.providerSnapshot,
+  };
+  const calculationSnapshotId = input.workflow.acceptedCalculation?.snapshotId ?? null;
+  const routeVersionId = input.workflow.acceptedCalculation?.routeVersionId ?? null;
+  const sourceRefBase = `treasury-instruction-outcome:${input.instruction.id}:${input.instruction.state}`;
 
-  await input.treasuryModule.operations.commands.recordActualFact({
-    amountMinor,
-    confirmedAt,
-    counterAmountMinor,
-    counterCurrencyId,
-    currencyId,
-    externalRecordId:
-      (findNestedValueByKeys(snapshot, [
-        "externalRecordId",
-        "sourceRecordId",
-        "recordId",
-        "providerRecordId",
-        "externalId",
-      ]) as string | null) ?? null,
-    feeAmountMinor,
-    feeCurrencyId: feeAmountMinor !== null ? feeCurrencyId : null,
-    instructionId: input.instruction.id,
-    metadata: {
-      instructionState: input.instruction.state,
-      providerSnapshot: input.instruction.providerSnapshot,
-    },
-    notes: `Instruction outcome: ${input.instruction.state}`,
-    operationId: input.operation.id,
-    providerRef: input.instruction.providerRef,
-    recordedAt: confirmedAt,
-    routeLegId: input.operation.routeLegId,
-    sourceKind:
-      input.instruction.providerSnapshot || input.instruction.providerRef
-        ? "provider"
-        : "system",
-    sourceRef: `treasury-instruction-outcome:${input.instruction.id}:${input.instruction.state}`,
-  });
+  if (
+    input.operation.kind === "fx_conversion" &&
+    (amountMinor !== null || counterAmountMinor !== null)
+  ) {
+    await input.treasuryModule.operations.commands.recordExecutionFill({
+      actualRateDen: amountMinor,
+      actualRateNum: counterAmountMinor,
+      boughtAmountMinor: counterAmountMinor,
+      boughtCurrencyId: counterCurrencyId,
+      calculationSnapshotId,
+      confirmedAt,
+      executedAt: confirmedAt,
+      externalRecordId,
+      fillSequence: null,
+      instructionId: input.instruction.id,
+      metadata,
+      notes: `Instruction outcome: ${input.instruction.state}`,
+      operationId: input.operation.id,
+      providerCounterpartyId: null,
+      providerRef: input.instruction.providerRef,
+      routeLegId: input.operation.routeLegId,
+      routeVersionId,
+      soldAmountMinor: amountMinor,
+      soldCurrencyId: currencyId,
+      sourceKind,
+      sourceRef: `${sourceRefBase}:fill`,
+    });
+  } else if (amountMinor !== null || currencyId) {
+    await input.treasuryModule.operations.commands.recordCashMovement({
+      accountRef: null,
+      amountMinor,
+      bookedAt: confirmedAt,
+      calculationSnapshotId,
+      confirmedAt,
+      currencyId,
+      direction: input.operation.kind === "payin" ? "credit" : "debit",
+      externalRecordId,
+      instructionId: input.instruction.id,
+      metadata,
+      notes: `Instruction outcome: ${input.instruction.state}`,
+      operationId: input.operation.id,
+      providerCounterpartyId: null,
+      providerRef: input.instruction.providerRef,
+      requisiteId: null,
+      routeLegId: input.operation.routeLegId,
+      routeVersionId,
+      sourceKind,
+      sourceRef: `${sourceRefBase}:cash`,
+      statementRef: null,
+      valueDate: confirmedAt,
+    });
+  }
+
+  if (feeAmountMinor !== null) {
+    await input.treasuryModule.operations.commands.recordExecutionFee({
+      amountMinor: feeAmountMinor,
+      calculationSnapshotId,
+      chargedAt: confirmedAt,
+      componentCode: null,
+      confirmedAt,
+      currencyId: feeCurrencyId,
+      externalRecordId,
+      feeFamily: "provider_fee",
+      fillId: null,
+      instructionId: input.instruction.id,
+      metadata,
+      notes: `Instruction outcome: ${input.instruction.state}`,
+      operationId: input.operation.id,
+      providerCounterpartyId: null,
+      providerRef: input.instruction.providerRef,
+      routeComponentId: null,
+      routeLegId: input.operation.routeLegId,
+      routeVersionId,
+      sourceKind,
+      sourceRef: `${sourceRefBase}:fee`,
+    });
+  }
 }
 
 async function ingestTreasuryOutcomeReconciliationRecord(input: {
@@ -1203,8 +1270,8 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
 
           for (const operation of pendingOperations) {
             await materializeCompiledOperation({
-              acceptedQuote: recipeContext.acceptedQuote,
               compiled: operation,
+              currentCalculation: recipeContext.currentCalculation,
               currencies: deps.currencies,
               currencyCodeById,
               customerId,
@@ -1306,8 +1373,8 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           }
 
           const operation = await materializeCompiledOperation({
-            acceptedQuote: recipeContext.acceptedQuote,
             compiled,
+            currentCalculation: recipeContext.currentCalculation,
             currencies: deps.currencies,
             currencyCodeById: new Map<string, string>(),
             customerId: getCustomerId(workflow),
@@ -1822,6 +1889,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             instruction: updated,
             operation,
             treasuryModule,
+            workflow,
           });
 
           await ingestTreasuryOutcomeReconciliationRecord({
@@ -1909,7 +1977,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
         }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-          if (workflow.summary.status === "done") {
+          if (workflow.summary.status === "closed") {
             return workflow;
           }
 
@@ -1928,14 +1996,35 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             await reconciliation.links.listOperationLinks({
               operationIds: linkedOperationIds,
             });
-          const operationFacts = await treasuryModule.operations.queries.listFacts(
-            {
+          const [cashMovements, executionFees, executionFills] = await Promise.all([
+            treasuryModule.operations.queries.listCashMovements({
               dealId: input.dealId,
               limit: MAX_QUERY_LIST_LIMIT,
               offset: 0,
-              sortBy: "recordedAt",
+              sortBy: "bookedAt",
               sortOrder: "desc",
-            },
+            }),
+            treasuryModule.operations.queries.listExecutionFees({
+              dealId: input.dealId,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "chargedAt",
+              sortOrder: "desc",
+            }),
+            treasuryModule.operations.queries.listExecutionFills({
+              dealId: input.dealId,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "executedAt",
+              sortOrder: "desc",
+            }),
+          ]);
+          const operationIdsWithActuals = new Set(
+            [
+              ...cashMovements.data.map((movement) => movement.operationId),
+              ...executionFees.data.map((fee) => fee.operationId),
+              ...executionFills.data.map((fill) => fill.operationId),
+            ].filter((operationId): operationId is string => Boolean(operationId)),
           );
           const reconciliationLinksByOperationId = new Map(
             reconciliationLinks.map(
@@ -1947,9 +2036,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           );
           const { closeReadiness } = deriveFinanceDealReadiness({
             latestInstructionByOperationId: instructionByOperationId,
-            operationIdsWithFacts: new Set(
-              operationFacts.data.map((fact) => fact.operationId),
-            ),
+            operationIdsWithFacts: operationIdsWithActuals,
             profitabilityCalculationId: workflow.summary.calculationId,
             reconciliationLinksByOperationId,
             workflow,
@@ -1957,7 +2044,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
 
           if (!closeReadiness.ready) {
             throw new DealTransitionBlockedError(
-              "done",
+              "closed",
               closeReadiness.blockers.map((message: string) => ({
                 code: "execution_leg_not_done",
                 message,
@@ -1969,7 +2056,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             actorUserId: input.actorUserId,
             comment: input.comment ?? null,
             dealId: input.dealId,
-            status: "done",
+            status: "closed",
           });
 
           await dealStore.createDealTimelineEvents([
@@ -1985,7 +2072,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             }),
           ]);
 
-          return updated.summary.status === "done"
+          return updated.summary.status === "closed"
             ? updated
             : requireWorkflow(dealsModule, input.dealId);
         },

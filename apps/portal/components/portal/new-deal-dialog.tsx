@@ -80,6 +80,8 @@ interface NewDealDialogProps {
   onSuccess?: () => void;
 }
 
+type PortalCustomerFacingDealType = Exclude<PortalDealType, "internal_treasury">;
+
 const CURRENCIES = [
   { value: "USD", label: "USD ($)" },
   { value: "EUR", label: "EUR (€)" },
@@ -92,7 +94,7 @@ const CURRENCIES = [
 const DEAL_TYPE_OPTIONS: {
   description: string;
   label: string;
-  value: PortalDealType;
+  value: PortalCustomerFacingDealType;
 }[] = [
   {
     value: "payment",
@@ -159,7 +161,7 @@ export function NewDealDialog({
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
     string | undefined
   >(undefined);
-  const [dealType, setDealType] = useState<PortalDealType>("payment");
+  const [dealType, setDealType] = useState<PortalCustomerFacingDealType>("payment");
   const [sourceAmount, setSourceAmount] = useState("");
   const [sourceCurrencyId, setSourceCurrencyId] = useState(
     DEFAULT_PAYMENT_SOURCE_CURRENCY,

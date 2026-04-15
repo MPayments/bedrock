@@ -55,8 +55,42 @@ function createWorkflow(input?: {
   transitionReadiness?: DealWorkflowProjection["transitionReadiness"];
   type?: DealWorkflowProjection["summary"]["type"];
 }) {
+  const header = {
+    common: {
+      applicantCounterpartyId: "counterparty-1",
+      customerNote: null,
+      requestedExecutionDate: new Date("2026-04-03T00:00:00.000Z"),
+    },
+    externalBeneficiary: {
+      bankInstructionSnapshot: null,
+      beneficiaryCounterpartyId: null,
+      beneficiarySnapshot: null,
+    },
+    incomingReceipt: {
+      contractNumber: null,
+      expectedAmount: null,
+      expectedAt: null,
+      expectedCurrencyId: null,
+      invoiceNumber: null,
+      payerCounterpartyId: null,
+      payerSnapshot: null,
+    },
+    moneyRequest: {
+      purpose: "Treasury execution",
+      sourceAmount: "100.00",
+      sourceCurrencyId: "currency-usd",
+      targetCurrencyId: "currency-eur",
+    },
+    settlementDestination: {
+      bankInstructionSnapshot: null,
+      mode: null,
+      requisiteId: null,
+    },
+    type: input?.type ?? "payment",
+  } satisfies DealWorkflowProjection["header"];
+
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     attachmentIngestions: [],
     executionPlan: input?.executionPlan ?? [
       createLeg({
@@ -83,39 +117,7 @@ function createWorkflow(input?: {
       targetCurrency: null,
       targetCurrencyId: null,
     },
-    intake: {
-      common: {
-        applicantCounterpartyId: "counterparty-1",
-        customerNote: null,
-        requestedExecutionDate: new Date("2026-04-03T00:00:00.000Z"),
-      },
-      externalBeneficiary: {
-        bankInstructionSnapshot: null,
-        beneficiaryCounterpartyId: null,
-        beneficiarySnapshot: null,
-      },
-      incomingReceipt: {
-        contractNumber: null,
-        expectedAmount: null,
-        expectedAt: null,
-        expectedCurrencyId: null,
-        invoiceNumber: null,
-        payerCounterpartyId: null,
-        payerSnapshot: null,
-      },
-      moneyRequest: {
-        purpose: "Treasury execution",
-        sourceAmount: "100.00",
-        sourceCurrencyId: "currency-usd",
-        targetCurrencyId: "currency-eur",
-      },
-      settlementDestination: {
-        bankInstructionSnapshot: null,
-        mode: null,
-        requisiteId: null,
-      },
-      type: input?.type ?? "payment",
-    },
+    header,
     nextAction: "Prepare closing documents",
     operationalState: {
       positions: input?.positions ?? [],
@@ -152,7 +154,7 @@ function createWorkflow(input?: {
       calculationId: null,
       createdAt: new Date("2026-04-03T00:00:00.000Z"),
       id: "deal-1",
-      status: input?.status ?? "closing_documents",
+      status: input?.status ?? "reconciling",
       type: input?.type ?? "payment",
       updatedAt: new Date("2026-04-03T00:00:00.000Z"),
     },

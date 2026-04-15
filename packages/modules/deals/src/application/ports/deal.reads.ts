@@ -18,9 +18,9 @@ import type { ListDealsQuery } from "../contracts/queries";
 
 export interface DealFundingAssessmentPort {
   assessFunding(input: {
-    acceptedQuoteId: string | null;
     hasConvertLeg: boolean;
     internalEntityOrganizationId: string | null;
+    pricingQuoteId: string | null;
     targetCurrencyId: string | null;
   }): Promise<DealFundingResolution>;
 }

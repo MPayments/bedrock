@@ -421,7 +421,6 @@ function createDealsModuleStub() {
       },
       commands: {
         appendTimelineEvent: vi.fn(),
-        acceptQuote: vi.fn(),
         applyRouteTemplate: vi.fn(),
         archiveRouteTemplate: vi.fn(),
         assignAgent: vi.fn(),
@@ -445,7 +444,7 @@ function createWorkflowProjection() {
   const now = new Date("2026-03-30T00:00:00.000Z");
 
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     attachmentIngestions: [],
     executionPlan: [
       createExecutionLeg(1, "collect", "ready"),
@@ -462,7 +461,7 @@ function createWorkflowProjection() {
       targetCurrency: null,
       targetCurrencyId: null,
     },
-    intake: {
+    header: {
       common: {
         applicantCounterpartyId: "00000000-0000-4000-8000-000000000004",
         customerNote: "Draft payment deal",
@@ -533,11 +532,11 @@ function createWorkflowProjection() {
         allowed: false,
         blockers: [
           {
-            code: "intake_incomplete",
-            message: "Required intake sections are incomplete",
+            code: "header_incomplete",
+            message: "Required deal header sections are incomplete",
           },
         ],
-        targetStatus: "submitted" as const,
+        targetStatus: "pricing" as const,
       },
     ],
   };
@@ -610,7 +609,7 @@ function createFinanceQueueProjection() {
         quoteSummary: null,
         stage: "awaiting_reconciliation",
         stageReason: "Ожидаем завершение сверки",
-        status: "closing_documents",
+        status: "reconciling",
         type: "payment",
       },
     ],
@@ -619,8 +618,7 @@ function createFinanceQueueProjection() {
 
 function createFinanceWorkspaceProjection() {
   return {
-    acceptedQuote: null,
-    acceptedQuoteDetails: null,
+    acceptedCalculation: null,
     actions: {
       canCloseDeal: false,
       canCreateCalculation: false,
@@ -759,7 +757,7 @@ function createFinanceWorkspaceProjection() {
       createdAt: new Date("2026-04-03T09:00:00.000Z"),
       id: "00000000-0000-4000-8000-000000000010",
       internalEntityDisplayName: "Multihansa",
-      status: "closing_documents",
+      status: "reconciling",
       type: "payment",
       updatedAt: new Date("2026-04-03T11:00:00.000Z"),
     },
@@ -787,9 +785,6 @@ function createTestApp() {
     listCrmDealsByDay: vi.fn(),
     listCrmDealsByStatus: vi.fn(),
     listFinanceDealQueues: vi.fn(),
-  };
-  const dealQuoteWorkflow = {
-    createCalculationFromAcceptedQuote: vi.fn(),
   };
   const dealExecutionWorkflow = {
     closeDeal: vi.fn(),
@@ -875,7 +870,6 @@ function createTestApp() {
     dealsRoutes({
       dealProjectionsWorkflow,
       dealExecutionWorkflow,
-      dealQuoteWorkflow,
       dealsModule,
       agreementsModule,
       iamService,
@@ -894,7 +888,6 @@ function createTestApp() {
     app,
     dealProjectionsWorkflow,
     dealExecutionWorkflow,
-    dealQuoteWorkflow,
     dealsModule,
     agreementsModule,
     treasuryModule,
@@ -1010,6 +1003,7 @@ describe("deals routes", () => {
   it("creates a typed draft deal for CRM origination", async () => {
     const { app, dealsModule } = createTestApp();
     const projection = createWorkflowProjection();
+    const header = projection.header ?? projection.intake;
     dealsModule.deals.commands.createDraft.mockResolvedValue(projection);
 
     const response = await app.request("http://localhost/deals/drafts", {
@@ -1021,10 +1015,10 @@ describe("deals routes", () => {
       body: JSON.stringify({
         agreementId: "00000000-0000-4000-8000-000000000002",
         customerId: "00000000-0000-4000-8000-000000000001",
-        intake: {
-          ...projection.intake,
+        header: {
+          ...header,
           common: {
-            ...projection.intake.common,
+            ...header.common,
             requestedExecutionDate: "2026-03-30T00:00:00.000Z",
           },
         },
@@ -1036,14 +1030,14 @@ describe("deals routes", () => {
       actorUserId: "user-1",
       agreementId: "00000000-0000-4000-8000-000000000002",
       customerId: "00000000-0000-4000-8000-000000000001",
-      idempotencyKey: "deal-draft-1",
-      intake: {
-        ...projection.intake,
+      header: {
+        ...header,
         common: {
-          ...projection.intake.common,
+          ...header.common,
           requestedExecutionDate: new Date("2026-03-30T00:00:00.000Z"),
         },
       },
+      idempotencyKey: "deal-draft-1",
     });
   });
 
@@ -1077,7 +1071,7 @@ describe("deals routes", () => {
     const { app, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const route = createDealRouteVersion();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -1104,7 +1098,7 @@ describe("deals routes", () => {
     const { app, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const route = createDealRouteVersion();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -1290,7 +1284,7 @@ describe("deals routes", () => {
     const { app, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const route = createDealRouteVersion();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -1345,7 +1339,7 @@ describe("deals routes", () => {
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "submitted",
+      status: "quoted",
     });
     agreementsModule.agreements.queries.findById.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000002",
@@ -1452,7 +1446,7 @@ describe("deals routes", () => {
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "submitted",
+      status: "quoted",
     });
     agreementsModule.agreements.queries.findById.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000002",
@@ -1540,7 +1534,7 @@ describe("deals routes", () => {
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "submitted",
+      status: "quoted",
     });
     agreementsModule.agreements.queries.findById.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000002",
@@ -1751,28 +1745,6 @@ describe("deals routes", () => {
     expect(response.status).toBe(404);
   });
 
-  it("accepts a quote for a deal", async () => {
-    const { app, dealsModule } = createTestApp();
-    const projection = {
-      summary: { id: "00000000-0000-4000-8000-000000000010" },
-    };
-    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
-
-    const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
-      {
-        method: "POST",
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalledWith({
-      actorUserId: "user-1",
-      dealId: "00000000-0000-4000-8000-000000000010",
-      quoteId: "00000000-0000-4000-8000-000000000210",
-    });
-  });
-
   it("updates the draft agreement on the workbench", async () => {
     const { app, dealsModule } = createTestApp();
     const projection = createWorkflowProjection();
@@ -1825,89 +1797,24 @@ describe("deals routes", () => {
     });
   });
 
-  it("creates a calculation from the accepted quote via the workflow", async () => {
-    const { app, dealQuoteWorkflow, dealsModule } = createTestApp();
-    const detail = {
-      ...createDealDetail(),
-      status: "submitted" as const,
-      calculationId: null,
-    };
-    dealsModule.deals.queries.findById.mockResolvedValue(detail);
-    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
-      id: "00000000-0000-4000-8000-000000000501",
-      isActive: true,
-      currentSnapshot: {
-        id: "00000000-0000-4000-8000-000000000502",
-        snapshotNumber: 1,
-        agreementVersionId: null,
-        agreementFeeBps: "10000",
-        agreementFeeAmountMinor: "100",
-        calculationCurrencyId: "00000000-0000-4000-8000-000000000301",
-        originalAmountMinor: "10000",
-        totalFeeBps: "10000",
-        totalFeeAmountMinor: "100",
-        totalAmountMinor: "10100",
-        baseCurrencyId: "00000000-0000-4000-8000-000000000302",
-        totalFeeAmountInBaseMinor: "90",
-        totalInBaseMinor: "9000",
-        dealId: detail.id,
-        dealSnapshot: null,
-        additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000302",
-        additionalExpensesAmountMinor: "50",
-        additionalExpensesInBaseMinor: "50",
-        fixedFeeAmountMinor: "0",
-        fixedFeeCurrencyId: null,
-        pricingProvenance: null,
-        quoteMarkupAmountMinor: "0",
-        quoteMarkupBps: "0",
-        routeVersionId: null,
-        routeSnapshot: null,
-        referenceRateAsOf: null,
-        referenceRateSource: null,
-        referenceRateNum: null,
-        referenceRateDen: null,
-        state: "accepted" as const,
-        totalWithExpensesInBaseMinor: "9140",
-        rateSource: "fx_quote",
-        rateNum: "9",
-        rateDen: "10",
-        additionalExpensesRateSource: null,
-        additionalExpensesRateNum: null,
-        additionalExpensesRateDen: null,
-        calculationTimestamp: new Date("2026-04-01T00:00:00.000Z"),
-        fxQuoteId: "00000000-0000-4000-8000-000000000210",
-        quoteSnapshot: null,
-        createdAt: new Date("2026-04-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-      },
-      createdAt: new Date("2026-04-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-      lines: [],
-    });
+  it("does not expose the legacy intake replace route", async () => {
+    const { app } = createTestApp();
 
     const response = await app.request(
-      `http://localhost/deals/${detail.id}/calculations/from-quote`,
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/intake",
       {
-        method: "POST",
+        method: "PUT",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": "from-quote-1",
         },
         body: JSON.stringify({
-          quoteId: "00000000-0000-4000-8000-000000000210",
+          expectedRevision: 1,
+          intake: createWorkflowProjection().header,
         }),
       },
     );
 
-    expect(response.status).toBe(201);
-    expect(
-      dealQuoteWorkflow.createCalculationFromAcceptedQuote,
-    ).toHaveBeenCalledWith({
-      actorUserId: "user-1",
-      dealId: detail.id,
-      idempotencyKey: "from-quote-1",
-      quoteId: "00000000-0000-4000-8000-000000000210",
-    });
+    expect(response.status).toBe(404);
   });
 
   it("creates a route-based calculation with agreement defaults and links it to the deal", async () => {
@@ -1921,7 +1828,7 @@ describe("deals routes", () => {
     const detail = {
       ...createDealDetail(),
       calculationId: null,
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const workflow = createWorkflowProjection();
     const route = createRouteEstimateVersion();
@@ -1993,7 +1900,7 @@ describe("deals routes", () => {
         rateNum: "1",
         rateSource: "manual",
         routeVersionId: route.id,
-        state: "draft",
+        state: "offered",
         totalFeeAmountInBaseMinor: "75",
         totalFeeAmountMinor: "150",
         totalInBaseMinor: "5000",
@@ -2046,7 +1953,7 @@ describe("deals routes", () => {
     const detail = {
       ...createDealDetail(),
       calculationId: null,
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const workflow = createWorkflowProjection();
     const route = createRouteEstimateVersion();
@@ -2528,10 +2435,10 @@ describe("deals routes", () => {
   it("returns structured blockers when a status transition is blocked", async () => {
     const { app, dealsModule } = createTestApp();
     dealsModule.deals.commands.transitionStatus.mockRejectedValue(
-      new DealTransitionBlockedError("submitted", [
+      new DealTransitionBlockedError("pricing", [
         {
-          code: "intake_incomplete",
-          message: "Required intake sections are incomplete",
+          code: "header_incomplete",
+          message: "Required deal header sections are incomplete",
         },
       ] as any),
     );
@@ -2543,7 +2450,7 @@ describe("deals routes", () => {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ status: "submitted" }),
+        body: JSON.stringify({ status: "pricing" }),
       },
     );
 
@@ -2551,9 +2458,9 @@ describe("deals routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "deal.transition_blocked",
       details: {
-        targetStatus: "submitted",
+        targetStatus: "pricing",
       },
-      error: "Deal transition to submitted is blocked",
+      error: "Deal transition to pricing is blocked",
     });
   });
 
@@ -2561,7 +2468,7 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "submitted" as const,
+      status: "quoted" as const,
     };
     const projection = createWorkflowProjection();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -2594,10 +2501,10 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "submitted" as const,
+      status: "quoted" as const,
     });
     dealExecutionWorkflow.requestExecution.mockRejectedValue(
-      new DealTransitionBlockedError("awaiting_funds", [
+      new DealTransitionBlockedError("approved_for_execution", [
         {
           code: "execution_leg_not_done",
           message: "Execution is blocked",
@@ -2621,9 +2528,9 @@ describe("deals routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "deal.transition_blocked",
       details: {
-        targetStatus: "awaiting_funds",
+        targetStatus: "approved_for_execution",
       },
-      error: "Deal transition to awaiting_funds is blocked",
+      error: "Deal transition to approved_for_execution is blocked",
     });
   });
 
@@ -2631,7 +2538,7 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "awaiting_funds" as const,
+      status: "approved_for_execution" as const,
     };
     const projection = createWorkflowProjection();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -2680,7 +2587,7 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
-      status: "awaiting_funds" as const,
+      status: "approved_for_execution" as const,
     };
     const projection = createWorkflowProjection();
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
@@ -2714,7 +2621,7 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "awaiting_payment" as const,
+      status: "executing" as const,
     });
     dealExecutionWorkflow.resolveExecutionBlocker.mockResolvedValue(
       createWorkflowProjection(),
@@ -2748,7 +2655,7 @@ describe("deals routes", () => {
     const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
-      status: "closing_documents" as const,
+      status: "reconciling" as const,
     });
     dealExecutionWorkflow.closeDeal.mockResolvedValue(createWorkflowProjection());
 

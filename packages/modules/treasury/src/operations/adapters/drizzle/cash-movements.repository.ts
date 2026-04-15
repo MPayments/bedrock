@@ -7,42 +7,48 @@ import {
 } from "@bedrock/shared/core/pagination";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
-import { treasuryOperationFacts } from "./schema";
+import { treasuryCashMovements } from "./schema";
 import type {
-  TreasuryOperationFactRecord,
-  TreasuryOperationFactsListQuery,
-  TreasuryOperationFactsRepository,
-  TreasuryOperationFactWriteModel,
+  TreasuryCashMovementListQuery,
+  TreasuryCashMovementRecord,
+  TreasuryCashMovementsRepository,
+  TreasuryCashMovementWriteModel,
 } from "../../application/ports/operations.repository";
 
-const TREASURY_OPERATION_FACTS_SORT_COLUMN_MAP = {
-  createdAt: treasuryOperationFacts.createdAt,
-  recordedAt: treasuryOperationFacts.recordedAt,
+const TREASURY_CASH_MOVEMENTS_SORT_COLUMN_MAP = {
+  bookedAt: treasuryCashMovements.bookedAt,
+  createdAt: treasuryCashMovements.createdAt,
 } as const;
 
-export class DrizzleTreasuryOperationFactsRepository
-  implements TreasuryOperationFactsRepository
+export class DrizzleTreasuryCashMovementsRepository
+  implements TreasuryCashMovementsRepository
 {
   constructor(private readonly db: Queryable) {}
 
-  async findFactBySourceRef(sourceRef: string, tx?: PersistenceSession) {
+  async findCashMovementBySourceRef(
+    sourceRef: string,
+    tx?: PersistenceSession,
+  ) {
     const database = (tx as Transaction | undefined) ?? this.db;
-    const [fact] = await database
+    const [movement] = await database
       .select()
-      .from(treasuryOperationFacts)
-      .where(eq(treasuryOperationFacts.sourceRef, sourceRef))
+      .from(treasuryCashMovements)
+      .where(eq(treasuryCashMovements.sourceRef, sourceRef))
       .limit(1);
 
-    return fact as TreasuryOperationFactRecord | undefined;
+    return movement as TreasuryCashMovementRecord | undefined;
   }
 
-  async insertFact(input: TreasuryOperationFactWriteModel, tx?: PersistenceSession) {
+  async insertCashMovement(
+    input: TreasuryCashMovementWriteModel,
+    tx?: PersistenceSession,
+  ) {
     const database = (tx as Transaction | undefined) ?? this.db;
     const inserted = await database
-      .insert(treasuryOperationFacts)
+      .insert(treasuryCashMovements)
       .values(input)
       .onConflictDoNothing({
-        target: treasuryOperationFacts.sourceRef,
+        target: treasuryCashMovements.sourceRef,
       })
       .returning();
 
@@ -50,53 +56,56 @@ export class DrizzleTreasuryOperationFactsRepository
       return null;
     }
 
-    return inserted[0] as TreasuryOperationFactRecord;
+    return inserted[0] as TreasuryCashMovementRecord;
   }
 
-  async listFacts(input: TreasuryOperationFactsListQuery, tx?: PersistenceSession) {
+  async listCashMovements(
+    input: TreasuryCashMovementListQuery,
+    tx?: PersistenceSession,
+  ) {
     const database = (tx as Transaction | undefined) ?? this.db;
     const conditions = [];
 
     if (input.dealId) {
-      conditions.push(eq(treasuryOperationFacts.dealId, input.dealId));
+      conditions.push(eq(treasuryCashMovements.dealId, input.dealId));
     }
 
     if (input.operationId) {
-      conditions.push(eq(treasuryOperationFacts.operationId, input.operationId));
+      conditions.push(eq(treasuryCashMovements.operationId, input.operationId));
     }
 
     if (input.routeLegId) {
-      conditions.push(eq(treasuryOperationFacts.routeLegId, input.routeLegId));
+      conditions.push(eq(treasuryCashMovements.routeLegId, input.routeLegId));
     }
 
     if (input.sourceKind?.length) {
-      conditions.push(inArray(treasuryOperationFacts.sourceKind, input.sourceKind));
+      conditions.push(inArray(treasuryCashMovements.sourceKind, input.sourceKind));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const orderByFn = resolveSortOrder(input.sortOrder) === "asc" ? asc : desc;
     const orderByColumn = resolveSortValue(
       input.sortBy,
-      TREASURY_OPERATION_FACTS_SORT_COLUMN_MAP,
-      treasuryOperationFacts.recordedAt,
+      TREASURY_CASH_MOVEMENTS_SORT_COLUMN_MAP,
+      treasuryCashMovements.bookedAt,
     );
 
     const [rows, countRows] = await Promise.all([
       database
         .select()
-        .from(treasuryOperationFacts)
+        .from(treasuryCashMovements)
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
         .offset(input.offset),
       database
         .select({ total: sql<number>`count(*)::int` })
-        .from(treasuryOperationFacts)
+        .from(treasuryCashMovements)
         .where(where),
     ]);
 
     return {
-      rows: rows as TreasuryOperationFactRecord[],
+      rows: rows as TreasuryCashMovementRecord[],
       total: countRows[0]?.total ?? 0,
     };
   }

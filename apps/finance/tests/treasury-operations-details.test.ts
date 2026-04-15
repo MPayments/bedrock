@@ -40,7 +40,7 @@ describe("treasury operations details", () => {
           dealRef: {
             applicantName: "ООО Тест",
             dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-            status: "awaiting_payment",
+            status: "executing",
             type: "payment",
           },
           dealWorkbenchHref: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
@@ -64,9 +64,9 @@ describe("treasury operations details", () => {
           nextAction: "Prepare documents",
           providerRoute: "Route A -> B",
           queueContext: {
-            blockers: ["Required intake sections are incomplete"],
+            blockers: ["Required deal header sections are incomplete"],
             queue: "funding",
-            queueReason: "Required intake sections are incomplete",
+            queueReason: "Required deal header sections are incomplete",
           },
           sourceAccount: {
             identity: null,
@@ -82,7 +82,9 @@ describe("treasury operations details", () => {
     expect(markup).toContain("Маршрут и блокеры");
     expect(markup).toContain("Перейти к сделке");
     expect(markup).toContain("Выплата");
-    expect(markup).toContain("Анкета заполнена не полностью.");
-    expect(markup).not.toContain("Required intake sections are incomplete");
+    expect(markup).toContain("Заголовок сделки заполнен не полностью.");
+    expect(markup).not.toContain(
+      "Required deal header sections are incomplete",
+    );
   });
 });

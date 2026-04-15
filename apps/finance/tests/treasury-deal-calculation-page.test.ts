@@ -26,8 +26,7 @@ describe("treasury deal calculation page", () => {
       currentCalculation: null,
       currencies: [],
       deal: {
-        acceptedQuote: null,
-        acceptedQuoteDetails: null,
+        acceptedCalculation: null,
         actions: {
           canCloseDeal: false,
           canCreateCalculation: true,

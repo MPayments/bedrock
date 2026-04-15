@@ -136,4 +136,20 @@ export class DrizzleCalculationStore implements CalculationStore {
       })
       .where(eq(calculations.id, input.calculationId));
   }
+
+  async setCurrentSnapshotState(input: {
+    calculationId: string;
+    state: "draft" | "offered" | "accepted" | "expired" | "cancelled" | "superseded";
+  }): Promise<void> {
+    await this.db.execute(sql`
+      update ${calculationSnapshots}
+      set state = ${input.state},
+          updated_at = now()
+      where id = (
+        select current_snapshot_id
+        from ${calculations}
+        where id = ${input.calculationId}
+      )
+    `);
+  }
 }
