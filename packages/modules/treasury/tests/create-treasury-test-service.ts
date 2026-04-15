@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type {
   Database,
@@ -5,6 +7,7 @@ import type {
 } from "@bedrock/platform/persistence";
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { DrizzleTreasuryOperationFactsRepository } from "../src/operations/adapters/drizzle/operation-facts.repository";
 import { DrizzleTreasuryOperationsRepository } from "../src/operations/adapters/drizzle/operations.repository";
 import { createTreasuryOperationsService } from "../src/operations/application";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../src/quotes/adapters/drizzle/quote-fee-components.repository";
@@ -44,8 +47,12 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
   const operationsRuntime = createModuleRuntime({
     logger: deps.logger,
     now: () => new Date(),
+    generateUuid: randomUUID,
     service: "treasury.operations",
   });
+  const operationFactsRepository = new DrizzleTreasuryOperationFactsRepository(
+    db,
+  );
   const ratesRepository = new DrizzleTreasuryRatesRepository(db);
   const operationsRepository = new DrizzleTreasuryOperationsRepository(db);
   const quotesRepository = new DrizzleTreasuryQuotesRepository(db);
@@ -73,6 +80,7 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     commandUow: new DrizzleTreasuryUnitOfWork({ persistence: deps.persistence }),
   });
   const operations = createTreasuryOperationsService({
+    factsRepository: operationFactsRepository,
     operationsRepository,
     runtime: operationsRuntime,
   });
@@ -107,7 +115,10 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
       operations: {
         createOrGetPlanned:
           treasuryModule.operations.commands.createOrGetPlanned,
+        recordActualFact:
+          treasuryModule.operations.commands.recordActualFact,
         findById: treasuryModule.operations.queries.findById,
+        listFacts: treasuryModule.operations.queries.listFacts,
         list: treasuryModule.operations.queries.list,
       },
     },

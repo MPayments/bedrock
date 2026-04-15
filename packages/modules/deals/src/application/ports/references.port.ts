@@ -46,7 +46,13 @@ export interface DealReferencesPort {
   >;
   findCurrencyById(id: string): Promise<DealCurrencyReference | null>;
   findCustomerById(id: string): Promise<{ id: string } | null>;
+  findOrganizationById(
+    id: string,
+  ): Promise<{ id: string; shortName?: string | null } | null>;
   findQuoteById(id: string): Promise<DealQuoteReference | null>;
+  findRequisiteById(
+    id: string,
+  ): Promise<{ id: string; ownerId: string; ownerType: "counterparty" | "organization" } | null>;
   listActiveAgreementsByCustomerId(
     customerId: string,
   ): Promise<DealAgreementReference[]>;

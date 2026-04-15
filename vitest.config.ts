@@ -8,6 +8,7 @@ export default defineConfig({
       "apps/crm/vitest.config.ts",
       "apps/db/vitest.config.ts",
       "apps/finance/vitest.config.ts",
+      "apps/portal/vitest.config.ts",
       "apps/workers/vitest.config.ts",
       "packages/modules/accounting/vitest.config.ts",
       "packages/modules/currencies/vitest.config.ts",

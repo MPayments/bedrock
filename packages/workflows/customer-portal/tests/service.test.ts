@@ -66,13 +66,6 @@ function createWorkflow(overrides?: {
     ],
   };
 
-  const calculations = {
-    calculations: {
-      queries: {
-        findById: vi.fn(async () => null),
-      },
-    },
-  };
   const currencies = {
     findByCode: vi.fn(async (code: string) => ({
       code,
@@ -422,7 +415,6 @@ function createWorkflow(overrides?: {
     iam,
     parties,
     workflow: createCustomerPortalWorkflow({
-      calculations: calculations as never,
       currencies: currencies as never,
       deals: deals as never,
       iam: iam as never,

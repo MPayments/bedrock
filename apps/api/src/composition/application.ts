@@ -232,21 +232,6 @@ export function createApplicationServices(
     currencies: currenciesPort,
     logger,
   });
-  const agreementsModule = createApiAgreementsModule({
-    db,
-    logger,
-    idempotency,
-    currencies: currenciesService,
-    persistence: createPersistenceContext(db),
-  });
-  const calculationsModule = createApiCalculationsModule({
-    db,
-    logger,
-    idempotency,
-    currencies: currenciesService,
-    persistence: createPersistenceContext(db),
-    treasuryQuotes: treasuryModule.quotes.queries,
-  });
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
@@ -256,6 +241,38 @@ export function createApplicationServices(
     idempotency,
     persistence: createPersistenceContext(db),
   });
+  const agreementsModule = createApiAgreementsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+    routeTemplates: {
+      async findById(id: string) {
+        try {
+          const template = await dealsModule.deals.queries.findRouteTemplateById(
+            id,
+          );
+
+          return {
+            id: template.id,
+            dealType: template.dealType,
+            status: template.status,
+          };
+        } catch {
+          return null;
+        }
+      },
+    },
+  });
+  const calculationsModule = createApiCalculationsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+    treasuryQuotes: treasuryModule.quotes.queries,
+  });
   const dealQuoteWorkflow = createDealQuoteWorkflow({
     agreements: agreementsModule,
     calculations: calculationsModule,
@@ -263,8 +280,85 @@ export function createApplicationServices(
     deals: dealsModule,
     treasury: treasuryModule,
   });
+  const createReconciliationExecutionFacts = (tx: Transaction) => {
+    const treasuryTxModule = createTreasuryModuleForTransaction(tx);
+
+    return {
+      async recordTreasuryOperationFact(input: {
+        amountMinor: bigint | null;
+        confirmedAt: Date | null;
+        counterAmountMinor: bigint | null;
+        counterCurrencyId: string | null;
+        currencyId: string | null;
+        externalRecordId: string | null;
+        feeAmountMinor: bigint | null;
+        feeCurrencyId: string | null;
+        instructionId: string | null;
+        metadata: Record<string, unknown> | null;
+        notes: string | null;
+        operationId: string;
+        providerRef: string | null;
+        recordedAt: Date | null;
+        routeLegId: string | null;
+        sourceRef: string;
+      }) {
+        const existingFacts = await treasuryTxModule.operations.queries.listFacts({
+          limit: 100,
+          offset: 0,
+          operationId: input.operationId,
+          sortBy: "recordedAt",
+          sortOrder: "desc",
+        });
+
+        const duplicate = existingFacts.data.some(
+          (fact) =>
+            fact.sourceRef === input.sourceRef ||
+            (input.externalRecordId !== null &&
+              fact.externalRecordId === input.externalRecordId) ||
+            (input.instructionId !== null &&
+              fact.instructionId === input.instructionId),
+        );
+
+        if (duplicate) {
+          return;
+        }
+
+        const operation = await treasuryTxModule.operations.queries.findById(
+          input.operationId,
+        );
+
+        if (!operation) {
+          return;
+        }
+
+        await treasuryTxModule.operations.commands.recordActualFact({
+          amountMinor: input.amountMinor,
+          confirmedAt: input.confirmedAt,
+          counterAmountMinor: input.counterAmountMinor,
+          counterCurrencyId: input.counterCurrencyId ?? operation.counterCurrencyId,
+          currencyId: input.currencyId ?? operation.currencyId,
+          externalRecordId: input.externalRecordId,
+          feeAmountMinor: input.feeAmountMinor,
+          feeCurrencyId:
+            input.feeAmountMinor !== null
+              ? input.feeCurrencyId ?? input.currencyId ?? operation.currencyId
+              : null,
+          instructionId: input.instructionId,
+          metadata: input.metadata,
+          notes: input.notes,
+          operationId: input.operationId,
+          providerRef: input.providerRef,
+          recordedAt: input.recordedAt,
+          routeLegId: input.routeLegId ?? operation.routeLegId,
+          sourceKind: "reconciliation",
+          sourceRef: input.sourceRef,
+        });
+      },
+    };
+  };
   const createReconciliationServiceForTransaction = (tx: Transaction) =>
     createReconciliationService({
+      createExecutionFacts: createReconciliationExecutionFacts,
       persistence: bindPersistenceSession(tx),
       idempotency,
       documents: {
@@ -293,6 +387,7 @@ export function createApplicationServices(
       logger,
     });
   const reconciliationService = createReconciliationService({
+    createExecutionFacts: createReconciliationExecutionFacts,
     persistence: createPersistenceContext(db),
     idempotency,
     documents: {
@@ -312,6 +407,7 @@ export function createApplicationServices(
   });
   const dealExecutionWorkflow = createDealExecutionWorkflow({
     agreements: agreementsModule,
+    calculations: calculationsModule,
     currencies: currenciesService,
     db,
     idempotency,
@@ -480,6 +576,7 @@ export function createApplicationServices(
         currenciesService,
         dealReads: dealsModule.deals.queries,
         documentsReadModel,
+        treasuryOperationFacts: treasuryModule.operations.queries,
         treasuryQuotes,
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
@@ -589,7 +686,6 @@ export function createApplicationServices(
 
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
-    calculations: calculationsModule,
     currencies: currenciesService,
     deals: dealsModule,
     iam: {

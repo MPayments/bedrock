@@ -24,7 +24,6 @@ import {
   agentsRoutes,
   agreementsRoutes,
   balancesRoutes,
-  calculationsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customerRoutes,
@@ -34,10 +33,13 @@ import {
   documentsRoutes,
   counterpartyDirectoryRoutes,
   organizationsRoutes,
+  participantsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
+  routeComposerRoutes,
   subAgentProfilesRoutes,
+  treasuryOperationFactsRoutes,
   treasuryOrganizationBalancesRoutes,
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,
@@ -206,7 +208,6 @@ function createV1Routes(ctx: AppContext) {
     .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
-    .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartyDirectoryRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
@@ -216,13 +217,16 @@ function createV1Routes(ctx: AppContext) {
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
+    .route("/participants", participantsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
+    .route("/route-composer", routeComposerRoutes(ctx))
     .route("/sub-agent-profiles", subAgentProfilesRoutes(ctx))
     .route(
       "/treasury/organizations/balances",
       treasuryOrganizationBalancesRoutes(ctx),
     )
+    .route("/treasury", treasuryOperationFactsRoutes(ctx))
     .route("/treasury/instructions", treasuryInstructionRoutes(ctx))
     .route("/treasury/operations", treasuryOperationsRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))

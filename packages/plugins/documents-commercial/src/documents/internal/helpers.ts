@@ -340,6 +340,58 @@ export function buildFinancialLineRequests(input: {
   return requests;
 }
 
+export function resolveFinalizedCommercialFinancialLines(
+  dealFxContext: Pick<
+    NonNullable<Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>>,
+    "actualFinancialLines" | "financialLines"
+  >,
+) {
+  const estimated = dealFxContext.financialLines.map((line) =>
+    normalizeFinancialLine(line),
+  );
+  const actual = (dealFxContext.actualFinancialLines ?? []).map((line) =>
+    normalizeFinancialLine(line),
+  );
+
+  if (actual.length === 0) {
+    return estimated;
+  }
+
+  const actualByBucket = new Map<string, FinancialLine[]>();
+
+  for (const line of actual) {
+    const bucket = actualByBucket.get(line.bucket) ?? [];
+    bucket.push(line);
+    actualByBucket.set(line.bucket, bucket);
+  }
+
+  const resolved: FinancialLine[] = [];
+  const emittedBuckets = new Set<string>();
+
+  for (const line of estimated) {
+    if (actualByBucket.has(line.bucket)) {
+      if (!emittedBuckets.has(line.bucket)) {
+        resolved.push(...(actualByBucket.get(line.bucket) ?? []));
+        emittedBuckets.add(line.bucket);
+      }
+
+      continue;
+    }
+
+    resolved.push(line);
+  }
+
+  for (const [bucket, lines] of actualByBucket.entries()) {
+    if (emittedBuckets.has(bucket)) {
+      continue;
+    }
+
+    resolved.push(...lines);
+  }
+
+  return resolved;
+}
+
 export function buildDirectInvoicePostingPlan(input: {
   document: Document;
   payload: InvoiceCurrentPayload;
@@ -550,9 +602,7 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
         counterpartyId: input.payload.counterpartyId,
         quoteRef: quoteSnapshot.quoteRef,
         chainId,
-        lines: input.dealFxContext.financialLines.map((line) =>
-          normalizeFinancialLine(line),
-        ),
+        lines: resolveFinalizedCommercialFinancialLines(input.dealFxContext),
         includeCustomerLines: true,
         includeProviderLines: true,
         postingPhase: "finalize",
@@ -563,9 +613,7 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
 
 export function buildExchangePostingPlan(input: {
   document: Document;
-  financialLines?: NonNullable<
-    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
-  >["financialLines"];
+  financialLines?: FinancialLine[];
   payload: ExchangePayload;
   bookId: string;
 }) {

@@ -1,18 +1,11 @@
-import { ChevronDown, ListChecks, Workflow } from "lucide-react";
+import { ListChecks, ShieldCheck, Workflow } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@bedrock/sdk-ui/components/dropdown-menu";
 
 import {
   DEAL_LEG_KIND_LABELS,
@@ -26,33 +19,19 @@ import type {
   ApiDealSectionCompleteness,
   ApiDealTransitionReadiness,
   ApiDealWorkflowLeg,
-  DealLegState,
   DealStatus,
 } from "./types";
 
-const LEG_STATE_TRANSITIONS: Record<DealLegState, DealLegState[]> = {
-  blocked: ["ready", "skipped"],
-  done: [],
-  in_progress: ["done", "blocked"],
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  skipped: [],
-};
-
 type ExecutionPlanCardProps = {
   executionPlan: ApiDealWorkflowLeg[];
-  isUpdatingLegKey: string | null;
   onBlockedTransitionClick: (status: DealStatus) => void;
-  onUpdateLegState: (idx: number, state: DealLegState) => void;
   sectionCompleteness: ApiDealSectionCompleteness[];
   transitionReadiness: ApiDealTransitionReadiness[];
 };
 
 export function ExecutionPlanCard({
   executionPlan,
-  isUpdatingLegKey,
   onBlockedTransitionClick,
-  onUpdateLegState,
   sectionCompleteness,
   transitionReadiness,
 }: ExecutionPlanCardProps) {
@@ -128,15 +107,21 @@ export function ExecutionPlanCard({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <ListChecks className="h-4 w-4" />
-            Этапы исполнения
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <ListChecks className="h-4 w-4" />
+              Этапы исполнения
+            </div>
+            <Badge
+              className="gap-1 whitespace-nowrap"
+              variant="secondary"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Управление в Finance
+            </Badge>
           </div>
           <div className="space-y-3">
             {executionPlan.map((leg) => {
-              const nextStates = LEG_STATE_TRANSITIONS[leg.state];
-              const legKey = String(leg.idx);
-
               return (
                 <div
                   key={`${leg.idx}:${leg.kind}`}
@@ -154,35 +139,6 @@ export function ExecutionPlanCard({
                           {DEAL_LEG_STATE_LABELS[leg.state]}
                         </span>
                       </Badge>
-                      {nextStates.length > 0 && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={
-                              <Button
-                                data-testid={`deal-leg-state-button-${leg.idx}`}
-                                size="sm"
-                                variant="outline"
-                                disabled={isUpdatingLegKey === legKey}
-                              />
-                            }
-                          >
-                            Изменить
-                            <ChevronDown className="ml-2 h-4 w-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {nextStates.map((state) => (
-                              <DropdownMenuItem
-                                key={state}
-                                data-testid={`deal-leg-state-option-${leg.idx}-${state}`}
-                                disabled={isUpdatingLegKey === legKey}
-                                onClick={() => onUpdateLegState(leg.idx, state)}
-                              >
-                                {DEAL_LEG_STATE_LABELS[state]}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
                     </div>
                   </div>
                 </div>

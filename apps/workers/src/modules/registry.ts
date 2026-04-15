@@ -23,13 +23,19 @@ import {
 import {
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
+  DrizzleOrganizationReads,
+  DrizzleRequisiteReads,
 } from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
+import {
+  bindPersistenceSession,
+  createPersistenceContext,
+  type Transaction,
+} from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import {
   type BedrockWorker,
@@ -40,6 +46,7 @@ import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionsRepository,
+  DrizzleTreasuryOperationFactsRepository,
   DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
@@ -126,6 +133,8 @@ export function createWorkerImplementations(
   const agreementReads = new DrizzleAgreementReads(deps.db, currenciesQueries);
   const counterpartyReads = new DrizzleCounterpartyReads(deps.db);
   const customerReads = new DrizzleCustomerReads(deps.db);
+  const organizationReads = new DrizzleOrganizationReads(deps.db);
+  const requisiteReads = new DrizzleRequisiteReads(deps.db);
   const objectStorage =
     deps.env.S3_ENDPOINT &&
     deps.env.S3_ACCESS_KEY &&
@@ -198,8 +207,14 @@ export function createWorkerImplementations(
       async findCustomerById(id: string) {
         return customerReads.findById(id);
       },
+      async findOrganizationById(id: string) {
+        return organizationReads.findById(id);
+      },
       async findQuoteById() {
         return null;
+      },
+      async findRequisiteById(id: string) {
+        return requisiteReads.findById(id);
       },
       async listActiveAgreementsByCustomerId(customerId: string) {
         const result = await agreementReads.list({
@@ -245,25 +260,38 @@ export function createWorkerImplementations(
     files: filesModule,
     logger: deps.logger,
   });
-  const treasuryModule = createTreasuryModule({
-    logger: deps.logger,
-    now: () => new Date(),
-    generateUuid: randomUUID,
-    currencies: currenciesService,
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
-    ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
-    quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
-    quoteFinancialLinesRepository:
-      new DrizzleTreasuryQuoteFinancialLinesRepository(deps.db),
-    quoteFeeComponentsRepository:
-      new DrizzleTreasuryQuoteFeeComponentsRepository(deps.db),
-    feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(deps.db),
-    unitOfWork: new DrizzleTreasuryUnitOfWork({
-      persistence: createPersistenceContext(deps.db),
-    }),
-    rateSourceProviders: createDefaultRateSourceProviders(),
-  });
+  const createTreasuryModuleForSession = (
+    session: Database | Transaction,
+    persistence:
+      | ReturnType<typeof createPersistenceContext>
+      | ReturnType<typeof bindPersistenceSession>,
+  ) =>
+    createTreasuryModule({
+      logger: deps.logger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
+      currencies: currenciesService,
+      instructionsRepository: new DrizzleTreasuryInstructionsRepository(session),
+      operationFactsRepository: new DrizzleTreasuryOperationFactsRepository(
+        session,
+      ),
+      operationsRepository: new DrizzleTreasuryOperationsRepository(session),
+      ratesRepository: new DrizzleTreasuryRatesRepository(session),
+      quotesRepository: new DrizzleTreasuryQuotesRepository(session),
+      quoteFinancialLinesRepository:
+        new DrizzleTreasuryQuoteFinancialLinesRepository(session),
+      quoteFeeComponentsRepository:
+        new DrizzleTreasuryQuoteFeeComponentsRepository(session),
+      feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(session),
+      unitOfWork: new DrizzleTreasuryUnitOfWork({
+        persistence,
+      }),
+      rateSourceProviders: createDefaultRateSourceProviders(),
+    });
+  const treasuryModule = createTreasuryModuleForSession(
+    deps.db,
+    createPersistenceContext(deps.db),
+  );
   const treasuryRates = createTreasuryRatesWorkerDefinition({
     ...createWorkerMetadata("treasury-rates", deps.env),
     treasuryModule,
@@ -296,6 +324,69 @@ export function createWorkerImplementations(
       async treasuryOperationExists(operationId: string) {
         return (await treasuryModule.operations.queries.findById(operationId)) !== null;
       },
+    },
+    createExecutionFacts: (tx) => {
+      const treasuryTxModule = createTreasuryModuleForSession(
+        tx,
+        bindPersistenceSession(tx),
+      );
+
+      return {
+        async recordTreasuryOperationFact(input) {
+          const existingFacts = await treasuryTxModule.operations.queries.listFacts({
+            limit: 100,
+            offset: 0,
+            operationId: input.operationId,
+            sortBy: "recordedAt",
+            sortOrder: "desc",
+          });
+
+          const duplicate = existingFacts.data.some(
+            (fact) =>
+              fact.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                fact.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                fact.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordActualFact({
+            amountMinor: input.amountMinor,
+            confirmedAt: input.confirmedAt,
+            counterAmountMinor: input.counterAmountMinor,
+            counterCurrencyId:
+              input.counterCurrencyId ?? operation.counterCurrencyId,
+            currencyId: input.currencyId ?? operation.currencyId,
+            externalRecordId: input.externalRecordId,
+            feeAmountMinor: input.feeAmountMinor,
+            feeCurrencyId:
+              input.feeAmountMinor !== null
+                ? input.feeCurrencyId ?? input.currencyId ?? operation.currencyId
+                : null,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerRef: input.providerRef,
+            recordedAt: input.recordedAt,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+          });
+        },
+      };
     },
     logger: deps.logger,
   });

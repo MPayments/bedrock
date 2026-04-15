@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  TreasuryOperationFactSourceKindSchema,
   TreasuryOperationKindSchema,
   TreasuryOperationStateSchema,
 } from "./zod";
@@ -43,6 +44,7 @@ export const TreasuryOperationSchema = z.object({
   internalEntityOrganizationId: z.uuid().nullable(),
   kind: TreasuryOperationKindSchema,
   quoteId: z.uuid().nullable(),
+  routeLegId: z.uuid().nullable(),
   sourceRef: z.string(),
   state: TreasuryOperationStateSchema,
   updatedAt: z.date(),
@@ -150,6 +152,41 @@ export const TreasuryOperationWorkspaceDetailSchema =
     queueContext: TreasuryOperationQueueContextSchema,
   });
 
+const JsonRecordSchema = z.record(z.string(), z.unknown());
+
+export const TreasuryOperationFactSchema = z.object({
+  amountMinor: z.string().nullable(),
+  confirmedAt: z.date().nullable(),
+  counterAmountMinor: z.string().nullable(),
+  counterCurrencyId: z.uuid().nullable(),
+  createdAt: z.date(),
+  currencyId: z.uuid().nullable(),
+  dealId: z.uuid().nullable(),
+  externalRecordId: z.string().nullable(),
+  feeAmountMinor: z.string().nullable(),
+  feeCurrencyId: z.uuid().nullable(),
+  id: z.uuid(),
+  instructionId: z.uuid().nullable(),
+  metadata: JsonRecordSchema.nullable(),
+  notes: z.string().nullable(),
+  operationId: z.uuid(),
+  providerRef: z.string().nullable(),
+  recordedAt: z.date(),
+  routeLegId: z.uuid().nullable(),
+  sourceKind: TreasuryOperationFactSourceKindSchema,
+  sourceRef: z.string(),
+  updatedAt: z.date(),
+});
+
+export const TreasuryOperationFactsListResponseSchema = z.object({
+  data: z.array(TreasuryOperationFactSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export type TreasuryOperationFact = z.infer<typeof TreasuryOperationFactSchema>;
+
 export type TreasuryOperationInstructionStatus = z.infer<
   typeof TreasuryOperationInstructionStatusSchema
 >;
@@ -182,4 +219,7 @@ export type TreasuryOperationWorkspaceListResponse = z.infer<
 >;
 export type TreasuryOperationWorkspaceDetail = z.infer<
   typeof TreasuryOperationWorkspaceDetailSchema
+>;
+export type TreasuryOperationFactsListResponse = z.infer<
+  typeof TreasuryOperationFactsListResponseSchema
 >;

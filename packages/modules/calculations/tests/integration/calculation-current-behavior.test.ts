@@ -31,10 +31,15 @@ describe("calculations integration characterization", () => {
 
     expect(calculation.currentSnapshot.fxQuoteId).toBe(quote.id);
     expect(calculation.currentSnapshot.rateSource).toBe("fx_quote");
+    expect(calculation.currentSnapshot.state).toBe("draft");
     expect(calculation.lines).toHaveLength(2);
     expect(calculation.lines.map((line) => line.kind)).toEqual([
       "fee_revenue",
       "spread_revenue",
+    ]);
+    expect(calculation.lines.map((line) => line.sourceKind)).toEqual([
+      "manual",
+      "manual",
     ]);
   });
 

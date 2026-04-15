@@ -5,6 +5,58 @@ export const DEAL_TYPE_VALUES = [
   "exporter_settlement",
 ] as const;
 
+export const DEAL_ROUTE_PARTY_KIND_VALUES = [
+  "customer",
+  "counterparty",
+  "organization",
+] as const;
+
+export const DEAL_ROUTE_TEMPLATE_STATUS_VALUES = [
+  "draft",
+  "published",
+  "archived",
+] as const;
+
+export const DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES = [
+  "fixed_party",
+  "deal_customer",
+  "deal_applicant",
+  "deal_payer",
+  "deal_beneficiary",
+] as const;
+
+export const DEAL_ROUTE_LEG_KIND_VALUES = [
+  "collection",
+  "intracompany_transfer",
+  "intercompany_funding",
+  "fx_conversion",
+  "payout",
+  "return",
+  "adjustment",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES = [
+  "revenue",
+  "expense",
+  "pass_through",
+  "adjustment",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES = [
+  "fixed",
+  "bps",
+  "per_million",
+  "manual",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES = [
+  "deal_source_amount",
+  "deal_target_amount",
+  "leg_from_amount",
+  "leg_to_amount",
+  "gross_revenue",
+] as const;
+
 export const DEAL_STATUS_VALUES = [
   "draft",
   "submitted",

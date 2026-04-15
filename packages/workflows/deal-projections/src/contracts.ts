@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { AgreementDetailsSchema } from "@bedrock/agreements/contracts";
-import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import {
   DealApprovalSchema,
+  DealAttachmentIngestionSchema,
   DealBankInstructionSnapshotSchema,
   DealCalculationHistoryItemSchema,
   DealCounterpartySnapshotSchema,
@@ -139,7 +139,7 @@ export type CrmDealCustomerContext = z.infer<
 
 export const DealPricingSummarySchema = z.object({
   calculationHistory: z.array(DealCalculationHistoryItemSchema),
-  currentCalculation: CalculationDetailsSchema.nullable(),
+  currentCalculation: PortalDealCalculationSummarySchema,
   quoteEligibility: z.boolean(),
   quotes: z.array(QuoteSchema),
 });
@@ -245,6 +245,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   actions: CrmDealWorkbenchActionsSchema,
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
+  attachmentIngestions: z.array(DealAttachmentIngestionSchema),
   beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
   comment: z.string().nullable(),
   context: z.object({
@@ -264,9 +265,18 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   operationalState: DealOperationalStateSchema,
   participants: z.array(DealWorkflowParticipantSchema),
   pricing: DealPricingSummarySchema,
+  profitabilitySnapshot: z.lazy(() => FinanceProfitabilitySnapshotSchema),
+  profitabilityVariance: z.lazy(
+    () => FinanceProfitabilityVarianceSnapshotSchema,
+  ),
+  reconciliationSummary: z.lazy(() => FinanceDealReconciliationSummarySchema),
+  revision: z.number().int().nonnegative(),
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
+    reconciliationExceptions: z.array(
+      z.lazy(() => FinanceDealReconciliationExceptionSchema),
+    ),
   }),
   sectionCompleteness: z.array(DealSectionCompletenessSchema),
   summary: DealSummarySchema.extend({
@@ -276,7 +286,6 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   }),
   timeline: z.array(DealTimelineEventSchema),
   transitionReadiness: z.array(DealTransitionReadinessSchema),
-  workflow: DealWorkflowProjectionSchema,
 });
 
 export type CrmDealWorkbenchProjection = z.infer<
@@ -494,6 +503,71 @@ export type FinanceProfitabilitySnapshot = z.infer<
   typeof FinanceProfitabilitySnapshotSchema
 >;
 
+export const FinanceProfitabilityCoverageStateSchema = z.enum([
+  "not_started",
+  "partial",
+  "complete",
+]);
+
+export type FinanceProfitabilityCoverageState = z.infer<
+  typeof FinanceProfitabilityCoverageStateSchema
+>;
+
+export const FinanceProfitabilityCostVarianceSchema = z.object({
+  actual: z.array(FinanceProfitabilityAmountSchema),
+  classification: z.enum(["revenue", "expense", "pass_through", "adjustment"]),
+  expected: z.array(FinanceProfitabilityAmountSchema),
+  family: z.string(),
+  variance: z.array(FinanceProfitabilityAmountSchema),
+});
+
+export type FinanceProfitabilityCostVariance = z.infer<
+  typeof FinanceProfitabilityCostVarianceSchema
+>;
+
+export const FinanceProfitabilityLegVarianceSchema = z.object({
+  actualFees: z.array(FinanceProfitabilityAmountSchema),
+  actualFrom: FinanceProfitabilityAmountSchema.nullable(),
+  actualTo: FinanceProfitabilityAmountSchema.nullable(),
+  code: z.string(),
+  expectedFrom: FinanceProfitabilityAmountSchema.nullable(),
+  expectedTo: FinanceProfitabilityAmountSchema.nullable(),
+  idx: z.number().int().positive(),
+  kind: z.string(),
+  routeLegId: z.uuid(),
+  varianceFrom: FinanceProfitabilityAmountSchema.nullable(),
+  varianceTo: FinanceProfitabilityAmountSchema.nullable(),
+});
+
+export type FinanceProfitabilityLegVariance = z.infer<
+  typeof FinanceProfitabilityLegVarianceSchema
+>;
+
+export const FinanceProfitabilityVarianceSnapshotSchema = z
+  .object({
+    actualCoverage: z.object({
+      factCount: z.number().int().nonnegative(),
+      legsWithFacts: z.number().int().nonnegative(),
+      operationCount: z.number().int().nonnegative(),
+      state: FinanceProfitabilityCoverageStateSchema,
+      terminalOperationCount: z.number().int().nonnegative(),
+      totalLegCount: z.number().int().nonnegative(),
+    }),
+    actualExpense: z.array(FinanceProfitabilityAmountSchema),
+    actualPassThrough: z.array(FinanceProfitabilityAmountSchema),
+    calculationId: z.uuid(),
+    expectedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    netMarginVariance: z.array(FinanceProfitabilityAmountSchema),
+    realizedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    varianceByCostFamily: z.array(FinanceProfitabilityCostVarianceSchema),
+    varianceByLeg: z.array(FinanceProfitabilityLegVarianceSchema),
+  })
+  .nullable();
+
+export type FinanceProfitabilityVarianceSnapshot = z.infer<
+  typeof FinanceProfitabilityVarianceSnapshotSchema
+>;
+
 export const FinanceDealExecutionSummarySchema = z.object({
   blockedLegCount: z.number().int().nonnegative(),
   doneLegCount: z.number().int().nonnegative(),
@@ -684,6 +758,7 @@ export const FinanceDealCloseCriterionCodeSchema = z.enum([
   "operations_materialized",
   "execution_unblocked",
   "reconciliation_clear",
+  "realized_profitability_available",
   "payment_payout_settled",
   "payment_documents_ready",
   "currency_exchange_conversion_settled",
@@ -800,6 +875,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   operationalState: DealOperationalStateSchema,
   pricing: FinanceDealPricingContextSchema,
   profitabilitySnapshot: FinanceProfitabilitySnapshotSchema,
+  profitabilityVariance: FinanceProfitabilityVarianceSnapshotSchema,
   queueContext: z.object({
     blockers: z.array(z.string()),
     queue: FinanceDealQueueSchema,

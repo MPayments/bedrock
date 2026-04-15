@@ -2,17 +2,24 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
+import { ApplyDealRouteTemplateCommand } from "./commands/apply-deal-route-template";
+import { ArchiveDealRouteTemplateCommand } from "./commands/archive-deal-route-template";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
 import { ClaimDealAttachmentIngestionsCommand } from "./commands/claim-deal-attachment-ingestions";
 import { CompleteDealAttachmentIngestionCommand } from "./commands/complete-deal-attachment-ingestion";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
+import { CreateDealRouteDraftCommand } from "./commands/create-deal-route-draft";
+import { CreateDealRouteTemplateCommand } from "./commands/create-deal-route-template";
 import { EnqueueDealAttachmentIngestionCommand } from "./commands/enqueue-deal-attachment-ingestion";
 import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachment-ingestion";
 import { LinkCalculationCommand } from "./commands/link-calculation";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
+import { PublishDealRouteTemplateCommand } from "./commands/publish-deal-route-template";
+import { ReplaceDealRouteVersionCommand } from "./commands/replace-deal-route-version";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
+import { UpdateDealRouteTemplateCommand } from "./commands/update-deal-route-template";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
 import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
@@ -21,12 +28,15 @@ import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
 import type { DealReferencesPort } from "./ports/references.port";
 import { FindDealAttachmentIngestionByFileAssetIdQuery } from "./queries/find-deal-attachment-ingestion-by-file-asset-id";
 import { FindDealByIdQuery } from "./queries/find-deal-by-id";
+import { FindCurrentDealRouteByIdQuery } from "./queries/find-current-deal-route-by-id";
+import { FindDealRouteTemplateByIdQuery } from "./queries/find-deal-route-template-by-id";
 import { FindDealTraceByIdQuery } from "./queries/find-deal-trace-by-id";
 import { FindDealWorkflowByIdQuery } from "./queries/find-deal-workflow-by-id";
 import { FindDealWorkflowsByIdsQuery } from "./queries/find-deal-workflows-by-ids";
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
+import { ListDealRouteTemplatesQuery } from "./queries/list-deal-route-templates";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -45,9 +55,23 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.idempotency,
     deps.references,
   );
+  const createDealRouteTemplate = new CreateDealRouteTemplateCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
   const enqueueAttachmentIngestion = new EnqueueDealAttachmentIngestionCommand(
     deps.runtime,
     deps.commandUow,
+  );
+  const createDealRouteDraft = new CreateDealRouteDraftCommand(
+    deps.runtime,
+    deps.commandUow,
+  );
+  const applyDealRouteTemplate = new ApplyDealRouteTemplateCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
   );
   const claimAttachmentIngestions = new ClaimDealAttachmentIngestionsCommand(
     deps.runtime,
@@ -65,6 +89,22 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.runtime,
     deps.commandUow,
     deps.references,
+  );
+  const replaceDealRouteVersion = new ReplaceDealRouteVersionCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const updateDealRouteTemplate = new UpdateDealRouteTemplateCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
+  );
+  const publishDealRouteTemplate = new PublishDealRouteTemplateCommand(
+    deps.commandUow,
+  );
+  const archiveDealRouteTemplate = new ArchiveDealRouteTemplateCommand(
+    deps.commandUow,
   );
   const updateDealComment = new UpdateDealCommentCommand(deps.commandUow);
   const linkCalculationFromAcceptedQuote =
@@ -107,6 +147,10 @@ export function createDealsService(deps: DealsServiceDeps) {
   const findDealById = new FindDealByIdQuery(deps.reads);
   const findAttachmentIngestionByFileAssetId =
     new FindDealAttachmentIngestionByFileAssetIdQuery(deps.reads);
+  const findCurrentDealRouteById = new FindCurrentDealRouteByIdQuery(deps.reads);
+  const findDealRouteTemplateById = new FindDealRouteTemplateByIdQuery(
+    deps.reads,
+  );
   const findDealWorkflowById = new FindDealWorkflowByIdQuery(deps.reads);
   const findDealWorkflowsByIds = new FindDealWorkflowsByIdsQuery(deps.reads);
   const findPortalDealById = new FindPortalDealByIdQuery(deps.reads);
@@ -115,12 +159,17 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.reads,
   );
   const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
+  const listDealRouteTemplates = new ListDealRouteTemplatesQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
   const listPortalDeals = new ListPortalDealsQuery(deps.reads);
 
   return {
     commands: {
       acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
+      applyRouteTemplate:
+        applyDealRouteTemplate.execute.bind(applyDealRouteTemplate),
+      archiveRouteTemplate:
+        archiveDealRouteTemplate.execute.bind(archiveDealRouteTemplate),
       assignAgent: assignDealAgent.execute.bind(assignDealAgent),
       appendTimelineEvent: appendTimelineEvent.execute.bind(appendTimelineEvent),
       claimAttachmentIngestions:
@@ -128,6 +177,9 @@ export function createDealsService(deps: DealsServiceDeps) {
       completeAttachmentIngestion:
         completeAttachmentIngestion.execute.bind(completeAttachmentIngestion),
       createDraft: createDealDraft.execute.bind(createDealDraft),
+      createRouteDraft: createDealRouteDraft.execute.bind(createDealRouteDraft),
+      createRouteTemplate:
+        createDealRouteTemplate.execute.bind(createDealRouteTemplate),
       enqueueAttachmentIngestion:
         enqueueAttachmentIngestion.execute.bind(enqueueAttachmentIngestion),
       failAttachmentIngestion:
@@ -137,11 +189,17 @@ export function createDealsService(deps: DealsServiceDeps) {
           linkCalculationFromAcceptedQuote,
         ),
       linkCalculation: linkCalculation.execute.bind(linkCalculation),
+      publishRouteTemplate:
+        publishDealRouteTemplate.execute.bind(publishDealRouteTemplate),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
+      replaceRouteVersion:
+        replaceDealRouteVersion.execute.bind(replaceDealRouteVersion),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       updateComment: updateDealComment.execute.bind(updateDealComment),
       updateLegState: updateDealLegState.execute.bind(updateDealLegState),
+      updateRouteTemplate:
+        updateDealRouteTemplate.execute.bind(updateDealRouteTemplate),
     },
     queries: {
       findAttachmentIngestionByFileAssetId:
@@ -149,6 +207,10 @@ export function createDealsService(deps: DealsServiceDeps) {
           findAttachmentIngestionByFileAssetId,
         ),
       findById: findDealById.execute.bind(findDealById),
+      findCurrentRouteByDealId:
+        findCurrentDealRouteById.execute.bind(findCurrentDealRouteById),
+      findRouteTemplateById:
+        findDealRouteTemplateById.execute.bind(findDealRouteTemplateById),
       findPortalById: findPortalDealById.execute.bind(findPortalDealById),
       findTraceById: findDealTraceById.execute.bind(findDealTraceById),
       findWorkflowById: findDealWorkflowById.execute.bind(findDealWorkflowById),
@@ -160,6 +222,8 @@ export function createDealsService(deps: DealsServiceDeps) {
         listCalculationHistory,
       ),
       list: listDeals.execute.bind(listDeals),
+      listRouteTemplates:
+        listDealRouteTemplates.execute.bind(listDealRouteTemplates),
       listPortalDeals: listPortalDeals.execute.bind(listPortalDeals),
     },
   };

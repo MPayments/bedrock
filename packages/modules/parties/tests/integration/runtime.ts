@@ -14,6 +14,7 @@ import {
   DrizzlePartyProfilesReads,
   DrizzleOrganizationsQueries,
   DrizzleOrganizationReads,
+  DrizzleParticipantReads,
   DrizzlePartyRegistryUnitOfWork,
   DrizzleRequisiteBindingReads,
   DrizzleRequisiteProviderReads,
@@ -70,6 +71,7 @@ export function createIntegrationRuntime(options?: {
       counterpartyReads: new DrizzleCounterpartyReads(db),
       counterpartyGroupReads: new DrizzleCounterpartyGroupReads(db),
       partyProfileReads: new DrizzlePartyProfilesReads(db),
+      participantReads: new DrizzleParticipantReads(db),
       organizationReads: new DrizzleOrganizationReads(db),
       requisiteReads: new DrizzleRequisiteReads(db),
       requisiteProviderReads: new DrizzleRequisiteProviderReads(db),
@@ -83,6 +85,7 @@ export function createIntegrationRuntime(options?: {
       customers: new DrizzleCustomersQueries(db),
       counterparties: new DrizzleCounterpartiesQueries(db),
       organizations: new DrizzleOrganizationsQueries(db),
+      participants: new DrizzleParticipantReads(db),
       requisites: new DrizzleRequisitesQueries(db),
     },
   };

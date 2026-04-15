@@ -33,16 +33,3 @@ export function serializeCustomerFileAttachment(
     updatedAt: file.updatedAt.toISOString(),
   };
 }
-
-export function resolveGeneratedDealLinkKind(
-  type: "acceptance" | "application" | "invoice",
-) {
-  switch (type) {
-    case "application":
-      return "deal_application" as const;
-    case "invoice":
-      return "deal_invoice" as const;
-    case "acceptance":
-      return "deal_acceptance" as const;
-  }
-}

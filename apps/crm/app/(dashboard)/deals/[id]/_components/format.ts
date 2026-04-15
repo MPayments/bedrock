@@ -119,6 +119,21 @@ export function formatCurrency(
   }
 }
 
+export function formatMinorAmountWithCurrency(
+  amountMinor: string | null,
+  currencyCode: string | null,
+  precision = 2,
+) {
+  if (amountMinor === null || !currencyCode) {
+    return "—";
+  }
+
+  return `${formatDecimalString(minorToDecimalString(amountMinor, precision), {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  })} ${currencyCode}`;
+}
+
 export function formatDate(value: string | null | undefined) {
   if (!value) {
     return "—";

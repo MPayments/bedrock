@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CreateAgreementInputSchema,
   CreateAgreementFeeRuleInputSchema,
+  AgreementRoutePolicyInputSchema,
 } from "../../src/contracts";
 
 describe("agreements contracts", () => {
@@ -50,5 +51,40 @@ describe("agreements contracts", () => {
         ],
       }),
     ).toThrow("Duplicate fee rule kind: agent_fee");
+  });
+
+  it("accepts route policy defaults with a published-template-compatible shape", () => {
+    const parsed = AgreementRoutePolicyInputSchema.parse({
+      sequence: 1,
+      dealType: "payment",
+      defaultMarkupBps: "150",
+      defaultWireFeeAmountMinor: "1500",
+      defaultWireFeeCurrencyId: "00000000-0000-4000-8000-000000000010",
+      defaultSubAgentCommissionUnit: "bps",
+      defaultSubAgentCommissionBps: "70",
+      quoteValiditySeconds: 900,
+      templateLinks: [
+        {
+          routeTemplateId: "00000000-0000-4000-8000-000000000011",
+          sequence: 1,
+          isDefault: true,
+        },
+      ],
+    });
+
+    expect(parsed.defaultMarkupBps).toBe("150");
+    expect(parsed.defaultSubAgentCommissionUnit).toBe("bps");
+  });
+
+  it("rejects inconsistent money defaults inside route policies", () => {
+    expect(() =>
+      AgreementRoutePolicyInputSchema.parse({
+        sequence: 1,
+        dealType: "payment",
+        defaultWireFeeAmountMinor: "100",
+      }),
+    ).toThrow(
+      "defaultWireFeeAmountMinor and defaultWireFeeCurrencyId must be provided together",
+    );
   });
 });

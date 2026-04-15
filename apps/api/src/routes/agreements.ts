@@ -2,9 +2,11 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
   AgreementDetailsSchema,
+  AgreementResolvedRouteDefaultsSchema,
   CreateAgreementInputSchema,
   ListAgreementsQuerySchema,
   PaginatedAgreementsSchema,
+  ResolveAgreementRouteDefaultsQuerySchema,
   UpdateAgreementInputSchema,
 } from "@bedrock/agreements/contracts";
 
@@ -117,6 +119,36 @@ export function agreementsRoutes(ctx: AppContext) {
           },
         },
         description: "Idempotency conflict",
+      },
+    },
+  });
+
+  const resolveRouteDefaultsRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
+    method: "get",
+    path: "/{id}/route-defaults",
+    tags: ["Agreements"],
+    summary: "Resolve effective route defaults for an agreement",
+    request: {
+      params: IdParamSchema,
+      query: ResolveAgreementRouteDefaultsQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: AgreementResolvedRouteDefaultsSchema,
+          },
+        },
+        description: "Effective route defaults",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Agreement not found",
       },
     },
   });
@@ -238,6 +270,20 @@ export function agreementsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(resolveRouteDefaultsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const result =
+          await ctx.agreementsModule.agreements.queries.resolveRouteDefaults({
+            agreementId: id,
+            ...query,
+          });
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }

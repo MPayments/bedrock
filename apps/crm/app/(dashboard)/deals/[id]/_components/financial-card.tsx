@@ -15,12 +15,16 @@ import {
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
 
-import { formatCurrency, formatDate } from "./format";
-import type { CalculationHistoryView, CalculationView } from "./types";
+import {
+  formatCurrency,
+  formatDate,
+  rationalToDecimalString,
+} from "./format";
+import type { ApiCalculationSummary, ApiDealCalculationHistoryItem } from "./types";
 
 type FinancialCardProps = {
-  calculation: CalculationView | null;
-  calculationHistory: CalculationHistoryView[];
+  calculation: ApiCalculationSummary | null;
+  calculationHistory: ApiDealCalculationHistoryItem[];
   activeCalculationId: string | null;
   disabledReason: string | null;
   isCreating: boolean;
@@ -68,7 +72,7 @@ export function FinancialCard({
                         <div className="flex flex-col">
                           <span>{formatDate(item.calculationTimestamp)}</span>
                           <span className="text-xs text-muted-foreground">
-                            курс {item.rate}
+                            курс {rationalToDecimalString(item.rateNum, item.rateDen)}
                             {isCurrent ? " · текущая версия" : ""}
                           </span>
                         </div>
@@ -158,7 +162,7 @@ export function FinancialCard({
               <div className="text-sm font-medium text-muted-foreground">
                 Финальный курс клиента
               </div>
-              <div className="text-base">{calculation.finalRate}</div>
+              <div className="text-base">{calculation.rate}</div>
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">

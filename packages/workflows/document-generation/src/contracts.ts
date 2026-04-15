@@ -10,7 +10,6 @@ import type {
 export const DOCUMENT_TEMPLATE_TYPES = [
   "contract",
   "invoice",
-  "application",
   "calculation",
   "acceptance",
 ] as const;

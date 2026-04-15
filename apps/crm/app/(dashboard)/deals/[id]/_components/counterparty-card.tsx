@@ -1,13 +1,74 @@
 import { Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
-import type { ApiCustomerCounterparty } from "./types";
+import type { ApiCanonicalCounterparty } from "./types";
 
 type CounterpartyCardProps = {
-  partyProfile: ApiCustomerCounterparty | null;
+  counterparty: ApiCanonicalCounterparty | null;
 };
 
-export function CounterpartyCard({ partyProfile }: CounterpartyCardProps) {
+function pickPrimary<T extends { isPrimary: boolean }>(items: T[]) {
+  return items.find((item) => item.isPrimary) ?? items[0] ?? null;
+}
+
+function findCounterpartyIdentifier(
+  counterparty: ApiCanonicalCounterparty,
+  scheme: string,
+) {
+  return (
+    counterparty.partyProfile?.identifiers.find(
+      (identifier) => identifier.scheme === scheme,
+    )?.value ?? null
+  );
+}
+
+function findCounterpartyContact(
+  counterparty: ApiCanonicalCounterparty,
+  type: string,
+) {
+  return (
+    pickPrimary(
+      (counterparty.partyProfile?.contacts ?? []).filter(
+        (contact) => contact.type === type,
+      ),
+    )?.value ?? null
+  );
+}
+
+function findCounterpartyRepresentative(
+  counterparty: ApiCanonicalCounterparty,
+  roles: string[] = ["director", "signatory", "contact"],
+) {
+  for (const role of roles) {
+    const representative = pickPrimary(
+      (counterparty.partyProfile?.representatives ?? []).filter(
+        (item) => item.role === role,
+      ),
+    );
+
+    if (representative) {
+      return representative;
+    }
+  }
+
+  return pickPrimary(counterparty.partyProfile?.representatives ?? []);
+}
+
+export function CounterpartyCard({ counterparty }: CounterpartyCardProps) {
+  const representative = counterparty
+    ? findCounterpartyRepresentative(counterparty)
+    : null;
+  const inn = counterparty
+    ? (findCounterpartyIdentifier(counterparty, "inn") ??
+      counterparty.externalRef ??
+      null)
+    : null;
+  const kpp = counterparty
+    ? findCounterpartyIdentifier(counterparty, "kpp")
+    : null;
+  const phone = counterparty ? findCounterpartyContact(counterparty, "phone") : null;
+  const email = counterparty ? findCounterpartyContact(counterparty, "email") : null;
+
   return (
     <Card>
       <CardHeader>
@@ -17,65 +78,65 @@ export function CounterpartyCard({ partyProfile }: CounterpartyCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {partyProfile ? (
+        {counterparty ? (
           <>
             <div>
               <div className="text-sm font-medium text-muted-foreground">
                 Название
               </div>
-              <div className="text-base font-medium">{partyProfile.orgName}</div>
+              <div className="text-base font-medium">{counterparty.shortName}</div>
             </div>
-            {partyProfile.fullName !== partyProfile.orgName && (
+            {counterparty.fullName !== counterparty.shortName && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   Полное наименование
                 </div>
-                <div className="text-base">{partyProfile.fullName}</div>
+                <div className="text-base">{counterparty.fullName}</div>
               </div>
             )}
-            {partyProfile.inn && (
+            {inn && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   ИНН
                 </div>
-                <div className="text-base">{partyProfile.inn}</div>
+                <div className="text-base">{inn}</div>
               </div>
             )}
-            {partyProfile.kpp && (
+            {kpp && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   КПП
                 </div>
-                <div className="text-base">{partyProfile.kpp}</div>
+                <div className="text-base">{kpp}</div>
               </div>
             )}
-            {partyProfile.directorName && (
+            {representative?.fullName && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   Руководитель
                 </div>
-                <div className="text-base">{partyProfile.directorName}</div>
-                {partyProfile.position && (
+                <div className="text-base">{representative.fullName}</div>
+                {representative.title && (
                   <div className="text-sm text-muted-foreground">
-                    {partyProfile.position}
+                    {representative.title}
                   </div>
                 )}
               </div>
             )}
-            {partyProfile.phone && (
+            {phone && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   Телефон
                 </div>
-                <div className="text-base">{partyProfile.phone}</div>
+                <div className="text-base">{phone}</div>
               </div>
             )}
-            {partyProfile.email && (
+            {email && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
                   Email
                 </div>
-                <div className="text-base">{partyProfile.email}</div>
+                <div className="text-base">{email}</div>
               </div>
             )}
           </>

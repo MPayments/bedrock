@@ -2,9 +2,9 @@ export { CURRENCY_IDS, currencyIdForCode, seedCurrencies } from "./currencies";
 export { seedAccounting } from "./accounting";
 export { seedAgreements } from "./agreements";
 export { seedCounterparties } from "./counterparties";
-export { PAYMENT_DEAL_IDS, seedDealPayment } from "./deal-payment";
 export { seedOrganizationAssets } from "./organization-assets";
 export { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
+export { ROUTE_TEMPLATE_IDS, seedRouteTemplates } from "./route-templates";
 export {
   REQUISITE_PROVIDER_IDS,
   seedRequisiteProviders,

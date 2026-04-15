@@ -11,7 +11,7 @@ import {
   STATUS_LABELS,
 } from "./constants";
 import { formatDate } from "./format";
-import type { ApiDealTimelineEvent, ApiDealWorkflowLeg } from "./types";
+import type { ApiCrmDealWorkbenchProjection, ApiDealTimelineEvent, ApiDealWorkflowLeg } from "./types";
 
 function isVisibleTimelineEvent(event: ApiDealTimelineEvent) {
   return event.type !== "attachment_ingestion_failed";
@@ -221,14 +221,12 @@ function renderTimelineDetails(event: ApiDealTimelineEvent) {
 }
 
 type DealTimelineCardProps = {
-  executionPlan?: ApiDealWorkflowLeg[];
-  timeline: ApiDealTimelineEvent[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
-export function DealTimelineCard({
-  executionPlan = [],
-  timeline,
-}: DealTimelineCardProps) {
+export function DealTimelineCard({ workbench }: DealTimelineCardProps) {
+  const executionPlan = workbench.executionPlan;
+  const timeline = workbench.timeline;
   const visibleTimeline = timeline.filter(isVisibleTimelineEvent);
 
   return (

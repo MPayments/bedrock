@@ -27,6 +27,7 @@ import type {
 import { createReconciliationServiceContext } from "./application/shared/context";
 import type {
   ReconciliationDocumentsPort,
+  ReconciliationExecutionFactsTxPort,
   ReconciliationLedgerLookupPort,
   ReconciliationTransactionIdempotencyPort,
   ReconciliationTransactionsPort,
@@ -42,8 +43,13 @@ export interface ReconciliationServiceDeps {
   documents: ReconciliationDocumentsPort;
   idempotency: IdempotencyPort;
   ledgerLookup: ReconciliationLedgerLookupPort;
+  createExecutionFacts?(tx: Transaction): ReconciliationExecutionFactsTxPort;
   logger?: Logger;
 }
+
+const noopExecutionFactsPort: ReconciliationExecutionFactsTxPort = {
+  async recordTreasuryOperationFact() {},
+};
 
 function createExternalRecordsTxRepository(input: {
   externalRecords: ReturnType<
@@ -133,6 +139,7 @@ export function createReconciliationTransactions(input: {
   exceptions: ReturnType<
     typeof createDrizzleReconciliationServiceAdapters
   >["exceptionsRepo"];
+  createExecutionFacts?(tx: Transaction): ReconciliationExecutionFactsTxPort;
 }): ReconciliationTransactionsPort {
   return {
     async withTransaction(run) {
@@ -187,6 +194,7 @@ export function createReconciliationTransactions(input: {
             exceptions: input.exceptions,
             tx,
           }),
+          executionFacts: input.createExecutionFacts?.(tx) ?? noopExecutionFactsPort,
           idempotency,
         });
       });
@@ -212,6 +220,7 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
       runs: adapters.runsRepo,
       matches: adapters.matchesRepo,
       exceptions: adapters.exceptionsRepo,
+      createExecutionFacts: deps.createExecutionFacts,
     }),
   });
 }

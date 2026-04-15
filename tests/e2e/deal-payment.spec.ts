@@ -19,11 +19,6 @@ const DEAL_LEG_STATE_LABELS = {
   ready: "Готов",
   skipped: "Пропущен",
 } as const;
-const DEAL_LEG_READYISH_LABELS = new Set([
-  "Готов",
-  "В работе",
-  DEAL_LEG_DONE_LABEL,
-]);
 const FINANCE_INSTRUCTION_SETTLED_LABEL = "Исполнена";
 
 function buildFinanceDealUrl(
@@ -108,24 +103,28 @@ async function openCrmExecutionTab(page: Page, idx = 1) {
   });
 }
 
-async function transitionDealLeg(
+async function transitionDealLegViaApi(
   page: Page,
+  dealId: string,
   idx: number,
   targetState: keyof typeof DEAL_LEG_STATE_LABELS,
 ) {
   const expectedLabel = DEAL_LEG_STATE_LABELS[targetState];
-  const button = page.getByTestId(`deal-leg-state-button-${idx}`);
+  const response = await page.request.post(
+    `/v1/deals/${encodeURIComponent(dealId)}/legs/${idx}/state`,
+    {
+      data: {
+        state: targetState,
+      },
+    },
+  );
 
-  await expect(button).toBeEnabled({
-    timeout: 20_000,
-  });
-  await button.click();
-  await expect(
-    page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`).click();
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to transition leg ${idx} to ${targetState}: ${response.status()} ${await response.text()}`,
+    );
+  }
+
   await expect
     .poll(
       async () => {
@@ -140,18 +139,22 @@ async function transitionDealLeg(
     .toBe(expectedLabel);
 }
 
-async function ensureDealLegReady(page: Page, idx: number) {
+async function ensureDealLegReady(page: Page, dealId: string, idx: number) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await page.reload();
     await openCrmExecutionTab(page, idx);
     const currentState = await readDealLegState(page, idx);
 
-    if (DEAL_LEG_READYISH_LABELS.has(currentState)) {
+    if (
+      currentState === "Готов" ||
+      currentState === "В работе" ||
+      currentState === DEAL_LEG_DONE_LABEL
+    ) {
       return;
     }
 
     if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
+      await transitionDealLegViaApi(page, dealId, idx, "ready");
       continue;
     }
 
@@ -163,7 +166,7 @@ async function ensureDealLegReady(page: Page, idx: number) {
   throw new Error(`Leg ${idx} did not reach a ready state`);
 }
 
-async function completeDealLeg(page: Page, idx: number) {
+async function completeDealLeg(page: Page, dealId: string, idx: number) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await page.reload();
     await openCrmExecutionTab(page, idx);
@@ -174,17 +177,17 @@ async function completeDealLeg(page: Page, idx: number) {
     }
 
     if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
+      await transitionDealLegViaApi(page, dealId, idx, "ready");
       continue;
     }
 
     if (currentState === "Готов") {
-      await transitionDealLeg(page, idx, "in_progress");
+      await transitionDealLegViaApi(page, dealId, idx, "in_progress");
       continue;
     }
 
     if (currentState === "В работе") {
-      await transitionDealLeg(page, idx, "done");
+      await transitionDealLegViaApi(page, dealId, idx, "done");
       continue;
     }
 
@@ -775,14 +778,14 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       await page.reload();
       await openCrmExecutionTab(page);
 
-      await completeDealLeg(page, 1);
+      await completeDealLeg(page, dealId, 1);
       await waitForDealLegState(page, 2, DEAL_LEG_DONE_LABEL);
 
-      await ensureDealLegReady(page, 3);
+      await ensureDealLegReady(page, dealId, 3);
       await moveDealStatus(page, "awaiting_payment", "Ожидание оплаты");
 
       await openCrmExecutionTab(page, 3);
-      await completeDealLeg(page, 3);
+      await completeDealLeg(page, dealId, 3);
       await moveDealStatus(page, "closing_documents", "Закрывающие документы");
     });
 

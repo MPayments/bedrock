@@ -29,6 +29,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("lucide-react", () => ({
   AlertCircle: () => null,
+  Calculator: () => null,
   CheckCircle2: () => null,
   Clock3: () => null,
   Download: () => null,
@@ -216,6 +217,7 @@ function createDeal(): FinanceDealWorkbenchData {
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
+    profitabilityVariance: null,
     quoteHistory: [],
     queueContext: {
       blockers: [
@@ -423,6 +425,100 @@ describe("treasury deal workbench", () => {
         },
       ],
     };
+    deal.profitabilityVariance = {
+      actualCoverage: {
+        factCount: 2,
+        legsWithFacts: 2,
+        operationCount: 2,
+        state: "partial",
+        terminalOperationCount: 1,
+        totalLegCount: 3,
+      },
+      actualExpense: [
+        {
+          amountMinor: "400",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      actualPassThrough: [
+        {
+          amountMinor: "150",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      calculationId: "calc-1",
+      expectedNetMargin: [
+        {
+          amountMinor: "2551088",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      netMarginVariance: [
+        {
+          amountMinor: "-50",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      realizedNetMargin: [
+        {
+          amountMinor: "2551038",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      varianceByCostFamily: [
+        {
+          actual: [
+            {
+              amountMinor: "400",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          classification: "expense",
+          expected: [
+            {
+              amountMinor: "250",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          family: "provider_fee",
+          variance: [
+            {
+              amountMinor: "150",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+        },
+      ],
+      varianceByLeg: [
+        {
+          actualFees: [
+            {
+              amountMinor: "400",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          actualFrom: null,
+          actualTo: null,
+          code: "fx-leg",
+          expectedFrom: null,
+          expectedTo: null,
+          idx: 2,
+          kind: "fx_conversion",
+          routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          varianceFrom: null,
+          varianceTo: null,
+        },
+      ],
+    };
     deal.reconciliationSummary = {
       ignoredExceptionCount: 0,
       lastActivityAt: "2026-04-02T10:00:00.000Z",
@@ -461,6 +557,9 @@ describe("treasury deal workbench", () => {
 
     expect(normalizedMarkup).toContain("Финансовый результат и закрытие");
     expect(normalizedMarkup).toContain("Расходы провайдера");
+    expect(normalizedMarkup).toContain("Plan vs Actual");
+    expect(normalizedMarkup).toContain("Реализованная маржа");
+    expect(normalizedMarkup).toContain("Variance по этапам маршрута");
     expect(normalizedMarkup).toContain("Результат сверки");
     expect(normalizedMarkup).toContain("Открытых исключений");
     expect(normalizedMarkup).toContain("Исключения сверки");

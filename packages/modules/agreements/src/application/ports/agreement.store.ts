@@ -73,6 +73,74 @@ export interface StoredAgreementParty {
   updatedAt: Date;
 }
 
+export interface CreateAgreementRoutePolicyStoredInput {
+  id: string;
+  agreementVersionId: string;
+  sequence: number;
+  dealType:
+    | "payment"
+    | "currency_exchange"
+    | "currency_transit"
+    | "exporter_settlement"
+    | "internal_treasury";
+  sourceCurrencyId: string | null;
+  targetCurrencyId: string | null;
+  defaultMarkupBps: string | null;
+  defaultWireFeeAmountMinor: string | null;
+  defaultWireFeeCurrencyId: string | null;
+  defaultSubAgentCommissionUnit: "bps" | "money" | null;
+  defaultSubAgentCommissionBps: string | null;
+  defaultSubAgentCommissionAmountMinor: string | null;
+  defaultSubAgentCommissionCurrencyId: string | null;
+  approvalThresholdAmountMinor: string | null;
+  approvalThresholdCurrencyId: string | null;
+  quoteValiditySeconds: number | null;
+}
+
+export interface StoredAgreementRoutePolicy {
+  id: string;
+  agreementVersionId: string;
+  sequence: number;
+  dealType:
+    | "payment"
+    | "currency_exchange"
+    | "currency_transit"
+    | "exporter_settlement"
+    | "internal_treasury";
+  sourceCurrencyId: string | null;
+  targetCurrencyId: string | null;
+  defaultMarkupBps: string | null;
+  defaultWireFeeAmountMinor: bigint | null;
+  defaultWireFeeCurrencyId: string | null;
+  defaultSubAgentCommissionUnit: "bps" | "money" | null;
+  defaultSubAgentCommissionBps: string | null;
+  defaultSubAgentCommissionAmountMinor: bigint | null;
+  defaultSubAgentCommissionCurrencyId: string | null;
+  approvalThresholdAmountMinor: bigint | null;
+  approvalThresholdCurrencyId: string | null;
+  quoteValiditySeconds: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateAgreementRouteTemplateLinkStoredInput {
+  id: string;
+  agreementRoutePolicyId: string;
+  routeTemplateId: string;
+  sequence: number;
+  isDefault: boolean;
+}
+
+export interface StoredAgreementRouteTemplateLink {
+  id: string;
+  agreementRoutePolicyId: string;
+  routeTemplateId: string;
+  sequence: number;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AgreementStore {
   createAgreementRoot(
     input: CreateAgreementRootInput,
@@ -86,6 +154,12 @@ export interface AgreementStore {
   createAgreementParties(
     input: CreateAgreementPartyStoredInput[],
   ): Promise<StoredAgreementParty[]>;
+  createAgreementRoutePolicies(
+    input: CreateAgreementRoutePolicyStoredInput[],
+  ): Promise<StoredAgreementRoutePolicy[]>;
+  createAgreementRouteTemplateLinks(
+    input: CreateAgreementRouteTemplateLinkStoredInput[],
+  ): Promise<StoredAgreementRouteTemplateLink[]>;
   setCurrentVersion(input: {
     agreementId: string;
     currentVersionId: string;

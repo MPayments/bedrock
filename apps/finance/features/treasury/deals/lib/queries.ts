@@ -2,6 +2,11 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
+import {
+  ParticipantLookupResponseSchema,
+  RouteComposerLookupContextSchema,
+} from "@bedrock/parties/contracts";
 import {
   TreasuryInstructionActionsSchema,
   TreasuryInstructionAvailableOutcomeTransitionsSchema,
@@ -166,6 +171,49 @@ const FinanceProfitabilityAmountSchema = z.object({
   currencyCode: z.string(),
   currencyId: z.string().uuid(),
 });
+
+const FinanceProfitabilityCostVarianceSchema = z.object({
+  actual: z.array(FinanceProfitabilityAmountSchema),
+  classification: z.enum(["revenue", "expense", "pass_through", "adjustment"]),
+  expected: z.array(FinanceProfitabilityAmountSchema),
+  family: z.string(),
+  variance: z.array(FinanceProfitabilityAmountSchema),
+});
+
+const FinanceProfitabilityLegVarianceSchema = z.object({
+  actualFees: z.array(FinanceProfitabilityAmountSchema),
+  actualFrom: FinanceProfitabilityAmountSchema.nullable(),
+  actualTo: FinanceProfitabilityAmountSchema.nullable(),
+  code: z.string(),
+  expectedFrom: FinanceProfitabilityAmountSchema.nullable(),
+  expectedTo: FinanceProfitabilityAmountSchema.nullable(),
+  idx: z.number().int().positive(),
+  kind: z.string(),
+  routeLegId: z.string().uuid(),
+  varianceFrom: FinanceProfitabilityAmountSchema.nullable(),
+  varianceTo: FinanceProfitabilityAmountSchema.nullable(),
+});
+
+const FinanceProfitabilityVarianceSchema = z
+  .object({
+    actualCoverage: z.object({
+      factCount: z.number().int().nonnegative(),
+      legsWithFacts: z.number().int().nonnegative(),
+      operationCount: z.number().int().nonnegative(),
+      state: z.enum(["not_started", "partial", "complete"]),
+      terminalOperationCount: z.number().int().nonnegative(),
+      totalLegCount: z.number().int().nonnegative(),
+    }),
+    actualExpense: z.array(FinanceProfitabilityAmountSchema),
+    actualPassThrough: z.array(FinanceProfitabilityAmountSchema),
+    calculationId: z.string().uuid(),
+    expectedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    netMarginVariance: z.array(FinanceProfitabilityAmountSchema),
+    realizedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    varianceByCostFamily: z.array(FinanceProfitabilityCostVarianceSchema),
+    varianceByLeg: z.array(FinanceProfitabilityLegVarianceSchema),
+  })
+  .nullable();
 
 const FinanceDealListItemSchema = z.object({
   applicantName: z.string().nullable(),
@@ -512,6 +560,7 @@ const FinanceDealWorkspaceSchema = z.object({
       totalRevenue: z.array(FinanceProfitabilityAmountSchema),
     })
     .nullable(),
+  profitabilityVariance: FinanceProfitabilityVarianceSchema.default(null),
   queueContext: z.object({
     blockers: z.array(z.string()),
     queue: FinanceDealQueueSchema,
@@ -544,6 +593,116 @@ const FinanceDealWorkspaceSchema = z.object({
 
 const FinanceDealBreadcrumbSchema = z.object({
   summary: FinanceDealSummarySchema,
+});
+const FinanceRouteValidationIssueSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  path: z.string().nullable(),
+  severity: z.enum(["error", "warning"]),
+});
+const FinanceDealRouteParticipantSchema = z.object({
+  code: z.string(),
+  displayNameSnapshot: z.string().nullable(),
+  id: z.string().uuid(),
+  metadata: z.record(z.string(), z.unknown()),
+  partyId: z.string().uuid(),
+  partyKind: z.enum(["counterparty", "customer", "organization"]),
+  requisiteId: z.string().uuid().nullable(),
+  role: z.string(),
+  sequence: z.number().int().positive(),
+});
+const FinanceDealRouteLegSchema = z.object({
+  code: z.string(),
+  executionCounterpartyId: z.string().uuid().nullable(),
+  expectedFromAmountMinor: z.string().nullable(),
+  expectedRateDen: z.string().nullable(),
+  expectedRateNum: z.string().nullable(),
+  expectedToAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.string().uuid(),
+  fromParticipantCode: z.string(),
+  id: z.string().uuid(),
+  idx: z.number().int().positive(),
+  kind: z.enum([
+    "adjustment",
+    "collection",
+    "fx_conversion",
+    "intercompany_funding",
+    "intracompany_transfer",
+    "payout",
+    "return",
+  ]),
+  notes: z.string().nullable(),
+  settlementModel: z.string(),
+  toCurrencyId: z.string().uuid(),
+  toParticipantCode: z.string(),
+});
+const FinanceDealRouteCostComponentSchema = z.object({
+  basisType: z.enum([
+    "deal_source_amount",
+    "deal_target_amount",
+    "gross_revenue",
+    "leg_from_amount",
+    "leg_to_amount",
+  ]),
+  bps: z.string().nullable(),
+  classification: z.enum(["adjustment", "expense", "pass_through", "revenue"]),
+  code: z.string(),
+  currencyId: z.string().uuid(),
+  family: z.string(),
+  fixedAmountMinor: z.string().nullable(),
+  formulaType: z.enum(["bps", "fixed", "manual", "per_million"]),
+  id: z.string().uuid(),
+  includedInClientRate: z.boolean(),
+  legCode: z.string().nullable(),
+  manualAmountMinor: z.string().nullable(),
+  notes: z.string().nullable(),
+  perMillion: z.string().nullable(),
+  roundingMode: z.string(),
+  sequence: z.number().int().positive(),
+});
+const FinanceDealRouteVersionSchema = z.object({
+  costComponents: z.array(FinanceDealRouteCostComponentSchema),
+  createdAt: ApiDateTimeStringSchema,
+  dealId: z.string().uuid(),
+  id: z.string().uuid(),
+  isCurrent: z.boolean(),
+  legs: z.array(FinanceDealRouteLegSchema),
+  participants: z.array(FinanceDealRouteParticipantSchema),
+  routeId: z.string().uuid(),
+  validationIssues: z.array(FinanceRouteValidationIssueSchema),
+  version: z.number().int().positive(),
+});
+const FinanceRouteTemplateSummarySchema = z.object({
+  code: z.string(),
+  createdAt: ApiDateTimeStringSchema,
+  dealType: FinanceDealTypeSchema,
+  description: z.string().nullable(),
+  id: z.string().uuid(),
+  name: z.string(),
+  status: z.enum(["archived", "draft", "published"]),
+  updatedAt: ApiDateTimeStringSchema,
+});
+const FinanceRouteComposerDealSchema = z.object({
+  agreementId: z.string().uuid(),
+  amount: z.string().nullable(),
+  calculationId: z.string().uuid().nullable(),
+  createdAt: ApiDateTimeStringSchema,
+  currencyId: z.string().uuid().nullable(),
+  customerId: z.string().uuid(),
+  id: z.string().uuid(),
+  status: z.string(),
+  type: FinanceDealTypeSchema,
+  updatedAt: ApiDateTimeStringSchema,
+});
+const FinanceRouteComposerParticipantLookupSchema =
+  ParticipantLookupResponseSchema.shape.data;
+const FinanceRouteComposerDataSchema = z.object({
+  currencies: CurrencyOptionsResponseSchema.shape.data,
+  deal: FinanceRouteComposerDealSchema,
+  lookupContext: RouteComposerLookupContextSchema,
+  route: FinanceDealRouteVersionSchema.nullable(),
+  templates: z.array(FinanceRouteTemplateSummarySchema),
+  workspace: FinanceDealWorkspaceSchema,
 });
 
 type FinanceDealApiFilters = z.infer<typeof FinanceDealQueueFiltersSchema>;
@@ -682,6 +841,12 @@ export type FinanceDealWorkbench = FinanceDealWorkspace & {
   calculationHistory: FinanceDealCalculationHistoryItem[];
   quoteHistory: FinanceDealQuoteItem[];
 };
+export type FinanceRouteComposerParticipantLookup = z.infer<
+  typeof FinanceRouteComposerParticipantLookupSchema
+>;
+export type FinanceRouteComposerData = z.infer<
+  typeof FinanceRouteComposerDataSchema
+>;
 
 export async function getFinanceDeals(
   search: FinanceDealsSearchParams = {},
@@ -806,4 +971,105 @@ export const getFinanceDealBreadcrumbById = cache(
 
 export const getFinanceDealWorkspaceById = cache(
   getFinanceDealWorkspaceByIdUncached,
+);
+
+const getFinanceDealRouteComposerByIdUncached = async (
+  id: string,
+): Promise<FinanceRouteComposerData | null> => {
+  if (!DealIdSchema.safeParse(id).success) {
+    return null;
+  }
+
+  const workspace = await getFinanceDealWorkspaceByIdUncached(id);
+
+  if (!workspace) {
+    return null;
+  }
+
+  const [dealResponse, routeResponse, lookupContextResponse, templatesResponse, currenciesResponse] =
+    await Promise.all([
+      fetchApi(`/v1/deals/${encodeURIComponent(id)}`),
+      fetchApi(`/v1/deals/${encodeURIComponent(id)}/route`),
+      fetchApi("/v1/route-composer/lookup-context"),
+      fetchApi(
+        `/v1/route-composer/templates?dealType=${encodeURIComponent(workspace.summary.type)}&status=published`,
+      ),
+      fetchApi("/v1/currencies/options"),
+    ]);
+
+  await requestOk(dealResponse, "Не удалось загрузить сделку");
+  await requestOk(
+    lookupContextResponse,
+    "Не удалось загрузить контекст маршрутизатора",
+  );
+  await requestOk(
+    templatesResponse,
+    "Не удалось загрузить шаблоны маршрутов",
+  );
+  await requestOk(currenciesResponse, "Не удалось загрузить валюты");
+
+  const [deal, lookupContext, templates, currencies] = await Promise.all([
+    readJsonWithSchema(dealResponse, FinanceRouteComposerDealSchema),
+    readJsonWithSchema(lookupContextResponse, RouteComposerLookupContextSchema),
+    readJsonWithSchema(templatesResponse, z.array(FinanceRouteTemplateSummarySchema)),
+    readJsonWithSchema(currenciesResponse, CurrencyOptionsResponseSchema).then(
+      (payload) => payload.data,
+    ),
+  ]);
+
+  let route: z.infer<typeof FinanceDealRouteVersionSchema> | null = null;
+
+  if (routeResponse.ok) {
+    route = await readJsonWithSchema(routeResponse, FinanceDealRouteVersionSchema);
+  } else if (routeResponse.status !== 404) {
+    await requestOk(routeResponse, "Не удалось загрузить маршрут сделки");
+  }
+
+  return FinanceRouteComposerDataSchema.parse({
+    currencies,
+    deal,
+    lookupContext,
+    route,
+    templates,
+    workspace,
+  });
+};
+
+export async function searchRouteComposerParticipants(input: {
+  activeOnly?: boolean;
+  customerId?: string;
+  kind?: "counterparty" | "customer" | "organization" | "sub_agent";
+  limit?: number;
+  q?: string;
+}): Promise<FinanceRouteComposerParticipantLookup> {
+  const query = new URLSearchParams();
+
+  if (input.q) {
+    query.set("q", input.q);
+  }
+
+  if (input.kind) {
+    query.set("kind", input.kind);
+  }
+
+  if (input.customerId) {
+    query.set("customerId", input.customerId);
+  }
+
+  query.set("activeOnly", input.activeOnly === false ? "false" : "true");
+  query.set("limit", String(input.limit ?? 20));
+
+  const response = await fetch(`/v1/participants/lookup?${query.toString()}`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  await requestOk(response, "Не удалось загрузить участников маршрута");
+
+  const payload = await readJsonWithSchema(response, ParticipantLookupResponseSchema);
+  return payload.data;
+}
+
+export const getFinanceDealRouteComposerById = cache(
+  getFinanceDealRouteComposerByIdUncached,
 );

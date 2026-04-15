@@ -20,6 +20,10 @@ import {
 import type { AgreementDetails } from "../contracts/dto";
 import type { AgreementsCommandUnitOfWork } from "../ports/agreements.uow";
 import type { AgreementReferencesPort } from "../ports/references.port";
+import {
+  assertAgreementRoutePolicyReferences,
+  buildAgreementRoutePolicyRows,
+} from "../shared/route-policy";
 
 const CreateAgreementCommandInputSchema = CreateAgreementInputSchema.extend({
   actorUserId: z.string().trim().min(1),
@@ -75,6 +79,8 @@ async function validateAgreementReferences(
       .filter((rule) => rule.currencyId)
       .map((rule) => references.assertCurrencyExists(rule.currencyId!)),
   );
+
+  await assertAgreementRoutePolicyReferences(input.routePolicies, references);
 }
 
 function assertValidNumericRuleValue(value: string) {
@@ -110,6 +116,7 @@ export class CreateAgreementCommand {
           contractNumber: validated.contractNumber,
           contractDate: validated.contractDate?.toISOString() ?? null,
           feeRules: validated.feeRules,
+          routePolicies: validated.routePolicies,
         },
         actorId: validated.actorUserId,
         serializeResult: (result) => ({ agreementId: result.id }),
@@ -168,6 +175,19 @@ export class CreateAgreementCommand {
               valueNumeric: rule.value,
               currencyId: rule.currencyId ?? null,
             })),
+          );
+
+          const routePolicyRows = buildAgreementRoutePolicyRows({
+            agreementVersionId: versionId,
+            generateUuid: () => this.runtime.generateUuid(),
+            routePolicies: validated.routePolicies,
+          });
+
+          await tx.agreementStore.createAgreementRoutePolicies(
+            routePolicyRows.policies,
+          );
+          await tx.agreementStore.createAgreementRouteTemplateLinks(
+            routePolicyRows.templateLinks,
           );
 
           await tx.agreementStore.setCurrentVersion({

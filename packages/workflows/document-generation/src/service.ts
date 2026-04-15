@@ -39,7 +39,6 @@ import {
 } from "./contracts";
 import {
   assembleAcceptanceData,
-  assembleApplicationData,
   assembleCalculationData,
   assembleClientContractData,
   assembleInvoiceData,
@@ -737,7 +736,7 @@ export function createDocumentGenerationWorkflow(
     },
 
     async generateDealDocument(input: {
-      templateType: "application" | "invoice" | "acceptance";
+      templateType: "invoice" | "acceptance";
       deal: Record<string, unknown>;
       calculation: Record<string, unknown>;
       client: Record<string, unknown>;
@@ -754,7 +753,6 @@ export function createDocumentGenerationWorkflow(
       const orgFiles = await fetchOrgFiles(input.organization);
 
       const assemblers = {
-        application: assembleApplicationData,
         invoice: assembleInvoiceData,
         acceptance: assembleAcceptanceData,
       };

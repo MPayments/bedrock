@@ -67,6 +67,7 @@ function createAgreementDetail() {
           updatedAt: now,
         },
       ],
+      routePolicies: [],
     },
   };
 }
@@ -77,6 +78,7 @@ function createAgreementsModuleStub() {
       queries: {
         list: vi.fn(),
         findById: vi.fn(),
+        resolveRouteDefaults: vi.fn(),
       },
       commands: {
         archive: vi.fn(),
@@ -228,6 +230,7 @@ describe("agreements routes", () => {
           value: "125",
         },
       ],
+      routePolicies: [],
       actorUserId: "user-1",
       idempotencyKey: "agreement-create-1",
     });
@@ -322,5 +325,33 @@ describe("agreements routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("resolves effective route defaults", async () => {
+    const { app, agreementsModule } = createTestApp();
+    agreementsModule.agreements.queries.resolveRouteDefaults.mockResolvedValue({
+      agreementId: "00000000-0000-4000-8000-000000000010",
+      agreementVersionId: "00000000-0000-4000-8000-000000000011",
+      policy: null,
+    });
+
+    const response = await app.request(
+      "http://localhost/agreements/00000000-0000-4000-8000-000000000010/route-defaults?dealType=payment",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      agreementId: "00000000-0000-4000-8000-000000000010",
+      agreementVersionId: "00000000-0000-4000-8000-000000000011",
+      policy: null,
+    });
+    expect(
+      agreementsModule.agreements.queries.resolveRouteDefaults,
+    ).toHaveBeenCalledWith({
+      agreementId: "00000000-0000-4000-8000-000000000010",
+      dealType: "payment",
+      sourceCurrencyId: null,
+      targetCurrencyId: null,
+    });
   });
 });

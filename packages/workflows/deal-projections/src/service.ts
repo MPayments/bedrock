@@ -3,7 +3,7 @@ import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
-import type {
+import {
   DealOperationalPosition,
   DealTimelineEvent,
   DealType,
@@ -18,12 +18,14 @@ import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import {
+  formatFractionDecimal,
   minorToAmountString,
   toMinorAmountString,
 } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteListItem,
+  TreasuryOperationFact,
   TreasuryInstruction,
   TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
@@ -51,8 +53,9 @@ import type {
   FinanceDealQueueProjection,
   FinanceDealQueueItem,
   FinanceProfitabilityAmount,
-  FinanceDealWorkspaceProjection,
   FinanceProfitabilitySnapshot,
+  FinanceProfitabilityVarianceSnapshot,
+  FinanceDealWorkspaceProjection,
   PortalDealListProjection,
   PortalDealProjection,
 } from "./contracts";
@@ -135,6 +138,132 @@ type TreasuryOperationRecord = Awaited<
 type UserDetailsLike = Awaited<
   ReturnType<DealProjectionsWorkflowDeps["iam"]["queries"]["findById"]>
 >;
+
+function minorToDecimalString(amountMinor: bigint | string, precision: number) {
+  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const digits = absolute.toString();
+
+  if (precision === 0) {
+    return `${negative ? "-" : ""}${digits}`;
+  }
+
+  const padded = digits.padStart(precision + 1, "0");
+  const integerPart = padded.slice(0, padded.length - precision);
+  const fractionPart = padded.slice(padded.length - precision);
+
+  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
+
+function feeBpsToPercentString(feeBps: bigint | string) {
+  return minorToDecimalString(feeBps, 2);
+}
+
+function rationalToDecimalString(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  scale = 6,
+) {
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
+}
+
+async function buildPortalCalculationSummary(input: {
+  calculation: CalculationDetailsLike | null;
+  currencies: Pick<CurrenciesService, "findById">;
+}) {
+  if (!input.calculation) {
+    return null;
+  }
+
+  const snapshot = input.calculation.currentSnapshot;
+  const currencyIds = Array.from(
+    new Set(
+      [
+        snapshot.calculationCurrencyId,
+        snapshot.baseCurrencyId,
+        snapshot.additionalExpensesCurrencyId,
+        snapshot.fixedFeeCurrencyId,
+      ].filter((currencyId): currencyId is string => Boolean(currencyId)),
+    ),
+  );
+  const currencies = new Map(
+    await Promise.all(
+      currencyIds.map(
+        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
+          [currencyId, await input.currencies.findById(currencyId)] as const,
+      ),
+    ),
+  );
+  const calculationCurrency = currencies.get(snapshot.calculationCurrencyId);
+  const baseCurrency = currencies.get(snapshot.baseCurrencyId);
+  const additionalExpensesCurrency = snapshot.additionalExpensesCurrencyId
+    ? (currencies.get(snapshot.additionalExpensesCurrencyId) ?? null)
+    : null;
+  const fixedFeeCurrency = snapshot.fixedFeeCurrencyId
+    ? (currencies.get(snapshot.fixedFeeCurrencyId) ?? null)
+    : null;
+
+  if (!calculationCurrency || !baseCurrency) {
+    throw new Error("Missing currency metadata for portal projection");
+  }
+
+  return {
+    additionalExpenses: minorToDecimalString(
+      snapshot.additionalExpensesAmountMinor,
+      additionalExpensesCurrency?.precision ?? baseCurrency.precision,
+    ),
+    additionalExpensesCurrencyCode: additionalExpensesCurrency?.code ?? null,
+    agreementFeeAmount: minorToDecimalString(
+      snapshot.agreementFeeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    agreementFeePercentage: feeBpsToPercentString(snapshot.agreementFeeBps),
+    baseCurrencyCode: baseCurrency.code,
+    calculationTimestamp: snapshot.calculationTimestamp,
+    currencyCode: calculationCurrency.code,
+    fixedFeeAmount: minorToDecimalString(
+      snapshot.fixedFeeAmountMinor,
+      fixedFeeCurrency?.precision ?? baseCurrency.precision,
+    ),
+    fixedFeeCurrencyCode: fixedFeeCurrency?.code ?? null,
+    id: input.calculation.id,
+    originalAmount: minorToDecimalString(
+      snapshot.originalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    quoteMarkupAmount: minorToDecimalString(
+      snapshot.quoteMarkupAmountMinor,
+      calculationCurrency.precision,
+    ),
+    quoteMarkupPercentage: feeBpsToPercentString(snapshot.quoteMarkupBps),
+    rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
+    totalAmount: minorToDecimalString(
+      snapshot.totalAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalFeeAmount: minorToDecimalString(
+      snapshot.totalFeeAmountMinor,
+      calculationCurrency.precision,
+    ),
+    totalFeeAmountInBase: minorToDecimalString(
+      snapshot.totalFeeAmountInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalFeePercentage: feeBpsToPercentString(snapshot.totalFeeBps),
+    totalInBase: minorToDecimalString(
+      snapshot.totalInBaseMinor,
+      baseCurrency.precision,
+    ),
+    totalWithExpensesInBase: minorToDecimalString(
+      snapshot.totalWithExpensesInBaseMinor,
+      baseCurrency.precision,
+    ),
+  };
+}
 
 function parseOptionalSet(value?: string): Set<string> | null {
   if (!value) {
@@ -990,6 +1119,7 @@ function buildPortalProjection(input: {
   attachments: Awaited<
     ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
   >;
+  calculationSummary: Awaited<ReturnType<typeof buildPortalCalculationSummary>>;
   workflow: DealWorkflowProjection;
 }): PortalDealProjection {
   const customerSafeTimeline = getCustomerSafeTimeline(input.workflow.timeline);
@@ -1007,9 +1137,7 @@ function buildPortalProjection(input: {
 
   return {
     attachments,
-    calculationSummary: input.workflow.summary.calculationId
-      ? { id: input.workflow.summary.calculationId }
-      : null,
+    calculationSummary: input.calculationSummary,
     customerSafeIntake: toPortalIntakeSummary(input.workflow),
     nextAction: mapPortalNextAction({
       hasRequiredInvoice,
@@ -1155,6 +1283,33 @@ function sumCalculationLineAmountsByCurrency(
   }, new Map<string, bigint>());
 }
 
+function addAmountByCurrency(
+  amounts: Map<string, bigint>,
+  currencyId: string | null | undefined,
+  amountMinor: bigint | null | undefined,
+) {
+  if (!currencyId || amountMinor === null || amountMinor === undefined) {
+    return;
+  }
+
+  amounts.set(currencyId, (amounts.get(currencyId) ?? 0n) + amountMinor);
+}
+
+function subtractProfitabilityAmountsByCurrency(
+  base: Map<string, bigint>,
+  ...groups: Map<string, bigint>[]
+) {
+  const totals = new Map(base);
+
+  for (const group of groups) {
+    for (const [currencyId, amountMinor] of group.entries()) {
+      totals.set(currencyId, (totals.get(currencyId) ?? 0n) - amountMinor);
+    }
+  }
+
+  return totals;
+}
+
 function mergeProfitabilityAmountsByCurrency(...groups: Map<string, bigint>[]) {
   const totals = new Map<string, bigint>();
 
@@ -1165,6 +1320,255 @@ function mergeProfitabilityAmountsByCurrency(...groups: Map<string, bigint>[]) {
   }
 
   return totals;
+}
+
+function parseProfitabilityClassification(
+  value: unknown,
+): "revenue" | "expense" | "pass_through" | "adjustment" | null {
+  return value === "revenue" ||
+    value === "expense" ||
+    value === "pass_through" ||
+    value === "adjustment"
+    ? value
+    : null;
+}
+
+function normalizeProfitabilityFamily(
+  value: unknown,
+  classification: "revenue" | "expense" | "pass_through" | "adjustment",
+) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  switch (classification) {
+    case "revenue":
+      return "realized_revenue";
+    case "pass_through":
+      return "pass_through";
+    case "adjustment":
+      return "adjustment";
+    default:
+      return "provider_fee";
+  }
+}
+
+function buildProfitabilityFamilyKey(input: {
+  classification: "revenue" | "expense" | "pass_through" | "adjustment";
+  family: string;
+}) {
+  return `${input.classification}:${input.family}`;
+}
+
+function sumCalculationAmountsByClassificationAndFamily(
+  lines: CalculationDetailsLike["lines"],
+) {
+  const totals = new Map<string, Map<string, bigint>>();
+
+  for (const line of lines) {
+    const classification = parseProfitabilityClassification(line.classification);
+
+    if (!classification) {
+      continue;
+    }
+
+    const family = normalizeProfitabilityFamily(
+      line.componentFamily,
+      classification,
+    );
+    const key = buildProfitabilityFamilyKey({ classification, family });
+    const bucket = totals.get(key) ?? new Map<string, bigint>();
+
+    bucket.set(line.currencyId, (bucket.get(line.currencyId) ?? 0n) + BigInt(line.amountMinor));
+    totals.set(key, bucket);
+  }
+
+  return totals;
+}
+
+function sumCalculationAmountsByClassification(
+  lines: CalculationDetailsLike["lines"],
+  classification: "revenue" | "expense" | "pass_through" | "adjustment",
+) {
+  const totals = new Map<string, bigint>();
+
+  for (const line of lines) {
+    if (line.classification !== classification) {
+      continue;
+    }
+
+    totals.set(
+      line.currencyId,
+      (totals.get(line.currencyId) ?? 0n) + BigInt(line.amountMinor),
+    );
+  }
+
+  return totals;
+}
+
+function sumActualFactAmountsByClassificationAndFamily(
+  facts: TreasuryOperationFact[],
+) {
+  const totals = new Map<string, Map<string, bigint>>();
+
+  for (const fact of facts) {
+    const metadata =
+      fact.metadata && typeof fact.metadata === "object" ? fact.metadata : null;
+    const explicitClassification = parseProfitabilityClassification(
+      metadata?.classification,
+    );
+    const explicitFamily = metadata?.componentFamily;
+    const explicitFeeClassification = parseProfitabilityClassification(
+      metadata?.feeClassification,
+    );
+    const explicitFeeFamily = metadata?.feeComponentFamily;
+
+    if (fact.amountMinor && fact.currencyId && explicitClassification) {
+      const family = normalizeProfitabilityFamily(
+        explicitFamily,
+        explicitClassification,
+      );
+      const key = buildProfitabilityFamilyKey({
+        classification: explicitClassification,
+        family,
+      });
+      const bucket = totals.get(key) ?? new Map<string, bigint>();
+
+      addAmountByCurrency(bucket, fact.currencyId, BigInt(fact.amountMinor));
+      totals.set(key, bucket);
+    }
+
+    if (fact.feeAmountMinor && fact.feeCurrencyId) {
+      const classification = explicitFeeClassification ?? explicitClassification ?? "expense";
+      const family = normalizeProfitabilityFamily(
+        explicitFeeFamily ?? explicitFamily,
+        classification,
+      );
+      const key = buildProfitabilityFamilyKey({ classification, family });
+      const bucket = totals.get(key) ?? new Map<string, bigint>();
+
+      addAmountByCurrency(bucket, fact.feeCurrencyId, BigInt(fact.feeAmountMinor));
+      totals.set(key, bucket);
+    }
+  }
+
+  return totals;
+}
+
+function mergeProfitabilityFamiliesByClassification(
+  groups: Map<string, Map<string, bigint>>,
+  classification: "revenue" | "expense" | "pass_through" | "adjustment",
+) {
+  const totals = new Map<string, bigint>();
+
+  for (const [key, group] of groups.entries()) {
+    if (!key.startsWith(`${classification}:`)) {
+      continue;
+    }
+
+    for (const [currencyId, amountMinor] of group.entries()) {
+      totals.set(currencyId, (totals.get(currencyId) ?? 0n) + amountMinor);
+    }
+  }
+
+  return totals;
+}
+
+type RouteVarianceLegSnapshot = {
+  code: string;
+  expectedFromAmountMinor: string | null;
+  expectedToAmountMinor: string | null;
+  fromCurrencyId: string;
+  id: string;
+  idx: number;
+  kind: string;
+  toCurrencyId: string;
+};
+
+function isRouteVarianceLegSnapshot(
+  value: unknown,
+): value is RouteVarianceLegSnapshot {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.code === "string" &&
+    typeof candidate.fromCurrencyId === "string" &&
+    typeof candidate.id === "string" &&
+    typeof candidate.idx === "number" &&
+    Number.isInteger(candidate.idx) &&
+    typeof candidate.kind === "string" &&
+    typeof candidate.toCurrencyId === "string" &&
+    (typeof candidate.expectedFromAmountMinor === "string" ||
+      candidate.expectedFromAmountMinor === null ||
+      candidate.expectedFromAmountMinor === undefined) &&
+    (typeof candidate.expectedToAmountMinor === "string" ||
+      candidate.expectedToAmountMinor === null ||
+      candidate.expectedToAmountMinor === undefined)
+  );
+}
+
+function resolveRouteVersionSnapshot(snapshot: Record<string, unknown> | null): {
+  legs: RouteVarianceLegSnapshot[];
+} | null {
+  if (!snapshot || !Array.isArray(snapshot.legs)) {
+    return null;
+  }
+
+  const legs = snapshot.legs.filter(isRouteVarianceLegSnapshot);
+
+  if (legs.length === 0) {
+    return null;
+  }
+
+  return {
+    legs: legs.map((leg) => ({
+      code: leg.code,
+      expectedFromAmountMinor: leg.expectedFromAmountMinor ?? null,
+      expectedToAmountMinor: leg.expectedToAmountMinor ?? null,
+      fromCurrencyId: leg.fromCurrencyId,
+      id: leg.id,
+      idx: leg.idx,
+      kind: leg.kind,
+      toCurrencyId: leg.toCurrencyId,
+    })),
+  };
+}
+
+async function resolveSingleProfitabilityAmount(
+  currencyId: string | null,
+  amountMinor: string | null,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceProfitabilityAmount | null> {
+  if (!currencyId || amountMinor === null) {
+    return null;
+  }
+
+  const [amount] = await resolveProfitabilityAmounts(
+    new Map([[currencyId, BigInt(amountMinor)]]),
+    deps,
+  );
+
+  return amount ?? null;
+}
+
+function deriveProfitabilityCoverageState(input: {
+  factCount: number;
+  legsWithFacts: number;
+  totalLegCount: number;
+}) {
+  if (input.factCount === 0) {
+    return "not_started" as const;
+  }
+
+  if (input.totalLegCount > 0 && input.legsWithFacts >= input.totalLegCount) {
+    return "complete" as const;
+  }
+
+  return "partial" as const;
 }
 
 async function resolveProfitabilityAmounts(
@@ -1238,6 +1642,279 @@ async function buildProfitabilitySnapshot(
     ),
     spreadRevenue: await resolveProfitabilityAmounts(spreadRevenue, deps),
     totalRevenue: await resolveProfitabilityAmounts(totalRevenue, deps),
+  };
+}
+
+async function buildProfitabilityVarianceSnapshot(input: {
+  calculation: Awaited<
+    ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
+  > | null;
+  facts: TreasuryOperationFact[];
+  operationCount: number;
+  terminalOperationCount: number;
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">;
+}): Promise<FinanceProfitabilityVarianceSnapshot> {
+  const { calculation, deps, facts, operationCount, terminalOperationCount } =
+    input;
+
+  if (!calculation) {
+    return null;
+  }
+
+  const expectedByFamily = sumCalculationAmountsByClassificationAndFamily(
+    calculation.lines,
+  );
+  const actualByFamily = sumActualFactAmountsByClassificationAndFamily(facts);
+  const expectedRevenue = sumCalculationAmountsByClassification(
+    calculation.lines,
+    "revenue",
+  );
+  const expectedExpense = sumCalculationAmountsByClassification(
+    calculation.lines,
+    "expense",
+  );
+  const expectedPassThrough = sumCalculationAmountsByClassification(
+    calculation.lines,
+    "pass_through",
+  );
+  const expectedAdjustment = sumCalculationAmountsByClassification(
+    calculation.lines,
+    "adjustment",
+  );
+  const actualRevenue = mergeProfitabilityFamiliesByClassification(
+    actualByFamily,
+    "revenue",
+  );
+  const actualExpense = mergeProfitabilityFamiliesByClassification(
+    actualByFamily,
+    "expense",
+  );
+  const actualPassThrough = mergeProfitabilityFamiliesByClassification(
+    actualByFamily,
+    "pass_through",
+  );
+  const actualAdjustment = mergeProfitabilityFamiliesByClassification(
+    actualByFamily,
+    "adjustment",
+  );
+  const expectedNetMargin = subtractProfitabilityAmountsByCurrency(
+    mergeProfitabilityAmountsByCurrency(expectedRevenue, expectedAdjustment),
+    expectedExpense,
+    expectedPassThrough,
+  );
+  const realizedNetMargin = subtractProfitabilityAmountsByCurrency(
+    mergeProfitabilityAmountsByCurrency(
+      actualRevenue.size > 0 ? actualRevenue : expectedRevenue,
+      actualAdjustment.size > 0 ? actualAdjustment : expectedAdjustment,
+    ),
+    actualExpense.size > 0 ? actualExpense : expectedExpense,
+    actualPassThrough.size > 0 ? actualPassThrough : expectedPassThrough,
+  );
+  const familyKeys = Array.from(
+    new Set([...expectedByFamily.keys(), ...actualByFamily.keys()]),
+  ).sort((left, right) => left.localeCompare(right));
+  const varianceByCostFamily = await Promise.all(
+    familyKeys.map(async (key) => {
+      const separatorIndex = key.indexOf(":");
+      const classification = key.slice(
+        0,
+        separatorIndex,
+      ) as "revenue" | "expense" | "pass_through" | "adjustment";
+      const family = key.slice(separatorIndex + 1);
+      const expected = expectedByFamily.get(key) ?? new Map<string, bigint>();
+      const actual = actualByFamily.get(key) ?? new Map<string, bigint>();
+
+      return {
+        actual: await resolveProfitabilityAmounts(actual, deps),
+        classification,
+        expected: await resolveProfitabilityAmounts(expected, deps),
+        family,
+        variance: await resolveProfitabilityAmounts(
+          subtractProfitabilityAmountsByCurrency(actual, expected),
+          deps,
+        ),
+      };
+    }),
+  );
+
+  const route = resolveRouteVersionSnapshot(
+    calculation.currentSnapshot.routeSnapshot,
+  );
+  const factsByLeg = new Map<
+    string,
+    {
+      fees: Map<string, bigint>;
+      from: Map<string, bigint>;
+      to: Map<string, bigint>;
+    }
+  >();
+
+  for (const fact of facts) {
+    if (!fact.routeLegId) {
+      continue;
+    }
+
+    const bucket = factsByLeg.get(fact.routeLegId) ?? {
+      fees: new Map<string, bigint>(),
+      from: new Map<string, bigint>(),
+      to: new Map<string, bigint>(),
+    };
+
+    addAmountByCurrency(
+      bucket.from,
+      fact.currencyId,
+      fact.amountMinor ? BigInt(fact.amountMinor) : null,
+    );
+    addAmountByCurrency(
+      bucket.to,
+      fact.counterCurrencyId,
+      fact.counterAmountMinor ? BigInt(fact.counterAmountMinor) : null,
+    );
+    addAmountByCurrency(
+      bucket.fees,
+      fact.feeCurrencyId,
+      fact.feeAmountMinor ? BigInt(fact.feeAmountMinor) : null,
+    );
+    factsByLeg.set(fact.routeLegId, bucket);
+  }
+
+  const routeLegs =
+    route?.legs ??
+    Array.from(
+      new Set([
+        ...calculation.lines
+          .map((line) => line.routeLegId)
+          .filter((routeLegId): routeLegId is string => Boolean(routeLegId)),
+        ...factsByLeg.keys(),
+      ]),
+    ).map((routeLegId, idx) => ({
+      code: routeLegId,
+      executionCounterpartyId: null,
+      expectedFromAmountMinor: null,
+      expectedRateDen: null,
+      expectedRateNum: null,
+      expectedToAmountMinor: null,
+      fromCurrencyId: calculation.currentSnapshot.calculationCurrencyId,
+      fromParticipantCode: "unknown",
+      id: routeLegId,
+      idx: idx + 1,
+      kind: "adjustment",
+      notes: null,
+      settlementModel: "unknown",
+      toCurrencyId: calculation.currentSnapshot.baseCurrencyId,
+      toParticipantCode: "unknown",
+    }));
+
+  const varianceByLeg = await Promise.all(
+    [...routeLegs]
+      .sort((left, right) => left.idx - right.idx)
+      .map(async (leg) => {
+        const bucket = factsByLeg.get(leg.id);
+        const actualFromAmount =
+          bucket?.from.get(leg.fromCurrencyId)?.toString() ?? null;
+        const actualToAmount =
+          bucket?.to.get(leg.toCurrencyId)?.toString() ?? null;
+
+        return {
+          actualFees: await resolveProfitabilityAmounts(
+            bucket?.fees ?? new Map<string, bigint>(),
+            deps,
+          ),
+          actualFrom: await resolveSingleProfitabilityAmount(
+            leg.fromCurrencyId,
+            actualFromAmount,
+            deps,
+          ),
+          actualTo: await resolveSingleProfitabilityAmount(
+            leg.toCurrencyId,
+            actualToAmount,
+            deps,
+          ),
+          code: leg.code,
+          expectedFrom: await resolveSingleProfitabilityAmount(
+            leg.fromCurrencyId,
+            leg.expectedFromAmountMinor,
+            deps,
+          ),
+          expectedTo: await resolveSingleProfitabilityAmount(
+            leg.toCurrencyId,
+            leg.expectedToAmountMinor,
+            deps,
+          ),
+          idx: leg.idx,
+          kind: leg.kind,
+          routeLegId: leg.id,
+          varianceFrom:
+            actualFromAmount !== null && leg.expectedFromAmountMinor !== null
+              ? await resolveSingleProfitabilityAmount(
+                  leg.fromCurrencyId,
+                  (
+                    BigInt(actualFromAmount) -
+                    BigInt(leg.expectedFromAmountMinor)
+                  ).toString(),
+                  deps,
+                )
+              : null,
+          varianceTo:
+            actualToAmount !== null && leg.expectedToAmountMinor !== null
+              ? await resolveSingleProfitabilityAmount(
+                  leg.toCurrencyId,
+                  (
+                    BigInt(actualToAmount) -
+                    BigInt(leg.expectedToAmountMinor)
+                  ).toString(),
+                  deps,
+                )
+              : null,
+        };
+      }),
+  );
+
+  const totalLegCount =
+    route?.legs.length ??
+    new Set([
+      ...calculation.lines
+        .map((line) => line.routeLegId)
+        .filter((routeLegId): routeLegId is string => Boolean(routeLegId)),
+      ...factsByLeg.keys(),
+    ]).size;
+
+  return {
+    actualCoverage: {
+      factCount: facts.length,
+      legsWithFacts: factsByLeg.size,
+      operationCount,
+      state: deriveProfitabilityCoverageState({
+        factCount: facts.length,
+        legsWithFacts: factsByLeg.size,
+        totalLegCount,
+      }),
+      terminalOperationCount,
+      totalLegCount,
+    },
+    actualExpense: await resolveProfitabilityAmounts(actualExpense, deps),
+    actualPassThrough: await resolveProfitabilityAmounts(
+      actualPassThrough,
+      deps,
+    ),
+    calculationId: calculation.id,
+    expectedNetMargin: await resolveProfitabilityAmounts(
+      expectedNetMargin,
+      deps,
+    ),
+    netMarginVariance: await resolveProfitabilityAmounts(
+      subtractProfitabilityAmountsByCurrency(
+        realizedNetMargin,
+        expectedNetMargin,
+      ),
+      deps,
+    ),
+    realizedNetMargin: await resolveProfitabilityAmounts(
+      realizedNetMargin,
+      deps,
+    ),
+    varianceByCostFamily,
+    varianceByLeg,
   };
 }
 
@@ -1375,9 +2052,19 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
-    const attachments =
-      await deps.files.files.queries.listDealAttachments(dealId);
-    return buildPortalProjection({ attachments, workflow });
+    const [attachments, calculation] = await Promise.all([
+      deps.files.files.queries.listDealAttachments(dealId),
+      workflow.summary.calculationId
+        ? deps.calculations.calculations.queries.findById(
+            workflow.summary.calculationId,
+          )
+        : Promise.resolve(null),
+    ]);
+    const calculationSummary = await buildPortalCalculationSummary({
+      calculation,
+      currencies: deps.currencies,
+    });
+    return buildPortalProjection({ attachments, calculationSummary, workflow });
   }
 
   async function listPortalDeals(
@@ -1944,6 +2631,8 @@ export function createDealProjectionsWorkflow(
       legalEntitiesResult,
       currentCalculation,
       internalEntityRequisite,
+      operationFacts,
+      operationsResult,
       quotesResult,
     ] = await Promise.all([
       customerId
@@ -1976,6 +2665,20 @@ export function createDealProjectionsWorkflow(
             agreement.organizationRequisiteId,
           )
         : Promise.resolve(null),
+      deps.treasury.operations.queries.listFacts({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "recordedAt",
+        sortOrder: "desc",
+      }),
+      deps.treasury.operations.queries.list({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
       deps.treasury.quotes.queries.listQuotes({
         dealId,
         limit: MAX_QUERY_LIST_LIMIT,
@@ -1990,6 +2693,63 @@ export function createDealProjectionsWorkflow(
           internalEntityRequisite.providerId,
         )
       : null;
+    const currentCalculationSummary = await buildPortalCalculationSummary({
+      calculation: currentCalculation,
+      currencies: deps.currencies,
+    });
+    const latestInstructions =
+      operationsResult.data.length > 0
+        ? await deps.treasury.instructions.queries.listLatestByOperationIds(
+            operationsResult.data.map((operation) => operation.id),
+          )
+        : [];
+    const operationsById = new Map(
+      operationsResult.data.map((operation) => [operation.id, operation] as const),
+    );
+    const latestInstructionByOperationId = new Map(
+      latestInstructions.map(
+        (instruction) => [instruction.operationId, instruction] as const,
+      ),
+    );
+    const reconciliationLinks =
+      operationsResult.data.length > 0
+        ? await deps.reconciliation.links.listOperationLinks({
+            operationIds: operationsResult.data.map((operation) => operation.id),
+          })
+        : [];
+    const reconciliationLinksByOperationId = new Map(
+      reconciliationLinks.map(
+        (link): readonly [string, ReconciliationOperationLinkDto] => [
+          link.operationId,
+          link,
+        ],
+      ),
+    );
+    const {
+      instructionSummary,
+      reconciliationExceptions: readinessReconciliationExceptions,
+      reconciliationSummary,
+    } = deriveFinanceDealReadiness({
+      latestInstructionByOperationId,
+      operationIdsWithFacts: new Set(
+        operationFacts.data.map((fact) => fact.operationId),
+      ),
+      profitabilityCalculationId: currentCalculation?.id ?? null,
+      reconciliationLinksByOperationId,
+      workflow,
+    });
+    const reconciliationExceptions = readinessReconciliationExceptions.map(
+      (exception) => ({
+        ...exception,
+        actions: {
+          adjustmentDocumentDocType: resolveAdjustmentDocumentDocType({
+            operationKind:
+              operationsById.get(exception.operationId)?.kind ?? null,
+          }),
+          canIgnore: exception.state === "open",
+        },
+      }),
+    );
 
     const actions = buildCrmWorkbenchActions(workflow);
     const editability = buildCrmWorkbenchEditability(workflow);
@@ -2010,6 +2770,7 @@ export function createDealProjectionsWorkflow(
       assignee: {
         userId: workflow.summary.agentId,
       },
+      attachmentIngestions: workflow.attachmentIngestions,
       beneficiaryDraft,
       comment: detail.comment,
       context: {
@@ -2033,13 +2794,27 @@ export function createDealProjectionsWorkflow(
       participants: workflow.participants,
       pricing: {
         calculationHistory: calculationsHistory,
-        currentCalculation,
+        currentCalculation: currentCalculationSummary,
         quoteEligibility: isQuoteEligible(workflow),
         quotes: quotesResult.data.map(serializeCrmPricingQuote),
       },
+      profitabilitySnapshot: await buildProfitabilitySnapshot(
+        currentCalculation,
+        deps,
+      ),
+      profitabilityVariance: await buildProfitabilityVarianceSnapshot({
+        calculation: currentCalculation,
+        deps,
+        facts: operationFacts.data,
+        operationCount: operationsResult.total,
+        terminalOperationCount: instructionSummary.terminalOperations,
+      }),
+      reconciliationSummary,
+      revision: workflow.revision,
       relatedResources: {
         attachments,
         formalDocuments: workflow.relatedResources.formalDocuments,
+        reconciliationExceptions,
       },
       sectionCompleteness: workflow.sectionCompleteness,
       summary: {
@@ -2054,7 +2829,6 @@ export function createDealProjectionsWorkflow(
       },
       timeline: workflow.timeline,
       transitionReadiness: workflow.transitionReadiness,
-      workflow,
     };
   }
 
@@ -2136,29 +2910,41 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
-    const [attachments, currentCalculation, operationsResult, quotesResult] =
-      await Promise.all([
-        deps.files.files.queries.listDealAttachments(dealId),
-        workflow.summary.calculationId
-          ? deps.calculations.calculations.queries.findById(
-              workflow.summary.calculationId,
-            )
-          : Promise.resolve(null),
-        deps.treasury.operations.queries.list({
-          dealId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-        deps.treasury.quotes.queries.listQuotes({
-          dealId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-      ]);
+    const [
+      attachments,
+      currentCalculation,
+      operationFacts,
+      operationsResult,
+      quotesResult,
+    ] = await Promise.all([
+      deps.files.files.queries.listDealAttachments(dealId),
+      workflow.summary.calculationId
+        ? deps.calculations.calculations.queries.findById(
+            workflow.summary.calculationId,
+          )
+        : Promise.resolve(null),
+      deps.treasury.operations.queries.listFacts({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "recordedAt",
+        sortOrder: "desc",
+      }),
+      deps.treasury.operations.queries.list({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+      deps.treasury.quotes.queries.listQuotes({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+    ]);
 
     const actions = buildCrmWorkbenchActions(workflow);
     const attachmentRequirements = buildCrmEvidenceRequirements({
@@ -2207,6 +2993,10 @@ export function createDealProjectionsWorkflow(
       reconciliationSummary,
     } = deriveFinanceDealReadiness({
       latestInstructionByOperationId,
+      operationIdsWithFacts: new Set(
+        operationFacts.data.map((fact) => fact.operationId),
+      ),
+      profitabilityCalculationId: currentCalculation?.id ?? null,
       reconciliationLinksByOperationId,
       workflow,
     });
@@ -2296,6 +3086,13 @@ export function createDealProjectionsWorkflow(
         currentCalculation,
         deps,
       ),
+      profitabilityVariance: await buildProfitabilityVarianceSnapshot({
+        calculation: currentCalculation,
+        deps,
+        facts: operationFacts.data,
+        operationCount: operationsResult.total,
+        terminalOperationCount: instructionSummary.terminalOperations,
+      }),
       queueContext,
       reconciliationSummary,
       relatedResources: {
@@ -2367,10 +3164,22 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
-          const [agreement, operationsResult] = await Promise.all([
+          const [agreement, currentCalculation, operationFacts, operationsResult] = await Promise.all([
             deps.agreements.agreements.queries.findById(
               workflow.summary.agreementId,
             ),
+            workflow.summary.calculationId
+              ? deps.calculations.calculations.queries.findById(
+                  workflow.summary.calculationId,
+                )
+              : Promise.resolve(null),
+            deps.treasury.operations.queries.listFacts({
+              dealId: deal.id,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "recordedAt",
+              sortOrder: "desc",
+            }),
             deps.treasury.operations.queries.list({
               dealId: deal.id,
               limit: MAX_QUERY_LIST_LIMIT,
@@ -2406,6 +3215,10 @@ export function createDealProjectionsWorkflow(
           const { closeReadiness, reconciliationSummary } =
             deriveFinanceDealReadiness({
               latestInstructionByOperationId,
+              operationIdsWithFacts: new Set(
+                operationFacts.data.map((fact) => fact.operationId),
+              ),
+              profitabilityCalculationId: currentCalculation?.id ?? null,
               reconciliationLinksByOperationId,
               workflow,
             });
@@ -2419,14 +3232,8 @@ export function createDealProjectionsWorkflow(
             workflow,
           });
 
-          const [attachments, currentCalculation] = await Promise.all([
-            deps.files.files.queries.listDealAttachments(deal.id),
-            workflow.summary.calculationId
-              ? deps.calculations.calculations.queries.findById(
-                  workflow.summary.calculationId,
-                )
-              : Promise.resolve(null),
-          ]);
+          const attachments =
+            await deps.files.files.queries.listDealAttachments(deal.id);
 
           return {
             applicantName,

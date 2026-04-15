@@ -9,6 +9,7 @@ import {
   buildQuoteSnapshotHash,
   loadQuoteSnapshot,
   markQuoteUsedForInvoice,
+  resolveFinalizedCommercialFinancialLines,
 } from "../src/documents/internal/helpers";
 
 function makeQuoteSnapshot(financialLines: any[]) {
@@ -470,5 +471,51 @@ describe("commercial document helpers", () => {
     expect(templateKeys).not.toContain(
       POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
     );
+  });
+
+  it("prefers actual finalized lines over estimated buckets when they are available", () => {
+    const lines = resolveFinalizedCommercialFinancialLines({
+      actualFinancialLines: [
+        {
+          amountMinor: 55n,
+          bucket: "provider_fee_expense",
+          currency: "USD",
+          id: "actual-provider-1",
+          settlementMode: "in_ledger",
+          source: "manual",
+        },
+      ],
+      financialLines: [
+        {
+          amountMinor: 150n,
+          bucket: "fee_revenue",
+          currency: "USD",
+          id: "estimated-fee-1",
+          settlementMode: "in_ledger",
+          source: "rule",
+        },
+        {
+          amountMinor: 30n,
+          bucket: "provider_fee_expense",
+          currency: "USD",
+          id: "estimated-provider-1",
+          settlementMode: "in_ledger",
+          source: "rule",
+        },
+      ],
+    });
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        amountMinor: 150n,
+        bucket: "fee_revenue",
+        id: "estimated-fee-1",
+      }),
+      expect.objectContaining({
+        amountMinor: 55n,
+        bucket: "provider_fee_expense",
+        id: "actual-provider-1",
+      }),
+    ]);
   });
 });

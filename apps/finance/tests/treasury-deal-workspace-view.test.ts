@@ -145,6 +145,7 @@ function createDeal(): FinanceDealWorkspace {
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
+    profitabilityVariance: null,
     queueContext: {
       blockers: [
         "Required intake sections are incomplete",

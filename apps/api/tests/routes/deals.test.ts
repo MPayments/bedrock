@@ -93,25 +93,349 @@ function createDealDetail() {
   };
 }
 
+function createDealRouteVersion() {
+  const now = new Date("2026-04-14T09:00:00.000Z");
+
+  return {
+    costComponents: [
+      {
+        basisType: "leg_from_amount" as const,
+        bps: "10",
+        classification: "expense" as const,
+        code: "provider-fee",
+        currencyId: "00000000-0000-4000-8000-000000000006",
+        family: "provider_fee",
+        fixedAmountMinor: null,
+        formulaType: "bps" as const,
+        id: "00000000-0000-4000-8000-000000000053",
+        includedInClientRate: false,
+        legCode: "leg-2",
+        manualAmountMinor: null,
+        notes: "Provider fee",
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 1,
+      },
+    ],
+    createdAt: now,
+    dealId: "00000000-0000-4000-8000-000000000010",
+    id: "00000000-0000-4000-8000-000000000050",
+    isCurrent: true,
+    legs: [
+      {
+        code: "leg-1",
+        executionCounterpartyId: null,
+        expectedFromAmountMinor: "100000",
+        expectedRateDen: null,
+        expectedRateNum: null,
+        expectedToAmountMinor: "100000",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+        fromParticipantCode: "customer",
+        id: "00000000-0000-4000-8000-000000000051",
+        idx: 1,
+        kind: "collection" as const,
+        notes: null,
+        settlementModel: "incoming_receipt",
+        toCurrencyId: "00000000-0000-4000-8000-000000000006",
+        toParticipantCode: "ops",
+      },
+      {
+        code: "leg-2",
+        executionCounterpartyId: "00000000-0000-4000-8000-000000000004",
+        expectedFromAmountMinor: "100000",
+        expectedRateDen: null,
+        expectedRateNum: null,
+        expectedToAmountMinor: "100000",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+        fromParticipantCode: "ops",
+        id: "00000000-0000-4000-8000-000000000052",
+        idx: 2,
+        kind: "payout" as const,
+        notes: "Customer payout",
+        settlementModel: "external_wire",
+        toCurrencyId: "00000000-0000-4000-8000-000000000006",
+        toParticipantCode: "beneficiary",
+      },
+    ],
+    participants: [
+      {
+        code: "customer",
+        displayNameSnapshot: "Customer",
+        id: "00000000-0000-4000-8000-000000000060",
+        metadata: {},
+        partyId: "00000000-0000-4000-8000-000000000001",
+        partyKind: "customer" as const,
+        requisiteId: null,
+        role: "source_customer",
+        sequence: 1,
+      },
+      {
+        code: "ops",
+        displayNameSnapshot: "Multihansa",
+        id: "00000000-0000-4000-8000-000000000061",
+        metadata: {},
+        partyId: "00000000-0000-4000-8000-000000000020",
+        partyKind: "organization" as const,
+        requisiteId: "00000000-0000-4000-8000-000000000021",
+        role: "treasury_hub",
+        sequence: 2,
+      },
+      {
+        code: "beneficiary",
+        displayNameSnapshot: "Beneficiary",
+        id: "00000000-0000-4000-8000-000000000062",
+        metadata: {},
+        partyId: "00000000-0000-4000-8000-000000000005",
+        partyKind: "counterparty" as const,
+        requisiteId: null,
+        role: "destination_beneficiary",
+        sequence: 3,
+      },
+    ],
+    routeId: "00000000-0000-4000-8000-000000000049",
+    validationIssues: [],
+    version: 2,
+  };
+}
+
+function createRouteEstimateVersion() {
+  const now = new Date("2026-04-14T09:00:00.000Z");
+
+  return {
+    costComponents: [
+      {
+        basisType: "deal_source_amount" as const,
+        bps: "100",
+        classification: "revenue" as const,
+        code: "client_markup",
+        currencyId: "00000000-0000-4000-8000-000000000006",
+        family: "client_markup",
+        fixedAmountMinor: null,
+        formulaType: "bps" as const,
+        id: "00000000-0000-4000-8000-000000000153",
+        includedInClientRate: true,
+        legCode: null,
+        manualAmountMinor: null,
+        notes: "Markup",
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 1,
+      },
+      {
+        basisType: "deal_target_amount" as const,
+        bps: null,
+        classification: "expense" as const,
+        code: "wire_fee",
+        currencyId: "00000000-0000-4000-8000-000000000007",
+        family: "wire_fee",
+        fixedAmountMinor: "25",
+        formulaType: "fixed" as const,
+        id: "00000000-0000-4000-8000-000000000154",
+        includedInClientRate: false,
+        legCode: "leg-3",
+        manualAmountMinor: null,
+        notes: "Wire fee",
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 2,
+      },
+      {
+        basisType: "deal_target_amount" as const,
+        bps: null,
+        classification: "expense" as const,
+        code: "subagent_commission",
+        currencyId: "00000000-0000-4000-8000-000000000007",
+        family: "subagent",
+        fixedAmountMinor: "999",
+        formulaType: "fixed" as const,
+        id: "00000000-0000-4000-8000-000000000155",
+        includedInClientRate: false,
+        legCode: "leg-3",
+        manualAmountMinor: null,
+        notes: "Sub-agent commission",
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 3,
+      },
+      {
+        basisType: "deal_target_amount" as const,
+        bps: null,
+        classification: "pass_through" as const,
+        code: "network_fee",
+        currencyId: "00000000-0000-4000-8000-000000000007",
+        family: "pass_through",
+        fixedAmountMinor: "10",
+        formulaType: "fixed" as const,
+        id: "00000000-0000-4000-8000-000000000156",
+        includedInClientRate: false,
+        legCode: "leg-3",
+        manualAmountMinor: null,
+        notes: "Pass-through network fee",
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 4,
+      },
+    ],
+    createdAt: now,
+    dealId: "00000000-0000-4000-8000-000000000010",
+    id: "00000000-0000-4000-8000-000000000150",
+    isCurrent: true,
+    legs: [
+      {
+        code: "leg-1",
+        executionCounterpartyId: null,
+        expectedFromAmountMinor: "10000",
+        expectedRateDen: null,
+        expectedRateNum: null,
+        expectedToAmountMinor: "10000",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+        fromParticipantCode: "customer",
+        id: "00000000-0000-4000-8000-000000000151",
+        idx: 1,
+        kind: "collection" as const,
+        notes: null,
+        settlementModel: "incoming_receipt",
+        toCurrencyId: "00000000-0000-4000-8000-000000000006",
+        toParticipantCode: "ops",
+      },
+      {
+        code: "leg-2",
+        executionCounterpartyId: "00000000-0000-4000-8000-000000000004",
+        expectedFromAmountMinor: "10000",
+        expectedRateDen: "2",
+        expectedRateNum: "1",
+        expectedToAmountMinor: "5000",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+        fromParticipantCode: "ops",
+        id: "00000000-0000-4000-8000-000000000152",
+        idx: 2,
+        kind: "fx_conversion" as const,
+        notes: "Convert to payout currency",
+        settlementModel: "provider_fx",
+        toCurrencyId: "00000000-0000-4000-8000-000000000007",
+        toParticipantCode: "ops",
+      },
+      {
+        code: "leg-3",
+        executionCounterpartyId: "00000000-0000-4000-8000-000000000004",
+        expectedFromAmountMinor: "5000",
+        expectedRateDen: null,
+        expectedRateNum: null,
+        expectedToAmountMinor: "5000",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000007",
+        fromParticipantCode: "ops",
+        id: "00000000-0000-4000-8000-000000000157",
+        idx: 3,
+        kind: "payout" as const,
+        notes: "Customer payout",
+        settlementModel: "external_wire",
+        toCurrencyId: "00000000-0000-4000-8000-000000000007",
+        toParticipantCode: "beneficiary",
+      },
+    ],
+    participants: createDealRouteVersion().participants,
+    routeId: "00000000-0000-4000-8000-000000000149",
+    validationIssues: [],
+    version: 3,
+  };
+}
+
+function createCalculationDetails(overrides?: {
+  calculationId?: string;
+  currentSnapshot?: Record<string, unknown>;
+  lines?: unknown[];
+}) {
+  const now = new Date("2026-04-01T00:00:00.000Z");
+  const calculationId =
+    overrides?.calculationId ?? "00000000-0000-4000-8000-000000000501";
+
+  return {
+    id: calculationId,
+    isActive: true,
+    currentSnapshot: {
+      id: "00000000-0000-4000-8000-000000000502",
+      snapshotNumber: 1,
+      agreementVersionId: "00000000-0000-4000-8000-000000000011",
+      agreementFeeBps: "0",
+      agreementFeeAmountMinor: "0",
+      calculationCurrencyId: "00000000-0000-4000-8000-000000000006",
+      originalAmountMinor: "10000",
+      totalFeeBps: "150",
+      totalFeeAmountMinor: "150",
+      totalAmountMinor: "10150",
+      baseCurrencyId: "00000000-0000-4000-8000-000000000007",
+      totalFeeAmountInBaseMinor: "75",
+      totalInBaseMinor: "5000",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      dealSnapshot: null,
+      additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000007",
+      additionalExpensesAmountMinor: "10",
+      additionalExpensesInBaseMinor: "10",
+      fixedFeeAmountMinor: "0",
+      fixedFeeCurrencyId: null,
+      pricingProvenance: { source: "route_estimate" },
+      quoteMarkupAmountMinor: "150",
+      quoteMarkupBps: "150",
+      grossRevenueInBaseMinor: "75",
+      expenseAmountInBaseMinor: "70",
+      passThroughAmountInBaseMinor: "10",
+      netMarginInBaseMinor: "5",
+      routeVersionId: "00000000-0000-4000-8000-000000000150",
+      routeSnapshot: null,
+      referenceRateAsOf: null,
+      referenceRateSource: null,
+      referenceRateNum: null,
+      referenceRateDen: null,
+      state: "draft" as const,
+      totalWithExpensesInBaseMinor: "5085",
+      rateSource: "manual" as const,
+      rateNum: "1",
+      rateDen: "2",
+      additionalExpensesRateSource: "manual" as const,
+      additionalExpensesRateNum: "1",
+      additionalExpensesRateDen: "2",
+      calculationTimestamp: now,
+      fxQuoteId: null,
+      quoteSnapshot: null,
+      createdAt: now,
+      updatedAt: now,
+      ...overrides?.currentSnapshot,
+    },
+    createdAt: now,
+    updatedAt: now,
+    lines: overrides?.lines ?? [],
+  };
+}
+
 function createDealsModuleStub() {
   return {
     deals: {
       queries: {
         findWorkflowById: vi.fn(),
+        findCurrentRouteByDealId: vi.fn(),
+        findRouteTemplateById: vi.fn(),
         list: vi.fn(),
+        listRouteTemplates: vi.fn(),
         findById: vi.fn(),
         listCalculationHistory: vi.fn(),
       },
       commands: {
         appendTimelineEvent: vi.fn(),
         acceptQuote: vi.fn(),
+        applyRouteTemplate: vi.fn(),
+        archiveRouteTemplate: vi.fn(),
         assignAgent: vi.fn(),
         createDraft: vi.fn(),
+        createRouteDraft: vi.fn(),
+        createRouteTemplate: vi.fn(),
         linkCalculation: vi.fn(),
+        publishRouteTemplate: vi.fn(),
+        replaceRouteVersion: vi.fn(),
         transitionStatus: vi.fn(),
         updateAgreement: vi.fn(),
         updateComment: vi.fn(),
         updateLegState: vi.fn(),
+        updateRouteTemplate: vi.fn(),
       },
     },
   };
@@ -450,6 +774,7 @@ function createTestApp() {
     agreements: {
       queries: {
         findById: vi.fn(),
+        resolveRouteDefaults: vi.fn(),
       },
     },
   };
@@ -487,6 +812,7 @@ function createTestApp() {
   const calculationsModule = {
     calculations: {
       queries: {
+        compare: vi.fn(),
         findById: vi.fn(),
       },
       commands: {
@@ -522,6 +848,9 @@ function createTestApp() {
   const documentsService = {
     get: vi.fn(),
   };
+  const documentGenerationWorkflow = {
+    generateCalculation: vi.fn(),
+  };
   const persistence = {
     db: {
       execute: vi.fn(async () => ({ rows: [] })),
@@ -554,6 +883,7 @@ function createTestApp() {
       calculationsModule,
       partiesModule,
       currenciesService,
+      documentGenerationWorkflow,
       reconciliationService,
       documentsService,
       persistence,
@@ -572,6 +902,7 @@ function createTestApp() {
     iamService,
     partiesModule,
     currenciesService,
+    documentGenerationWorkflow,
     reconciliationService,
     documentsService,
     persistence,
@@ -713,6 +1044,275 @@ describe("deals routes", () => {
           requestedExecutionDate: new Date("2026-03-30T00:00:00.000Z"),
         },
       },
+    });
+  });
+
+  it("returns the current deal route version", async () => {
+    const { app, dealsModule } = createTestApp();
+    const route = createDealRouteVersion();
+    dealsModule.deals.queries.findCurrentRouteByDealId.mockResolvedValue(route);
+
+    const response = await app.request(
+      `http://localhost/deals/${route.dealId}/route`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      dealsModule.deals.queries.findCurrentRouteByDealId,
+    ).toHaveBeenCalledWith(route.dealId);
+    await expect(response.json()).resolves.toMatchObject({
+      dealId: route.dealId,
+      routeId: route.routeId,
+      version: route.version,
+      participants: expect.arrayContaining([
+        expect.objectContaining({
+          code: "customer",
+          partyKind: "customer",
+        }),
+      ]),
+    });
+  });
+
+  it("creates an empty route draft for a writable deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+    };
+    const route = createDealRouteVersion();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.commands.createRouteDraft.mockResolvedValue(route);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/route/draft`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.createRouteDraft).toHaveBeenCalledWith({
+      dealId: detail.id,
+    });
+  });
+
+  it("replaces the current deal route version", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+    };
+    const route = createDealRouteVersion();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.commands.replaceRouteVersion.mockResolvedValue(route);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/route`,
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          participants: [
+            {
+              code: "customer",
+              displayNameSnapshot: "  Customer  ",
+              partyId: "00000000-0000-4000-8000-000000000001",
+              partyKind: "customer",
+              role: "source_customer",
+              sequence: 1,
+            },
+            {
+              code: "ops",
+              displayNameSnapshot: "  Multihansa  ",
+              metadata: {
+                lane: "main",
+              },
+              partyId: "00000000-0000-4000-8000-000000000020",
+              partyKind: "organization",
+              requisiteId: "00000000-0000-4000-8000-000000000021",
+              role: "treasury_hub",
+              sequence: 2,
+            },
+            {
+              code: "beneficiary",
+              displayNameSnapshot: "  Beneficiary  ",
+              partyId: "00000000-0000-4000-8000-000000000005",
+              partyKind: "counterparty",
+              role: "destination_beneficiary",
+              sequence: 3,
+            },
+          ],
+          legs: [
+            {
+              code: "leg-1",
+              fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+              fromParticipantCode: "customer",
+              idx: 1,
+              kind: "collection",
+              settlementModel: "incoming_receipt",
+              toCurrencyId: "00000000-0000-4000-8000-000000000006",
+              toParticipantCode: "ops",
+            },
+            {
+              code: "leg-2",
+              executionCounterpartyId: "00000000-0000-4000-8000-000000000004",
+              expectedFromAmountMinor: "100000",
+              expectedToAmountMinor: "100000",
+              fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+              fromParticipantCode: "ops",
+              idx: 2,
+              kind: "payout",
+              notes: "  Customer payout  ",
+              settlementModel: "external_wire",
+              toCurrencyId: "00000000-0000-4000-8000-000000000006",
+              toParticipantCode: "beneficiary",
+            },
+          ],
+          costComponents: [
+            {
+              basisType: "leg_from_amount",
+              bps: "10",
+              classification: "expense",
+              code: "provider-fee",
+              currencyId: "00000000-0000-4000-8000-000000000006",
+              family: "provider_fee",
+              formulaType: "bps",
+              includedInClientRate: false,
+              legCode: "leg-2",
+              notes: "  Provider fee  ",
+              sequence: 1,
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.replaceRouteVersion).toHaveBeenCalledWith({
+      costComponents: [
+        {
+          basisType: "leg_from_amount",
+          bps: "10",
+          classification: "expense",
+          code: "provider-fee",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+          family: "provider_fee",
+          fixedAmountMinor: null,
+          formulaType: "bps",
+          includedInClientRate: false,
+          legCode: "leg-2",
+          manualAmountMinor: null,
+          notes: "Provider fee",
+          perMillion: null,
+          roundingMode: "half_up",
+          sequence: 1,
+        },
+      ],
+      dealId: detail.id,
+      legs: [
+        {
+          code: "leg-1",
+          executionCounterpartyId: null,
+          expectedFromAmountMinor: null,
+          expectedRateDen: null,
+          expectedRateNum: null,
+          expectedToAmountMinor: null,
+          fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+          fromParticipantCode: "customer",
+          idx: 1,
+          kind: "collection",
+          notes: null,
+          settlementModel: "incoming_receipt",
+          toCurrencyId: "00000000-0000-4000-8000-000000000006",
+          toParticipantCode: "ops",
+        },
+        {
+          code: "leg-2",
+          executionCounterpartyId: "00000000-0000-4000-8000-000000000004",
+          expectedFromAmountMinor: "100000",
+          expectedRateDen: null,
+          expectedRateNum: null,
+          expectedToAmountMinor: "100000",
+          fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+          fromParticipantCode: "ops",
+          idx: 2,
+          kind: "payout",
+          notes: "Customer payout",
+          settlementModel: "external_wire",
+          toCurrencyId: "00000000-0000-4000-8000-000000000006",
+          toParticipantCode: "beneficiary",
+        },
+      ],
+      participants: [
+        {
+          code: "customer",
+          displayNameSnapshot: "Customer",
+          metadata: {},
+          partyId: "00000000-0000-4000-8000-000000000001",
+          partyKind: "customer",
+          requisiteId: null,
+          role: "source_customer",
+          sequence: 1,
+        },
+        {
+          code: "ops",
+          displayNameSnapshot: "Multihansa",
+          metadata: {
+            lane: "main",
+          },
+          partyId: "00000000-0000-4000-8000-000000000020",
+          partyKind: "organization",
+          requisiteId: "00000000-0000-4000-8000-000000000021",
+          role: "treasury_hub",
+          sequence: 2,
+        },
+        {
+          code: "beneficiary",
+          displayNameSnapshot: "Beneficiary",
+          metadata: {},
+          partyId: "00000000-0000-4000-8000-000000000005",
+          partyKind: "counterparty",
+          requisiteId: null,
+          role: "destination_beneficiary",
+          sequence: 3,
+        },
+      ],
+    });
+  });
+
+  it("applies a published route template to a writable deal", async () => {
+    const { app, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      status: "submitted" as const,
+    };
+    const route = createDealRouteVersion();
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.commands.applyRouteTemplate.mockResolvedValue(route);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/route/apply-template`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          templateId: "00000000-0000-4000-8000-000000000090",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.applyRouteTemplate).toHaveBeenCalledWith({
+      dealId: detail.id,
+      templateId: "00000000-0000-4000-8000-000000000090",
     });
   });
 
@@ -1250,6 +1850,8 @@ describe("deals routes", () => {
         baseCurrencyId: "00000000-0000-4000-8000-000000000302",
         totalFeeAmountInBaseMinor: "90",
         totalInBaseMinor: "9000",
+        dealId: detail.id,
+        dealSnapshot: null,
         additionalExpensesCurrencyId: "00000000-0000-4000-8000-000000000302",
         additionalExpensesAmountMinor: "50",
         additionalExpensesInBaseMinor: "50",
@@ -1258,10 +1860,13 @@ describe("deals routes", () => {
         pricingProvenance: null,
         quoteMarkupAmountMinor: "0",
         quoteMarkupBps: "0",
+        routeVersionId: null,
+        routeSnapshot: null,
         referenceRateAsOf: null,
         referenceRateSource: null,
         referenceRateNum: null,
         referenceRateDen: null,
+        state: "accepted" as const,
         totalWithExpensesInBaseMinor: "9140",
         rateSource: "fx_quote",
         rateNum: "9",
@@ -1305,6 +1910,462 @@ describe("deals routes", () => {
     });
   });
 
+  it("creates a route-based calculation with agreement defaults and links it to the deal", async () => {
+    const {
+      app,
+      agreementsModule,
+      calculationsModule,
+      currenciesService,
+      dealsModule,
+    } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      calculationId: null,
+      status: "submitted" as const,
+    };
+    const workflow = createWorkflowProjection();
+    const route = createRouteEstimateVersion();
+    const createdCalculation = createCalculationDetails();
+
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.queries.findWorkflowById.mockResolvedValue(workflow);
+    dealsModule.deals.queries.findCurrentRouteByDealId.mockResolvedValue(route);
+    agreementsModule.agreements.queries.resolveRouteDefaults.mockResolvedValue({
+      agreementId: workflow.summary.agreementId,
+      agreementVersionId: "00000000-0000-4000-8000-000000000011",
+      policy: {
+        defaultMarkupBps: "150",
+        defaultSubAgentCommissionAmountMinor: "50",
+        defaultSubAgentCommissionBps: null,
+        defaultSubAgentCommissionCurrencyId:
+          "00000000-0000-4000-8000-000000000007",
+        defaultSubAgentCommissionUnit: "money",
+        defaultWireFeeAmountMinor: "20",
+        defaultWireFeeCurrencyId: "00000000-0000-4000-8000-000000000007",
+      },
+    });
+    currenciesService.findById.mockResolvedValue({ precision: 2 });
+    calculationsModule.calculations.commands.create.mockResolvedValue(
+      createdCalculation,
+    );
+    dealsModule.deals.commands.linkCalculation.mockResolvedValue(workflow);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/from-route`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "from-route-1",
+        },
+        body: JSON.stringify({
+          rateNum: "1",
+          rateDen: "2",
+          totalInBaseMinor: "5000",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      agreementsModule.agreements.queries.resolveRouteDefaults,
+    ).toHaveBeenCalledWith({
+      agreementId: workflow.summary.agreementId,
+      dealType: "payment",
+      sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
+      targetCurrencyId: null,
+    });
+    expect(calculationsModule.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        agreementVersionId: "00000000-0000-4000-8000-000000000011",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000007",
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000006",
+        dealId: detail.id,
+        expenseAmountInBaseMinor: "70",
+        grossRevenueInBaseMinor: "75",
+        idempotencyKey: "from-route-1",
+        netMarginInBaseMinor: "5",
+        passThroughAmountInBaseMinor: "10",
+        quoteMarkupAmountMinor: "150",
+        quoteMarkupBps: "150",
+        rateDen: "2",
+        rateNum: "1",
+        rateSource: "manual",
+        routeVersionId: route.id,
+        state: "draft",
+        totalFeeAmountInBaseMinor: "75",
+        totalFeeAmountMinor: "150",
+        totalInBaseMinor: "5000",
+        totalWithExpensesInBaseMinor: "5085",
+      }),
+    );
+    expect(calculationsModule.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        financialLines: expect.arrayContaining([
+          expect.objectContaining({
+            componentCode: "client_markup",
+            kind: "spread_revenue",
+            sourceKind: "agreement",
+          }),
+          expect.objectContaining({
+            componentCode: "wire_fee",
+            kind: "provider_fee_expense",
+            sourceKind: "agreement",
+          }),
+          expect.objectContaining({
+            componentCode: "subagent_commission",
+            kind: "provider_fee_expense",
+            sourceKind: "agreement",
+          }),
+          expect.objectContaining({
+            componentCode: "network_fee",
+            kind: "pass_through",
+            sourceKind: "system",
+          }),
+        ]),
+      }),
+    );
+    expect(dealsModule.deals.commands.linkCalculation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      calculationId: createdCalculation.id,
+      dealId: detail.id,
+      sourceQuoteId: null,
+    });
+  });
+
+  it("creates a route-based calculation from quote provenance and links it to the deal", async () => {
+    const {
+      app,
+      agreementsModule,
+      calculationsModule,
+      currenciesService,
+      dealsModule,
+      treasuryModule,
+    } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      calculationId: null,
+      status: "submitted" as const,
+    };
+    const workflow = createWorkflowProjection();
+    const route = createRouteEstimateVersion();
+    const createdCalculation = createCalculationDetails({
+      currentSnapshot: {
+        fxQuoteId: "00000000-0000-4000-8000-000000000210",
+        quoteSnapshot: { quote: { id: "00000000-0000-4000-8000-000000000210" } },
+        rateSource: "fx_quote",
+      },
+    });
+
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.queries.findWorkflowById.mockResolvedValue(workflow);
+    dealsModule.deals.queries.findCurrentRouteByDealId.mockResolvedValue(route);
+    agreementsModule.agreements.queries.resolveRouteDefaults.mockResolvedValue({
+      agreementId: workflow.summary.agreementId,
+      agreementVersionId: "00000000-0000-4000-8000-000000000011",
+      policy: null,
+    });
+    currenciesService.findById.mockResolvedValue({ precision: 2 });
+    treasuryModule.quotes.queries.getQuoteDetails.mockResolvedValue({
+      quote: {
+        id: "00000000-0000-4000-8000-000000000210",
+        fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+        toCurrencyId: "00000000-0000-4000-8000-000000000007",
+        fromCurrency: "RUB",
+        toCurrency: "USD",
+        fromAmountMinor: 10000n,
+        toAmountMinor: 5000n,
+        pricingMode: "explicit_route",
+        pricingTrace: {},
+        commercialTerms: null,
+        dealDirection: null,
+        dealForm: null,
+        rateNum: 1n,
+        rateDen: 2n,
+        status: "active",
+        dealId: null,
+        usedByRef: null,
+        usedDocumentId: null,
+        usedAt: null,
+        expiresAt: new Date("2026-04-15T00:00:00.000Z"),
+        idempotencyKey: "quote-1",
+        createdAt: new Date("2026-04-14T10:00:00.000Z"),
+      },
+      legs: [],
+      feeComponents: [],
+      financialLines: [],
+      pricingTrace: {},
+    });
+    calculationsModule.calculations.commands.create.mockResolvedValue(
+      createdCalculation,
+    );
+    dealsModule.deals.commands.linkCalculation.mockResolvedValue(workflow);
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/from-route`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "from-route-quote-1",
+        },
+        body: JSON.stringify({
+          quoteId: "00000000-0000-4000-8000-000000000210",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      treasuryModule.quotes.queries.getQuoteDetails,
+    ).toHaveBeenCalledWith({
+      quoteRef: "00000000-0000-4000-8000-000000000210",
+    });
+    expect(calculationsModule.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        fxQuoteId: "00000000-0000-4000-8000-000000000210",
+        idempotencyKey: "from-route-quote-1",
+        quoteSnapshot: expect.objectContaining({
+          quote: expect.objectContaining({
+            id: "00000000-0000-4000-8000-000000000210",
+            rateNum: "1",
+            rateDen: "2",
+          }),
+        }),
+        rateSource: "fx_quote",
+        totalInBaseMinor: "5000",
+      }),
+    );
+    expect(dealsModule.deals.commands.linkCalculation).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      calculationId: createdCalculation.id,
+      dealId: detail.id,
+      sourceQuoteId: "00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("compares current and previous calculations for a deal by default", async () => {
+    const { app, calculationsModule, dealsModule } = createTestApp();
+    const detail = {
+      ...createDealDetail(),
+      calculationId: "00000000-0000-4000-8000-000000000701",
+    };
+    const left = createCalculationDetails({
+      calculationId: "00000000-0000-4000-8000-000000000701",
+    });
+    const right = createCalculationDetails({
+      calculationId: "00000000-0000-4000-8000-000000000702",
+      currentSnapshot: {
+        expenseAmountInBaseMinor: "60",
+        grossRevenueInBaseMinor: "70",
+        netMarginInBaseMinor: "10",
+        passThroughAmountInBaseMinor: "12",
+        totalInBaseMinor: "4900",
+        totalWithExpensesInBaseMinor: "4982",
+      },
+    });
+
+    dealsModule.deals.queries.findById.mockResolvedValue(detail);
+    dealsModule.deals.queries.listCalculationHistory.mockResolvedValue([
+      {
+        calculationId: left.id,
+        calculationTimestamp: left.currentSnapshot.calculationTimestamp,
+        createdAt: left.createdAt,
+        calculationCurrencyId: left.currentSnapshot.calculationCurrencyId,
+        baseCurrencyId: left.currentSnapshot.baseCurrencyId,
+        originalAmountMinor: left.currentSnapshot.originalAmountMinor,
+        totalFeeAmountMinor: left.currentSnapshot.totalFeeAmountMinor,
+        totalAmountMinor: left.currentSnapshot.totalAmountMinor,
+        totalInBaseMinor: left.currentSnapshot.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          left.currentSnapshot.totalWithExpensesInBaseMinor,
+        rateNum: left.currentSnapshot.rateNum,
+        rateDen: left.currentSnapshot.rateDen,
+        fxQuoteId: left.currentSnapshot.fxQuoteId,
+        sourceQuoteId: left.currentSnapshot.fxQuoteId,
+      },
+      {
+        calculationId: right.id,
+        calculationTimestamp: right.currentSnapshot.calculationTimestamp,
+        createdAt: right.createdAt,
+        calculationCurrencyId: right.currentSnapshot.calculationCurrencyId,
+        baseCurrencyId: right.currentSnapshot.baseCurrencyId,
+        originalAmountMinor: right.currentSnapshot.originalAmountMinor,
+        totalFeeAmountMinor: right.currentSnapshot.totalFeeAmountMinor,
+        totalAmountMinor: right.currentSnapshot.totalAmountMinor,
+        totalInBaseMinor: right.currentSnapshot.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          right.currentSnapshot.totalWithExpensesInBaseMinor,
+        rateNum: right.currentSnapshot.rateNum,
+        rateDen: right.currentSnapshot.rateDen,
+        fxQuoteId: right.currentSnapshot.fxQuoteId,
+        sourceQuoteId: right.currentSnapshot.fxQuoteId,
+      },
+    ]);
+    calculationsModule.calculations.queries.compare.mockResolvedValue({
+      left,
+      right,
+      lineDiffs: [],
+      totals: {
+        expenseAmountInBaseMinor: {
+          deltaMinor: "10",
+          leftMinor: "70",
+          rightMinor: "60",
+        },
+        grossRevenueInBaseMinor: {
+          deltaMinor: "5",
+          leftMinor: "75",
+          rightMinor: "70",
+        },
+        netMarginInBaseMinor: {
+          deltaMinor: "-5",
+          leftMinor: "5",
+          rightMinor: "10",
+        },
+        passThroughAmountInBaseMinor: {
+          deltaMinor: "-2",
+          leftMinor: "10",
+          rightMinor: "12",
+        },
+        totalInBaseMinor: {
+          deltaMinor: "100",
+          leftMinor: "5000",
+          rightMinor: "4900",
+        },
+        totalWithExpensesInBaseMinor: {
+          deltaMinor: "103",
+          leftMinor: "5085",
+          rightMinor: "4982",
+        },
+      },
+    });
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/compare`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(calculationsModule.calculations.queries.compare).toHaveBeenCalledWith(
+      {
+        leftCalculationId: left.id,
+        rightCalculationId: right.id,
+      },
+    );
+  });
+
+  it("reads a deal-linked calculation through the rooted route", async () => {
+    const { app, calculationsModule, dealsModule } = createTestApp();
+    const detail = createDealDetail();
+    const calculation = createCalculationDetails({
+      calculationId: "00000000-0000-4000-8000-000000000710",
+    });
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...detail,
+      calculationId: calculation.id,
+    });
+    dealsModule.deals.queries.listCalculationHistory.mockResolvedValue([
+      {
+        calculationId: calculation.id,
+        calculationTimestamp: calculation.currentSnapshot.calculationTimestamp,
+        createdAt: calculation.createdAt,
+        calculationCurrencyId: calculation.currentSnapshot.calculationCurrencyId,
+        baseCurrencyId: calculation.currentSnapshot.baseCurrencyId,
+        originalAmountMinor: calculation.currentSnapshot.originalAmountMinor,
+        totalFeeAmountMinor: calculation.currentSnapshot.totalFeeAmountMinor,
+        totalAmountMinor: calculation.currentSnapshot.totalAmountMinor,
+        totalInBaseMinor: calculation.currentSnapshot.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          calculation.currentSnapshot.totalWithExpensesInBaseMinor,
+        rateNum: calculation.currentSnapshot.rateNum,
+        rateDen: calculation.currentSnapshot.rateDen,
+        fxQuoteId: calculation.currentSnapshot.fxQuoteId,
+        sourceQuoteId: calculation.currentSnapshot.fxQuoteId,
+      },
+    ]);
+    calculationsModule.calculations.queries.findById.mockResolvedValue(
+      calculation,
+    );
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/${calculation.id}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(calculationsModule.calculations.queries.findById).toHaveBeenCalledWith(
+      calculation.id,
+    );
+  });
+
+  it("exports a deal-linked calculation through the rooted route", async () => {
+    const {
+      app,
+      calculationsModule,
+      currenciesService,
+      dealsModule,
+      documentGenerationWorkflow,
+    } = createTestApp();
+    const detail = createDealDetail();
+    const calculation = createCalculationDetails({
+      calculationId: "00000000-0000-4000-8000-000000000711",
+    });
+
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...detail,
+      calculationId: calculation.id,
+    });
+    dealsModule.deals.queries.listCalculationHistory.mockResolvedValue([
+      {
+        calculationId: calculation.id,
+        calculationTimestamp: calculation.currentSnapshot.calculationTimestamp,
+        createdAt: calculation.createdAt,
+        calculationCurrencyId: calculation.currentSnapshot.calculationCurrencyId,
+        baseCurrencyId: calculation.currentSnapshot.baseCurrencyId,
+        originalAmountMinor: calculation.currentSnapshot.originalAmountMinor,
+        totalFeeAmountMinor: calculation.currentSnapshot.totalFeeAmountMinor,
+        totalAmountMinor: calculation.currentSnapshot.totalAmountMinor,
+        totalInBaseMinor: calculation.currentSnapshot.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          calculation.currentSnapshot.totalWithExpensesInBaseMinor,
+        rateNum: calculation.currentSnapshot.rateNum,
+        rateDen: calculation.currentSnapshot.rateDen,
+        fxQuoteId: calculation.currentSnapshot.fxQuoteId,
+        sourceQuoteId: calculation.currentSnapshot.fxQuoteId,
+      },
+    ]);
+    calculationsModule.calculations.queries.findById.mockResolvedValue(
+      calculation,
+    );
+    currenciesService.findById.mockImplementation(async (currencyId: string) => ({
+      code: currencyId.endsWith("6") ? "USD" : "RUB",
+      id: currencyId,
+      precision: 2,
+    }));
+    documentGenerationWorkflow.generateCalculation.mockResolvedValue({
+      buffer: Buffer.from("calculation-export"),
+      fileName: "calculation.pdf",
+      mimeType: "application/pdf",
+    });
+
+    const response = await app.request(
+      `http://localhost/deals/${detail.id}/calculations/${calculation.id}/export?format=pdf&lang=ru`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      documentGenerationWorkflow.generateCalculation,
+    ).toHaveBeenCalledWith({
+      calculationData: expect.objectContaining({
+        id: calculation.id,
+      }),
+      format: "pdf",
+      lang: "ru",
+    });
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+  });
+
   it("imports a historical calculation and links it directly to the deal", async () => {
     const { app, calculationsModule, dealsModule } = createTestApp();
     const detail = createDealDetail();
@@ -1326,6 +2387,8 @@ describe("deals routes", () => {
         baseCurrencyId: "00000000-0000-4000-8000-000000000302",
         totalFeeAmountInBaseMinor: "135",
         totalInBaseMinor: "9000",
+        dealId: detail.id,
+        dealSnapshot: null,
         additionalExpensesCurrencyId: null,
         additionalExpensesAmountMinor: "0",
         additionalExpensesInBaseMinor: "0",
@@ -1333,11 +2396,14 @@ describe("deals routes", () => {
         fixedFeeCurrencyId: null,
         quoteMarkupBps: "50",
         quoteMarkupAmountMinor: "50",
+        routeVersionId: null,
+        routeSnapshot: null,
         referenceRateSource: "manual",
         referenceRateNum: "9",
         referenceRateDen: "10",
         referenceRateAsOf: new Date("2026-03-01T00:00:00.000Z"),
         pricingProvenance: { source: "historical_import" },
+        state: "draft" as const,
         totalWithExpensesInBaseMinor: "9135",
         rateSource: "manual",
         rateNum: "9",

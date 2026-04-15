@@ -8,12 +8,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "rm -rf .next/dev/types && tsgo --noEmit",
+    "check-types": "rm -rf .next .next/dev/types && tsgo --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
+    "@bedrock/deals": "workspace:*",
     "@bedrock/sdk-api-client": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",

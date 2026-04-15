@@ -1,44 +1,28 @@
 import { ExecutionPlanCard } from "./execution-plan-card";
 import { OperationalStateCard } from "./operational-state-card";
 import type {
-  ApiDealOperationalState,
-  ApiDealSectionCompleteness,
-  ApiDealTransitionReadiness,
-  ApiDealWorkflowLeg,
-  DealLegState,
+  ApiCrmDealWorkbenchProjection,
   DealStatus,
 } from "./types";
 
 type DealExecutionTabProps = {
-  executionPlan: ApiDealWorkflowLeg[];
-  isUpdatingLegKey: string | null;
   onBlockedTransitionClick: (status: DealStatus) => void;
-  onUpdateLegState: (idx: number, state: DealLegState) => void;
-  operationalState: ApiDealOperationalState;
-  sectionCompleteness: ApiDealSectionCompleteness[];
-  transitionReadiness: ApiDealTransitionReadiness[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 export function DealExecutionTab({
-  executionPlan,
-  isUpdatingLegKey,
   onBlockedTransitionClick,
-  onUpdateLegState,
-  operationalState,
-  sectionCompleteness,
-  transitionReadiness,
+  workbench,
 }: DealExecutionTabProps) {
   return (
     <div className="space-y-6">
       <ExecutionPlanCard
-        executionPlan={executionPlan}
-        isUpdatingLegKey={isUpdatingLegKey}
+        executionPlan={workbench.executionPlan}
         onBlockedTransitionClick={onBlockedTransitionClick}
-        onUpdateLegState={onUpdateLegState}
-        sectionCompleteness={sectionCompleteness}
-        transitionReadiness={transitionReadiness}
+        sectionCompleteness={workbench.sectionCompleteness}
+        transitionReadiness={workbench.transitionReadiness}
       />
-      <OperationalStateCard operationalState={operationalState} />
+      <OperationalStateCard operationalState={workbench.operationalState} />
     </div>
   );
 }

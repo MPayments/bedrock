@@ -8,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  text,
   timestamp,
   uniqueIndex,
   uuid,
@@ -18,8 +19,13 @@ import { currencies } from "@bedrock/currencies/schema";
 import { fxQuotes } from "@bedrock/treasury/schema";
 
 import {
+  CALCULATION_COMPONENT_BASIS_TYPE_VALUES,
+  CALCULATION_COMPONENT_CLASSIFICATION_VALUES,
+  CALCULATION_COMPONENT_FORMULA_TYPE_VALUES,
   CALCULATION_LINE_KIND_VALUES,
+  CALCULATION_LINE_SOURCE_KIND_VALUES,
   CALCULATION_RATE_SOURCE_VALUES,
+  CALCULATION_STATE_VALUES,
 } from "../../domain/constants";
 
 export const calculationRateSourceEnum = pgEnum(
@@ -29,6 +35,26 @@ export const calculationRateSourceEnum = pgEnum(
 export const calculationLineKindEnum = pgEnum(
   "calculation_line_kind",
   CALCULATION_LINE_KIND_VALUES,
+);
+export const calculationStateEnum = pgEnum(
+  "calculation_state",
+  CALCULATION_STATE_VALUES,
+);
+export const calculationLineSourceKindEnum = pgEnum(
+  "calculation_line_source_kind",
+  CALCULATION_LINE_SOURCE_KIND_VALUES,
+);
+export const calculationComponentClassificationEnum = pgEnum(
+  "calculation_component_classification",
+  CALCULATION_COMPONENT_CLASSIFICATION_VALUES,
+);
+export const calculationComponentFormulaTypeEnum = pgEnum(
+  "calculation_component_formula_type",
+  CALCULATION_COMPONENT_FORMULA_TYPE_VALUES,
+);
+export const calculationComponentBasisTypeEnum = pgEnum(
+  "calculation_component_basis_type",
+  CALCULATION_COMPONENT_BASIS_TYPE_VALUES,
 );
 
 export const calculations = pgTable(
@@ -95,6 +121,8 @@ export const calculationSnapshots = pgTable(
     totalInBaseMinor: bigint("total_in_base_minor", {
       mode: "bigint",
     }).notNull(),
+    dealId: uuid("deal_id"),
+    dealSnapshot: jsonb("deal_snapshot").$type<Record<string, unknown> | null>(),
     additionalExpensesCurrencyId: uuid("additional_expenses_currency_id").references(
       () => currencies.id,
     ),
@@ -118,6 +146,10 @@ export const calculationSnapshots = pgTable(
     })
       .notNull()
       .default(sql`0`),
+    routeVersionId: uuid("route_version_id"),
+    routeSnapshot: jsonb("route_snapshot").$type<
+      Record<string, unknown> | null
+    >(),
     referenceRateSource: calculationRateSourceEnum("reference_rate_source"),
     referenceRateNum: bigint("reference_rate_num", { mode: "bigint" }),
     referenceRateDen: bigint("reference_rate_den", { mode: "bigint" }),
@@ -127,6 +159,26 @@ export const calculationSnapshots = pgTable(
     pricingProvenance: jsonb("pricing_provenance").$type<
       Record<string, unknown> | null
     >(),
+    grossRevenueInBaseMinor: bigint("gross_revenue_in_base_minor", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`0`),
+    expenseAmountInBaseMinor: bigint("expense_amount_in_base_minor", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`0`),
+    passThroughAmountInBaseMinor: bigint("pass_through_amount_in_base_minor", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`0`),
+    netMarginInBaseMinor: bigint("net_margin_in_base_minor", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`0`),
     totalWithExpensesInBaseMinor: bigint(
       "total_with_expenses_in_base_minor",
       {
@@ -150,6 +202,7 @@ export const calculationSnapshots = pgTable(
     }).notNull(),
     fxQuoteId: uuid("fx_quote_id").references(() => fxQuotes.id),
     quoteSnapshot: jsonb("quote_snapshot").$type<Record<string, unknown> | null>(),
+    state: calculationStateEnum("state").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -164,7 +217,10 @@ export const calculationSnapshots = pgTable(
       table.snapshotNumber,
     ),
     index("calculation_snapshots_calc_idx").on(table.calculationId),
+    index("calculation_snapshots_deal_idx").on(table.dealId, table.createdAt),
     index("calculation_snapshots_fx_quote_idx").on(table.fxQuoteId),
+    index("calculation_snapshots_route_version_idx").on(table.routeVersionId),
+    index("calculation_snapshots_state_idx").on(table.state, table.createdAt),
     check(
       "calculation_snapshots_rate_positive_chk",
       sql`${table.rateNum} > 0 and ${table.rateDen} > 0`,
@@ -244,12 +300,33 @@ export const calculationLines = pgTable(
     calculationSnapshotId: uuid("calculation_snapshot_id")
       .notNull()
       .references(() => calculationSnapshots.id, { onDelete: "cascade" }),
+    dealId: uuid("deal_id"),
+    routeVersionId: uuid("route_version_id"),
+    routeLegId: uuid("route_leg_id"),
+    routeComponentId: uuid("route_component_id"),
+    componentCode: text("component_code"),
+    componentFamily: text("component_family"),
+    classification: calculationComponentClassificationEnum("classification"),
     idx: integer("idx").notNull(),
     kind: calculationLineKindEnum("kind").notNull(),
+    formulaType: calculationComponentFormulaTypeEnum("formula_type"),
+    basisType: calculationComponentBasisTypeEnum("basis_type"),
     currencyId: uuid("currency_id")
       .notNull()
       .references(() => currencies.id),
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    basisAmountMinor: bigint("basis_amount_minor", { mode: "bigint" }),
+    inputBps: text("input_bps"),
+    inputFixedAmountMinor: bigint("input_fixed_amount_minor", {
+      mode: "bigint",
+    }),
+    inputPerMillion: text("input_per_million"),
+    inputManualAmountMinor: bigint("input_manual_amount_minor", {
+      mode: "bigint",
+    }),
+    sourceKind: calculationLineSourceKindEnum("source_kind")
+      .notNull()
+      .default("system"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -264,6 +341,9 @@ export const calculationLines = pgTable(
       table.idx,
     ),
     index("calculation_lines_snapshot_idx").on(table.calculationSnapshotId),
+    index("calculation_lines_deal_idx").on(table.dealId, table.idx),
+    index("calculation_lines_route_version_idx").on(table.routeVersionId, table.idx),
+    index("calculation_lines_route_leg_idx").on(table.routeLegId, table.idx),
   ],
 );
 

@@ -5,6 +5,8 @@ import type { Queryable } from "@bedrock/platform/persistence";
 import {
   agreementFeeRules,
   agreementParties,
+  agreementRoutePolicies,
+  agreementRouteTemplateLinks,
   agreements,
   agreementVersions,
 } from "./schema";
@@ -13,10 +15,14 @@ import type {
   CreateAgreementFeeRuleStoredInput,
   CreateAgreementPartyStoredInput,
   CreateAgreementRootInput,
+  CreateAgreementRoutePolicyStoredInput,
+  CreateAgreementRouteTemplateLinkStoredInput,
   CreateAgreementVersionInput,
   StoredAgreementFeeRule,
   StoredAgreementParty,
   StoredAgreementRoot,
+  StoredAgreementRoutePolicy,
+  StoredAgreementRouteTemplateLink,
   StoredAgreementVersion,
 } from "../../application/ports/agreement.store";
 
@@ -96,6 +102,69 @@ export class DrizzleAgreementStore implements AgreementStore {
           partyRole: row.partyRole,
           customerId: row.customerId,
           organizationId: row.organizationId,
+        })),
+      )
+      .returning();
+  }
+
+  async createAgreementRoutePolicies(
+    input: CreateAgreementRoutePolicyStoredInput[],
+  ): Promise<StoredAgreementRoutePolicy[]> {
+    if (input.length === 0) {
+      return [];
+    }
+
+    return this.db
+      .insert(agreementRoutePolicies)
+      .values(
+        input.map((row) => ({
+          id: row.id,
+          agreementVersionId: row.agreementVersionId,
+          sequence: row.sequence,
+          dealType: row.dealType,
+          sourceCurrencyId: row.sourceCurrencyId,
+          targetCurrencyId: row.targetCurrencyId,
+          defaultMarkupBps: row.defaultMarkupBps,
+          defaultWireFeeAmountMinor:
+            row.defaultWireFeeAmountMinor === null
+              ? null
+              : BigInt(row.defaultWireFeeAmountMinor),
+          defaultWireFeeCurrencyId: row.defaultWireFeeCurrencyId,
+          defaultSubAgentCommissionUnit: row.defaultSubAgentCommissionUnit,
+          defaultSubAgentCommissionBps: row.defaultSubAgentCommissionBps,
+          defaultSubAgentCommissionAmountMinor:
+            row.defaultSubAgentCommissionAmountMinor === null
+              ? null
+              : BigInt(row.defaultSubAgentCommissionAmountMinor),
+          defaultSubAgentCommissionCurrencyId:
+            row.defaultSubAgentCommissionCurrencyId,
+          approvalThresholdAmountMinor:
+            row.approvalThresholdAmountMinor === null
+              ? null
+              : BigInt(row.approvalThresholdAmountMinor),
+          approvalThresholdCurrencyId: row.approvalThresholdCurrencyId,
+          quoteValiditySeconds: row.quoteValiditySeconds,
+        })),
+      )
+      .returning();
+  }
+
+  async createAgreementRouteTemplateLinks(
+    input: CreateAgreementRouteTemplateLinkStoredInput[],
+  ): Promise<StoredAgreementRouteTemplateLink[]> {
+    if (input.length === 0) {
+      return [];
+    }
+
+    return this.db
+      .insert(agreementRouteTemplateLinks)
+      .values(
+        input.map((row) => ({
+          id: row.id,
+          agreementRoutePolicyId: row.agreementRoutePolicyId,
+          routeTemplateId: row.routeTemplateId,
+          sequence: row.sequence,
+          isDefault: row.isDefault,
         })),
       )
       .returning();

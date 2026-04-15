@@ -3,7 +3,6 @@ export { accountingRoutes } from "./accounting";
 export { activityRoutes } from "./activity";
 export { agentsRoutes } from "./agents";
 export { balancesRoutes } from "./balances";
-export { calculationsRoutes } from "./calculations";
 export { counterpartiesRoutes } from "./counterparties";
 export { counterpartyGroupsRoutes } from "./counterparty-groups";
 export { customerRoutes } from "./customer";
@@ -13,12 +12,15 @@ export { dealsRoutes } from "./deals";
 export { documentsRoutes } from "./documents";
 export { counterpartyDirectoryRoutes } from "./counterparty-directory";
 export { organizationsRoutes } from "./organizations";
+export { participantsRoutes } from "./participants";
 export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";
+export { routeComposerRoutes } from "./route-composer";
 export { subAgentProfilesRoutes } from "./sub-agent-profiles";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
+export { treasuryOperationFactsRoutes } from "./treasury-operation-facts";
 export {
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,

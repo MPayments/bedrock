@@ -116,3 +116,33 @@ export class DealLegStateTransitionError extends InvalidStateError {
     };
   }
 }
+
+export class DealRouteValidationError extends InvalidStateError {
+  readonly code = "deal.route_invalid";
+
+  constructor(
+    dealId: string,
+    readonly issues: {
+      code: string;
+      message: string;
+      path: string | null;
+      severity: "error" | "warning";
+    }[],
+  ) {
+    super(`Deal route for ${dealId} is invalid`);
+  }
+}
+
+export class DealRouteTemplateNotFoundError extends NotFoundError {
+  constructor(id: string) {
+    super("Deal route template", id);
+  }
+}
+
+export class DealRouteTemplateStateError extends InvalidStateError {
+  constructor(templateId: string, status: string, action: string) {
+    super(
+      `Deal route template ${templateId} cannot ${action} while in status ${status}`,
+    );
+  }
+}

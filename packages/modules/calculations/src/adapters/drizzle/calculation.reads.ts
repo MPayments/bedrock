@@ -41,6 +41,8 @@ const calculationSelect = {
   baseCurrencyId: calculationSnapshots.baseCurrencyId,
   totalFeeAmountInBaseMinor: calculationSnapshots.totalFeeAmountInBaseMinor,
   totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
+  dealId: calculationSnapshots.dealId,
+  dealSnapshot: calculationSnapshots.dealSnapshot,
   additionalExpensesCurrencyId:
     calculationSnapshots.additionalExpensesCurrencyId,
   additionalExpensesAmountMinor:
@@ -51,6 +53,13 @@ const calculationSelect = {
   fixedFeeCurrencyId: calculationSnapshots.fixedFeeCurrencyId,
   quoteMarkupBps: calculationSnapshots.quoteMarkupBps,
   quoteMarkupAmountMinor: calculationSnapshots.quoteMarkupAmountMinor,
+  grossRevenueInBaseMinor: calculationSnapshots.grossRevenueInBaseMinor,
+  expenseAmountInBaseMinor: calculationSnapshots.expenseAmountInBaseMinor,
+  passThroughAmountInBaseMinor:
+    calculationSnapshots.passThroughAmountInBaseMinor,
+  netMarginInBaseMinor: calculationSnapshots.netMarginInBaseMinor,
+  routeVersionId: calculationSnapshots.routeVersionId,
+  routeSnapshot: calculationSnapshots.routeSnapshot,
   referenceRateSource: calculationSnapshots.referenceRateSource,
   referenceRateNum: calculationSnapshots.referenceRateNum,
   referenceRateDen: calculationSnapshots.referenceRateDen,
@@ -68,6 +77,7 @@ const calculationSelect = {
   calculationTimestamp: calculationSnapshots.calculationTimestamp,
   fxQuoteId: calculationSnapshots.fxQuoteId,
   quoteSnapshot: calculationSnapshots.quoteSnapshot,
+  state: calculationSnapshots.state,
   snapshotCreatedAt: calculationSnapshots.createdAt,
   snapshotUpdatedAt: calculationSnapshots.updatedAt,
 };
@@ -90,6 +100,8 @@ interface CalculationRow {
   baseCurrencyId: string;
   totalFeeAmountInBaseMinor: bigint;
   totalInBaseMinor: bigint;
+  dealId: string | null;
+  dealSnapshot: Record<string, unknown> | null;
   additionalExpensesCurrencyId: string | null;
   additionalExpensesAmountMinor: bigint;
   additionalExpensesInBaseMinor: bigint;
@@ -97,6 +109,12 @@ interface CalculationRow {
   fixedFeeCurrencyId: string | null;
   quoteMarkupBps: bigint;
   quoteMarkupAmountMinor: bigint;
+  grossRevenueInBaseMinor: bigint;
+  expenseAmountInBaseMinor: bigint;
+  passThroughAmountInBaseMinor: bigint;
+  netMarginInBaseMinor: bigint;
+  routeVersionId: string | null;
+  routeSnapshot: Record<string, unknown> | null;
   referenceRateSource:
     | "cbr"
     | "investing"
@@ -124,6 +142,13 @@ interface CalculationRow {
   calculationTimestamp: Date;
   fxQuoteId: string | null;
   quoteSnapshot: Record<string, unknown> | null;
+  state:
+    | "draft"
+    | "offered"
+    | "accepted"
+    | "expired"
+    | "cancelled"
+    | "superseded";
   snapshotCreatedAt: Date;
   snapshotUpdatedAt: Date;
 }
@@ -143,6 +168,8 @@ function mapSnapshot(row: CalculationRow): CalculationSnapshot {
     baseCurrencyId: row.baseCurrencyId,
     totalFeeAmountInBaseMinor: row.totalFeeAmountInBaseMinor.toString(),
     totalInBaseMinor: row.totalInBaseMinor.toString(),
+    dealId: row.dealId,
+    dealSnapshot: row.dealSnapshot,
     additionalExpensesCurrencyId: row.additionalExpensesCurrencyId,
     additionalExpensesAmountMinor: row.additionalExpensesAmountMinor.toString(),
     additionalExpensesInBaseMinor: row.additionalExpensesInBaseMinor.toString(),
@@ -150,11 +177,19 @@ function mapSnapshot(row: CalculationRow): CalculationSnapshot {
     fixedFeeCurrencyId: row.fixedFeeCurrencyId,
     quoteMarkupBps: row.quoteMarkupBps.toString(),
     quoteMarkupAmountMinor: row.quoteMarkupAmountMinor.toString(),
+    grossRevenueInBaseMinor: row.grossRevenueInBaseMinor.toString(),
+    expenseAmountInBaseMinor: row.expenseAmountInBaseMinor.toString(),
+    passThroughAmountInBaseMinor:
+      row.passThroughAmountInBaseMinor.toString(),
+    netMarginInBaseMinor: row.netMarginInBaseMinor.toString(),
+    routeVersionId: row.routeVersionId,
+    routeSnapshot: row.routeSnapshot,
     referenceRateSource: row.referenceRateSource,
     referenceRateNum: row.referenceRateNum?.toString() ?? null,
     referenceRateDen: row.referenceRateDen?.toString() ?? null,
     referenceRateAsOf: row.referenceRateAsOf,
     pricingProvenance: row.pricingProvenance,
+    state: row.state,
     totalWithExpensesInBaseMinor: row.totalWithExpensesInBaseMinor.toString(),
     rateSource: row.rateSource,
     rateNum: row.rateNum.toString(),
@@ -183,6 +218,22 @@ function mapCalculation(row: CalculationRow): Calculation {
 }
 
 function mapLineRow(row: {
+  basisAmountMinor: bigint | null;
+  basisType:
+    | "deal_source_amount"
+    | "deal_target_amount"
+    | "leg_from_amount"
+    | "leg_to_amount"
+    | "gross_revenue"
+    | null;
+  classification:
+    | "revenue"
+    | "expense"
+    | "pass_through"
+    | "adjustment"
+    | null;
+  componentCode: string | null;
+  componentFamily: string | null;
   id: string;
   idx: number;
   kind:
@@ -200,16 +251,41 @@ function mapLineRow(row: {
     | "total_in_base"
     | "total_with_expenses_in_base";
   currencyId: string;
+  dealId: string | null;
+  formulaType: "fixed" | "bps" | "per_million" | "manual" | null;
+  inputBps: string | null;
+  inputFixedAmountMinor: bigint | null;
+  inputManualAmountMinor: bigint | null;
+  inputPerMillion: string | null;
   amountMinor: bigint;
+  routeComponentId: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  sourceKind: "manual" | "agreement" | "quote" | "provider" | "system";
   createdAt: Date;
   updatedAt: Date;
 }): CalculationLine {
   return {
+    basisAmountMinor: row.basisAmountMinor?.toString() ?? null,
+    basisType: row.basisType,
+    classification: row.classification,
+    componentCode: row.componentCode,
+    componentFamily: row.componentFamily,
     id: row.id,
     idx: Number(row.idx),
     kind: row.kind,
     currencyId: row.currencyId,
+    dealId: row.dealId,
+    formulaType: row.formulaType,
+    inputBps: row.inputBps,
+    inputFixedAmountMinor: row.inputFixedAmountMinor?.toString() ?? null,
+    inputManualAmountMinor: row.inputManualAmountMinor?.toString() ?? null,
+    inputPerMillion: row.inputPerMillion,
     amountMinor: row.amountMinor.toString(),
+    routeComponentId: row.routeComponentId,
+    routeLegId: row.routeLegId,
+    routeVersionId: row.routeVersionId,
+    sourceKind: row.sourceKind,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -229,11 +305,26 @@ export class DrizzleCalculationReads implements CalculationReads {
 
     const lineRows = await this.db
       .select({
+        basisAmountMinor: calculationLines.basisAmountMinor,
+        basisType: calculationLines.basisType,
+        classification: calculationLines.classification,
+        componentCode: calculationLines.componentCode,
+        componentFamily: calculationLines.componentFamily,
         id: calculationLines.id,
         idx: calculationLines.idx,
         kind: calculationLines.kind,
         currencyId: calculationLines.currencyId,
+        dealId: calculationLines.dealId,
+        formulaType: calculationLines.formulaType,
+        inputBps: calculationLines.inputBps,
+        inputFixedAmountMinor: calculationLines.inputFixedAmountMinor,
+        inputManualAmountMinor: calculationLines.inputManualAmountMinor,
+        inputPerMillion: calculationLines.inputPerMillion,
         amountMinor: calculationLines.amountMinor,
+        routeComponentId: calculationLines.routeComponentId,
+        routeLegId: calculationLines.routeLegId,
+        routeVersionId: calculationLines.routeVersionId,
+        sourceKind: calculationLines.sourceKind,
         createdAt: calculationLines.createdAt,
         updatedAt: calculationLines.updatedAt,
       })

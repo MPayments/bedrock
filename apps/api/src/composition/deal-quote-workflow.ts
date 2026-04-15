@@ -102,6 +102,27 @@ function resolveAdditionalExpensesInBaseMinor(input: {
   );
 }
 
+function mapQuoteLineClassification(input: {
+  bucket:
+    | "adjustment"
+    | "fee_revenue"
+    | "pass_through"
+    | "provider_fee_expense"
+    | "spread_revenue";
+}) {
+  switch (input.bucket) {
+    case "fee_revenue":
+    case "spread_revenue":
+      return "revenue" as const;
+    case "provider_fee_expense":
+      return "expense" as const;
+    case "pass_through":
+      return "pass_through" as const;
+    case "adjustment":
+      return "adjustment" as const;
+  }
+}
+
 async function requireCurrentAcceptedQuote(input: {
   allowUsedDocumentId?: string | null;
   dealId: string;
@@ -175,6 +196,8 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
         quoteRef: input.quoteId,
       });
       const quote = quoteDetails.quote;
+      const currentRoute =
+        await deps.deals.deals.queries.findCurrentRouteByDealId(input.dealId);
 
       if (quote.dealId !== input.dealId) {
         throw new ValidationError(
@@ -321,9 +344,17 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
           }
 
           return {
+            classification: mapQuoteLineClassification({
+              bucket: line.bucket,
+            }),
+            componentCode: line.id,
+            componentFamily: line.bucket,
             kind: line.bucket,
             currencyId,
             amountMinor: line.amountMinor.toString(),
+            dealId: input.dealId,
+            routeVersionId: currentRoute?.id ?? null,
+            sourceKind: "quote" as const,
           };
         });
 
@@ -344,6 +375,14 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
         baseCurrencyId: quote.toCurrencyId,
         calculationCurrencyId: quote.fromCurrencyId,
         calculationTimestamp: quote.createdAt,
+        dealId: input.dealId,
+        dealSnapshot: {
+          acceptedQuote: workflow.acceptedQuote,
+          intake: workflow.intake,
+          participants: workflow.participants,
+          revision: workflow.revision,
+          summary: workflow.summary,
+        },
         fixedFeeAmountMinor: fixedFeeAmountMinor.toString(),
         fixedFeeCurrencyId,
         financialLines,
@@ -363,10 +402,13 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
             fixedFeeCurrency: commercialTerms.fixedFeeCurrency ?? null,
           },
           quoteId: quote.id,
+          routeVersionId: currentRoute?.id ?? null,
         },
         quoteMarkupAmountMinor: quoteMarkupAmountMinor.toString(),
         quoteMarkupBps: commercialTerms.quoteMarkupBps.toString(),
         quoteSnapshot: serializeQuoteDetails(quoteDetails),
+        routeSnapshot: currentRoute,
+        routeVersionId: currentRoute?.id ?? null,
         referenceRateAsOf: null,
         referenceRateDen: null,
         referenceRateNum: null,
@@ -374,6 +416,7 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
         rateDen: quote.rateDen.toString(),
         rateNum: quote.rateNum.toString(),
         rateSource: "fx_quote",
+        state: "accepted",
         totalAmountMinor: totalAmountMinor.toString(),
         totalFeeAmountInBaseMinor: totalFeeAmountInBaseMinor.toString(),
         totalFeeAmountMinor: totalFeeAmountMinor.toString(),

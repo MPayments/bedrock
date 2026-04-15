@@ -3,7 +3,15 @@ import type { Queryable } from "@bedrock/platform/persistence";
 import { DrizzleCounterpartiesQueries } from "./counterparties/adapters/drizzle/counterparties.queries";
 import { DrizzleCustomersQueries } from "./customers/adapters/drizzle/customers.queries";
 import { DrizzleOrganizationsQueries } from "./organizations/adapters/drizzle/organizations.queries";
+import { DrizzleParticipantReads } from "./participants/adapters/drizzle/participant.reads";
+import { getRouteComposerLookupContext } from "./participants/application/lookup-context";
 import { DrizzleRequisitesQueries } from "./requisites/adapters/drizzle/requisites.queries";
+import type {
+  CustomerLegalEntitiesQuery,
+  ParticipantLookupItem,
+  ParticipantLookupQuery,
+  RouteComposerLookupContext,
+} from "./participants/application/contracts";
 
 export interface PartiesQueries {
   counterparties: {
@@ -18,6 +26,14 @@ export interface PartiesQueries {
     isInternalLedgerOrganization(organizationId: string): Promise<boolean>;
     listInternalLedgerOrganizationIds(): Promise<string[]>;
     listShortNamesById(ids: string[]): Promise<Map<string, string>>;
+  };
+  participants: {
+    getLookupContext(): RouteComposerLookupContext;
+    listCustomerLegalEntities(input: {
+      customerId: string;
+      query: CustomerLegalEntitiesQuery;
+    }): Promise<ParticipantLookupItem[]>;
+    lookup(input: ParticipantLookupQuery): Promise<ParticipantLookupItem[]>;
   };
   requisites: {
     bindings: {
@@ -38,6 +54,7 @@ export function createPartiesQueries(input: {
   const customers = new DrizzleCustomersQueries(input.db as never);
   const counterparties = new DrizzleCounterpartiesQueries(input.db as never);
   const organizations = new DrizzleOrganizationsQueries(input.db as never);
+  const participants = new DrizzleParticipantReads(input.db as never);
   const requisites = new DrizzleRequisitesQueries(input.db as never);
 
   return {
@@ -62,6 +79,12 @@ export function createPartiesQueries(input: {
         organizations.listInternalLedgerOrganizationIds.bind(organizations),
       listShortNamesById:
         organizations.listShortNamesById.bind(organizations),
+    },
+    participants: {
+      getLookupContext: getRouteComposerLookupContext,
+      listCustomerLegalEntities:
+        participants.listCustomerLegalEntities.bind(participants),
+      lookup: participants.lookup.bind(participants),
     },
     requisites: {
       bindings: {

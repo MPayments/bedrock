@@ -17,7 +17,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 
-import { NewDealDialog } from "@/components/portal/new-application-dialog";
+import { NewDealDialog } from "@/components/portal/new-deal-dialog";
 import {
   hasActiveAgentAgreement,
   type PortalCustomerContext,

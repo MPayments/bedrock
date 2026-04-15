@@ -1,6 +1,11 @@
 import type {
+  CalculationComponentBasisType,
+  CalculationComponentClassification,
+  CalculationComponentFormulaType,
   CalculationLineKind,
+  CalculationLineSourceKind,
   CalculationRateSource,
+  CalculationState,
 } from "../../domain/constants";
 
 export interface CreateCalculationRootInput {
@@ -22,9 +27,12 @@ export interface CreateCalculationSnapshotInput {
   calculationCurrencyId: string;
   calculationId: string;
   calculationTimestamp: Date;
+  dealId: string | null;
+  dealSnapshot: Record<string, unknown> | null;
   fixedFeeAmountMinor: bigint;
   fixedFeeCurrencyId: string | null;
   fxQuoteId: string | null;
+  grossRevenueInBaseMinor: bigint;
   id: string;
   originalAmountMinor: bigint;
   pricingProvenance: Record<string, unknown> | null;
@@ -34,11 +42,17 @@ export interface CreateCalculationSnapshotInput {
   rateDen: bigint;
   rateNum: bigint;
   rateSource: CalculationRateSource;
+  routeSnapshot: Record<string, unknown> | null;
+  routeVersionId: string | null;
+  expenseAmountInBaseMinor: bigint;
+  netMarginInBaseMinor: bigint;
+  passThroughAmountInBaseMinor: bigint;
   referenceRateAsOf: Date | null;
   referenceRateDen: bigint | null;
   referenceRateNum: bigint | null;
   referenceRateSource: CalculationRateSource | null;
   snapshotNumber: number;
+  state: CalculationState;
   totalAmountMinor: bigint;
   totalFeeAmountInBaseMinor: bigint;
   totalFeeAmountMinor: bigint;
@@ -49,11 +63,26 @@ export interface CreateCalculationSnapshotInput {
 
 export interface CreateCalculationLineStoredInput {
   amountMinor: bigint;
+  basisAmountMinor: bigint | null;
+  basisType: CalculationComponentBasisType | null;
   calculationSnapshotId: string;
+  classification: CalculationComponentClassification | null;
+  componentCode: string | null;
+  componentFamily: string | null;
   currencyId: string;
+  dealId: string | null;
+  formulaType: CalculationComponentFormulaType | null;
   id: string;
   idx: number;
+  inputBps: string | null;
+  inputFixedAmountMinor: bigint | null;
+  inputManualAmountMinor: bigint | null;
+  inputPerMillion: string | null;
   kind: CalculationLineKind;
+  routeComponentId: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  sourceKind: CalculationLineSourceKind;
 }
 
 export interface CalculationStore {

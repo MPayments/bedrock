@@ -21,16 +21,14 @@ describe("FormalDocumentsCard", () => {
       createElement(FormalDocumentsCard, {
         documents: [
           {
-            amount: null,
             approvalStatus: "not_required",
             createdAt: "2026-04-13T10:33:00.000Z",
-            currency: null,
             docType: "acceptance",
             id: "document-1",
             lifecycleStatus: "active",
+            occurredAt: null,
             postingStatus: "not_required",
             submissionStatus: "submitted",
-            title: null,
           },
         ],
         requirements: [

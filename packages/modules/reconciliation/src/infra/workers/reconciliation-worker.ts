@@ -6,6 +6,7 @@ import {
 import {
   createPersistenceContext,
   type Database,
+  type Transaction,
 } from "@bedrock/platform/persistence";
 import type {
   BedrockWorker,
@@ -20,6 +21,7 @@ import {
 import { createReconciliationServiceContext } from "../../application/shared/context";
 import type {
   ReconciliationDocumentsPort,
+  ReconciliationExecutionFactsTxPort,
   ReconciliationLedgerLookupPort,
 } from "../../application/shared/external-ports";
 import { createReconciliationTransactions } from "../../service";
@@ -32,6 +34,7 @@ export function createReconciliationWorkerDefinition(deps: {
   documents: ReconciliationDocumentsPort;
   idempotency: IdempotencyPort;
   ledgerLookup: ReconciliationLedgerLookupPort;
+  createExecutionFacts?(tx: Transaction): ReconciliationExecutionFactsTxPort;
   logger?: Logger;
   rulesetChecksum?: string;
   beforeSource?: ReconciliationWorkerSourceGuard;
@@ -56,6 +59,7 @@ export function createReconciliationWorkerDefinition(deps: {
       runs: adapters.runsRepo,
       matches: adapters.matchesRepo,
       exceptions: adapters.exceptionsRepo,
+      createExecutionFacts: deps.createExecutionFacts,
     }),
   });
   const processPendingSources = createProcessPendingSourcesHandler(context);

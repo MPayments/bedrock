@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   AlertCircle,
+  Calculator,
   CheckCircle2,
   Clock3,
   Download,
@@ -210,7 +211,7 @@ function getCalculationDisabledReason(deal: FinanceDealWorkbench) {
   return null;
 }
 
-function formatQuoteAmountsSummary(
+export function formatQuoteAmountsSummary(
   quote: Pick<
     FinanceDealQuoteItem,
     "fromAmount" | "fromCurrency" | "toAmount" | "toCurrency"
@@ -219,7 +220,7 @@ function formatQuoteAmountsSummary(
   return `${quote.fromAmount} ${quote.fromCurrency} → ${quote.toAmount} ${quote.toCurrency}`;
 }
 
-function formatQuoteRateSummary(
+export function formatQuoteRateSummary(
   quote: Pick<
     FinanceDealQuoteItem,
     "fromCurrency" | "rateDen" | "rateNum" | "toCurrency"
@@ -278,7 +279,7 @@ function findQuoteDetailsById(
   return deal.quoteHistory.find((quote) => quote.id === quoteId) ?? null;
 }
 
-function refreshPage(router: ReturnType<typeof useRouter>) {
+export function refreshPage(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
 
@@ -1093,6 +1094,36 @@ function formatProfitabilityAmounts(
     .join(" · ");
 }
 
+function getProfitabilityCoverageLabel(value: string) {
+  switch (value) {
+    case "complete":
+      return "Факты собраны";
+    case "partial":
+      return "Факты частичные";
+    case "not_started":
+      return "Фактов нет";
+    default:
+      return value;
+  }
+}
+
+function getProfitabilityCoverageVariant(value: string) {
+  switch (value) {
+    case "complete":
+      return "default" as const;
+    case "partial":
+      return "secondary" as const;
+    case "not_started":
+      return "outline" as const;
+    default:
+      return "outline" as const;
+  }
+}
+
+function formatProfitabilityFamilyLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
 type ExecutionTabProps = {
   deal: FinanceDealWorkbench;
   executionTabReturnTo: string;
@@ -1224,6 +1255,208 @@ function ExecutionTab({
               </div>
             </div>
           </div>
+
+          {deal.profitabilityVariance ? (
+            <div className="space-y-4 rounded-lg border px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium">Plan vs Actual</div>
+                  <div className="text-sm text-muted-foreground">
+                    Снимок собирается из актуального расчета и записанных фактов
+                    исполнения.
+                  </div>
+                </div>
+                <Badge
+                  variant={getProfitabilityCoverageVariant(
+                    deal.profitabilityVariance.actualCoverage.state,
+                  )}
+                >
+                  {getProfitabilityCoverageLabel(
+                    deal.profitabilityVariance.actualCoverage.state,
+                  )}
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-lg border px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Ожидаемая чистая маржа
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatProfitabilityAmounts(
+                      deal.profitabilityVariance.expectedNetMargin,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Реализованная маржа
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatProfitabilityAmounts(
+                      deal.profitabilityVariance.realizedNetMargin,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Отклонение маржи
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatProfitabilityAmounts(
+                      deal.profitabilityVariance.netMarginVariance,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Фактические расходы
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatProfitabilityAmounts(
+                      deal.profitabilityVariance.actualExpense,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Факт pass-through
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatProfitabilityAmounts(
+                      deal.profitabilityVariance.actualPassThrough,
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Variance по семействам затрат
+                  </div>
+                  <div className="space-y-2">
+                    {deal.profitabilityVariance.varianceByCostFamily.length > 0 ? (
+                      deal.profitabilityVariance.varianceByCostFamily.map((item) => (
+                        <div
+                          key={`${item.classification}:${item.family}`}
+                          className="rounded-lg border px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="font-medium capitalize">
+                              {formatProfitabilityFamilyLabel(item.family)}
+                            </div>
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {item.classification}
+                            </div>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                            <div>
+                              <div className="text-muted-foreground">План</div>
+                              <div className="font-medium text-foreground">
+                                {formatProfitabilityAmounts(item.expected)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Факт</div>
+                              <div className="font-medium text-foreground">
+                                {formatProfitabilityAmounts(item.actual)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">
+                                Отклонение
+                              </div>
+                              <div className="font-medium text-foreground">
+                                {formatProfitabilityAmounts(item.variance)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-lg border px-4 py-3 text-sm text-muted-foreground">
+                        Фактические расходы по семействам пока не записаны.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Variance по этапам маршрута
+                  </div>
+                  <div className="space-y-2">
+                    {deal.profitabilityVariance.varianceByLeg.length > 0 ? (
+                      deal.profitabilityVariance.varianceByLeg.map((leg) => (
+                        <div
+                          key={leg.routeLegId}
+                          className="rounded-lg border px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="font-medium">
+                              Этап {leg.idx}: {leg.code}
+                            </div>
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {leg.kind}
+                            </div>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                            <div>
+                              <div className="text-muted-foreground">
+                                Из план / факт / delta
+                              </div>
+                              <div className="font-medium text-foreground">
+                                {formatProfitabilityAmounts(
+                                  leg.expectedFrom ? [leg.expectedFrom] : [],
+                                )}
+                                {" / "}
+                                {formatProfitabilityAmounts(
+                                  leg.actualFrom ? [leg.actualFrom] : [],
+                                )}
+                                {" / "}
+                                {formatProfitabilityAmounts(
+                                  leg.varianceFrom ? [leg.varianceFrom] : [],
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">
+                                В план / факт / delta
+                              </div>
+                              <div className="font-medium text-foreground">
+                                {formatProfitabilityAmounts(
+                                  leg.expectedTo ? [leg.expectedTo] : [],
+                                )}
+                                {" / "}
+                                {formatProfitabilityAmounts(
+                                  leg.actualTo ? [leg.actualTo] : [],
+                                )}
+                                {" / "}
+                                {formatProfitabilityAmounts(
+                                  leg.varianceTo ? [leg.varianceTo] : [],
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Комиссии по этапу:{" "}
+                            <span className="font-medium text-foreground">
+                              {formatProfitabilityAmounts(leg.actualFees)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-lg border px-4 py-3 text-sm text-muted-foreground">
+                        По этапам маршрута пока нет фактов исполнения.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="rounded-lg border px-4 py-4">
@@ -1968,7 +2201,45 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
 
   return (
     <>
-      <FinanceDealWorkspaceLayout title={title}>
+      <FinanceDealWorkspaceLayout
+        title={title}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${deal.summary.id}/compose`} />}
+            >
+              <Workflow className="mr-2 h-4 w-4" />
+              Маршрут
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${deal.summary.id}/calculation`} />}
+            >
+              <Calculator className="mr-2 h-4 w-4" />
+              Расчет
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${deal.summary.id}/execution`} />}
+            >
+              <ListChecks className="mr-2 h-4 w-4" />
+              Исполнение
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${deal.summary.id}/reconciliation`} />}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Сверка
+            </Button>
+          </>
+        }
+      >
         <div className="space-y-6">
           <DealExecutionHeaderSummary deal={deal} />
           <EntityWorkspaceTabs value={activeTab} tabs={workspaceTabs} />

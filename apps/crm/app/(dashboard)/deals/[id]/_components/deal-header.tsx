@@ -18,29 +18,25 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
 } from "./constants";
-import type { ApiDealTransitionReadiness, DealStatus, DealType } from "./types";
+import type { ApiCrmDealWorkbenchProjection, DealStatus } from "./types";
 
 type DealHeaderProps = {
-  applicantDisplayName: string | null;
   isUpdatingStatus: boolean;
   onBack: () => void;
   onBlockedStatusClick: (status: DealStatus) => void;
   onStatusChange: (status: DealStatus) => void;
-  status: DealStatus;
-  type: DealType;
-  transitionReadiness: ApiDealTransitionReadiness[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 export function DealHeader({
-  applicantDisplayName,
   isUpdatingStatus,
   onBack,
   onBlockedStatusClick,
   onStatusChange,
-  status,
-  type,
-  transitionReadiness,
+  workbench,
 }: DealHeaderProps) {
+  const { applicantDisplayName, status, type } = workbench.summary;
+  const { transitionReadiness } = workbench;
   const hasTransitions = transitionReadiness.length > 0;
 
   return (

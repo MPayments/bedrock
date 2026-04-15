@@ -7,11 +7,15 @@ import {
   DealTransitionBlockedError,
   type DealsModule,
 } from "@bedrock/deals";
-import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import type {
+  DealRouteVersion,
+  DealWorkflowProjection,
+} from "@bedrock/deals/contracts";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { toMinorAmountString } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
@@ -68,13 +72,18 @@ export type DealExecutionAmountRef =
   | "money_request_source";
 
 export interface CompiledDealExecutionOperation {
+  amountCurrencyId: string | null;
+  amountMinor: bigint | null;
   amountRef: DealExecutionAmountRef | null;
+  counterAmountMinor: bigint | null;
+  counterCurrencyId: string | null;
   counterAmountRef: DealExecutionAmountRef | null;
   legId: string;
   legIdx: number;
   legKind: DealWorkflowProjection["executionPlan"][number]["kind"];
   operationKind: TreasuryOperationKind;
   quoteId: string | null;
+  routeLegId: string | null;
   sourceRef: string;
 }
 
@@ -112,8 +121,24 @@ interface DealExecutionTxDeps {
   treasuryModule: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
 }
 
+type DealExecutionCalculationRecord = {
+  currentSnapshot: {
+    routeSnapshot: unknown;
+    state: string | null;
+  } | null;
+};
+
+type DealExecutionCalculationsDeps = {
+  calculations: {
+    queries: {
+      findById(id: string): Promise<DealExecutionCalculationRecord | null>;
+    };
+  };
+};
+
 export interface DealExecutionWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
+  calculations?: DealExecutionCalculationsDeps;
   currencies: Pick<CurrenciesService, "findById">;
   db: Database;
   idempotency: IdempotencyPort;
@@ -127,6 +152,25 @@ export interface DealExecutionWorkflowDeps {
     "instructions" | "operations" | "quotes"
   >;
 }
+
+type ExecutionRouteLegSnapshot = Pick<
+  DealRouteVersion["legs"][number],
+  | "code"
+  | "expectedFromAmountMinor"
+  | "expectedToAmountMinor"
+  | "fromCurrencyId"
+  | "id"
+  | "idx"
+  | "kind"
+  | "toCurrencyId"
+>;
+
+type ExecutionRouteSnapshot = {
+  id: string | null;
+  legs: readonly ExecutionRouteLegSnapshot[];
+  routeId: string | null;
+  version: number | null;
+};
 
 function resolveFundingOperationKind(input: {
   agreementOrganizationId: string | null;
@@ -153,6 +197,269 @@ function resolvePayoutAmountRef(
   }
 
   return "money_request_source";
+}
+
+function normalizeRouteSnapshotLeg(
+  value: unknown,
+): ExecutionRouteLegSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+
+  if (
+    typeof row.id !== "string" ||
+    typeof row.code !== "string" ||
+    typeof row.idx !== "number" ||
+    typeof row.kind !== "string" ||
+    typeof row.fromCurrencyId !== "string" ||
+    typeof row.toCurrencyId !== "string"
+  ) {
+    return null;
+  }
+
+  if (
+    row.kind !== "collection" &&
+    row.kind !== "intracompany_transfer" &&
+    row.kind !== "intercompany_funding" &&
+    row.kind !== "fx_conversion" &&
+    row.kind !== "payout" &&
+    row.kind !== "return" &&
+    row.kind !== "adjustment"
+  ) {
+    return null;
+  }
+
+  return {
+    code: row.code,
+    expectedFromAmountMinor:
+      typeof row.expectedFromAmountMinor === "string"
+        ? row.expectedFromAmountMinor
+        : null,
+    expectedToAmountMinor:
+      typeof row.expectedToAmountMinor === "string"
+        ? row.expectedToAmountMinor
+        : null,
+    fromCurrencyId: row.fromCurrencyId,
+    id: row.id,
+    idx: row.idx,
+    kind: row.kind,
+    toCurrencyId: row.toCurrencyId,
+  };
+}
+
+function normalizeExecutionRouteSnapshot(
+  value: unknown,
+): ExecutionRouteSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  const legs = Array.isArray(row.legs)
+    ? row.legs
+        .map((leg) => normalizeRouteSnapshotLeg(leg))
+        .filter((leg): leg is ExecutionRouteLegSnapshot => leg !== null)
+    : [];
+
+  if (legs.length === 0) {
+    return null;
+  }
+
+  return {
+    id: typeof row.id === "string" ? row.id : null,
+    legs: legs.sort((left, right) => left.idx - right.idx),
+    routeId: typeof row.routeId === "string" ? row.routeId : null,
+    version: typeof row.version === "number" ? row.version : null,
+  };
+}
+
+function routeSnapshotFromDealRoute(
+  route: DealRouteVersion | null,
+): ExecutionRouteSnapshot | null {
+  if (!route) {
+    return null;
+  }
+
+  return {
+    id: route.id,
+    legs: [...route.legs].sort((left, right) => left.idx - right.idx),
+    routeId: route.routeId,
+    version: route.version,
+  };
+}
+
+function hasRouteFxLeg(route: ExecutionRouteSnapshot) {
+  return route.legs.some((leg) => leg.kind === "fx_conversion");
+}
+
+function resolveLegacyLinkTargetForRouteLeg(input: {
+  routeLeg: ExecutionRouteLegSnapshot;
+  workflow: DealWorkflowProjection;
+}): DealWorkflowProjection["executionPlan"][number] {
+  const findByKind = (
+    kind: DealWorkflowProjection["executionPlan"][number]["kind"],
+  ) => input.workflow.executionPlan.find((leg) => leg.kind === kind) ?? null;
+
+  switch (input.routeLeg.kind) {
+    case "collection": {
+      const target = findByKind("collect");
+
+      if (!target) {
+        throw new ValidationError(
+          `Deal ${input.workflow.summary.id} is missing a collect execution leg for route leg ${input.routeLeg.id}`,
+        );
+      }
+
+      return target;
+    }
+    case "fx_conversion": {
+      const target = findByKind("convert");
+
+      if (!target) {
+        throw new ValidationError(
+          `Deal ${input.workflow.summary.id} is missing a convert execution leg for route leg ${input.routeLeg.id}`,
+        );
+      }
+
+      return target;
+    }
+    case "payout": {
+      const target = findByKind("payout");
+
+      if (!target) {
+        throw new ValidationError(
+          `Deal ${input.workflow.summary.id} is missing a payout execution leg for route leg ${input.routeLeg.id}`,
+        );
+      }
+
+      return target;
+    }
+    case "intracompany_transfer":
+    case "intercompany_funding": {
+      const target =
+        findByKind("transit_hold") ??
+        findByKind("settle_exporter") ??
+        findByKind("payout");
+
+      if (!target) {
+        throw new ValidationError(
+          `Deal ${input.workflow.summary.id} has no compatible execution leg bucket for route leg ${input.routeLeg.id}`,
+        );
+      }
+
+      return target;
+    }
+    case "return":
+    case "adjustment":
+      throw new ValidationError(
+        `Route leg kind ${input.routeLeg.kind} is not yet supported by execution materialization`,
+      );
+  }
+}
+
+function resolveRouteFallbackAmountRef(input: {
+  route: ExecutionRouteSnapshot;
+  routeLeg: ExecutionRouteLegSnapshot;
+  workflow: DealWorkflowProjection;
+}): DealExecutionAmountRef | null {
+  switch (input.routeLeg.kind) {
+    case "collection":
+      return input.workflow.summary.type === "exporter_settlement"
+        ? "incoming_receipt_expected"
+        : "money_request_source";
+    case "fx_conversion":
+      return "accepted_quote_from";
+    case "payout":
+      return resolvePayoutAmountRef(input.workflow);
+    case "intracompany_transfer":
+    case "intercompany_funding":
+      return input.workflow.summary.type === "exporter_settlement"
+        ? hasRouteFxLeg(input.route)
+          ? "accepted_quote_to"
+          : "incoming_receipt_expected"
+        : hasRouteFxLeg(input.route)
+          ? "accepted_quote_to"
+          : "money_request_source";
+    case "return":
+    case "adjustment":
+      return null;
+  }
+}
+
+function resolveRouteOperationKind(
+  routeLeg: ExecutionRouteLegSnapshot,
+): TreasuryOperationKind {
+  switch (routeLeg.kind) {
+    case "collection":
+      return "payin";
+    case "fx_conversion":
+      return "fx_conversion";
+    case "payout":
+      return "payout";
+    case "intracompany_transfer":
+      return "intracompany_transfer";
+    case "intercompany_funding":
+      return "intercompany_funding";
+    case "return":
+    case "adjustment":
+      throw new ValidationError(
+        `Route leg kind ${routeLeg.kind} is not supported by treasury operations`,
+      );
+  }
+}
+
+export function compileRouteExecutionRecipe(input: {
+  acceptedQuote: QuoteDetailsRecord | null;
+  route: ExecutionRouteSnapshot;
+  workflow: DealWorkflowProjection;
+}): CompiledDealExecutionOperation[] {
+  return input.route.legs.map((routeLeg) => {
+    const linkTarget = resolveLegacyLinkTargetForRouteLeg({
+      routeLeg,
+      workflow: input.workflow,
+    });
+    const operationKind = resolveRouteOperationKind(routeLeg);
+    const amountMinor =
+      routeLeg.expectedFromAmountMinor !== null
+        ? BigInt(routeLeg.expectedFromAmountMinor)
+        : null;
+    const counterAmountMinor =
+      routeLeg.kind === "fx_conversion" && routeLeg.expectedToAmountMinor !== null
+        ? BigInt(routeLeg.expectedToAmountMinor)
+        : null;
+
+    return {
+      amountCurrencyId: routeLeg.fromCurrencyId,
+      amountMinor,
+      amountRef:
+        amountMinor !== null
+          ? null
+          : resolveRouteFallbackAmountRef({
+              route: input.route,
+              routeLeg,
+              workflow: input.workflow,
+            }),
+      counterAmountMinor,
+      counterAmountRef:
+        routeLeg.kind === "fx_conversion" && counterAmountMinor === null
+          ? "accepted_quote_to"
+          : null,
+      counterCurrencyId:
+        routeLeg.kind === "fx_conversion" ? routeLeg.toCurrencyId : null,
+      legId: linkTarget.id ?? routeLeg.id,
+      legIdx: linkTarget.idx,
+      legKind: linkTarget.kind,
+      operationKind,
+      quoteId:
+        routeLeg.kind === "fx_conversion"
+          ? (input.acceptedQuote?.quote.id ?? null)
+          : null,
+      routeLegId: routeLeg.id,
+      sourceRef: `deal:${input.workflow.summary.id}:route-leg:${routeLeg.id}:${operationKind}:1`,
+    };
+  });
 }
 
 export function compileDealExecutionRecipe(input: {
@@ -221,13 +528,18 @@ export function compileDealExecutionRecipe(input: {
     }
 
     return {
+      amountCurrencyId: null,
+      amountMinor: null,
       amountRef,
+      counterAmountMinor: null,
+      counterCurrencyId: null,
       counterAmountRef,
       legId: leg.id,
       legIdx: leg.idx,
       legKind: leg.kind,
       operationKind,
       quoteId,
+      routeLegId: null,
       sourceRef: `deal:${input.workflow.summary.id}:leg:${leg.idx}:${operationKind}:1`,
     };
     });
@@ -441,22 +753,56 @@ async function requireInstructionForMutation(
 async function resolveRecipeContext(
   deps: DealExecutionWorkflowDeps,
   treasuryModule: Pick<TreasuryModule, "instructions" | "operations" | "quotes">,
+  dealsModule: Pick<DealsModule, "deals">,
   workflow: DealWorkflowProjection,
 ) {
-  const agreement = await deps.agreements.agreements.queries.findById(
-    workflow.summary.agreementId,
-  );
+  const acceptedCalculation =
+    deps.calculations &&
+    workflow.summary.calculationId
+      ? await deps.calculations.calculations.queries.findById(
+          workflow.summary.calculationId,
+        )
+      : null;
+  const acceptedRoute =
+    acceptedCalculation?.currentSnapshot?.state === "accepted"
+      ? normalizeExecutionRouteSnapshot(
+          acceptedCalculation.currentSnapshot?.routeSnapshot,
+        )
+      : null;
+  const currentRoute =
+    acceptedRoute ??
+    routeSnapshotFromDealRoute(
+      (await dealsModule.deals.queries.findCurrentRouteByDealId?.(
+        workflow.summary.id,
+      )) ?? null,
+    );
   const acceptedQuote =
-    workflow.executionPlan.some((leg) => leg.kind === "convert") &&
-    workflow.acceptedQuote?.quoteId
+    workflow.acceptedQuote?.quoteId &&
+    ((currentRoute && hasRouteFxLeg(currentRoute)) ||
+      workflow.executionPlan.some((leg) => leg.kind === "convert"))
       ? await treasuryModule.quotes.queries.getQuoteDetails({
           quoteRef: workflow.acceptedQuote.quoteId,
         })
       : null;
 
+  if (currentRoute) {
+    return {
+      acceptedQuote,
+      internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
+      recipe: compileRouteExecutionRecipe({
+        acceptedQuote,
+        route: currentRoute,
+        workflow,
+      }),
+    };
+  }
+
+  const agreement = await deps.agreements.agreements.queries.findById(
+    workflow.summary.agreementId,
+  );
+
   return {
     acceptedQuote,
-    agreementOrganizationId: agreement?.organizationId ?? null,
     internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
     recipe: compileDealExecutionRecipe({
       acceptedQuote,
@@ -478,20 +824,33 @@ async function materializeCompiledOperation(input: {
   treasuryModule: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
   workflow: DealWorkflowProjection;
 }) {
-  const amount = await resolveAmountRef({
-    acceptedQuote: input.acceptedQuote,
-    amountRef: input.compiled.amountRef,
-    currencies: input.currencies,
-    currencyCodeById: input.currencyCodeById,
-    workflow: input.workflow,
-  });
-  const counterAmount = await resolveAmountRef({
-    acceptedQuote: input.acceptedQuote,
-    amountRef: input.compiled.counterAmountRef,
-    currencies: input.currencies,
-    currencyCodeById: input.currencyCodeById,
-    workflow: input.workflow,
-  });
+  const amount =
+    input.compiled.amountMinor !== null || input.compiled.amountCurrencyId !== null
+      ? {
+          amountMinor: input.compiled.amountMinor,
+          currencyId: input.compiled.amountCurrencyId,
+        }
+      : await resolveAmountRef({
+          acceptedQuote: input.acceptedQuote,
+          amountRef: input.compiled.amountRef,
+          currencies: input.currencies,
+          currencyCodeById: input.currencyCodeById,
+          workflow: input.workflow,
+        });
+  const counterAmount =
+    input.compiled.counterAmountMinor !== null ||
+    input.compiled.counterCurrencyId !== null
+      ? {
+          amountMinor: input.compiled.counterAmountMinor,
+          currencyId: input.compiled.counterCurrencyId,
+        }
+      : await resolveAmountRef({
+          acceptedQuote: input.acceptedQuote,
+          amountRef: input.compiled.counterAmountRef,
+          currencies: input.currencies,
+          currencyCodeById: input.currencyCodeById,
+          workflow: input.workflow,
+        });
   const created = await input.treasuryModule.operations.commands.createOrGetPlanned(
     {
       amountMinor: amount.amountMinor,
@@ -504,6 +863,7 @@ async function materializeCompiledOperation(input: {
       internalEntityOrganizationId: input.internalEntityOrganizationId,
       kind: input.compiled.operationKind,
       quoteId: input.compiled.quoteId,
+      routeLegId: input.compiled.routeLegId,
       sourceRef: input.compiled.sourceRef,
     },
   );
@@ -527,6 +887,191 @@ function buildInstructionPrepareSourceRef(operationId: string) {
 
 function buildInstructionRetrySourceRef(operationId: string, attempt: number) {
   return `operation:${operationId}:instruction:${attempt}`;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function findNestedValueByKeys(
+  value: unknown,
+  keys: readonly string[],
+  seen = new Set<object>(),
+): unknown | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = findNestedValueByKeys(item, keys, seen);
+
+      if (nested !== null && nested !== undefined) {
+        return nested;
+      }
+    }
+
+    return null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  if (seen.has(value)) {
+    return null;
+  }
+
+  seen.add(value);
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of keys) {
+    const candidate = record[key];
+
+    if (candidate !== null && candidate !== undefined) {
+      return candidate;
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    const candidate = findNestedValueByKeys(nested, keys, seen);
+
+    if (candidate !== null && candidate !== undefined) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function parseBigIntLike(value: unknown): bigint | null {
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return BigInt(value);
+  }
+
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+    return BigInt(value.trim());
+  }
+
+  return null;
+}
+
+function parseUuidLike(value: unknown): string | null {
+  return typeof value === "string" && isUuid(value) ? value : null;
+}
+
+async function ingestTreasuryInstructionOutcomeFact(input: {
+  instruction: Awaited<
+    ReturnType<TreasuryModule["instructions"]["queries"]["findById"]>
+  >;
+  operation: Awaited<
+    ReturnType<TreasuryModule["operations"]["queries"]["findById"]>
+  >;
+  treasuryModule: Pick<TreasuryModule, "operations">;
+}) {
+  if (!input.instruction || !input.operation) {
+    return;
+  }
+
+  if (
+    input.instruction.state !== "settled" &&
+    input.instruction.state !== "returned" &&
+    input.instruction.state !== "failed"
+  ) {
+    return;
+  }
+
+  const snapshot = input.instruction.providerSnapshot;
+  const amountMinor =
+    parseBigIntLike(
+      findNestedValueByKeys(snapshot, [
+        "settledAmountMinor",
+        "returnedAmountMinor",
+        "executedAmountMinor",
+        "amountMinor",
+      ]),
+    ) ?? null;
+  const counterAmountMinor =
+    parseBigIntLike(
+      findNestedValueByKeys(snapshot, [
+        "counterAmountMinor",
+        "receivedAmountMinor",
+        "convertedAmountMinor",
+      ]),
+    ) ?? null;
+  const feeAmountMinor =
+    parseBigIntLike(
+      findNestedValueByKeys(snapshot, [
+        "feeAmountMinor",
+        "providerFeeMinor",
+        "commissionMinor",
+        "chargesMinor",
+      ]),
+    ) ?? null;
+  const currencyId =
+    parseUuidLike(
+      findNestedValueByKeys(snapshot, [
+        "currencyId",
+        "amountCurrencyId",
+        "settledCurrencyId",
+      ]),
+    ) ?? input.operation.currencyId;
+  const counterCurrencyId =
+    parseUuidLike(
+      findNestedValueByKeys(snapshot, [
+        "counterCurrencyId",
+        "receivedCurrencyId",
+      ]),
+    ) ?? input.operation.counterCurrencyId;
+  const feeCurrencyId =
+    parseUuidLike(
+      findNestedValueByKeys(snapshot, [
+        "feeCurrencyId",
+        "providerFeeCurrencyId",
+        "commissionCurrencyId",
+      ]),
+    ) ?? input.operation.currencyId;
+  const confirmedAt =
+    input.instruction.settledAt ??
+    input.instruction.returnedAt ??
+    input.instruction.failedAt ??
+    input.instruction.updatedAt;
+
+  await input.treasuryModule.operations.commands.recordActualFact({
+    amountMinor,
+    confirmedAt,
+    counterAmountMinor,
+    counterCurrencyId,
+    currencyId,
+    externalRecordId:
+      (findNestedValueByKeys(snapshot, [
+        "externalRecordId",
+        "sourceRecordId",
+        "recordId",
+        "providerRecordId",
+        "externalId",
+      ]) as string | null) ?? null,
+    feeAmountMinor,
+    feeCurrencyId: feeAmountMinor !== null ? feeCurrencyId : null,
+    instructionId: input.instruction.id,
+    metadata: {
+      instructionState: input.instruction.state,
+      providerSnapshot: input.instruction.providerSnapshot,
+    },
+    notes: `Instruction outcome: ${input.instruction.state}`,
+    operationId: input.operation.id,
+    providerRef: input.instruction.providerRef,
+    recordedAt: confirmedAt,
+    routeLegId: input.operation.routeLegId,
+    sourceKind:
+      input.instruction.providerSnapshot || input.instruction.providerRef
+        ? "provider"
+        : "system",
+    sourceRef: `treasury-instruction-outcome:${input.instruction.id}:${input.instruction.state}`,
+  });
 }
 
 async function ingestTreasuryOutcomeReconciliationRecord(input: {
@@ -569,6 +1114,7 @@ async function ingestTreasuryOutcomeReconciliationRecord(input: {
       instructionState: input.instruction.state,
       operationId: input.operation.id,
       operationKind: "treasury",
+      skipExecutionFactNormalization: true,
       treasuryOperationKind: input.operation.kind,
     },
     normalizationVersion: 1,
@@ -630,24 +1176,32 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           treasuryModule,
         }) => {
           const workflow = await requireWorkflow(dealsModule, input.dealId);
-
-          if (workflow.executionPlan.some((leg) => leg.operationRefs.length > 0)) {
-            return workflow;
-          }
-
           assertExecutionRequestAllowed(workflow);
 
           const recipeContext = await resolveRecipeContext(
             deps,
             treasuryModule,
+            dealsModule,
             workflow,
           );
           const currencyCodeById = new Map<string, string>();
           const customerId = getCustomerId(workflow);
           const linkCountBefore = workflow.executionPlan.flatMap((leg) => leg.operationRefs)
             .length;
+          const existingSourceRefs = new Set(
+            workflow.executionPlan.flatMap((leg) =>
+              leg.operationRefs.map((ref) => ref.sourceRef),
+            ),
+          );
+          const pendingOperations = recipeContext.recipe.filter(
+            (operation) => !existingSourceRefs.has(operation.sourceRef),
+          );
 
-          for (const operation of recipeContext.recipe) {
+          if (pendingOperations.length === 0) {
+            return workflow;
+          }
+
+          for (const operation of pendingOperations) {
             await materializeCompiledOperation({
               acceptedQuote: recipeContext.acceptedQuote,
               compiled: operation,
@@ -669,7 +1223,7 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
                 dealId: workflow.summary.id,
                 payload: {
                   comment: input.comment ?? null,
-                  operationCount: recipeContext.recipe.length,
+                  operationCount: pendingOperations.length,
                 },
                 sourceRef: `execution:${workflow.summary.id}:request:${input.idempotencyKey}`,
                 type: "execution_requested",
@@ -722,25 +1276,33 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             );
           }
 
-          if (leg.operationRefs.length > 0) {
-            return workflow;
-          }
-
           assertExecutionRequestAllowed(workflow);
 
           const recipeContext = await resolveRecipeContext(
             deps,
             treasuryModule,
+            dealsModule,
             workflow,
           );
-          const compiled = recipeContext.recipe.find(
+          const existingSourceRefs = new Set(
+            leg.operationRefs.map((ref) => ref.sourceRef),
+          );
+          const compiledForLeg = recipeContext.recipe.filter(
             (item) => item.legId === input.legId,
           );
 
-          if (!compiled) {
+          if (compiledForLeg.length === 0) {
             throw new ValidationError(
               `Deal ${input.dealId} does not have a materializable recipe for leg ${input.legId}`,
             );
+          }
+
+          const compiled = compiledForLeg.find(
+            (item) => !existingSourceRefs.has(item.sourceRef),
+          );
+
+          if (!compiled) {
+            return workflow;
           }
 
           const operation = await materializeCompiledOperation({
@@ -1256,6 +1818,12 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             providerSnapshot: input.providerSnapshot ?? null,
           });
 
+          await ingestTreasuryInstructionOutcomeFact({
+            instruction: updated,
+            operation,
+            treasuryModule,
+          });
+
           await ingestTreasuryOutcomeReconciliationRecord({
             actorUserId: input.actorUserId,
             dealId: workflow.summary.id,
@@ -1360,6 +1928,15 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             await reconciliation.links.listOperationLinks({
               operationIds: linkedOperationIds,
             });
+          const operationFacts = await treasuryModule.operations.queries.listFacts(
+            {
+              dealId: input.dealId,
+              limit: MAX_QUERY_LIST_LIMIT,
+              offset: 0,
+              sortBy: "recordedAt",
+              sortOrder: "desc",
+            },
+          );
           const reconciliationLinksByOperationId = new Map(
             reconciliationLinks.map(
               (link): readonly [string, ReconciliationOperationLinkDto] => [
@@ -1370,6 +1947,10 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
           );
           const { closeReadiness } = deriveFinanceDealReadiness({
             latestInstructionByOperationId: instructionByOperationId,
+            operationIdsWithFacts: new Set(
+              operationFacts.data.map((fact) => fact.operationId),
+            ),
+            profitabilityCalculationId: workflow.summary.calculationId,
             reconciliationLinksByOperationId,
             workflow,
           });

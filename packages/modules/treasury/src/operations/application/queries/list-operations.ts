@@ -18,6 +18,7 @@ function mapOperation(input: {
   internalEntityOrganizationId: string | null;
   kind: TreasuryOperation["kind"];
   quoteId: string | null;
+  routeLegId: string | null;
   sourceRef: string;
   state: TreasuryOperation["state"];
   updatedAt: Date;
@@ -34,6 +35,7 @@ function mapOperation(input: {
     internalEntityOrganizationId: input.internalEntityOrganizationId,
     kind: input.kind,
     quoteId: input.quoteId,
+    routeLegId: input.routeLegId,
     sourceRef: input.sourceRef,
     state: input.state,
     updatedAt: input.updatedAt,

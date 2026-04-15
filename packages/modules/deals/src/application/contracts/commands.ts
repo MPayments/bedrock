@@ -10,6 +10,12 @@ import {
 import {
   DealAttachmentIngestionStatusSchema,
   DealLegStateSchema,
+  DealRouteComponentBasisTypeSchema,
+  DealRouteComponentClassificationSchema,
+  DealRouteComponentFormulaTypeSchema,
+  DealRouteLegKindSchema,
+  DealRoutePartyKindSchema,
+  DealRouteTemplateParticipantBindingSchema,
   DealStatusSchema,
   DealTypeSchema,
 } from "./zod";
@@ -73,8 +79,27 @@ const nullablePortalCurrencyReference = z
       value === null ||
       z.uuid().safeParse(value).success ||
       /^[A-Z0-9]{3,16}$/u.test(value),
-    "Must be a currency UUID or ISO code",
+      "Must be a currency UUID or ISO code",
   );
+
+const RouteMetadataSchema = z.record(z.string(), z.unknown()).default({});
+const nullableMinorIntegerString = z
+  .string()
+  .trim()
+  .regex(/^-?[0-9]+$/u)
+  .nullish()
+  .transform((value) => trimToNull(value) ?? null);
+const nullableRouteDecimal = z
+  .string()
+  .trim()
+  .refine((value) => /^[0-9]+(?:\.[0-9]+)?$/u.test(value), "Must be a decimal string")
+  .nullish()
+  .transform((value) => trimToNull(value) ?? null);
+const routeCodeSchema = z.string().trim().min(1).max(64);
+const routeTemplateNameSchema = z.string().trim().min(1).max(255);
+const routeRoleSchema = z.string().trim().min(1).max(64);
+const settlementModelSchema = z.string().trim().min(1).max(64);
+const roundingModeSchema = z.string().trim().min(1).max(32);
 
 export const CreatePortalDealInputSchema = z.object({
   common: z.object({
@@ -116,6 +141,172 @@ export const CreateDealDraftInputSchema = z.object({
 });
 
 export type CreateDealDraftInput = z.infer<typeof CreateDealDraftInputSchema>;
+
+export const CreateDealRouteDraftInputSchema = z.object({}).strict();
+export type CreateDealRouteDraftInput = z.infer<
+  typeof CreateDealRouteDraftInputSchema
+>;
+
+export const DealRouteParticipantInputSchema = z.object({
+  code: routeCodeSchema,
+  displayNameSnapshot: nullableShortText,
+  metadata: RouteMetadataSchema,
+  partyId: z.uuid(),
+  partyKind: DealRoutePartyKindSchema,
+  requisiteId: z.uuid().nullable().optional().default(null),
+  role: routeRoleSchema,
+  sequence: z.number().int().positive(),
+});
+
+export type DealRouteParticipantInput = z.infer<
+  typeof DealRouteParticipantInputSchema
+>;
+
+export const DealRouteLegInputSchema = z.object({
+  code: routeCodeSchema,
+  executionCounterpartyId: z.uuid().nullable().optional().default(null),
+  expectedFromAmountMinor: nullableMinorIntegerString,
+  expectedRateDen: nullableMinorIntegerString,
+  expectedRateNum: nullableMinorIntegerString,
+  expectedToAmountMinor: nullableMinorIntegerString,
+  fromCurrencyId: z.uuid(),
+  fromParticipantCode: routeCodeSchema,
+  idx: z.number().int().positive(),
+  kind: DealRouteLegKindSchema,
+  notes: nullableText,
+  settlementModel: settlementModelSchema,
+  toCurrencyId: z.uuid(),
+  toParticipantCode: routeCodeSchema,
+});
+
+export type DealRouteLegInput = z.infer<typeof DealRouteLegInputSchema>;
+
+export const DealRouteCostComponentInputSchema = z.object({
+  basisType: DealRouteComponentBasisTypeSchema,
+  bps: nullableRouteDecimal,
+  classification: DealRouteComponentClassificationSchema,
+  code: routeCodeSchema,
+  currencyId: z.uuid(),
+  family: z.string().trim().min(1).max(64),
+  fixedAmountMinor: nullableMinorIntegerString,
+  formulaType: DealRouteComponentFormulaTypeSchema,
+  includedInClientRate: z.boolean().optional().default(false),
+  legCode: routeCodeSchema.nullish().transform((value) => trimToNull(value) ?? null),
+  manualAmountMinor: nullableMinorIntegerString,
+  notes: nullableText,
+  perMillion: nullableRouteDecimal,
+  roundingMode: roundingModeSchema.optional().default("half_up"),
+  sequence: z.number().int().positive(),
+});
+
+export type DealRouteCostComponentInput = z.infer<
+  typeof DealRouteCostComponentInputSchema
+>;
+
+export const ReplaceDealRouteVersionInputSchema = z.object({
+  costComponents: z.array(DealRouteCostComponentInputSchema),
+  legs: z.array(DealRouteLegInputSchema),
+  participants: z.array(DealRouteParticipantInputSchema),
+});
+
+export type ReplaceDealRouteVersionInput = z.infer<
+  typeof ReplaceDealRouteVersionInputSchema
+>;
+
+export const DealRouteTemplateParticipantInputSchema = z.object({
+  bindingKind: DealRouteTemplateParticipantBindingSchema,
+  code: routeCodeSchema,
+  displayNameTemplate: nullableShortText,
+  metadata: RouteMetadataSchema,
+  partyId: z.uuid().nullable().optional().default(null),
+  partyKind: DealRoutePartyKindSchema,
+  requisiteId: z.uuid().nullable().optional().default(null),
+  role: routeRoleSchema,
+  sequence: z.number().int().positive(),
+});
+
+export type DealRouteTemplateParticipantInput = z.infer<
+  typeof DealRouteTemplateParticipantInputSchema
+>;
+
+export const DealRouteTemplateLegInputSchema = z.object({
+  code: routeCodeSchema,
+  executionCounterpartyId: z.uuid().nullable().optional().default(null),
+  expectedFromAmountMinor: nullableMinorIntegerString,
+  expectedRateDen: nullableMinorIntegerString,
+  expectedRateNum: nullableMinorIntegerString,
+  expectedToAmountMinor: nullableMinorIntegerString,
+  fromCurrencyId: z.uuid(),
+  fromParticipantCode: routeCodeSchema,
+  idx: z.number().int().positive(),
+  kind: DealRouteLegKindSchema,
+  notes: nullableText,
+  settlementModel: settlementModelSchema,
+  toCurrencyId: z.uuid(),
+  toParticipantCode: routeCodeSchema,
+});
+
+export type DealRouteTemplateLegInput = z.infer<
+  typeof DealRouteTemplateLegInputSchema
+>;
+
+export const DealRouteTemplateCostComponentInputSchema = z.object({
+  basisType: DealRouteComponentBasisTypeSchema,
+  bps: nullableRouteDecimal,
+  classification: DealRouteComponentClassificationSchema,
+  code: routeCodeSchema,
+  currencyId: z.uuid(),
+  family: z.string().trim().min(1).max(64),
+  fixedAmountMinor: nullableMinorIntegerString,
+  formulaType: DealRouteComponentFormulaTypeSchema,
+  includedInClientRate: z.boolean().optional().default(false),
+  legCode: routeCodeSchema.nullish().transform((value) => trimToNull(value) ?? null),
+  manualAmountMinor: nullableMinorIntegerString,
+  notes: nullableText,
+  perMillion: nullableRouteDecimal,
+  roundingMode: roundingModeSchema.optional().default("half_up"),
+  sequence: z.number().int().positive(),
+});
+
+export type DealRouteTemplateCostComponentInput = z.infer<
+  typeof DealRouteTemplateCostComponentInputSchema
+>;
+
+export const CreateDealRouteTemplateInputSchema = z.object({
+  code: routeCodeSchema,
+  costComponents: z.array(DealRouteTemplateCostComponentInputSchema),
+  dealType: DealTypeSchema,
+  description: nullableText,
+  legs: z.array(DealRouteTemplateLegInputSchema),
+  name: routeTemplateNameSchema,
+  participants: z.array(DealRouteTemplateParticipantInputSchema),
+});
+
+export type CreateDealRouteTemplateInput = z.infer<
+  typeof CreateDealRouteTemplateInputSchema
+>;
+
+export const UpdateDealRouteTemplateInputSchema = z.object({
+  code: routeCodeSchema,
+  costComponents: z.array(DealRouteTemplateCostComponentInputSchema),
+  dealType: DealTypeSchema,
+  description: nullableText,
+  legs: z.array(DealRouteTemplateLegInputSchema),
+  name: routeTemplateNameSchema,
+  participants: z.array(DealRouteTemplateParticipantInputSchema),
+});
+
+export type UpdateDealRouteTemplateInput = z.infer<
+  typeof UpdateDealRouteTemplateInputSchema
+>;
+
+export const ApplyDealRouteTemplateInputSchema = z.object({
+  templateId: z.uuid(),
+});
+
+export type ApplyDealRouteTemplateInput = z.infer<
+  typeof ApplyDealRouteTemplateInputSchema
+>;
 
 export const ReplaceDealIntakeInputSchema = z.object({
   expectedRevision: z.number().int().positive(),

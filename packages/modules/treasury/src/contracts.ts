@@ -104,12 +104,17 @@ export {
 } from "./instructions/application/contracts/zod";
 export {
   CreatePlannedTreasuryOperationInputSchema,
+  RecordTreasuryOperationFactInputSchema,
   type CreatePlannedTreasuryOperationInput,
+  type RecordTreasuryOperationFactInput,
 } from "./operations/application/contracts/commands";
 export {
+  ListTreasuryOperationFactsQuerySchema,
+  TREASURY_OPERATION_FACTS_LIST_CONTRACT,
   ListTreasuryOperationsQuerySchema,
   TREASURY_OPERATIONS_LIST_CONTRACT,
   TREASURY_OPERATION_VIEW_VALUES,
+  type ListTreasuryOperationFactsQuery,
   TreasuryOperationViewSchema,
   type ListTreasuryOperationsQuery,
   type TreasuryOperationView,
@@ -118,6 +123,8 @@ export {
   TreasuryOperationSchema,
   TreasuryOperationAccountSummarySchema,
   TreasuryOperationDealRefSchema,
+  TreasuryOperationFactSchema,
+  TreasuryOperationFactsListResponseSchema,
   TreasuryOperationInstructionStatusSchema,
   TreasuryOperationInternalEntitySchema,
   TreasuryOperationLegRefSchema,
@@ -129,6 +136,8 @@ export {
   TreasuryOperationWorkspaceListResponseSchema,
   type TreasuryOperationAccountSummary,
   type TreasuryOperationDealRef,
+  type TreasuryOperationFact,
+  type TreasuryOperationFactsListResponse,
   type TreasuryOperationInstructionStatus,
   type TreasuryOperationInternalEntity,
   type TreasuryOperationLegRef,
@@ -141,8 +150,10 @@ export {
   type TreasuryOperation,
 } from "./operations/application/contracts/dto";
 export {
+  TreasuryOperationFactSourceKindSchema,
   TreasuryOperationKindSchema,
   TreasuryOperationStateSchema,
+  type TreasuryOperationFactSourceKind,
   type TreasuryOperationKind,
   type TreasuryOperationState,
 } from "./operations/application/contracts/zod";

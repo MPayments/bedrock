@@ -224,6 +224,8 @@ function createWorkflow(overrides?: {
       rateDen: string;
       rateNum: string;
       rateSource: "manual";
+      routeSnapshot?: Record<string, unknown> | null;
+      routeVersionId?: string | null;
       snapshotNumber: number;
       totalFeeAmountInBaseMinor: string;
       totalFeeAmountMinor: string;
@@ -241,11 +243,14 @@ function createWorkflow(overrides?: {
     isActive: boolean;
     lines: {
       amountMinor: string;
+      classification?: "revenue" | "expense" | "pass_through" | "adjustment" | null;
+      componentFamily?: string | null;
       createdAt: Date;
       currencyId: string;
       id: string;
       idx: number;
       kind: string;
+      routeLegId?: string | null;
       updatedAt: Date;
     }[];
     updatedAt: Date;
@@ -287,6 +292,29 @@ function createWorkflow(overrides?: {
     quoteId: string | null;
     sourceRef: string;
     state: "planned";
+    updatedAt: Date;
+  }[];
+  treasuryFacts?: {
+    amountMinor: string | null;
+    confirmedAt: Date | null;
+    counterAmountMinor: string | null;
+    counterCurrencyId: string | null;
+    createdAt: Date;
+    currencyId: string | null;
+    dealId: string | null;
+    externalRecordId: string | null;
+    feeAmountMinor: string | null;
+    feeCurrencyId: string | null;
+    id: string;
+    instructionId: string | null;
+    metadata: Record<string, unknown> | null;
+    notes: string | null;
+    operationId: string;
+    providerRef: string | null;
+    recordedAt: Date;
+    routeLegId: string | null;
+    sourceKind: "manual" | "provider" | "reconciliation" | "system";
+    sourceRef: string;
     updatedAt: Date;
   }[];
   latestInstructions?: {
@@ -497,6 +525,12 @@ function createWorkflow(overrides?: {
       },
       operations: {
         queries: {
+          listFacts: vi.fn(async () => ({
+            data: overrides?.treasuryFacts ?? [],
+            limit: MAX_QUERY_LIST_LIMIT,
+            offset: 0,
+            total: overrides?.treasuryFacts?.length ?? 0,
+          })),
           list: vi.fn(async () => ({
             data: overrides?.treasuryOperations ?? [],
             limit: MAX_QUERY_LIST_LIMIT,
@@ -559,6 +593,90 @@ describe("createDealProjectionsWorkflow", () => {
     });
     expect(projection?.nextAction).toBe("Загрузите инвойс");
     expect(projection?.requiredActions).toContain("Загрузите инвойс");
+  });
+
+  it("includes accepted calculation summary in portal projection", async () => {
+    const workflowState = createBaseWorkflow();
+    const workflow = createWorkflow({
+      calculation: {
+        createdAt: new Date("2026-04-01T09:00:00.000Z"),
+        currentSnapshot: {
+          agreementVersionId: null,
+          agreementFeeAmountMinor: "2500",
+          agreementFeeBps: "150",
+          additionalExpensesAmountMinor: "1500",
+          additionalExpensesCurrencyId: null,
+          additionalExpensesInBaseMinor: "1500",
+          additionalExpensesRateDen: null,
+          additionalExpensesRateNum: null,
+          additionalExpensesRateSource: null,
+          baseCurrencyId: "currency-rub",
+          calculationCurrencyId: "currency-usd",
+          calculationTimestamp: new Date("2026-04-01T10:00:00.000Z"),
+          createdAt: new Date("2026-04-01T10:00:00.000Z"),
+          fixedFeeAmountMinor: "300",
+          fixedFeeCurrencyId: "currency-usd",
+          fxQuoteId: null,
+          id: "snapshot-portal",
+          originalAmountMinor: "100000",
+          pricingProvenance: null,
+          quoteMarkupAmountMinor: "500",
+          quoteMarkupBps: "25",
+          quoteSnapshot: null,
+          referenceRateAsOf: null,
+          referenceRateDen: null,
+          referenceRateNum: null,
+          referenceRateSource: null,
+          rateDen: "100",
+          rateNum: "9715",
+          rateSource: "manual",
+          snapshotNumber: 1,
+          totalFeeAmountInBaseMinor: "29147",
+          totalFeeAmountMinor: "3000",
+          totalFeeBps: "175",
+          totalAmountMinor: "103000",
+          totalInBaseMinor: "1000715",
+          totalWithExpensesInBaseMinor: "1002215",
+          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+        },
+        id: "calculation-portal",
+        isActive: true,
+        lines: [],
+        updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+      },
+      workflow: {
+        ...workflowState,
+        summary: {
+          ...workflowState.summary,
+          calculationId: "calculation-portal",
+        },
+      },
+    });
+
+    const projection = await workflow.getPortalDealProjection("deal-1", "customer-1");
+
+    expect(projection?.calculationSummary).toEqual({
+      additionalExpenses: "15.00",
+      additionalExpensesCurrencyCode: null,
+      agreementFeeAmount: "25.00",
+      agreementFeePercentage: "1.50",
+      baseCurrencyCode: "RUB",
+      calculationTimestamp: new Date("2026-04-01T10:00:00.000Z"),
+      currencyCode: "USD",
+      fixedFeeAmount: "3.00",
+      fixedFeeCurrencyCode: "USD",
+      id: "calculation-portal",
+      originalAmount: "1000.00",
+      quoteMarkupAmount: "5.00",
+      quoteMarkupPercentage: "0.25",
+      rate: "97.15",
+      totalAmount: "1030.00",
+      totalFeeAmount: "30.00",
+      totalFeeAmountInBase: "291.47",
+      totalFeePercentage: "1.75",
+      totalInBase: "10007.15",
+      totalWithExpensesInBase: "10022.15",
+    });
   });
 
   it("classifies blocked downstream execution into the failed instruction queue", async () => {
@@ -769,6 +887,292 @@ describe("createDealProjectionsWorkflow", () => {
         toCurrency: "USD",
       }),
     ]);
+  });
+
+  it("includes profitability and reconciliation summary in CRM workbench", async () => {
+    const workflow = createWorkflow({
+      calculation: {
+        createdAt: new Date("2026-04-01T08:00:00.000Z"),
+        currentSnapshot: {
+          agreementVersionId: null,
+          agreementFeeAmountMinor: "0",
+          agreementFeeBps: "0",
+          additionalExpensesAmountMinor: "0",
+          additionalExpensesCurrencyId: null,
+          additionalExpensesInBaseMinor: "0",
+          additionalExpensesRateDen: null,
+          additionalExpensesRateNum: null,
+          additionalExpensesRateSource: null,
+          baseCurrencyId: "currency-rub",
+          calculationCurrencyId: "currency-rub",
+          calculationTimestamp: new Date("2026-04-01T08:00:00.000Z"),
+          createdAt: new Date("2026-04-01T08:00:00.000Z"),
+          fixedFeeAmountMinor: "0",
+          fixedFeeCurrencyId: null,
+          fxQuoteId: null,
+          id: "snapshot-crm-1",
+          originalAmountMinor: "100000",
+          pricingProvenance: null,
+          quoteMarkupAmountMinor: "0",
+          quoteMarkupBps: "0",
+          quoteSnapshot: null,
+          referenceRateAsOf: null,
+          referenceRateDen: null,
+          referenceRateNum: null,
+          referenceRateSource: null,
+          rateDen: "1",
+          rateNum: "1",
+          rateSource: "manual",
+          routeSnapshot: null,
+          routeVersionId: null,
+          snapshotNumber: 1,
+          totalFeeAmountInBaseMinor: "600",
+          totalFeeAmountMinor: "600",
+          totalFeeBps: "0",
+          totalAmountMinor: "100000",
+          totalInBaseMinor: "100000",
+          totalWithExpensesInBaseMinor: "100350",
+          updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+        },
+        id: "calculation-1",
+        isActive: true,
+        lines: [
+          {
+            amountMinor: "100",
+            classification: "revenue",
+            componentFamily: "customer_fee",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-1",
+            idx: 0,
+            kind: "fee_revenue",
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+          {
+            amountMinor: "500",
+            classification: "revenue",
+            componentFamily: "spread",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-2",
+            idx: 1,
+            kind: "spread_revenue",
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+          {
+            amountMinor: "250",
+            classification: "expense",
+            componentFamily: "provider_fee",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-rub",
+            id: "line-3",
+            idx: 2,
+            kind: "provider_fee_expense",
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+        ],
+        updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+      },
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-01T10:00:00.000Z"),
+          id: "instruction-1",
+          operationId: "operation-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "deal:deal-1:leg:1:payout:1",
+          state: "settled",
+          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+        },
+      ],
+      reconciliationLinks: [
+        {
+          exceptions: [
+            {
+              createdAt: new Date("2026-04-01T11:00:00.000Z"),
+              externalRecordId: "record-1",
+              id: "exception-1",
+              operationId: "operation-1",
+              reasonCode: "amount_mismatch",
+              resolvedAt: null,
+              source: "provider_statement",
+              state: "open",
+            },
+          ],
+          lastActivityAt: new Date("2026-04-01T11:00:00.000Z"),
+          matchCount: 1,
+          operationId: "operation-1",
+        },
+      ],
+      treasuryFacts: [
+        {
+          amountMinor: null,
+          confirmedAt: new Date("2026-04-01T10:00:00.000Z"),
+          counterAmountMinor: null,
+          counterCurrencyId: null,
+          createdAt: new Date("2026-04-01T10:00:00.000Z"),
+          currencyId: null,
+          dealId: "deal-1",
+          externalRecordId: "record-1",
+          feeAmountMinor: "275",
+          feeCurrencyId: "currency-rub",
+          id: "fact-1",
+          instructionId: "instruction-1",
+          metadata: {
+            feeClassification: "expense",
+            feeComponentFamily: "provider_fee",
+          },
+          notes: null,
+          operationId: "operation-1",
+          providerRef: null,
+          recordedAt: new Date("2026-04-01T10:00:00.000Z"),
+          routeLegId: null,
+          sourceKind: "provider",
+          sourceRef: "fact-1",
+          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+        },
+      ],
+      treasuryOperations: [
+        {
+          amountMinor: 100000n,
+          counterAmountMinor: null,
+          counterCurrencyId: null,
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          currencyId: "currency-rub",
+          customerId: "customer-1",
+          dealId: "deal-1",
+          id: "operation-1",
+          internalEntityOrganizationId: "organization-1",
+          kind: "payout",
+          quoteId: null,
+          sourceRef: "deal:deal-1:leg:1:payout:1",
+          state: "planned",
+          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+        },
+      ],
+      workflow: {
+        ...createBaseWorkflow(),
+        executionPlan: [
+          {
+            id: "leg-1",
+            idx: 1,
+            kind: "payout",
+            operationRefs: [
+              {
+                kind: "payout",
+                operationId: "operation-1",
+                sourceRef: "deal:deal-1:leg:1:payout:1",
+              },
+            ],
+            state: "done",
+          },
+        ],
+        summary: {
+          ...createBaseWorkflow().summary,
+          calculationId: "calculation-1",
+        },
+      },
+    });
+
+    const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection).toMatchObject({
+      attachmentIngestions: [],
+      pricing: {
+        currentCalculation: {
+          additionalExpenses: "0.00",
+          additionalExpensesCurrencyCode: null,
+          agreementFeeAmount: "0.00",
+          agreementFeePercentage: "0.00",
+          baseCurrencyCode: "RUB",
+          currencyCode: "RUB",
+          fixedFeeAmount: "0.00",
+          fixedFeeCurrencyCode: null,
+          id: "calculation-1",
+          originalAmount: "1000.00",
+          quoteMarkupAmount: "0.00",
+          quoteMarkupPercentage: "0.00",
+          rate: "1",
+          totalAmount: "1000.00",
+          totalFeeAmount: "6.00",
+          totalFeeAmountInBase: "6.00",
+          totalFeePercentage: "0.00",
+          totalInBase: "1000.00",
+          totalWithExpensesInBase: "1003.50",
+        },
+      },
+      revision: 1,
+      profitabilitySnapshot: {
+        calculationId: "calculation-1",
+        feeRevenue: [
+          {
+            amountMinor: "100",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        providerFeeExpense: [
+          {
+            amountMinor: "250",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        spreadRevenue: [
+          {
+            amountMinor: "500",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+      },
+      profitabilityVariance: {
+        actualCoverage: {
+          factCount: 1,
+          operationCount: 1,
+          state: "partial",
+          terminalOperationCount: 1,
+        },
+        actualExpense: [
+          {
+            amountMinor: "275",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        expectedNetMargin: [
+          {
+            amountMinor: "350",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+        realizedNetMargin: [
+          {
+            amountMinor: "325",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+      },
+      reconciliationSummary: {
+        openExceptionCount: 1,
+        reconciledOperationCount: 1,
+        requiredOperationCount: 1,
+        state: "blocked",
+      },
+      relatedResources: {
+        reconciliationExceptions: [
+          expect.objectContaining({
+            id: "exception-1",
+            operationId: "operation-1",
+            reasonCode: "amount_mismatch",
+          }),
+        ],
+      },
+    });
   });
 
   it("builds CRM board projections when quote expiry timestamps arrive as strings", async () => {
@@ -1265,5 +1669,464 @@ describe("createDealProjectionsWorkflow", () => {
         }),
       ]),
     );
+  });
+
+  it("builds expected vs actual profitability variance for finance workspace", async () => {
+    const routeVersionId = "00000000-0000-4000-8000-000000000901";
+    const routeId = "00000000-0000-4000-8000-000000000902";
+    const routeLegFxId = "00000000-0000-4000-8000-000000000903";
+    const routeLegPayoutId = "00000000-0000-4000-8000-000000000904";
+
+    const routeSnapshot = {
+      costComponents: [],
+      createdAt: new Date("2026-04-01T08:00:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000905",
+      id: routeVersionId,
+      isCurrent: true,
+      legs: [
+        {
+          code: "fx-leg",
+          executionCounterpartyId: null,
+          expectedFromAmountMinor: "100000",
+          expectedRateDen: "100",
+          expectedRateNum: "1",
+          expectedToAmountMinor: "1000",
+          fromCurrencyId: "currency-rub",
+          fromParticipantCode: "A",
+          id: routeLegFxId,
+          idx: 1,
+          kind: "fx_conversion",
+          notes: null,
+          settlementModel: "gross",
+          toCurrencyId: "currency-usd",
+          toParticipantCode: "B",
+        },
+        {
+          code: "payout-leg",
+          executionCounterpartyId: null,
+          expectedFromAmountMinor: "1000",
+          expectedRateDen: null,
+          expectedRateNum: null,
+          expectedToAmountMinor: "1000",
+          fromCurrencyId: "currency-usd",
+          fromParticipantCode: "B",
+          id: routeLegPayoutId,
+          idx: 2,
+          kind: "payout",
+          notes: null,
+          settlementModel: "gross",
+          toCurrencyId: "currency-usd",
+          toParticipantCode: "C",
+        },
+      ],
+      participants: [
+        {
+          code: "A",
+          displayNameSnapshot: "Source",
+          id: "00000000-0000-4000-8000-000000000906",
+          metadata: {},
+          partyId: "00000000-0000-4000-8000-000000000907",
+          partyKind: "counterparty",
+          requisiteId: null,
+          role: "source",
+          sequence: 1,
+        },
+        {
+          code: "B",
+          displayNameSnapshot: "Bridge",
+          id: "00000000-0000-4000-8000-000000000908",
+          metadata: {},
+          partyId: "00000000-0000-4000-8000-000000000909",
+          partyKind: "organization",
+          requisiteId: null,
+          role: "bridge",
+          sequence: 2,
+        },
+        {
+          code: "C",
+          displayNameSnapshot: "Beneficiary",
+          id: "00000000-0000-4000-8000-000000000910",
+          metadata: {},
+          partyId: "00000000-0000-4000-8000-000000000911",
+          partyKind: "counterparty",
+          requisiteId: null,
+          role: "beneficiary",
+          sequence: 3,
+        },
+      ],
+      routeId,
+      validationIssues: [],
+      version: 1,
+    };
+
+    const workflow = createWorkflow({
+      calculation: {
+        createdAt: new Date("2026-04-01T08:00:00.000Z"),
+        currentSnapshot: {
+          agreementVersionId: null,
+          agreementFeeAmountMinor: "0",
+          agreementFeeBps: "0",
+          additionalExpensesAmountMinor: "10",
+          additionalExpensesCurrencyId: "currency-usd",
+          additionalExpensesInBaseMinor: "10",
+          additionalExpensesRateDen: null,
+          additionalExpensesRateNum: null,
+          additionalExpensesRateSource: null,
+          baseCurrencyId: "currency-usd",
+          calculationCurrencyId: "currency-rub",
+          calculationTimestamp: new Date("2026-04-01T08:00:00.000Z"),
+          createdAt: new Date("2026-04-01T08:00:00.000Z"),
+          fixedFeeAmountMinor: "0",
+          fixedFeeCurrencyId: null,
+          fxQuoteId: null,
+          id: "snapshot-variance-1",
+          originalAmountMinor: "100000",
+          pricingProvenance: null,
+          quoteMarkupAmountMinor: "0",
+          quoteMarkupBps: "0",
+          quoteSnapshot: null,
+          referenceRateAsOf: null,
+          referenceRateDen: null,
+          referenceRateNum: null,
+          referenceRateSource: null,
+          rateDen: "100",
+          rateNum: "1",
+          rateSource: "manual",
+          routeSnapshot,
+          routeVersionId,
+          snapshotNumber: 1,
+          totalFeeAmountInBaseMinor: "200",
+          totalFeeAmountMinor: "200",
+          totalFeeBps: "0",
+          totalAmountMinor: "100000",
+          totalInBaseMinor: "1000",
+          totalWithExpensesInBaseMinor: "1170",
+          updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+        },
+        id: "calculation-variance-1",
+        isActive: true,
+        lines: [
+          {
+            amountMinor: "120",
+            classification: "revenue",
+            componentFamily: "customer_fee",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-usd",
+            id: "variance-line-1",
+            idx: 0,
+            kind: "fee_revenue",
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+          {
+            amountMinor: "80",
+            classification: "revenue",
+            componentFamily: "spread",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-usd",
+            id: "variance-line-2",
+            idx: 1,
+            kind: "spread_revenue",
+            routeLegId: routeLegFxId,
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+          {
+            amountMinor: "20",
+            classification: "expense",
+            componentFamily: "provider_fee",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-usd",
+            id: "variance-line-3",
+            idx: 2,
+            kind: "provider_fee_expense",
+            routeLegId: routeLegFxId,
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+          {
+            amountMinor: "10",
+            classification: "pass_through",
+            componentFamily: "wire_fee",
+            createdAt: new Date("2026-04-01T08:00:00.000Z"),
+            currencyId: "currency-usd",
+            id: "variance-line-4",
+            idx: 3,
+            kind: "pass_through",
+            routeLegId: routeLegPayoutId,
+            updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+          },
+        ],
+        updatedAt: new Date("2026-04-01T08:00:00.000Z"),
+      },
+      latestInstructions: [
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          id: "instruction-variance-1",
+          operationId: "operation-variance-1",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-variance-1",
+          state: "settled",
+          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+        },
+        {
+          attempt: 1,
+          createdAt: new Date("2026-04-01T09:10:00.000Z"),
+          id: "instruction-variance-2",
+          operationId: "operation-variance-2",
+          providerRef: null,
+          providerSnapshot: null,
+          sourceRef: "source-variance-2",
+          state: "settled",
+          updatedAt: new Date("2026-04-01T09:10:00.000Z"),
+        },
+      ],
+      treasuryFacts: [
+        {
+          amountMinor: "100000",
+          confirmedAt: new Date("2026-04-01T09:00:00.000Z"),
+          counterAmountMinor: "990",
+          counterCurrencyId: "currency-usd",
+          createdAt: new Date("2026-04-01T09:00:00.000Z"),
+          currencyId: "currency-rub",
+          dealId: "deal-1",
+          externalRecordId: "record-1",
+          feeAmountMinor: "30",
+          feeCurrencyId: "currency-usd",
+          id: "fact-variance-1",
+          instructionId: "instruction-variance-1",
+          metadata: null,
+          notes: null,
+          operationId: "operation-variance-1",
+          providerRef: null,
+          recordedAt: new Date("2026-04-01T09:00:00.000Z"),
+          routeLegId: routeLegFxId,
+          sourceKind: "provider",
+          sourceRef: "fact-variance-1",
+          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+        },
+        {
+          amountMinor: "990",
+          confirmedAt: new Date("2026-04-01T09:10:00.000Z"),
+          counterAmountMinor: null,
+          counterCurrencyId: null,
+          createdAt: new Date("2026-04-01T09:10:00.000Z"),
+          currencyId: "currency-usd",
+          dealId: "deal-1",
+          externalRecordId: "record-2",
+          feeAmountMinor: "15",
+          feeCurrencyId: "currency-usd",
+          id: "fact-variance-2",
+          instructionId: "instruction-variance-2",
+          metadata: {
+            feeClassification: "pass_through",
+            feeComponentFamily: "wire_fee",
+          },
+          notes: null,
+          operationId: "operation-variance-2",
+          providerRef: null,
+          recordedAt: new Date("2026-04-01T09:10:00.000Z"),
+          routeLegId: routeLegPayoutId,
+          sourceKind: "provider",
+          sourceRef: "fact-variance-2",
+          updatedAt: new Date("2026-04-01T09:10:00.000Z"),
+        },
+      ],
+      treasuryOperations: [
+        {
+          amountMinor: 100000n,
+          counterAmountMinor: 990n,
+          counterCurrencyId: "currency-usd",
+          createdAt: new Date("2026-04-01T08:30:00.000Z"),
+          currencyId: "currency-rub",
+          customerId: "customer-1",
+          dealId: "deal-1",
+          id: "operation-variance-1",
+          internalEntityOrganizationId: "organization-1",
+          kind: "fx_conversion",
+          quoteId: null,
+          sourceRef: "deal:deal-1:route-leg-fx",
+          state: "planned",
+          updatedAt: new Date("2026-04-01T08:30:00.000Z"),
+        },
+        {
+          amountMinor: 990n,
+          counterAmountMinor: null,
+          counterCurrencyId: null,
+          createdAt: new Date("2026-04-01T08:45:00.000Z"),
+          currencyId: "currency-usd",
+          customerId: "customer-1",
+          dealId: "deal-1",
+          id: "operation-variance-2",
+          internalEntityOrganizationId: "organization-1",
+          kind: "payout",
+          quoteId: null,
+          sourceRef: "deal:deal-1:route-leg-payout",
+          state: "planned",
+          updatedAt: new Date("2026-04-01T08:45:00.000Z"),
+        },
+      ],
+      workflow: {
+        ...createBaseWorkflow(),
+        executionPlan: [
+          {
+            id: routeLegFxId,
+            idx: 1,
+            kind: "convert",
+            operationRefs: [
+              {
+                kind: "fx_conversion",
+                operationId: "operation-variance-1",
+                sourceRef: "deal:deal-1:route-leg-fx",
+              },
+            ],
+            state: "done",
+          },
+          {
+            id: routeLegPayoutId,
+            idx: 2,
+            kind: "payout",
+            operationRefs: [
+              {
+                kind: "payout",
+                operationId: "operation-variance-2",
+                sourceRef: "deal:deal-1:route-leg-payout",
+              },
+            ],
+            state: "done",
+          },
+        ],
+        nextAction: "Run reconciliation",
+        summary: {
+          ...createBaseWorkflow().summary,
+          calculationId: "calculation-variance-1",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection?.profitabilityVariance).toMatchObject({
+      actualCoverage: {
+        factCount: 2,
+        legsWithFacts: 2,
+        operationCount: 2,
+        state: "complete",
+        terminalOperationCount: 2,
+        totalLegCount: 2,
+      },
+      actualExpense: [
+        {
+          amountMinor: "30",
+          currencyCode: "USD",
+          currencyId: "currency-usd",
+        },
+      ],
+      actualPassThrough: [
+        {
+          amountMinor: "15",
+          currencyCode: "USD",
+          currencyId: "currency-usd",
+        },
+      ],
+      calculationId: "calculation-variance-1",
+      expectedNetMargin: [
+        {
+          amountMinor: "170",
+          currencyCode: "USD",
+          currencyId: "currency-usd",
+        },
+      ],
+      netMarginVariance: [
+        {
+          amountMinor: "-15",
+          currencyCode: "USD",
+          currencyId: "currency-usd",
+        },
+      ],
+      realizedNetMargin: [
+        {
+          amountMinor: "155",
+          currencyCode: "USD",
+          currencyId: "currency-usd",
+        },
+      ],
+      varianceByCostFamily: expect.arrayContaining([
+        expect.objectContaining({
+          classification: "expense",
+          family: "provider_fee",
+          actual: [
+            {
+              amountMinor: "30",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          expected: [
+            {
+              amountMinor: "20",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          variance: [
+            {
+              amountMinor: "10",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+        }),
+        expect.objectContaining({
+          classification: "pass_through",
+          family: "wire_fee",
+          actual: [
+            {
+              amountMinor: "15",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          expected: [
+            {
+              amountMinor: "10",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          variance: [
+            {
+              amountMinor: "5",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+        }),
+      ]),
+      varianceByLeg: expect.arrayContaining([
+        expect.objectContaining({
+          routeLegId: routeLegFxId,
+          actualFees: [
+            {
+              amountMinor: "30",
+              currencyCode: "USD",
+              currencyId: "currency-usd",
+            },
+          ],
+          varianceTo: {
+            amountMinor: "-10",
+            currencyCode: "USD",
+            currencyId: "currency-usd",
+          },
+        }),
+        expect.objectContaining({
+          routeLegId: routeLegPayoutId,
+          varianceFrom: {
+            amountMinor: "-10",
+            currencyCode: "USD",
+            currencyId: "currency-usd",
+          },
+        }),
+      ]),
+    });
   });
 });

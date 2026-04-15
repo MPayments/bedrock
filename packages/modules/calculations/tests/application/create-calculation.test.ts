@@ -115,6 +115,8 @@ describe("create calculation command", () => {
       baseCurrencyId: "00000000-0000-4000-8000-000000000002",
       totalFeeAmountInBaseMinor: "100",
       totalInBaseMinor: "8100",
+      dealId: "00000000-0000-4000-8000-000000000030",
+      dealSnapshot: { type: "payment" },
       additionalExpensesCurrencyId: null,
       additionalExpensesAmountMinor: "0",
       additionalExpensesInBaseMinor: "0",
@@ -123,10 +125,13 @@ describe("create calculation command", () => {
       pricingProvenance: null,
       quoteMarkupAmountMinor: "0",
       quoteMarkupBps: "0",
+      routeVersionId: "00000000-0000-4000-8000-000000000031",
+      routeSnapshot: { version: 1 },
       referenceRateAsOf: null,
       referenceRateSource: null,
       referenceRateNum: null,
       referenceRateDen: null,
+      state: "accepted",
       totalWithExpensesInBaseMinor: "8100",
       rateSource: "fx_quote",
       rateNum: "81",
@@ -135,9 +140,15 @@ describe("create calculation command", () => {
       fxQuoteId: "00000000-0000-4000-8000-000000000020",
       financialLines: [
         {
+          classification: "revenue",
+          componentCode: "fee-rule-1",
+          componentFamily: "revenue",
           kind: "fee_revenue",
           currencyId: "00000000-0000-4000-8000-000000000001",
           amountMinor: "125",
+          dealId: "00000000-0000-4000-8000-000000000030",
+          routeVersionId: "00000000-0000-4000-8000-000000000031",
+          sourceKind: "quote",
         },
         {
           kind: "pass_through",
@@ -162,6 +173,9 @@ describe("create calculation command", () => {
         calculationId: "00000000-0000-4000-8000-000000000010",
         agreementFeeBps: 125n,
         totalFeeBps: 125n,
+        dealId: "00000000-0000-4000-8000-000000000030",
+        routeVersionId: "00000000-0000-4000-8000-000000000031",
+        state: "accepted",
         rateNum: 81n,
         rateDen: 100n,
         quoteSnapshot: { ref: "quote-1" },
@@ -169,11 +183,19 @@ describe("create calculation command", () => {
     );
     expect(harness.calculationStore.createCalculationLines).toHaveBeenCalledWith([
       expect.objectContaining({
+        classification: "revenue",
+        componentCode: "fee-rule-1",
         kind: "fee_revenue",
         idx: 0,
         calculationSnapshotId: "00000000-0000-4000-8000-000000000011",
+        sourceKind: "quote",
       }),
-      expect.objectContaining({ kind: "pass_through", idx: 1 }),
+      expect.objectContaining({
+        componentCode: "pass_through",
+        kind: "pass_through",
+        idx: 1,
+        sourceKind: "manual",
+      }),
     ]);
     expect(harness.calculationStore.setCurrentSnapshot).toHaveBeenCalledWith({
       calculationId: "00000000-0000-4000-8000-000000000010",

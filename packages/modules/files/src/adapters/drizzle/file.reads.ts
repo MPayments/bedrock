@@ -34,7 +34,6 @@ function mapStoredFile(row: {
   linkId: string;
   linkKind:
     | "deal_acceptance"
-    | "deal_application"
     | "deal_attachment"
     | "deal_invoice"
     | "legal_entity_attachment"
@@ -127,7 +126,6 @@ export class DrizzleFileReads implements FileReads {
     generatedLang: "en" | "ru";
     linkKind:
       | "deal_acceptance"
-      | "deal_application"
       | "deal_attachment"
       | "deal_invoice"
       | "legal_entity_attachment"

@@ -36,6 +36,7 @@ function createAgreementDetail() {
       contractDate: now,
       feeRules: [],
       parties: [],
+      routePolicies: [],
       createdAt: now,
       updatedAt: now,
     },
@@ -54,6 +55,7 @@ function createContext() {
             offset: 0,
           })),
           findById: vi.fn(async () => createAgreementDetail()),
+          resolveRouteDefaults: vi.fn(),
         },
         commands: {
           create: vi.fn(),

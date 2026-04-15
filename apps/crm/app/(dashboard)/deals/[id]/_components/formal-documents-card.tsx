@@ -9,11 +9,11 @@ import {
   formatDealWorkflowMessage,
   FORMAL_DOCUMENT_LABELS,
 } from "./constants";
-import { formatCurrency, formatDate } from "./format";
-import type { ApiFormalDocument } from "./types";
+import { formatDate } from "./format";
+import type { ApiCrmDealWorkbenchProjection } from "./types";
 
 type FormalDocumentsCardProps = {
-  documents: ApiFormalDocument[];
+  documents: ApiCrmDealWorkbenchProjection["relatedResources"]["formalDocuments"];
   requirements?: Array<{
     activeDocumentId: string | null;
     blockingReasons: string[];
@@ -37,8 +37,12 @@ const REQUIREMENT_STATE_LABELS: Record<
 
 function renderDocumentStatusLabel(
   kind: "submission" | "approval" | "posting",
-  value: string,
+  value: string | null,
 ) {
+  if (!value) {
+    return "—";
+  }
+
   if (kind === "submission") {
     return DOCUMENT_SUBMISSION_STATUS_LABELS[value] ?? value;
   }
@@ -119,18 +123,11 @@ export function FormalDocumentsCard({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     <div className="font-medium">
-                      {document.title ||
-                        FORMAL_DOCUMENT_LABELS[document.docType] ||
-                        document.docType}
+                      {FORMAL_DOCUMENT_LABELS[document.docType] || document.docType}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {formatDate(document.createdAt)}
+                      {formatDate(document.createdAt ?? document.occurredAt)}
                     </div>
-                    {document.amount && (
-                      <div className="text-sm">
-                        {formatCurrency(document.amount, document.currency)}
-                      </div>
-                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">

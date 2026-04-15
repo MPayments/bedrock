@@ -5,6 +5,7 @@ const getCounterpartyById = vi.fn();
 const getCurrencyById = vi.fn();
 const getCustomerById = vi.fn();
 const getFinanceDealBreadcrumbById = vi.fn();
+const getFinanceRouteTemplateById = vi.fn();
 const getOrganizationById = vi.fn();
 const getRequisiteProviderById = vi.fn();
 const getRequisiteById = vi.fn();
@@ -26,6 +27,10 @@ vi.mock("@/features/entities/customers/lib/queries", () => ({
 
 vi.mock("@/features/treasury/deals/lib/queries", () => ({
   getFinanceDealBreadcrumbById,
+}));
+
+vi.mock("@/features/treasury/route-templates/lib/queries", () => ({
+  getFinanceRouteTemplateById,
 }));
 
 vi.mock("@/features/entities/organizations/lib/queries", () => ({
@@ -103,6 +108,254 @@ describe("treasury deals breadcrumb page", () => {
       },
     ]);
   }, 15_000);
+
+  it("adds the compose segment label for route composer pages", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getFinanceDealBreadcrumbById.mockResolvedValue({
+      summary: {
+        applicantDisplayName: "ООО Ромашка",
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      },
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: [
+          "treasury",
+          "deals",
+          "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          "compose",
+        ],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Сделки",
+        href: "/treasury/deals",
+        icon: "handshake",
+      },
+      {
+        label: "Платеж поставщику • ООО Ромашка",
+        href: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+      {
+        label: "Маршрут",
+      },
+    ]);
+  });
+
+  it("adds the calculation segment label for calculation workspace pages", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getFinanceDealBreadcrumbById.mockResolvedValue({
+      summary: {
+        applicantDisplayName: "ООО Ромашка",
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      },
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: [
+          "treasury",
+          "deals",
+          "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          "calculation",
+        ],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Сделки",
+        href: "/treasury/deals",
+        icon: "handshake",
+      },
+      {
+        label: "Платеж поставщику • ООО Ромашка",
+        href: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+      {
+        label: "Расчет",
+      },
+    ]);
+  });
+
+  it("adds the execution segment label for execution workspace pages", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getFinanceDealBreadcrumbById.mockResolvedValue({
+      summary: {
+        applicantDisplayName: "ООО Ромашка",
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      },
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: [
+          "treasury",
+          "deals",
+          "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          "execution",
+        ],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Сделки",
+        href: "/treasury/deals",
+        icon: "handshake",
+      },
+      {
+        label: "Платеж поставщику • ООО Ромашка",
+        href: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+      {
+        label: "Исполнение",
+      },
+    ]);
+  });
+
+  it("adds the reconciliation segment label for reconciliation workspace pages", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getFinanceDealBreadcrumbById.mockResolvedValue({
+      summary: {
+        applicantDisplayName: "ООО Ромашка",
+        id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        type: "payment",
+      },
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: [
+          "treasury",
+          "deals",
+          "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          "reconciliation",
+        ],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Казначейство",
+        href: "/treasury",
+        icon: "landmark",
+      },
+      {
+        label: "Сделки",
+        href: "/treasury/deals",
+        icon: "handshake",
+      },
+      {
+        label: "Платеж поставщику • ООО Ромашка",
+        href: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+      {
+        label: "Сверка",
+      },
+    ]);
+  });
+
+  it("builds a breadcrumb for route template details", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    getFinanceRouteTemplateById.mockResolvedValue({
+      code: "rub-usd-payout",
+      costComponents: [],
+      createdAt: "2026-04-01T08:00:00.000Z",
+      dealType: "payment",
+      description: "RUB collection -> USD payout",
+      id: "914fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      legs: [],
+      name: "RUB -> USD payout",
+      participants: [],
+      status: "draft",
+      updatedAt: "2026-04-02T08:00:00.000Z",
+    });
+
+    const { default: BreadcrumbSegmentsPage } = await import(
+      "@/app/(shell)/@breadcrumb/[...segments]/page"
+    );
+
+    const element = await BreadcrumbSegmentsPage({
+      params: Promise.resolve({
+        segments: ["route-templates", "914fb6eb-a1bd-429e-9628-e97d0f2efa0b"],
+      }),
+    });
+
+    expect(element.props.items).toEqual([
+      {
+        label: "Шаблоны маршрутов",
+        href: "/route-templates",
+        icon: "workflow",
+      },
+      {
+        label: "RUB -> USD payout",
+        href: "/route-templates/914fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+    ]);
+  });
 
   it("uses treasury canonical links for organization breadcrumbs", async () => {
     (

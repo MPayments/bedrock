@@ -1,18 +1,8 @@
-import React from "react";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const REDIRECT = new Error("REDIRECT");
-
-const redirect = vi.fn(() => {
-  throw REDIRECT;
-});
 
 const parseSearchParams = vi.fn();
 const getOrganizations = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  redirect,
-}));
 
 vi.mock("next/link", () => ({
   default: () => null,
@@ -54,7 +44,6 @@ describe("organization pages", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    Object.assign(globalThis, { React });
 
     parseSearchParams.mockImplementation(async (input) => ({
       page: 1,
@@ -69,32 +58,13 @@ describe("organization pages", () => {
     });
   });
 
-  it("redirects the legacy organizations list route to treasury and preserves filters", async () => {
-    const { default: OrganizationsPage } = await import(
-      "@/app/(shell)/entities/organizations/page"
-    );
-
-    const searchParams = Promise.resolve({
-      shortName: "Bedrock",
-      kind: ["legal_entity"],
-    });
-
-    await expect(OrganizationsPage({ searchParams })).rejects.toBe(REDIRECT);
-    expect(redirect).toHaveBeenCalledWith(
-      "/treasury/organizations?shortName=Bedrock&kind=legal_entity",
-    );
-  });
-
-  it("redirects the legacy organizations create route to treasury", async () => {
-    const { default: CreateOrganizationPage } = await import(
-      "@/app/(shell)/entities/organizations/create/page"
-    );
-
-    expect(() => CreateOrganizationPage()).toThrow(REDIRECT);
-    expect(redirect).toHaveBeenCalledWith("/treasury/organizations/create");
-  });
-
   it("passes parsed filters to the treasury organizations page query", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
     const { default: TreasuryOrganizationsPage } = await import(
       "@/app/(shell)/treasury/organizations/page"
     );

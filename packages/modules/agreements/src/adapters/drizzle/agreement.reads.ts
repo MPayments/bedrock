@@ -18,6 +18,8 @@ import {
 import {
   agreementFeeRules,
   agreementParties,
+  agreementRoutePolicies,
+  agreementRouteTemplateLinks,
   agreements,
   agreementVersions,
 } from "./schema";
@@ -26,6 +28,8 @@ import type {
   AgreementDetails,
   AgreementFeeRule,
   AgreementParty,
+  AgreementRoutePolicy,
+  AgreementRouteTemplateLink,
   AgreementVersion,
   AgreementVersionSummary,
 } from "../../application/contracts/dto";
@@ -137,6 +141,24 @@ function mapPartyRow(row: {
   };
 }
 
+function mapRouteTemplateLinkRow(row: {
+  id: string;
+  routeTemplateId: string;
+  sequence: number;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): AgreementRouteTemplateLink {
+  return {
+    id: row.id,
+    routeTemplateId: row.routeTemplateId,
+    sequence: row.sequence,
+    isDefault: row.isDefault,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 export class DrizzleAgreementReads implements AgreementReads {
   constructor(
     private readonly db: Queryable,
@@ -155,7 +177,8 @@ export class DrizzleAgreementReads implements AgreementReads {
       return null;
     }
 
-    const [feeRuleRows, partyRows] = await Promise.all([
+    const [feeRuleRows, partyRows, routePolicyRows, routeTemplateLinkRows] =
+      await Promise.all([
       this.db
         .select({
           id: agreementFeeRules.id,
@@ -181,12 +204,128 @@ export class DrizzleAgreementReads implements AgreementReads {
         .from(agreementParties)
         .where(eq(agreementParties.agreementVersionId, summary.currentVersionId))
         .orderBy(asc(agreementParties.createdAt)),
+      this.db
+        .select({
+          id: agreementRoutePolicies.id,
+          agreementVersionId: agreementRoutePolicies.agreementVersionId,
+          sequence: agreementRoutePolicies.sequence,
+          dealType: agreementRoutePolicies.dealType,
+          sourceCurrencyId: agreementRoutePolicies.sourceCurrencyId,
+          targetCurrencyId: agreementRoutePolicies.targetCurrencyId,
+          defaultMarkupBps: agreementRoutePolicies.defaultMarkupBps,
+          defaultWireFeeAmountMinor:
+            agreementRoutePolicies.defaultWireFeeAmountMinor,
+          defaultWireFeeCurrencyId:
+            agreementRoutePolicies.defaultWireFeeCurrencyId,
+          defaultSubAgentCommissionUnit:
+            agreementRoutePolicies.defaultSubAgentCommissionUnit,
+          defaultSubAgentCommissionBps:
+            agreementRoutePolicies.defaultSubAgentCommissionBps,
+          defaultSubAgentCommissionAmountMinor:
+            agreementRoutePolicies.defaultSubAgentCommissionAmountMinor,
+          defaultSubAgentCommissionCurrencyId:
+            agreementRoutePolicies.defaultSubAgentCommissionCurrencyId,
+          approvalThresholdAmountMinor:
+            agreementRoutePolicies.approvalThresholdAmountMinor,
+          approvalThresholdCurrencyId:
+            agreementRoutePolicies.approvalThresholdCurrencyId,
+          quoteValiditySeconds: agreementRoutePolicies.quoteValiditySeconds,
+          createdAt: agreementRoutePolicies.createdAt,
+          updatedAt: agreementRoutePolicies.updatedAt,
+        })
+        .from(agreementRoutePolicies)
+        .where(eq(agreementRoutePolicies.agreementVersionId, summary.currentVersionId))
+        .orderBy(
+          asc(agreementRoutePolicies.sequence),
+          asc(agreementRoutePolicies.createdAt),
+        ),
+      this.db
+        .select({
+          id: agreementRouteTemplateLinks.id,
+          agreementRoutePolicyId:
+            agreementRouteTemplateLinks.agreementRoutePolicyId,
+          routeTemplateId: agreementRouteTemplateLinks.routeTemplateId,
+          sequence: agreementRouteTemplateLinks.sequence,
+          isDefault: agreementRouteTemplateLinks.isDefault,
+          createdAt: agreementRouteTemplateLinks.createdAt,
+          updatedAt: agreementRouteTemplateLinks.updatedAt,
+        })
+        .from(agreementRouteTemplateLinks)
+        .innerJoin(
+          agreementRoutePolicies,
+          eq(
+            agreementRouteTemplateLinks.agreementRoutePolicyId,
+            agreementRoutePolicies.id,
+          ),
+        )
+        .where(eq(agreementRoutePolicies.agreementVersionId, summary.currentVersionId))
+        .orderBy(
+          asc(agreementRouteTemplateLinks.sequence),
+          asc(agreementRouteTemplateLinks.createdAt),
+        ),
     ]);
     const currenciesById = await this.currenciesQueries.listByIds(
-      feeRuleRows
-        .map((row) => row.currencyId)
-        .filter((currencyId): currencyId is string => Boolean(currencyId)),
+      [
+        ...feeRuleRows.map((row) => row.currencyId),
+        ...routePolicyRows.map((row) => row.sourceCurrencyId),
+        ...routePolicyRows.map((row) => row.targetCurrencyId),
+        ...routePolicyRows.map((row) => row.defaultWireFeeCurrencyId),
+        ...routePolicyRows.map(
+          (row) => row.defaultSubAgentCommissionCurrencyId,
+        ),
+        ...routePolicyRows.map((row) => row.approvalThresholdCurrencyId),
+      ].filter((currencyId): currencyId is string => Boolean(currencyId)),
     );
+
+    const templateLinksByPolicyId = new Map<string, AgreementRouteTemplateLink[]>();
+
+    routeTemplateLinkRows.forEach((row) => {
+      const current = templateLinksByPolicyId.get(row.agreementRoutePolicyId) ?? [];
+      current.push(mapRouteTemplateLinkRow(row));
+      templateLinksByPolicyId.set(row.agreementRoutePolicyId, current);
+    });
+
+    const routePolicies: AgreementRoutePolicy[] = routePolicyRows.map((row) => ({
+      id: row.id,
+      agreementVersionId: row.agreementVersionId,
+      sequence: row.sequence,
+      dealType: row.dealType,
+      sourceCurrencyId: row.sourceCurrencyId,
+      sourceCurrencyCode: row.sourceCurrencyId
+        ? currenciesById.get(row.sourceCurrencyId)?.code ?? null
+        : null,
+      targetCurrencyId: row.targetCurrencyId,
+      targetCurrencyCode: row.targetCurrencyId
+        ? currenciesById.get(row.targetCurrencyId)?.code ?? null
+        : null,
+      defaultMarkupBps: row.defaultMarkupBps,
+      defaultWireFeeAmountMinor:
+        row.defaultWireFeeAmountMinor?.toString() ?? null,
+      defaultWireFeeCurrencyId: row.defaultWireFeeCurrencyId,
+      defaultWireFeeCurrencyCode: row.defaultWireFeeCurrencyId
+        ? currenciesById.get(row.defaultWireFeeCurrencyId)?.code ?? null
+        : null,
+      defaultSubAgentCommissionUnit: row.defaultSubAgentCommissionUnit,
+      defaultSubAgentCommissionBps: row.defaultSubAgentCommissionBps,
+      defaultSubAgentCommissionAmountMinor:
+        row.defaultSubAgentCommissionAmountMinor?.toString() ?? null,
+      defaultSubAgentCommissionCurrencyId:
+        row.defaultSubAgentCommissionCurrencyId,
+      defaultSubAgentCommissionCurrencyCode:
+        row.defaultSubAgentCommissionCurrencyId
+          ? currenciesById.get(row.defaultSubAgentCommissionCurrencyId)?.code ?? null
+          : null,
+      approvalThresholdAmountMinor:
+        row.approvalThresholdAmountMinor?.toString() ?? null,
+      approvalThresholdCurrencyId: row.approvalThresholdCurrencyId,
+      approvalThresholdCurrencyCode: row.approvalThresholdCurrencyId
+        ? currenciesById.get(row.approvalThresholdCurrencyId)?.code ?? null
+        : null,
+      quoteValiditySeconds: row.quoteValiditySeconds,
+      templateLinks: templateLinksByPolicyId.get(row.id) ?? [],
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
 
     const currentVersion: AgreementVersion = {
       ...mapAgreementVersionSummary(summary),
@@ -199,6 +338,7 @@ export class DrizzleAgreementReads implements AgreementReads {
         }),
       ),
       parties: partyRows.map(mapPartyRow),
+      routePolicies,
     };
 
     return {

@@ -78,6 +78,21 @@ export interface CommercialDocumentBusinessLinksPort {
 }
 
 export interface CommercialDealFxContext {
+  actualFinancialLines?: {
+    amountMinor: bigint;
+    bucket:
+      | "adjustment"
+      | "fee_revenue"
+      | "pass_through"
+      | "provider_fee_expense"
+      | "spread_revenue";
+    currency: string;
+    id: string;
+    memo?: string;
+    metadata?: Record<string, string>;
+    settlementMode: "in_ledger";
+    source: "manual" | "rule";
+  }[];
   calculationCurrency: string | null;
   calculationId: string | null;
   dealId: string;
@@ -95,7 +110,7 @@ export interface CommercialDealFxContext {
     memo?: string;
     metadata?: Record<string, string>;
     settlementMode: "in_ledger";
-    source: "rule";
+    source: "manual" | "rule";
   }[];
   fundingResolution: DealFundingResolution;
   hasConvertLeg: boolean;

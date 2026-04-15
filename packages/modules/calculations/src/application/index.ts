@@ -6,6 +6,7 @@ import { CreateCalculationCommand } from "./commands/create-calculation";
 import type { CalculationReads } from "./ports/calculation.reads";
 import type { CalculationsCommandUnitOfWork } from "./ports/calculations.uow";
 import type { CalculationReferencesPort } from "./ports/references.port";
+import { CompareCalculationsQuery } from "./queries/compare-calculations";
 import { FindCalculationByIdQuery } from "./queries/find-calculation-by-id";
 import { ListCalculationsQuery } from "./queries/list-calculations";
 
@@ -28,6 +29,7 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
+  const compareCalculations = new CompareCalculationsQuery(deps.reads);
   const findCalculationById = new FindCalculationByIdQuery(deps.reads);
   const listCalculations = new ListCalculationsQuery(deps.reads);
 
@@ -37,6 +39,7 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
       create: createCalculation.execute.bind(createCalculation),
     },
     queries: {
+      compare: compareCalculations.execute.bind(compareCalculations),
       findById: findCalculationById.execute.bind(findCalculationById),
       list: listCalculations.execute.bind(listCalculations),
     },

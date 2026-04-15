@@ -15,5 +15,30 @@ export const AGREEMENT_PARTY_ROLE_VALUES = [
 ] as const;
 export type AgreementPartyRole = (typeof AGREEMENT_PARTY_ROLE_VALUES)[number];
 
+export const AGREEMENT_ROUTE_POLICY_DEAL_TYPE_VALUES = [
+  "payment",
+  "currency_exchange",
+  "currency_transit",
+  "exporter_settlement",
+  "internal_treasury",
+] as const;
+export type AgreementRoutePolicyDealType =
+  (typeof AGREEMENT_ROUTE_POLICY_DEAL_TYPE_VALUES)[number];
+
+export const AGREEMENT_ROUTE_POLICY_COMMISSION_UNIT_VALUES = [
+  "bps",
+  "money",
+] as const;
+export type AgreementRoutePolicyCommissionUnit =
+  (typeof AGREEMENT_ROUTE_POLICY_COMMISSION_UNIT_VALUES)[number];
+
+export const AGREEMENT_ROUTE_TEMPLATE_STATUS_VALUES = [
+  "draft",
+  "published",
+  "archived",
+] as const;
+export type AgreementRouteTemplateStatus =
+  (typeof AGREEMENT_ROUTE_TEMPLATE_STATUS_VALUES)[number];
+
 export const AGREEMENTS_CREATE_IDEMPOTENCY_SCOPE = "agreements.create";
 export const AGREEMENTS_UPDATE_IDEMPOTENCY_SCOPE = "agreements.update";

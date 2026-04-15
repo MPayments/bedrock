@@ -19,18 +19,12 @@ import {
   rationalToDecimalString,
 } from "./format";
 import type {
-  ApiDealAcceptedQuote,
+  ApiCrmDealWorkbenchProjection,
   ApiDealPricingQuote,
-  CalculationHistoryView,
-  CalculationView,
 } from "./types";
 
 type DealPricingTabProps = {
-  acceptedQuote: ApiDealAcceptedQuote;
-  activeCalculationId: string | null;
-  calculation: CalculationView | null;
   calculationDisabledReason: string | null;
-  calculationHistory: CalculationHistoryView[];
   isAcceptingQuoteId: string | null;
   isCreatingCalculation: boolean;
   isCreatingQuote: boolean;
@@ -39,7 +33,7 @@ type DealPricingTabProps = {
   onCreateQuote: () => void;
   quoteAmountSide: "source" | "target";
   quoteCreationDisabledReason: string | null;
-  quotes: ApiDealPricingQuote[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 function formatQuoteStatus(status: string) {
@@ -120,11 +114,7 @@ function formatQuoteFixedFee(quote: ApiDealPricingQuote) {
 }
 
 export function DealPricingTab({
-  acceptedQuote,
-  activeCalculationId,
-  calculation,
   calculationDisabledReason,
-  calculationHistory,
   isAcceptingQuoteId,
   isCreatingCalculation,
   isCreatingQuote,
@@ -133,8 +123,13 @@ export function DealPricingTab({
   onCreateQuote,
   quoteAmountSide,
   quoteCreationDisabledReason,
-  quotes,
+  workbench,
 }: DealPricingTabProps) {
+  const acceptedQuote = workbench.acceptedQuote;
+  const activeCalculationId = workbench.summary.calculationId;
+  const calculation = workbench.pricing.currentCalculation;
+  const calculationHistory = workbench.pricing.calculationHistory;
+  const quotes = workbench.pricing.quotes;
   const acceptedDetailedQuote = acceptedQuote
     ? (quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null)
     : null;

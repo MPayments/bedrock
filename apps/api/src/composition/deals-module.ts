@@ -16,7 +16,12 @@ import {
 } from "@bedrock/deals/adapters/drizzle";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import type { OrganizationRequisiteLiquidityQueryRow } from "@bedrock/ledger/contracts";
-import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
+import {
+  DrizzleCounterpartyReads,
+  DrizzleCustomerReads,
+  DrizzleOrganizationReads,
+  DrizzleRequisiteReads,
+} from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -228,6 +233,8 @@ export function createApiDealsModule(input: {
 }): DealsModule {
   const customerReads = new DrizzleCustomerReads(input.db);
   const counterpartyReads = new DrizzleCounterpartyReads(input.db);
+  const organizationReads = new DrizzleOrganizationReads(input.db);
+  const requisiteReads = new DrizzleRequisiteReads(input.db);
   const calculationReads = new DrizzleCalculationReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
   const currenciesQueries = createCurrenciesQueries({ db: input.db });
@@ -290,6 +297,9 @@ export function createApiDealsModule(input: {
       async findCustomerById(id: string) {
         return customerReads.findById(id);
       },
+      async findOrganizationById(id: string) {
+        return organizationReads.findById(id);
+      },
       async findQuoteById(id: string) {
         const quote = await input.quoteReads.findById(id);
 
@@ -308,6 +318,19 @@ export function createApiDealsModule(input: {
           status: quote.status,
           usedAt: quote.usedAt,
           usedDocumentId: quote.usedDocumentId,
+        };
+      },
+      async findRequisiteById(id: string) {
+        const requisite = await requisiteReads.findById(id);
+
+        if (!requisite) {
+          return null;
+        }
+
+        return {
+          id: requisite.id,
+          ownerId: requisite.ownerId,
+          ownerType: requisite.ownerType,
         };
       },
       async listActiveAgreementsByCustomerId(customerId: string) {

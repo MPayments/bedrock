@@ -24,37 +24,23 @@ import { OrganizationRequisiteCard } from "./organization-requisite-card";
 import type {
   ApiCrmDealWorkbenchProjection,
   ApiCurrency,
-  ApiDealDetails,
-  ApiDealWorkflowProjection,
-  ApiOrganization,
-  ApiRequisite,
-  ApiRequisiteProvider,
-  ApiCustomerCounterparty,
-  CalculationView,
 } from "./types";
 
 type DealOverviewTabProps = {
-  calculation: CalculationView | null;
   commentValue: string;
-  deal: ApiDealDetails;
   isEditingComment: boolean;
   isSavingComment: boolean;
-  partyProfile: ApiCustomerCounterparty | null;
   onCommentChange: (value: string) => void;
   onCancelEdit: () => void;
   onEditComment: () => void;
   onSaveComment: () => void;
-  organization: ApiOrganization;
-  organizationRequisite: ApiRequisite;
-  organizationRequisiteProvider: ApiRequisiteProvider | null;
   currency: ApiCurrency | null;
   workbench: ApiCrmDealWorkbenchProjection;
-  workflow: ApiDealWorkflowProjection;
 };
 
 const REQUIRED_SECTION_IDS_BY_TYPE: Record<
-  ApiDealDetails["type"],
-  ApiDealWorkflowProjection["sectionCompleteness"][number]["sectionId"][]
+  ApiCrmDealWorkbenchProjection["summary"]["type"],
+  ApiCrmDealWorkbenchProjection["sectionCompleteness"][number]["sectionId"][]
 > = {
   payment: ["common", "moneyRequest", "externalBeneficiary"],
   currency_exchange: ["common", "moneyRequest", "settlementDestination"],
@@ -74,19 +60,18 @@ const REQUIRED_SECTION_IDS_BY_TYPE: Record<
 
 function collectTopBlockers(
   workbench: ApiCrmDealWorkbenchProjection,
-  workflow: ApiDealWorkflowProjection,
 ) {
   const messages = new Set<string>();
   const requiredSections = new Set(
-    REQUIRED_SECTION_IDS_BY_TYPE[workflow.summary.type],
+    REQUIRED_SECTION_IDS_BY_TYPE[workbench.summary.type],
   );
 
-  workflow.transitionReadiness.forEach((item) => {
+  workbench.transitionReadiness.forEach((item) => {
     if (!item.allowed) {
       item.blockers.forEach((blocker) => messages.add(blocker.message));
     }
   });
-  workflow.sectionCompleteness.forEach((section) => {
+  workbench.sectionCompleteness.forEach((section) => {
     if (!section.complete && requiredSections.has(section.sectionId)) {
       section.blockingReasons.forEach((reason) => messages.add(reason));
     }
@@ -109,26 +94,17 @@ function collectTopBlockers(
 }
 
 export function DealOverviewTab({
-  calculation,
   commentValue,
-  deal,
   isEditingComment,
   isSavingComment,
-  partyProfile,
   onCommentChange,
   onCancelEdit,
   onEditComment,
   onSaveComment,
-  organization,
-  organizationRequisite,
-  organizationRequisiteProvider,
   currency,
   workbench,
-  workflow,
 }: DealOverviewTabProps) {
-  void calculation;
-
-  const blockers = collectTopBlockers(workbench, workflow);
+  const blockers = collectTopBlockers(workbench);
 
   return (
     <div className="space-y-6">
@@ -176,7 +152,6 @@ export function DealOverviewTab({
 
         <DealInfoCard
           commentValue={commentValue}
-          deal={deal}
           currency={currency}
           isEditingComment={isEditingComment}
           isSavingComment={isSavingComment}
@@ -184,15 +159,16 @@ export function DealOverviewTab({
           onCommentChange={onCommentChange}
           onEditComment={onEditComment}
           onSaveComment={onSaveComment}
+          workbench={workbench}
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <CounterpartyCard partyProfile={partyProfile} />
-        <OrganizationCard organization={organization} />
+        <CounterpartyCard counterparty={workbench.context.applicant} />
+        <OrganizationCard organization={workbench.context.internalEntity} />
         <OrganizationRequisiteCard
-          requisite={organizationRequisite}
-          provider={organizationRequisiteProvider}
+          provider={workbench.context.internalEntityRequisiteProvider}
+          requisite={workbench.context.internalEntityRequisite}
         />
       </div>
     </div>

@@ -21,17 +21,27 @@ import {
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import {
   dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
   dealIntakeSnapshots,
+  dealRouteCostComponents,
+  dealRouteLegs,
+  dealRouteParticipants,
+  dealRoutes,
+  dealRouteVersions,
   dealLegs,
   dealLegOperationLinks,
   dealParticipants,
   deals,
   dealTimelineEvents,
+  routeTemplateCostComponents,
+  routeTemplateLegs,
+  routeTemplateParticipants,
+  routeTemplates,
 } from "./schema";
 import type {
   Deal,
@@ -42,6 +52,9 @@ import type {
   DealFundingResolution,
   DealIntakeDraft,
   DealQuoteAcceptance,
+  DealRouteTemplate,
+  DealRouteTemplateSummary,
+  DealRouteVersion,
   DealTimelineEvent,
   DealTraceProjection,
   DealWorkflowParticipant,
@@ -90,6 +103,21 @@ function minorToDecimalString(amountMinor: bigint | string, precision: number) {
   const fractionPart = padded.slice(padded.length - precision);
 
   return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
+}
+
+function feeBpsToPercentString(feeBps: bigint | string) {
+  return minorToDecimalString(feeBps, 2);
+}
+
+function rationalToDecimalString(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  scale = 6,
+) {
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
 }
 
 function mapTimelineEvent(row: {
@@ -294,12 +322,6 @@ function buildDealSummaryView(input: {
     type: input.type,
     updatedAt: input.updatedAt,
   };
-}
-
-function buildPortalCalculationSummary(
-  calculationId: string | null,
-): PortalDealCalculationSummary {
-  return calculationId ? { id: calculationId } : null;
 }
 
 interface DealSummaryRow {
@@ -945,10 +967,524 @@ export class DrizzleDealReads implements DealReads {
     return row ? mapAttachmentIngestion(row) : null;
   }
 
+  async findCurrentRouteByDealId(id: string): Promise<DealRouteVersion | null> {
+    const [route] = await this.db
+      .select({
+        currentVersionId: dealRoutes.currentVersionId,
+        routeId: dealRoutes.id,
+      })
+      .from(dealRoutes)
+      .where(eq(dealRoutes.dealId, id))
+      .limit(1);
+
+    if (!route?.currentVersionId) {
+      return null;
+    }
+
+    const [versionRow, participantRows, legRows, componentRows] =
+      await Promise.all([
+        this.db
+          .select({
+            createdAt: dealRouteVersions.createdAt,
+            dealId: dealRouteVersions.dealId,
+            id: dealRouteVersions.id,
+            routeId: dealRouteVersions.routeId,
+            validationIssues: dealRouteVersions.validationIssues,
+            version: dealRouteVersions.version,
+          })
+          .from(dealRouteVersions)
+          .where(eq(dealRouteVersions.id, route.currentVersionId))
+          .limit(1),
+        this.db
+          .select({
+            code: dealRouteParticipants.code,
+            counterpartyId: dealRouteParticipants.counterpartyId,
+            customerId: dealRouteParticipants.customerId,
+            displayNameSnapshot: dealRouteParticipants.displayNameSnapshot,
+            id: dealRouteParticipants.id,
+            metadata: dealRouteParticipants.metadataJson,
+            organizationId: dealRouteParticipants.organizationId,
+            partyKind: dealRouteParticipants.partyKind,
+            requisiteId: dealRouteParticipants.requisiteId,
+            role: dealRouteParticipants.role,
+            sequence: dealRouteParticipants.sequence,
+          })
+          .from(dealRouteParticipants)
+          .where(eq(dealRouteParticipants.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteParticipants.sequence)),
+        this.db
+          .select({
+            code: dealRouteLegs.code,
+            executionCounterpartyId: dealRouteLegs.executionCounterpartyId,
+            expectedFromAmountMinor: dealRouteLegs.expectedFromAmountMinor,
+            expectedRateDen: dealRouteLegs.expectedRateDen,
+            expectedRateNum: dealRouteLegs.expectedRateNum,
+            expectedToAmountMinor: dealRouteLegs.expectedToAmountMinor,
+            fromCurrencyId: dealRouteLegs.fromCurrencyId,
+            fromParticipantId: dealRouteLegs.fromParticipantId,
+            id: dealRouteLegs.id,
+            idx: dealRouteLegs.idx,
+            kind: dealRouteLegs.kind,
+            notes: dealRouteLegs.notes,
+            settlementModel: dealRouteLegs.settlementModel,
+            toCurrencyId: dealRouteLegs.toCurrencyId,
+            toParticipantId: dealRouteLegs.toParticipantId,
+          })
+          .from(dealRouteLegs)
+          .where(eq(dealRouteLegs.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteLegs.idx)),
+        this.db
+          .select({
+            basisType: dealRouteCostComponents.basisType,
+            bps: dealRouteCostComponents.bps,
+            classification: dealRouteCostComponents.classification,
+            code: dealRouteCostComponents.code,
+            currencyId: dealRouteCostComponents.currencyId,
+            family: dealRouteCostComponents.family,
+            fixedAmountMinor: dealRouteCostComponents.fixedAmountMinor,
+            formulaType: dealRouteCostComponents.formulaType,
+            id: dealRouteCostComponents.id,
+            includedInClientRate: dealRouteCostComponents.includedInClientRate,
+            legId: dealRouteCostComponents.legId,
+            manualAmountMinor: dealRouteCostComponents.manualAmountMinor,
+            notes: dealRouteCostComponents.notes,
+            perMillion: dealRouteCostComponents.perMillion,
+            roundingMode: dealRouteCostComponents.roundingMode,
+            sequence: dealRouteCostComponents.sequence,
+          })
+          .from(dealRouteCostComponents)
+          .where(eq(dealRouteCostComponents.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteCostComponents.sequence)),
+      ]);
+
+    const version = versionRow[0];
+
+    if (!version) {
+      return null;
+    }
+
+    const participantCodeById = new Map(
+      participantRows.map((participant) => [participant.id, participant.code] as const),
+    );
+    const legCodeById = new Map(legRows.map((leg) => [leg.id, leg.code] as const));
+
+    return {
+      costComponents: componentRows.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor:
+          component.fixedAmountMinor === null
+            ? null
+            : component.fixedAmountMinor.toString(),
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legCode: component.legId ? (legCodeById.get(component.legId) ?? null) : null,
+        manualAmountMinor:
+          component.manualAmountMinor === null
+            ? null
+            : component.manualAmountMinor.toString(),
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        sequence: component.sequence,
+      })),
+      createdAt: version.createdAt,
+      dealId: version.dealId,
+      id: version.id,
+      isCurrent: true,
+      legs: legRows.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor:
+          leg.expectedFromAmountMinor === null
+            ? null
+            : leg.expectedFromAmountMinor.toString(),
+        expectedRateDen:
+          leg.expectedRateDen === null ? null : leg.expectedRateDen.toString(),
+        expectedRateNum:
+          leg.expectedRateNum === null ? null : leg.expectedRateNum.toString(),
+        expectedToAmountMinor:
+          leg.expectedToAmountMinor === null
+            ? null
+            : leg.expectedToAmountMinor.toString(),
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantCode:
+          participantCodeById.get(leg.fromParticipantId) ?? leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantCode:
+          participantCodeById.get(leg.toParticipantId) ?? leg.toParticipantId,
+      })),
+      participants: participantRows.map((participant) => ({
+        code: participant.code,
+        displayNameSnapshot: participant.displayNameSnapshot,
+        id: participant.id,
+        metadata: participant.metadata ?? {},
+        partyId:
+          participant.partyKind === "customer"
+            ? participant.customerId!
+            : participant.partyKind === "organization"
+              ? participant.organizationId!
+              : participant.counterpartyId!,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        sequence: participant.sequence,
+      })),
+      routeId: version.routeId,
+      validationIssues:
+        (version.validationIssues as DealRouteVersion["validationIssues"]) ?? [],
+      version: version.version,
+    };
+  }
+
+  async findRouteTemplateById(id: string): Promise<DealRouteTemplate | null> {
+    const [templateRow, participantRows, legRows, componentRows] =
+      await Promise.all([
+        this.db
+          .select({
+            code: routeTemplates.code,
+            createdAt: routeTemplates.createdAt,
+            dealType: routeTemplates.dealType,
+            description: routeTemplates.description,
+            id: routeTemplates.id,
+            name: routeTemplates.name,
+            status: routeTemplates.status,
+            updatedAt: routeTemplates.updatedAt,
+          })
+          .from(routeTemplates)
+          .where(eq(routeTemplates.id, id))
+          .limit(1),
+        this.db
+          .select({
+            bindingKind: routeTemplateParticipants.bindingKind,
+            code: routeTemplateParticipants.code,
+            counterpartyId: routeTemplateParticipants.counterpartyId,
+            customerId: routeTemplateParticipants.customerId,
+            displayNameTemplate: routeTemplateParticipants.displayNameTemplate,
+            id: routeTemplateParticipants.id,
+            metadata: routeTemplateParticipants.metadataJson,
+            organizationId: routeTemplateParticipants.organizationId,
+            partyKind: routeTemplateParticipants.partyKind,
+            requisiteId: routeTemplateParticipants.requisiteId,
+            role: routeTemplateParticipants.role,
+            sequence: routeTemplateParticipants.sequence,
+          })
+          .from(routeTemplateParticipants)
+          .where(eq(routeTemplateParticipants.routeTemplateId, id))
+          .orderBy(asc(routeTemplateParticipants.sequence)),
+        this.db
+          .select({
+            code: routeTemplateLegs.code,
+            executionCounterpartyId: routeTemplateLegs.executionCounterpartyId,
+            expectedFromAmountMinor: routeTemplateLegs.expectedFromAmountMinor,
+            expectedRateDen: routeTemplateLegs.expectedRateDen,
+            expectedRateNum: routeTemplateLegs.expectedRateNum,
+            expectedToAmountMinor: routeTemplateLegs.expectedToAmountMinor,
+            fromCurrencyId: routeTemplateLegs.fromCurrencyId,
+            fromParticipantId: routeTemplateLegs.fromParticipantId,
+            id: routeTemplateLegs.id,
+            idx: routeTemplateLegs.idx,
+            kind: routeTemplateLegs.kind,
+            notes: routeTemplateLegs.notes,
+            settlementModel: routeTemplateLegs.settlementModel,
+            toCurrencyId: routeTemplateLegs.toCurrencyId,
+            toParticipantId: routeTemplateLegs.toParticipantId,
+          })
+          .from(routeTemplateLegs)
+          .where(eq(routeTemplateLegs.routeTemplateId, id))
+          .orderBy(asc(routeTemplateLegs.idx)),
+        this.db
+          .select({
+            basisType: routeTemplateCostComponents.basisType,
+            bps: routeTemplateCostComponents.bps,
+            classification: routeTemplateCostComponents.classification,
+            code: routeTemplateCostComponents.code,
+            currencyId: routeTemplateCostComponents.currencyId,
+            family: routeTemplateCostComponents.family,
+            fixedAmountMinor: routeTemplateCostComponents.fixedAmountMinor,
+            formulaType: routeTemplateCostComponents.formulaType,
+            id: routeTemplateCostComponents.id,
+            includedInClientRate: routeTemplateCostComponents.includedInClientRate,
+            legId: routeTemplateCostComponents.legId,
+            manualAmountMinor: routeTemplateCostComponents.manualAmountMinor,
+            notes: routeTemplateCostComponents.notes,
+            perMillion: routeTemplateCostComponents.perMillion,
+            roundingMode: routeTemplateCostComponents.roundingMode,
+            sequence: routeTemplateCostComponents.sequence,
+          })
+          .from(routeTemplateCostComponents)
+          .where(eq(routeTemplateCostComponents.routeTemplateId, id))
+          .orderBy(asc(routeTemplateCostComponents.sequence)),
+      ]);
+
+    const template = templateRow[0];
+
+    if (!template) {
+      return null;
+    }
+
+    const participantCodeById = new Map(
+      participantRows.map((participant) => [participant.id, participant.code] as const),
+    );
+    const legCodeById = new Map(legRows.map((leg) => [leg.id, leg.code] as const));
+
+    return {
+      code: template.code,
+      costComponents: componentRows.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor:
+          component.fixedAmountMinor === null
+            ? null
+            : component.fixedAmountMinor.toString(),
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legCode: component.legId ? (legCodeById.get(component.legId) ?? null) : null,
+        manualAmountMinor:
+          component.manualAmountMinor === null
+            ? null
+            : component.manualAmountMinor.toString(),
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        sequence: component.sequence,
+      })),
+      createdAt: template.createdAt,
+      dealType: template.dealType,
+      description: template.description,
+      id: template.id,
+      legs: legRows.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor:
+          leg.expectedFromAmountMinor === null
+            ? null
+            : leg.expectedFromAmountMinor.toString(),
+        expectedRateDen:
+          leg.expectedRateDen === null ? null : leg.expectedRateDen.toString(),
+        expectedRateNum:
+          leg.expectedRateNum === null ? null : leg.expectedRateNum.toString(),
+        expectedToAmountMinor:
+          leg.expectedToAmountMinor === null
+            ? null
+            : leg.expectedToAmountMinor.toString(),
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantCode:
+          participantCodeById.get(leg.fromParticipantId) ?? leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantCode:
+          participantCodeById.get(leg.toParticipantId) ?? leg.toParticipantId,
+      })),
+      name: template.name,
+      participants: participantRows.map((participant) => ({
+        bindingKind: participant.bindingKind,
+        code: participant.code,
+        displayNameTemplate: participant.displayNameTemplate,
+        id: participant.id,
+        metadata: participant.metadata ?? {},
+        partyId:
+          participant.partyKind === "customer"
+            ? participant.customerId
+            : participant.partyKind === "organization"
+              ? participant.organizationId
+              : participant.counterpartyId,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        sequence: participant.sequence,
+      })),
+      status: template.status,
+      updatedAt: template.updatedAt,
+    };
+  }
+
+  async listRouteTemplates(input?: {
+    dealType?: Deal["type"];
+    status?: ("draft" | "published" | "archived")[];
+  }): Promise<DealRouteTemplateSummary[]> {
+    const conditions: SQL[] = [];
+
+    if (input?.dealType) {
+      conditions.push(eq(routeTemplates.dealType, input.dealType));
+    }
+
+    if (input?.status?.length) {
+      conditions.push(inArray(routeTemplates.status, input.status));
+    }
+
+    const rows = await this.db
+      .select({
+        code: routeTemplates.code,
+        createdAt: routeTemplates.createdAt,
+        dealType: routeTemplates.dealType,
+        description: routeTemplates.description,
+        id: routeTemplates.id,
+        name: routeTemplates.name,
+        status: routeTemplates.status,
+        updatedAt: routeTemplates.updatedAt,
+      })
+      .from(routeTemplates)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(routeTemplates.updatedAt), asc(routeTemplates.name));
+
+    return rows.map((row) => ({
+      code: row.code,
+      createdAt: row.createdAt,
+      dealType: row.dealType,
+      description: row.description,
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      updatedAt: row.updatedAt,
+    }));
+  }
+
   async listAttachmentIngestionsByDealId(
     dealId: string,
   ): Promise<DealAttachmentIngestion[]> {
     return this.loadAttachmentIngestions(dealId);
+  }
+
+  private async loadPortalCalculationSummary(
+    calculationId: string | null,
+  ): Promise<PortalDealCalculationSummary> {
+    if (!calculationId) {
+      return null;
+    }
+
+    const [row] = await this.db
+      .select({
+        additionalExpensesAmountMinor:
+          calculationSnapshots.additionalExpensesAmountMinor,
+        additionalExpensesCurrencyId:
+          calculationSnapshots.additionalExpensesCurrencyId,
+        agreementFeeAmountMinor: calculationSnapshots.agreementFeeAmountMinor,
+        agreementFeeBps: calculationSnapshots.agreementFeeBps,
+        baseCurrencyId: calculationSnapshots.baseCurrencyId,
+        calculationCurrencyId: calculationSnapshots.calculationCurrencyId,
+        calculationId: calculations.id,
+        calculationTimestamp: calculationSnapshots.calculationTimestamp,
+        fixedFeeAmountMinor: calculationSnapshots.fixedFeeAmountMinor,
+        fixedFeeCurrencyId: calculationSnapshots.fixedFeeCurrencyId,
+        originalAmountMinor: calculationSnapshots.originalAmountMinor,
+        quoteMarkupAmountMinor: calculationSnapshots.quoteMarkupAmountMinor,
+        quoteMarkupBps: calculationSnapshots.quoteMarkupBps,
+        rateDen: calculationSnapshots.rateDen,
+        rateNum: calculationSnapshots.rateNum,
+        totalAmountMinor: calculationSnapshots.totalAmountMinor,
+        totalFeeAmountInBaseMinor:
+          calculationSnapshots.totalFeeAmountInBaseMinor,
+        totalFeeAmountMinor: calculationSnapshots.totalFeeAmountMinor,
+        totalFeeBps: calculationSnapshots.totalFeeBps,
+        totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          calculationSnapshots.totalWithExpensesInBaseMinor,
+      })
+      .from(calculations)
+      .innerJoin(
+        calculationSnapshots,
+        eq(calculations.currentSnapshotId, calculationSnapshots.id),
+      )
+      .where(eq(calculations.id, calculationId))
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    const currenciesById = await this.currenciesQueries.listByIds(
+      [
+        row.calculationCurrencyId,
+        row.baseCurrencyId,
+        row.additionalExpensesCurrencyId,
+        row.fixedFeeCurrencyId,
+      ].filter((currencyId): currencyId is string => Boolean(currencyId)),
+    );
+    const calculationCurrency = currenciesById.get(row.calculationCurrencyId);
+    const baseCurrency = currenciesById.get(row.baseCurrencyId);
+    const additionalExpensesCurrency = row.additionalExpensesCurrencyId
+      ? (currenciesById.get(row.additionalExpensesCurrencyId) ?? null)
+      : null;
+    const fixedFeeCurrency = row.fixedFeeCurrencyId
+      ? (currenciesById.get(row.fixedFeeCurrencyId) ?? null)
+      : null;
+
+    if (!calculationCurrency || !baseCurrency) {
+      throw new Error("Missing currency metadata for portal projection");
+    }
+
+    return {
+      additionalExpenses: minorToDecimalString(
+        row.additionalExpensesAmountMinor,
+        additionalExpensesCurrency?.precision ?? baseCurrency.precision,
+      ),
+      additionalExpensesCurrencyCode: additionalExpensesCurrency?.code ?? null,
+      agreementFeeAmount: minorToDecimalString(
+        row.agreementFeeAmountMinor,
+        calculationCurrency.precision,
+      ),
+      agreementFeePercentage: feeBpsToPercentString(row.agreementFeeBps),
+      baseCurrencyCode: baseCurrency.code,
+      calculationTimestamp: row.calculationTimestamp,
+      currencyCode: calculationCurrency.code,
+      fixedFeeAmount: minorToDecimalString(
+        row.fixedFeeAmountMinor,
+        fixedFeeCurrency?.precision ?? baseCurrency.precision,
+      ),
+      fixedFeeCurrencyCode: fixedFeeCurrency?.code ?? null,
+      id: row.calculationId,
+      originalAmount: minorToDecimalString(
+        row.originalAmountMinor,
+        calculationCurrency.precision,
+      ),
+      quoteMarkupAmount: minorToDecimalString(
+        row.quoteMarkupAmountMinor,
+        calculationCurrency.precision,
+      ),
+      quoteMarkupPercentage: feeBpsToPercentString(row.quoteMarkupBps),
+      rate: rationalToDecimalString(row.rateNum, row.rateDen),
+      totalAmount: minorToDecimalString(
+        row.totalAmountMinor,
+        calculationCurrency.precision,
+      ),
+      totalFeeAmount: minorToDecimalString(
+        row.totalFeeAmountMinor,
+        calculationCurrency.precision,
+      ),
+      totalFeeAmountInBase: minorToDecimalString(
+        row.totalFeeAmountInBaseMinor,
+        baseCurrency.precision,
+      ),
+      totalFeePercentage: feeBpsToPercentString(row.totalFeeBps),
+      totalInBase: minorToDecimalString(
+        row.totalInBaseMinor,
+        baseCurrency.precision,
+      ),
+      totalWithExpensesInBase: minorToDecimalString(
+        row.totalWithExpensesInBaseMinor,
+        baseCurrency.precision,
+      ),
+    };
   }
 
   async findPortalProjectionById(id: string): Promise<PortalDealProjection | null> {
@@ -960,11 +1496,12 @@ export class DrizzleDealReads implements DealReads {
     const applicant =
       workflow.participants.find((participant) => participant.role === "applicant") ??
       null;
+    const calculationSummary = await this.loadPortalCalculationSummary(
+      workflow.summary.calculationId,
+    );
 
     return {
-      calculationSummary: buildPortalCalculationSummary(
-        workflow.summary.calculationId,
-      ),
+      calculationSummary,
       customerSafeIntake: {
         contractNumber: workflow.intake.incomingReceipt.contractNumber,
         customerNote: workflow.intake.common.customerNote,
