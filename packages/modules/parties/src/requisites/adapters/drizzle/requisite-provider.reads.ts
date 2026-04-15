@@ -136,6 +136,7 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
     offset: number;
     sortBy?: "displayName" | "kind" | "country" | "createdAt" | "updatedAt";
     sortOrder?: "asc" | "desc";
+    id?: string[];
     kind?: string[];
     country?: string[];
     displayName?: string;
@@ -144,6 +145,10 @@ export class DrizzleRequisiteProviderReads implements RequisiteProviderReads {
     swift?: string[];
   }): Promise<PaginatedList<RequisiteProviderListItem>> {
     const conditions: SQL[] = [isNull(requisiteProviders.archivedAt)];
+
+    if (input.id?.length) {
+      conditions.push(inArray(requisiteProviders.id, input.id));
+    }
 
     if (input.displayName) {
       conditions.push(

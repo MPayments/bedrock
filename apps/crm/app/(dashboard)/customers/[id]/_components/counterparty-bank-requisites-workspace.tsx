@@ -52,6 +52,8 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
+
 import { apiClient } from "@/lib/api-client";
 import { executeApiMutation } from "@/lib/api/mutation";
 import { readJsonWithSchema } from "@/lib/api/response";
@@ -86,15 +88,107 @@ type EditorState =
   | { kind: "create" }
   | { kind: "existing"; requisiteId: string };
 
+async function searchBankProviders(query: string) {
+  const response = await apiClient.v1.requisites.providers.options.$get({
+    query: { q: query, kind: "bank" },
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = await readJsonWithSchema(
+    response,
+    RequisiteProviderOptionsResponseSchema,
+  );
+  return payload.data.map((item) => ({ id: item.id, label: item.label }));
+}
+
+const PROVIDER_COMBOBOX_DEBOUNCE_MS = 250;
+
 function ProviderCombobox(props: {
   disabled: boolean;
   onSelect: (providerId: string) => void;
   options: { id: string; label: string }[];
   value: string;
+  onSearch?: (query: string) => Promise<{ id: string; label: string }[]>;
 }) {
-  const { disabled, onSelect, options, value } = props;
+  const { disabled, onSelect, options, value, onSearch } = props;
   const [open, setOpen] = useState(false);
-  const selectedOption = options.find((option) => option.id === value) ?? null;
+  const [query, setQuery] = useState("");
+  const [asyncResults, setAsyncResults] = useState<
+    { id: string; label: string }[] | null
+  >(null);
+  const [searching, setSearching] = useState(false);
+  const [pickedOption, setPickedOption] = useState<
+    { id: string; label: string } | null
+  >(null);
+  const requestIdRef = useRef(0);
+  const isAsync = Boolean(onSearch);
+  const selectedOption =
+    options.find((option) => option.id === value) ??
+    (pickedOption && pickedOption.id === value ? pickedOption : null);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setAsyncResults(null);
+      setSearching(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!onSearch) {
+      return;
+    }
+
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setAsyncResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setSearching(true);
+
+    const handle = setTimeout(async () => {
+      try {
+        const results = await onSearch(trimmed);
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        setAsyncResults(results);
+      } catch {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        setAsyncResults([]);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setSearching(false);
+        }
+      }
+    }, PROVIDER_COMBOBOX_DEBOUNCE_MS);
+
+    return () => clearTimeout(handle);
+  }, [onSearch, query]);
+
+  const mergedOptions = useMemo(() => {
+    const visibleOptions = isAsync
+      ? query.trim()
+        ? (asyncResults ?? [])
+        : options
+      : options;
+    if (!isAsync || !selectedOption) {
+      return visibleOptions;
+    }
+    if (visibleOptions.some((option) => option.id === selectedOption.id)) {
+      return visibleOptions;
+    }
+    return [selectedOption, ...visibleOptions];
+  }, [asyncResults, isAsync, options, query, selectedOption]);
 
   return (
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
@@ -114,17 +208,31 @@ function ProviderCombobox(props: {
         <Search className="h-4 w-4 shrink-0" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
-        <Command>
-          <CommandInput placeholder="Поиск банка..." />
+        <Command shouldFilter={!isAsync}>
+          <CommandInput
+            placeholder="Поиск банка..."
+            value={isAsync ? query : undefined}
+            onValueChange={isAsync ? setQuery : undefined}
+          />
           <CommandList className="max-h-72">
-            <CommandEmpty>Банк не найден</CommandEmpty>
+            {searching ? (
+              <div className="text-muted-foreground flex items-center gap-2 px-3 py-2 text-sm">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Поиск…
+              </div>
+            ) : null}
+            <CommandEmpty>
+              {isAsync && !query.trim() && options.length === 0
+                ? "Начните вводить название"
+                : "Банк не найден"}
+            </CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {mergedOptions.map((option) => (
                 <CommandItem
                   key={option.id}
-                  value={option.label}
+                  value={isAsync ? option.id : option.label}
                   onSelect={() => {
                     onSelect(option.id);
+                    setPickedOption(option);
                     setOpen(false);
                   }}
                 >
@@ -767,11 +875,31 @@ export function CounterpartyBankRequisitesWorkspace({
                               shouldValidate: true,
                             });
                           }}
-                          options={providerOptions.map((option) => ({
-                            id: option.id,
-                            label: option.label,
-                          }))}
+                          options={(() => {
+                            const baseOptions = providerOptions.map(
+                              (option) => ({
+                                id: option.id,
+                                label: option.label,
+                              }),
+                            );
+                            if (
+                              providerDetail &&
+                              !baseOptions.some(
+                                (option) => option.id === providerDetail.id,
+                              )
+                            ) {
+                              return [
+                                {
+                                  id: providerDetail.id,
+                                  label: providerDetail.displayName,
+                                },
+                                ...baseOptions,
+                              ];
+                            }
+                            return baseOptions;
+                          })()}
                           value={selectedProviderId}
+                          onSearch={searchBankProviders}
                         />
                         <FieldError
                           message={form.formState.errors.providerId?.message}
@@ -910,26 +1038,6 @@ export function CounterpartyBankRequisitesWorkspace({
                           />
                           <FieldError
                             message={form.formState.errors.accountNo?.message}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="requisite-corr-account">
-                            Корреспондентский счёт
-                          </Label>
-                          <Input
-                            id="requisite-corr-account"
-                            disabled={isEditorBusy}
-                            value={form.watch("corrAccount")}
-                            onChange={(event) =>
-                              form.setValue("corrAccount", event.target.value, {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              })
-                            }
-                          />
-                          <FieldError
-                            message={form.formState.errors.corrAccount?.message}
                           />
                         </div>
 

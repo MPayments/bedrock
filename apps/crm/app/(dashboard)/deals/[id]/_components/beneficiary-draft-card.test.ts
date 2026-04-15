@@ -27,7 +27,6 @@ describe("BeneficiaryDraftCard", () => {
             bankName: "EXI Bank",
             beneficiaryName: "Almutlaq Group for Industrial Investments",
             bic: null,
-            corrAccount: null,
             iban: null,
             label: null,
             swift: "DUIBAEAD",

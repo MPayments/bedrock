@@ -84,17 +84,6 @@ const CustomerPortalBankRequisiteInputSchema = z
   .object({
     accountNo: z.string().nullable().optional(),
     beneficiaryName: z.string().nullable().optional(),
-    corrAccount: z
-      .string()
-      .nullable()
-      .optional()
-      .refine(
-        (value) => {
-          if (!value || value === "") return true;
-          return /^\d{20}$/u.test(value);
-        },
-        { message: "Корреспондентский счёт должен содержать 20 цифр" },
-      ),
     iban: z
       .string()
       .nullable()
@@ -168,7 +157,6 @@ function hasBankSignal(input: {
       hasText(input.bankProvider?.address ?? undefined) ||
       hasText(input.bankProvider?.routingCode ?? undefined) ||
       hasText(input.bankRequisite?.accountNo ?? undefined) ||
-      hasText(input.bankRequisite?.corrAccount ?? undefined) ||
       hasText(input.bankRequisite?.iban ?? undefined),
   );
 }

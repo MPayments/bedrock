@@ -19,6 +19,11 @@ export { REQUISITE_IDS } from "./fixtures";
 
 type DbLike = Database | Transaction;
 
+interface ResolvedProviderRef {
+  providerId: string;
+  branchId: string | null;
+}
+
 async function currencyIdByCodeMap(db: DbLike) {
   const out = new Map<string, string>();
   const rows = await db
@@ -30,6 +35,59 @@ async function currencyIdByCodeMap(db: DbLike) {
   }
 
   return out;
+}
+
+async function bicToProviderBranchMap(
+  db: DbLike,
+): Promise<Map<string, ResolvedProviderRef>> {
+  const rows = await db
+    .select({
+      branchId: schema.requisiteProviderBranches.id,
+      providerId: schema.requisiteProviderBranches.providerId,
+      normalizedValue: schema.requisiteProviderBranchIdentifiers.normalizedValue,
+    })
+    .from(schema.requisiteProviderBranchIdentifiers)
+    .innerJoin(
+      schema.requisiteProviderBranches,
+      eq(
+        schema.requisiteProviderBranches.id,
+        schema.requisiteProviderBranchIdentifiers.branchId,
+      ),
+    )
+    .where(eq(schema.requisiteProviderBranchIdentifiers.scheme, "bic"));
+
+  const out = new Map<string, ResolvedProviderRef>();
+  for (const row of rows) {
+    out.set(row.normalizedValue, {
+      providerId: row.providerId,
+      branchId: row.branchId,
+    });
+  }
+  return out;
+}
+
+function resolveRequisiteProvider(
+  requisite: SeedRequisiteFixture,
+  bicMap: ReadonlyMap<string, ResolvedProviderRef>,
+): ResolvedProviderRef {
+  if (requisite.providerBic) {
+    const normalized = requisite.providerBic.trim().toUpperCase();
+    const resolved = bicMap.get(normalized);
+    if (!resolved) {
+      throw new Error(
+        `[seed:requisites] Requisite ${requisite.id} (${requisite.label}) references BIC ${requisite.providerBic}, but no provider/branch was found in the CBR directory. Ensure seedBicDirectory ran before seedRequisites.`,
+      );
+    }
+    return resolved;
+  }
+
+  if (requisite.providerId) {
+    return { providerId: requisite.providerId, branchId: null };
+  }
+
+  throw new Error(
+    `[seed:requisites] Requisite ${requisite.id} (${requisite.label}) has neither providerId nor providerBic`,
+  );
 }
 
 async function ensureDefaultBooks(db: DbLike): Promise<Map<string, string>> {
@@ -49,12 +107,15 @@ async function ensureDefaultBooks(db: DbLike): Promise<Map<string, string>> {
 async function upsertRequisites(
   db: DbLike,
   currencyIds: ReadonlyMap<string, string>,
+  bicMap: ReadonlyMap<string, ResolvedProviderRef>,
 ) {
   for (const requisite of REQUISITES) {
     const currencyId = currencyIds.get(requisite.currencyCode);
     if (!currencyId) {
       throw new Error(`Currency not found for code ${requisite.currencyCode}`);
     }
+
+    const { providerId, branchId } = resolveRequisiteProvider(requisite, bicMap);
 
     await db
       .insert(requisitesSchema.requisites)
@@ -65,8 +126,8 @@ async function upsertRequisites(
           requisite.ownerType === "organization" ? requisite.ownerId : null,
         counterpartyId:
           requisite.ownerType === "counterparty" ? requisite.ownerId : null,
-        providerId: requisite.providerId,
-        providerBranchId: null,
+        providerId,
+        providerBranchId: branchId,
         currencyId,
         kind: requisite.kind,
         label: requisite.label,
@@ -85,8 +146,8 @@ async function upsertRequisites(
             requisite.ownerType === "organization" ? requisite.ownerId : null,
           counterpartyId:
             requisite.ownerType === "counterparty" ? requisite.ownerId : null,
-          providerId: requisite.providerId,
-          providerBranchId: null,
+          providerId,
+          providerBranchId: branchId,
           currencyId,
           kind: requisite.kind,
           label: requisite.label,
@@ -111,15 +172,6 @@ async function upsertRequisites(
             scheme: "local_account_number",
             value: requisite.accountNo,
             normalizedValue: requisite.accountNo,
-            isPrimary: true,
-          }
-        : null,
-      requisite.corrAccount
-        ? {
-            requisiteId: requisite.id,
-            scheme: "corr_account",
-            value: requisite.corrAccount,
-            normalizedValue: requisite.corrAccount,
             isPrimary: true,
           }
         : null,
@@ -255,7 +307,8 @@ export async function seedRequisites(db: DbLike) {
   await seedRequisiteProviders(db);
 
   const currencyIds = await currencyIdByCodeMap(db);
-  await upsertRequisites(db, currencyIds);
+  const bicMap = await bicToProviderBranchMap(db);
+  await upsertRequisites(db, currencyIds, bicMap);
   const defaultBookIdByOrganizationId = await ensureDefaultBooks(db);
   await upsertOrganizationBindings(db, defaultBookIdByOrganizationId);
 

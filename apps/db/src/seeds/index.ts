@@ -1,5 +1,9 @@
 export { CURRENCY_IDS, currencyIdForCode, seedCurrencies } from "./currencies";
 export { seedAccounting } from "./accounting";
+export {
+  seedBicDirectory,
+  type SeedBicDirectoryOptions,
+} from "./bic-directory";
 export { seedAgreements } from "./agreements";
 export { seedCounterparties } from "./counterparties";
 export { PAYMENT_DEAL_IDS, seedDealPayment } from "./deal-payment";

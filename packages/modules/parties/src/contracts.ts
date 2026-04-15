@@ -178,8 +178,10 @@ export {
   type RequisiteProviderOption,
 } from "./requisites/application/contracts/dto";
 export {
+  ListRequisiteProviderOptionsQuerySchema,
   ListRequisiteProvidersQuerySchema,
   REQUISITE_PROVIDERS_LIST_CONTRACT,
+  type ListRequisiteProviderOptionsQuery,
   type ListRequisiteProvidersQuery,
 } from "./requisites/application/contracts/queries";
 export {

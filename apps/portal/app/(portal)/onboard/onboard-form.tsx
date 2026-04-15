@@ -163,7 +163,6 @@ const STEP_ERROR_FIELDS: Record<OnboardingStepId, string[]> = {
   requisites: [
     "bankRequisite.beneficiaryName",
     "bankRequisite.accountNo",
-    "bankRequisite.corrAccount",
     "bankRequisite.iban",
   ],
   review: [],
@@ -581,7 +580,6 @@ export function CustomerOnboardingForm() {
       bankRequisite: {
         accountNo: "",
         beneficiaryName: "",
-        corrAccount: "",
         iban: "",
       },
       directorBasis: "",
@@ -723,14 +721,6 @@ export function CustomerOnboardingForm() {
         shouldDirty: true,
         shouldValidate: true,
       });
-      setValue(
-        "bankRequisite.corrAccount",
-        String(companyData.corrAccount ?? ""),
-        {
-          shouldDirty: true,
-          shouldValidate: true,
-        },
-      );
     }
   }
 
@@ -1627,19 +1617,7 @@ export function CustomerOnboardingForm() {
 
         {showAdvancedRequisiteFields ? (
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="bankRequisite.corrAccount">Корр. счет</Label>
-              <Input
-                id="bankRequisite.corrAccount"
-                {...register("bankRequisite.corrAccount")}
-                placeholder="30101810..."
-              />
-              {errors.bankRequisite?.corrAccount ? (
-                <p className="text-xs text-destructive">
-                  {errors.bankRequisite.corrAccount.message}
-                </p>
-              ) : null}
-            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="bankRequisite.iban">IBAN</Label>
               <Input

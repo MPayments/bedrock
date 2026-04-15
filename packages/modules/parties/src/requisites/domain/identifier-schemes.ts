@@ -17,6 +17,7 @@ export interface PaymentIdentifierInput {
 export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES = [
   "swift",
   "bic",
+  "corr_account",
 ] as const;
 export type RequisiteProviderIdentifierSchemeValue =
   (typeof REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES)[number];
@@ -63,8 +64,7 @@ const PAYMENT_IDENTIFIER_SCHEMES: Record<string, SchemeDefinition> = {
     normalize: compactUpper,
   },
   corr_account: {
-    owners: ["requisite"],
-    kinds: ["bank"],
+    owners: ["provider", "provider_branch"],
     normalize: compactUpper,
   },
   aba: {

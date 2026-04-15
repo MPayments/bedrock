@@ -133,7 +133,7 @@ const getProviderOptions = cache(async () => {
   const payload = await readOptionsList({
     request: () =>
       client.v1.requisites.providers.options.$get(
-        {},
+        { query: {} },
         { init: { cache: "force-cache" } },
       ),
     schema: RequisiteProviderOptionsResponseSchema,
@@ -227,7 +227,6 @@ function serializeDetails(
     beneficiaryNameLocal: legacyValues.beneficiaryNameLocal,
     beneficiaryAddress: legacyValues.beneficiaryAddress,
     accountNo: legacyValues.accountNo,
-    corrAccount: legacyValues.corrAccount,
     iban: legacyValues.iban,
     network: legacyValues.network,
     assetCode: legacyValues.assetCode,
@@ -257,9 +256,12 @@ export const getRequisitesFilterOptions = cache(
   },
 );
 
-export async function getRequisiteFormOptions(): Promise<RequisiteFormOptions> {
+export async function getRequisiteFormOptions(
+  input: { selectedProviderIds?: readonly string[] } = {},
+): Promise<RequisiteFormOptions> {
   const client = await getServerApiClient();
-  const [counterparties, organizations, providers, currencies] =
+  const selectedProviderIds = (input.selectedProviderIds ?? []).filter(Boolean);
+  const [counterparties, organizations, providers, selectedProviders, currencies] =
     await Promise.all([
       readOptionsList({
         request: () =>
@@ -276,12 +278,23 @@ export async function getRequisiteFormOptions(): Promise<RequisiteFormOptions> {
       readOptionsList({
         request: () =>
           client.v1.requisites.providers.options.$get(
-            {},
+            { query: {} },
             { init: { cache: "no-store" } },
           ),
         schema: RequisiteProviderOptionsResponseSchema,
         context: "Не удалось загрузить провайдеров реквизитов",
       }),
+      selectedProviderIds.length > 0
+        ? readOptionsList({
+            request: () =>
+              client.v1.requisites.providers.options.$get(
+                { query: { ids: selectedProviderIds.join(",") } },
+                { init: { cache: "no-store" } },
+              ),
+            schema: RequisiteProviderOptionsResponseSchema,
+            context: "Не удалось загрузить выбранного провайдера",
+          })
+        : Promise.resolve({ data: [] }),
       readOptionsList({
         request: () =>
           client.v1.currencies.options.$get({}, { init: { cache: "no-store" } }),
@@ -290,10 +303,18 @@ export async function getRequisiteFormOptions(): Promise<RequisiteFormOptions> {
       }),
     ]);
 
+  const providerById = new Map<string, { id: string; label: string }>();
+  for (const item of providers.data) {
+    providerById.set(item.id, { id: item.id, label: item.label });
+  }
+  for (const item of selectedProviders.data) {
+    providerById.set(item.id, { id: item.id, label: item.label });
+  }
+
   return {
     counterpartyOwners: toRelationOptions(counterparties.data),
     organizationOwners: toRelationOptions(organizations.data),
-    providers: toRelationOptions(providers.data),
+    providers: toRelationOptions(Array.from(providerById.values())),
     currencies: toRelationOptions(currencies.data),
   };
 }

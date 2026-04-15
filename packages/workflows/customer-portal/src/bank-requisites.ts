@@ -20,7 +20,6 @@ export interface CounterpartyBankingInput {
   bankRequisite?: {
     accountNo?: string | null;
     beneficiaryName?: string | null;
-    corrAccount?: string | null;
     iban?: string | null;
   } | null;
   country?: string | null;
@@ -77,7 +76,6 @@ function hasBankSignal(input: CounterpartyBankingInput) {
       normalizeNullableText(input.bankProvider?.address) ||
       normalizeNullableText(input.bankProvider?.routingCode) ||
       normalizeNullableText(input.bankRequisite?.accountNo) ||
-      normalizeNullableText(input.bankRequisite?.corrAccount) ||
       normalizeNullableText(input.bankRequisite?.iban) ||
       normalizeNullableText(input.bankProviderId),
   );
@@ -422,13 +420,6 @@ export function createCustomerBankingService(
         ? {
             scheme: "local_account_number",
             value: accountNo,
-            isPrimary: true,
-          }
-        : null,
-      normalizeNullableText(input.values.bankRequisite?.corrAccount)
-        ? {
-            scheme: "corr_account",
-            value: normalizeNullableText(input.values.bankRequisite?.corrAccount)!,
             isPrimary: true,
           }
         : null,

@@ -62,6 +62,15 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
             isPrimary: true,
           }
         : null,
+      provider.corrAccount
+        ? {
+            providerId: provider.id,
+            scheme: "corr_account",
+            value: provider.corrAccount,
+            normalizedValue: provider.corrAccount,
+            isPrimary: true,
+          }
+        : null,
     ].filter((item) => item !== null);
 
     if (identifiers.length > 0) {

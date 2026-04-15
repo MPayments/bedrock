@@ -9,7 +9,6 @@ export interface ExtractedDocumentData {
   bankName: string | null;
   bankAccount: string | null;
   bic: string | null;
-  corrAccount: string | null;
   amount: string | null;
   currency: string | null;
   date: string | null;

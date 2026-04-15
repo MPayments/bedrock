@@ -14,14 +14,15 @@ interface RequisitePageProps {
 
 export default async function RequisitePage({ params }: RequisitePageProps) {
   const { id } = await params;
-  const [requisite, options] = await Promise.all([
-    getRequisiteById(id),
-    getRequisiteFormOptions(),
-  ]);
+  const requisite = await getRequisiteById(id);
 
   if (!requisite) {
     notFound();
   }
+
+  const options = await getRequisiteFormOptions({
+    selectedProviderIds: [requisite.providerId],
+  });
 
   return (
     <RequisiteWorkspaceLayout title={requisite.label}>

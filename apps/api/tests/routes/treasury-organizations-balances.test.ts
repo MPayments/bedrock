@@ -45,7 +45,6 @@ function createTestApp() {
               label: "USD settlement",
               beneficiaryName: "Multihansa",
               accountNo: "40702810900000000001",
-              corrAccount: null,
               iban: null,
               network: null,
               assetCode: null,

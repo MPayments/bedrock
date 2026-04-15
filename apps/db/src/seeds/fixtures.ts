@@ -5,7 +5,6 @@ import {
   type CounterpartyProfileSource,
   type CustomerContractOrganizationKey,
   type CustomerContractOrganizationRequisiteKey,
-  type CustomerContractProviderKey,
   type CustomerCounterpartyKey,
 } from "./customer-contract-inventory";
 
@@ -43,17 +42,9 @@ export const ORGANIZATION_IDS = {
 } as const;
 
 export const REQUISITE_PROVIDER_IDS = {
-  GAZPROMBANK: "00000000-0000-4000-8000-000000000401",
   ABU_DHABI_COMMERCIAL_BANK: "00000000-0000-4000-8000-000000000402",
-  SBERBANK_NORTHWEST: "00000000-0000-4000-8000-000000000403",
-  BANK_TOCHKA: "00000000-0000-4000-8000-000000000404",
-  EXPOBANK: "00000000-0000-4000-8000-000000000405",
-  EXI_BANK: "00000000-0000-4000-8000-000000000406",
-  VTB_BANK: "00000000-0000-4000-8000-000000000407",
   DUBAI_ISLAMIC_BANK: "00000000-0000-4000-8000-000000000408",
   EMIRATES_ISLAMIC_BANK: "00000000-0000-4000-8000-000000000409",
-  SBERBANK_MOSCOW: "00000000-0000-4000-8000-000000000410",
-  MTS_BANK: "00000000-0000-4000-8000-000000000411",
 } as const;
 
 export const REQUISITE_IDS = {
@@ -115,16 +106,6 @@ const ORGANIZATION_ID_BY_KEY: Record<CustomerContractOrganizationKey, string> = 
   arabian_fuel_alliance: ORGANIZATION_IDS.ARABIAN_FUEL_ALLIANCE,
 };
 
-const PROVIDER_ID_BY_KEY: Record<CustomerContractProviderKey, string> = {
-  gazprombank: REQUISITE_PROVIDER_IDS.GAZPROMBANK,
-  sberbank_northwest: REQUISITE_PROVIDER_IDS.SBERBANK_NORTHWEST,
-  sberbank_moscow: REQUISITE_PROVIDER_IDS.SBERBANK_MOSCOW,
-  bank_tochka: REQUISITE_PROVIDER_IDS.BANK_TOCHKA,
-  mts_bank: REQUISITE_PROVIDER_IDS.MTS_BANK,
-  expobank: REQUISITE_PROVIDER_IDS.EXPOBANK,
-  vtb_bank: REQUISITE_PROVIDER_IDS.VTB_BANK,
-};
-
 const ORGANIZATION_REQUISITE_ID_BY_KEY: Record<
   CustomerContractOrganizationRequisiteKey,
   string
@@ -145,16 +126,6 @@ const CUSTOMER_REQUISITE_ID_BY_KEY = {
   rsi_capital_rub_vtb: REQUISITE_IDS.RSI_CAPITAL_RUB_VTB,
   coinex_rub_bank_tochka: REQUISITE_IDS.COINEX_RUB_BANK_TOCHKA,
 } as const;
-
-const PROVIDER_NAME_BY_KEY: Record<CustomerContractProviderKey, string> = {
-  gazprombank: "Газпромбанк",
-  sberbank_northwest: "ПАО Сбербанк, Северо-Западный банк",
-  sberbank_moscow: "ПАО Сбербанк, Москва",
-  bank_tochka: 'ООО "Банк Точка"',
-  mts_bank: 'ПАО "МТС-Банк"',
-  expobank: 'АО "Экспобанк"',
-  vtb_bank: 'Филиал "Центральный" Банка ВТБ (ПАО)',
-};
 
 export interface SeedPartyIdentifierFixture {
   scheme: string;
@@ -281,13 +252,15 @@ export interface SeedRequisiteProviderFixture {
   contact?: string | null;
   bic?: string | null;
   swift?: string | null;
+  corrAccount?: string | null;
 }
 
 export interface SeedRequisiteFixture {
   id: string;
   ownerType: "organization" | "counterparty";
   ownerId: string;
-  providerId: string;
+  providerId?: string;
+  providerBic?: string;
   currencyCode: string;
   kind: "bank" | "blockchain" | "exchange" | "custodian";
   label: string;
@@ -295,7 +268,6 @@ export interface SeedRequisiteFixture {
   beneficiaryName?: string | null;
   institutionName?: string | null;
   accountNo?: string | null;
-  corrAccount?: string | null;
   iban?: string | null;
   bic?: string | null;
   swift?: string | null;
@@ -522,21 +494,6 @@ export const ORGANIZATIONS: readonly SeedOrganizationFixture[] = [
 
 export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
   {
-    id: REQUISITE_PROVIDER_IDS.GAZPROMBANK,
-    kind: "bank",
-    legalName: "Газпромбанк",
-    legalNameI18n: { en: "Gazprombank", ru: "Газпромбанк" },
-    displayName: "Газпромбанк",
-    displayNameI18n: { en: "Gazprombank", ru: "Газпромбанк" },
-    description: "Settlement bank captured from RUHA customer contracts.",
-    country: "RU",
-    address: null,
-    addressI18n: null,
-    contact: null,
-    bic: "044525823",
-    swift: "GAZPRUMM",
-  },
-  {
     id: REQUISITE_PROVIDER_IDS.ABU_DHABI_COMMERCIAL_BANK,
     kind: "bank",
     legalName: "Abu Dhabi Commercial Bank",
@@ -561,105 +518,6 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
     contact: "https://www.adcb.com/",
     bic: null,
     swift: "ADCBAEAA",
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.SBERBANK_NORTHWEST,
-    kind: "bank",
-    legalName: "ПАО Сбербанк, Северо-Западный банк",
-    legalNameI18n: {
-      en: "PJSC Sberbank, North-West Bank",
-      ru: "ПАО Сбербанк, Северо-Западный банк",
-    },
-    displayName: "ПАО Сбербанк, Северо-Западный банк",
-    displayNameI18n: {
-      en: "PJSC Sberbank, North-West Bank",
-      ru: "ПАО Сбербанк, Северо-Западный банк",
-    },
-    description: "North-West Sberbank branch used by individual customer contracts.",
-    country: "RU",
-    address: "191124, Saint Petersburg, Krasnogo Tekstilshchika Street, 2",
-    addressI18n: {
-      en: "191124, Saint Petersburg, Krasnogo Tekstilshchika Street, 2",
-      ru: "191124, Санкт-Петербург, улица Красного Текстильщика, 2",
-    },
-    contact: null,
-    bic: "044030653",
-    swift: "SABRRU2P",
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.BANK_TOCHKA,
-    kind: "bank",
-    legalName: 'ООО "Банк Точка"',
-    legalNameI18n: { en: 'Bank Tochka LLC', ru: 'ООО "Банк Точка"' },
-    displayName: 'ООО "Банк Точка"',
-    displayNameI18n: { en: 'Bank Tochka LLC', ru: 'ООО "Банк Точка"' },
-    description: "Settlement bank captured from the Coinex contract.",
-    country: "RU",
-    address: null,
-    addressI18n: null,
-    contact: null,
-    bic: "044525104",
-    swift: null,
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.EXPOBANK,
-    kind: "bank",
-    legalName: 'АО "Экспобанк"',
-    legalNameI18n: { en: 'AO "Expobank"', ru: 'АО "Экспобанк"' },
-    displayName: 'АО "Экспобанк"',
-    displayNameI18n: { en: 'AO "Expobank"', ru: 'АО "Экспобанк"' },
-    description:
-      "RUB settlement bank for MULTIHANSA BROKERS - FZCO and Xintatrade.",
-    country: "RU",
-    address: "115054, Moscow, Kosmodamianskaya Embankment, 52, building 7",
-    addressI18n: {
-      en: "115054, Moscow, Kosmodamianskaya Embankment, 52, building 7",
-      ru: "115054, Москва, Космодамианская набережная, 52, строение 7",
-    },
-    contact: null,
-    bic: "044525460",
-    swift: null,
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.EXI_BANK,
-    kind: "bank",
-    legalName: 'АО "ЭКСИ-Банк"',
-    legalNameI18n: { en: "EXI-Bank", ru: 'АО "ЭКСИ-Банк"' },
-    displayName: 'АО "ЭКСИ-Банк"',
-    displayNameI18n: { en: "EXI-Bank", ru: 'АО "ЭКСИ-Банк"' },
-    description:
-      "Settlement bank used by MULTIHANSA BROKERS - FZCO and ARABIAN FUEL ALLIANCE DMCC",
-    country: "RU",
-    address: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
-    addressI18n: {
-      en: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
-      ru: "Россия, 199178, Санкт-Петербург, Малый проспект В.О., 54/4Б",
-    },
-    contact: null,
-    bic: "044030889",
-    swift: "JXIBRU2P",
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.VTB_BANK,
-    kind: "bank",
-    legalName: 'Филиал "Центральный" Банка ВТБ (ПАО)',
-    legalNameI18n: {
-      en: "VTB Bank PJSC, Central Branch",
-      ru: 'Филиал "Центральный" Банка ВТБ (ПАО)',
-    },
-    displayName: 'Филиал "Центральный" Банка ВТБ (ПАО)',
-    displayNameI18n: {
-      en: "VTB Bank PJSC, Central Branch",
-      ru: 'Филиал "Центральный" Банка ВТБ (ПАО)',
-    },
-    description:
-      "VTB Central Branch used by Multimodal, RSI Capital and Prime Trade contracts.",
-    country: "RU",
-    address: "Russian Federation",
-    addressI18n: { en: "Russian Federation", ru: "Российская Федерация" },
-    contact: null,
-    bic: "044525411",
-    swift: "VTBRRUM2MS2",
   },
   {
     id: REQUISITE_PROVIDER_IDS.DUBAI_ISLAMIC_BANK,
@@ -710,67 +568,33 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
     bic: null,
     swift: "MEBLAEAD",
   },
-  {
-    id: REQUISITE_PROVIDER_IDS.SBERBANK_MOSCOW,
-    kind: "bank",
-    legalName: "ПАО Сбербанк, Москва",
-    legalNameI18n: {
-      en: "PJSC Sberbank, Moscow",
-      ru: "ПАО Сбербанк, Москва",
-    },
-    displayName: "ПАО Сбербанк, Москва",
-    displayNameI18n: {
-      en: "PJSC Sberbank, Moscow",
-      ru: "ПАО Сбербанк, Москва",
-    },
-    description: "Sberbank branch used by ONEY FINANSAL.",
-    country: "RU",
-    address: "19 Vavilova Street, Moscow, 117997, Russia",
-    addressI18n: {
-      en: "19 Vavilova Street, Moscow, 117997, Russia",
-      ru: "Россия, 117997, Москва, улица Вавилова, 19",
-    },
-    contact: null,
-    bic: "044525225",
-    swift: null,
-  },
-  {
-    id: REQUISITE_PROVIDER_IDS.MTS_BANK,
-    kind: "bank",
-    legalName: 'ПАО "МТС-Банк"',
-    legalNameI18n: { en: "MTS-BANK PJSC", ru: 'ПАО "МТС-Банк"' },
-    displayName: 'ПАО "МТС-Банк"',
-    displayNameI18n: { en: "MTS-BANK PJSC", ru: 'ПАО "МТС-Банк"' },
-    description: "Settlement bank captured from the RSI Capital service agreement.",
-    country: "RU",
-    address: null,
-    addressI18n: null,
-    contact: null,
-    bic: "044525232",
-    swift: null,
-  },
 ] as const;
 
 const CUSTOMER_REQUISITES: readonly SeedRequisiteFixture[] =
-  CUSTOMER_REQUISITE_SOURCES.map((source) => ({
-    id: CUSTOMER_REQUISITE_ID_BY_KEY[source.key],
-    ownerType: "counterparty",
-    ownerId: COUNTERPARTY_ID_BY_KEY[source.counterpartyKey],
-    providerId: PROVIDER_ID_BY_KEY[source.providerKey],
-    currencyCode: source.currencyCode,
-    kind: source.kind,
-    label: source.label,
-    beneficiaryName: source.beneficiaryName,
-    institutionName: PROVIDER_NAME_BY_KEY[source.providerKey],
-    accountNo: source.accountNo ?? null,
-    corrAccount: source.corrAccount ?? null,
-    iban: source.iban ?? null,
-    bic: source.bic ?? null,
-    swift: source.swift ?? null,
-    bankAddress: source.bankAddress ?? null,
-    notes: source.notes ?? null,
-    isDefault: source.isDefault ?? false,
-  }));
+  CUSTOMER_REQUISITE_SOURCES.map((source) => {
+    if (!source.bic) {
+      throw new Error(
+        `[fixtures] CUSTOMER_REQUISITE_SOURCES entry ${source.key} must declare a bic to resolve its provider from the CBR directory`,
+      );
+    }
+    return {
+      id: CUSTOMER_REQUISITE_ID_BY_KEY[source.key],
+      ownerType: "counterparty" as const,
+      ownerId: COUNTERPARTY_ID_BY_KEY[source.counterpartyKey],
+      providerBic: source.bic,
+      currencyCode: source.currencyCode,
+      kind: source.kind,
+      label: source.label,
+      beneficiaryName: source.beneficiaryName,
+      accountNo: source.accountNo ?? null,
+      iban: source.iban ?? null,
+      bic: source.bic,
+      swift: source.swift ?? null,
+      bankAddress: source.bankAddress ?? null,
+      notes: source.notes ?? null,
+      isDefault: source.isDefault ?? false,
+    };
+  });
 
 export const REQUISITES: readonly SeedRequisiteFixture[] = [
   {
@@ -817,7 +641,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.MULTIHANSA_EXPOBANK_RUB,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-    providerId: REQUISITE_PROVIDER_IDS.EXPOBANK,
+    providerBic: "044525460",
     currencyCode: "RUB",
     kind: "bank",
     label: "Multihansa RUB (Expobank)",
@@ -825,7 +649,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "MULTIHANSA BROKERS - FZCO",
     institutionName: 'AO "Expobank"',
     accountNo: "40807810001010172279",
-    corrAccount: "30101810345250000460",
     bic: "044525460",
     bankAddress: "115054, Moscow, Kosmodamianskaya Embankment, 52, building 7",
     contact: "info@multihansa.com | +7 987 404 78 88 | +971 54 246 64 37",
@@ -836,7 +659,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.MULTIHANSA_EXI_RUB,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-    providerId: REQUISITE_PROVIDER_IDS.EXI_BANK,
+    providerBic: "044030889",
     currencyCode: "RUB",
     kind: "bank",
     label: "Multihansa RUB (EXI-Bank)",
@@ -844,7 +667,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "MULTIHANSA BROKERS - FZCO",
     institutionName: "EXI-Bank",
     accountNo: "40807810700000008369",
-    corrAccount: "30101810400000000889",
     bic: "044030889",
     swift: "JXIBRU2P",
     bankAddress: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
@@ -856,7 +678,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.MULTIHANSA_EXI_AED,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-    providerId: REQUISITE_PROVIDER_IDS.EXI_BANK,
+    providerBic: "044030889",
     currencyCode: "AED",
     kind: "bank",
     label: "Multihansa AED (EXI-Bank)",
@@ -864,7 +686,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "MULTIHANSA BROKERS - FZCO",
     institutionName: "EXI-Bank",
     accountNo: "40807784100000000022",
-    corrAccount: "30101810400000000889",
     bic: "044030889",
     swift: "JXIBRU2P",
     bankAddress: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
@@ -876,7 +697,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.MULTIHANSA_VTB_RUB,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-    providerId: REQUISITE_PROVIDER_IDS.VTB_BANK,
+    providerBic: "044525411",
     currencyCode: "RUB",
     kind: "bank",
     label: "Multihansa RUB (VTB)",
@@ -884,7 +705,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "MULTIHANSA BROKERS - FZCO",
     institutionName: 'Филиал "Центральный" Банка ВТБ (ПАО)',
     accountNo: "40807810800810009185",
-    corrAccount: "30101810145250000411",
     bic: "044525411",
     bankAddress: "Russian Federation",
     contact: "info@multihansa.com | +7 987 404 78 88 | +971 54 246 64 37",
@@ -895,7 +715,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.MULTIHANSA_MTS_RUB,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-    providerId: REQUISITE_PROVIDER_IDS.MTS_BANK,
+    providerBic: "044525232",
     currencyCode: "RUB",
     kind: "bank",
     label: "Multihansa RUB (MTS Bank)",
@@ -903,7 +723,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "MULTIHANSA BROKERS - FZCO",
     institutionName: "MTS-BANK PJSC",
     accountNo: "40807810500009000553",
-    corrAccount: "30101810600000000232",
     bic: "044525232",
     notes: "Captured from договор 05.12.pdf.",
     isDefault: false,
@@ -1012,7 +831,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.ARABIAN_FUEL_ALLIANCE_EXI_RUB,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.ARABIAN_FUEL_ALLIANCE,
-    providerId: REQUISITE_PROVIDER_IDS.EXI_BANK,
+    providerBic: "044030889",
     currencyCode: "RUB",
     kind: "bank",
     label: "Arabian Fuel Alliance RUB (EXI-Bank)",
@@ -1020,7 +839,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "ARABIAN FUEL ALLIANCE DMCC",
     institutionName: "EXI-Bank",
     accountNo: "40807810800000008366",
-    corrAccount: "30101810400000000889",
     bic: "044030889",
     swift: "JXIBRU2P",
     bankAddress: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",
@@ -1032,7 +850,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     id: REQUISITE_IDS.ARABIAN_FUEL_ALLIANCE_EXI_AED,
     ownerType: "organization",
     ownerId: ORGANIZATION_IDS.ARABIAN_FUEL_ALLIANCE,
-    providerId: REQUISITE_PROVIDER_IDS.EXI_BANK,
+    providerBic: "044030889",
     currencyCode: "AED",
     kind: "bank",
     label: "Arabian Fuel Alliance AED (EXI-Bank)",
@@ -1040,7 +858,6 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     beneficiaryName: "ARABIAN FUEL ALLIANCE DMCC",
     institutionName: "EXI-Bank",
     accountNo: "40807784800000000021",
-    corrAccount: "30101810400000000889",
     bic: "044030889",
     swift: "JXIBRU2P",
     bankAddress: "54/4B Maly Prospekt V.O., Saint Petersburg, 199178, Russia",

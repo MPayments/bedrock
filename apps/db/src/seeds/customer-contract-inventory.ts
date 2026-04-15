@@ -14,15 +14,6 @@ export type CustomerContractOrganizationKey =
   | "multihansa_brokers"
   | "arabian_fuel_alliance";
 
-export type CustomerContractProviderKey =
-  | "gazprombank"
-  | "sberbank_northwest"
-  | "sberbank_moscow"
-  | "bank_tochka"
-  | "mts_bank"
-  | "expobank"
-  | "vtb_bank";
-
 export type CustomerContractOrganizationRequisiteKey =
   | "multihansa_exi_rub"
   | "multihansa_mts_rub"
@@ -112,15 +103,13 @@ export interface CustomerCounterpartySource {
 export interface CustomerRequisiteSource {
   key: CustomerContractRequisiteKey;
   counterpartyKey: CustomerCounterpartyKey;
-  providerKey: CustomerContractProviderKey;
   currencyCode: string;
   kind: "bank";
   label: string;
   beneficiaryName: string;
   accountNo?: string | null;
-  corrAccount?: string | null;
   iban?: string | null;
-  bic?: string | null;
+  bic: string;
   swift?: string | null;
   bankAddress?: string | null;
   notes?: string | null;
@@ -717,14 +706,12 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "ruha_rub_gazprombank",
     counterpartyKey: "ruha_trade",
-    providerKey: "gazprombank",
     currencyCode: "RUB",
     kind: "bank",
     label: "RUHA RUB (Gazprombank)",
     beneficiaryName:
       "RUHA TRADE ITHALAT IHRACAT VE DANISMANLIK LIMITED SIRKETI",
     accountNo: "40807810800000002366",
-    corrAccount: "30101810200000000823",
     bic: "044525823",
     swift: "GAZPRUMM",
     isDefault: true,
@@ -734,14 +721,12 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "ruha_try_gazprombank",
     counterpartyKey: "ruha_trade",
-    providerKey: "gazprombank",
     currencyCode: "TRY",
     kind: "bank",
     label: "RUHA TRY (Gazprombank)",
     beneficiaryName:
       "RUHA TRADE ITHALAT IHRACAT VE DANISMANLIK LIMITED SIRKETI",
     accountNo: "40807949300000000179",
-    corrAccount: "30101810200000000823",
     bic: "044525823",
     swift: "GAZPRUMM",
     isDefault: true,
@@ -750,13 +735,11 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "multimodal_rub_vtb",
     counterpartyKey: "multimodal_logistics_center",
-    providerKey: "vtb_bank",
     currencyCode: "RUB",
     kind: "bank",
     label: "Мультимодальный логистический центр RUB (VTB)",
     beneficiaryName: "ООО «Мультимодальный логистический центр»",
     accountNo: "40702810000470917693",
-    corrAccount: "30101810145250000411",
     bic: "044525411",
     isDefault: true,
     notes:
@@ -765,13 +748,11 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "shakshin_rub_sberbank",
     counterpartyKey: "semen_shakshin",
-    providerKey: "sberbank_northwest",
     currencyCode: "RUB",
     kind: "bank",
     label: "Шакшин С. И. RUB (Сбербанк)",
     beneficiaryName: "Шакшин Семен Иосифович",
     accountNo: "40817810855176463118",
-    corrAccount: "30101810500000000653",
     bic: "044030653",
     swift: "SABRRU2P",
     bankAddress:
@@ -782,13 +763,11 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "xintatrade_rub_expobank",
     counterpartyKey: "hongkong_xintatrade",
-    providerKey: "expobank",
     currencyCode: "RUB",
     kind: "bank",
     label: "Xintatrade RUB (Expobank)",
     beneficiaryName: "HongKong Xintatrade International Co., Limited",
     accountNo: "40807810401780168731",
-    corrAccount: "30101810345250000460",
     bic: "044525460",
     isDefault: true,
     notes:
@@ -797,14 +776,12 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "oney_rub_sberbank",
     counterpartyKey: "oney_finansal",
-    providerKey: "sberbank_moscow",
     currencyCode: "RUB",
     kind: "bank",
     label: "ONEY RUB (Sberbank)",
     beneficiaryName:
       "ONEY FINANSAL DANISMANLIK TURIZM VE DIS TICARET ANONIM SIRKETI",
     accountNo: "40807810238000000567",
-    corrAccount: "30101810400000000225",
     bic: "044525225",
     bankAddress: "19 Vavilova Street, Moscow, 117997, Russia",
     isDefault: true,
@@ -813,12 +790,12 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "prime_trade_rub_vtb",
     counterpartyKey: "prime_trade",
-    providerKey: "vtb_bank",
     currencyCode: "RUB",
     kind: "bank",
     label: "Prime Trade RUB (VTB)",
     beneficiaryName: "Prime Trade Corp Limited",
     accountNo: "40807810924790000009",
+    bic: "044525411",
     swift: "VTBRRUM2MS2",
     isDefault: true,
     notes:
@@ -827,13 +804,11 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "rsi_capital_rub_vtb",
     counterpartyKey: "rsi_capital",
-    providerKey: "vtb_bank",
     currencyCode: "RUB",
     kind: "bank",
     label: "RSI Capital RUB (VTB)",
     beneficiaryName: "RSI CAPITAL FZCO",
     accountNo: "40807810216110000009",
-    corrAccount: "30101810145250000411",
     bic: "044525411",
     isDefault: true,
     notes: "Captured from договор 05.12.pdf.",
@@ -841,13 +816,11 @@ export const CUSTOMER_REQUISITE_SOURCES: readonly CustomerRequisiteSource[] = [
   {
     key: "coinex_rub_bank_tochka",
     counterpartyKey: "coinex",
-    providerKey: "bank_tochka",
     currencyCode: "RUB",
     kind: "bank",
     label: "Коинекс RUB (Точка)",
     beneficiaryName: "ОсОО «Коинекс»",
     accountNo: "40807810220000000056",
-    corrAccount: "30101810745374525104",
     bic: "044525104",
     isDefault: true,
     notes:

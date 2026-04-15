@@ -126,10 +126,6 @@ export function BeneficiaryDraftCard({
               <dt className="text-muted-foreground">SWIFT / BIC</dt>
               <dd>{formatValue(bank?.swift ?? bank?.bic)}</dd>
             </div>
-            <div>
-              <dt className="text-muted-foreground">Корр. счет</dt>
-              <dd>{formatValue(bank?.corrAccount)}</dd>
-            </div>
           </dl>
         </div>
       </CardContent>

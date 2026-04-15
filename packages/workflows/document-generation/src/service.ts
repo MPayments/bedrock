@@ -329,7 +329,11 @@ function mapContractClientData(input: {
       findRequisiteIdentifier(bankRequisite, "local_account_number")?.value ??
       null,
     corrAccount:
-      findRequisiteIdentifier(bankRequisite, "corr_account")?.value ?? null,
+      findRequisiteProviderIdentifier({
+        branchId: bankRequisite?.providerBranchId,
+        provider,
+        scheme: "corr_account",
+      })?.value ?? null,
     bic:
       findRequisiteProviderIdentifier({
         branchId: bankRequisite?.providerBranchId,
@@ -409,7 +413,11 @@ function mapContractOrganizationRequisiteData(input: {
         scheme: "bic",
       })?.value ?? null,
     corrAccount:
-      findRequisiteIdentifier(requisite, "corr_account")?.value ?? null,
+      findRequisiteProviderIdentifier({
+        branchId: requisite.providerBranchId,
+        provider,
+        scheme: "corr_account",
+      })?.value ?? null,
     currencyCode,
     institutionName:
       resolveRequisiteProviderDisplayName({

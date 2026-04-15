@@ -4,7 +4,7 @@ import { AlertCircle, Loader2, Plus, Wallet } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
-import { RequisiteProviderSchema } from "@bedrock/parties/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
 import { RequisiteEditor } from "@bedrock/sdk-parties-ui/components/requisite-editor";
 import type { RequisiteFormValues } from "@bedrock/sdk-parties-ui/lib/requisites";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
@@ -48,6 +48,15 @@ type EditorState =
   | { kind: "create" }
   | { kind: "existing"; requisiteId: string };
 
+const ProviderBranchesResponseSchema = z.object({
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+    }),
+  ),
+});
+
 function isSameEditorState(left: EditorState, right: EditorState) {
   if (left.kind !== right.kind) {
     return false;
@@ -85,6 +94,7 @@ export function OrganizationBankRequisitesWorkspace({
     loading,
     providerOptions,
     refresh,
+    ensureProviderOptions,
     requisites,
   } = useOrganizationBankRequisites(organizationId);
   const [editorState, setEditorState] = useState<EditorState>({ kind: "idle" });
@@ -94,6 +104,16 @@ export function OrganizationBankRequisitesWorkspace({
   useEffect(() => {
     onDirtyChange(editorDirty || editorState.kind === "create");
   }, [editorDirty, editorState.kind, onDirtyChange]);
+
+  useEffect(() => {
+    const providerIds = Array.from(
+      new Set(requisites.map((requisite) => requisite.providerId)),
+    ).filter(Boolean);
+    if (providerIds.length === 0) {
+      return;
+    }
+    void ensureProviderOptions(providerIds);
+  }, [ensureProviderOptions, requisites]);
 
   const groupedRequisites = useMemo(
     () => groupBankRequisitesByCurrency(requisites, currencyOptions),
@@ -197,22 +217,27 @@ export function OrganizationBankRequisitesWorkspace({
       return [];
     }
 
-    const provider = RequisiteProviderSchema.omit({
-      createdAt: true,
-      updatedAt: true,
-      archivedAt: true,
-    })
-      .extend({
-        createdAt: z.iso.datetime(),
-        updatedAt: z.iso.datetime(),
-        archivedAt: z.iso.datetime().nullable(),
-      })
-      .parse(await response.json());
-
-    return provider.branches.map((branch) => ({
+    const payload = ProviderBranchesResponseSchema.parse(await response.json());
+    return payload.branches.map((branch) => ({
       id: branch.id,
       label: branch.name,
     }));
+  }
+
+  async function loadProviderOptions(query: string) {
+    const response = await apiClient.v1.requisites.providers.options.$get({
+      query: { q: query },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = await readJsonWithSchema(
+      response,
+      RequisiteProviderOptionsResponseSchema,
+    );
+    return payload.data.map((item) => ({ id: item.id, label: item.label }));
   }
 
   async function handleSubmit(values: RequisiteFormValues) {
@@ -415,6 +440,7 @@ export function OrganizationBankRequisitesWorkspace({
                   ownerTypeReadonly
                   ownerReadonly
                   providerOptions={toRelationOptions(providerOptions)}
+                  loadProviderOptions={loadProviderOptions}
                   loadProviderBranches={loadProviderBranches}
                   currencyOptions={toRelationOptions(currencyOptions)}
                   initialValues={{

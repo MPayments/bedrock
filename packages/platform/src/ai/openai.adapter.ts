@@ -32,7 +32,6 @@ const extractedDocumentZodSchema = z.object({
   bankName: z.string().nullable(),
   bankAccount: z.string().nullable(),
   bic: z.string().nullable(),
-  corrAccount: z.string().nullable(),
   amount: z.string().nullable(),
   currency: z.string().nullable(),
   date: z.string().nullable(),

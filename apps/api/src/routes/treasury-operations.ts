@@ -287,7 +287,6 @@ function buildBankInstructionAccountSummary(
       accountNo: snapshot.accountNo,
       beneficiaryName: snapshot.beneficiaryName,
       bic: snapshot.bic,
-      corrAccount: snapshot.corrAccount,
       iban: snapshot.iban,
       kind: "bank",
       swift: snapshot.swift,
@@ -321,8 +320,6 @@ function buildRequisiteAccountSummary(requisite: RequisiteRecord | null | undefi
       beneficiaryName: requisite.beneficiaryName,
       bic: null,
       contact: null,
-      corrAccount:
-        findRequisiteIdentifier(requisite, "corr_account")?.value ?? null,
       iban: findRequisiteIdentifier(requisite, "iban")?.value ?? null,
       kind: requisite.kind,
       memoTag:

@@ -69,7 +69,6 @@ export interface CustomerPortalCreateCounterpartyInput {
   bankRequisite?: {
     accountNo?: string | null;
     beneficiaryName?: string | null;
-    corrAccount?: string | null;
     iban?: string | null;
   } | null;
   country?: string | null;
