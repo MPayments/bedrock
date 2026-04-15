@@ -1,7 +1,16 @@
 # ---------------------------------------------------------------------------
 # Bedrock — production compose for Dokploy/Traefik deployment
 #
+# All application images are pulled from ghcr.io/mpayments, produced by
+# the release-images workflow on each push to main. tigerbeetle is still
+# built locally from ./tigerbeetle since its Dockerfile is a thin wrapper.
+#
+# Image tag selection:
+#   IMAGE_TAG (default: latest) — set to `sha-<short>` to pin a specific
+#   commit (rollback), or to `latest` to always track the most recent build.
+#
 # Prerequisites:
+#   - Host logged in to ghcr.io (read:packages PAT) or Dokploy registry creds
 #   - External Postgres accessible from dokploy-network
 #   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 #   - .env with TB_ADDRESS, TB_CLUSTER_ID, BETTER_AUTH_SECRET
@@ -13,15 +22,19 @@
 #       s3.multihansa.com
 #
 # Deployment:
-#   1. docker compose up db-migrate    # apply migrations
-#   2. docker compose up db-seed       # managed production-use seed
-#   3. docker compose up -d tigerbeetle api finance crm portal workers
-#   4. docker compose up -d drizzle-gateway
+#   1. docker compose pull             # fetch latest images from ghcr
+#   2. docker compose up db-migrate    # apply migrations
+#   3. docker compose up db-seed       # managed production-use seed
+#   4. docker compose up -d tigerbeetle api finance crm portal workers
+#   5. docker compose up -d drizzle-gateway
 #
 # Notes:
 #   - api stays internal on dokploy-network.
 #   - crm has its own server-side task storage and needs DB env vars too.
 #   - crm/finance/portal proxy auth and /v1 traffic to api via API_INTERNAL_URL.
+#   - NEXT_PUBLIC_* vars for crm/finance/portal are baked into the images at
+#     CI build time (release-images.yml). Runtime env below is still kept for
+#     server-side reads, but changing public URLs requires a rebuild in CI.
 #   - drizzle-gateway binds to 127.0.0.1:4983 only; access it via SSH tunnel:
 #       ssh -L 4983:127.0.0.1:4983 <server>
 # ---------------------------------------------------------------------------
@@ -95,9 +108,7 @@ services:
   # Init containers (run once per deploy, then exit)
   # ---------------------------------------------------------------------------
   db-migrate:
-    build:
-      context: ..
-      dockerfile: apps/db/Dockerfile
+    image: ghcr.io/mpayments/bedrock-db:${IMAGE_TAG:-latest}
     container_name: bedrock-db-migrate
     environment:
       DB_HOST: ${DB_HOST}
@@ -111,9 +122,7 @@ services:
     restart: "no"
 
   db-seed:
-    build:
-      context: ..
-      dockerfile: apps/db/Dockerfile
+    image: ghcr.io/mpayments/bedrock-db:${IMAGE_TAG:-latest}
     container_name: bedrock-db-seed
     command: ["node", "--import=tsx", "src/seeds/run-all.ts"]
     depends_on:
@@ -142,9 +151,7 @@ services:
   # Application services
   # ---------------------------------------------------------------------------
   api:
-    build:
-      context: ..
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/mpayments/bedrock-api:${IMAGE_TAG:-latest}
     container_name: bedrock-api
     depends_on:
       db-migrate:
@@ -192,12 +199,7 @@ services:
     restart: unless-stopped
 
   finance:
-    build:
-      context: ..
-      dockerfile: apps/finance/Dockerfile
-      args:
-        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
-        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
+    image: ghcr.io/mpayments/bedrock-finance:${IMAGE_TAG:-latest}
     container_name: bedrock-finance
     depends_on:
       - api
@@ -218,16 +220,7 @@ services:
       - "traefik.http.services.bedrock-finance.loadbalancer.server.port=3000"
 
   crm:
-    build:
-      context: ..
-      dockerfile: apps/crm/Dockerfile
-      args:
-        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
-        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
-        NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL:-https://portal.multihansa.com}
-        NEXT_PUBLIC_APP_URL: ${CRM_PUBLIC_URL:-https://crm.multihansa.com}
-        NEXT_PUBLIC_APP_TITLE: ${CRM_NEXT_PUBLIC_APP_TITLE:-Multihansa CRM}
-        NEXT_PUBLIC_APP_DESCRIPTION: ${CRM_NEXT_PUBLIC_APP_DESCRIPTION:-Multihansa CRM}
+    image: ghcr.io/mpayments/bedrock-crm:${IMAGE_TAG:-latest}
     container_name: bedrock-crm
     depends_on:
       - api
@@ -260,16 +253,7 @@ services:
       - "traefik.http.services.bedrock-crm.loadbalancer.server.port=3000"
 
   portal:
-    build:
-      context: ..
-      dockerfile: apps/portal/Dockerfile
-      args:
-        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
-        NEXT_BUILD_MAX_OLD_SPACE_SIZE: ${NEXT_BUILD_MAX_OLD_SPACE_SIZE:-3072}
-        NEXT_PUBLIC_CRM_URL: ${CRM_PUBLIC_URL:-https://crm.multihansa.com}
-        NEXT_PUBLIC_APP_URL: ${PORTAL_PUBLIC_URL:-https://portal.multihansa.com}
-        NEXT_PUBLIC_APP_TITLE: ${PORTAL_NEXT_PUBLIC_APP_TITLE:-Multihansa Portal}
-        NEXT_PUBLIC_APP_DESCRIPTION: ${PORTAL_NEXT_PUBLIC_APP_DESCRIPTION:-Multihansa customer portal}
+    image: ghcr.io/mpayments/bedrock-portal:${IMAGE_TAG:-latest}
     container_name: bedrock-portal
     depends_on:
       - api
@@ -294,9 +278,7 @@ services:
       - "traefik.http.services.bedrock-portal.loadbalancer.server.port=3000"
 
   workers:
-    build:
-      context: ..
-      dockerfile: apps/workers/Dockerfile
+    image: ghcr.io/mpayments/bedrock-workers:${IMAGE_TAG:-latest}
     container_name: bedrock-workers
     depends_on:
       db-migrate:
