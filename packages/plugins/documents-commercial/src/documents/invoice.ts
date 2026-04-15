@@ -11,7 +11,6 @@ import { COMMERCIAL_DOCUMENT_METADATA } from "../metadata";
 import {
   InvoiceInputSchema,
   InvoicePayloadSchema,
-  compileInvoiceDirectFinancialLines,
   type InvoiceInput,
 } from "../validation";
 import {
@@ -93,11 +92,6 @@ export function createInvoiceDocumentModule(
         counterpartyId: input.counterpartyId,
         currency: input.currency,
         customerId: input.customerId,
-        financialLines: compileInvoiceDirectFinancialLines({
-          financialLines: input.financialLines,
-          amountMinor: input.amountMinor,
-          currency: input.currency,
-        }),
         memo: input.memo,
         organizationId: input.organizationId,
         organizationRequisiteId: input.organizationRequisiteId,

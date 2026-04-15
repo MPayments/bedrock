@@ -15,16 +15,20 @@ import {
   DropdownMenuTrigger,
 } from "@bedrock/sdk-ui/components/dropdown-menu";
 
-import { formatCurrency, formatDate } from "./format";
-import type { CalculationHistoryView, CalculationView } from "./types";
+import {
+  formatCurrency,
+  formatDate,
+  rationalToDecimalString,
+} from "./format";
+import type { ApiCalculationSummary, ApiDealCalculationHistoryItem } from "./types";
 
 type FinancialCardProps = {
-  calculation: CalculationView | null;
-  calculationHistory: CalculationHistoryView[];
+  calculation: ApiCalculationSummary | null;
+  calculationHistory: ApiDealCalculationHistoryItem[];
   activeCalculationId: string | null;
   disabledReason: string | null;
   isCreating: boolean;
-  onCreate: () => void;
+  onCreate?: (() => void) | null;
 };
 
 export function FinancialCard({
@@ -68,7 +72,7 @@ export function FinancialCard({
                         <div className="flex flex-col">
                           <span>{formatDate(item.calculationTimestamp)}</span>
                           <span className="text-xs text-muted-foreground">
-                            курс {item.rate}
+                            курс {rationalToDecimalString(item.rateNum, item.rateDen)}
                             {isCurrent ? " · текущая версия" : ""}
                           </span>
                         </div>
@@ -79,15 +83,17 @@ export function FinancialCard({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button
-            data-testid="deal-create-calculation-button"
-            size="sm"
-            onClick={onCreate}
-            disabled={Boolean(disabledReason) || isCreating}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {calculation ? "Новая версия" : "Создать расчет"}
-          </Button>
+          {onCreate ? (
+            <Button
+              data-testid="deal-create-calculation-button"
+              size="sm"
+              onClick={onCreate}
+              disabled={Boolean(disabledReason) || isCreating}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {calculation ? "Новая версия" : "Создать расчет"}
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -158,7 +164,7 @@ export function FinancialCard({
               <div className="text-sm font-medium text-muted-foreground">
                 Финальный курс клиента
               </div>
-              <div className="text-base">{calculation.finalRate}</div>
+              <div className="text-base">{calculation.rate}</div>
             </div>
             <div>
               <div className="text-sm font-medium text-muted-foreground">

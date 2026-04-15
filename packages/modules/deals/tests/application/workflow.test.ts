@@ -61,23 +61,8 @@ describe("deal workflow", () => {
       });
   });
 
-  it("uses the nearest transition blockers when deriving next action", () => {
+  it("uses the canonical lifecycle action when a deal is awaiting approval", () => {
     const nextAction = deriveDealNextAction({
-      acceptance: {
-        acceptedAt: new Date("2026-04-05T08:55:08.683Z"),
-        acceptedByUserId: "user-1",
-        agreementVersionId: null,
-        dealId: "deal-1",
-        dealRevision: 3,
-        expiresAt: new Date("2026-04-06T08:54:00.000Z"),
-        id: "acceptance-1",
-        quoteId: "quote-1",
-        quoteStatus: "used",
-        replacedByQuoteId: null,
-        revokedAt: null,
-        usedAt: new Date("2026-04-05T08:57:22.536Z"),
-        usedDocumentId: "doc-1",
-      },
       calculationId: "calculation-1",
       completeness: [
         {
@@ -96,7 +81,7 @@ describe("deal workflow", () => {
           sectionId: "externalBeneficiary",
         },
       ],
-      intake: {
+      header: {
         common: {
           applicantCounterpartyId: "applicant-1",
           customerNote: null,
@@ -140,12 +125,12 @@ describe("deal workflow", () => {
         },
         type: "payment",
       },
-      status: "preparing_documents",
+      status: "awaiting_internal_approval",
       transitionReadiness: [
         {
           allowed: true,
           blockers: [],
-          targetStatus: "awaiting_funds",
+          targetStatus: "approved_for_execution",
         },
         {
           allowed: false,
@@ -155,17 +140,17 @@ describe("deal workflow", () => {
               message: "Operational position is not ready: customer_receivable",
             },
           ],
-          targetStatus: "awaiting_payment",
+          targetStatus: "executing",
         },
       ],
     });
 
-    expect(nextAction).toBe("Continue processing");
+    expect(nextAction).toBe("Collect internal approval");
   });
 
   it("marks the payment convert leg done after a posted exchange document exists", () => {
     const executionPlan = buildEffectiveDealExecutionPlan({
-      acceptance: null,
+      acceptedCalculation: null,
       documents: [
         {
           approvalStatus: "not_required",
@@ -189,7 +174,7 @@ describe("deal workflow", () => {
         targetCurrency: "USD",
         targetCurrencyId: "00000000-0000-4000-8000-000000000003",
       },
-      intake: {
+      header: {
         common: {
           applicantCounterpartyId: "applicant-1",
           customerNote: null,

@@ -3,17 +3,76 @@ export const DEAL_TYPE_VALUES = [
   "currency_exchange",
   "currency_transit",
   "exporter_settlement",
+  "internal_treasury",
+] as const;
+
+export const DEAL_ROUTE_PARTY_KIND_VALUES = [
+  "customer",
+  "counterparty",
+  "organization",
+] as const;
+
+export const DEAL_ROUTE_TEMPLATE_STATUS_VALUES = [
+  "draft",
+  "published",
+  "archived",
+] as const;
+
+export const DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES = [
+  "fixed_party",
+  "deal_customer",
+  "deal_applicant",
+  "deal_payer",
+  "deal_beneficiary",
+] as const;
+
+export const DEAL_ROUTE_LEG_KIND_VALUES = [
+  "collection",
+  "intracompany_transfer",
+  "intercompany_funding",
+  "fx_conversion",
+  "payout",
+  "return",
+  "adjustment",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES = [
+  "revenue",
+  "expense",
+  "pass_through",
+  "adjustment",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES = [
+  "fixed",
+  "bps",
+  "per_million",
+  "manual",
+] as const;
+
+export const DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES = [
+  "deal_source_amount",
+  "deal_target_amount",
+  "leg_from_amount",
+  "leg_to_amount",
+  "gross_revenue",
 ] as const;
 
 export const DEAL_STATUS_VALUES = [
   "draft",
-  "submitted",
+  "pricing",
+  "quoted",
+  "awaiting_customer_approval",
+  "awaiting_internal_approval",
+  "approved_for_execution",
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
+  "expired",
+  "failed",
   "rejected",
-  "preparing_documents",
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-  "done",
   "cancelled",
 ] as const;
 
@@ -93,7 +152,9 @@ export const DEAL_SECTION_ID_VALUES = [
 
 export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "deal_created",
-  "intake_saved",
+  "deal_header_updated",
+  "deal_approved",
+  "deal_rejected",
   "participant_changed",
   "status_changed",
   "leg_state_changed",
@@ -109,10 +170,12 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "instruction_returned",
   "deal_closed",
   "quote_created",
-  "quote_accepted",
   "quote_expired",
   "quote_used",
   "calculation_attached",
+  "calculation_created",
+  "calculation_accepted",
+  "calculation_superseded",
   "attachment_uploaded",
   "attachment_deleted",
   "attachment_ingested",
@@ -139,11 +202,14 @@ export const DEAL_APPROVAL_STATUS_VALUES = [
   "cancelled",
 ] as const;
 
+export const DEAL_APPROVAL_SCOPE_VALUES = [
+  "customer",
+  "internal",
+] as const;
+
 export const DEAL_TRANSITION_BLOCKER_CODE_VALUES = [
-  "intake_incomplete",
+  "header_incomplete",
   "participant_missing",
-  "accepted_quote_missing",
-  "accepted_quote_inactive",
   "calculation_missing",
   "approval_pending",
   "approval_rejected",
@@ -164,14 +230,51 @@ export const DEAL_STATUS_TRANSITIONS: Record<
   (typeof DEAL_STATUS_VALUES)[number],
   readonly (typeof DEAL_STATUS_VALUES)[number][]
 > = {
-  draft: ["submitted", "rejected", "cancelled"],
-  submitted: ["preparing_documents", "rejected", "cancelled"],
+  draft: ["pricing", "cancelled"],
+  pricing: ["quoted", "cancelled", "failed"],
+  quoted: [
+    "awaiting_customer_approval",
+    "awaiting_internal_approval",
+    "approved_for_execution",
+    "cancelled",
+    "expired",
+    "failed",
+  ],
+  awaiting_customer_approval: [
+    "awaiting_internal_approval",
+    "approved_for_execution",
+    "rejected",
+    "cancelled",
+    "expired",
+  ],
+  awaiting_internal_approval: [
+    "approved_for_execution",
+    "rejected",
+    "cancelled",
+    "expired",
+  ],
+  approved_for_execution: [
+    "executing",
+    "partially_executed",
+    "executed",
+    "reconciling",
+    "failed",
+    "cancelled",
+  ],
+  executing: [
+    "partially_executed",
+    "executed",
+    "reconciling",
+    "failed",
+    "cancelled",
+  ],
+  partially_executed: ["executed", "reconciling", "failed", "cancelled"],
+  executed: ["reconciling", "closed", "failed"],
+  reconciling: ["closed", "failed"],
+  closed: [],
+  expired: [],
+  failed: [],
   rejected: [],
-  preparing_documents: ["awaiting_funds", "done", "cancelled"],
-  awaiting_funds: ["awaiting_payment", "done", "cancelled"],
-  awaiting_payment: ["closing_documents", "done", "cancelled"],
-  closing_documents: ["done", "cancelled"],
-  done: [],
   cancelled: [],
 };
 
@@ -202,6 +305,7 @@ export const DEAL_REQUIRED_SECTION_IDS_BY_TYPE = {
     "incomingReceipt",
     "settlementDestination",
   ],
+  internal_treasury: ["common", "moneyRequest", "settlementDestination"],
 } as const;
 
 export function canTransitionDealStatus(
@@ -222,5 +326,12 @@ export function canDealWriteTreasuryOrFormalDocuments(input: {
   status: (typeof DEAL_STATUS_VALUES)[number];
   type: (typeof DEAL_TYPE_VALUES)[number];
 }): boolean {
-  return !["draft", "rejected", "done", "cancelled"].includes(input.status);
+  return ![
+    "draft",
+    "rejected",
+    "closed",
+    "cancelled",
+    "expired",
+    "failed",
+  ].includes(input.status);
 }

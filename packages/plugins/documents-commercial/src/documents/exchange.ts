@@ -21,6 +21,7 @@ import {
   loadInvoice,
   parseInvoicePayload,
   requirePostedDocument,
+  resolveFinalizedCommercialFinancialLines,
   resolveInvoiceDealFxContext,
   resolveOrganizationBinding,
 } from "./internal/helpers";
@@ -209,7 +210,7 @@ export function createExchangeDocumentModule(
       return buildExchangePostingPlan({
         document,
         financialLines: dealFxContext?.hasConvertLeg
-          ? dealFxContext.financialLines
+          ? resolveFinalizedCommercialFinancialLines(dealFxContext)
           : undefined,
         payload,
         bookId: binding.bookId,

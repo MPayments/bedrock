@@ -20,9 +20,15 @@ import {
   PortalDealListProjectionSchema,
   PortalDealProjectionSchema,
 } from "@bedrock/workflow-deal-projections/contracts";
+import { NotFoundError } from "@bedrock/shared/core/errors";
 
 import { lookupCompanyByInn } from "./counterparty-directory";
 import { resolveEffectiveCustomerAgreementByCustomerId } from "./customer-agreements";
+import {
+  GeneratedDocumentFormatSchema,
+  GeneratedDocumentLangSchema,
+} from "./customer-files";
+import { serializeCalculationDocumentData } from "./internal/calculation-document";
 import { DeletedSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { withStoredResultRouteIdempotency } from "../common/route-idempotency";
@@ -364,40 +370,6 @@ const CustomerPortalDealAttachmentParamsSchema = CustomerPortalDealIdParamSchema
 
 const CustomerPortalCreateDealDraftInputSchema = CreatePortalDealInputSchema;
 
-const CustomerPortalDealListItemSchema = z.object({
-  amount: z.string().nullable(),
-  calculation: z.any().nullable(),
-  counterpartyId: z.string().uuid().nullable(),
-  createdAt: z.string(),
-  currencyCode: z.string().nullable(),
-  id: z.string().uuid(),
-  organizationName: z.string().nullable(),
-  status: z.enum([
-    "draft",
-    "submitted",
-    "rejected",
-    "preparing_documents",
-    "awaiting_funds",
-    "awaiting_payment",
-    "closing_documents",
-    "done",
-    "cancelled",
-  ]),
-});
-
-const CustomerPortalDealListSchema = z.object({
-  data: z.array(CustomerPortalDealListItemSchema),
-  total: z.number().int(),
-  limit: z.number().int(),
-  offset: z.number().int(),
-});
-
-const CustomerPortalDealDetailSchema = z.object({
-  calculation: z.any().nullable(),
-  deal: z.any(),
-  organizationName: z.string().nullable(),
-});
-
 function requireCustomerPortalAccess(
   ctx: AppContext,
 ): MiddlewareHandler<{
@@ -608,26 +580,6 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
-  const listDealsRoute = createRoute({
-    method: "get",
-    path: "/deals",
-    tags: ["Customer"],
-    middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "List customer deals",
-    request: {
-      query: z.object({
-        limit: z.coerce.number().int().default(20),
-        offset: z.coerce.number().int().default(0),
-      }),
-    },
-    responses: {
-      200: {
-        content: { "application/json": { schema: CustomerPortalDealListSchema } },
-        description: "Customer deals",
-      },
-    },
-  });
-
   const listDealProjectionsRoute = createRoute({
     method: "get",
     path: "/deals/projections",
@@ -650,28 +602,7 @@ export function customerRoutes(ctx: AppContext) {
     },
   });
 
-  const getDealRoute = createRoute({
-    method: "get",
-    path: "/deals/{id}",
-    tags: ["Customer"],
-    middleware: [requireCustomerPortalAccess(ctx)],
-    summary: "Get customer deal detail",
-    request: { params: CustomerPortalDealIdParamSchema },
-    responses: {
-      200: {
-        content: {
-          "application/json": { schema: CustomerPortalDealDetailSchema },
-        },
-        description: "Deal detail",
-      },
-      403: {
-        content: { "application/json": { schema: z.object({ error: z.string() }) } },
-        description: "Not authorized",
-      },
-    },
-  });
-
-const getDealProjectionRoute = createRoute({
+  const getDealProjectionRoute = createRoute({
     method: "get",
     path: "/deals/{id}/projection",
     tags: ["Customer"],
@@ -688,6 +619,34 @@ const getDealProjectionRoute = createRoute({
       403: {
         content: { "application/json": { schema: z.object({ error: z.string() }) } },
         description: "Not authorized",
+      },
+    },
+  });
+
+  const exportDealCalculationRoute = createRoute({
+    method: "get",
+    path: "/deals/{id}/calculation/export",
+    tags: ["Customer"],
+    middleware: [requireCustomerPortalAccess(ctx)],
+    summary: "Export the accepted calculation for a customer deal",
+    request: {
+      params: CustomerPortalDealIdParamSchema,
+      query: z.object({
+        format: GeneratedDocumentFormatSchema,
+        lang: GeneratedDocumentLangSchema,
+      }),
+    },
+    responses: {
+      200: {
+        description: "Calculation document",
+      },
+      403: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Not authorized",
+      },
+      404: {
+        content: { "application/json": { schema: z.object({ error: z.string() }) } },
+        description: "Deal or calculation not found",
       },
     },
   });
@@ -1066,41 +1025,11 @@ const getDealProjectionRoute = createRoute({
         return handleRouteError(c, error);
       }
     })
-    .openapi(listDealsRoute, async (c) => {
-      const user = c.get("user")!;
-      const query = c.req.valid("query");
-      const result = await ctx.customerPortalWorkflow.listMyDeals(
-        { userId: user.id },
-        query,
-      );
-      return c.json(result, 200);
-    })
     .openapi(listDealProjectionsRoute, async (c) => {
       const user = c.get("user")!;
       const query = c.req.valid("query");
       const result = await listAuthorizedPortalDealProjections(user.id, query);
       return c.json(result, 200);
-    })
-    .openapi(getDealRoute, async (c) => {
-      const user = c.get("user")!;
-      const { id } = c.req.valid("param");
-
-      try {
-        const result = await ctx.customerPortalWorkflow.getDealById(
-          { userId: user.id },
-          id,
-        );
-        return c.json(result, 200);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.name === "CustomerNotAuthorizedError"
-        ) {
-          return c.json({ error: error.message }, 403);
-        }
-
-        throw error;
-      }
     })
     .openapi(getDealProjectionRoute, async (c) => {
       const user = c.get("user")!;
@@ -1116,6 +1045,53 @@ const getDealProjectionRoute = createRoute({
             error.message === "CustomerNotAuthorizedError")
         ) {
           return c.json({ error: error.message }, 403);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportDealCalculationRoute, async (c) => {
+      const user = c.get("user")!;
+      const { id } = c.req.valid("param");
+      const { format, lang } = c.req.valid("query");
+
+      try {
+        const projection = await findAuthorizedPortalDealProjection(user.id, id);
+
+        if (!projection.calculationSummary) {
+          throw new NotFoundError(
+            "Calculation",
+            `accepted calculation for deal ${id}`,
+          );
+        }
+
+        const calculation =
+          await ctx.calculationsModule.calculations.queries.findById(
+            projection.calculationSummary.id,
+          );
+        const calculationData = await serializeCalculationDocumentData({
+          calculation,
+          currenciesService: ctx.currenciesService,
+        });
+        const result = await ctx.documentGenerationWorkflow.generateCalculation({
+          calculationData,
+          format,
+          lang,
+        });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.name === "CustomerNotAuthorizedError" ||
+            error.message === "CustomerNotAuthorizedError")
+        ) {
+          return c.json({ error: "Deal not found" }, 403);
         }
 
         throw error;

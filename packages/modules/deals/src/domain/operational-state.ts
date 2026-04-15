@@ -1,6 +1,6 @@
 import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
 import type {
-  DealIntakeDraft,
+  DealHeader,
   DealOperationalPosition,
   DealOperationalState,
   DealSectionCompleteness,
@@ -124,11 +124,12 @@ function buildNotApplicablePosition(
 }
 
 export function listRequiredOperationalPositionKinds(
-  type: DealIntakeDraft["type"],
+  type: DealHeader["type"],
 ): DealOperationalPositionKind[] {
   switch (type) {
     case "payment":
     case "currency_exchange":
+    case "internal_treasury":
       return ["customer_receivable", "provider_payable"];
     case "currency_transit":
       return ["customer_receivable", "provider_payable", "in_transit"];
@@ -158,7 +159,7 @@ export function buildDealOperationalState(input: {
   calculationId: string | null;
   calculationLines: CalculationOperationalLine[];
   executionPlan: DealWorkflowLeg[];
-  intake: DealIntakeDraft;
+  header: DealHeader;
   sectionCompleteness: DealSectionCompleteness[];
   status: DealStatus;
   updatedAt: Date;
@@ -204,7 +205,7 @@ export function buildDealOperationalState(input: {
             })
           : buildNotApplicablePosition(kind);
       case "exporter_expected_receivable": {
-        if (input.intake.type !== "exporter_settlement") {
+        if (input.header.type !== "exporter_settlement") {
           return buildNotApplicablePosition(kind);
         }
 
@@ -245,7 +246,7 @@ export function buildDealOperationalState(input: {
         if (incomingReceiptSection?.complete) {
           return {
             amountMinor: null,
-            currencyId: input.intake.incomingReceipt.expectedCurrencyId,
+            currencyId: input.header.incomingReceipt.expectedCurrencyId,
             kind,
             reasonCode: null,
             sourceRefs: ["section:incomingReceipt", ...sourceRefsFromLegs(collectLegs)],
@@ -279,7 +280,8 @@ export function buildDealOperationalState(input: {
           kind,
           reasonCode: null,
           sourceRefs: [`calculation:${input.calculationId}:line:${kind}`],
-          state: input.status === "done" ? ("done" as const) : ("ready" as const),
+          state:
+            input.status === "closed" ? ("done" as const) : ("ready" as const),
           updatedAt: line.updatedAt,
         } satisfies DealOperationalPosition;
       }

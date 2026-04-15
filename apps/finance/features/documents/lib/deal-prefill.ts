@@ -149,7 +149,7 @@ export function buildDealScopedDocumentInitialPayload(input: {
         getWorkflowParticipant(input.deal, "customer")?.customerId ?? null;
       const counterpartyId =
         getWorkflowParticipant(input.deal, "applicant")?.counterpartyId ??
-        input.deal.workflow?.intake.common.applicantCounterpartyId ??
+        input.deal.workflow?.header.common.applicantCounterpartyId ??
         null;
       const organizationId =
         input.agreement?.organizationId ??

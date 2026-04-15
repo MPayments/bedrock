@@ -158,7 +158,7 @@ export const fileLinks = pgTable(
         and ${table.generatedFormat} is null
         and ${table.generatedLang} is null
       ) or (
-        ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract')
+        ${table.linkKind} in ('deal_invoice', 'deal_acceptance', 'legal_entity_contract')
         and ${table.attachmentPurpose} is null
         and ${table.attachmentVisibility} is null
         and ${table.generatedFormat} is not null
@@ -173,7 +173,7 @@ export const fileLinks = pgTable(
         table.generatedLang,
       )
       .where(
-        sql`${table.dealId} is not null and ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance')`,
+        sql`${table.dealId} is not null and ${table.linkKind} in ('deal_invoice', 'deal_acceptance')`,
       ),
     uniqueIndex("file_links_generated_counterparty_variant_uq")
       .on(

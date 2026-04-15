@@ -1,13 +1,9 @@
-import {
-  type CalculationsModule,
-} from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
 import type {
   CreatePortalDealInput,
   Deal,
-  DealDetails,
-  DealIntakeDraft,
+  DealHeader,
   PortalDealListProjection,
   PortalDealProjection,
 } from "@bedrock/deals/contracts";
@@ -20,7 +16,6 @@ import {
 import { type PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { isUuidLike, MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import {
   createCustomerBankingService,
@@ -34,7 +29,6 @@ interface LocalizedText {
 }
 
 export interface CustomerPortalWorkflowDeps {
-  calculations: Pick<CalculationsModule, "calculations">;
   currencies: Pick<CurrenciesService, "findByCode" | "findById">;
   deals: Pick<DealsModule, "deals">;
   iam: {
@@ -114,9 +108,6 @@ export interface CustomerPortalProfile {
   >;
 }
 
-type CanonicalCalculation = Awaited<
-  ReturnType<CalculationsModule["calculations"]["queries"]["findById"]>
->;
 type CanonicalCounterparty = Awaited<
   ReturnType<PartiesModule["counterparties"]["queries"]["findById"]>
 >;
@@ -135,42 +126,6 @@ type CanonicalRequisiteProviderRecord = NonNullable<Awaited<
 type CustomerMembership = Awaited<
   ReturnType<CustomerMembershipsService["queries"]["listByUserId"]>
 >[number];
-
-interface PortalCalculationCurrencyMetadata {
-  code: string;
-  id: string;
-  precision: number;
-}
-
-interface CustomerPortalCalculation {
-  additionalExpenses: string;
-  additionalExpensesCurrencyCode: string | null;
-  additionalExpensesInBase: string;
-  agreementFeeAmount: string;
-  agreementFeePercentage: string;
-  baseCurrencyCode: string;
-  calculationTimestamp: string;
-  createdAt: string;
-  currencyCode: string;
-  dealId: string | null;
-  fxQuoteId: string | null;
-  fixedFeeAmount: string;
-  fixedFeeCurrencyCode: string | null;
-  id: string;
-  originalAmount: string;
-  quoteMarkupAmount: string;
-  quoteMarkupPercentage: string;
-  rate: string;
-  rateSource: string;
-  sentToClient: number;
-  status: "active" | "archived";
-  totalFeeAmount: string;
-  totalFeeAmountInBase: string;
-  totalFeePercentage: string;
-  totalAmount: string;
-  totalInBase: string;
-  totalWithExpensesInBase: string;
-}
 
 export interface CustomerPortalCustomerContext {
   customer: CanonicalCustomerRecord;
@@ -208,18 +163,10 @@ export interface CustomerPortalWorkflow {
       idempotencyKey: string;
     },
   ): Promise<PortalDealProjection>;
-  listMyDeals(
-    ctx: CustomerContext,
-    input?: { limit?: number; offset?: number },
-  ): Promise<CustomerPortalDealListResponse>;
   listMyDealProjections(
     ctx: CustomerContext,
     input?: { limit?: number; offset?: number },
   ): Promise<PortalDealListProjection>;
-  getDealById(
-    ctx: CustomerContext,
-    dealId: string,
-  ): Promise<CustomerPortalDealDetailResponse>;
   getDealProjectionById(
     ctx: CustomerContext,
     dealId: string,
@@ -377,170 +324,9 @@ async function resolvePortalCurrencyId(
   return currency.id;
 }
 
-function minorToDecimalString(amountMinor: bigint | string, precision: number) {
-  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
-  const negative = value < 0n;
-  const absolute = negative ? -value : value;
-  const digits = absolute.toString();
-
-  if (precision === 0) {
-    return `${negative ? "-" : ""}${digits}`;
-  }
-
-  const padded = digits.padStart(precision + 1, "0");
-  const integerPart = padded.slice(0, padded.length - precision);
-  const fractionPart = padded.slice(padded.length - precision);
-
-  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
-}
-
-function feeBpsToPercentString(feeBps: bigint | string) {
-  return minorToDecimalString(feeBps, 2);
-}
-
-function rationalToDecimalString(
-  numerator: bigint | string,
-  denominator: bigint | string,
-  scale = 6,
-) {
-  return formatFractionDecimal(numerator, denominator, {
-    scale,
-    trimTrailingZeros: true,
-  });
-}
-
-function serializeRateSource(rateSource: string) {
-  return rateSource === "cbr" ? "cbru" : rateSource;
-}
-
-async function buildCalculationCurrencyMetadata(
-  deps: CustomerPortalWorkflowDeps,
-  currencyIds: string[],
-) {
-  const uniqueIds = Array.from(new Set(currencyIds.filter(Boolean)));
-  const entries = await Promise.all(
-    uniqueIds.map(async (currencyId) => {
-      const currency = await deps.currencies.findById(currencyId);
-      return [
-        currencyId,
-        {
-          id: currency.id,
-          code: currency.code,
-          precision: currency.precision,
-        } satisfies PortalCalculationCurrencyMetadata,
-      ] as const;
-    }),
-  );
-
-  return new Map(entries);
-}
-
-async function serializePortalCalculationForDeal(
-  deps: CustomerPortalWorkflowDeps,
-  calculation: CanonicalCalculation | null,
-): Promise<CustomerPortalCalculation | null> {
-  if (!calculation) {
-    return null;
-  }
-
-  const currencyMetadata = await buildCalculationCurrencyMetadata(
-    deps,
-    [
-      calculation.currentSnapshot.calculationCurrencyId,
-      calculation.currentSnapshot.baseCurrencyId,
-      calculation.currentSnapshot.additionalExpensesCurrencyId ?? "",
-    ],
-  );
-
-  const snapshot = calculation.currentSnapshot;
-  const calculationCurrency = currencyMetadata.get(snapshot.calculationCurrencyId);
-  const baseCurrency = currencyMetadata.get(snapshot.baseCurrencyId);
-  const additionalExpensesCurrency = snapshot.additionalExpensesCurrencyId
-    ? currencyMetadata.get(snapshot.additionalExpensesCurrencyId) ?? null
-    : null;
-
-  if (!calculationCurrency || !baseCurrency) {
-    throw new Error("Missing currency metadata for portal calculation");
-  }
-
-  return {
-    id: calculation.id,
-    dealId: null,
-    currencyCode: calculationCurrency.code,
-    originalAmount: minorToDecimalString(
-      snapshot.originalAmountMinor,
-      calculationCurrency.precision,
-    ),
-    agreementFeePercentage: feeBpsToPercentString(snapshot.agreementFeeBps),
-    agreementFeeAmount: minorToDecimalString(
-      snapshot.agreementFeeAmountMinor,
-      calculationCurrency.precision,
-    ),
-    quoteMarkupPercentage: feeBpsToPercentString(snapshot.quoteMarkupBps),
-    quoteMarkupAmount: minorToDecimalString(
-      snapshot.quoteMarkupAmountMinor,
-      calculationCurrency.precision,
-    ),
-    totalFeePercentage: feeBpsToPercentString(snapshot.totalFeeBps),
-    totalFeeAmount: minorToDecimalString(
-      snapshot.totalFeeAmountMinor,
-      calculationCurrency.precision,
-    ),
-    totalAmount: minorToDecimalString(
-      snapshot.totalAmountMinor,
-      calculationCurrency.precision,
-    ),
-    rateSource: serializeRateSource(snapshot.rateSource),
-    rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
-    additionalExpensesCurrencyCode: additionalExpensesCurrency?.code ?? null,
-    additionalExpenses: minorToDecimalString(
-      snapshot.additionalExpensesAmountMinor,
-      additionalExpensesCurrency?.precision ?? baseCurrency.precision,
-    ),
-    baseCurrencyCode: baseCurrency.code,
-    totalFeeAmountInBase: minorToDecimalString(
-      snapshot.totalFeeAmountInBaseMinor,
-      baseCurrency.precision,
-    ),
-    fixedFeeAmount: snapshot.fixedFeeCurrencyId
-      ? minorToDecimalString(
-          snapshot.fixedFeeAmountMinor,
-          additionalExpensesCurrency?.id === snapshot.fixedFeeCurrencyId
-            ? (additionalExpensesCurrency?.precision ?? baseCurrency.precision)
-            : baseCurrency.precision,
-        )
-      : minorToDecimalString(snapshot.fixedFeeAmountMinor, baseCurrency.precision),
-    fixedFeeCurrencyCode:
-      snapshot.fixedFeeCurrencyId != null
-        ? (currencyMetadata.get(snapshot.fixedFeeCurrencyId)?.code ?? null)
-        : null,
-    totalInBase: minorToDecimalString(
-      snapshot.totalInBaseMinor,
-      baseCurrency.precision,
-    ),
-    additionalExpensesInBase: minorToDecimalString(
-      snapshot.additionalExpensesInBaseMinor,
-      baseCurrency.precision,
-    ),
-    totalWithExpensesInBase: minorToDecimalString(
-      snapshot.totalWithExpensesInBaseMinor,
-      baseCurrency.precision,
-    ),
-    calculationTimestamp: snapshot.calculationTimestamp.toISOString(),
-    sentToClient: 0,
-    status: calculation.isActive ? "active" : "archived",
-    fxQuoteId: snapshot.fxQuoteId,
-    createdAt: calculation.createdAt.toISOString(),
-  };
-}
-
-function mapPortalDealStatus(status: Deal["status"]): Deal["status"] {
-  return status;
-}
-
-function createEmptyPortalDealIntakeDraft(
+function createEmptyPortalDealHeader(
   type: CreatePortalDealInput["type"],
-): DealIntakeDraft {
+): DealHeader {
   return {
     type,
     common: {
@@ -576,10 +362,10 @@ function createEmptyPortalDealIntakeDraft(
   };
 }
 
-function buildPortalDealIntakeDraft(
+function buildPortalDealHeader(
   input: CreatePortalDealInput,
-): DealIntakeDraft {
-  const intake = createEmptyPortalDealIntakeDraft(input.type);
+): DealHeader {
+  const intake = createEmptyPortalDealHeader(input.type);
 
   intake.common = {
     applicantCounterpartyId: input.common.applicantCounterpartyId,
@@ -607,31 +393,6 @@ function buildPortalDealIntakeDraft(
 
   return intake;
 }
-
-interface CustomerPortalDealListItem {
-  amount: string | null;
-  calculation: Awaited<ReturnType<typeof serializePortalCalculationForDeal>>;
-  counterpartyId: string | null;
-  createdAt: string;
-  currencyCode: string | null;
-  id: string;
-  organizationName: string | null;
-  status: Deal["status"];
-}
-
-interface CustomerPortalDealListResponse {
-  data: CustomerPortalDealListItem[];
-  limit: number;
-  offset: number;
-  total: number;
-}
-
-interface CustomerPortalDealDetailResponse {
-  calculation: Awaited<ReturnType<typeof serializePortalCalculationForDeal>>;
-  deal: DealDetails;
-  organizationName: string | null;
-}
-
 export function createCustomerPortalWorkflow(
   deps: CustomerPortalWorkflowDeps,
 ): CustomerPortalWorkflow {
@@ -796,84 +557,6 @@ export function createCustomerPortalWorkflow(
         `Deal ${deal.id} not found or not owned by user ${userId}`,
       );
     }
-  }
-
-  async function listPortalDealsForCustomerIds(
-    customerIds: string[],
-  ): Promise<Deal[]> {
-    const uniqueCustomerIds = Array.from(new Set(customerIds));
-    const results = await Promise.all(
-      uniqueCustomerIds.map((customerId) =>
-        deps.deals.deals.queries.list({
-          customerId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-      ),
-    );
-
-    return results.flatMap((result) => result.data);
-  }
-
-  async function findPortalCounterpartyName(
-    deal: DealDetails,
-  ): Promise<{ counterpartyId: string | null; organizationName: string | null }> {
-    const counterpartyParticipant =
-      deal.participants.find((participant) => participant.role === "counterparty") ??
-      null;
-
-    if (!counterpartyParticipant?.counterpartyId) {
-      return {
-        counterpartyId: null,
-        organizationName: null,
-      };
-    }
-
-    const counterparty = await deps.parties.counterparties.queries.findById(
-      counterpartyParticipant.counterpartyId,
-    );
-
-    return {
-      counterpartyId: counterpartyParticipant.counterpartyId,
-      organizationName: counterparty?.shortName ?? counterparty?.fullName ?? null,
-    };
-  }
-
-  async function serializePortalDealListItem(
-    deal: Deal,
-  ): Promise<CustomerPortalDealListItem> {
-    const [dealDetails, currency, calculation] = await Promise.all([
-      deps.deals.deals.queries.findById(deal.id),
-      deal.currencyId
-        ? deps.currencies.findById(deal.currencyId)
-        : Promise.resolve(null),
-      deal.calculationId
-        ? deps.calculations.calculations.queries.findById(deal.calculationId)
-        : Promise.resolve(null),
-    ]);
-
-    const {
-      counterpartyId,
-      organizationName,
-    } = dealDetails
-      ? await findPortalCounterpartyName(dealDetails)
-      : { counterpartyId: null, organizationName: null };
-
-    return {
-      amount: deal.amount,
-      calculation: await serializePortalCalculationForDeal(
-        deps,
-        calculation,
-      ),
-      counterpartyId,
-      createdAt: deal.createdAt.toISOString(),
-      currencyCode: currency?.code ?? null,
-      id: deal.id,
-      organizationName,
-      status: mapPortalDealStatus(deal.status),
-    };
   }
 
   async function getProfile(ctx: CustomerContext): Promise<CustomerPortalProfile> {
@@ -1046,7 +729,7 @@ export function createCustomerPortalWorkflow(
         actorUserId: ctx.userId,
         customerId: applicant.customerId,
         idempotencyKey: options.idempotencyKey,
-        intake: buildPortalDealIntakeDraft(normalizedInput),
+        header: buildPortalDealHeader(normalizedInput),
       });
 
       deps.logger.info("Customer created typed deal draft", {
@@ -1067,41 +750,6 @@ export function createCustomerPortalWorkflow(
       }
 
       return projection;
-    },
-
-    async listMyDeals(
-      ctx: CustomerContext,
-      input?: { limit?: number; offset?: number },
-    ): Promise<CustomerPortalDealListResponse> {
-      const customerIds = await listAuthorizedCustomerIds(ctx.userId);
-
-      if (customerIds.length === 0) {
-        return {
-          data: [],
-          total: 0,
-          limit: input?.limit ?? 20,
-          offset: input?.offset ?? 0,
-        };
-      }
-
-      const allDeals = await listPortalDealsForCustomerIds(customerIds);
-
-      allDeals.sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      );
-
-      const limit = input?.limit ?? 20;
-      const offset = input?.offset ?? 0;
-      const pagedDeals = allDeals.slice(offset, offset + limit);
-
-      return {
-        data: await Promise.all(
-          pagedDeals.map((deal) => serializePortalDealListItem(deal)),
-        ),
-        total: allDeals.length,
-        limit,
-        offset,
-      };
     },
 
     async listMyDealProjections(
@@ -1141,35 +789,6 @@ export function createCustomerPortalWorkflow(
         total: allDeals.length,
         limit,
         offset,
-      };
-    },
-
-    async getDealById(
-      ctx: CustomerContext,
-      dealId: string,
-    ): Promise<CustomerPortalDealDetailResponse> {
-      const detail = await deps.deals.deals.queries.findById(dealId);
-
-      if (!detail) {
-        throw new CustomerNotAuthorizedError(`Deal ${dealId} not found`);
-      }
-
-      await assertDealOwnership(ctx.userId, detail);
-
-      const [calculation, { organizationName }] = await Promise.all([
-        detail.calculationId
-          ? deps.calculations.calculations.queries.findById(detail.calculationId)
-          : Promise.resolve(null),
-        findPortalCounterpartyName(detail),
-      ]);
-
-      return {
-        calculation: await serializePortalCalculationForDeal(
-          deps,
-          calculation,
-        ),
-        deal: detail,
-        organizationName,
       };
     },
 

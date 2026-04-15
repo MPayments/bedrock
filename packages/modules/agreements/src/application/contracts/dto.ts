@@ -9,6 +9,8 @@ import {
   AgreementFeeRuleKindSchema,
   AgreementFeeRuleUnitSchema,
   AgreementPartyRoleSchema,
+  AgreementRoutePolicyCommissionUnitSchema,
+  AgreementRoutePolicyDealTypeSchema,
 } from "./zod";
 
 export const AgreementFeeRuleSchema = z.object({
@@ -36,6 +38,49 @@ export const AgreementPartySchema = z.object({
 
 export type AgreementParty = z.infer<typeof AgreementPartySchema>;
 
+export const AgreementRouteTemplateLinkSchema = z.object({
+  createdAt: z.date(),
+  id: z.uuid(),
+  isDefault: z.boolean(),
+  routeTemplateId: z.uuid(),
+  sequence: z.number().int().positive(),
+  updatedAt: z.date(),
+});
+
+export type AgreementRouteTemplateLink = z.infer<
+  typeof AgreementRouteTemplateLinkSchema
+>;
+
+export const AgreementRoutePolicySchema = z.object({
+  agreementVersionId: z.uuid(),
+  approvalThresholdAmountMinor: z.string().nullable(),
+  approvalThresholdCurrencyCode: z.string().nullable(),
+  approvalThresholdCurrencyId: z.uuid().nullable(),
+  createdAt: z.date(),
+  defaultMarkupBps: z.string().nullable(),
+  defaultSubAgentCommissionAmountMinor: z.string().nullable(),
+  defaultSubAgentCommissionBps: z.string().nullable(),
+  defaultSubAgentCommissionCurrencyCode: z.string().nullable(),
+  defaultSubAgentCommissionCurrencyId: z.uuid().nullable(),
+  defaultSubAgentCommissionUnit:
+    AgreementRoutePolicyCommissionUnitSchema.nullable(),
+  defaultWireFeeAmountMinor: z.string().nullable(),
+  defaultWireFeeCurrencyCode: z.string().nullable(),
+  defaultWireFeeCurrencyId: z.uuid().nullable(),
+  dealType: AgreementRoutePolicyDealTypeSchema,
+  id: z.uuid(),
+  quoteValiditySeconds: z.number().int().positive().nullable(),
+  sequence: z.number().int().positive(),
+  sourceCurrencyCode: z.string().nullable(),
+  sourceCurrencyId: z.uuid().nullable(),
+  targetCurrencyCode: z.string().nullable(),
+  targetCurrencyId: z.uuid().nullable(),
+  templateLinks: z.array(AgreementRouteTemplateLinkSchema),
+  updatedAt: z.date(),
+});
+
+export type AgreementRoutePolicy = z.infer<typeof AgreementRoutePolicySchema>;
+
 export const AgreementVersionSummarySchema = z.object({
   id: z.uuid(),
   versionNumber: z.number().int(),
@@ -52,6 +97,7 @@ export type AgreementVersionSummary = z.infer<
 export const AgreementVersionSchema = AgreementVersionSummarySchema.extend({
   feeRules: z.array(AgreementFeeRuleSchema),
   parties: z.array(AgreementPartySchema),
+  routePolicies: z.array(AgreementRoutePolicySchema),
 });
 
 export type AgreementVersion = z.infer<typeof AgreementVersionSchema>;
@@ -74,6 +120,16 @@ export const AgreementDetailsSchema = AgreementSchema.extend({
 });
 
 export type AgreementDetails = z.infer<typeof AgreementDetailsSchema>;
+
+export const AgreementResolvedRouteDefaultsSchema = z.object({
+  agreementId: z.uuid(),
+  agreementVersionId: z.uuid(),
+  policy: AgreementRoutePolicySchema.nullable(),
+});
+
+export type AgreementResolvedRouteDefaults = z.infer<
+  typeof AgreementResolvedRouteDefaultsSchema
+>;
 
 export const PaginatedAgreementsSchema =
   createPaginatedListSchema(AgreementSchema);

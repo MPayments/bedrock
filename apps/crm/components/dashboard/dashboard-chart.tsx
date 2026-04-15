@@ -142,7 +142,7 @@ export function DashboardChart({ className }: HTMLAttributes<HTMLDivElement>) {
                 <span className="text-sm font-medium text-muted-foreground">
                   Закрытые
                 </span>
-                <span className="text-xl font-bold">{stats.byStatus["done"] ?? 0}</span>
+                <span className="text-xl font-bold">{stats.byStatus["closed"] ?? 0}</span>
               </div>
             </div>
 

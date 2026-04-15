@@ -55,8 +55,42 @@ function createWorkflow(input?: {
   transitionReadiness?: DealWorkflowProjection["transitionReadiness"];
   type?: DealWorkflowProjection["summary"]["type"];
 }) {
+  const header = {
+    common: {
+      applicantCounterpartyId: "counterparty-1",
+      customerNote: null,
+      requestedExecutionDate: new Date("2026-04-03T00:00:00.000Z"),
+    },
+    externalBeneficiary: {
+      bankInstructionSnapshot: null,
+      beneficiaryCounterpartyId: null,
+      beneficiarySnapshot: null,
+    },
+    incomingReceipt: {
+      contractNumber: null,
+      expectedAmount: null,
+      expectedAt: null,
+      expectedCurrencyId: null,
+      invoiceNumber: null,
+      payerCounterpartyId: null,
+      payerSnapshot: null,
+    },
+    moneyRequest: {
+      purpose: "Treasury execution",
+      sourceAmount: "100.00",
+      sourceCurrencyId: "currency-usd",
+      targetCurrencyId: "currency-eur",
+    },
+    settlementDestination: {
+      bankInstructionSnapshot: null,
+      mode: null,
+      requisiteId: null,
+    },
+    type: input?.type ?? "payment",
+  } satisfies DealWorkflowProjection["header"];
+
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     attachmentIngestions: [],
     executionPlan: input?.executionPlan ?? [
       createLeg({
@@ -83,39 +117,7 @@ function createWorkflow(input?: {
       targetCurrency: null,
       targetCurrencyId: null,
     },
-    intake: {
-      common: {
-        applicantCounterpartyId: "counterparty-1",
-        customerNote: null,
-        requestedExecutionDate: new Date("2026-04-03T00:00:00.000Z"),
-      },
-      externalBeneficiary: {
-        bankInstructionSnapshot: null,
-        beneficiaryCounterpartyId: null,
-        beneficiarySnapshot: null,
-      },
-      incomingReceipt: {
-        contractNumber: null,
-        expectedAmount: null,
-        expectedAt: null,
-        expectedCurrencyId: null,
-        invoiceNumber: null,
-        payerCounterpartyId: null,
-        payerSnapshot: null,
-      },
-      moneyRequest: {
-        purpose: "Treasury execution",
-        sourceAmount: "100.00",
-        sourceCurrencyId: "currency-usd",
-        targetCurrencyId: "currency-eur",
-      },
-      settlementDestination: {
-        bankInstructionSnapshot: null,
-        mode: null,
-        requisiteId: null,
-      },
-      type: input?.type ?? "payment",
-    },
+    header,
     nextAction: "Prepare closing documents",
     operationalState: {
       positions: input?.positions ?? [],
@@ -152,7 +154,7 @@ function createWorkflow(input?: {
       calculationId: null,
       createdAt: new Date("2026-04-03T00:00:00.000Z"),
       id: "deal-1",
-      status: input?.status ?? "closing_documents",
+      status: input?.status ?? "reconciling",
       type: input?.type ?? "payment",
       updatedAt: new Date("2026-04-03T00:00:00.000Z"),
     },
@@ -224,6 +226,10 @@ function createReconciliationLinkMap(
   );
 }
 
+function createOperationFactsSet(operationIds: string[]) {
+  return new Set(operationIds);
+}
+
 function createActiveAcceptanceDocument() {
   return {
     approvalStatus: "approved",
@@ -247,6 +253,8 @@ describe("finance close readiness", () => {
         ["operation-1", "voided"],
         ["operation-2", "settled"],
       ]),
+      operationIdsWithFacts: createOperationFactsSet(["operation-2"]),
+      profitabilityCalculationId: "calculation-1",
       reconciliationLinksByOperationId: createReconciliationLinkMap([
         ["operation-2", 0],
       ]),
@@ -283,6 +291,8 @@ describe("finance close readiness", () => {
     ]);
     const readiness = deriveFinanceDealReadiness({
       latestInstructionByOperationId,
+      operationIdsWithFacts: createOperationFactsSet(["operation-2"]),
+      profitabilityCalculationId: "calculation-1",
       reconciliationLinksByOperationId: createReconciliationLinkMap([
         ["operation-2", 1],
       ]),
@@ -306,6 +316,10 @@ describe("finance close readiness", () => {
         }),
         expect.objectContaining({
           code: "payment_documents_ready",
+          satisfied: true,
+        }),
+        expect.objectContaining({
+          code: "realized_profitability_available",
           satisfied: true,
         }),
       ]),
@@ -346,6 +360,11 @@ describe("finance close readiness", () => {
         ["operation-2", "settled"],
         ["operation-3", "returned"],
       ]),
+      operationIdsWithFacts: createOperationFactsSet([
+        "operation-2",
+        "operation-3",
+      ]),
+      profitabilityCalculationId: "calculation-1",
       reconciliationLinksByOperationId: createReconciliationLinkMap([
         ["operation-2", 1],
         ["operation-3", 1],
@@ -392,6 +411,8 @@ describe("finance close readiness", () => {
       latestInstructionByOperationId: createInstructionStateMap([
         ["operation-1", "settled"],
       ]),
+      operationIdsWithFacts: createOperationFactsSet(["operation-1"]),
+      profitabilityCalculationId: "calculation-1",
       reconciliationLinksByOperationId: createReconciliationLinkMap([
         ["operation-1", 1],
       ]),
@@ -466,6 +487,8 @@ describe("finance close readiness", () => {
         ["operation-2", "voided"],
         ["operation-3", "voided"],
       ]),
+      operationIdsWithFacts: createOperationFactsSet(["operation-1"]),
+      profitabilityCalculationId: "calculation-1",
       reconciliationLinksByOperationId: createReconciliationLinkMap([
         ["operation-1", 1],
       ]),
@@ -485,5 +508,63 @@ describe("finance close readiness", () => {
       ]),
     );
     expect(readiness.closeReadiness.ready).toBe(false);
+  });
+
+  it("requires realized profitability coverage before close readiness turns green", () => {
+    const workflow = createWorkflow({
+      executionPlan: [
+        createLeg({
+          id: "leg-1",
+          idx: 1,
+          kind: "collect",
+          operationId: "operation-1",
+          state: "done",
+        }),
+        createLeg({
+          id: "leg-2",
+          idx: 2,
+          kind: "payout",
+          operationId: "operation-2",
+          state: "done",
+        }),
+      ],
+      formalDocuments: [createActiveAcceptanceDocument()],
+    });
+    const latestInstructionByOperationId = createInstructionStateMap([
+      ["operation-1", "voided"],
+      ["operation-2", "settled"],
+    ]);
+    const readiness = deriveFinanceDealReadiness({
+      latestInstructionByOperationId,
+      operationIdsWithFacts: createOperationFactsSet([]),
+      profitabilityCalculationId: "calculation-1",
+      reconciliationLinksByOperationId: createReconciliationLinkMap([
+        ["operation-2", 1],
+      ]),
+      workflow,
+    });
+
+    const stage = deriveFinanceDealStage({
+      agreementOrganizationId: "org-internal",
+      closeReadiness: readiness.closeReadiness,
+      internalEntityOrganizationId: "org-internal",
+      latestInstructionByOperationId,
+      reconciliationSummary: readiness.reconciliationSummary,
+      workflow,
+    });
+
+    expect(readiness.closeReadiness.criteria).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "realized_profitability_available",
+          satisfied: false,
+        }),
+      ]),
+    );
+    expect(readiness.closeReadiness.blockers).toContain(
+      "Фактический финансовый результат зафиксирован",
+    );
+    expect(readiness.closeReadiness.ready).toBe(false);
+    expect(stage.stage).toBe("awaiting_reconciliation");
   });
 });

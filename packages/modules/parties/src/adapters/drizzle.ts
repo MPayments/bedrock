@@ -12,6 +12,7 @@ export { DrizzlePartyProfilesStore } from "../party-profiles/adapters/drizzle/pa
 export { DrizzleOrganizationReads } from "../organizations/adapters/drizzle/organization.reads";
 export { DrizzleOrganizationsQueries } from "../organizations/adapters/drizzle/organizations.queries";
 export { DrizzleOrganizationStore } from "../organizations/adapters/drizzle/organization.store";
+export { DrizzleParticipantReads } from "../participants/adapters/drizzle/participant.reads";
 export { DrizzleRequisiteBindingReads } from "../requisites/adapters/drizzle/requisite-binding.reads";
 export { DrizzleRequisiteBindingStore } from "../requisites/adapters/drizzle/requisite-binding.store";
 export { DrizzleRequisiteProviderReads } from "../requisites/adapters/drizzle/requisite-provider.reads";

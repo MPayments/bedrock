@@ -18,6 +18,8 @@ import type { OrganizationsCommandUnitOfWork } from "./organizations/application
 import { createPartyProfilesService } from "./party-profiles/application";
 import type { PartyProfilesReads } from "./party-profiles/application/ports/party-profiles.reads";
 import type { PartyProfilesCommandUnitOfWork } from "./party-profiles/application/ports/party-profiles.uow";
+import { createParticipantsService } from "./participants/application";
+import type { ParticipantReads } from "./participants/application/ports/participant.reads";
 import { createRequisitesService } from "./requisites/application";
 import type { RequisitesCurrenciesPort } from "./requisites/application/ports/currencies.port";
 import type { RequisiteBindingReads } from "./requisites/application/ports/requisite-binding.reads";
@@ -46,6 +48,7 @@ export interface PartiesModuleDeps {
   counterpartyReads: CounterpartyReads;
   counterpartyGroupReads: CounterpartyGroupReads;
   partyProfileReads: PartyProfilesReads;
+  participantReads: ParticipantReads;
   organizationReads: OrganizationReads;
   requisiteReads: RequisiteReads;
   requisiteProviderReads: RequisiteProviderReads;
@@ -82,6 +85,9 @@ export function createPartiesModule(deps: PartiesModuleDeps) {
       commandUow: deps.unitOfWork,
       runtime: createRuntime("parties.party-profiles"),
       reads: deps.partyProfileReads,
+    }),
+    participants: createParticipantsService({
+      reads: deps.participantReads,
     }),
     organizations: createOrganizationsService({
       commandUow: deps.unitOfWork,

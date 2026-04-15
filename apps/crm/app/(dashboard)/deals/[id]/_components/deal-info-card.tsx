@@ -5,33 +5,37 @@ import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { DEAL_TYPE_LABELS } from "./constants";
 import { formatCurrency, formatDate } from "./format";
-import type { ApiDealDetails, ApiCurrency } from "./types";
+import type { ApiCrmDealWorkbenchProjection, ApiCurrency } from "./types";
 
 type DealInfoCardProps = {
-  deal: ApiDealDetails;
   currency: ApiCurrency | null;
-  isEditingComment: boolean;
   commentValue: string;
-  isSavingComment: boolean;
-  onEditComment: () => void;
   onCancelEdit: () => void;
   onCommentChange: (value: string) => void;
+  onEditComment: () => void;
   onSaveComment: () => void;
+  isEditingComment: boolean;
+  isSavingComment: boolean;
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 export function DealInfoCard({
-  deal,
   currency,
-  isEditingComment,
   commentValue,
-  isSavingComment,
-  onEditComment,
   onCancelEdit,
   onCommentChange,
+  onEditComment,
   onSaveComment,
+  isEditingComment,
+  isSavingComment,
+  workbench,
 }: DealInfoCardProps) {
   const amountLabel =
-    deal.type === "payment" ? "Сумма оплаты" : "Запрошенная сумма";
+    workbench.summary.type === "payment" ? "Сумма оплаты" : "Запрошенная сумма";
+  const amount =
+    workbench.summary.type === "payment"
+      ? workbench.header.incomingReceipt.expectedAmount
+      : workbench.header.moneyRequest.sourceAmount;
 
   return (
     <Card>
@@ -45,42 +49,42 @@ export function DealInfoCard({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="text-sm font-medium text-muted-foreground">Тип</div>
-            <div className="text-base">{DEAL_TYPE_LABELS[deal.type]}</div>
+            <div className="text-base">{DEAL_TYPE_LABELS[workbench.summary.type]}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">
               Дата создания
             </div>
-            <div className="text-base">{formatDate(deal.createdAt)}</div>
+            <div className="text-base">{formatDate(workbench.summary.createdAt)}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">
               Последнее обновление
             </div>
-            <div className="text-base">{formatDate(deal.updatedAt)}</div>
+            <div className="text-base">{formatDate(workbench.summary.updatedAt)}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">
               {amountLabel}
             </div>
             <div className="text-base font-medium">
-              {formatCurrency(deal.amount, currency?.code ?? null)}
+              {formatCurrency(amount, currency?.code ?? null)}
             </div>
           </div>
-          {deal.reason && (
+          {workbench.header.moneyRequest.purpose && (
             <div className="md:col-span-2">
               <div className="text-sm font-medium text-muted-foreground">
                 Основание
               </div>
-              <div className="text-base">{deal.reason}</div>
+              <div className="text-base">{workbench.header.moneyRequest.purpose}</div>
             </div>
           )}
-          {deal.intakeComment && (
+          {workbench.header.common.customerNote && (
             <div className="md:col-span-2">
               <div className="text-sm font-medium text-muted-foreground">
                 Комментарий к анкете
               </div>
-              <div className="text-base">{deal.intakeComment}</div>
+              <div className="text-base">{workbench.header.common.customerNote}</div>
             </div>
           )}
         </div>
@@ -93,7 +97,7 @@ export function DealInfoCard({
             {!isEditingComment && (
               <Button variant="outline" size="sm" onClick={onEditComment}>
                 <Edit className="mr-2 h-4 w-4" />
-                {deal.comment ? "Редактировать" : "Добавить"}
+                {workbench.comment ? "Редактировать" : "Добавить"}
               </Button>
             )}
           </div>
@@ -125,7 +129,7 @@ export function DealInfoCard({
             </div>
           ) : (
             <div className="text-base">
-              {deal.comment || (
+              {workbench.comment || (
                 <span className="italic text-muted-foreground">
                   Комментарий отсутствует
                 </span>

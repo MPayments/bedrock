@@ -8,7 +8,16 @@ export const TREASURY_OPERATION_KIND_VALUES = [
 
 export const TREASURY_OPERATION_STATE_VALUES = ["planned"] as const;
 
+export const TREASURY_OPERATION_FACT_SOURCE_KIND_VALUES = [
+  "manual",
+  "provider",
+  "reconciliation",
+  "system",
+] as const;
+
 export type TreasuryOperationKind =
   (typeof TREASURY_OPERATION_KIND_VALUES)[number];
 export type TreasuryOperationState =
   (typeof TREASURY_OPERATION_STATE_VALUES)[number];
+export type TreasuryOperationFactSourceKind =
+  (typeof TREASURY_OPERATION_FACT_SOURCE_KIND_VALUES)[number];

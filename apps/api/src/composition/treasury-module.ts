@@ -12,6 +12,9 @@ import {
   type TreasuryModuleDeps,
 } from "@bedrock/treasury";
 import {
+  DrizzleTreasuryCashMovementsRepository,
+  DrizzleTreasuryExecutionFeesRepository,
+  DrizzleTreasuryExecutionFillsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionsRepository,
   DrizzleTreasuryOperationsRepository,
@@ -38,6 +41,9 @@ export function createApiTreasuryModule(input: {
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     currencies: input.currencies,
+    cashMovementsRepository: new DrizzleTreasuryCashMovementsRepository(input.db),
+    executionFeesRepository: new DrizzleTreasuryExecutionFeesRepository(input.db),
+    executionFillsRepository: new DrizzleTreasuryExecutionFillsRepository(input.db),
     instructionsRepository: new DrizzleTreasuryInstructionsRepository(input.db),
     operationsRepository: new DrizzleTreasuryOperationsRepository(input.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(input.db),

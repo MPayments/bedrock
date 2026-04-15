@@ -73,22 +73,22 @@ async function validateDraftReferences(
   input: CreateDealDraftCommandInput,
   references: DealReferencesPort,
 ) {
-  references.validateSupportedCreateType(input.intake.type);
+  references.validateSupportedCreateType(input.header.type);
 
   const [customer, agreement, applicant, sourceCurrency, targetCurrency] =
     await Promise.all([
       references.findCustomerById(input.customerId),
       resolveAgreement(input, references),
-      input.intake.common.applicantCounterpartyId
+      input.header.common.applicantCounterpartyId
         ? references.findCounterpartyById(
-            input.intake.common.applicantCounterpartyId,
+            input.header.common.applicantCounterpartyId,
           )
         : Promise.resolve(null),
-      input.intake.moneyRequest.sourceCurrencyId
-        ? references.findCurrencyById(input.intake.moneyRequest.sourceCurrencyId)
+      input.header.moneyRequest.sourceCurrencyId
+        ? references.findCurrencyById(input.header.moneyRequest.sourceCurrencyId)
         : Promise.resolve(null),
-      input.intake.moneyRequest.targetCurrencyId
-        ? references.findCurrencyById(input.intake.moneyRequest.targetCurrencyId)
+      input.header.moneyRequest.targetCurrencyId
+        ? references.findCurrencyById(input.header.moneyRequest.targetCurrencyId)
         : Promise.resolve(null),
     ]);
 
@@ -105,26 +105,26 @@ async function validateDraftReferences(
   }
 
   if (
-    input.intake.common.applicantCounterpartyId &&
+    input.header.common.applicantCounterpartyId &&
     !applicant
   ) {
     throw new NotFoundError(
       "Counterparty",
-      input.intake.common.applicantCounterpartyId,
+      input.header.common.applicantCounterpartyId,
     );
   }
 
-  if (input.intake.moneyRequest.sourceCurrencyId && !sourceCurrency) {
+  if (input.header.moneyRequest.sourceCurrencyId && !sourceCurrency) {
     throw new NotFoundError(
       "Currency",
-      input.intake.moneyRequest.sourceCurrencyId,
+      input.header.moneyRequest.sourceCurrencyId,
     );
   }
 
-  if (input.intake.moneyRequest.targetCurrencyId && !targetCurrency) {
+  if (input.header.moneyRequest.targetCurrencyId && !targetCurrency) {
     throw new NotFoundError(
       "Currency",
-      input.intake.moneyRequest.targetCurrencyId,
+      input.header.moneyRequest.targetCurrencyId,
     );
   }
 
@@ -156,7 +156,7 @@ export class CreateDealDraftCommand {
         request: {
           agreementId: agreement.id,
           customerId: validated.customerId,
-          intake: validated.intake,
+          header: validated.header,
         },
         actorId: validated.actorUserId,
         serializeResult: (result) => ({ dealId: result.summary.id }),
@@ -174,9 +174,8 @@ export class CreateDealDraftCommand {
           const now = this.runtime.now();
           const dealId = this.runtime.generateUuid();
           const rootState = await deriveDealRootState({
-            acceptance: null,
             calculationId: null,
-            intake: validated.intake,
+            header: validated.header,
             references: this.references,
             status: "draft",
           });
@@ -186,25 +185,22 @@ export class CreateDealDraftCommand {
             agentId: null,
             calculationId: null,
             customerId: validated.customerId,
+            header: validated.header,
+            headerRevision: 1,
             id: dealId,
             nextAction: rootState.nextAction,
             sourceAmountMinor: rootState.sourceAmountMinor,
             sourceCurrencyId: rootState.sourceCurrencyId,
             status: "draft",
             targetCurrencyId: rootState.targetCurrencyId,
-            type: validated.intake.type,
-          });
-          await tx.dealStore.createDealIntakeSnapshot({
-            dealId,
-            revision: 1,
-            snapshot: validated.intake,
+            type: validated.header.type,
           });
           await tx.dealStore.replaceDealLegs({
             dealId,
             legs: buildDealLegRows({
               dealId,
               generateUuid: () => this.runtime.generateUuid(),
-              intake: validated.intake,
+              header: validated.header,
             }),
           });
           await tx.dealStore.replaceDealParticipants({
@@ -214,7 +210,7 @@ export class CreateDealDraftCommand {
               customerId: validated.customerId,
               dealId,
               generateUuid: () => this.runtime.generateUuid(),
-              intake: validated.intake,
+              header: validated.header,
             }),
           });
           await tx.dealStore.createDealTimelineEvents([
@@ -224,7 +220,7 @@ export class CreateDealDraftCommand {
               generateUuid: () => this.runtime.generateUuid(),
               occurredAt: now,
               payload: {
-                intakeType: validated.intake.type,
+                dealType: validated.header.type,
                 status: "draft",
               },
               type: "deal_created",

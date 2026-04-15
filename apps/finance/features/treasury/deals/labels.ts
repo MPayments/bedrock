@@ -33,14 +33,20 @@ export type FinanceDealBlockerState =
   (typeof FINANCE_DEAL_BLOCKER_STATE_VALUES)[number];
 
 export const FINANCE_DEAL_STATUS_VALUES = [
+  "approved_for_execution",
+  "awaiting_customer_approval",
   "draft",
-  "submitted",
+  "pricing",
+  "quoted",
+  "awaiting_internal_approval",
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
+  "expired",
+  "failed",
   "rejected",
-  "preparing_documents",
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-  "done",
   "cancelled",
 ] as const;
 
@@ -51,6 +57,7 @@ export const FINANCE_DEAL_TYPE_VALUES = [
   "currency_exchange",
   "currency_transit",
   "exporter_settlement",
+  "internal_treasury",
 ] as const;
 
 export type FinanceDealType = (typeof FINANCE_DEAL_TYPE_VALUES)[number];
@@ -80,21 +87,28 @@ export const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
 };
 
 export const FINANCE_DEAL_STATUS_LABELS: Record<FinanceDealStatus, string> = {
-  awaiting_funds: "Ожидание средств",
-  awaiting_payment: "Ожидание оплаты",
+  approved_for_execution: "Одобрена к исполнению",
+  awaiting_customer_approval: "Ожидание одобрения клиента",
+  awaiting_internal_approval: "Ожидание внутреннего одобрения",
   cancelled: "Отменена",
-  closing_documents: "Закрывающие документы",
-  done: "Завершена",
+  closed: "Закрыта",
   draft: "Черновик",
-  preparing_documents: "Подготовка документов",
+  executed: "Исполнена",
+  executing: "В исполнении",
+  expired: "Истекла",
+  failed: "Ошибка",
+  partially_executed: "Частично исполнена",
+  pricing: "Маршрут и расчет",
+  quoted: "Расчет предложен",
   rejected: "Отклонена",
-  submitted: "Отправлена",
+  reconciling: "Сверка",
 };
 
 export const FINANCE_DEAL_TYPE_LABELS: Record<FinanceDealType, string> = {
   currency_exchange: "Обмен валюты",
   currency_transit: "Валютный транзит",
   exporter_settlement: "Расчеты с экспортером",
+  internal_treasury: "Внутреннее казначейство",
   payment: "Платеж поставщику",
 };
 
@@ -179,7 +193,6 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   document_created: "Документ создан",
   document_status_changed: "Статус документа изменен",
   execution_requested: "Запущено исполнение сделки",
-  intake_saved: "Анкета сохранена",
   instruction_failed: "Инструкция завершилась ошибкой",
   instruction_prepared: "Инструкция подготовлена",
   instruction_retried: "Инструкция отправлена на повтор",
@@ -190,7 +203,6 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   leg_operation_created: "Создана казначейская операция",
   leg_state_changed: "Состояние этапа изменено",
   participant_changed: "Участники изменены",
-  quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
   quote_expired: "Котировка истекла",
   quote_used: "Котировка исполнена",
@@ -215,14 +227,19 @@ export const DEAL_FORMAL_DOCUMENT_REQUIREMENT_STATE_LABELS: Record<
 };
 
 const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
-  "Accept quote": "Принять котировку",
-  "Complete intake": "Заполнить анкету",
+  "Accept calculation": "Принять расчет",
+  "Collect customer approval": "Получить одобрение клиента",
+  "Collect internal approval": "Получить внутреннее одобрение",
+  "Complete deal header": "Заполнить заголовок сделки",
+  "Compose route": "Собрать маршрут",
   "Continue processing": "Продолжить обработку",
-  "Create calculation from accepted quote":
-    "Создать расчет по принятой котировке",
+  "Create calculation from route": "Создать расчет по маршруту",
   "No action": "Действий не требуется",
   "Prepare closing documents": "Подготовить закрывающие документы",
   "Prepare documents": "Подготовить документы",
+  "Reconcile and close": "Сверить и закрыть сделку",
+  "Record execution actuals": "Занести фактическое исполнение",
+  "Request execution": "Передать в исполнение",
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
@@ -230,10 +247,8 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {
-  "A calculation derived from the accepted quote is required":
-    "Нужно создать расчет по принятой котировке.",
-  "An accepted quote is required for convert deals":
-    "Для сделки с конвертацией нужна принятая котировка.",
+  "A route-based calculation is required":
+    "Нужно создать расчет по маршруту.",
   "Applicant requisite is required":
     "Выберите реквизиты юридического лица.",
   "Beneficiary bank instructions are required":
@@ -249,12 +264,11 @@ const DEAL_MESSAGE_LABELS: Record<string, string> = {
   "Manual settlement bank instructions are required":
     "Заполните банковские реквизиты для зачисления средств.",
   "Purpose is required": "Укажите назначение платежа.",
-  "Required intake sections are incomplete": "Анкета заполнена не полностью.",
+  "Required deal header sections are incomplete":
+    "Заголовок сделки заполнен не полностью.",
   "Settlement mode is required": "Укажите, куда зачислить средства.",
   "Source amount is required": "Укажите сумму сделки.",
   "Source currency is required": "Укажите валюту сделки.",
-  "The accepted quote is no longer executable":
-    "Принятая котировка больше не действует.",
 };
 
 const HIDDEN_OPERATIONAL_POSITION_KINDS = new Set([
@@ -626,18 +640,24 @@ export function getFinanceDealStatusVariant(
   value: string | null | undefined,
 ): DealBadgeVariant {
   switch (value) {
-    case "done":
+    case "approved_for_execution":
+    case "closed":
+    case "executed":
       return "default";
     case "rejected":
     case "cancelled":
+    case "expired":
+    case "failed":
       return "destructive";
     case "draft":
       return "secondary";
-    case "submitted":
-    case "preparing_documents":
-    case "awaiting_funds":
-    case "awaiting_payment":
-    case "closing_documents":
+    case "awaiting_customer_approval":
+    case "awaiting_internal_approval":
+    case "executing":
+    case "partially_executed":
+    case "pricing":
+    case "quoted":
+    case "reconciling":
       return "outline";
     default:
       return "outline";

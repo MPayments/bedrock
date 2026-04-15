@@ -10,6 +10,7 @@ import type { AgreementReferencesPort } from "./ports/references.port";
 import { FindActiveAgreementByCustomerIdQuery } from "./queries/find-active-agreement-by-customer-id";
 import { FindAgreementByIdQuery } from "./queries/find-agreement-by-id";
 import { ListAgreementsQuery } from "./queries/list-agreements";
+import { ResolveAgreementRouteDefaultsQueryHandler } from "./queries/resolve-agreement-route-defaults";
 
 export interface AgreementsServiceDeps {
   commandUow: AgreementsCommandUnitOfWork;
@@ -41,6 +42,9 @@ export function createAgreementsService(deps: AgreementsServiceDeps) {
   );
   const findAgreementById = new FindAgreementByIdQuery(deps.reads);
   const listAgreements = new ListAgreementsQuery(deps.reads);
+  const resolveAgreementRouteDefaults = new ResolveAgreementRouteDefaultsQueryHandler(
+    deps.reads,
+  );
 
   return {
     commands: {
@@ -54,6 +58,10 @@ export function createAgreementsService(deps: AgreementsServiceDeps) {
       ),
       findById: findAgreementById.execute.bind(findAgreementById),
       list: listAgreements.execute.bind(listAgreements),
+      resolveRouteDefaults:
+        resolveAgreementRouteDefaults.execute.bind(
+          resolveAgreementRouteDefaults,
+        ),
     },
   };
 }

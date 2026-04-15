@@ -84,7 +84,6 @@ const FIELD_METADATA: Record<string, { label: string; category: string }> = {
   agentFee: { label: "Комиссия агента (%)", category: "Договор" },
   agentName: { label: "Название организации агента", category: "Агент" },
   agentTaxId: { label: "Tax ID агента", category: "Агент" },
-  applicationNumber: { label: "Номер заявки", category: "Документ" },
   bankName: { label: "Название банка", category: "Клиент" },
   baseCurrencyCode: { label: "Базовая валюта", category: "Расчёт" },
   bic: { label: "БИК", category: "Клиент" },
@@ -151,7 +150,6 @@ const FIELD_METADATA: Record<string, { label: string; category: string }> = {
 
 const TEMPLATE_LABELS: Record<string, string> = {
   "acceptance.docx": "Акт оказанных услуг",
-  "application.docx": "Заявка на перевод",
   "calculation.docx": "Расчёт",
   "contract.docx": "Агентский договор",
   "invoice.docx": "Счёт на оплату",

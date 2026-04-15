@@ -4,12 +4,10 @@ import {
   isOperationalPositionDone,
   listRequiredOperationalPositionKinds,
 } from "./operational-state";
-import { dealIntakeHasConvertLeg } from "./workflow";
 import type {
   DealApproval,
-  DealIntakeDraft,
+  DealHeader,
   DealOperationalState,
-  DealQuoteAcceptance,
   DealRelatedFormalDocument,
   DealSectionCompleteness,
   DealTransitionBlocker,
@@ -24,6 +22,7 @@ const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
   currency_exchange: "exchange",
   currency_transit: "invoice",
   exporter_settlement: "invoice",
+  internal_treasury: "exchange",
 };
 
 const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
@@ -31,44 +30,58 @@ const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
   currency_exchange: null,
   currency_transit: "acceptance",
   exporter_settlement: "acceptance",
+  internal_treasury: null,
 };
 
-const SUBMITTED_AND_LATER_STATUSES: DealStatus[] = [
-  "submitted",
-  "preparing_documents",
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-  "done",
+const PRICING_AND_LATER_STATUSES: DealStatus[] = [
+  "pricing",
+  "quoted",
+  "awaiting_customer_approval",
+  "awaiting_internal_approval",
+  "approved_for_execution",
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
 ];
 
-const PREPARING_AND_LATER_STATUSES: DealStatus[] = [
-  "preparing_documents",
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-  "done",
+const QUOTED_AND_LATER_STATUSES: DealStatus[] = [
+  "quoted",
+  "awaiting_customer_approval",
+  "awaiting_internal_approval",
+  "approved_for_execution",
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
 ];
 
-const AWAITING_FUNDS_AND_LATER_STATUSES: DealStatus[] = [
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-  "done",
+const APPROVED_FOR_EXECUTION_AND_LATER_STATUSES: DealStatus[] = [
+  "approved_for_execution",
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
 ];
 
-const AWAITING_PAYMENT_AND_LATER_STATUSES: DealStatus[] = [
-  "awaiting_payment",
-  "closing_documents",
-  "done",
+const EXECUTING_AND_LATER_STATUSES: DealStatus[] = [
+  "executing",
+  "partially_executed",
+  "executed",
+  "reconciling",
+  "closed",
 ];
 
-const CLOSING_AND_LATER_STATUSES: DealStatus[] = [
-  "closing_documents",
-  "done",
+const EXECUTED_AND_LATER_STATUSES: DealStatus[] = [
+  "executed",
+  "reconciling",
+  "closed",
 ];
 
-type TransitionPolicyIntake = DealIntakeDraft;
+type TransitionPolicyHeader = DealHeader;
 
 function pushOnce(
   blockers: DealTransitionBlocker[],
@@ -97,19 +110,19 @@ function hasParticipant(
   return participants.some((participant) => participant.role === role);
 }
 
-function collectSubmittedBlockers(input: {
+function collectHeaderBlockers(input: {
   completeness: DealSectionCompleteness[];
-  intake: TransitionPolicyIntake;
+  header: TransitionPolicyHeader;
   participants: DealWorkflowParticipant[];
 }): DealTransitionBlocker[] {
   const blockers: DealTransitionBlocker[] = [];
 
-  for (const sectionId of DEAL_REQUIRED_SECTION_IDS_BY_TYPE[input.intake.type]) {
+  for (const sectionId of DEAL_REQUIRED_SECTION_IDS_BY_TYPE[input.header.type]) {
     const section = input.completeness.find((item) => item.sectionId === sectionId);
     if (!section?.complete) {
       pushOnce(blockers, {
-        code: "intake_incomplete",
-        message: "Required intake sections are incomplete",
+        code: "header_incomplete",
+        message: "Required deal header sections are incomplete",
         meta: {
           sectionId,
         },
@@ -141,14 +154,14 @@ function collectSubmittedBlockers(input: {
   ];
 
   const requiredSections = new Set<string>(
-    DEAL_REQUIRED_SECTION_IDS_BY_TYPE[input.intake.type],
+    DEAL_REQUIRED_SECTION_IDS_BY_TYPE[input.header.type],
   );
 
   if (requiredSections.has("incomingReceipt")) {
     requiredRoles.push({
       resolved:
         hasParticipant(input.participants, "external_payer") ||
-        Boolean(input.intake.incomingReceipt.payerSnapshot),
+        Boolean(input.header.incomingReceipt.payerSnapshot),
       role: "external_payer",
     });
   }
@@ -159,7 +172,7 @@ function collectSubmittedBlockers(input: {
     requiredRoles.push({
       resolved:
         hasParticipant(input.participants, "external_beneficiary") ||
-        Boolean(input.intake.externalBeneficiary.beneficiarySnapshot),
+        Boolean(input.header.externalBeneficiary.beneficiarySnapshot),
       role: "external_beneficiary",
     });
   }
@@ -179,71 +192,59 @@ function collectSubmittedBlockers(input: {
   return blockers;
 }
 
-function collectPreparingDocumentsBlockers(input: {
-  acceptance: DealQuoteAcceptance | null;
-  approvals: DealApproval[];
+function latestApprovalStatus(
+  approvals: DealApproval[],
+  approvalType: DealApproval["approvalType"],
+) {
+  return [...approvals]
+    .filter((approval) => approval.approvalType === approvalType)
+    .sort((left, right) => right.requestedAt.getTime() - left.requestedAt.getTime())
+    .at(0)?.status ?? null;
+}
+
+function collectCalculationBlockers(input: {
   calculationId: string | null;
-  hasConvert: boolean;
-  now: Date;
 }): DealTransitionBlocker[] {
-  const blockers: DealTransitionBlocker[] = [];
-
-  if (input.hasConvert) {
-    if (!input.acceptance) {
-      blockers.push({
-        code: "accepted_quote_missing",
-        message: "An accepted quote is required for convert deals",
-      });
-    } else {
-      const quoteLockedForExecution =
-        input.acceptance.quoteStatus === "used";
-      const quoteActiveAndUnexpired =
-        input.acceptance.quoteStatus === "active" &&
-        (!input.acceptance.expiresAt ||
-          input.acceptance.expiresAt.getTime() > input.now.getTime());
-
-      if (!quoteLockedForExecution && !quoteActiveAndUnexpired) {
-        blockers.push({
-          code: "accepted_quote_inactive",
-          message: "The accepted quote is no longer executable",
-          meta: {
-            quoteId: input.acceptance.quoteId,
-            quoteStatus: input.acceptance.quoteStatus,
-          },
-        });
-      }
-    }
-
-    if (!input.calculationId) {
-      blockers.push({
-        code: "calculation_missing",
-        message: "A calculation derived from the accepted quote is required",
-      });
-    }
+  if (input.calculationId) {
+    return [];
   }
 
-  for (const approval of input.approvals) {
-    if (approval.status === "pending") {
-      blockers.push({
-        code: "approval_pending",
-        message: `Approval is still pending: ${approval.approvalType}`,
-        meta: {
-          approvalId: approval.id,
-          approvalType: approval.approvalType,
-        },
-      });
+  return [
+    {
+      code: "calculation_missing",
+      message: "A route-based calculation is required",
+    },
+  ];
+}
+
+function collectApprovalBlockers(input: {
+  approvals: DealApproval[];
+  requireCustomerApproval: boolean;
+  requireInternalApproval: boolean;
+}): DealTransitionBlocker[] {
+  const blockers: DealTransitionBlocker[] = [];
+  const requiredApprovalTypes = [
+    input.requireCustomerApproval ? ("commercial" as const) : null,
+    input.requireInternalApproval ? ("operations" as const) : null,
+  ].filter((value): value is "commercial" | "operations" => value !== null);
+
+  for (const approvalType of requiredApprovalTypes) {
+    const status = latestApprovalStatus(input.approvals, approvalType);
+
+    if (status === "approved") {
+      continue;
     }
 
-    if (approval.status === "rejected") {
-      blockers.push({
-        code: "approval_rejected",
-        message: `Approval was rejected: ${approval.approvalType}`,
-        meta: {
-          approvalId: approval.id,
-          approvalType: approval.approvalType,
-        },
-      });
-    }
+    blockers.push({
+      code: status === "rejected" ? "approval_rejected" : "approval_pending",
+      message:
+        status === "rejected"
+          ? `Approval was rejected: ${approvalType}`
+          : `Approval is still pending: ${approvalType}`,
+      meta: {
+        approvalType,
+      },
+    });
   }
 
   return blockers;
@@ -415,13 +416,12 @@ function collectLegDoneBlockers(
 }
 
 export function evaluateDealTransitionReadiness(input: {
-  acceptance: DealQuoteAcceptance | null;
   approvals: DealApproval[];
   calculationId: string | null;
   completeness: DealSectionCompleteness[];
   documents: DealRelatedFormalDocument[];
   executionPlan: DealWorkflowLeg[];
-  intake: TransitionPolicyIntake;
+  header: TransitionPolicyHeader;
   now: Date;
   operationalState: DealOperationalState;
   participants: DealWorkflowParticipant[];
@@ -429,7 +429,6 @@ export function evaluateDealTransitionReadiness(input: {
   targetStatus: DealStatus;
 }): DealTransitionReadiness {
   const blockers: DealTransitionBlocker[] = [];
-  const hasConvert = dealIntakeHasConvertLeg(input.intake);
 
   if (
     !DEAL_STATUS_TRANSITIONS[input.status].includes(input.targetStatus) &&
@@ -451,58 +450,73 @@ export function evaluateDealTransitionReadiness(input: {
     };
   }
 
-  const requiresSubmittedChecks = SUBMITTED_AND_LATER_STATUSES.includes(
+  const requiresHeaderChecks = PRICING_AND_LATER_STATUSES.includes(
     input.targetStatus,
   );
 
-  if (requiresSubmittedChecks) {
+  if (requiresHeaderChecks) {
     blockers.push(
-      ...collectSubmittedBlockers({
+      ...collectHeaderBlockers({
         completeness: input.completeness,
-        intake: input.intake,
+        header: input.header,
         participants: input.participants,
       }),
     );
   }
 
-  const requiresPreparingChecks = PREPARING_AND_LATER_STATUSES.includes(
+  const requiresCalculationChecks = QUOTED_AND_LATER_STATUSES.includes(
     input.targetStatus,
   );
 
-  if (requiresPreparingChecks) {
+  if (requiresCalculationChecks) {
     blockers.push(
-      ...collectPreparingDocumentsBlockers({
-        acceptance: input.acceptance,
-        approvals: input.approvals,
+      ...collectCalculationBlockers({
         calculationId: input.calculationId,
-        hasConvert,
-        now: input.now,
       }),
     );
   }
 
-  const requiresAwaitingFundsChecks = AWAITING_FUNDS_AND_LATER_STATUSES.includes(
-    input.targetStatus,
-  );
+  if (input.targetStatus === "awaiting_internal_approval") {
+    blockers.push(
+      ...collectApprovalBlockers({
+        approvals: input.approvals,
+        requireCustomerApproval: true,
+        requireInternalApproval: false,
+      }),
+    );
+  }
 
-  if (requiresAwaitingFundsChecks) {
+  if (APPROVED_FOR_EXECUTION_AND_LATER_STATUSES.includes(input.targetStatus)) {
+    blockers.push(
+      ...collectApprovalBlockers({
+        approvals: input.approvals,
+        requireCustomerApproval: true,
+        requireInternalApproval: true,
+      }),
+    );
+  }
+
+  const requiresApprovedChecks =
+    APPROVED_FOR_EXECUTION_AND_LATER_STATUSES.includes(input.targetStatus);
+
+  if (requiresApprovedChecks) {
     blockers.push(
       ...collectDocumentBlockers({
         codeMissing: "opening_document_missing",
         codeNotReady: "opening_document_not_ready",
         documents: input.documents,
-        docType: OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type],
+        docType: OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.header.type],
         messagePrefix: "Opening",
       }),
     );
   }
 
-  const requiresAwaitingPaymentChecks =
-    AWAITING_PAYMENT_AND_LATER_STATUSES.includes(input.targetStatus);
+  const requiresExecutingChecks =
+    EXECUTING_AND_LATER_STATUSES.includes(input.targetStatus);
 
-  if (requiresAwaitingPaymentChecks) {
+  if (requiresExecutingChecks) {
     const downstreamPositionKinds = listRequiredOperationalPositionKinds(
-      input.intake.type,
+      input.header.type,
     ).filter((kind) => kind !== "customer_receivable");
 
     blockers.push(
@@ -525,13 +539,13 @@ export function evaluateDealTransitionReadiness(input: {
     );
   }
 
-  const requiresClosingChecks = CLOSING_AND_LATER_STATUSES.includes(
+  const requiresExecutedChecks = EXECUTED_AND_LATER_STATUSES.includes(
     input.targetStatus,
   );
 
-  if (requiresClosingChecks) {
+  if (requiresExecutedChecks) {
     const downstreamPositionKinds = listRequiredOperationalPositionKinds(
-      input.intake.type,
+      input.header.type,
     ).filter((kind) => kind !== "customer_receivable");
 
     blockers.push(
@@ -548,13 +562,13 @@ export function evaluateDealTransitionReadiness(input: {
     );
   }
 
-  if (input.targetStatus === "done") {
+  if (input.targetStatus === "closed") {
     blockers.push(
       ...collectDocumentBlockers({
         codeMissing: "closing_document_missing",
         codeNotReady: "closing_document_not_ready",
         documents: input.documents,
-        docType: CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type],
+        docType: CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.header.type],
         messagePrefix: "Closing",
       }),
     );
@@ -568,13 +582,12 @@ export function evaluateDealTransitionReadiness(input: {
 }
 
 export function listDealTransitionReadiness(input: {
-  acceptance: DealQuoteAcceptance | null;
   approvals: DealApproval[];
   calculationId: string | null;
   completeness: DealSectionCompleteness[];
   documents: DealRelatedFormalDocument[];
   executionPlan: DealWorkflowLeg[];
-  intake: TransitionPolicyIntake;
+  header: TransitionPolicyHeader;
   now: Date;
   operationalState: DealOperationalState;
   participants: DealWorkflowParticipant[];

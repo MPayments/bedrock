@@ -14,11 +14,11 @@ import {
 
 describe("treasury deal labels", () => {
   it("matches CRM wording for deal statuses and types", () => {
-    expect(getFinanceDealStatusLabel("closing_documents")).toBe(
-      "Закрывающие документы",
+    expect(getFinanceDealStatusLabel("reconciling")).toBe(
+      "Сверка",
     );
-    expect(getFinanceDealStatusLabel("awaiting_funds")).toBe(
-      "Ожидание средств",
+    expect(getFinanceDealStatusLabel("approved_for_execution")).toBe(
+      "Одобрена к исполнению",
     );
     expect(getFinanceDealTypeLabel("payment")).toBe("Платеж поставщику");
     expect(getFinanceDealTypeLabel("currency_exchange")).toBe(
@@ -46,12 +46,12 @@ describe("treasury deal labels", () => {
   });
 
   it("localizes next actions and workflow messages", () => {
-    expect(formatDealNextAction("Create calculation from accepted quote")).toBe(
-      "Создать расчет по принятой котировке",
+    expect(formatDealNextAction("Create calculation from route")).toBe(
+      "Создать расчет по маршруту",
     );
-    expect(formatDealWorkflowMessage("Required intake sections are incomplete")).toBe(
-      "Анкета заполнена не полностью.",
-    );
+    expect(
+      formatDealWorkflowMessage("Required deal header sections are incomplete"),
+    ).toBe("Заголовок сделки заполнен не полностью.");
     expect(
       formatDealWorkflowMessage(
         "Required participant is unresolved: external_beneficiary",

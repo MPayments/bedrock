@@ -43,6 +43,7 @@ function createAgreementDetails() {
         },
       ],
       parties: [],
+      routePolicies: [],
       createdAt: now,
       updatedAt: now,
     },
@@ -58,6 +59,8 @@ function createHarness() {
   const agreementStore = {
     createAgreementFeeRules: vi.fn(),
     createAgreementParties: vi.fn(),
+    createAgreementRoutePolicies: vi.fn(),
+    createAgreementRouteTemplateLinks: vi.fn(),
     createAgreementVersion: vi.fn(),
     setCurrentVersion: vi.fn(),
   };
@@ -77,6 +80,7 @@ function createHarness() {
     findCustomerById: vi.fn(),
     findOrganizationById: vi.fn(),
     findOrganizationRequisiteBindingByRequisiteId: vi.fn(),
+    findRouteTemplateById: vi.fn(async () => null),
     findRequisiteSubjectById: vi.fn(),
   };
   const uuids = [
@@ -166,6 +170,12 @@ describe("update agreement handler", () => {
         currencyId: null,
       },
     ]);
+    expect(
+      harness.agreementStore.createAgreementRoutePolicies,
+    ).toHaveBeenCalledWith([]);
+    expect(
+      harness.agreementStore.createAgreementRouteTemplateLinks,
+    ).toHaveBeenCalledWith([]);
     expect(harness.agreementStore.setCurrentVersion).toHaveBeenCalledWith({
       agreementId: current.id,
       currentVersionId: "00000000-0000-4000-8000-000000000020",

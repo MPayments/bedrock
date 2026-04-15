@@ -15,6 +15,11 @@ import {
 import type { AgreementDetails } from "../contracts/dto";
 import type { AgreementsCommandUnitOfWork } from "../ports/agreements.uow";
 import type { AgreementReferencesPort } from "../ports/references.port";
+import {
+  assertAgreementRoutePolicyReferences,
+  buildAgreementRoutePolicyRows,
+  mapExistingRoutePolicies,
+} from "../shared/route-policy";
 
 const UpdateAgreementCommandInputSchema = UpdateAgreementInputSchema.extend({
   actorUserId: z.string().trim().min(1),
@@ -105,6 +110,7 @@ export class UpdateAgreementCommand {
               ? "__keep__"
               : validated.contractDate?.toISOString() ?? null,
           feeRules: validated.feeRules ?? "__keep__",
+          routePolicies: validated.routePolicies ?? "__keep__",
         },
         actorId: validated.actorUserId,
         serializeResult: (result) => ({ agreementId: result.id }),
@@ -126,8 +132,14 @@ export class UpdateAgreementCommand {
           }
 
           const feeRules = validated.feeRules ?? mapExistingFeeRules(current);
+          const routePolicies =
+            validated.routePolicies ?? mapExistingRoutePolicies(current);
           feeRules.forEach((rule) => assertValidNumericRuleValue(rule.value));
           await assertCurrenciesExist(feeRules, this.references);
+          await assertAgreementRoutePolicyReferences(
+            routePolicies,
+            this.references,
+          );
 
           const versionId = this.runtime.generateUuid();
           const nextVersionNumber = current.currentVersion.versionNumber + 1;
@@ -164,6 +176,19 @@ export class UpdateAgreementCommand {
               valueNumeric: rule.value,
               currencyId: rule.currencyId ?? null,
             })),
+          );
+
+          const routePolicyRows = buildAgreementRoutePolicyRows({
+            agreementVersionId: versionId,
+            generateUuid: () => this.runtime.generateUuid(),
+            routePolicies,
+          });
+
+          await tx.agreementStore.createAgreementRoutePolicies(
+            routePolicyRows.policies,
+          );
+          await tx.agreementStore.createAgreementRouteTemplateLinks(
+            routePolicyRows.templateLinks,
           );
 
           await tx.agreementStore.setCurrentVersion({

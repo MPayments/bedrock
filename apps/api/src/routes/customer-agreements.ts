@@ -338,6 +338,7 @@ export async function createCustomerAgreementForCustomer(
       ctx,
       fixedFee: input.fixedFee,
     }),
+    routePolicies: [],
   });
 
   return serializeCustomerAgreement(agreement);

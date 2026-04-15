@@ -19,11 +19,6 @@ const DEAL_LEG_STATE_LABELS = {
   ready: "Готов",
   skipped: "Пропущен",
 } as const;
-const DEAL_LEG_READYISH_LABELS = new Set([
-  "Готов",
-  "В работе",
-  DEAL_LEG_DONE_LABEL,
-]);
 const FINANCE_INSTRUCTION_SETTLED_LABEL = "Исполнена";
 
 function buildFinanceDealUrl(
@@ -72,6 +67,104 @@ async function moveDealStatus(
   );
 }
 
+async function ensureDealStatus(
+  page: Page,
+  targetStatus: string,
+  expectedLabel: string,
+) {
+  const currentStatus = (await page.getByTestId("deal-status-badge").textContent())
+    ?.trim();
+
+  if (currentStatus === expectedLabel) {
+    return;
+  }
+
+  await moveDealStatus(page, targetStatus, expectedLabel);
+}
+
+async function createCalculationFromRouteViaApi(page: Page, dealId: string) {
+  const response = await page.request.post(
+    `/v1/deals/${encodeURIComponent(dealId)}/calculations/from-route`,
+    {
+      data: {},
+      headers: {
+        "Idempotency-Key": `e2e-route-calc-${dealId}`,
+      },
+    },
+  );
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to create route-based calculation: ${response.status()} ${await response.text()}`,
+    );
+  }
+}
+
+async function listDealCalculationsViaApi(page: Page, dealId: string) {
+  const response = await page.request.get(
+    `/v1/deals/${encodeURIComponent(dealId)}/calculations`,
+  );
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to list deal calculations: ${response.status()} ${await response.text()}`,
+    );
+  }
+
+  return (await response.json()) as Array<{
+    calculationId: string;
+    createdAt: string;
+  }>;
+}
+
+async function acceptLatestDealCalculationViaApi(page: Page, dealId: string) {
+  const calculations = await listDealCalculationsViaApi(page, dealId);
+  const calculationId = calculations[0]?.calculationId;
+
+  if (!calculationId) {
+    throw new Error(`No linked calculations found for deal ${dealId}`);
+  }
+
+  const response = await page.request.post(
+    `/v1/deals/${encodeURIComponent(dealId)}/calculations/${encodeURIComponent(calculationId)}/accept`,
+    {
+      data: {
+        calculationId,
+      },
+    },
+  );
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to accept calculation ${calculationId}: ${response.status()} ${await response.text()}`,
+    );
+  }
+
+  return calculationId;
+}
+
+async function approveDealViaApi(
+  page: Page,
+  dealId: string,
+  scope: "customer" | "internal",
+) {
+  const response = await page.request.post(
+    `/v1/deals/${encodeURIComponent(dealId)}/approve`,
+    {
+      data: {
+        comment: null,
+        scope,
+      },
+    },
+  );
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to approve deal ${dealId} for ${scope}: ${response.status()} ${await response.text()}`,
+    );
+  }
+}
+
 async function readDealLegState(page: Page, idx: number) {
   await expect(page.getByTestId(`deal-leg-state-badge-${idx}`)).toBeVisible({
     timeout: 20_000,
@@ -108,24 +201,28 @@ async function openCrmExecutionTab(page: Page, idx = 1) {
   });
 }
 
-async function transitionDealLeg(
+async function transitionDealLegViaApi(
   page: Page,
+  dealId: string,
   idx: number,
   targetState: keyof typeof DEAL_LEG_STATE_LABELS,
 ) {
   const expectedLabel = DEAL_LEG_STATE_LABELS[targetState];
-  const button = page.getByTestId(`deal-leg-state-button-${idx}`);
+  const response = await page.request.post(
+    `/v1/deals/${encodeURIComponent(dealId)}/legs/${idx}/state`,
+    {
+      data: {
+        state: targetState,
+      },
+    },
+  );
 
-  await expect(button).toBeEnabled({
-    timeout: 20_000,
-  });
-  await button.click();
-  await expect(
-    page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`).click();
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to transition leg ${idx} to ${targetState}: ${response.status()} ${await response.text()}`,
+    );
+  }
+
   await expect
     .poll(
       async () => {
@@ -140,18 +237,22 @@ async function transitionDealLeg(
     .toBe(expectedLabel);
 }
 
-async function ensureDealLegReady(page: Page, idx: number) {
+async function ensureDealLegReady(page: Page, dealId: string, idx: number) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await page.reload();
     await openCrmExecutionTab(page, idx);
     const currentState = await readDealLegState(page, idx);
 
-    if (DEAL_LEG_READYISH_LABELS.has(currentState)) {
+    if (
+      currentState === "Готов" ||
+      currentState === "В работе" ||
+      currentState === DEAL_LEG_DONE_LABEL
+    ) {
       return;
     }
 
     if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
+      await transitionDealLegViaApi(page, dealId, idx, "ready");
       continue;
     }
 
@@ -163,7 +264,7 @@ async function ensureDealLegReady(page: Page, idx: number) {
   throw new Error(`Leg ${idx} did not reach a ready state`);
 }
 
-async function completeDealLeg(page: Page, idx: number) {
+async function completeDealLeg(page: Page, dealId: string, idx: number) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await page.reload();
     await openCrmExecutionTab(page, idx);
@@ -174,17 +275,17 @@ async function completeDealLeg(page: Page, idx: number) {
     }
 
     if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
+      await transitionDealLegViaApi(page, dealId, idx, "ready");
       continue;
     }
 
     if (currentState === "Готов") {
-      await transitionDealLeg(page, idx, "in_progress");
+      await transitionDealLegViaApi(page, dealId, idx, "in_progress");
       continue;
     }
 
     if (currentState === "В работе") {
-      await transitionDealLeg(page, idx, "done");
+      await transitionDealLegViaApi(page, dealId, idx, "done");
       continue;
     }
 
@@ -604,7 +705,9 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       dealId = extractTrailingUuid(page.url());
 
       await page.getByTestId("deal-tab-pricing").click();
-      await expect(page.getByTestId("deal-request-quote-button")).toBeVisible();
+      await expect(
+        page.getByText("CRM доступен только просмотр коммерческого состояния сделки."),
+      ).toBeVisible();
 
       await page.getByTestId("deal-tab-documents").click();
       await expect(
@@ -636,51 +739,41 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       });
     });
 
-    await test.step("prepare CRM pricing and document-ready state", async () => {
-      await moveDealStatus(page, "submitted", "Отправлена");
-
+    await test.step("create, accept, and approve the route-based calculation", async () => {
+      await ensureDealStatus(page, "pricing", "Маршрут и расчет");
       await page.getByTestId("deal-tab-pricing").click();
-      await expect(page.getByTestId("deal-request-quote-button")).toBeEnabled({
-        timeout: 20_000,
-      });
-      await page.getByTestId("deal-request-quote-button").click();
-
-      const quoteDialog = page.getByRole("dialog", {
-        name: "Запросить котировку",
-      });
-
-      await expect(quoteDialog).toBeVisible();
-      await page.getByTestId("deal-create-quote-confirm").click();
-      await expect(quoteDialog).toBeHidden({ timeout: 20_000 });
-
-      const acceptQuoteButton = page
-        .locator("[data-testid^='deal-accept-quote-button-']")
-        .first();
-
-      await expect(acceptQuoteButton).toBeVisible({ timeout: 20_000 });
-      await acceptQuoteButton.click();
-
-      await expect(page.getByText("Принята", { exact: true })).toBeVisible({
-        timeout: 20_000,
-      });
-
-      await page.getByTestId("deal-create-calculation-button").click();
-
-      const createCalculationDialog = page.getByRole("dialog", {
-        name: "Создать расчет",
-      });
-
-      await expect(createCalculationDialog).toBeVisible();
-      await page.getByTestId("deal-create-calculation-confirm").click();
-      await expect(createCalculationDialog).toBeHidden({ timeout: 20_000 });
+      await createCalculationFromRouteViaApi(page, dealId);
+      await page.reload();
+      await page.getByTestId("deal-tab-pricing").click();
       await expect(page.getByText("Итого к списанию")).toBeVisible({
         timeout: 20_000,
       });
 
-      await moveDealStatus(
-        page,
-        "preparing_documents",
-        "Подготовка документов",
+      await acceptLatestDealCalculationViaApi(page, dealId);
+      await page.reload();
+      await expect(page.getByTestId("deal-status-badge")).toHaveText(
+        "Ожидание одобрения клиента",
+        {
+          timeout: 20_000,
+        },
+      );
+
+      await approveDealViaApi(page, dealId, "customer");
+      await page.reload();
+      await expect(page.getByTestId("deal-status-badge")).toHaveText(
+        "Ожидание внутреннего одобрения",
+        {
+          timeout: 20_000,
+        },
+      );
+
+      await approveDealViaApi(page, dealId, "internal");
+      await page.reload();
+      await expect(page.getByTestId("deal-status-badge")).toHaveText(
+        "Одобрена к исполнению",
+        {
+          timeout: 20_000,
+        },
       );
     });
 
@@ -712,11 +805,6 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       ).toHaveText("Готов", {
         timeout: 20_000,
       });
-    });
-
-    await test.step("advance the CRM deal to awaiting funds", async () => {
-      await page.reload();
-      await moveDealStatus(page, "awaiting_funds", "Ожидание средств");
     });
 
     await test.step("request finance execution and settle treasury operations", async () => {
@@ -775,15 +863,15 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       await page.reload();
       await openCrmExecutionTab(page);
 
-      await completeDealLeg(page, 1);
+      await completeDealLeg(page, dealId, 1);
       await waitForDealLegState(page, 2, DEAL_LEG_DONE_LABEL);
 
-      await ensureDealLegReady(page, 3);
-      await moveDealStatus(page, "awaiting_payment", "Ожидание оплаты");
+      await ensureDealLegReady(page, dealId, 3);
+      await ensureDealStatus(page, "executing", "В исполнении");
 
       await openCrmExecutionTab(page, 3);
-      await completeDealLeg(page, 3);
-      await moveDealStatus(page, "closing_documents", "Закрывающие документы");
+      await completeDealLeg(page, dealId, 3);
+      await ensureDealStatus(page, "reconciling", "Сверка");
     });
 
     await test.step("create and post the closing acceptance document", async () => {
@@ -822,13 +910,13 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       await financePage.getByTestId("finance-deal-close").click();
       await expect(
         financePage.getByTestId("finance-deal-status-badge"),
-      ).toHaveText("Завершена", {
+      ).toHaveText("Закрыта", {
         timeout: 20_000,
       });
 
       await page.reload();
       await expect(page.getByTestId("deal-status-badge")).toHaveText(
-        "Завершена",
+        "Закрыта",
         {
           timeout: 20_000,
         },

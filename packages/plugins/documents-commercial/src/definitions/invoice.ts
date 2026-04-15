@@ -1,15 +1,10 @@
 import {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
   createInvoicePayload,
   getDefaultInvoiceValues,
   isoToDateTimeLocal,
-  mapPayloadFinancialLines,
 } from "./shared";
 import type { CommercialDocumentCatalogEntry } from "./types";
-import {
-  InvoiceInputSchema,
-  InvoicePayloadSchema,
-} from "../validation";
+import { InvoiceInputSchema, InvoicePayloadSchema } from "../validation";
 
 export const invoiceDocumentDefinition = {
   docType: "invoice",
@@ -85,21 +80,9 @@ export const invoiceDocumentDefinition = {
             name: "currency",
             label: "Валюта списания",
           },
-          {
-            kind: "financialLines",
-            name: "financialLines",
-            label: "Финансовые строки",
-            bucketOptions: [...FINANCIAL_LINE_BUCKET_OPTIONS],
-            supportedCalcMethods: ["fixed", "percent"],
-            baseAmountFieldName: "amount",
-            baseCurrencyFieldName: "currency",
-          },
         ],
         layout: {
-          rows: [
-            { fields: ["amount", "currency"] },
-            { fields: ["financialLines"] },
-          ],
+          rows: [{ fields: ["amount", "currency"] }],
         },
       },
     ],
@@ -116,7 +99,6 @@ export const invoiceDocumentDefinition = {
         organizationRequisiteId: normalized.organizationRequisiteId,
         amount: normalized.amount,
         currency: normalized.currency,
-        financialLines: mapPayloadFinancialLines(normalized.financialLines),
         memo: normalized.memo ?? "",
       };
     },

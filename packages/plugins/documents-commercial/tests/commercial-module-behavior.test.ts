@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
+import {
+  ACCOUNTING_SOURCE_ID,
+  POSTING_TEMPLATE_KEY,
+} from "@bedrock/accounting/posting-contracts";
 
 import { createAcceptanceDocumentModule } from "../src/documents/acceptance";
 import { createExchangeDocumentModule } from "../src/documents/exchange";
@@ -163,7 +166,6 @@ describe("commercial document modules", () => {
         amount: "100.00",
         amountMinor: "10000",
         currency: "EUR",
-        financialLines: [],
         memo: "invoice",
       }),
     ).rejects.toThrow("Currency mismatch: invoice=EUR, account=USD");
@@ -188,7 +190,6 @@ describe("commercial document modules", () => {
         organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
         amount: "100.00",
         currency: "USD",
-        financialLines: [],
         memo: "invoice",
         amountMinor: "10000",
       }),
@@ -203,7 +204,7 @@ describe("commercial document modules", () => {
     );
   });
 
-  it("compiles percent financial lines into direct invoice draft payload", async () => {
+  it("creates direct invoice draft payload without invoice financial lines", async () => {
     const module = createInvoiceDocumentModule(createDeps() as any);
 
     const draft = await module.createDraft?.({ db: {} } as any, {
@@ -215,14 +216,6 @@ describe("commercial document modules", () => {
       amount: "100.00",
       amountMinor: "10000",
       currency: "USD",
-      financialLines: [
-        {
-          calcMethod: "percent",
-          bucket: "fee_revenue",
-          currency: "USD",
-          percent: "1.25",
-        },
-      ],
       memo: "invoice",
     });
 
@@ -232,18 +225,10 @@ describe("commercial document modules", () => {
       counterpartyId: "00000000-0000-4000-8000-000000000302",
       currency: "USD",
       customerId: "00000000-0000-4000-8000-000000000301",
-      financialLines: [
-        {
-          calcMethod: "percent",
-          percentBps: 125,
-          currency: "USD",
-          amountMinor: "125",
-          source: "manual",
-        },
-      ],
       organizationId: "00000000-0000-4000-8000-000000000113",
       organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
     });
+    expect(draft?.payload).not.toHaveProperty("financialLines");
   });
 
   it("creates exchange drafts from linked deal FX context", async () => {
@@ -303,6 +288,41 @@ describe("commercial document modules", () => {
         } as any,
       ),
     ).rejects.toThrow("Amount mismatch: invoice=9999, expected=10150");
+  });
+
+  it("ignores legacy invoice financial lines when building direct posting plans", async () => {
+    const module = createInvoiceDocumentModule(createDeps() as any);
+
+    const plan = await module.buildPostingPlan?.(
+      {
+        now: new Date("2026-03-03T10:00:00.000Z"),
+        runtime: {},
+      } as any,
+      {
+        ...createPostedInvoice(),
+        payload: {
+          ...createPostedInvoice().payload,
+          financialLines: [
+            {
+              id: "legacy-line-1",
+              bucket: "fee_revenue",
+              currency: "USD",
+              amount: "1.25",
+              amountMinor: "125",
+              source: "manual",
+              settlementMode: "in_ledger",
+            },
+          ],
+        },
+        postingStatus: "submitted",
+      } as any,
+    );
+
+    expect(plan?.operationCode).toBe("COMMERCIAL_INVOICE_DIRECT");
+    expect(plan?.requests.map((request) => request.templateKey)).toEqual([
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
+    ]);
   });
 
   it("posts inventory-funded linked invoices through the dedicated inventory-finalize accounting branch", async () => {

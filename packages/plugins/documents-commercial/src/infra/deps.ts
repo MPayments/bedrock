@@ -10,6 +10,7 @@ import {
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ServiceError } from "@bedrock/shared/core/errors";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core/pagination";
 import { minorToAmountString } from "@bedrock/shared/money";
 import type {
   CreateQuoteInput,
@@ -17,6 +18,7 @@ import type {
   MarkQuoteUsedInput,
   QuoteDetailsRecord,
   QuoteRecord,
+  TreasuryExecutionFee,
 } from "@bedrock/treasury/contracts";
 
 import type {
@@ -73,6 +75,21 @@ interface CommercialTreasuryQuotesPort {
     input: CreateQuoteInput,
   ): Promise<QuoteRecord>;
 }
+
+interface CommercialTreasuryExecutionActualsPort {
+  listExecutionFees(input: {
+    dealId?: string;
+    limit: number;
+    offset: number;
+    sortBy?: "chargedAt" | "createdAt";
+    sortOrder?: "asc" | "desc";
+  }): Promise<{
+    data: TreasuryExecutionFee[];
+  }>;
+}
+
+type CommercialFinancialLineBucket =
+  CommercialDealFxContext["financialLines"][number]["bucket"];
 
 async function loadDocumentByType(input: {
   runtime: DocumentModuleRuntime;
@@ -225,6 +242,80 @@ async function loadQuoteSnapshotRecord(input: {
   }
 }
 
+function mapActualFeeBucket(
+  feeFamily: string | null | undefined,
+): CommercialFinancialLineBucket | null {
+  if (feeFamily === "provider_fee" || feeFamily === "provider_fee_expense") {
+    return "provider_fee_expense";
+  }
+
+  if (feeFamily === "pass_through") {
+    return "pass_through";
+  }
+
+  if (feeFamily === "adjustment") {
+    return "adjustment";
+  }
+
+  if (feeFamily === "spread_revenue") {
+    return "spread_revenue";
+  }
+
+  if (feeFamily === "fee_revenue") {
+    return "fee_revenue";
+  }
+
+  return null;
+}
+
+function buildActualFinancialLines(input: {
+  currenciesById: Map<string, { code: string }>;
+  fees: TreasuryExecutionFee[];
+}): CommercialDealFxContext["financialLines"] {
+  const totals = new Map<
+    string,
+    {
+      amountMinor: bigint;
+      bucket: CommercialFinancialLineBucket;
+      currency: string;
+    }
+  >();
+
+  for (const fee of input.fees) {
+    const feeBucket = mapActualFeeBucket(fee.feeFamily);
+
+    if (fee.amountMinor && fee.currencyId && feeBucket) {
+      const currency = input.currenciesById.get(fee.currencyId);
+
+      if (!currency) {
+        throw new DocumentValidationError(
+          `Treasury execution fee currency ${fee.currencyId} is missing`,
+        );
+      }
+
+      const key = `${feeBucket}:${currency.code}`;
+      const bucket = totals.get(key) ?? {
+        amountMinor: 0n,
+        bucket: feeBucket,
+        currency: currency.code,
+      };
+      bucket.amountMinor += BigInt(fee.amountMinor);
+      totals.set(key, bucket);
+    }
+  }
+
+  return [...totals.values()]
+    .filter((line) => line.amountMinor !== 0n)
+    .map((line) => ({
+      amountMinor: line.amountMinor,
+      bucket: line.bucket,
+      currency: line.currency,
+      id: `actual:${line.bucket}:${line.currency}`,
+      settlementMode: "in_ledger" as const,
+      source: "manual" as const,
+    }));
+}
+
 async function markQuoteUsedForRef(input: {
   treasuryQuotes: CommercialTreasuryQuotesPort;
   quoteId: string;
@@ -255,6 +346,7 @@ export function createCommercialDocumentDeps(input: {
     "findById"
   >;
   documentsReadModel?: Pick<DocumentsReadModel, "findBusinessLinkByDocumentId">;
+  treasuryExecutionActuals?: CommercialTreasuryExecutionActualsPort;
   treasuryQuotes: CommercialTreasuryQuotesPort;
   requisitesService: {
     resolveBindings(input: {
@@ -284,6 +376,7 @@ export function createCommercialDocumentDeps(input: {
     currenciesService,
     dealReads,
     documentsReadModel,
+    treasuryExecutionActuals,
     treasuryQuotes,
     requisitesService,
     partiesService,
@@ -342,6 +435,15 @@ export function createCommercialDocumentDeps(input: {
             };
           }
 
+          const executionFees = treasuryExecutionActuals
+            ? await treasuryExecutionActuals.listExecutionFees({
+                dealId,
+                limit: MAX_QUERY_LIST_LIMIT,
+                offset: 0,
+                sortBy: "chargedAt",
+                sortOrder: "desc",
+              })
+            : { data: [] };
           const currencyIds = [
             calculation.currentSnapshot.calculationCurrencyId,
             ...new Set(
@@ -350,6 +452,13 @@ export function createCommercialDocumentDeps(input: {
                   isCommercialCalculationFinancialLineKind(line.kind),
                 )
                 .map((line: CalculationDetails["lines"][number]) => line.currencyId),
+            ),
+            ...new Set(
+              executionFees.data.flatMap((fee) =>
+                [fee.currencyId].filter(
+                  (currencyId): currencyId is string => Boolean(currencyId),
+                ),
+              ),
             ),
           ];
           const currenciesById = new Map(
@@ -394,6 +503,10 @@ export function createCommercialDocumentDeps(input: {
               };
               })
               .filter((line) => line.amountMinor !== 0n);
+          const actualFinancialLines = buildActualFinancialLines({
+            currenciesById,
+            fees: executionFees.data,
+          });
           const storedQuoteSnapshot = calculation.currentSnapshot.quoteSnapshot;
           const parsedStoredQuoteSnapshot = storedQuoteSnapshot
             ? QuoteSnapshotSchema.safeParse(storedQuoteSnapshot)
@@ -414,6 +527,7 @@ export function createCommercialDocumentDeps(input: {
             calculationId,
             dealId,
             dealType: workflow.summary.type,
+            actualFinancialLines,
             financialLines,
             fundingResolution: workflow.fundingResolution,
             hasConvertLeg,

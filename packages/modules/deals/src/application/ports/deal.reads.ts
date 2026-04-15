@@ -6,6 +6,9 @@ import type {
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
+  DealRouteTemplate,
+  DealRouteTemplateSummary,
+  DealRouteVersion,
   DealTraceProjection,
   DealWorkflowProjection,
   PortalDealListProjection,
@@ -15,9 +18,9 @@ import type { ListDealsQuery } from "../contracts/queries";
 
 export interface DealFundingAssessmentPort {
   assessFunding(input: {
-    acceptedQuoteId: string | null;
     hasConvertLeg: boolean;
     internalEntityOrganizationId: string | null;
+    pricingQuoteId: string | null;
     targetCurrencyId: string | null;
   }): Promise<DealFundingResolution>;
 }
@@ -28,6 +31,8 @@ export interface DealReads {
     fileAssetId: string,
   ): Promise<DealAttachmentIngestion | null>;
   findPortalProjectionById(id: string): Promise<PortalDealProjection | null>;
+  findCurrentRouteByDealId(id: string): Promise<DealRouteVersion | null>;
+  findRouteTemplateById(id: string): Promise<DealRouteTemplate | null>;
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
   findWorkflowsByIds(ids: string[]): Promise<DealWorkflowProjection[]>;
@@ -35,6 +40,10 @@ export interface DealReads {
     dealId: string,
   ): Promise<DealAttachmentIngestion[]>;
   list(input: ListDealsQuery): Promise<PaginatedList<Deal>>;
+  listRouteTemplates(input?: {
+    dealType?: Deal["type"];
+    status?: ("draft" | "published" | "archived")[];
+  }): Promise<DealRouteTemplateSummary[]>;
   listCalculationHistory(dealId: string): Promise<DealCalculationHistoryItem[]>;
   listPortalDeals(input: {
     customerId: string;

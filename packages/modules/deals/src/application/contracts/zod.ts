@@ -2,12 +2,20 @@ import { z } from "zod";
 
 import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
+  DEAL_APPROVAL_SCOPE_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,
   DEAL_LEG_OPERATION_KIND_VALUES,
   DEAL_LEG_STATE_VALUES,
   DEAL_LEG_KIND_VALUES,
+  DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES,
+  DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES,
+  DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES,
+  DEAL_ROUTE_LEG_KIND_VALUES,
+  DEAL_ROUTE_PARTY_KIND_VALUES,
+  DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES,
+  DEAL_ROUTE_TEMPLATE_STATUS_VALUES,
   DEAL_LEGACY_PARTICIPANT_ROLE_VALUES,
   DEAL_OPERATIONAL_POSITION_KIND_VALUES,
   DEAL_OPERATIONAL_POSITION_STATE_VALUES,
@@ -21,6 +29,47 @@ import {
 
 export const DealTypeSchema = z.enum(DEAL_TYPE_VALUES);
 export type DealType = z.infer<typeof DealTypeSchema>;
+
+export const DealRoutePartyKindSchema = z.enum(DEAL_ROUTE_PARTY_KIND_VALUES);
+export type DealRoutePartyKind = z.infer<typeof DealRoutePartyKindSchema>;
+
+export const DealRouteTemplateStatusSchema = z.enum(
+  DEAL_ROUTE_TEMPLATE_STATUS_VALUES,
+);
+export type DealRouteTemplateStatus = z.infer<
+  typeof DealRouteTemplateStatusSchema
+>;
+
+export const DealRouteTemplateParticipantBindingSchema = z.enum(
+  DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES,
+);
+export type DealRouteTemplateParticipantBinding = z.infer<
+  typeof DealRouteTemplateParticipantBindingSchema
+>;
+
+export const DealRouteLegKindSchema = z.enum(DEAL_ROUTE_LEG_KIND_VALUES);
+export type DealRouteLegKind = z.infer<typeof DealRouteLegKindSchema>;
+
+export const DealRouteComponentClassificationSchema = z.enum(
+  DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES,
+);
+export type DealRouteComponentClassification = z.infer<
+  typeof DealRouteComponentClassificationSchema
+>;
+
+export const DealRouteComponentFormulaTypeSchema = z.enum(
+  DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES,
+);
+export type DealRouteComponentFormulaType = z.infer<
+  typeof DealRouteComponentFormulaTypeSchema
+>;
+
+export const DealRouteComponentBasisTypeSchema = z.enum(
+  DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES,
+);
+export type DealRouteComponentBasisType = z.infer<
+  typeof DealRouteComponentBasisTypeSchema
+>;
 
 export const DealStatusSchema = z.enum(DEAL_STATUS_VALUES);
 export type DealStatus = z.infer<typeof DealStatusSchema>;
@@ -87,6 +136,9 @@ export type DealApprovalType = z.infer<typeof DealApprovalTypeSchema>;
 
 export const DealApprovalStatusSchema = z.enum(DEAL_APPROVAL_STATUS_VALUES);
 export type DealApprovalStatus = z.infer<typeof DealApprovalStatusSchema>;
+
+export const DealApprovalScopeSchema = z.enum(DEAL_APPROVAL_SCOPE_VALUES);
+export type DealApprovalScope = z.infer<typeof DealApprovalScopeSchema>;
 
 export const DealTransitionBlockerCodeSchema = z.enum(
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,

@@ -30,12 +30,12 @@ import { API_BASE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 import {
-  createEmptyCrmDealIntake,
+  createEmptyCrmDealHeader,
   DealIntakeForm,
   type CrmApplicantRequisiteOption,
   type CrmCurrencyOption,
   type CrmCustomerCounterpartyOption,
-  type CrmDealIntakeDraft,
+  type CrmDealHeaderDraft,
   type CrmDealType,
 } from "./deal-intake-form";
 
@@ -147,8 +147,8 @@ export function NewDealDialog({
   const [currencyOptions, setCurrencyOptions] = useState<CrmCurrencyOption[]>(
     [],
   );
-  const [intake, setIntake] = useState<CrmDealIntakeDraft>(
-    createEmptyCrmDealIntake({
+  const [intake, setIntake] = useState<CrmDealHeaderDraft>(
+    createEmptyCrmDealHeader({
       applicantCounterpartyId: null,
       type: "payment",
     }),
@@ -186,7 +186,7 @@ export function NewDealDialog({
       setAgreements([]);
       setApplicantRequisites([]);
       setIntake(
-        createEmptyCrmDealIntake({
+        createEmptyCrmDealHeader({
           applicantCounterpartyId: null,
           type: "payment",
         }),
@@ -255,7 +255,7 @@ export function NewDealDialog({
         setSelectedApplicantId(defaultApplicantId);
         setSelectedAgreementId(defaultAgreementId);
         setIntake(
-          createEmptyCrmDealIntake({
+          createEmptyCrmDealHeader({
             applicantCounterpartyId: defaultApplicantId ?? null,
             type: dealType,
           }),
@@ -388,7 +388,7 @@ export function NewDealDialog({
           body: JSON.stringify({
             agreementId: selectedAgreementId,
             customerId: selectedCustomerId,
-            intake: {
+            header: {
               ...intake,
               common: {
                 ...intake.common,

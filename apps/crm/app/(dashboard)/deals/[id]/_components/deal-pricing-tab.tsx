@@ -1,7 +1,6 @@
 import { CheckCircle2, Clock3, Wallet } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
@@ -19,27 +18,14 @@ import {
   rationalToDecimalString,
 } from "./format";
 import type {
-  ApiDealAcceptedQuote,
+  ApiCrmDealWorkbenchProjection,
   ApiDealPricingQuote,
-  CalculationHistoryView,
-  CalculationView,
 } from "./types";
 
 type DealPricingTabProps = {
-  acceptedQuote: ApiDealAcceptedQuote;
-  activeCalculationId: string | null;
-  calculation: CalculationView | null;
   calculationDisabledReason: string | null;
-  calculationHistory: CalculationHistoryView[];
-  isAcceptingQuoteId: string | null;
-  isCreatingCalculation: boolean;
-  isCreatingQuote: boolean;
-  onAcceptQuote: (quoteId: string) => void;
-  onCreateCalculation: () => void;
-  onCreateQuote: () => void;
   quoteAmountSide: "source" | "target";
-  quoteCreationDisabledReason: string | null;
-  quotes: ApiDealPricingQuote[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 function formatQuoteStatus(status: string) {
@@ -119,87 +105,85 @@ function formatQuoteFixedFee(quote: ApiDealPricingQuote) {
   );
 }
 
+function resolveAcceptedPricingQuoteId(
+  workbench: ApiCrmDealWorkbenchProjection,
+) {
+  return (
+    workbench.acceptedCalculation?.quoteProvenance?.sourceQuoteId ??
+    workbench.acceptedCalculation?.quoteProvenance?.fxQuoteId ??
+    null
+  );
+}
+
 export function DealPricingTab({
-  acceptedQuote,
-  activeCalculationId,
-  calculation,
   calculationDisabledReason,
-  calculationHistory,
-  isAcceptingQuoteId,
-  isCreatingCalculation,
-  isCreatingQuote,
-  onAcceptQuote,
-  onCreateCalculation,
-  onCreateQuote,
   quoteAmountSide,
-  quoteCreationDisabledReason,
-  quotes,
+  workbench,
 }: DealPricingTabProps) {
-  const acceptedDetailedQuote = acceptedQuote
-    ? (quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null)
+  const acceptedCalculation = workbench.acceptedCalculation;
+  const activeCalculationId = workbench.summary.calculationId;
+  const calculation = workbench.pricing.currentCalculation;
+  const calculationHistory = workbench.pricing.calculationHistory;
+  const quotes = workbench.pricing.quotes;
+  const acceptedPricingQuoteId = resolveAcceptedPricingQuoteId(workbench);
+  const acceptedPricingQuote = acceptedPricingQuoteId
+    ? (quotes.find((quote) => quote.id === acceptedPricingQuoteId) ?? null)
     : null;
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-muted-foreground" />
             Котировка и курс
           </CardTitle>
-          <Button
-            data-testid="deal-request-quote-button"
-            disabled={Boolean(quoteCreationDisabledReason) || isCreatingQuote}
-            onClick={onCreateQuote}
-            size="sm"
-          >
-            {isCreatingQuote ? "Запрашиваем..." : "Запросить котировку"}
-          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {quoteCreationDisabledReason ? (
-            <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              {quoteCreationDisabledReason}
-            </div>
-          ) : null}
+          <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            Работа с котировками и фиксацией расчета выполняется в Finance. В
+            CRM доступен только просмотр коммерческого состояния сделки.
+          </div>
 
           <div className="rounded-lg border p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <div className="font-medium">Текущая принятая котировка</div>
-                {acceptedDetailedQuote ? (
+                <div className="font-medium">Текущий зафиксированный расчет</div>
+                {acceptedPricingQuote ? (
                   <>
                     <div className="text-sm font-medium text-foreground">
-                      {formatQuotePair(acceptedDetailedQuote, quoteAmountSide)}
+                      {formatQuotePair(acceptedPricingQuote, quoteAmountSide)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Поток сделки: {formatQuoteFlow(acceptedDetailedQuote)}
+                      Поток сделки: {formatQuoteFlow(acceptedPricingQuote)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {formatQuoteAmounts(acceptedDetailedQuote)}
+                      {formatQuoteAmounts(acceptedPricingQuote)}
                     </div>
                   </>
                 ) : null}
                 <div className="text-sm text-muted-foreground">
-                  {acceptedQuote
-                    ? `Принята ${formatDate(acceptedQuote.acceptedAt)}`
-                    : "Котировка еще не принята"}
+                  {acceptedCalculation
+                    ? `Зафиксирован ${formatDate(acceptedCalculation.acceptedAt)}`
+                    : "Расчет еще не зафиксирован"}
                 </div>
               </div>
-              {acceptedQuote ? (
+              {acceptedCalculation ? (
                 <Badge variant="outline">
-                  {formatQuoteStatus(acceptedQuote.quoteStatus)}
+                  {acceptedPricingQuote
+                    ? formatQuoteStatus(acceptedPricingQuote.status)
+                    : "Зафиксирован"}
                 </Badge>
               ) : null}
             </div>
 
-            {acceptedQuote ? (
+            {acceptedCalculation ? (
               <div className="mt-3 grid gap-3 md:grid-cols-3">
-                {acceptedDetailedQuote ? (
+                {acceptedPricingQuote ? (
                   <div className="rounded-md bg-muted/40 px-3 py-2">
                     <div className="text-xs text-muted-foreground">Курс</div>
                     <div className="text-sm font-medium">
-                      {formatQuoteRate(acceptedDetailedQuote, quoteAmountSide)}
+                      {formatQuoteRate(acceptedPricingQuote, quoteAmountSide)}
                     </div>
                   </div>
                 ) : null}
@@ -208,9 +192,9 @@ export function DealPricingTab({
                     Суммарная комиссия
                   </div>
                   <div className="text-sm font-medium">
-                    {acceptedDetailedQuote
+                    {acceptedPricingQuote
                       ? formatQuoteFeePercent(
-                          acceptedDetailedQuote.commercialTerms?.totalFeeBps,
+                          acceptedPricingQuote.commercialTerms?.totalFeeBps,
                         )
                       : "0%"}
                   </div>
@@ -220,14 +204,14 @@ export function DealPricingTab({
                     Фиксированная комиссия
                   </div>
                   <div className="text-sm font-medium">
-                    {acceptedDetailedQuote
-                      ? formatQuoteFixedFee(acceptedDetailedQuote)
+                    {acceptedPricingQuote
+                      ? formatQuoteFixedFee(acceptedPricingQuote)
                       : "Нет"}
                   </div>
                 </div>
               </div>
             ) : null}
-            {acceptedDetailedQuote ? (
+            {acceptedPricingQuote ? (
               <div className="mt-3 grid gap-3 md:grid-cols-4">
                 <div className="rounded-md border bg-background px-3 py-2">
                   <div className="text-xs text-muted-foreground">
@@ -235,7 +219,7 @@ export function DealPricingTab({
                   </div>
                   <div className="text-sm font-medium">
                     {formatQuoteFeePercent(
-                      acceptedDetailedQuote.commercialTerms?.agreementFeeBps,
+                      acceptedPricingQuote.commercialTerms?.agreementFeeBps,
                     )}
                   </div>
                 </div>
@@ -245,7 +229,7 @@ export function DealPricingTab({
                   </div>
                   <div className="text-sm font-medium">
                     {formatQuoteFeePercent(
-                      acceptedDetailedQuote.commercialTerms?.quoteMarkupBps,
+                      acceptedPricingQuote.commercialTerms?.quoteMarkupBps,
                     )}
                   </div>
                 </div>
@@ -254,8 +238,8 @@ export function DealPricingTab({
                     Срок действия
                   </div>
                   <div className="text-sm font-medium">
-                    {acceptedQuote?.expiresAt
-                      ? formatDate(acceptedQuote.expiresAt)
+                    {acceptedPricingQuote.expiresAt
+                      ? formatDate(acceptedPricingQuote.expiresAt)
                       : "—"}
                   </div>
                 </div>
@@ -264,8 +248,8 @@ export function DealPricingTab({
                     Использование
                   </div>
                   <div className="text-sm font-medium">
-                    {acceptedQuote?.usedAt
-                      ? `Исполнена ${formatDate(acceptedQuote.usedAt)}`
+                    {acceptedPricingQuote.usedAt
+                      ? `Исполнена ${formatDate(acceptedPricingQuote.usedAt)}`
                       : "Еще не исполнена"}
                   </div>
                 </div>
@@ -284,11 +268,7 @@ export function DealPricingTab({
             ) : (
               <div className="space-y-2">
                 {quotes.map((quote) => {
-                  const isAccepted = acceptedQuote?.quoteId === quote.id;
-                  const canAccept =
-                    quote.status === "active" &&
-                    !isAccepted &&
-                    !isCreatingQuote;
+                  const isAccepted = acceptedPricingQuoteId === quote.id;
 
                   return (
                     <div
@@ -303,7 +283,7 @@ export function DealPricingTab({
                           {isAccepted ? (
                             <Badge variant="secondary">
                               <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Принята
+                              В зафиксированном расчете
                             </Badge>
                           ) : null}
                         </div>
@@ -351,21 +331,6 @@ export function DealPricingTab({
                           <span>Создана {formatDate(quote.createdAt)}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {canAccept ? (
-                          <Button
-                            data-testid={`deal-accept-quote-button-${quote.id}`}
-                            disabled={isAcceptingQuoteId === quote.id}
-                            onClick={() => onAcceptQuote(quote.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {isAcceptingQuoteId === quote.id
-                              ? "Принимаем..."
-                              : "Принять"}
-                          </Button>
-                        ) : null}
-                      </div>
                     </div>
                   );
                 })}
@@ -379,9 +344,12 @@ export function DealPricingTab({
         activeCalculationId={activeCalculationId}
         calculation={calculation}
         calculationHistory={calculationHistory}
-        disabledReason={calculationDisabledReason}
-        isCreating={isCreatingCalculation}
-        onCreate={onCreateCalculation}
+        disabledReason={
+          calculationDisabledReason ??
+          "Создание и фиксация расчета перенесены в Finance."
+        }
+        isCreating={false}
+        onCreate={null}
       />
     </div>
   );

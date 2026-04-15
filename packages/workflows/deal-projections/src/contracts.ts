@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { AgreementDetailsSchema } from "@bedrock/agreements/contracts";
-import { CalculationDetailsSchema } from "@bedrock/calculations/contracts";
 import {
   DealApprovalSchema,
+  DealAttachmentIngestionSchema,
   DealBankInstructionSnapshotSchema,
   DealCalculationHistoryItemSchema,
   DealCounterpartySnapshotSchema,
@@ -18,7 +18,7 @@ import {
   DealSectionCompletenessSchema,
   DealOperationalStateSchema,
   PortalDealCalculationSummarySchema,
-  PortalDealIntakeSummarySchema,
+  PortalDealHeaderSummarySchema,
 } from "@bedrock/deals/contracts";
 import { FileAttachmentSchema } from "@bedrock/files/contracts";
 import {
@@ -86,7 +86,7 @@ export type PortalDealAttachment = z.infer<typeof PortalDealAttachmentSchema>;
 export const PortalDealProjectionSchema = z.object({
   attachments: z.array(PortalDealAttachmentSchema),
   calculationSummary: PortalDealCalculationSummarySchema,
-  customerSafeIntake: PortalDealIntakeSummarySchema,
+  customerSafeHeader: PortalDealHeaderSummarySchema,
   nextAction: z.string(),
   quoteSummary: PortalDealQuoteSummarySchema,
   requiredActions: z.array(z.string()),
@@ -139,7 +139,7 @@ export type CrmDealCustomerContext = z.infer<
 
 export const DealPricingSummarySchema = z.object({
   calculationHistory: z.array(DealCalculationHistoryItemSchema),
-  currentCalculation: CalculationDetailsSchema.nullable(),
+  currentCalculation: PortalDealCalculationSummarySchema,
   quoteEligibility: z.boolean(),
   quotes: z.array(QuoteSchema),
 });
@@ -147,12 +147,11 @@ export const DealPricingSummarySchema = z.object({
 export type DealPricingSummary = z.infer<typeof DealPricingSummarySchema>;
 
 export const CrmDealWorkbenchActionsSchema = z.object({
-  canAcceptQuote: z.boolean(),
   canChangeAgreement: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateFormalDocument: z.boolean(),
   canCreateQuote: z.boolean(),
-  canEditIntake: z.boolean(),
+  canEditHeader: z.boolean(),
   canReassignAssignee: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
@@ -164,7 +163,7 @@ export type CrmDealWorkbenchActions = z.infer<
 export const CrmDealWorkbenchEditabilitySchema = z.object({
   agreement: z.boolean(),
   assignee: z.boolean(),
-  intake: z.boolean(),
+  header: z.boolean(),
 });
 
 export type CrmDealWorkbenchEditability = z.infer<
@@ -241,10 +240,11 @@ export type CrmDealDocumentRequirement = z.infer<
 >;
 
 export const CrmDealWorkbenchProjectionSchema = z.object({
-  acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
+  acceptedCalculation: DealWorkflowProjectionSchema.shape.acceptedCalculation,
   actions: CrmDealWorkbenchActionsSchema,
   approvals: z.array(DealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
+  attachmentIngestions: z.array(DealAttachmentIngestionSchema),
   beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
   comment: z.string().nullable(),
   context: z.object({
@@ -259,14 +259,23 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   editability: CrmDealWorkbenchEditabilitySchema,
   evidenceRequirements: z.array(CrmDealEvidenceRequirementSchema),
   executionPlan: z.array(DealWorkflowLegSchema),
-  intake: DealWorkflowProjectionSchema.shape.intake,
+  header: DealWorkflowProjectionSchema.shape.header,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   participants: z.array(DealWorkflowParticipantSchema),
   pricing: DealPricingSummarySchema,
+  profitabilitySnapshot: z.lazy(() => FinanceProfitabilitySnapshotSchema),
+  profitabilityVariance: z.lazy(
+    () => FinanceProfitabilityVarianceSnapshotSchema,
+  ),
+  reconciliationSummary: z.lazy(() => FinanceDealReconciliationSummarySchema),
+  revision: z.number().int().nonnegative(),
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
+    reconciliationExceptions: z.array(
+      z.lazy(() => FinanceDealReconciliationExceptionSchema),
+    ),
   }),
   sectionCompleteness: z.array(DealSectionCompletenessSchema),
   summary: DealSummarySchema.extend({
@@ -276,7 +285,6 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   }),
   timeline: z.array(DealTimelineEventSchema),
   transitionReadiness: z.array(DealTransitionReadinessSchema),
-  workflow: DealWorkflowProjectionSchema,
 });
 
 export type CrmDealWorkbenchProjection = z.infer<
@@ -494,6 +502,71 @@ export type FinanceProfitabilitySnapshot = z.infer<
   typeof FinanceProfitabilitySnapshotSchema
 >;
 
+export const FinanceProfitabilityCoverageStateSchema = z.enum([
+  "not_started",
+  "partial",
+  "complete",
+]);
+
+export type FinanceProfitabilityCoverageState = z.infer<
+  typeof FinanceProfitabilityCoverageStateSchema
+>;
+
+export const FinanceProfitabilityCostVarianceSchema = z.object({
+  actual: z.array(FinanceProfitabilityAmountSchema),
+  classification: z.enum(["revenue", "expense", "pass_through", "adjustment"]),
+  expected: z.array(FinanceProfitabilityAmountSchema),
+  family: z.string(),
+  variance: z.array(FinanceProfitabilityAmountSchema),
+});
+
+export type FinanceProfitabilityCostVariance = z.infer<
+  typeof FinanceProfitabilityCostVarianceSchema
+>;
+
+export const FinanceProfitabilityLegVarianceSchema = z.object({
+  actualFees: z.array(FinanceProfitabilityAmountSchema),
+  actualFrom: FinanceProfitabilityAmountSchema.nullable(),
+  actualTo: FinanceProfitabilityAmountSchema.nullable(),
+  code: z.string(),
+  expectedFrom: FinanceProfitabilityAmountSchema.nullable(),
+  expectedTo: FinanceProfitabilityAmountSchema.nullable(),
+  idx: z.number().int().positive(),
+  kind: z.string(),
+  routeLegId: z.uuid(),
+  varianceFrom: FinanceProfitabilityAmountSchema.nullable(),
+  varianceTo: FinanceProfitabilityAmountSchema.nullable(),
+});
+
+export type FinanceProfitabilityLegVariance = z.infer<
+  typeof FinanceProfitabilityLegVarianceSchema
+>;
+
+export const FinanceProfitabilityVarianceSnapshotSchema = z
+  .object({
+    actualCoverage: z.object({
+      factCount: z.number().int().nonnegative(),
+      legsWithFacts: z.number().int().nonnegative(),
+      operationCount: z.number().int().nonnegative(),
+      state: FinanceProfitabilityCoverageStateSchema,
+      terminalOperationCount: z.number().int().nonnegative(),
+      totalLegCount: z.number().int().nonnegative(),
+    }),
+    actualExpense: z.array(FinanceProfitabilityAmountSchema),
+    actualPassThrough: z.array(FinanceProfitabilityAmountSchema),
+    calculationId: z.uuid(),
+    expectedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    netMarginVariance: z.array(FinanceProfitabilityAmountSchema),
+    realizedNetMargin: z.array(FinanceProfitabilityAmountSchema),
+    varianceByCostFamily: z.array(FinanceProfitabilityCostVarianceSchema),
+    varianceByLeg: z.array(FinanceProfitabilityLegVarianceSchema),
+  })
+  .nullable();
+
+export type FinanceProfitabilityVarianceSnapshot = z.infer<
+  typeof FinanceProfitabilityVarianceSnapshotSchema
+>;
+
 export const FinanceDealExecutionSummarySchema = z.object({
   blockedLegCount: z.number().int().nonnegative(),
   doneLegCount: z.number().int().nonnegative(),
@@ -569,12 +642,17 @@ export type FinanceDealQueueProjection = z.infer<
 >;
 
 export const FinanceDealWorkspaceActionsSchema = z.object({
+  canAcceptCalculation: z.boolean(),
   canCloseDeal: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
+  canRecordCashMovement: z.boolean(),
+  canRecordExecutionFee: z.boolean(),
+  canRecordExecutionFill: z.boolean(),
   canRequestExecution: z.boolean(),
   canRunReconciliation: z.boolean(),
   canResolveExecutionBlocker: z.boolean(),
+  canSupersedeCalculation: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
 
@@ -684,6 +762,7 @@ export const FinanceDealCloseCriterionCodeSchema = z.enum([
   "operations_materialized",
   "execution_unblocked",
   "reconciliation_clear",
+  "realized_profitability_available",
   "payment_payout_settled",
   "payment_documents_ready",
   "currency_exchange_conversion_settled",
@@ -786,8 +865,7 @@ export type FinanceDealPricingContext = z.infer<
 >;
 
 export const FinanceDealWorkspaceProjectionSchema = z.object({
-  acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
-  acceptedQuoteDetails: QuoteListItemSchema.nullable(),
+  acceptedCalculation: DealWorkflowProjectionSchema.shape.acceptedCalculation,
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
   closeReadiness: FinanceDealCloseReadinessSchema,
@@ -796,10 +874,12 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     FinanceDealFormalDocumentRequirementSchema,
   ),
   instructionSummary: FinanceDealInstructionSummarySchema,
+  header: DealWorkflowProjectionSchema.shape.header,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   pricing: FinanceDealPricingContextSchema,
   profitabilitySnapshot: FinanceProfitabilitySnapshotSchema,
+  profitabilityVariance: FinanceProfitabilityVarianceSnapshotSchema,
   queueContext: z.object({
     blockers: z.array(z.string()),
     queue: FinanceDealQueueSchema,

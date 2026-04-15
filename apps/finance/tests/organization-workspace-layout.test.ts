@@ -34,7 +34,7 @@ describe("organization workspace layout", () => {
       "@/features/entities/organizations/components/organization-workspace-layout"
     );
 
-    usePathname.mockReturnValue("/entities/organizations/org-1");
+    usePathname.mockReturnValue("/treasury/organizations/org-1");
     renderToStaticMarkup(
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
@@ -49,27 +49,27 @@ describe("organization workspace layout", () => {
           id: "general",
           label: "Информация",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1",
+          href: "/treasury/organizations/org-1",
           disabled: false,
         },
         {
           id: "accounts",
           label: "Реквизиты",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1/requisites",
+          href: "/treasury/organizations/org-1/requisites",
           disabled: false,
         },
         {
           id: "documents",
           label: "Документы",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1/documents",
+          href: "/treasury/organizations/org-1/documents",
           disabled: false,
         },
       ],
     });
 
-    usePathname.mockReturnValue("/entities/organizations/org-1/requisites");
+    usePathname.mockReturnValue("/treasury/organizations/org-1/requisites");
     renderToStaticMarkup(
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
@@ -84,21 +84,21 @@ describe("organization workspace layout", () => {
           id: "general",
           label: "Информация",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1",
+          href: "/treasury/organizations/org-1",
           disabled: false,
         },
         {
           id: "accounts",
           label: "Реквизиты",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1/requisites",
+          href: "/treasury/organizations/org-1/requisites",
           disabled: false,
         },
         {
           id: "documents",
           label: "Документы",
           icon: expect.anything(),
-          href: "/entities/organizations/org-1/documents",
+          href: "/treasury/organizations/org-1/documents",
           disabled: false,
         },
       ],

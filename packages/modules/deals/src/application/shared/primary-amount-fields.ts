@@ -1,17 +1,17 @@
-import type { DealIntakeDraft } from "../contracts/dto";
+import type { DealHeader } from "../contracts/dto";
 
-export function getPrimaryDealAmountFields(intake: DealIntakeDraft) {
-  if (intake.type === "payment") {
+export function getPrimaryDealAmountFields(header: DealHeader) {
+  if (header.type === "payment") {
     return {
-      amount: intake.incomingReceipt.expectedAmount,
+      amount: header.incomingReceipt.expectedAmount,
       currencyId:
-        intake.moneyRequest.targetCurrencyId ??
-        intake.incomingReceipt.expectedCurrencyId,
+        header.moneyRequest.targetCurrencyId ??
+        header.incomingReceipt.expectedCurrencyId,
     };
   }
 
   return {
-    amount: intake.moneyRequest.sourceAmount,
-    currencyId: intake.moneyRequest.sourceCurrencyId,
+    amount: header.moneyRequest.sourceAmount,
+    currencyId: header.moneyRequest.sourceCurrencyId,
   };
 }

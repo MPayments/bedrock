@@ -15,7 +15,9 @@ describe("commercial document definitions", () => {
     expect(new Set(docTypes).size).toBe(COMMERCIAL_DOCUMENT_DEFINITIONS.length);
 
     for (const definition of COMMERCIAL_DOCUMENT_DEFINITIONS) {
-      expect(getCommercialDocumentDefinition(definition.docType)).toBe(definition);
+      expect(getCommercialDocumentDefinition(definition.docType)).toBe(
+        definition,
+      );
       expect(COMMERCIAL_DOCUMENT_METADATA[definition.docType]).toMatchObject({
         docType: definition.docType,
         label: definition.label,
@@ -30,22 +32,23 @@ describe("commercial document definitions", () => {
 
   it("keeps listed document order aligned with the UI-visible commercial order", () => {
     expect(
-      COMMERCIAL_DOCUMENT_DEFINITIONS.filter((definition) => definition.listed).map(
-        (definition) => definition.docType,
-      ),
+      COMMERCIAL_DOCUMENT_DEFINITIONS.filter(
+        (definition) => definition.listed,
+      ).map((definition) => definition.docType),
     ).toEqual(COMMERCIAL_DOCUMENT_TYPE_ORDER);
   });
 
-  it("keeps invoice typed form single-shape with a financial-lines editor", () => {
+  it("keeps invoice typed form single-shape without a financial-lines editor", () => {
     const invoice = getCommercialDocumentDefinition("invoice");
     const formDefinition = invoice?.formDefinition;
     expect(formDefinition).not.toBeNull();
 
-    const fields = formDefinition!.sections.flatMap((section) => section.fields);
+    const fields = formDefinition!.sections.flatMap(
+      (section) => section.fields,
+    );
     const mainSection = formDefinition!.sections.find(
       (section) => section.id === "main",
     );
-    const financialLines = fields.find((field) => field.name === "financialLines");
     const amountsSection = formDefinition!.sections.find(
       (section) => section.id === "amounts",
     );
@@ -59,23 +62,17 @@ describe("commercial document definitions", () => {
       columns: { base: 1, sm: 2 },
       fields: ["organizationId", "organizationRequisiteId"],
     });
-    expect(financialLines).toMatchObject({
-      kind: "financialLines",
-      supportedCalcMethods: ["fixed", "percent"],
-      baseAmountFieldName: "amount",
-      baseCurrencyFieldName: "currency",
-    });
+    expect(fields.some((field) => field.name === "financialLines")).toBe(false);
     expect(currencyField).toMatchObject({
       kind: "currency",
       label: "Валюта списания",
     });
     expect(amountsSection?.layout?.rows).toEqual([
       { fields: ["amount", "currency"] },
-      { fields: ["financialLines"] },
     ]);
   });
 
-  it("round-trips invoice percent rows through the typed definition", () => {
+  it("ignores legacy financial lines when hydrating invoice payloads", () => {
     const invoice = getCommercialDocumentDefinition("invoice");
     const formDefinition = invoice?.formDefinition;
 
@@ -103,27 +100,12 @@ describe("commercial document definitions", () => {
       ],
     });
 
-    expect(values?.financialLines).toEqual([
-      {
-        calcMethod: "percent",
-        bucket: "fee_revenue",
-        currency: "USD",
-        amount: "",
-        percent: "1.25",
-        memo: "",
-      },
-    ]);
+    expect(values).not.toBeNull();
+    expect("financialLines" in (values ?? {})).toBe(false);
 
     expect(formDefinition?.toPayload(values ?? {})).toMatchObject({
-      financialLines: [
-        {
-          calcMethod: "percent",
-          bucket: "fee_revenue",
-          currency: "USD",
-          percent: "1.25",
-        },
-      ],
+      amount: "100",
+      currency: "USD",
     });
   });
-
 });

@@ -1,8 +1,13 @@
 import { z } from "zod";
 
 import {
+  CalculationComponentBasisTypeSchema,
+  CalculationComponentClassificationSchema,
+  CalculationComponentFormulaTypeSchema,
   CalculationLineKindSchema,
+  CalculationLineSourceKindSchema,
   CalculationRateSourceSchema,
+  CalculationStateSchema,
 } from "./zod";
 
 const NonNegativeIntegerStringSchema = z
@@ -13,11 +18,37 @@ const SignedIntegerStringSchema = z
   .string()
   .trim()
   .regex(/^-?(0|[1-9]\d*)$/, "Must be an integer string");
+const NullableShortTextSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .nullable()
+  .optional();
+const NullableSnapshotSchema = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional();
 
 const FinancialLineInputSchema = z.object({
+  basisAmountMinor: SignedIntegerStringSchema.nullable().optional(),
+  basisType: CalculationComponentBasisTypeSchema.nullable().optional(),
+  classification: CalculationComponentClassificationSchema.nullable().optional(),
+  componentCode: NullableShortTextSchema,
+  componentFamily: NullableShortTextSchema,
   kind: CalculationLineKindSchema,
   currencyId: z.uuid(),
   amountMinor: SignedIntegerStringSchema,
+  dealId: z.uuid().nullable().optional(),
+  formulaType: CalculationComponentFormulaTypeSchema.nullable().optional(),
+  inputBps: z.string().trim().min(1).max(64).nullable().optional(),
+  inputFixedAmountMinor: SignedIntegerStringSchema.nullable().optional(),
+  inputManualAmountMinor: SignedIntegerStringSchema.nullable().optional(),
+  inputPerMillion: z.string().trim().min(1).max(64).nullable().optional(),
+  routeComponentId: z.uuid().nullable().optional(),
+  routeLegId: z.uuid().nullable().optional(),
+  routeVersionId: z.uuid().nullable().optional(),
+  sourceKind: CalculationLineSourceKindSchema.optional(),
 });
 
 export const CreateCalculationInputSchema = z
@@ -33,18 +64,27 @@ export const CreateCalculationInputSchema = z
     baseCurrencyId: z.uuid(),
     totalFeeAmountInBaseMinor: NonNegativeIntegerStringSchema,
     totalInBaseMinor: NonNegativeIntegerStringSchema,
+    dealId: z.uuid().nullable().optional(),
+    dealSnapshot: NullableSnapshotSchema,
     additionalExpensesCurrencyId: z.uuid().nullable().optional(),
     additionalExpensesAmountMinor: NonNegativeIntegerStringSchema,
     additionalExpensesInBaseMinor: NonNegativeIntegerStringSchema,
     fixedFeeAmountMinor: NonNegativeIntegerStringSchema,
     fixedFeeCurrencyId: z.uuid().nullable().optional(),
-    pricingProvenance: z.record(z.string(), z.unknown()).nullable().optional(),
+    pricingProvenance: NullableSnapshotSchema,
     quoteMarkupAmountMinor: NonNegativeIntegerStringSchema,
     quoteMarkupBps: NonNegativeIntegerStringSchema,
-    referenceRateAsOf: z.coerce.date().nullable().optional(),
-    referenceRateSource: CalculationRateSourceSchema.nullable().optional(),
-    referenceRateNum: NonNegativeIntegerStringSchema.nullable().optional(),
-    referenceRateDen: NonNegativeIntegerStringSchema.nullable().optional(),
+    routeVersionId: z.uuid().nullable().optional(),
+    routeSnapshot: NullableSnapshotSchema,
+  referenceRateAsOf: z.coerce.date().nullable().optional(),
+  referenceRateSource: CalculationRateSourceSchema.nullable().optional(),
+  referenceRateNum: NonNegativeIntegerStringSchema.nullable().optional(),
+  referenceRateDen: NonNegativeIntegerStringSchema.nullable().optional(),
+  grossRevenueInBaseMinor: SignedIntegerStringSchema.optional(),
+  expenseAmountInBaseMinor: SignedIntegerStringSchema.optional(),
+  passThroughAmountInBaseMinor: SignedIntegerStringSchema.optional(),
+  netMarginInBaseMinor: SignedIntegerStringSchema.optional(),
+  state: CalculationStateSchema.optional(),
     totalWithExpensesInBaseMinor: NonNegativeIntegerStringSchema,
     rateSource: CalculationRateSourceSchema,
     rateNum: NonNegativeIntegerStringSchema,
@@ -61,7 +101,7 @@ export const CreateCalculationInputSchema = z
     calculationTimestamp: z.coerce.date(),
     fxQuoteId: z.uuid().nullable().optional(),
     financialLines: z.array(FinancialLineInputSchema).optional(),
-    quoteSnapshot: z.record(z.string(), z.unknown()).optional(),
+    quoteSnapshot: NullableSnapshotSchema,
   })
   .superRefine((value, ctx) => {
     if (value.rateNum === "0") {
@@ -238,6 +278,38 @@ export type CreateCalculationInput = z.infer<
   typeof CreateCalculationInputSchema
 >;
 
+export const UpdateCalculationStateInputSchema = z.object({
+  calculationId: z.uuid(),
+  state: CalculationStateSchema,
+});
+
+export type UpdateCalculationStateInput = z.infer<
+  typeof UpdateCalculationStateInputSchema
+>;
+
+type NormalizedFinancialLineInput = {
+  amountMinor: bigint;
+  basisAmountMinor: bigint | null;
+  basisType: z.infer<typeof CalculationComponentBasisTypeSchema> | null;
+  classification:
+    | z.infer<typeof CalculationComponentClassificationSchema>
+    | null;
+  componentCode: string | null;
+  componentFamily: string | null;
+  currencyId: string;
+  dealId: string | null;
+  formulaType: z.infer<typeof CalculationComponentFormulaTypeSchema> | null;
+  inputBps: string | null;
+  inputFixedAmountMinor: bigint | null;
+  inputManualAmountMinor: bigint | null;
+  inputPerMillion: string | null;
+  kind: z.infer<typeof CalculationLineKindSchema>;
+  routeComponentId: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  sourceKind: z.infer<typeof CalculationLineSourceKindSchema>;
+};
+
 export type NormalizedCreateCalculationInput = Omit<
   z.infer<typeof CreateCalculationInputSchema>,
   | "originalAmountMinor"
@@ -265,6 +337,10 @@ export type NormalizedCreateCalculationInput = Omit<
   | "fixedFeeCurrencyId"
   | "fxQuoteId"
   | "financialLines"
+  | "grossRevenueInBaseMinor"
+  | "expenseAmountInBaseMinor"
+  | "passThroughAmountInBaseMinor"
+  | "netMarginInBaseMinor"
 > & {
   additionalExpensesCurrencyId: string | null;
   additionalExpensesRateSource:
@@ -274,15 +350,17 @@ export type NormalizedCreateCalculationInput = Omit<
   additionalExpensesRateDen: bigint | null;
   agreementFeeAmountMinor: bigint;
   agreementFeeBps: bigint;
+  dealId: string | null;
+  dealSnapshot: Record<string, unknown> | null;
   fixedFeeAmountMinor: bigint;
   fixedFeeCurrencyId: string | null;
   fxQuoteId: string | null;
-  financialLines: {
-    amountMinor: bigint;
-    currencyId: string;
-    kind: z.infer<typeof CalculationLineKindSchema>;
-  }[];
+  grossRevenueInBaseMinor: bigint | null;
+  financialLines: NormalizedFinancialLineInput[];
+  expenseAmountInBaseMinor: bigint | null;
+  netMarginInBaseMinor: bigint | null;
   originalAmountMinor: bigint;
+  passThroughAmountInBaseMinor: bigint | null;
   pricingProvenance: Record<string, unknown> | null;
   rateDen: bigint;
   rateNum: bigint;
@@ -292,6 +370,9 @@ export type NormalizedCreateCalculationInput = Omit<
   referenceRateDen: bigint | null;
   quoteMarkupAmountMinor: bigint;
   quoteMarkupBps: bigint;
+  routeSnapshot: Record<string, unknown> | null;
+  routeVersionId: string | null;
+  state: z.infer<typeof CalculationStateSchema>;
   totalFeeAmountInBaseMinor: bigint;
   totalFeeAmountMinor: bigint;
   totalFeeBps: bigint;
@@ -302,15 +383,38 @@ export type NormalizedCreateCalculationInput = Omit<
   totalWithExpensesInBaseMinor: bigint;
 };
 
+function normalizeNullableBigInt(
+  value: string | null | undefined,
+): bigint | null {
+  return value === undefined || value === null ? null : BigInt(value);
+}
+
 export function normalizeCreateCalculationInput(
   input: CreateCalculationInput,
 ): NormalizedCreateCalculationInput {
   const validated = CreateCalculationInputSchema.parse(input);
   const normalizedLines =
     validated.financialLines?.map((line) => ({
+      basisAmountMinor: normalizeNullableBigInt(line.basisAmountMinor),
+      basisType: line.basisType ?? null,
+      classification: line.classification ?? null,
+      componentCode: line.componentCode ?? null,
+      componentFamily: line.componentFamily ?? null,
       kind: line.kind,
       currencyId: line.currencyId,
+      dealId: line.dealId ?? null,
+      formulaType: line.formulaType ?? null,
+      inputBps: line.inputBps ?? null,
+      inputFixedAmountMinor: normalizeNullableBigInt(line.inputFixedAmountMinor),
+      inputManualAmountMinor: normalizeNullableBigInt(
+        line.inputManualAmountMinor,
+      ),
+      inputPerMillion: line.inputPerMillion ?? null,
       amountMinor: BigInt(line.amountMinor),
+      routeComponentId: line.routeComponentId ?? null,
+      routeLegId: line.routeLegId ?? null,
+      routeVersionId: line.routeVersionId ?? null,
+      sourceKind: line.sourceKind ?? "manual",
     })) ?? [];
 
   return {
@@ -324,6 +428,8 @@ export function normalizeCreateCalculationInput(
     totalAmountMinor: BigInt(validated.totalAmountMinor),
     totalFeeAmountInBaseMinor: BigInt(validated.totalFeeAmountInBaseMinor),
     totalInBaseMinor: BigInt(validated.totalInBaseMinor),
+    dealId: validated.dealId ?? null,
+    dealSnapshot: validated.dealSnapshot ?? null,
     additionalExpensesCurrencyId: validated.additionalExpensesCurrencyId ?? null,
     additionalExpensesAmountMinor: BigInt(
       validated.additionalExpensesAmountMinor,
@@ -336,6 +442,8 @@ export function normalizeCreateCalculationInput(
     pricingProvenance: validated.pricingProvenance ?? null,
     quoteMarkupAmountMinor: BigInt(validated.quoteMarkupAmountMinor),
     quoteMarkupBps: BigInt(validated.quoteMarkupBps),
+    routeVersionId: validated.routeVersionId ?? null,
+    routeSnapshot: validated.routeSnapshot ?? null,
     referenceRateAsOf: validated.referenceRateAsOf ?? null,
     referenceRateSource: validated.referenceRateSource ?? null,
     referenceRateNum:
@@ -348,6 +456,18 @@ export function normalizeCreateCalculationInput(
       validated.referenceRateDen !== null
         ? BigInt(validated.referenceRateDen)
         : null,
+    grossRevenueInBaseMinor: normalizeNullableBigInt(
+      validated.grossRevenueInBaseMinor,
+    ),
+    expenseAmountInBaseMinor: normalizeNullableBigInt(
+      validated.expenseAmountInBaseMinor,
+    ),
+    passThroughAmountInBaseMinor: normalizeNullableBigInt(
+      validated.passThroughAmountInBaseMinor,
+    ),
+    netMarginInBaseMinor: normalizeNullableBigInt(
+      validated.netMarginInBaseMinor,
+    ),
     totalWithExpensesInBaseMinor: BigInt(
       validated.totalWithExpensesInBaseMinor,
     ),
@@ -367,5 +487,6 @@ export function normalizeCreateCalculationInput(
         : null,
     fxQuoteId: validated.fxQuoteId ?? null,
     financialLines: normalizedLines,
+    state: validated.state ?? "draft",
   };
 }

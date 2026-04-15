@@ -30,6 +30,18 @@ export function createApiAgreementsModule(input: {
   logger: Logger;
   idempotency: IdempotencyPort;
   currencies: Pick<CurrenciesService, "findById">;
+  routeTemplates?: {
+    findById(id: string): Promise<{
+      dealType:
+        | "payment"
+        | "currency_exchange"
+        | "currency_transit"
+        | "exporter_settlement"
+        | "internal_treasury";
+      id: string;
+      status: "draft" | "published" | "archived";
+    } | null>;
+  };
   now?: AgreementsModuleDeps["now"];
   generateUuid?: AgreementsModuleDeps["generateUuid"];
   persistence?: PersistenceContext;
@@ -68,6 +80,9 @@ export function createApiAgreementsModule(input: {
       },
       async findOrganizationRequisiteBindingByRequisiteId(requisiteId: string) {
         return requisiteBindingReads.findByRequisiteId(requisiteId);
+      },
+      async findRouteTemplateById(id: string) {
+        return input.routeTemplates?.findById(id) ?? null;
       },
       async assertCurrencyExists(id: string) {
         await input.currencies.findById(id);

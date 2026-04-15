@@ -84,10 +84,6 @@ import { createApiAccountingModule } from "./accounting-module";
 import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
-import {
-  createDealQuoteWorkflow,
-  type DealQuoteWorkflow,
-} from "./deal-quote-workflow";
 import { createApiDealsModule } from "./deals-module";
 import {
   createCommercialDocumentDeps,
@@ -115,7 +111,6 @@ export interface ApiApplicationServices {
   treasuryModule: TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
-  dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
@@ -150,6 +145,73 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
     approvalMode: "maker_checker",
   },
 ];
+
+type ReconciliationExecutionFillBridgeInput = {
+  actualRateDen: bigint | null;
+  actualRateNum: bigint | null;
+  boughtAmountMinor: bigint | null;
+  boughtCurrencyId: string | null;
+  calculationSnapshotId: string | null;
+  confirmedAt: Date | null;
+  executedAt: Date | null;
+  externalRecordId: string | null;
+  instructionId: string | null;
+  metadata: Record<string, unknown> | null;
+  notes: string | null;
+  operationId: string;
+  providerCounterpartyId: string | null;
+  providerRef: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  soldAmountMinor: bigint | null;
+  soldCurrencyId: string | null;
+  sourceRef: string;
+};
+
+type ReconciliationExecutionFeeBridgeInput = {
+  amountMinor: bigint | null;
+  calculationSnapshotId: string | null;
+  chargedAt: Date | null;
+  componentCode: string | null;
+  confirmedAt: Date | null;
+  currencyId: string | null;
+  externalRecordId: string | null;
+  feeFamily: string;
+  fillId: string | null;
+  instructionId: string | null;
+  metadata: Record<string, unknown> | null;
+  notes: string | null;
+  operationId: string;
+  providerCounterpartyId: string | null;
+  providerRef: string | null;
+  routeComponentId: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  sourceRef: string;
+};
+
+type ReconciliationCashMovementBridgeInput = {
+  accountRef: string | null;
+  amountMinor: bigint | null;
+  bookedAt: Date | null;
+  calculationSnapshotId: string | null;
+  confirmedAt: Date | null;
+  currencyId: string | null;
+  direction: "credit" | "debit";
+  externalRecordId: string | null;
+  instructionId: string | null;
+  metadata: Record<string, unknown> | null;
+  notes: string | null;
+  operationId: string;
+  providerCounterpartyId: string | null;
+  providerRef: string | null;
+  requisiteId: string | null;
+  routeLegId: string | null;
+  routeVersionId: string | null;
+  sourceRef: string;
+  statementRef: string | null;
+  valueDate: Date | null;
+};
 
 export function createApplicationServices(
   platform: ApiCoreServices,
@@ -232,21 +294,6 @@ export function createApplicationServices(
     currencies: currenciesPort,
     logger,
   });
-  const agreementsModule = createApiAgreementsModule({
-    db,
-    logger,
-    idempotency,
-    currencies: currenciesService,
-    persistence: createPersistenceContext(db),
-  });
-  const calculationsModule = createApiCalculationsModule({
-    db,
-    logger,
-    idempotency,
-    currencies: currenciesService,
-    persistence: createPersistenceContext(db),
-    treasuryQuotes: treasuryModule.quotes.queries,
-  });
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
@@ -256,15 +303,214 @@ export function createApplicationServices(
     idempotency,
     persistence: createPersistenceContext(db),
   });
-  const dealQuoteWorkflow = createDealQuoteWorkflow({
-    agreements: agreementsModule,
-    calculations: calculationsModule,
+  const agreementsModule = createApiAgreementsModule({
+    db,
+    logger,
+    idempotency,
     currencies: currenciesService,
-    deals: dealsModule,
-    treasury: treasuryModule,
+    persistence: createPersistenceContext(db),
+    routeTemplates: {
+      async findById(id: string) {
+        try {
+          const template = await dealsModule.deals.queries.findRouteTemplateById(
+            id,
+          );
+
+          return {
+            id: template.id,
+            dealType: template.dealType,
+            status: template.status,
+          };
+        } catch {
+          return null;
+        }
+      },
+    },
   });
+  const calculationsModule = createApiCalculationsModule({
+    db,
+    logger,
+    idempotency,
+    currencies: currenciesService,
+    persistence: createPersistenceContext(db),
+    treasuryQuotes: treasuryModule.quotes.queries,
+  });
+  const createReconciliationExecutionFacts = (tx: Transaction) => {
+    const treasuryTxModule = createTreasuryModuleForTransaction(tx);
+
+    return {
+      async recordExecutionFill(input: ReconciliationExecutionFillBridgeInput) {
+        const existingFills =
+          await treasuryTxModule.operations.queries.listExecutionFills({
+            limit: 100,
+            offset: 0,
+            operationId: input.operationId,
+            sortBy: "executedAt",
+            sortOrder: "desc",
+          });
+
+        const duplicate = existingFills.data.some(
+          (fill) =>
+            fill.sourceRef === input.sourceRef ||
+            (input.externalRecordId !== null &&
+              fill.externalRecordId === input.externalRecordId) ||
+            (input.instructionId !== null &&
+              fill.instructionId === input.instructionId),
+        );
+
+        if (duplicate) {
+          return;
+        }
+
+        const operation = await treasuryTxModule.operations.queries.findById(
+          input.operationId,
+        );
+
+        if (!operation) {
+          return;
+        }
+
+        await treasuryTxModule.operations.commands.recordExecutionFill({
+          actualRateDen: input.actualRateDen,
+          actualRateNum: input.actualRateNum,
+          boughtAmountMinor: input.boughtAmountMinor,
+          boughtCurrencyId:
+            input.boughtCurrencyId ?? operation.counterCurrencyId,
+          calculationSnapshotId: input.calculationSnapshotId,
+          confirmedAt: input.confirmedAt,
+          executedAt: input.executedAt,
+          externalRecordId: input.externalRecordId,
+          fillSequence: null,
+          instructionId: input.instructionId,
+          metadata: input.metadata,
+          notes: input.notes,
+          operationId: input.operationId,
+          providerCounterpartyId: input.providerCounterpartyId,
+          providerRef: input.providerRef,
+          routeLegId: input.routeLegId ?? operation.routeLegId,
+          routeVersionId: input.routeVersionId,
+          soldAmountMinor: input.soldAmountMinor,
+          soldCurrencyId: input.soldCurrencyId ?? operation.currencyId,
+          sourceKind: "reconciliation",
+          sourceRef: input.sourceRef,
+        });
+      },
+
+      async recordExecutionFee(input: ReconciliationExecutionFeeBridgeInput) {
+        const existingFees =
+          await treasuryTxModule.operations.queries.listExecutionFees({
+            limit: 100,
+            offset: 0,
+            operationId: input.operationId,
+            sortBy: "chargedAt",
+            sortOrder: "desc",
+          });
+
+        const duplicate = existingFees.data.some(
+          (fee) =>
+            fee.sourceRef === input.sourceRef ||
+            (input.externalRecordId !== null &&
+              fee.externalRecordId === input.externalRecordId) ||
+            (input.instructionId !== null &&
+              fee.instructionId === input.instructionId),
+        );
+
+        if (duplicate) {
+          return;
+        }
+
+        const operation = await treasuryTxModule.operations.queries.findById(
+          input.operationId,
+        );
+
+        if (!operation) {
+          return;
+        }
+
+        await treasuryTxModule.operations.commands.recordExecutionFee({
+          amountMinor: input.amountMinor,
+          calculationSnapshotId: input.calculationSnapshotId,
+          chargedAt: input.chargedAt,
+          componentCode: input.componentCode,
+          confirmedAt: input.confirmedAt,
+          currencyId: input.currencyId ?? operation.currencyId,
+          externalRecordId: input.externalRecordId,
+          feeFamily: input.feeFamily,
+          fillId: input.fillId,
+          instructionId: input.instructionId,
+          metadata: input.metadata,
+          notes: input.notes,
+          operationId: input.operationId,
+          providerCounterpartyId: input.providerCounterpartyId,
+          providerRef: input.providerRef,
+          routeComponentId: input.routeComponentId,
+          routeLegId: input.routeLegId ?? operation.routeLegId,
+          routeVersionId: input.routeVersionId,
+          sourceKind: "reconciliation",
+          sourceRef: input.sourceRef,
+        });
+      },
+
+      async recordCashMovement(input: ReconciliationCashMovementBridgeInput) {
+        const existingMovements =
+          await treasuryTxModule.operations.queries.listCashMovements({
+          limit: 100,
+          offset: 0,
+          operationId: input.operationId,
+          sortBy: "bookedAt",
+          sortOrder: "desc",
+        });
+
+        const duplicate = existingMovements.data.some(
+          (movement) =>
+            movement.sourceRef === input.sourceRef ||
+            (input.externalRecordId !== null &&
+              movement.externalRecordId === input.externalRecordId) ||
+            (input.instructionId !== null &&
+              movement.instructionId === input.instructionId),
+        );
+
+        if (duplicate) {
+          return;
+        }
+
+        const operation = await treasuryTxModule.operations.queries.findById(
+          input.operationId,
+        );
+
+        if (!operation) {
+          return;
+        }
+
+        await treasuryTxModule.operations.commands.recordCashMovement({
+          accountRef: input.accountRef,
+          amountMinor: input.amountMinor,
+          bookedAt: input.bookedAt,
+          calculationSnapshotId: input.calculationSnapshotId,
+          confirmedAt: input.confirmedAt,
+          currencyId: input.currencyId ?? operation.currencyId,
+          direction: input.direction,
+          externalRecordId: input.externalRecordId,
+          instructionId: input.instructionId,
+          metadata: input.metadata,
+          notes: input.notes,
+          operationId: input.operationId,
+          providerCounterpartyId: input.providerCounterpartyId,
+          providerRef: input.providerRef,
+          requisiteId: input.requisiteId,
+          routeLegId: input.routeLegId ?? operation.routeLegId,
+          routeVersionId: input.routeVersionId,
+          sourceKind: "reconciliation",
+          sourceRef: input.sourceRef,
+          statementRef: input.statementRef,
+          valueDate: input.valueDate,
+        });
+      },
+    };
+  };
   const createReconciliationServiceForTransaction = (tx: Transaction) =>
     createReconciliationService({
+      createExecutionFacts: createReconciliationExecutionFacts,
       persistence: bindPersistenceSession(tx),
       idempotency,
       documents: {
@@ -293,6 +539,7 @@ export function createApplicationServices(
       logger,
     });
   const reconciliationService = createReconciliationService({
+    createExecutionFacts: createReconciliationExecutionFacts,
     persistence: createPersistenceContext(db),
     idempotency,
     documents: {
@@ -312,6 +559,7 @@ export function createApplicationServices(
   });
   const dealExecutionWorkflow = createDealExecutionWorkflow({
     agreements: agreementsModule,
+    calculations: calculationsModule,
     currencies: currenciesService,
     db,
     idempotency,
@@ -427,7 +675,28 @@ export function createApplicationServices(
   };
   const treasuryQuotes = {
     createQuote: treasuryModule.quotes.commands.createQuote,
-    expireQuotes: dealQuoteWorkflow.expireQuotes,
+    expireQuotes: async (now: Date) => {
+      const expiredQuotes = await treasuryModule.quotes.commands.expireQuotes(now);
+
+      await Promise.all(
+        expiredQuotes
+          .filter((quote) => quote.dealId)
+          .map(async (quote) => {
+            await dealsModule.deals.commands.appendTimelineEvent({
+              dealId: quote.dealId!,
+              payload: {
+                expiresAt: quote.expiresAt,
+                quoteId: quote.id,
+              },
+              sourceRef: `quote:${quote.id}:expired`,
+              type: "quote_expired",
+              visibility: "internal",
+            });
+          }),
+      );
+
+      return expiredQuotes;
+    },
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
     markQuoteUsed: async (
       input: Parameters<typeof treasuryModule.quotes.commands.markQuoteUsed>[0],
@@ -466,11 +735,30 @@ export function createApplicationServices(
         dealId = dealId ?? linkedDocument.dealId ?? null;
       }
 
-      return dealQuoteWorkflow.markQuoteUsed({
+      const quote = await treasuryModule.quotes.commands.markQuoteUsed({
         ...input,
         dealId,
         usedDocumentId,
       });
+
+      const linkedDealId = quote.dealId ?? dealId;
+
+      if (linkedDealId) {
+        await dealsModule.deals.commands.appendTimelineEvent({
+          dealId: linkedDealId,
+          payload: {
+            quoteId: quote.id,
+            usedAt: quote.usedAt,
+            usedByRef: quote.usedByRef,
+            usedDocumentId: quote.usedDocumentId,
+          },
+          sourceRef: `quote:${quote.id}:used:${quote.usedByRef ?? "unknown"}`,
+          type: "quote_used",
+          visibility: "internal",
+        });
+      }
+
+      return quote;
     },
   };
   const documentRegistry = createDocumentRegistry([
@@ -480,6 +768,7 @@ export function createApplicationServices(
         currenciesService,
         dealReads: dealsModule.deals.queries,
         documentsReadModel,
+        treasuryExecutionActuals: treasuryModule.operations.queries,
         treasuryQuotes,
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
@@ -589,7 +878,6 @@ export function createApplicationServices(
 
   // Customer portal workflow
   const customerPortalWorkflow = createCustomerPortalWorkflow({
-    calculations: calculationsModule,
     currencies: currenciesService,
     deals: dealsModule,
     iam: {
@@ -650,7 +938,6 @@ export function createApplicationServices(
     treasuryModule,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,
-    dealQuoteWorkflow,
     dealProjectionsWorkflow,
     reconciliationAdjustmentsWorkflow,
     organizationBootstrapWorkflow,

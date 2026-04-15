@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
@@ -6,23 +6,37 @@ import {
   dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
-  dealIntakeSnapshots,
+  dealRouteCostComponents,
+  dealRouteLegs,
+  dealRouteParticipants,
+  dealRoutes,
+  dealRouteVersions,
   dealLegs,
   dealLegOperationLinks,
   dealOperationalPositions,
   dealParticipants,
   deals,
-  dealQuoteAcceptances,
   dealTimelineEvents,
+  routeTemplateCostComponents,
+  routeTemplateLegs,
+  routeTemplateParticipants,
+  routeTemplates,
 } from "./schema";
 import type {
   CreateDealApprovalStoredInput,
   CreateDealAttachmentIngestionStoredInput,
-  CreateDealIntakeSnapshotStoredInput,
   CreateDealLegOperationLinkStoredInput,
   CreateDealLegStoredInput,
   CreateDealParticipantStoredInput,
-  CreateDealQuoteAcceptanceStoredInput,
+  CreateDealRouteCostComponentStoredInput,
+  CreateDealRouteLegStoredInput,
+  CreateDealRouteParticipantStoredInput,
+  CreateDealRouteStoredInput,
+  CreateDealRouteTemplateCostComponentStoredInput,
+  CreateDealRouteTemplateLegStoredInput,
+  CreateDealRouteTemplateParticipantStoredInput,
+  CreateDealRouteTemplateStoredInput,
+  CreateDealRouteVersionStoredInput,
   CreateDealRootInput,
   CreateDealTimelineEventStoredInput,
   DealStore,
@@ -123,6 +137,8 @@ export class DrizzleDealStore implements DealStore {
       agentId: input.agentId,
       calculationId: input.calculationId,
       customerId: input.customerId,
+      headerRevision: input.headerRevision,
+      headerSnapshot: input.header,
       id: input.id,
       nextAction: input.nextAction,
       sourceAmountMinor: input.sourceAmountMinor,
@@ -133,14 +149,222 @@ export class DrizzleDealStore implements DealStore {
     });
   }
 
-  async createDealIntakeSnapshot(
-    input: CreateDealIntakeSnapshotStoredInput,
-  ): Promise<void> {
-    await this.db.insert(dealIntakeSnapshots).values({
+  async createDealRoute(input: CreateDealRouteStoredInput): Promise<void> {
+    await this.db.insert(dealRoutes).values({
       dealId: input.dealId,
-      revision: input.revision,
-      snapshot: input.snapshot,
+      id: input.id,
     });
+  }
+
+  async createDealRouteVersion(
+    input: CreateDealRouteVersionStoredInput,
+  ): Promise<void> {
+    await this.db.insert(dealRouteVersions).values({
+      dealId: input.dealId,
+      id: input.id,
+      routeId: input.routeId,
+      validationIssues: input.validationIssues,
+      version: input.version,
+    });
+  }
+
+  async createDealRouteParticipants(
+    input: CreateDealRouteParticipantStoredInput[],
+  ): Promise<void> {
+    if (input.length === 0) {
+      return;
+    }
+
+    await this.db.insert(dealRouteParticipants).values(
+      input.map((participant) => ({
+        code: participant.code,
+        counterpartyId: participant.counterpartyId,
+        customerId: participant.customerId,
+        displayNameSnapshot: participant.displayNameSnapshot,
+        id: participant.id,
+        metadataJson: participant.metadata,
+        organizationId: participant.organizationId,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        routeVersionId: participant.routeVersionId,
+        sequence: participant.sequence,
+      })),
+    );
+  }
+
+  async createDealRouteLegs(
+    input: CreateDealRouteLegStoredInput[],
+  ): Promise<void> {
+    if (input.length === 0) {
+      return;
+    }
+
+    await this.db.insert(dealRouteLegs).values(
+      input.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor: leg.expectedFromAmountMinor,
+        expectedRateDen: leg.expectedRateDen,
+        expectedRateNum: leg.expectedRateNum,
+        expectedToAmountMinor: leg.expectedToAmountMinor,
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantId: leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        routeVersionId: leg.routeVersionId,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantId: leg.toParticipantId,
+      })),
+    );
+  }
+
+  async createDealRouteCostComponents(
+    input: CreateDealRouteCostComponentStoredInput[],
+  ): Promise<void> {
+    if (input.length === 0) {
+      return;
+    }
+
+    await this.db.insert(dealRouteCostComponents).values(
+      input.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor: component.fixedAmountMinor,
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legId: component.legId,
+        manualAmountMinor: component.manualAmountMinor,
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        routeVersionId: component.routeVersionId,
+        sequence: component.sequence,
+      })),
+    );
+  }
+
+  async createDealRouteTemplate(
+    input: CreateDealRouteTemplateStoredInput,
+  ): Promise<void> {
+    await this.db.insert(routeTemplates).values({
+      code: input.code,
+      dealType: input.dealType,
+      description: input.description,
+      id: input.id,
+      name: input.name,
+      status: input.status,
+    });
+  }
+
+  async replaceDealRouteTemplateParticipants(input: {
+    participants: CreateDealRouteTemplateParticipantStoredInput[];
+    routeTemplateId: string;
+  }): Promise<void> {
+    await this.db
+      .delete(routeTemplateParticipants)
+      .where(eq(routeTemplateParticipants.routeTemplateId, input.routeTemplateId));
+
+    if (input.participants.length === 0) {
+      return;
+    }
+
+    await this.db.insert(routeTemplateParticipants).values(
+      input.participants.map((participant) => ({
+        bindingKind: participant.bindingKind,
+        code: participant.code,
+        counterpartyId: participant.counterpartyId,
+        customerId: participant.customerId,
+        displayNameTemplate: participant.displayNameTemplate,
+        id: participant.id,
+        metadataJson: participant.metadata,
+        organizationId: participant.organizationId,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        routeTemplateId: participant.routeTemplateId,
+        sequence: participant.sequence,
+      })),
+    );
+  }
+
+  async replaceDealRouteTemplateLegs(input: {
+    legs: CreateDealRouteTemplateLegStoredInput[];
+    routeTemplateId: string;
+  }): Promise<void> {
+    await this.db
+      .delete(routeTemplateLegs)
+      .where(eq(routeTemplateLegs.routeTemplateId, input.routeTemplateId));
+
+    if (input.legs.length === 0) {
+      return;
+    }
+
+    await this.db.insert(routeTemplateLegs).values(
+      input.legs.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor: leg.expectedFromAmountMinor,
+        expectedRateDen: leg.expectedRateDen,
+        expectedRateNum: leg.expectedRateNum,
+        expectedToAmountMinor: leg.expectedToAmountMinor,
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantId: leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        routeTemplateId: leg.routeTemplateId,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantId: leg.toParticipantId,
+      })),
+    );
+  }
+
+  async replaceDealRouteTemplateCostComponents(input: {
+    costComponents: CreateDealRouteTemplateCostComponentStoredInput[];
+    routeTemplateId: string;
+  }): Promise<void> {
+    await this.db
+      .delete(routeTemplateCostComponents)
+      .where(
+        eq(routeTemplateCostComponents.routeTemplateId, input.routeTemplateId),
+      );
+
+    if (input.costComponents.length === 0) {
+      return;
+    }
+
+    await this.db.insert(routeTemplateCostComponents).values(
+      input.costComponents.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor: component.fixedAmountMinor,
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legId: component.legId,
+        manualAmountMinor: component.manualAmountMinor,
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        routeTemplateId: component.routeTemplateId,
+        sequence: component.sequence,
+      })),
+    );
   }
 
   async createDealLegOperationLinks(
@@ -166,25 +390,25 @@ export class DrizzleDealStore implements DealStore {
       });
   }
 
-  async replaceIntakeSnapshot(input: {
+  async replaceDealHeader(input: {
     dealId: string;
     expectedRevision: number;
+    header: CreateDealRootInput["header"];
     nextRevision: number;
-    snapshot: CreateDealIntakeSnapshotStoredInput["snapshot"];
   }): Promise<boolean> {
     const updated = await this.db
-      .update(dealIntakeSnapshots)
+      .update(deals)
       .set({
-        revision: input.nextRevision,
-        snapshot: input.snapshot,
+        headerRevision: input.nextRevision,
+        headerSnapshot: input.header,
       })
       .where(
         and(
-          eq(dealIntakeSnapshots.dealId, input.dealId),
-          eq(dealIntakeSnapshots.revision, input.expectedRevision),
+          eq(deals.id, input.dealId),
+          eq(deals.headerRevision, input.expectedRevision),
         ),
       )
-      .returning({ dealId: dealIntakeSnapshots.dealId });
+      .returning({ dealId: deals.id });
 
     return updated.length > 0;
   }
@@ -365,41 +589,6 @@ export class DrizzleDealStore implements DealStore {
       .where(eq(dealAttachmentIngestions.fileAssetId, input.fileAssetId));
   }
 
-  async createDealQuoteAcceptance(
-    input: CreateDealQuoteAcceptanceStoredInput,
-  ): Promise<void> {
-    await this.db.insert(dealQuoteAcceptances).values({
-      acceptedAt: input.acceptedAt,
-      acceptedByUserId: input.acceptedByUserId,
-      agreementVersionId: input.agreementVersionId,
-      dealId: input.dealId,
-      dealRevision: input.dealRevision,
-      id: input.id,
-      quoteId: input.quoteId,
-      replacedByQuoteId: null,
-      revokedAt: null,
-    });
-  }
-
-  async supersedeCurrentQuoteAcceptances(input: {
-    dealId: string;
-    replacedByQuoteId: string;
-    revokedAt: Date;
-  }): Promise<void> {
-    await this.db
-      .update(dealQuoteAcceptances)
-      .set({
-        replacedByQuoteId: input.replacedByQuoteId,
-        revokedAt: input.revokedAt,
-      })
-      .where(
-        and(
-          eq(dealQuoteAcceptances.dealId, input.dealId),
-          isNull(dealQuoteAcceptances.revokedAt),
-        ),
-      );
-  }
-
   async upsertDealAttachmentIngestion(input: {
     availableAt: Date;
     dealId: string;
@@ -515,6 +704,54 @@ export class DrizzleDealStore implements DealStore {
     }
 
     await this.db.update(deals).set(values).where(eq(deals.id, input.dealId));
+  }
+
+  async setDealRouteCurrentVersion(input: {
+    currentVersionId: string;
+    dealId: string;
+  }): Promise<void> {
+    await this.db
+      .update(dealRoutes)
+      .set({
+        currentVersionId: input.currentVersionId,
+      })
+      .where(eq(dealRoutes.dealId, input.dealId));
+  }
+
+  async setDealRouteTemplate(input: {
+    code?: string;
+    dealType?: CreateDealRootInput["type"];
+    description?: string | null;
+    name?: string;
+    status?: "draft" | "published" | "archived";
+    templateId: string;
+  }): Promise<void> {
+    const values: Record<string, unknown> = {};
+
+    if ("code" in input) {
+      values.code = input.code;
+    }
+    if ("dealType" in input) {
+      values.dealType = input.dealType;
+    }
+    if ("description" in input) {
+      values.description = input.description ?? null;
+    }
+    if ("name" in input) {
+      values.name = input.name;
+    }
+    if ("status" in input) {
+      values.status = input.status;
+    }
+
+    if (Object.keys(values).length === 0) {
+      return;
+    }
+
+    await this.db
+      .update(routeTemplates)
+      .set(values)
+      .where(eq(routeTemplates.id, input.templateId));
   }
 
   async updateDealLegState(input: {

@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 import {
-  ClipboardList,
   FileText,
   LayoutDashboard,
+  PencilLine,
   Wallet,
   Workflow,
 } from "lucide-react";
@@ -18,7 +18,7 @@ import {
 
 export type DealPageTab =
   | "overview"
-  | "intake"
+  | "questionnaire"
   | "pricing"
   | "documents"
   | "execution";
@@ -28,7 +28,7 @@ export const DEFAULT_DEAL_PAGE_TAB: DealPageTab = "overview";
 export function isDealPageTab(value: string | null): value is DealPageTab {
   return (
     value === "overview" ||
-    value === "intake" ||
+    value === "questionnaire" ||
     value === "pricing" ||
     value === "documents" ||
     value === "execution"
@@ -42,10 +42,10 @@ type DealTabsProps = {
   badges?: Partial<Record<DealPageTab, DealPageTabBadge>>;
   documents: ReactNode;
   execution: ReactNode;
-  intake: ReactNode;
   onTabChange: (tab: DealPageTab) => void;
   overview: ReactNode;
   pricing: ReactNode;
+  questionnaire: ReactNode;
 };
 
 const DEAL_TAB_META: Array<{
@@ -59,9 +59,9 @@ const DEAL_TAB_META: Array<{
     value: "overview",
   },
   {
-    icon: ClipboardList,
+    icon: PencilLine,
     label: "Анкета",
-    value: "intake",
+    value: "questionnaire",
   },
   {
     icon: Wallet,
@@ -97,10 +97,10 @@ export function DealTabs({
   badges,
   documents,
   execution,
-  intake,
   onTabChange,
   overview,
   pricing,
+  questionnaire,
 }: DealTabsProps) {
   return (
     <Tabs
@@ -135,8 +135,8 @@ export function DealTabs({
         <TabsContent className="space-y-6" value="overview">
           {overview}
         </TabsContent>
-        <TabsContent className="space-y-6" value="intake">
-          {intake}
+        <TabsContent className="space-y-6" value="questionnaire">
+          {questionnaire}
         </TabsContent>
         <TabsContent className="space-y-6" value="pricing">
           {pricing}

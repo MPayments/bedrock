@@ -1,6 +1,6 @@
 export {
   createDealAttachmentIngestionWorkflow,
-  mergeNormalizedPayloadIntoIntake,
+  mergeNormalizedPayloadIntoHeader,
   type DealAttachmentIngestionWorkflow,
   type DealAttachmentIngestionWorkflowDeps,
 } from "./service";

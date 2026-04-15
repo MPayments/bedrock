@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -13,7 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { agreements, agreementVersions } from "@bedrock/agreements/schema";
+import { agreements } from "@bedrock/agreements/schema";
 import { calculations } from "@bedrock/calculations/schema";
 import { currencies } from "@bedrock/currencies/schema";
 import { user } from "@bedrock/iam/schema";
@@ -21,9 +22,10 @@ import {
   counterparties,
   customers,
   organizations,
+  requisites,
 } from "@bedrock/parties/schema";
 
-import type { DealIntakeDraft } from "../../application/contracts/dto";
+import type { DealHeader } from "../../application/contracts/dto";
 import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
@@ -34,6 +36,13 @@ import {
   DEAL_OPERATIONAL_POSITION_KIND_VALUES,
   DEAL_OPERATIONAL_POSITION_STATE_VALUES,
   DEAL_PARTICIPANT_ROLE_VALUES,
+  DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES,
+  DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES,
+  DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES,
+  DEAL_ROUTE_LEG_KIND_VALUES,
+  DEAL_ROUTE_PARTY_KIND_VALUES,
+  DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES,
+  DEAL_ROUTE_TEMPLATE_STATUS_VALUES,
   DEAL_STATUS_VALUES,
   DEAL_TIMELINE_EVENT_TYPE_VALUES,
   DEAL_TIMELINE_VISIBILITY_VALUES,
@@ -42,6 +51,34 @@ import {
 
 export const dealTypeEnum = pgEnum("deal_type", DEAL_TYPE_VALUES);
 export const dealStatusEnum = pgEnum("deal_status", DEAL_STATUS_VALUES);
+export const dealRoutePartyKindEnum = pgEnum(
+  "deal_route_party_kind",
+  DEAL_ROUTE_PARTY_KIND_VALUES,
+);
+export const dealRouteTemplateStatusEnum = pgEnum(
+  "deal_route_template_status",
+  DEAL_ROUTE_TEMPLATE_STATUS_VALUES,
+);
+export const dealRouteTemplateParticipantBindingEnum = pgEnum(
+  "deal_route_template_participant_binding",
+  DEAL_ROUTE_TEMPLATE_PARTICIPANT_BINDING_VALUES,
+);
+export const dealRouteLegKindEnum = pgEnum(
+  "deal_route_leg_kind",
+  DEAL_ROUTE_LEG_KIND_VALUES,
+);
+export const dealRouteComponentClassificationEnum = pgEnum(
+  "deal_route_component_classification",
+  DEAL_ROUTE_COMPONENT_CLASSIFICATION_VALUES,
+);
+export const dealRouteComponentFormulaTypeEnum = pgEnum(
+  "deal_route_component_formula_type",
+  DEAL_ROUTE_COMPONENT_FORMULA_TYPE_VALUES,
+);
+export const dealRouteComponentBasisTypeEnum = pgEnum(
+  "deal_route_component_basis_type",
+  DEAL_ROUTE_COMPONENT_BASIS_TYPE_VALUES,
+);
 export const dealLegKindEnum = pgEnum("deal_leg_kind", DEAL_LEG_KIND_VALUES);
 export const dealLegStateEnum = pgEnum("deal_leg_state", DEAL_LEG_STATE_VALUES);
 export const dealLegOperationKindEnum = pgEnum(
@@ -97,6 +134,8 @@ export const deals = pgTable(
     agentId: text("agent_id").references(() => user.id),
     comment: text("comment"),
     nextAction: text("next_action"),
+    headerRevision: integer("header_revision").notNull().default(1),
+    headerSnapshot: jsonb("header_snapshot").$type<DealHeader>().notNull(),
     sourceAmountMinor: bigint("source_amount_minor", { mode: "bigint" }),
     sourceCurrencyId: uuid("source_currency_id").references(() => currencies.id),
     targetCurrencyId: uuid("target_currency_id").references(() => currencies.id),
@@ -117,47 +156,27 @@ export const deals = pgTable(
     index("deals_type_idx").on(table.type),
     index("deals_source_currency_idx").on(table.sourceCurrencyId),
     index("deals_target_currency_idx").on(table.targetCurrencyId),
-  ],
-);
-
-export const dealIntakeSnapshots = pgTable(
-  "deal_intake_snapshots",
-  {
-    dealId: uuid("deal_id")
-      .primaryKey()
-      .references(() => deals.id, { onDelete: "cascade" }),
-    revision: integer("revision").notNull(),
-    snapshot: jsonb("snapshot").$type<DealIntakeDraft>().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (table) => [
-    index("deal_intake_snapshots_revision_idx").on(table.revision),
-    index("deal_intake_snapshots_applicant_idx").on(
-      sql`((snapshot -> 'common' ->> 'applicantCounterpartyId'))`,
+    index("deals_header_revision_idx").on(table.headerRevision),
+    index("deals_header_applicant_idx").on(
+      sql`((header_snapshot -> 'common' ->> 'applicantCounterpartyId'))`,
     ),
-    index("deal_intake_snapshots_invoice_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'invoiceNumber'))`,
+    index("deals_header_invoice_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'invoiceNumber'))`,
     ),
-    index("deal_intake_snapshots_contract_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'contractNumber'))`,
+    index("deals_header_contract_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'contractNumber'))`,
     ),
-    index("deal_intake_snapshots_requested_execution_idx").on(
-      sql`((snapshot -> 'common' ->> 'requestedExecutionDate'))`,
+    index("deals_header_requested_execution_idx").on(
+      sql`((header_snapshot -> 'common' ->> 'requestedExecutionDate'))`,
     ),
-    index("deal_intake_snapshots_expected_at_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'expectedAt'))`,
+    index("deals_header_expected_at_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'expectedAt'))`,
     ),
-    index("deal_intake_snapshots_payer_idx").on(
-      sql`((snapshot -> 'incomingReceipt' ->> 'payerCounterpartyId'))`,
+    index("deals_header_payer_idx").on(
+      sql`((header_snapshot -> 'incomingReceipt' ->> 'payerCounterpartyId'))`,
     ),
-    index("deal_intake_snapshots_beneficiary_idx").on(
-      sql`((snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId'))`,
+    index("deals_header_beneficiary_idx").on(
+      sql`((header_snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId'))`,
     ),
   ],
 );
@@ -188,6 +207,453 @@ export const dealCalculationLinks = pgTable(
     ),
     index("deal_calculation_links_deal_idx").on(table.dealId),
     index("deal_calculation_links_calculation_idx").on(table.calculationId),
+  ],
+);
+
+export const dealRoutes = pgTable(
+  "deal_routes",
+  {
+    id: uuid("id").primaryKey(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    currentVersionId: uuid("current_version_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_routes_deal_uq").on(table.dealId),
+    index("deal_routes_current_version_idx").on(table.currentVersionId),
+  ],
+);
+
+export const dealRouteVersions = pgTable(
+  "deal_route_versions",
+  {
+    id: uuid("id").primaryKey(),
+    routeId: uuid("route_id")
+      .notNull()
+      .references(() => dealRoutes.id, { onDelete: "cascade" }),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    validationIssues: jsonb("validation_issues")
+      .$type<Record<string, unknown>[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("deal_route_versions_route_version_uq").on(
+      table.routeId,
+      table.version,
+    ),
+    index("deal_route_versions_deal_idx").on(table.dealId, table.createdAt),
+  ],
+);
+
+export const dealRouteParticipants = pgTable(
+  "deal_route_participants",
+  {
+    id: uuid("id").primaryKey(),
+    routeVersionId: uuid("route_version_id")
+      .notNull()
+      .references(() => dealRouteVersions.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    role: text("role").notNull(),
+    partyKind: dealRoutePartyKindEnum("party_kind").notNull(),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "cascade",
+    }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
+      onDelete: "cascade",
+    }),
+    requisiteId: uuid("requisite_id").references(() => requisites.id, {
+      onDelete: "set null",
+    }),
+    displayNameSnapshot: text("display_name_snapshot"),
+    sequence: integer("sequence").notNull(),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("deal_route_participants_version_code_uq").on(
+      table.routeVersionId,
+      table.code,
+    ),
+    uniqueIndex("deal_route_participants_version_sequence_uq").on(
+      table.routeVersionId,
+      table.sequence,
+    ),
+    check(
+      "deal_route_participants_exactly_one_fk_chk",
+      sql`(
+        ${table.customerId} is not null
+        and ${table.organizationId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.customerId} is null
+        and ${table.organizationId} is not null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.customerId} is null
+        and ${table.organizationId} is null
+        and ${table.counterpartyId} is not null
+      )`,
+    ),
+    check(
+      "deal_route_participants_kind_fk_match_chk",
+      sql`(
+        ${table.partyKind} = 'customer'
+        and ${table.customerId} is not null
+        and ${table.organizationId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.partyKind} = 'organization'
+        and ${table.organizationId} is not null
+        and ${table.customerId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.partyKind} = 'counterparty'
+        and ${table.counterpartyId} is not null
+        and ${table.customerId} is null
+        and ${table.organizationId} is null
+      )`,
+    ),
+  ],
+);
+
+export const dealRouteLegs = pgTable(
+  "deal_route_legs",
+  {
+    id: uuid("id").primaryKey(),
+    routeVersionId: uuid("route_version_id")
+      .notNull()
+      .references(() => dealRouteVersions.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    idx: integer("idx").notNull(),
+    kind: dealRouteLegKindEnum("kind").notNull(),
+    fromParticipantId: uuid("from_participant_id")
+      .notNull()
+      .references(() => dealRouteParticipants.id, { onDelete: "cascade" }),
+    toParticipantId: uuid("to_participant_id")
+      .notNull()
+      .references(() => dealRouteParticipants.id, { onDelete: "cascade" }),
+    fromCurrencyId: uuid("from_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    toCurrencyId: uuid("to_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    expectedFromAmountMinor: bigint("expected_from_amount_minor", {
+      mode: "bigint",
+    }),
+    expectedToAmountMinor: bigint("expected_to_amount_minor", {
+      mode: "bigint",
+    }),
+    expectedRateNum: bigint("expected_rate_num", { mode: "bigint" }),
+    expectedRateDen: bigint("expected_rate_den", { mode: "bigint" }),
+    settlementModel: text("settlement_model").notNull(),
+    executionCounterpartyId: uuid("execution_counterparty_id").references(
+      () => counterparties.id,
+      { onDelete: "set null" },
+    ),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("deal_route_legs_version_code_uq").on(
+      table.routeVersionId,
+      table.code,
+    ),
+    uniqueIndex("deal_route_legs_version_idx_uq").on(
+      table.routeVersionId,
+      table.idx,
+    ),
+  ],
+);
+
+export const dealRouteCostComponents = pgTable(
+  "deal_route_cost_components",
+  {
+    id: uuid("id").primaryKey(),
+    routeVersionId: uuid("route_version_id")
+      .notNull()
+      .references(() => dealRouteVersions.id, { onDelete: "cascade" }),
+    legId: uuid("leg_id").references(() => dealRouteLegs.id, {
+      onDelete: "set null",
+    }),
+    code: text("code").notNull(),
+    family: text("family").notNull(),
+    classification: dealRouteComponentClassificationEnum(
+      "classification",
+    ).notNull(),
+    formulaType: dealRouteComponentFormulaTypeEnum("formula_type").notNull(),
+    basisType: dealRouteComponentBasisTypeEnum("basis_type").notNull(),
+    currencyId: uuid("currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    fixedAmountMinor: bigint("fixed_amount_minor", { mode: "bigint" }),
+    bps: text("bps"),
+    perMillion: text("per_million"),
+    manualAmountMinor: bigint("manual_amount_minor", { mode: "bigint" }),
+    roundingMode: text("rounding_mode").notNull(),
+    includedInClientRate: boolean("included_in_client_rate")
+      .notNull()
+      .default(false),
+    sequence: integer("sequence").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("deal_route_cost_components_version_code_uq").on(
+      table.routeVersionId,
+      table.code,
+    ),
+    uniqueIndex("deal_route_cost_components_version_sequence_uq").on(
+      table.routeVersionId,
+      table.sequence,
+    ),
+  ],
+);
+
+export const routeTemplates = pgTable(
+  "route_templates",
+  {
+    id: uuid("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    dealType: dealTypeEnum("deal_type").notNull(),
+    description: text("description"),
+    status: dealRouteTemplateStatusEnum("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("route_templates_code_uq").on(table.code),
+    index("route_templates_status_idx").on(table.status, table.updatedAt),
+    index("route_templates_deal_type_idx").on(table.dealType),
+  ],
+);
+
+export const routeTemplateParticipants = pgTable(
+  "route_template_participants",
+  {
+    id: uuid("id").primaryKey(),
+    routeTemplateId: uuid("route_template_id")
+      .notNull()
+      .references(() => routeTemplates.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    role: text("role").notNull(),
+    bindingKind: dealRouteTemplateParticipantBindingEnum("binding_kind").notNull(),
+    partyKind: dealRoutePartyKindEnum("party_kind").notNull(),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "cascade",
+    }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
+      onDelete: "cascade",
+    }),
+    requisiteId: uuid("requisite_id").references(() => requisites.id, {
+      onDelete: "set null",
+    }),
+    displayNameTemplate: text("display_name_template"),
+    sequence: integer("sequence").notNull(),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("route_template_participants_template_code_uq").on(
+      table.routeTemplateId,
+      table.code,
+    ),
+    uniqueIndex("route_template_participants_template_sequence_uq").on(
+      table.routeTemplateId,
+      table.sequence,
+    ),
+    check(
+      "route_template_participants_fixed_party_fk_chk",
+      sql`(
+        ${table.bindingKind} <> 'fixed_party'
+        and ${table.customerId} is null
+        and ${table.organizationId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.bindingKind} = 'fixed_party'
+        and (
+          (${table.customerId} is not null and ${table.organizationId} is null and ${table.counterpartyId} is null)
+          or (${table.customerId} is null and ${table.organizationId} is not null and ${table.counterpartyId} is null)
+          or (${table.customerId} is null and ${table.organizationId} is null and ${table.counterpartyId} is not null)
+        )
+      )`,
+    ),
+    check(
+      "route_template_participants_fixed_party_kind_fk_match_chk",
+      sql`(
+        ${table.bindingKind} <> 'fixed_party'
+      ) or (
+        ${table.partyKind} = 'customer'
+        and ${table.customerId} is not null
+        and ${table.organizationId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.partyKind} = 'organization'
+        and ${table.organizationId} is not null
+        and ${table.customerId} is null
+        and ${table.counterpartyId} is null
+      ) or (
+        ${table.partyKind} = 'counterparty'
+        and ${table.counterpartyId} is not null
+        and ${table.customerId} is null
+        and ${table.organizationId} is null
+      )`,
+    ),
+    check(
+      "route_template_participants_binding_kind_party_kind_chk",
+      sql`(
+        ${table.bindingKind} = 'fixed_party'
+      ) or (
+        ${table.bindingKind} = 'deal_customer'
+        and ${table.partyKind} = 'customer'
+      ) or (
+        ${table.bindingKind} in ('deal_applicant', 'deal_payer', 'deal_beneficiary')
+        and ${table.partyKind} = 'counterparty'
+      )`,
+    ),
+  ],
+);
+
+export const routeTemplateLegs = pgTable(
+  "route_template_legs",
+  {
+    id: uuid("id").primaryKey(),
+    routeTemplateId: uuid("route_template_id")
+      .notNull()
+      .references(() => routeTemplates.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    idx: integer("idx").notNull(),
+    kind: dealRouteLegKindEnum("kind").notNull(),
+    fromParticipantId: uuid("from_participant_id")
+      .notNull()
+      .references(() => routeTemplateParticipants.id, { onDelete: "cascade" }),
+    toParticipantId: uuid("to_participant_id")
+      .notNull()
+      .references(() => routeTemplateParticipants.id, { onDelete: "cascade" }),
+    fromCurrencyId: uuid("from_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    toCurrencyId: uuid("to_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    expectedFromAmountMinor: bigint("expected_from_amount_minor", {
+      mode: "bigint",
+    }),
+    expectedToAmountMinor: bigint("expected_to_amount_minor", {
+      mode: "bigint",
+    }),
+    expectedRateNum: bigint("expected_rate_num", { mode: "bigint" }),
+    expectedRateDen: bigint("expected_rate_den", { mode: "bigint" }),
+    settlementModel: text("settlement_model").notNull(),
+    executionCounterpartyId: uuid("execution_counterparty_id").references(
+      () => counterparties.id,
+      { onDelete: "set null" },
+    ),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("route_template_legs_template_code_uq").on(
+      table.routeTemplateId,
+      table.code,
+    ),
+    uniqueIndex("route_template_legs_template_idx_uq").on(
+      table.routeTemplateId,
+      table.idx,
+    ),
+  ],
+);
+
+export const routeTemplateCostComponents = pgTable(
+  "route_template_cost_components",
+  {
+    id: uuid("id").primaryKey(),
+    routeTemplateId: uuid("route_template_id")
+      .notNull()
+      .references(() => routeTemplates.id, { onDelete: "cascade" }),
+    legId: uuid("leg_id").references(() => routeTemplateLegs.id, {
+      onDelete: "set null",
+    }),
+    code: text("code").notNull(),
+    family: text("family").notNull(),
+    classification: dealRouteComponentClassificationEnum(
+      "classification",
+    ).notNull(),
+    formulaType: dealRouteComponentFormulaTypeEnum("formula_type").notNull(),
+    basisType: dealRouteComponentBasisTypeEnum("basis_type").notNull(),
+    currencyId: uuid("currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    fixedAmountMinor: bigint("fixed_amount_minor", { mode: "bigint" }),
+    bps: text("bps"),
+    perMillion: text("per_million"),
+    manualAmountMinor: bigint("manual_amount_minor", { mode: "bigint" }),
+    roundingMode: text("rounding_mode").notNull(),
+    includedInClientRate: boolean("included_in_client_rate")
+      .notNull()
+      .default(false),
+    sequence: integer("sequence").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("route_template_cost_components_template_code_uq").on(
+      table.routeTemplateId,
+      table.code,
+    ),
+    uniqueIndex("route_template_cost_components_template_sequence_uq").on(
+      table.routeTemplateId,
+      table.sequence,
+    ),
   ],
 );
 
@@ -340,37 +806,6 @@ export const dealTimelineEvents = pgTable(
   ],
 );
 
-export const dealQuoteAcceptances = pgTable(
-  "deal_quote_acceptances",
-  {
-    id: uuid("id").primaryKey(),
-    dealId: uuid("deal_id")
-      .notNull()
-      .references(() => deals.id, { onDelete: "cascade" }),
-    quoteId: uuid("quote_id").notNull(),
-    acceptedByUserId: text("accepted_by_user_id")
-      .notNull()
-      .references(() => user.id),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    dealRevision: integer("deal_revision").notNull(),
-    agreementVersionId: uuid("agreement_version_id").references(
-      () => agreementVersions.id,
-      { onDelete: "set null" },
-    ),
-    replacedByQuoteId: uuid("replaced_by_quote_id"),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-  },
-  (table) => [
-    index("deal_quote_acceptances_deal_idx").on(table.dealId, table.acceptedAt),
-    index("deal_quote_acceptances_quote_idx").on(table.quoteId),
-    uniqueIndex("deal_quote_acceptances_deal_quote_uq").on(
-      table.dealId,
-      table.quoteId,
-    ),
-  ],
-);
 
 export const dealOperationalPositions = pgTable(
   "deal_operational_positions",
@@ -529,27 +964,16 @@ export const dealsRelations = relations(deals, ({ many, one }) => ({
   approvals: many(dealApprovals),
   agentBonuses: many(dealAgentBonuses),
   calculationLinks: many(dealCalculationLinks),
-  intakeSnapshot: one(dealIntakeSnapshots, {
+  route: one(dealRoutes, {
     fields: [deals.id],
-    references: [dealIntakeSnapshots.dealId],
+    references: [dealRoutes.dealId],
   }),
   legs: many(dealLegs),
   operationalPositions: many(dealOperationalPositions),
   participants: many(dealParticipants),
-  quoteAcceptances: many(dealQuoteAcceptances),
   attachmentIngestions: many(dealAttachmentIngestions),
   timelineEvents: many(dealTimelineEvents),
 }));
-
-export const dealIntakeSnapshotsRelations = relations(
-  dealIntakeSnapshots,
-  ({ one }) => ({
-    deal: one(deals, {
-      fields: [dealIntakeSnapshots.dealId],
-      references: [deals.id],
-    }),
-  }),
-);
 
 export const dealCalculationLinksRelations = relations(
   dealCalculationLinks,
@@ -561,6 +985,125 @@ export const dealCalculationLinksRelations = relations(
     deal: one(deals, {
       fields: [dealCalculationLinks.dealId],
       references: [deals.id],
+    }),
+  }),
+);
+
+export const dealRoutesRelations = relations(dealRoutes, ({ many, one }) => ({
+  currentVersion: one(dealRouteVersions, {
+    fields: [dealRoutes.currentVersionId],
+    references: [dealRouteVersions.id],
+  }),
+  deal: one(deals, {
+    fields: [dealRoutes.dealId],
+    references: [deals.id],
+  }),
+  versions: many(dealRouteVersions),
+}));
+
+export const dealRouteVersionsRelations = relations(
+  dealRouteVersions,
+  ({ many, one }) => ({
+    costComponents: many(dealRouteCostComponents),
+    deal: one(deals, {
+      fields: [dealRouteVersions.dealId],
+      references: [deals.id],
+    }),
+    legs: many(dealRouteLegs),
+    participants: many(dealRouteParticipants),
+    route: one(dealRoutes, {
+      fields: [dealRouteVersions.routeId],
+      references: [dealRoutes.id],
+    }),
+  }),
+);
+
+export const dealRouteParticipantsRelations = relations(
+  dealRouteParticipants,
+  ({ one }) => ({
+    routeVersion: one(dealRouteVersions, {
+      fields: [dealRouteParticipants.routeVersionId],
+      references: [dealRouteVersions.id],
+    }),
+  }),
+);
+
+export const dealRouteLegsRelations = relations(dealRouteLegs, ({ one }) => ({
+  fromParticipant: one(dealRouteParticipants, {
+    fields: [dealRouteLegs.fromParticipantId],
+    references: [dealRouteParticipants.id],
+  }),
+  routeVersion: one(dealRouteVersions, {
+    fields: [dealRouteLegs.routeVersionId],
+    references: [dealRouteVersions.id],
+  }),
+  toParticipant: one(dealRouteParticipants, {
+    fields: [dealRouteLegs.toParticipantId],
+    references: [dealRouteParticipants.id],
+  }),
+}));
+
+export const dealRouteCostComponentsRelations = relations(
+  dealRouteCostComponents,
+  ({ one }) => ({
+    leg: one(dealRouteLegs, {
+      fields: [dealRouteCostComponents.legId],
+      references: [dealRouteLegs.id],
+    }),
+    routeVersion: one(dealRouteVersions, {
+      fields: [dealRouteCostComponents.routeVersionId],
+      references: [dealRouteVersions.id],
+    }),
+  }),
+);
+
+export const routeTemplatesRelations = relations(
+  routeTemplates,
+  ({ many }) => ({
+    costComponents: many(routeTemplateCostComponents),
+    legs: many(routeTemplateLegs),
+    participants: many(routeTemplateParticipants),
+  }),
+);
+
+export const routeTemplateParticipantsRelations = relations(
+  routeTemplateParticipants,
+  ({ one }) => ({
+    routeTemplate: one(routeTemplates, {
+      fields: [routeTemplateParticipants.routeTemplateId],
+      references: [routeTemplates.id],
+    }),
+  }),
+);
+
+export const routeTemplateLegsRelations = relations(
+  routeTemplateLegs,
+  ({ one }) => ({
+    fromParticipant: one(routeTemplateParticipants, {
+      fields: [routeTemplateLegs.fromParticipantId],
+      references: [routeTemplateParticipants.id],
+    }),
+    routeTemplate: one(routeTemplates, {
+      fields: [routeTemplateLegs.routeTemplateId],
+      references: [routeTemplates.id],
+    }),
+    toParticipant: one(routeTemplateParticipants, {
+      fields: [routeTemplateLegs.toParticipantId],
+      references: [routeTemplateParticipants.id],
+    }),
+  }),
+);
+
+export const routeTemplateCostComponentsRelations = relations(
+  routeTemplateCostComponents,
+  ({ one }) => ({
+    leg: one(routeTemplateLegs, {
+      fields: [routeTemplateCostComponents.legId],
+      references: [routeTemplateLegs.id],
+    }),
+    routeTemplate: one(routeTemplates, {
+      fields: [routeTemplateCostComponents.routeTemplateId],
+      references: [routeTemplates.id],
     }),
   }),
 );
@@ -603,24 +1146,6 @@ export const dealTimelineEventsRelations = relations(
     }),
     deal: one(deals, {
       fields: [dealTimelineEvents.dealId],
-      references: [deals.id],
-    }),
-  }),
-);
-
-export const dealQuoteAcceptancesRelations = relations(
-  dealQuoteAcceptances,
-  ({ one }) => ({
-    acceptedBy: one(user, {
-      fields: [dealQuoteAcceptances.acceptedByUserId],
-      references: [user.id],
-    }),
-    agreementVersion: one(agreementVersions, {
-      fields: [dealQuoteAcceptances.agreementVersionId],
-      references: [agreementVersions.id],
-    }),
-    deal: one(deals, {
-      fields: [dealQuoteAcceptances.dealId],
       references: [deals.id],
     }),
   }),

@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 
 import {
   createListQuerySchemaFromContract,
@@ -35,3 +35,19 @@ export const ListAgreementsQuerySchema = createListQuerySchemaFromContract(
 );
 
 export type ListAgreementsQuery = z.infer<typeof ListAgreementsQuerySchema>;
+
+export const ResolveAgreementRouteDefaultsQuerySchema = z.object({
+  dealType: z.enum([
+    "payment",
+    "currency_exchange",
+    "currency_transit",
+    "exporter_settlement",
+    "internal_treasury",
+  ]),
+  sourceCurrencyId: z.uuid().nullish().transform((value) => value ?? null),
+  targetCurrencyId: z.uuid().nullish().transform((value) => value ?? null),
+});
+
+export type ResolveAgreementRouteDefaultsQuery = z.infer<
+  typeof ResolveAgreementRouteDefaultsQuerySchema
+>;

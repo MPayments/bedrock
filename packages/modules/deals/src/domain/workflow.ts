@@ -3,9 +3,9 @@ import {
   type DEAL_LEG_KIND_VALUES,
 } from "./constants";
 import type {
+  DealAcceptedCalculation,
   DealFundingResolution,
-  DealIntakeDraft,
-  DealQuoteAcceptance,
+  DealHeader,
   DealRelatedFormalDocument,
   DealSectionCompleteness,
   DealTransitionReadiness,
@@ -20,11 +20,16 @@ import type {
 } from "../application/contracts/zod";
 
 const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
-  awaiting_funds: "awaiting_payment",
-  awaiting_payment: "closing_documents",
-  closing_documents: "done",
-  preparing_documents: "awaiting_funds",
-  submitted: "preparing_documents",
+  draft: "pricing",
+  pricing: "quoted",
+  quoted: "awaiting_customer_approval",
+  awaiting_customer_approval: "awaiting_internal_approval",
+  awaiting_internal_approval: "approved_for_execution",
+  approved_for_execution: "executing",
+  executing: "partially_executed",
+  partially_executed: "executed",
+  executed: "reconciling",
+  reconciling: "closed",
 };
 
 function hasText(value: string | null | undefined): boolean {
@@ -35,7 +40,7 @@ function hasMoneyAmount(value: string | null | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
 }
 
-function hasBankInstruction(input: DealIntakeDraft["externalBeneficiary"]["bankInstructionSnapshot"] | DealIntakeDraft["settlementDestination"]["bankInstructionSnapshot"] | null): boolean {
+function hasBankInstruction(input: DealHeader["externalBeneficiary"]["bankInstructionSnapshot"] | DealHeader["settlementDestination"]["bankInstructionSnapshot"] | null): boolean {
   if (!input) {
     return false;
   }
@@ -49,8 +54,8 @@ function hasBankInstruction(input: DealIntakeDraft["externalBeneficiary"]["bankI
 
 function hasCounterpartySnapshot(
   input:
-    | DealIntakeDraft["incomingReceipt"]["payerSnapshot"]
-    | DealIntakeDraft["externalBeneficiary"]["beneficiarySnapshot"]
+    | DealHeader["incomingReceipt"]["payerSnapshot"]
+    | DealHeader["externalBeneficiary"]["beneficiarySnapshot"]
     | null,
 ): boolean {
   if (!input) {
@@ -60,50 +65,25 @@ function hasCounterpartySnapshot(
   return hasText(input.displayName) || hasText(input.legalName);
 }
 
-export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
+export function dealHeaderHasConvertLeg(header: DealHeader): boolean {
   return Boolean(
-    intake.moneyRequest.targetCurrencyId &&
-      intake.moneyRequest.sourceCurrencyId &&
-      intake.moneyRequest.targetCurrencyId !==
-        intake.moneyRequest.sourceCurrencyId,
+    header.moneyRequest.targetCurrencyId &&
+      header.moneyRequest.sourceCurrencyId &&
+      header.moneyRequest.targetCurrencyId !==
+        header.moneyRequest.sourceCurrencyId,
   );
 }
 
-export function isAcceptedQuoteCurrentAndExecutable(input: {
-  acceptance: DealQuoteAcceptance | null;
-  now: Date;
-}): boolean {
-  const acceptance = input.acceptance;
-
-  if (!acceptance) {
-    return false;
-  }
-
-  if (acceptance.dealRevision < 1) {
-    return false;
-  }
-
-  if (acceptance.quoteStatus !== "active") {
-    return false;
-  }
-
-  if (acceptance.expiresAt && acceptance.expiresAt.getTime() <= input.now.getTime()) {
-    return false;
-  }
-
-  return true;
-}
-
 export function evaluateDealSectionCompleteness(
-  intake: DealIntakeDraft,
+  header: DealHeader,
 ): DealSectionCompleteness[] {
   const result: DealSectionCompleteness[] = [];
 
   const commonBlockingReasons: string[] = [];
-  if (!intake.common.applicantCounterpartyId) {
+  if (!header.common.applicantCounterpartyId) {
     commonBlockingReasons.push("Applicant is required");
   }
-  if (!intake.common.requestedExecutionDate) {
+  if (!header.common.requestedExecutionDate) {
     commonBlockingReasons.push("Requested execution date is required");
   }
   result.push({
@@ -113,22 +93,22 @@ export function evaluateDealSectionCompleteness(
   });
 
   const moneyRequestBlockingReasons: string[] = [];
-  if (intake.type === "payment") {
-    if (!hasMoneyAmount(intake.incomingReceipt.expectedAmount)) {
+  if (header.type === "payment") {
+    if (!hasMoneyAmount(header.incomingReceipt.expectedAmount)) {
       moneyRequestBlockingReasons.push("Payment amount is required");
     }
-    if (!intake.moneyRequest.targetCurrencyId) {
+    if (!header.moneyRequest.targetCurrencyId) {
       moneyRequestBlockingReasons.push("Payment currency is required");
     }
-  } else if (!hasMoneyAmount(intake.moneyRequest.sourceAmount)) {
+  } else if (!hasMoneyAmount(header.moneyRequest.sourceAmount)) {
     moneyRequestBlockingReasons.push("Source amount is required");
   }
-  if (!intake.moneyRequest.sourceCurrencyId) {
+  if (!header.moneyRequest.sourceCurrencyId) {
     moneyRequestBlockingReasons.push("Source currency is required");
   }
   if (
-    intake.type === "currency_exchange" &&
-    !dealIntakeHasConvertLeg(intake)
+    header.type === "currency_exchange" &&
+    !dealHeaderHasConvertLeg(header)
   ) {
     moneyRequestBlockingReasons.push(
       "Exchange deals require a different target currency",
@@ -141,21 +121,21 @@ export function evaluateDealSectionCompleteness(
   });
 
   const incomingReceiptBlockingReasons: string[] = [];
-  if (!hasMoneyAmount(intake.incomingReceipt.expectedAmount)) {
+  if (!hasMoneyAmount(header.incomingReceipt.expectedAmount)) {
     incomingReceiptBlockingReasons.push("Expected amount is required");
   }
-  if (!intake.incomingReceipt.expectedCurrencyId) {
+  if (!header.incomingReceipt.expectedCurrencyId) {
     incomingReceiptBlockingReasons.push("Expected currency is required");
   }
-  if (!hasText(intake.incomingReceipt.invoiceNumber)) {
+  if (!hasText(header.incomingReceipt.invoiceNumber)) {
     incomingReceiptBlockingReasons.push("Invoice number is required");
   }
-  if (!hasText(intake.incomingReceipt.contractNumber)) {
+  if (!hasText(header.incomingReceipt.contractNumber)) {
     incomingReceiptBlockingReasons.push("Contract number is required");
   }
   if (
-    !intake.incomingReceipt.payerCounterpartyId &&
-    !hasCounterpartySnapshot(intake.incomingReceipt.payerSnapshot)
+    !header.incomingReceipt.payerCounterpartyId &&
+    !hasCounterpartySnapshot(header.incomingReceipt.payerSnapshot)
   ) {
     incomingReceiptBlockingReasons.push("External payer is required");
   }
@@ -167,12 +147,12 @@ export function evaluateDealSectionCompleteness(
 
   const externalBeneficiaryBlockingReasons: string[] = [];
   if (
-    !intake.externalBeneficiary.beneficiaryCounterpartyId &&
-    !hasCounterpartySnapshot(intake.externalBeneficiary.beneficiarySnapshot)
+    !header.externalBeneficiary.beneficiaryCounterpartyId &&
+    !hasCounterpartySnapshot(header.externalBeneficiary.beneficiarySnapshot)
   ) {
     externalBeneficiaryBlockingReasons.push("External beneficiary is required");
   }
-  if (!hasBankInstruction(intake.externalBeneficiary.bankInstructionSnapshot)) {
+  if (!hasBankInstruction(header.externalBeneficiary.bankInstructionSnapshot)) {
     externalBeneficiaryBlockingReasons.push(
       "Beneficiary bank instructions are required",
     );
@@ -184,16 +164,16 @@ export function evaluateDealSectionCompleteness(
   });
 
   const settlementDestinationBlockingReasons: string[] = [];
-  if (!intake.settlementDestination.mode) {
+  if (!header.settlementDestination.mode) {
     settlementDestinationBlockingReasons.push("Settlement mode is required");
   } else if (
-    intake.settlementDestination.mode === "applicant_requisite" &&
-    !intake.settlementDestination.requisiteId
+    header.settlementDestination.mode === "applicant_requisite" &&
+    !header.settlementDestination.requisiteId
   ) {
     settlementDestinationBlockingReasons.push("Applicant requisite is required");
   } else if (
-    intake.settlementDestination.mode === "manual" &&
-    !hasBankInstruction(intake.settlementDestination.bankInstructionSnapshot)
+    header.settlementDestination.mode === "manual" &&
+    !hasBankInstruction(header.settlementDestination.bankInstructionSnapshot)
   ) {
     settlementDestinationBlockingReasons.push(
       "Manual settlement bank instructions are required",
@@ -212,10 +192,12 @@ export function isRequiredDealSectionComplete(
   type: DealType,
   completeness: DealSectionCompleteness[],
 ): boolean {
-  const requiredSections = DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type];
+  const requiredSections = DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type] ?? [];
   const byId = new Map(completeness.map((item) => [item.sectionId, item]));
 
-  return requiredSections.every((sectionId) => byId.get(sectionId)?.complete);
+  return requiredSections.every((sectionId: DealSectionId) =>
+    byId.get(sectionId)?.complete,
+  );
 }
 
 function createLeg(
@@ -231,10 +213,10 @@ function createLeg(
   };
 }
 
-export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg[] {
-  const hasConvert = dealIntakeHasConvertLeg(intake);
+export function buildDealExecutionPlan(header: DealHeader): DealWorkflowLeg[] {
+  const hasConvert = dealHeaderHasConvertLeg(header);
 
-  switch (intake.type) {
+  switch (header.type) {
     case "payment":
       return [
         createLeg(1, "collect"),
@@ -256,6 +238,12 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
         createLeg(2, "collect"),
         ...(hasConvert ? [createLeg(3, "convert")] : []),
         createLeg(hasConvert ? 4 : 3, "settle_exporter"),
+      ];
+    case "internal_treasury":
+      return [
+        createLeg(1, "collect"),
+        ...(hasConvert ? [createLeg(2, "convert")] : []),
+        createLeg(hasConvert ? 3 : 2, "payout"),
       ];
   }
 }
@@ -285,14 +273,14 @@ function hasPostedTransferDocument(
 }
 
 export function buildEffectiveDealExecutionPlan(input: {
-  acceptance: DealQuoteAcceptance | null;
+  acceptedCalculation: DealAcceptedCalculation | null;
   documents: DealRelatedFormalDocument[];
   fundingResolution: DealFundingResolution;
-  intake: DealIntakeDraft;
+  header: DealHeader;
   now: Date;
   storedLegs: DealWorkflowLeg[];
 }): DealWorkflowLeg[] {
-  const basePlan = buildDealExecutionPlan(input.intake);
+  const basePlan = buildDealExecutionPlan(input.header);
   const storedByKey = new Map(
     input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg] as const),
   );
@@ -304,13 +292,8 @@ export function buildEffectiveDealExecutionPlan(input: {
       leg.operationRefs,
     state: storedByKey.get(`${leg.idx}:${leg.kind}`)?.state ?? leg.state,
   }));
-  const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
-    acceptance: input.acceptance,
-    now: input.now,
-  });
-  const hasExecutedConvert =
-    input.acceptance?.quoteStatus === "used" ||
-    hasPostedConvertDocument(input.documents);
+  const hasAcceptedCalculation = Boolean(input.acceptedCalculation);
+  const hasExecutedConvert = hasPostedConvertDocument(input.documents);
   const downstreamLegs = merged.filter((leg) =>
     ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
   );
@@ -344,7 +327,7 @@ export function buildEffectiveDealExecutionPlan(input: {
         };
       }
 
-      if (hasExecutableAcceptedQuote && leg.state === "pending") {
+      if (hasAcceptedCalculation && leg.state === "pending") {
         return {
           ...leg,
           state: "ready",
@@ -369,24 +352,55 @@ export function buildEffectiveDealExecutionPlan(input: {
 }
 
 export function deriveDealNextAction(input: {
-  acceptance: DealQuoteAcceptance | null;
   calculationId: string | null;
   completeness: DealSectionCompleteness[];
   executionPlan?: DealWorkflowLeg[];
-  intake: DealIntakeDraft;
+  header: DealHeader;
   now?: Date;
   transitionReadiness?: DealTransitionReadiness[];
   status: DealStatus;
 }): string {
-  if (!isRequiredDealSectionComplete(input.intake.type, input.completeness)) {
-    return "Complete intake";
+  if (!isRequiredDealSectionComplete(input.header.type, input.completeness)) {
+    return "Complete deal header";
+  }
+
+  if (input.status === "pricing") {
+    return "Compose route";
+  }
+
+  if (input.status === "quoted") {
+    return "Accept calculation";
+  }
+
+  if (input.status === "awaiting_customer_approval") {
+    return "Collect customer approval";
+  }
+
+  if (input.status === "awaiting_internal_approval") {
+    return "Collect internal approval";
+  }
+
+  if (input.status === "approved_for_execution") {
+    return "Request execution";
+  }
+
+  if (["executing", "partially_executed"].includes(input.status)) {
+    return "Record execution actuals";
+  }
+
+  if (["executed", "reconciling"].includes(input.status)) {
+    return "Reconcile and close";
+  }
+
+  if (["closed", "expired", "failed"].includes(input.status)) {
+    return "No action";
   }
 
   if (input.status === "draft") {
     return "Submit deal";
   }
 
-  if (["done", "cancelled", "rejected"].includes(input.status)) {
+  if (["cancelled", "rejected"].includes(input.status)) {
     return "No action";
   }
 
@@ -411,19 +425,8 @@ export function deriveDealNextAction(input: {
     return "Resolve operational state";
   }
 
-  const now = input.now ?? new Date();
-  const hasCurrentAcceptedQuote =
-    isAcceptedQuoteCurrentAndExecutable({
-      acceptance: input.acceptance,
-      now,
-    }) || input.acceptance?.quoteStatus === "used";
-
-  if (dealIntakeHasConvertLeg(input.intake) && !hasCurrentAcceptedQuote) {
-    return "Accept quote";
-  }
-
-  if (dealIntakeHasConvertLeg(input.intake) && !input.calculationId) {
-    return "Create calculation from accepted quote";
+  if (!input.calculationId) {
+    return "Create calculation from route";
   }
 
   if (
@@ -484,5 +487,5 @@ export function filterTimelineForPortal(
 export function summarizeRequiredSectionsByType(
   type: DealType,
 ): DealSectionId[] {
-  return [...DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type]];
+  return [...(DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type] ?? [])];
 }

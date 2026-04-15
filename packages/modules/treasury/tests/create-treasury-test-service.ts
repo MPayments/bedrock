@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type {
   Database,
@@ -5,6 +7,9 @@ import type {
 } from "@bedrock/platform/persistence";
 import { createModuleRuntime } from "@bedrock/shared/core";
 
+import { DrizzleTreasuryCashMovementsRepository } from "../src/operations/adapters/drizzle/cash-movements.repository";
+import { DrizzleTreasuryExecutionFeesRepository } from "../src/operations/adapters/drizzle/execution-fees.repository";
+import { DrizzleTreasuryExecutionFillsRepository } from "../src/operations/adapters/drizzle/execution-fills.repository";
 import { DrizzleTreasuryOperationsRepository } from "../src/operations/adapters/drizzle/operations.repository";
 import { createTreasuryOperationsService } from "../src/operations/application";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../src/quotes/adapters/drizzle/quote-fee-components.repository";
@@ -44,8 +49,14 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
   const operationsRuntime = createModuleRuntime({
     logger: deps.logger,
     now: () => new Date(),
+    generateUuid: randomUUID,
     service: "treasury.operations",
   });
+  const cashMovementsRepository = new DrizzleTreasuryCashMovementsRepository(db);
+  const executionFeesRepository = new DrizzleTreasuryExecutionFeesRepository(db);
+  const executionFillsRepository = new DrizzleTreasuryExecutionFillsRepository(
+    db,
+  );
   const ratesRepository = new DrizzleTreasuryRatesRepository(db);
   const operationsRepository = new DrizzleTreasuryOperationsRepository(db);
   const quotesRepository = new DrizzleTreasuryQuotesRepository(db);
@@ -73,6 +84,9 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     commandUow: new DrizzleTreasuryUnitOfWork({ persistence: deps.persistence }),
   });
   const operations = createTreasuryOperationsService({
+    cashMovementsRepository,
+    executionFeesRepository,
+    executionFillsRepository,
     operationsRepository,
     runtime: operationsRuntime,
   });
@@ -107,7 +121,19 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
       operations: {
         createOrGetPlanned:
           treasuryModule.operations.commands.createOrGetPlanned,
+        recordCashMovement:
+          treasuryModule.operations.commands.recordCashMovement,
+        recordExecutionFee:
+          treasuryModule.operations.commands.recordExecutionFee,
+        recordExecutionFill:
+          treasuryModule.operations.commands.recordExecutionFill,
         findById: treasuryModule.operations.queries.findById,
+        listCashMovements:
+          treasuryModule.operations.queries.listCashMovements,
+        listExecutionFees:
+          treasuryModule.operations.queries.listExecutionFees,
+        listExecutionFills:
+          treasuryModule.operations.queries.listExecutionFills,
         list: treasuryModule.operations.queries.list,
       },
     },

@@ -185,7 +185,6 @@ export async function buildDealTrace(
         and(
           eq(fileLinks.dealId, dealId),
           inArray(fileLinks.linkKind, [
-            "deal_application",
             "deal_invoice",
             "deal_acceptance",
           ]),

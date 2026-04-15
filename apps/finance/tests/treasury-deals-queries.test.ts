@@ -31,58 +31,44 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
   };
 
   return {
-    acceptedQuote: {
+    acceptedCalculation: {
       acceptedAt: "2026-04-02T08:15:00.000Z",
-      expiresAt: "2026-04-02T09:15:00.000Z",
-      quoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
-      quoteStatus: "active",
-      usedAt: null,
-    },
-    acceptedQuoteDetails: {
-      createdAt: "2026-04-02T08:10:00.000Z",
-      dealDirection: "sell",
-      dealForm: "spot",
-      dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-      dealRef: null,
-      expiresAt: "2026-04-02T09:15:00.000Z",
-      fromAmount: "125000.00",
-      fromAmountMinor: "12500000",
-      fromCurrency: "USD",
-      fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
-      id: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
-      idempotencyKey: "idem-accepted",
-      pricingMode: "spot",
-      pricingTrace: {},
-      rateDen: "1",
-      rateNum: "97.15",
-      status: "active",
-      toAmount: "12143750.00",
-      toAmountMinor: "1214375000",
-      toCurrency: "RUB",
-      toCurrencyId: "45b2da57-4205-4607-a3ec-d0acbfb322ab",
-      usedAt: null,
-      usedByRef: null,
-      usedDocumentId: null,
+      calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
+      calculationTimestamp: "2026-04-02T08:15:00.000Z",
+      pricingProvenance: null,
+      quoteProvenance: {
+        fxQuoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+        quoteSnapshot: null,
+        sourceQuoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+      },
+      routeVersionId: null,
+      snapshotId: "7f6491b3-5226-4e34-a019-92a41315d643",
+      state: "accepted",
     },
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: true,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: false,
       canRunReconciliation: false,
       canResolveExecutionBlocker: false,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [
       {
-        blockingReasons: ["Required intake sections are incomplete"],
+        blockingReasons: ["Required deal header sections are incomplete"],
         code: "invoice",
         label: "Инвойс",
         state: "missing",
       },
     ],
     closeReadiness: {
-      blockers: ["Required intake sections are incomplete"],
+      blockers: ["Required deal header sections are incomplete"],
       criteria: [
         {
           code: "operations_materialized",
@@ -128,7 +114,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       totalOperations: 0,
       voided: 0,
     },
-    nextAction: "Create calculation from accepted quote",
+    nextAction: "Create calculation from route",
     operationalState: {
       positions: [
         {
@@ -149,10 +135,11 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
+    profitabilityVariance: null,
     queueContext: {
-      blockers: ["Required intake sections are incomplete"],
+      blockers: ["Required deal header sections are incomplete"],
       queue: "funding",
-      queueReason: "Required intake sections are incomplete",
+      queueReason: "Required deal header sections are incomplete",
     },
     reconciliationSummary: {
       ignoredExceptionCount: 0,
@@ -213,6 +200,119 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
   };
 }
 
+function createRouteComposerDealPayload() {
+  return {
+    agreementId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    amount: "125000.00",
+    calculationId: null,
+    createdAt: "2026-04-02T08:07:00.000Z",
+    currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+    customerId: "814fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    status: "draft",
+    type: "payment",
+    updatedAt: "2026-04-02T08:07:00.000Z",
+  };
+}
+
+function createRouteComposerRoutePayload() {
+  return {
+    costComponents: [
+      {
+        basisType: "deal_source_amount",
+        bps: "10",
+        classification: "expense",
+        code: "liq_fee",
+        currencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        family: "provider_fee",
+        fixedAmountMinor: null,
+        formulaType: "bps",
+        id: "a14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        includedInClientRate: false,
+        legCode: "fx",
+        manualAmountMinor: null,
+        notes: null,
+        perMillion: null,
+        roundingMode: "half_up",
+        sequence: 1,
+      },
+    ],
+    createdAt: "2026-04-02T08:10:00.000Z",
+    dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    id: "b14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    isCurrent: true,
+    legs: [
+      {
+        code: "collect",
+        executionCounterpartyId: null,
+        expectedFromAmountMinor: "12500000",
+        expectedRateDen: null,
+        expectedRateNum: null,
+        expectedToAmountMinor: "12500000",
+        fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        fromParticipantCode: "cust",
+        id: "c14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        idx: 1,
+        kind: "collection",
+        notes: null,
+        settlementModel: "incoming_receipt",
+        toCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        toParticipantCode: "hub",
+      },
+    ],
+    participants: [
+      {
+        code: "cust",
+        displayNameSnapshot: "ООО Ромашка",
+        id: "d14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        metadata: {},
+        partyId: "e14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        partyKind: "counterparty",
+        requisiteId: null,
+        role: "source_customer",
+        sequence: 1,
+      },
+    ],
+    routeId: "f14fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    validationIssues: [
+      {
+        code: "leg.currency.mismatch",
+        message: "Leg currencies must match settlement semantics",
+        path: "legs[0].toCurrencyId",
+        severity: "warning",
+      },
+    ],
+    version: 2,
+  };
+}
+
+function createRouteComposerLookupContextPayload() {
+  return {
+    lookupDefaults: {
+      defaultLimit: 20,
+      maxLimit: 50,
+      prefixMatching: true,
+    },
+    participantKinds: [
+      {
+        backedBy: "customers",
+        description: "Commercial customer root",
+        internalOnly: false,
+        kind: "customer",
+        label: "Клиент",
+        note: null,
+      },
+    ],
+    roleHints: [],
+    strictSemantics: {
+      accessControlOwnedByIam: true,
+      customerLegalEntitiesViaCounterparties: true,
+      organizationsInternalOnly: true,
+      subAgentsRequireCanonicalProfile: true,
+    },
+  };
+}
+
 describe("treasury deals queries", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -260,12 +360,13 @@ describe("treasury deals queries", () => {
             internalEntityName: "Орг Б",
             nextAction: "Подготовить платеж",
             profitabilitySnapshot: null,
+            profitabilityVariance: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
             stage: "awaiting_payout",
             stageReason: "Ожидаем выплату",
             quoteSummary: null,
-            status: "awaiting_payment",
+            status: "executing",
             type: "payment",
           },
           {
@@ -285,12 +386,13 @@ describe("treasury deals queries", () => {
             internalEntityName: "Орг А",
             nextAction: "Проверить документы",
             profitabilitySnapshot: null,
+            profitabilityVariance: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
             stage: "awaiting_fx",
             stageReason: "Ожидаем конвертацию",
             quoteSummary: null,
-            status: "submitted",
+            status: "quoted",
             type: "currency_exchange",
           },
         ],
@@ -348,7 +450,7 @@ describe("treasury deals queries", () => {
         items: [
           {
             applicantName: "ООО Блок",
-            blockingReasons: ["Required intake sections are incomplete"],
+            blockingReasons: ["Required deal header sections are incomplete"],
             createdAt: "2026-04-03T00:00:00.000Z",
             dealId: "8a35811e-b6ab-43f5-88ef-5dc8c9af4a8e",
             documentSummary: {
@@ -363,12 +465,13 @@ describe("treasury deals queries", () => {
             internalEntityName: "Орг Б",
             nextAction: "Подготовить платеж",
             profitabilitySnapshot: null,
+            profitabilityVariance: null,
             queue: "execution",
             queueReason: "Сделка ожидает исполнения",
             stage: "awaiting_payout",
             stageReason: "Ожидаем выплату",
             quoteSummary: null,
-            status: "awaiting_payment",
+            status: "executing",
             type: "payment",
           },
           {
@@ -388,12 +491,13 @@ describe("treasury deals queries", () => {
             internalEntityName: "Орг А",
             nextAction: "Проверить документы",
             profitabilitySnapshot: null,
+            profitabilityVariance: null,
             queue: "failed_instruction",
             queueReason: "Сделка заблокирована на этапе исполнения",
             stage: "awaiting_fx",
             stageReason: "Ожидаем конвертацию",
             quoteSummary: null,
-            status: "submitted",
+            status: "quoted",
             type: "currency_exchange",
           },
           {
@@ -413,6 +517,7 @@ describe("treasury deals queries", () => {
             internalEntityName: "Орг В",
             nextAction: "Продолжить обработку",
             profitabilitySnapshot: null,
+            profitabilityVariance: null,
             queue: "funding",
             queueReason: "Сделка находится на этапе фондирования",
             stage: "awaiting_collection",
@@ -534,17 +639,16 @@ describe("treasury deals queries", () => {
 
   it("normalizes non-ISO quote timestamps from finance workspace", async () => {
     const workspacePayload = createFinanceWorkspacePayload();
-    const acceptedQuote = workspacePayload.acceptedQuote;
+    const acceptedCalculation = workspacePayload.acceptedCalculation;
 
-    if (!acceptedQuote) {
-      throw new Error("expected accepted quote in workspace payload");
+    if (!acceptedCalculation) {
+      throw new Error("expected accepted calculation in workspace payload");
     }
 
-    workspacePayload.acceptedQuote = {
-      ...acceptedQuote,
+    workspacePayload.acceptedCalculation = {
+      ...acceptedCalculation,
       acceptedAt: "2026-04-02 08:15:00",
-      expiresAt: "2026-04-02 09:15:00",
-      usedAt: "2026-04-02 08:35:00",
+      calculationTimestamp: "2026-04-02 09:15:00",
     };
     workspacePayload.relatedResources.quotes = [
       {
@@ -579,10 +683,9 @@ describe("treasury deals queries", () => {
       getFinanceDealWorkbenchById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
     ).resolves.toEqual(
       expect.objectContaining({
-        acceptedQuote: expect.objectContaining({
+        acceptedCalculation: expect.objectContaining({
           acceptedAt: "2026-04-02T08:15:00Z",
-          expiresAt: "2026-04-02T09:15:00Z",
-          usedAt: "2026-04-02T08:35:00Z",
+          calculationTimestamp: "2026-04-02T09:15:00Z",
         }),
         relatedResources: expect.objectContaining({
           quotes: [
@@ -807,7 +910,7 @@ describe("treasury deals queries", () => {
     );
     expect(result).toEqual(
       expect.objectContaining({
-        nextAction: "Create calculation from accepted quote",
+        nextAction: "Create calculation from route",
         pricing: expect.objectContaining({
           quoteAmount: "125000.00",
           quoteAmountSide: "target",
@@ -876,6 +979,182 @@ describe("treasury deals queries", () => {
         summary: expect.objectContaining({
           id: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         }),
+      }),
+    );
+  });
+
+  it("loads route composer data from deal, route, lookup-context, templates, and currencies endpoints", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerDealPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerRoutePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerLookupContextPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            code: "rub-usd-payout",
+            createdAt: "2026-04-01T08:00:00.000Z",
+            dealType: "payment",
+            description: "RUB collection to USD payout",
+            id: "914fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+            name: "RUB -> USD payout",
+            status: "published",
+            updatedAt: "2026-04-01T08:00:00.000Z",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            {
+              code: "RUB",
+              id: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+              label: "RUB · Российский рубль",
+              name: "Российский рубль",
+            },
+          ],
+        }),
+      });
+
+    const { getFinanceDealRouteComposerById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const result = await getFinanceDealRouteComposerById(
+      "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/finance-workspace",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/route",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "http://localhost:3000/v1/route-composer/lookup-context",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "http://localhost:3000/v1/route-composer/templates?dealType=payment&status=published",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      "http://localhost:3000/v1/currencies/options",
+      expect.any(Object),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        deal: expect.objectContaining({
+          agreementId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        }),
+        route: expect.objectContaining({
+          version: 2,
+          validationIssues: [
+            expect.objectContaining({
+              code: "leg.currency.mismatch",
+            }),
+          ],
+        }),
+        templates: [
+          expect.objectContaining({
+            name: "RUB -> USD payout",
+          }),
+        ],
+        currencies: [
+          expect.objectContaining({
+            code: "RUB",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("treats a missing current route as null when the deals API returns 200 null", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerDealPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => null,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerLookupContextPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            {
+              code: "RUB",
+              id: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+              label: "RUB · Российский рубль",
+              name: "Российский рубль",
+            },
+          ],
+        }),
+      });
+
+    const { getFinanceDealRouteComposerById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const result = await getFinanceDealRouteComposerById(
+      "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        route: null,
+        templates: [],
       }),
     );
   });

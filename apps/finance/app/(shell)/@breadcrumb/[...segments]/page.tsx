@@ -6,6 +6,7 @@ import { getRequisiteProviderById } from "@/features/entities/requisite-provider
 import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
 import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
 import { getFinanceDealBreadcrumbById } from "@/features/treasury/deals/lib/queries";
+import { getFinanceRouteTemplateById } from "@/features/treasury/route-templates/lib/queries";
 import {
   getTreasuryOperationDisplayTitle,
 } from "@/features/treasury/operations/lib/labels";
@@ -88,6 +89,28 @@ const dynamicResolvers = {
       }),
     getId: (deal) => deal.summary.id,
   }),
+  "route-templates": async ({ segment }: { segment: string }) => {
+    if (segment === "new") {
+      return {
+        label: "Новый шаблон маршрута",
+        href: "/route-templates/new",
+      };
+    }
+
+    const template = await getFinanceRouteTemplateById(segment);
+
+    if (!template) {
+      return {
+        label: "Шаблон маршрута",
+        href: `/route-templates/${segment}`,
+      };
+    }
+
+    return {
+      label: template.name,
+      href: `/route-templates/${template.id}`,
+    };
+  },
   operations: createResourceSegmentResolver({
     singularLabel: "Операция",
     hrefPrefix: "/treasury/operations",

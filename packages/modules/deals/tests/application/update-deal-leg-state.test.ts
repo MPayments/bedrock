@@ -35,12 +35,12 @@ function createWorkflow() {
   const now = new Date("2026-04-01T12:00:00.000Z");
 
   return {
-    acceptedQuote: null,
+    acceptedCalculation: null,
     executionPlan: [
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "pending"),
     ],
-    intake: {
+    header: {
       common: {
         applicantCounterpartyId: "applicant-1",
         customerNote: null,
@@ -102,7 +102,7 @@ function createWorkflow() {
       calculationId: null,
       createdAt: now,
       id: "00000000-0000-4000-8000-000000000010",
-      status: "awaiting_funds" as const,
+      status: "approved_for_execution" as const,
       type: "payment" as const,
       updatedAt: now,
     },

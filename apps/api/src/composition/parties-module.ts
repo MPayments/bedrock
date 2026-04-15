@@ -14,6 +14,7 @@ import {
   DrizzlePartyProfilesReads,
   DrizzleOrganizationReads,
   DrizzleOrganizationsQueries,
+  DrizzleParticipantReads,
   DrizzlePartyRegistryUnitOfWork,
   DrizzleRequisiteBindingReads,
   DrizzleRequisiteProviderReads,
@@ -50,6 +51,7 @@ export function createApiPartiesModule(input: {
     counterpartyReads: new DrizzleCounterpartyReads(input.db),
     counterpartyGroupReads: new DrizzleCounterpartyGroupReads(input.db),
     partyProfileReads: new DrizzlePartyProfilesReads(input.db),
+    participantReads: new DrizzleParticipantReads(input.db),
     organizationReads: new DrizzleOrganizationReads(input.db),
     requisiteReads: new DrizzleRequisiteReads(input.db),
     requisiteProviderReads: new DrizzleRequisiteProviderReads(input.db),
@@ -64,6 +66,7 @@ export function createApiPartiesReadRuntime(database: Database | Transaction) {
     counterpartiesQueries: new DrizzleCounterpartiesQueries(database),
     customersQueries: new DrizzleCustomersQueries(database),
     organizationsQueries: new DrizzleOrganizationsQueries(database),
+    participantsQueries: new DrizzleParticipantReads(database),
     requisitesQueries: new DrizzleRequisitesQueries(database),
   };
 }

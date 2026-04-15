@@ -17,6 +17,7 @@ describe("agreements integration characterization", () => {
     );
     expect(fixture.agreement.currentVersion.versionNumber).toBe(1);
     expect(fixture.agreement.currentVersion.feeRules).toHaveLength(1);
+    expect(fixture.agreement.currentVersion.routePolicies).toEqual([]);
 
     const updated = await fixture.runtime.modules.agreements.agreements.commands.update({
       actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,

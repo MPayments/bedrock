@@ -63,11 +63,13 @@ export class ResendNotificationAdapter {
   async notifyNewCalculation(
     calculationId: number,
     agentId: number,
+    dealId?: number | null,
   ): Promise<void> {
     const email = await this.resolveEmail(agentId);
     if (!email) return;
 
-    const calculationUrl = this.buildUrl(`/calculations/${calculationId}`);
+    const dealUrl =
+      typeof dealId === "number" ? this.buildUrl(`/deals/${dealId}`) : null;
 
     try {
       await this.resend.emails.send({
@@ -76,7 +78,7 @@ export class ResendNotificationAdapter {
         subject: `New calculation #${calculationId} created`,
         text: [
           `A new calculation #${calculationId} has been created and requires your attention.`,
-          ...(calculationUrl ? [`View calculation: ${calculationUrl}`] : []),
+          ...(dealUrl ? [`View deal: ${dealUrl}`] : []),
         ].join("\n"),
       });
 
@@ -89,31 +91,6 @@ export class ResendNotificationAdapter {
       this.logger.error("Failed to send new calculation notification", {
         calculationId,
         agentId,
-        error,
-      });
-    }
-  }
-
-  async notifyApplicationCreated(applicationId: number): Promise<void> {
-    const applicationUrl = this.buildUrl(`/applications/${applicationId}`);
-
-    try {
-      await this.resend.emails.send({
-        from: this.config.fromEmail,
-        to: this.config.fromEmail,
-        subject: `New application #${applicationId} submitted`,
-        text: [
-          `A new application #${applicationId} has been submitted.`,
-          ...(applicationUrl ? [`View application: ${applicationUrl}`] : []),
-        ].join("\n"),
-      });
-
-      this.logger.info("Application created notification sent", {
-        applicationId,
-      });
-    } catch (error) {
-      this.logger.error("Failed to send application created notification", {
-        applicationId,
         error,
       });
     }

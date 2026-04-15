@@ -21,27 +21,39 @@ import {
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import {
   dealAttachmentIngestions,
   dealApprovals,
   dealCalculationLinks,
-  dealIntakeSnapshots,
+  dealRouteCostComponents,
+  dealRouteLegs,
+  dealRouteParticipants,
+  dealRoutes,
+  dealRouteVersions,
   dealLegs,
   dealLegOperationLinks,
   dealParticipants,
   deals,
   dealTimelineEvents,
+  routeTemplateCostComponents,
+  routeTemplateLegs,
+  routeTemplateParticipants,
+  routeTemplates,
 } from "./schema";
 import type {
   Deal,
+  DealAcceptedCalculation,
   DealApproval,
   DealAttachmentIngestion,
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
-  DealIntakeDraft,
-  DealQuoteAcceptance,
+  DealHeader,
+  DealRouteTemplate,
+  DealRouteTemplateSummary,
+  DealRouteVersion,
   DealTimelineEvent,
   DealTraceProjection,
   DealWorkflowParticipant,
@@ -60,7 +72,7 @@ import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
-  dealIntakeHasConvertLeg,
+  dealHeaderHasConvertLeg,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -92,6 +104,21 @@ function minorToDecimalString(amountMinor: bigint | string, precision: number) {
   return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
 }
 
+function feeBpsToPercentString(feeBps: bigint | string) {
+  return minorToDecimalString(feeBps, 2);
+}
+
+function rationalToDecimalString(
+  numerator: bigint | string,
+  denominator: bigint | string,
+  scale = 6,
+) {
+  return formatFractionDecimal(numerator, denominator, {
+    scale,
+    trimTrailingZeros: true,
+  });
+}
+
 function mapTimelineEvent(row: {
   actorLabel: string | null;
   actorUserId: string | null;
@@ -114,38 +141,6 @@ function mapTimelineEvent(row: {
     payload: row.payload ?? {},
     type: row.type,
     visibility: row.visibility,
-  };
-}
-
-function mapQuoteAcceptance(row: {
-  acceptedAt: Date | string;
-  acceptedByUserId: string;
-  agreementVersionId: string | null;
-  dealId: string;
-  dealRevision: number;
-  expiresAt: Date | string | null;
-  id: string;
-  quoteId: string;
-  quoteStatus: string;
-  replacedByQuoteId: string | null;
-  revokedAt: Date | null;
-  usedAt: Date | string | null;
-  usedDocumentId: string | null;
-}): DealQuoteAcceptance {
-  return {
-    acceptedAt: toDate(row.acceptedAt),
-    acceptedByUserId: row.acceptedByUserId,
-    agreementVersionId: row.agreementVersionId,
-    dealId: row.dealId,
-    dealRevision: Number(row.dealRevision),
-    expiresAt: toDateOrNull(row.expiresAt),
-    id: row.id,
-    quoteId: row.quoteId,
-    quoteStatus: row.quoteStatus,
-    replacedByQuoteId: row.replacedByQuoteId,
-    revokedAt: row.revokedAt,
-    usedAt: toDateOrNull(row.usedAt),
-    usedDocumentId: row.usedDocumentId,
   };
 }
 
@@ -266,15 +261,15 @@ function buildDealSummaryView(input: {
   comment: string | null;
   createdAt: Date;
   customerId: string;
+  header: DealHeader;
   id: string;
-  intake: DealIntakeDraft;
   nextAction: string | null;
   revision: number;
   status: Deal["status"];
   type: Deal["type"];
   updatedAt: Date;
 }): Deal {
-  const primaryAmountFields = getPrimaryDealAmountFields(input.intake);
+  const primaryAmountFields = getPrimaryDealAmountFields(input.header);
 
   return {
     agreementId: input.agreementId,
@@ -286,20 +281,14 @@ function buildDealSummaryView(input: {
     createdAt: input.createdAt,
     customerId: input.customerId,
     id: input.id,
-    intakeComment: input.intake.common.customerNote,
+    intakeComment: input.header.common.customerNote,
     nextAction: input.nextAction,
-    reason: input.intake.moneyRequest.purpose,
+    reason: input.header.moneyRequest.purpose,
     revision: input.revision,
     status: input.status,
     type: input.type,
     updatedAt: input.updatedAt,
   };
-}
-
-function buildPortalCalculationSummary(
-  calculationId: string | null,
-): PortalDealCalculationSummary {
-  return calculationId ? { id: calculationId } : null;
 }
 
 interface DealSummaryRow {
@@ -309,10 +298,10 @@ interface DealSummaryRow {
   comment: string | null;
   createdAt: Date;
   customerId: string;
+  header: DealHeader;
+  headerRevision: number;
   id: string;
-  intakeRevision: number;
   nextAction: string | null;
-  snapshot: DealIntakeDraft;
   sourceAmountMinor: bigint | null;
   sourceCurrencyId: string | null;
   status: Deal["status"];
@@ -376,10 +365,10 @@ export class DrizzleDealReads implements DealReads {
         comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
+        header: deals.headerSnapshot,
+        headerRevision: deals.headerRevision,
         id: deals.id,
-        intakeRevision: dealIntakeSnapshots.revision,
         nextAction: deals.nextAction,
-        snapshot: dealIntakeSnapshots.snapshot,
         sourceAmountMinor: deals.sourceAmountMinor,
         sourceCurrencyId: deals.sourceCurrencyId,
         status: deals.status,
@@ -388,7 +377,6 @@ export class DrizzleDealReads implements DealReads {
         updatedAt: deals.updatedAt,
       })
       .from(deals)
-      .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
       .where(eq(deals.id, id))
       .limit(1);
 
@@ -410,10 +398,10 @@ export class DrizzleDealReads implements DealReads {
         comment: DEAL_COMMENT_SQL,
         createdAt: deals.createdAt,
         customerId: deals.customerId,
+        header: deals.headerSnapshot,
+        headerRevision: deals.headerRevision,
         id: deals.id,
-        intakeRevision: dealIntakeSnapshots.revision,
         nextAction: deals.nextAction,
-        snapshot: dealIntakeSnapshots.snapshot,
         sourceAmountMinor: deals.sourceAmountMinor,
         sourceCurrencyId: deals.sourceCurrencyId,
         status: deals.status,
@@ -422,7 +410,6 @@ export class DrizzleDealReads implements DealReads {
         updatedAt: deals.updatedAt,
       })
       .from(deals)
-      .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
       .where(inArray(deals.id, uniqueIds));
 
     const rowById = new Map(rows.map((row) => [row.id, row] as const));
@@ -556,59 +543,69 @@ export class DrizzleDealReads implements DealReads {
     }));
   }
 
-  private async loadAcceptedQuote(
-    dealId: string,
-    revision: number,
-  ): Promise<DealQuoteAcceptance | null> {
-    const result = await this.db.execute<{
-      acceptedAt: Date;
-      acceptedByUserId: string;
-      agreementVersionId: string | null;
-      dealId: string;
-      dealRevision: number;
-      expiresAt: Date | null;
-      id: string;
-      quoteId: string;
-      quoteStatus: string;
-      replacedByQuoteId: string | null;
-      revokedAt: Date | null;
-      usedAt: Date | null;
-      usedDocumentId: string | null;
-    }>(sql`
-      select
-        a.accepted_at as "acceptedAt",
-        a.accepted_by_user_id as "acceptedByUserId",
-        a.agreement_version_id as "agreementVersionId",
-        a.deal_id as "dealId",
-        a.deal_revision as "dealRevision",
-        q.expires_at as "expiresAt",
-        a.id,
-        a.quote_id as "quoteId",
-        q.status as "quoteStatus",
-        a.replaced_by_quote_id as "replacedByQuoteId",
-        a.revoked_at as "revokedAt",
-        q.used_at as "usedAt",
-        q.used_document_id as "usedDocumentId"
-      from deal_quote_acceptances a
-      inner join fx_quotes q
-        on q.id = a.quote_id
-      where a.deal_id = ${dealId}
-        and a.deal_revision = ${revision}
-        and a.revoked_at is null
-      order by a.accepted_at desc
-      limit 1
-    `);
-    const [row] = result.rows;
+  private async loadAcceptedCalculation(
+    calculationId: string | null,
+  ): Promise<DealAcceptedCalculation | null> {
+    if (!calculationId) {
+      return null;
+    }
 
-    return row ? mapQuoteAcceptance(row) : null;
+    const [row] = await this.db
+      .select({
+        calculationId: calculations.id,
+        calculationTimestamp: calculationSnapshots.calculationTimestamp,
+        fxQuoteId: calculationSnapshots.fxQuoteId,
+        pricingProvenance: calculationSnapshots.pricingProvenance,
+        quoteSnapshot: calculationSnapshots.quoteSnapshot,
+        routeVersionId: calculationSnapshots.routeVersionId,
+        snapshotCreatedAt: calculationSnapshots.createdAt,
+        snapshotId: calculationSnapshots.id,
+        sourceQuoteId: dealCalculationLinks.sourceQuoteId,
+        state: calculationSnapshots.state,
+      })
+      .from(calculations)
+      .innerJoin(
+        calculationSnapshots,
+        eq(calculations.currentSnapshotId, calculationSnapshots.id),
+      )
+      .leftJoin(
+        dealCalculationLinks,
+        and(
+          eq(dealCalculationLinks.calculationId, calculations.id),
+          eq(dealCalculationLinks.dealId, calculationSnapshots.dealId),
+        ),
+      )
+      .where(eq(calculations.id, calculationId))
+      .limit(1);
+
+    if (!row || row.state !== "accepted") {
+      return null;
+    }
+
+    return {
+      acceptedAt: row.snapshotCreatedAt,
+      calculationId: row.calculationId,
+      calculationTimestamp: row.calculationTimestamp,
+      pricingProvenance:
+        (row.pricingProvenance as Record<string, unknown> | null) ?? null,
+      quoteProvenance: {
+        fxQuoteId: row.fxQuoteId,
+        quoteSnapshot:
+          (row.quoteSnapshot as Record<string, unknown> | null) ?? null,
+        sourceQuoteId: row.sourceQuoteId ?? null,
+      },
+      routeVersionId: row.routeVersionId,
+      snapshotId: row.snapshotId,
+      state: row.state,
+    };
   }
 
   private async assessFundingResolution(input: {
-    acceptedQuote: DealQuoteAcceptance | null;
-    intake: DealIntakeDraft;
+    acceptedCalculation: DealAcceptedCalculation | null;
+    header: DealHeader;
     participants: DealWorkflowParticipant[];
   }): Promise<DealFundingResolution> {
-    const hasConvertLeg = dealIntakeHasConvertLeg(input.intake);
+    const hasConvertLeg = dealHeaderHasConvertLeg(input.header);
 
     if (!this.fundingAssessment) {
       return {
@@ -622,18 +619,21 @@ export class DrizzleDealReads implements DealReads {
         state: hasConvertLeg ? "blocked" : "not_applicable",
         strategy: null,
         targetCurrency: null,
-        targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+        targetCurrencyId: input.header.moneyRequest.targetCurrencyId ?? null,
       };
     }
 
     return this.fundingAssessment.assessFunding({
-      acceptedQuoteId: input.acceptedQuote?.quoteId ?? null,
       hasConvertLeg,
       internalEntityOrganizationId:
         input.participants.find(
           (participant) => participant.role === "internal_entity",
         )?.organizationId ?? null,
-      targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+      pricingQuoteId:
+        input.acceptedCalculation?.quoteProvenance?.sourceQuoteId ??
+        input.acceptedCalculation?.quoteProvenance?.fxQuoteId ??
+        null,
+      targetCurrencyId: input.header.moneyRequest.targetCurrencyId ?? null,
     });
   }
 
@@ -791,7 +791,7 @@ export class DrizzleDealReads implements DealReads {
     const [
       participants,
       timeline,
-      acceptedQuote,
+      acceptedCalculation,
       approvals,
       storedLegs,
       calculationRefs,
@@ -802,7 +802,7 @@ export class DrizzleDealReads implements DealReads {
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
         this.loadTimeline(summary.id),
-        this.loadAcceptedQuote(summary.id, Number(summary.intakeRevision)),
+        this.loadAcceptedCalculation(summary.calculationId),
         this.loadApprovals(summary.id),
         this.loadStoredLegs(summary.id),
         this.loadCalculationRefs(summary.id),
@@ -811,18 +811,18 @@ export class DrizzleDealReads implements DealReads {
         this.loadAttachmentIngestions(summary.id),
       ]);
     const fundingResolution = await this.assessFundingResolution({
-      acceptedQuote,
-      intake: summary.snapshot,
+      acceptedCalculation,
+      header: summary.header,
       participants,
     });
 
-    const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
+    const sectionCompleteness = evaluateDealSectionCompleteness(summary.header);
     const now = new Date();
     const executionPlan = buildEffectiveDealExecutionPlan({
-      acceptance: acceptedQuote,
+      acceptedCalculation,
       documents: formalDocuments,
       fundingResolution,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       storedLegs,
     });
@@ -833,41 +833,39 @@ export class DrizzleDealReads implements DealReads {
       calculationId: summary.calculationId,
       calculationLines: calculationOperationalLines,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       sectionCompleteness,
       status: summary.status,
       updatedAt: summary.updatedAt,
     });
     const transitionReadiness = listDealTransitionReadiness({
-      acceptance: acceptedQuote,
       approvals,
       calculationId: summary.calculationId,
       completeness: sectionCompleteness,
       documents: formalDocuments,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       operationalState,
       participants,
       status: summary.status,
     });
     const nextAction = deriveDealNextAction({
-      acceptance: acceptedQuote,
       calculationId: summary.calculationId,
       completeness: sectionCompleteness,
       executionPlan,
-      intake: summary.snapshot,
+      header: summary.header,
       now,
       status: summary.status,
       transitionReadiness,
     });
 
     return {
-      acceptedQuote,
+      acceptedCalculation,
       attachmentIngestions,
       executionPlan,
       fundingResolution,
-      intake: summary.snapshot,
+      header: summary.header,
       nextAction,
       operationalState,
       participants,
@@ -885,7 +883,7 @@ export class DrizzleDealReads implements DealReads {
           status: row.status,
         })),
       },
-      revision: Number(summary.intakeRevision),
+      revision: Number(summary.headerRevision),
       sectionCompleteness,
       summary: {
         agreementId: summary.agreementId,
@@ -945,10 +943,524 @@ export class DrizzleDealReads implements DealReads {
     return row ? mapAttachmentIngestion(row) : null;
   }
 
+  async findCurrentRouteByDealId(id: string): Promise<DealRouteVersion | null> {
+    const [route] = await this.db
+      .select({
+        currentVersionId: dealRoutes.currentVersionId,
+        routeId: dealRoutes.id,
+      })
+      .from(dealRoutes)
+      .where(eq(dealRoutes.dealId, id))
+      .limit(1);
+
+    if (!route?.currentVersionId) {
+      return null;
+    }
+
+    const [versionRow, participantRows, legRows, componentRows] =
+      await Promise.all([
+        this.db
+          .select({
+            createdAt: dealRouteVersions.createdAt,
+            dealId: dealRouteVersions.dealId,
+            id: dealRouteVersions.id,
+            routeId: dealRouteVersions.routeId,
+            validationIssues: dealRouteVersions.validationIssues,
+            version: dealRouteVersions.version,
+          })
+          .from(dealRouteVersions)
+          .where(eq(dealRouteVersions.id, route.currentVersionId))
+          .limit(1),
+        this.db
+          .select({
+            code: dealRouteParticipants.code,
+            counterpartyId: dealRouteParticipants.counterpartyId,
+            customerId: dealRouteParticipants.customerId,
+            displayNameSnapshot: dealRouteParticipants.displayNameSnapshot,
+            id: dealRouteParticipants.id,
+            metadata: dealRouteParticipants.metadataJson,
+            organizationId: dealRouteParticipants.organizationId,
+            partyKind: dealRouteParticipants.partyKind,
+            requisiteId: dealRouteParticipants.requisiteId,
+            role: dealRouteParticipants.role,
+            sequence: dealRouteParticipants.sequence,
+          })
+          .from(dealRouteParticipants)
+          .where(eq(dealRouteParticipants.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteParticipants.sequence)),
+        this.db
+          .select({
+            code: dealRouteLegs.code,
+            executionCounterpartyId: dealRouteLegs.executionCounterpartyId,
+            expectedFromAmountMinor: dealRouteLegs.expectedFromAmountMinor,
+            expectedRateDen: dealRouteLegs.expectedRateDen,
+            expectedRateNum: dealRouteLegs.expectedRateNum,
+            expectedToAmountMinor: dealRouteLegs.expectedToAmountMinor,
+            fromCurrencyId: dealRouteLegs.fromCurrencyId,
+            fromParticipantId: dealRouteLegs.fromParticipantId,
+            id: dealRouteLegs.id,
+            idx: dealRouteLegs.idx,
+            kind: dealRouteLegs.kind,
+            notes: dealRouteLegs.notes,
+            settlementModel: dealRouteLegs.settlementModel,
+            toCurrencyId: dealRouteLegs.toCurrencyId,
+            toParticipantId: dealRouteLegs.toParticipantId,
+          })
+          .from(dealRouteLegs)
+          .where(eq(dealRouteLegs.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteLegs.idx)),
+        this.db
+          .select({
+            basisType: dealRouteCostComponents.basisType,
+            bps: dealRouteCostComponents.bps,
+            classification: dealRouteCostComponents.classification,
+            code: dealRouteCostComponents.code,
+            currencyId: dealRouteCostComponents.currencyId,
+            family: dealRouteCostComponents.family,
+            fixedAmountMinor: dealRouteCostComponents.fixedAmountMinor,
+            formulaType: dealRouteCostComponents.formulaType,
+            id: dealRouteCostComponents.id,
+            includedInClientRate: dealRouteCostComponents.includedInClientRate,
+            legId: dealRouteCostComponents.legId,
+            manualAmountMinor: dealRouteCostComponents.manualAmountMinor,
+            notes: dealRouteCostComponents.notes,
+            perMillion: dealRouteCostComponents.perMillion,
+            roundingMode: dealRouteCostComponents.roundingMode,
+            sequence: dealRouteCostComponents.sequence,
+          })
+          .from(dealRouteCostComponents)
+          .where(eq(dealRouteCostComponents.routeVersionId, route.currentVersionId))
+          .orderBy(asc(dealRouteCostComponents.sequence)),
+      ]);
+
+    const version = versionRow[0];
+
+    if (!version) {
+      return null;
+    }
+
+    const participantCodeById = new Map(
+      participantRows.map((participant) => [participant.id, participant.code] as const),
+    );
+    const legCodeById = new Map(legRows.map((leg) => [leg.id, leg.code] as const));
+
+    return {
+      costComponents: componentRows.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor:
+          component.fixedAmountMinor === null
+            ? null
+            : component.fixedAmountMinor.toString(),
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legCode: component.legId ? (legCodeById.get(component.legId) ?? null) : null,
+        manualAmountMinor:
+          component.manualAmountMinor === null
+            ? null
+            : component.manualAmountMinor.toString(),
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        sequence: component.sequence,
+      })),
+      createdAt: version.createdAt,
+      dealId: version.dealId,
+      id: version.id,
+      isCurrent: true,
+      legs: legRows.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor:
+          leg.expectedFromAmountMinor === null
+            ? null
+            : leg.expectedFromAmountMinor.toString(),
+        expectedRateDen:
+          leg.expectedRateDen === null ? null : leg.expectedRateDen.toString(),
+        expectedRateNum:
+          leg.expectedRateNum === null ? null : leg.expectedRateNum.toString(),
+        expectedToAmountMinor:
+          leg.expectedToAmountMinor === null
+            ? null
+            : leg.expectedToAmountMinor.toString(),
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantCode:
+          participantCodeById.get(leg.fromParticipantId) ?? leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantCode:
+          participantCodeById.get(leg.toParticipantId) ?? leg.toParticipantId,
+      })),
+      participants: participantRows.map((participant) => ({
+        code: participant.code,
+        displayNameSnapshot: participant.displayNameSnapshot,
+        id: participant.id,
+        metadata: participant.metadata ?? {},
+        partyId:
+          participant.partyKind === "customer"
+            ? participant.customerId!
+            : participant.partyKind === "organization"
+              ? participant.organizationId!
+              : participant.counterpartyId!,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        sequence: participant.sequence,
+      })),
+      routeId: version.routeId,
+      validationIssues:
+        (version.validationIssues as DealRouteVersion["validationIssues"]) ?? [],
+      version: version.version,
+    };
+  }
+
+  async findRouteTemplateById(id: string): Promise<DealRouteTemplate | null> {
+    const [templateRow, participantRows, legRows, componentRows] =
+      await Promise.all([
+        this.db
+          .select({
+            code: routeTemplates.code,
+            createdAt: routeTemplates.createdAt,
+            dealType: routeTemplates.dealType,
+            description: routeTemplates.description,
+            id: routeTemplates.id,
+            name: routeTemplates.name,
+            status: routeTemplates.status,
+            updatedAt: routeTemplates.updatedAt,
+          })
+          .from(routeTemplates)
+          .where(eq(routeTemplates.id, id))
+          .limit(1),
+        this.db
+          .select({
+            bindingKind: routeTemplateParticipants.bindingKind,
+            code: routeTemplateParticipants.code,
+            counterpartyId: routeTemplateParticipants.counterpartyId,
+            customerId: routeTemplateParticipants.customerId,
+            displayNameTemplate: routeTemplateParticipants.displayNameTemplate,
+            id: routeTemplateParticipants.id,
+            metadata: routeTemplateParticipants.metadataJson,
+            organizationId: routeTemplateParticipants.organizationId,
+            partyKind: routeTemplateParticipants.partyKind,
+            requisiteId: routeTemplateParticipants.requisiteId,
+            role: routeTemplateParticipants.role,
+            sequence: routeTemplateParticipants.sequence,
+          })
+          .from(routeTemplateParticipants)
+          .where(eq(routeTemplateParticipants.routeTemplateId, id))
+          .orderBy(asc(routeTemplateParticipants.sequence)),
+        this.db
+          .select({
+            code: routeTemplateLegs.code,
+            executionCounterpartyId: routeTemplateLegs.executionCounterpartyId,
+            expectedFromAmountMinor: routeTemplateLegs.expectedFromAmountMinor,
+            expectedRateDen: routeTemplateLegs.expectedRateDen,
+            expectedRateNum: routeTemplateLegs.expectedRateNum,
+            expectedToAmountMinor: routeTemplateLegs.expectedToAmountMinor,
+            fromCurrencyId: routeTemplateLegs.fromCurrencyId,
+            fromParticipantId: routeTemplateLegs.fromParticipantId,
+            id: routeTemplateLegs.id,
+            idx: routeTemplateLegs.idx,
+            kind: routeTemplateLegs.kind,
+            notes: routeTemplateLegs.notes,
+            settlementModel: routeTemplateLegs.settlementModel,
+            toCurrencyId: routeTemplateLegs.toCurrencyId,
+            toParticipantId: routeTemplateLegs.toParticipantId,
+          })
+          .from(routeTemplateLegs)
+          .where(eq(routeTemplateLegs.routeTemplateId, id))
+          .orderBy(asc(routeTemplateLegs.idx)),
+        this.db
+          .select({
+            basisType: routeTemplateCostComponents.basisType,
+            bps: routeTemplateCostComponents.bps,
+            classification: routeTemplateCostComponents.classification,
+            code: routeTemplateCostComponents.code,
+            currencyId: routeTemplateCostComponents.currencyId,
+            family: routeTemplateCostComponents.family,
+            fixedAmountMinor: routeTemplateCostComponents.fixedAmountMinor,
+            formulaType: routeTemplateCostComponents.formulaType,
+            id: routeTemplateCostComponents.id,
+            includedInClientRate: routeTemplateCostComponents.includedInClientRate,
+            legId: routeTemplateCostComponents.legId,
+            manualAmountMinor: routeTemplateCostComponents.manualAmountMinor,
+            notes: routeTemplateCostComponents.notes,
+            perMillion: routeTemplateCostComponents.perMillion,
+            roundingMode: routeTemplateCostComponents.roundingMode,
+            sequence: routeTemplateCostComponents.sequence,
+          })
+          .from(routeTemplateCostComponents)
+          .where(eq(routeTemplateCostComponents.routeTemplateId, id))
+          .orderBy(asc(routeTemplateCostComponents.sequence)),
+      ]);
+
+    const template = templateRow[0];
+
+    if (!template) {
+      return null;
+    }
+
+    const participantCodeById = new Map(
+      participantRows.map((participant) => [participant.id, participant.code] as const),
+    );
+    const legCodeById = new Map(legRows.map((leg) => [leg.id, leg.code] as const));
+
+    return {
+      code: template.code,
+      costComponents: componentRows.map((component) => ({
+        basisType: component.basisType,
+        bps: component.bps,
+        classification: component.classification,
+        code: component.code,
+        currencyId: component.currencyId,
+        family: component.family,
+        fixedAmountMinor:
+          component.fixedAmountMinor === null
+            ? null
+            : component.fixedAmountMinor.toString(),
+        formulaType: component.formulaType,
+        id: component.id,
+        includedInClientRate: component.includedInClientRate,
+        legCode: component.legId ? (legCodeById.get(component.legId) ?? null) : null,
+        manualAmountMinor:
+          component.manualAmountMinor === null
+            ? null
+            : component.manualAmountMinor.toString(),
+        notes: component.notes,
+        perMillion: component.perMillion,
+        roundingMode: component.roundingMode,
+        sequence: component.sequence,
+      })),
+      createdAt: template.createdAt,
+      dealType: template.dealType,
+      description: template.description,
+      id: template.id,
+      legs: legRows.map((leg) => ({
+        code: leg.code,
+        executionCounterpartyId: leg.executionCounterpartyId,
+        expectedFromAmountMinor:
+          leg.expectedFromAmountMinor === null
+            ? null
+            : leg.expectedFromAmountMinor.toString(),
+        expectedRateDen:
+          leg.expectedRateDen === null ? null : leg.expectedRateDen.toString(),
+        expectedRateNum:
+          leg.expectedRateNum === null ? null : leg.expectedRateNum.toString(),
+        expectedToAmountMinor:
+          leg.expectedToAmountMinor === null
+            ? null
+            : leg.expectedToAmountMinor.toString(),
+        fromCurrencyId: leg.fromCurrencyId,
+        fromParticipantCode:
+          participantCodeById.get(leg.fromParticipantId) ?? leg.fromParticipantId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        notes: leg.notes,
+        settlementModel: leg.settlementModel,
+        toCurrencyId: leg.toCurrencyId,
+        toParticipantCode:
+          participantCodeById.get(leg.toParticipantId) ?? leg.toParticipantId,
+      })),
+      name: template.name,
+      participants: participantRows.map((participant) => ({
+        bindingKind: participant.bindingKind,
+        code: participant.code,
+        displayNameTemplate: participant.displayNameTemplate,
+        id: participant.id,
+        metadata: participant.metadata ?? {},
+        partyId:
+          participant.partyKind === "customer"
+            ? participant.customerId
+            : participant.partyKind === "organization"
+              ? participant.organizationId
+              : participant.counterpartyId,
+        partyKind: participant.partyKind,
+        requisiteId: participant.requisiteId,
+        role: participant.role,
+        sequence: participant.sequence,
+      })),
+      status: template.status,
+      updatedAt: template.updatedAt,
+    };
+  }
+
+  async listRouteTemplates(input?: {
+    dealType?: Deal["type"];
+    status?: ("draft" | "published" | "archived")[];
+  }): Promise<DealRouteTemplateSummary[]> {
+    const conditions: SQL[] = [];
+
+    if (input?.dealType) {
+      conditions.push(eq(routeTemplates.dealType, input.dealType));
+    }
+
+    if (input?.status?.length) {
+      conditions.push(inArray(routeTemplates.status, input.status));
+    }
+
+    const rows = await this.db
+      .select({
+        code: routeTemplates.code,
+        createdAt: routeTemplates.createdAt,
+        dealType: routeTemplates.dealType,
+        description: routeTemplates.description,
+        id: routeTemplates.id,
+        name: routeTemplates.name,
+        status: routeTemplates.status,
+        updatedAt: routeTemplates.updatedAt,
+      })
+      .from(routeTemplates)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(routeTemplates.updatedAt), asc(routeTemplates.name));
+
+    return rows.map((row) => ({
+      code: row.code,
+      createdAt: row.createdAt,
+      dealType: row.dealType,
+      description: row.description,
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      updatedAt: row.updatedAt,
+    }));
+  }
+
   async listAttachmentIngestionsByDealId(
     dealId: string,
   ): Promise<DealAttachmentIngestion[]> {
     return this.loadAttachmentIngestions(dealId);
+  }
+
+  private async loadPortalCalculationSummary(
+    calculationId: string | null,
+  ): Promise<PortalDealCalculationSummary> {
+    if (!calculationId) {
+      return null;
+    }
+
+    const [row] = await this.db
+      .select({
+        additionalExpensesAmountMinor:
+          calculationSnapshots.additionalExpensesAmountMinor,
+        additionalExpensesCurrencyId:
+          calculationSnapshots.additionalExpensesCurrencyId,
+        agreementFeeAmountMinor: calculationSnapshots.agreementFeeAmountMinor,
+        agreementFeeBps: calculationSnapshots.agreementFeeBps,
+        baseCurrencyId: calculationSnapshots.baseCurrencyId,
+        calculationCurrencyId: calculationSnapshots.calculationCurrencyId,
+        calculationId: calculations.id,
+        calculationTimestamp: calculationSnapshots.calculationTimestamp,
+        fixedFeeAmountMinor: calculationSnapshots.fixedFeeAmountMinor,
+        fixedFeeCurrencyId: calculationSnapshots.fixedFeeCurrencyId,
+        originalAmountMinor: calculationSnapshots.originalAmountMinor,
+        quoteMarkupAmountMinor: calculationSnapshots.quoteMarkupAmountMinor,
+        quoteMarkupBps: calculationSnapshots.quoteMarkupBps,
+        rateDen: calculationSnapshots.rateDen,
+        rateNum: calculationSnapshots.rateNum,
+        totalAmountMinor: calculationSnapshots.totalAmountMinor,
+        totalFeeAmountInBaseMinor:
+          calculationSnapshots.totalFeeAmountInBaseMinor,
+        totalFeeAmountMinor: calculationSnapshots.totalFeeAmountMinor,
+        totalFeeBps: calculationSnapshots.totalFeeBps,
+        totalInBaseMinor: calculationSnapshots.totalInBaseMinor,
+        totalWithExpensesInBaseMinor:
+          calculationSnapshots.totalWithExpensesInBaseMinor,
+      })
+      .from(calculations)
+      .innerJoin(
+        calculationSnapshots,
+        eq(calculations.currentSnapshotId, calculationSnapshots.id),
+      )
+      .where(eq(calculations.id, calculationId))
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    const currenciesById = await this.currenciesQueries.listByIds(
+      [
+        row.calculationCurrencyId,
+        row.baseCurrencyId,
+        row.additionalExpensesCurrencyId,
+        row.fixedFeeCurrencyId,
+      ].filter((currencyId): currencyId is string => Boolean(currencyId)),
+    );
+    const calculationCurrency = currenciesById.get(row.calculationCurrencyId);
+    const baseCurrency = currenciesById.get(row.baseCurrencyId);
+    const additionalExpensesCurrency = row.additionalExpensesCurrencyId
+      ? (currenciesById.get(row.additionalExpensesCurrencyId) ?? null)
+      : null;
+    const fixedFeeCurrency = row.fixedFeeCurrencyId
+      ? (currenciesById.get(row.fixedFeeCurrencyId) ?? null)
+      : null;
+
+    if (!calculationCurrency || !baseCurrency) {
+      throw new Error("Missing currency metadata for portal projection");
+    }
+
+    return {
+      additionalExpenses: minorToDecimalString(
+        row.additionalExpensesAmountMinor,
+        additionalExpensesCurrency?.precision ?? baseCurrency.precision,
+      ),
+      additionalExpensesCurrencyCode: additionalExpensesCurrency?.code ?? null,
+      agreementFeeAmount: minorToDecimalString(
+        row.agreementFeeAmountMinor,
+        calculationCurrency.precision,
+      ),
+      agreementFeePercentage: feeBpsToPercentString(row.agreementFeeBps),
+      baseCurrencyCode: baseCurrency.code,
+      calculationTimestamp: row.calculationTimestamp,
+      currencyCode: calculationCurrency.code,
+      fixedFeeAmount: minorToDecimalString(
+        row.fixedFeeAmountMinor,
+        fixedFeeCurrency?.precision ?? baseCurrency.precision,
+      ),
+      fixedFeeCurrencyCode: fixedFeeCurrency?.code ?? null,
+      id: row.calculationId,
+      originalAmount: minorToDecimalString(
+        row.originalAmountMinor,
+        calculationCurrency.precision,
+      ),
+      quoteMarkupAmount: minorToDecimalString(
+        row.quoteMarkupAmountMinor,
+        calculationCurrency.precision,
+      ),
+      quoteMarkupPercentage: feeBpsToPercentString(row.quoteMarkupBps),
+      rate: rationalToDecimalString(row.rateNum, row.rateDen),
+      totalAmount: minorToDecimalString(
+        row.totalAmountMinor,
+        calculationCurrency.precision,
+      ),
+      totalFeeAmount: minorToDecimalString(
+        row.totalFeeAmountMinor,
+        calculationCurrency.precision,
+      ),
+      totalFeeAmountInBase: minorToDecimalString(
+        row.totalFeeAmountInBaseMinor,
+        baseCurrency.precision,
+      ),
+      totalFeePercentage: feeBpsToPercentString(row.totalFeeBps),
+      totalInBase: minorToDecimalString(
+        row.totalInBaseMinor,
+        baseCurrency.precision,
+      ),
+      totalWithExpensesInBase: minorToDecimalString(
+        row.totalWithExpensesInBaseMinor,
+        baseCurrency.precision,
+      ),
+    };
   }
 
   async findPortalProjectionById(id: string): Promise<PortalDealProjection | null> {
@@ -960,22 +1472,23 @@ export class DrizzleDealReads implements DealReads {
     const applicant =
       workflow.participants.find((participant) => participant.role === "applicant") ??
       null;
+    const calculationSummary = await this.loadPortalCalculationSummary(
+      workflow.summary.calculationId,
+    );
 
     return {
-      calculationSummary: buildPortalCalculationSummary(
-        workflow.summary.calculationId,
-      ),
-      customerSafeIntake: {
-        contractNumber: workflow.intake.incomingReceipt.contractNumber,
-        customerNote: workflow.intake.common.customerNote,
-        expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
-        expectedCurrencyId: workflow.intake.incomingReceipt.expectedCurrencyId,
-        invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
-        purpose: workflow.intake.moneyRequest.purpose,
-        requestedExecutionDate: workflow.intake.common.requestedExecutionDate,
-        sourceAmount: workflow.intake.moneyRequest.sourceAmount,
-        sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
-        targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId,
+      calculationSummary,
+      customerSafeHeader: {
+        contractNumber: workflow.header.incomingReceipt.contractNumber,
+        customerNote: workflow.header.common.customerNote,
+        expectedAmount: workflow.header.incomingReceipt.expectedAmount,
+        expectedCurrencyId: workflow.header.incomingReceipt.expectedCurrencyId,
+        invoiceNumber: workflow.header.incomingReceipt.invoiceNumber,
+        purpose: workflow.header.moneyRequest.purpose,
+        requestedExecutionDate: workflow.header.common.requestedExecutionDate,
+        sourceAmount: workflow.header.moneyRequest.sourceAmount,
+        sourceCurrencyId: workflow.header.moneyRequest.sourceCurrencyId,
+        targetCurrencyId: workflow.header.moneyRequest.targetCurrencyId,
       },
       nextAction: workflow.nextAction,
       summary: {
@@ -1051,8 +1564,8 @@ export class DrizzleDealReads implements DealReads {
       customerId:
         workflow.participants.find((participant) => participant.role === "customer")
           ?.customerId ?? "",
+      header: workflow.header,
       id: summary.id,
-      intake: workflow.intake,
       nextAction: workflow.nextAction,
       revision: workflow.revision,
       status: summary.status,
@@ -1160,10 +1673,10 @@ export class DrizzleDealReads implements DealReads {
           comment: DEAL_COMMENT_SQL,
           createdAt: deals.createdAt,
           customerId: deals.customerId,
+          header: deals.headerSnapshot,
+          headerRevision: deals.headerRevision,
           id: deals.id,
-          intakeRevision: dealIntakeSnapshots.revision,
           nextAction: deals.nextAction,
-          snapshot: dealIntakeSnapshots.snapshot,
           sourceAmountMinor: deals.sourceAmountMinor,
           sourceCurrencyId: deals.sourceCurrencyId,
           status: deals.status,
@@ -1172,7 +1685,6 @@ export class DrizzleDealReads implements DealReads {
           updatedAt: deals.updatedAt,
         })
         .from(deals)
-        .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
         .where(where)
         .orderBy(orderByFn(orderByColumn))
         .limit(input.limit)
@@ -1194,7 +1706,7 @@ export class DrizzleDealReads implements DealReads {
         const precision = row.sourceCurrencyId
           ? extraCurrenciesById.get(row.sourceCurrencyId)?.precision ?? null
           : null;
-        const primaryAmountFields = getPrimaryDealAmountFields(row.snapshot);
+        const primaryAmountFields = getPrimaryDealAmountFields(row.header);
         const amount =
           row.type !== "payment" &&
           row.sourceAmountMinor != null &&
@@ -1208,10 +1720,10 @@ export class DrizzleDealReads implements DealReads {
           comment: row.comment,
           createdAt: row.createdAt,
           customerId: row.customerId,
+          header: row.header,
           id: row.id,
-          intake: row.snapshot,
           nextAction: row.nextAction,
-          revision: Number(row.intakeRevision),
+          revision: Number(row.headerRevision),
           status: row.status,
           type: row.type,
           updatedAt: row.updatedAt,

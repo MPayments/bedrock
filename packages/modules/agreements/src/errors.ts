@@ -41,3 +41,21 @@ export class AgreementActiveCustomerInvariantError extends InvalidStateError {
     );
   }
 }
+
+export class AgreementRouteTemplateUnavailableError extends ValidationError {
+  constructor(templateId: string) {
+    super(`Route template ${templateId} is unavailable for agreement defaults`);
+  }
+}
+
+export class AgreementRouteTemplateDealTypeMismatchError extends ValidationError {
+  constructor(
+    templateId: string,
+    templateDealType: string,
+    policyDealType: string,
+  ) {
+    super(
+      `Route template ${templateId} has deal type ${templateDealType}, expected ${policyDealType}`,
+    );
+  }
+}

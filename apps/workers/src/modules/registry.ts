@@ -23,13 +23,19 @@ import {
 import {
   DrizzleCounterpartyReads,
   DrizzleCustomerReads,
+  DrizzleOrganizationReads,
+  DrizzleRequisiteReads,
 } from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
+import {
+  bindPersistenceSession,
+  createPersistenceContext,
+  type Transaction,
+} from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import {
   type BedrockWorker,
@@ -38,6 +44,9 @@ import {
 import { createReconciliationWorkerDefinition } from "@bedrock/reconciliation/worker";
 import { createTreasuryModule } from "@bedrock/treasury";
 import {
+  DrizzleTreasuryCashMovementsRepository,
+  DrizzleTreasuryExecutionFeesRepository,
+  DrizzleTreasuryExecutionFillsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionsRepository,
   DrizzleTreasuryOperationsRepository,
@@ -126,6 +135,8 @@ export function createWorkerImplementations(
   const agreementReads = new DrizzleAgreementReads(deps.db, currenciesQueries);
   const counterpartyReads = new DrizzleCounterpartyReads(deps.db);
   const customerReads = new DrizzleCustomerReads(deps.db);
+  const organizationReads = new DrizzleOrganizationReads(deps.db);
+  const requisiteReads = new DrizzleRequisiteReads(deps.db);
   const objectStorage =
     deps.env.S3_ENDPOINT &&
     deps.env.S3_ACCESS_KEY &&
@@ -198,8 +209,11 @@ export function createWorkerImplementations(
       async findCustomerById(id: string) {
         return customerReads.findById(id);
       },
-      async findQuoteById() {
-        return null;
+      async findOrganizationById(id: string) {
+        return organizationReads.findById(id);
+      },
+      async findRequisiteById(id: string) {
+        return requisiteReads.findById(id);
       },
       async listActiveAgreementsByCustomerId(customerId: string) {
         const result = await agreementReads.list({
@@ -245,25 +259,44 @@ export function createWorkerImplementations(
     files: filesModule,
     logger: deps.logger,
   });
-  const treasuryModule = createTreasuryModule({
-    logger: deps.logger,
-    now: () => new Date(),
-    generateUuid: randomUUID,
-    currencies: currenciesService,
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
-    ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
-    quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
-    quoteFinancialLinesRepository:
-      new DrizzleTreasuryQuoteFinancialLinesRepository(deps.db),
-    quoteFeeComponentsRepository:
-      new DrizzleTreasuryQuoteFeeComponentsRepository(deps.db),
-    feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(deps.db),
-    unitOfWork: new DrizzleTreasuryUnitOfWork({
-      persistence: createPersistenceContext(deps.db),
-    }),
-    rateSourceProviders: createDefaultRateSourceProviders(),
-  });
+  const createTreasuryModuleForSession = (
+    session: Database | Transaction,
+    persistence:
+      | ReturnType<typeof createPersistenceContext>
+      | ReturnType<typeof bindPersistenceSession>,
+  ) =>
+    createTreasuryModule({
+      logger: deps.logger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
+      currencies: currenciesService,
+      cashMovementsRepository: new DrizzleTreasuryCashMovementsRepository(
+        session,
+      ),
+      executionFeesRepository: new DrizzleTreasuryExecutionFeesRepository(
+        session,
+      ),
+      executionFillsRepository: new DrizzleTreasuryExecutionFillsRepository(
+        session,
+      ),
+      instructionsRepository: new DrizzleTreasuryInstructionsRepository(session),
+      operationsRepository: new DrizzleTreasuryOperationsRepository(session),
+      ratesRepository: new DrizzleTreasuryRatesRepository(session),
+      quotesRepository: new DrizzleTreasuryQuotesRepository(session),
+      quoteFinancialLinesRepository:
+        new DrizzleTreasuryQuoteFinancialLinesRepository(session),
+      quoteFeeComponentsRepository:
+        new DrizzleTreasuryQuoteFeeComponentsRepository(session),
+      feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(session),
+      unitOfWork: new DrizzleTreasuryUnitOfWork({
+        persistence,
+      }),
+      rateSourceProviders: createDefaultRateSourceProviders(),
+    });
+  const treasuryModule = createTreasuryModuleForSession(
+    deps.db,
+    createPersistenceContext(deps.db),
+  );
   const treasuryRates = createTreasuryRatesWorkerDefinition({
     ...createWorkerMetadata("treasury-rates", deps.env),
     treasuryModule,
@@ -296,6 +329,180 @@ export function createWorkerImplementations(
       async treasuryOperationExists(operationId: string) {
         return (await treasuryModule.operations.queries.findById(operationId)) !== null;
       },
+    },
+    createExecutionFacts: (tx) => {
+      const treasuryTxModule = createTreasuryModuleForSession(
+        tx,
+        bindPersistenceSession(tx),
+      );
+
+      return {
+        async recordExecutionFill(input) {
+          const existingFills =
+            await treasuryTxModule.operations.queries.listExecutionFills({
+              limit: 100,
+              offset: 0,
+              operationId: input.operationId,
+              sortBy: "executedAt",
+              sortOrder: "desc",
+            });
+
+          const duplicate = existingFills.data.some(
+            (fill) =>
+              fill.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                fill.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                fill.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordExecutionFill({
+            actualRateDen: input.actualRateDen,
+            actualRateNum: input.actualRateNum,
+            boughtAmountMinor: input.boughtAmountMinor,
+            boughtCurrencyId:
+              input.boughtCurrencyId ?? operation.counterCurrencyId,
+            calculationSnapshotId: input.calculationSnapshotId,
+            confirmedAt: input.confirmedAt,
+            executedAt: input.executedAt,
+            externalRecordId: input.externalRecordId,
+            fillSequence: null,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
+            providerRef: input.providerRef,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            soldAmountMinor: input.soldAmountMinor,
+            soldCurrencyId: input.soldCurrencyId ?? operation.currencyId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+          });
+        },
+        async recordExecutionFee(input) {
+          const existingFees =
+            await treasuryTxModule.operations.queries.listExecutionFees({
+              limit: 100,
+              offset: 0,
+              operationId: input.operationId,
+              sortBy: "chargedAt",
+              sortOrder: "desc",
+            });
+
+          const duplicate = existingFees.data.some(
+            (fee) =>
+              fee.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                fee.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                fee.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordExecutionFee({
+            amountMinor: input.amountMinor,
+            calculationSnapshotId: input.calculationSnapshotId,
+            chargedAt: input.chargedAt,
+            componentCode: input.componentCode,
+            confirmedAt: input.confirmedAt,
+            currencyId: input.currencyId ?? operation.currencyId,
+            externalRecordId: input.externalRecordId,
+            feeFamily: input.feeFamily,
+            fillId: input.fillId,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
+            providerRef: input.providerRef,
+            routeComponentId: input.routeComponentId,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+          });
+        },
+        async recordCashMovement(input) {
+          const existingMovements =
+            await treasuryTxModule.operations.queries.listCashMovements({
+            limit: 100,
+            offset: 0,
+            operationId: input.operationId,
+            sortBy: "bookedAt",
+            sortOrder: "desc",
+          });
+
+          const duplicate = existingMovements.data.some(
+            (movement) =>
+              movement.sourceRef === input.sourceRef ||
+              (input.externalRecordId !== null &&
+                movement.externalRecordId === input.externalRecordId) ||
+              (input.instructionId !== null &&
+                movement.instructionId === input.instructionId),
+          );
+
+          if (duplicate) {
+            return;
+          }
+
+          const operation = await treasuryTxModule.operations.queries.findById(
+            input.operationId,
+          );
+
+          if (!operation) {
+            return;
+          }
+
+          await treasuryTxModule.operations.commands.recordCashMovement({
+            accountRef: input.accountRef,
+            amountMinor: input.amountMinor,
+            bookedAt: input.bookedAt,
+            calculationSnapshotId: input.calculationSnapshotId,
+            confirmedAt: input.confirmedAt,
+            currencyId: input.currencyId ?? operation.currencyId,
+            direction: input.direction,
+            externalRecordId: input.externalRecordId,
+            instructionId: input.instructionId,
+            metadata: input.metadata,
+            notes: input.notes,
+            operationId: input.operationId,
+            providerCounterpartyId: input.providerCounterpartyId,
+            providerRef: input.providerRef,
+            requisiteId: input.requisiteId,
+            routeLegId: input.routeLegId ?? operation.routeLegId,
+            routeVersionId: input.routeVersionId,
+            sourceKind: "reconciliation",
+            sourceRef: input.sourceRef,
+            statementRef: input.statementRef,
+            valueDate: input.valueDate,
+          });
+        },
+      };
     },
     logger: deps.logger,
   });

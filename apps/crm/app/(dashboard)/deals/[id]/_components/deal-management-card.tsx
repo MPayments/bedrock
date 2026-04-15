@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import type { ApiCrmDealWorkbenchProjection } from "./types";
 
 type AgreementOption = {
   contractNumber: string | null;
@@ -19,15 +20,12 @@ type AgreementOption = {
 };
 
 type DealManagementCardProps = {
-  agreementId: string;
   agreementOptions: AgreementOption[];
-  assigneeUserId: string | null;
-  canChangeAgreement: boolean;
-  canReassignAssignee: boolean;
   isUpdatingAgreement: boolean;
   isUpdatingAssignee: boolean;
   onAgreementChange: (agreementId: string) => void;
   onAssigneeChange: (assigneeUserId: string | undefined) => void;
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 function formatAgreementLabel(agreement: AgreementOption) {
@@ -37,16 +35,17 @@ function formatAgreementLabel(agreement: AgreementOption) {
 }
 
 export function DealManagementCard({
-  agreementId,
   agreementOptions,
-  assigneeUserId,
-  canChangeAgreement,
-  canReassignAssignee,
   isUpdatingAgreement,
   isUpdatingAssignee,
   onAgreementChange,
   onAssigneeChange,
+  workbench,
 }: DealManagementCardProps) {
+  const agreementId = workbench.context.agreement?.id ?? undefined;
+  const assigneeUserId = workbench.assignee.userId;
+  const canChangeAgreement = workbench.editability.agreement;
+  const canReassignAssignee = workbench.editability.assignee;
   const currentAgreement =
     agreementOptions.find((agreement) => agreement.id === agreementId) ?? null;
 

@@ -81,24 +81,6 @@ export class DealTransitionBlockedError extends InvalidStateError {
   }
 }
 
-export class DealQuoteNotAcceptedError extends ValidationError {
-  constructor(dealId: string, quoteId: string) {
-    super(`Quote ${quoteId} is not the accepted quote for deal ${dealId}`);
-  }
-}
-
-export class DealQuoteDealMismatchError extends ValidationError {
-  constructor(dealId: string, quoteId: string) {
-    super(`Quote ${quoteId} is not linked to deal ${dealId}`);
-  }
-}
-
-export class DealQuoteInactiveError extends ValidationError {
-  constructor(quoteId: string, status: string) {
-    super(`Quote ${quoteId} is not active: ${status}`);
-  }
-}
-
 export class DealLegStateTransitionError extends InvalidStateError {
   readonly code = "deal.leg_state_invalid";
   readonly details: {
@@ -114,5 +96,35 @@ export class DealLegStateTransitionError extends InvalidStateError {
       idx,
       to,
     };
+  }
+}
+
+export class DealRouteValidationError extends InvalidStateError {
+  readonly code = "deal.route_invalid";
+
+  constructor(
+    dealId: string,
+    readonly issues: {
+      code: string;
+      message: string;
+      path: string | null;
+      severity: "error" | "warning";
+    }[],
+  ) {
+    super(`Deal route for ${dealId} is invalid`);
+  }
+}
+
+export class DealRouteTemplateNotFoundError extends NotFoundError {
+  constructor(id: string) {
+    super("Deal route template", id);
+  }
+}
+
+export class DealRouteTemplateStateError extends InvalidStateError {
+  constructor(templateId: string, status: string, action: string) {
+    super(
+      `Deal route template ${templateId} cannot ${action} while in status ${status}`,
+    );
   }
 }

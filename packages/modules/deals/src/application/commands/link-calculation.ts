@@ -57,9 +57,8 @@ export class LinkCalculationCommand {
       }
 
       const rootState = await deriveDealRootState({
-        acceptance: existing.acceptedQuote,
         calculationId: validated.calculationId,
-        intake: existing.intake,
+        header: existing.header,
         references: this.references,
         status: existing.summary.status,
       });

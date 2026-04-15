@@ -25,7 +25,7 @@ describe("deal operational state", () => {
         createExecutionLeg(1, "collect", "pending"),
         createExecutionLeg(2, "payout", "pending"),
       ],
-      intake: {
+      header: {
         common: {
           applicantCounterpartyId: "applicant-1",
           customerNote: null,
@@ -59,7 +59,7 @@ describe("deal operational state", () => {
         type: "payment",
       },
       sectionCompleteness: [],
-      status: "submitted",
+      status: "quoted",
       updatedAt: new Date("2026-04-01T12:00:00.000Z"),
     });
 
@@ -100,7 +100,7 @@ describe("deal operational state", () => {
         createExecutionLeg(1, "collect", "done"),
         createExecutionLeg(2, "payout", "ready"),
       ],
-      intake: {
+      header: {
         common: {
           applicantCounterpartyId: "applicant-1",
           customerNote: null,
@@ -134,7 +134,7 @@ describe("deal operational state", () => {
         type: "payment",
       },
       sectionCompleteness: [],
-      status: "awaiting_payment",
+      status: "executing",
       updatedAt: new Date("2026-04-01T12:00:00.000Z"),
     });
 

@@ -29,6 +29,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("lucide-react", () => ({
   AlertCircle: () => null,
+  Calculator: () => null,
   CheckCircle2: () => null,
   Clock3: () => null,
   Download: () => null,
@@ -137,20 +138,24 @@ function createDeal(): FinanceDealWorkbenchData {
   };
 
   return {
-    acceptedQuote: null,
-    acceptedQuoteDetails: null,
+    acceptedCalculation: null,
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: false,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: true,
       canRunReconciliation: false,
       canResolveExecutionBlocker: false,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [],
     closeReadiness: {
-      blockers: ["Required intake sections are incomplete"],
+      blockers: ["Required deal header sections are incomplete"],
       criteria: [
         {
           code: "operations_materialized",
@@ -202,7 +207,7 @@ function createDeal(): FinanceDealWorkbenchData {
       totalOperations: 0,
       voided: 0,
     },
-    nextAction: "Complete intake form",
+    nextAction: "Complete deal header",
     operationalState: {
       positions: [],
     },
@@ -216,14 +221,15 @@ function createDeal(): FinanceDealWorkbenchData {
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
     profitabilitySnapshot: null,
+    profitabilityVariance: null,
     quoteHistory: [],
     queueContext: {
       blockers: [
-        "Required intake sections are incomplete",
+        "Required deal header sections are incomplete",
         "Required participant is unresolved: external_beneficiary",
       ],
       queue: "funding",
-      queueReason: "Required intake sections are incomplete",
+      queueReason: "Required deal header sections are incomplete",
     },
     reconciliationSummary: {
       ignoredExceptionCount: 0,
@@ -377,8 +383,8 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup.match(/Запросить котировку/g)).toHaveLength(1);
-    expect(markup.match(/Создать расчет/g)).toHaveLength(1);
+    expect(markup).toContain("Запросить котировку");
+    expect(markup).toContain("Создать расчет");
   });
 
   it("renders profitability, reconciliation, and close-readiness details from the backend projection", async () => {
@@ -423,6 +429,100 @@ describe("treasury deal workbench", () => {
         },
       ],
     };
+    deal.profitabilityVariance = {
+      actualCoverage: {
+        factCount: 2,
+        legsWithFacts: 2,
+        operationCount: 2,
+        state: "partial",
+        terminalOperationCount: 1,
+        totalLegCount: 3,
+      },
+      actualExpense: [
+        {
+          amountMinor: "400",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      actualPassThrough: [
+        {
+          amountMinor: "150",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      calculationId: "calc-1",
+      expectedNetMargin: [
+        {
+          amountMinor: "2551088",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      netMarginVariance: [
+        {
+          amountMinor: "-50",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      realizedNetMargin: [
+        {
+          amountMinor: "2551038",
+          currencyCode: "RUB",
+          currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+        },
+      ],
+      varianceByCostFamily: [
+        {
+          actual: [
+            {
+              amountMinor: "400",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          classification: "expense",
+          expected: [
+            {
+              amountMinor: "250",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          family: "provider_fee",
+          variance: [
+            {
+              amountMinor: "150",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+        },
+      ],
+      varianceByLeg: [
+        {
+          actualFees: [
+            {
+              amountMinor: "400",
+              currencyCode: "RUB",
+              currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+            },
+          ],
+          actualFrom: null,
+          actualTo: null,
+          code: "fx-leg",
+          expectedFrom: null,
+          expectedTo: null,
+          idx: 2,
+          kind: "fx_conversion",
+          routeLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          varianceFrom: null,
+          varianceTo: null,
+        },
+      ],
+    };
     deal.reconciliationSummary = {
       ignoredExceptionCount: 0,
       lastActivityAt: "2026-04-02T10:00:00.000Z",
@@ -461,6 +561,9 @@ describe("treasury deal workbench", () => {
 
     expect(normalizedMarkup).toContain("Финансовый результат и закрытие");
     expect(normalizedMarkup).toContain("Расходы провайдера");
+    expect(normalizedMarkup).toContain("Plan vs Actual");
+    expect(normalizedMarkup).toContain("Реализованная маржа");
+    expect(normalizedMarkup).toContain("Variance по этапам маршрута");
     expect(normalizedMarkup).toContain("Результат сверки");
     expect(normalizedMarkup).toContain("Открытых исключений");
     expect(normalizedMarkup).toContain("Исключения сверки");

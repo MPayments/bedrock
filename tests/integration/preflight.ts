@@ -8,11 +8,18 @@ const REQUIRED_TABLES = [
   { schemaName: "public", tableName: "requisite_providers" },
   { schemaName: "public", tableName: "requisites" },
   { schemaName: "public", tableName: "organization_requisite_bindings" },
-  { schemaName: "public", tableName: "deal_intake_snapshots" },
+  { schemaName: "public", tableName: "deals" },
+  { schemaName: "public", tableName: "deal_participants" },
+  { schemaName: "public", tableName: "deal_legs" },
+  { schemaName: "public", tableName: "deal_routes" },
+  { schemaName: "public", tableName: "deal_route_versions" },
+  { schemaName: "public", tableName: "deal_calculation_links" },
   { schemaName: "public", tableName: "deal_capability_states" },
   { schemaName: "public", tableName: "deal_operational_positions" },
   { schemaName: "public", tableName: "deal_timeline_events" },
-  { schemaName: "public", tableName: "deal_quote_acceptances" },
+  { schemaName: "public", tableName: "treasury_execution_fills" },
+  { schemaName: "public", tableName: "treasury_execution_fees" },
+  { schemaName: "public", tableName: "treasury_cash_movements" },
   { schemaName: "public", tableName: "accounting_report_line_mappings" },
   { schemaName: "public", tableName: "accounting_close_packages" },
 ] as const;
@@ -39,6 +46,14 @@ const REQUIRED_COLUMNS = [
     columnName: "next_action",
   },
   {
+    tableName: "deals",
+    columnName: "header_revision",
+  },
+  {
+    tableName: "deals",
+    columnName: "header_snapshot",
+  },
+  {
     tableName: "deal_legs",
     columnName: "state",
   },
@@ -50,13 +65,35 @@ const REQUIRED_COLUMNS = [
     tableName: "calculation_snapshots",
     columnName: "quote_snapshot",
   },
+  {
+    tableName: "treasury_execution_fills",
+    columnName: "calculation_snapshot_id",
+  },
+  {
+    tableName: "treasury_execution_fees",
+    columnName: "component_code",
+  },
+  {
+    tableName: "treasury_cash_movements",
+    columnName: "value_date",
+  },
 ] as const;
 
 const REQUIRED_INDEXES = ["books_default_owner_uq"] as const;
 const REQUIRED_ENUM_VALUES = [
   {
+    enumName: "deal_status",
+    values: [
+      "pricing",
+      "quoted",
+      "approved_for_execution",
+      "reconciling",
+      "closed",
+    ],
+  },
+  {
     enumName: "deal_timeline_event_type",
-    values: ["quote_accepted", "leg_state_changed"],
+    values: ["deal_header_updated", "calculation_accepted", "leg_state_changed"],
   },
 ] as const;
 

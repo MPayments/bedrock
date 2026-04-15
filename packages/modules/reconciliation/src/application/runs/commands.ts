@@ -4,6 +4,7 @@ import {
   type RunReconciliationInput,
 } from "../../contracts";
 import { extractCandidateReferences } from "../../domain/candidate-references";
+import { extractTreasuryExecutionActualsFromReconciliationRecord } from "../../domain/execution-fact-normalization";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { resolveMatchFromCandidates } from "../../domain/matching";
 import { ReconciliationException } from "../../domain/reconciliation-exception";
@@ -121,7 +122,14 @@ export function createRunReconciliationHandler(
     const validated = RunReconciliationInputSchema.parse(input);
 
     const run = await transactions.withTransaction(
-      async ({ exceptions, externalRecords, idempotency, matches, runs }) =>
+      async ({
+        exceptions,
+        executionFacts,
+        externalRecords,
+        idempotency,
+        matches,
+        runs,
+      }) =>
         idempotency.withIdempotency({
         scope: RECONCILIATION_IDEMPOTENCY_SCOPE.RUN,
         idempotencyKey: validated.idempotencyKey,
@@ -192,6 +200,30 @@ export function createRunReconciliationHandler(
                 }),
               ),
             );
+          }
+
+          for (const { record, resolution } of resolutions) {
+            const normalizedActuals =
+              extractTreasuryExecutionActualsFromReconciliationRecord({
+                matchedTreasuryOperationId:
+                  resolution.matchedTreasuryOperationId,
+                reconciliationRunId: createdRun.id,
+                record,
+              });
+
+            if (normalizedActuals.fill) {
+              await executionFacts.recordExecutionFill(normalizedActuals.fill);
+            }
+
+            if (normalizedActuals.fee) {
+              await executionFacts.recordExecutionFee(normalizedActuals.fee);
+            }
+
+            if (normalizedActuals.cashMovement) {
+              await executionFacts.recordCashMovement(
+                normalizedActuals.cashMovement,
+              );
+            }
           }
 
           return createdRun;

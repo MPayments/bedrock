@@ -2,37 +2,29 @@ import { AttachmentsCard } from "./attachments-card";
 import { BeneficiaryDraftCard } from "./beneficiary-draft-card";
 import { EvidenceRequirementsCard } from "./evidence-requirements-card";
 import { FormalDocumentsCard } from "./formal-documents-card";
-import type { ApiAttachment, ApiCrmDealWorkbenchProjection, ApiFormalDocument } from "./types";
+import type { ApiCrmDealWorkbenchProjection } from "./types";
 
 type DealDocumentsTabProps = {
-  attachments: ApiAttachment[];
-  attachmentIngestions: ApiCrmDealWorkbenchProjection["workflow"]["attachmentIngestions"];
-  beneficiaryDraft: ApiCrmDealWorkbenchProjection["beneficiaryDraft"];
   deletingAttachmentId: string | null;
-  documentRequirements: ApiCrmDealWorkbenchProjection["documentRequirements"];
-  evidenceRequirements: ApiCrmDealWorkbenchProjection["evidenceRequirements"];
-  formalDocuments: ApiFormalDocument[];
   reingestingAttachmentId: string | null;
   onAttachmentDelete: (attachmentId: string) => void;
   onAttachmentDownload: (attachmentId: string) => void;
   onAttachmentReingest: (attachmentId: string) => void;
   onAttachmentUpload: () => void;
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 export function DealDocumentsTab({
-  attachments,
-  attachmentIngestions,
-  beneficiaryDraft,
   deletingAttachmentId,
-  documentRequirements,
-  evidenceRequirements,
-  formalDocuments,
   reingestingAttachmentId,
   onAttachmentDelete,
   onAttachmentDownload,
   onAttachmentReingest,
   onAttachmentUpload,
+  workbench,
 }: DealDocumentsTabProps) {
+  const { beneficiaryDraft, documentRequirements, evidenceRequirements } =
+    workbench;
   const showsBeneficiaryDraft = evidenceRequirements.some(
     (requirement) => requirement.code === "invoice" || requirement.code === "contract",
   );
@@ -45,8 +37,8 @@ export function DealDocumentsTab({
           <BeneficiaryDraftCard beneficiaryDraft={beneficiaryDraft} />
         ) : null}
         <AttachmentsCard
-          attachments={attachments}
-          attachmentIngestions={attachmentIngestions}
+          attachments={workbench.relatedResources.attachments}
+          attachmentIngestions={workbench.attachmentIngestions}
           deletingAttachmentId={deletingAttachmentId}
           onDelete={onAttachmentDelete}
           onDownload={onAttachmentDownload}
@@ -58,7 +50,7 @@ export function DealDocumentsTab({
 
       <section className="space-y-4">
         <FormalDocumentsCard
-          documents={formalDocuments}
+          documents={workbench.relatedResources.formalDocuments}
           requirements={documentRequirements}
         />
       </section>

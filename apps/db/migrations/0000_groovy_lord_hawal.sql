@@ -1,6 +1,8 @@
 CREATE TYPE "public"."agreement_fee_rule_kind" AS ENUM('agent_fee', 'fixed_fee');--> statement-breakpoint
 CREATE TYPE "public"."agreement_fee_rule_unit" AS ENUM('bps', 'money');--> statement-breakpoint
 CREATE TYPE "public"."agreement_party_role" AS ENUM('customer', 'organization');--> statement-breakpoint
+CREATE TYPE "public"."agreement_route_policy_deal_type" AS ENUM('payment', 'currency_exchange', 'currency_transit', 'exporter_settlement', 'internal_treasury');--> statement-breakpoint
+CREATE TYPE "public"."agreement_route_policy_commission_unit" AS ENUM('bps', 'money');--> statement-breakpoint
 CREATE TYPE "public"."calculation_line_kind" AS ENUM('original_amount', 'fee_amount', 'total_amount', 'additional_expenses', 'fee_amount_in_base', 'total_in_base', 'additional_expenses_in_base', 'total_with_expenses_in_base', 'fee_revenue', 'spread_revenue', 'provider_fee_expense', 'pass_through', 'adjustment');--> statement-breakpoint
 CREATE TYPE "public"."calculation_rate_source" AS ENUM('cbr', 'investing', 'xe', 'manual', 'fx_quote');--> statement-breakpoint
 CREATE TYPE "public"."chart_account_kind" AS ENUM('asset', 'liability', 'equity', 'revenue', 'expense', 'active_passive');--> statement-breakpoint
@@ -190,6 +192,67 @@ CREATE TABLE "agreement_versions" (
 	"version_number" integer NOT NULL,
 	"contract_number" text,
 	"contract_date" date,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agreement_route_policies" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"agreement_version_id" uuid NOT NULL,
+	"sequence" integer NOT NULL,
+	"deal_type" "agreement_route_policy_deal_type" NOT NULL,
+	"source_currency_id" uuid,
+	"target_currency_id" uuid,
+	"default_markup_bps" numeric(20, 8),
+	"default_wire_fee_amount_minor" bigint,
+	"default_wire_fee_currency_id" uuid,
+	"default_sub_agent_commission_unit" "agreement_route_policy_commission_unit",
+	"default_sub_agent_commission_bps" numeric(20, 8),
+	"default_sub_agent_commission_amount_minor" bigint,
+	"default_sub_agent_commission_currency_id" uuid,
+	"approval_threshold_amount_minor" bigint,
+	"approval_threshold_currency_id" uuid,
+	"quote_validity_seconds" integer,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "agreement_route_policies_wire_fee_currency_chk" CHECK ((
+        "agreement_route_policies"."default_wire_fee_amount_minor" is null
+        and "agreement_route_policies"."default_wire_fee_currency_id" is null
+      ) or (
+        "agreement_route_policies"."default_wire_fee_amount_minor" is not null
+        and "agreement_route_policies"."default_wire_fee_currency_id" is not null
+      )),
+	CONSTRAINT "agreement_route_policies_approval_threshold_currency_chk" CHECK ((
+        "agreement_route_policies"."approval_threshold_amount_minor" is null
+        and "agreement_route_policies"."approval_threshold_currency_id" is null
+      ) or (
+        "agreement_route_policies"."approval_threshold_amount_minor" is not null
+        and "agreement_route_policies"."approval_threshold_currency_id" is not null
+      )),
+	CONSTRAINT "agreement_route_policies_subagent_commission_chk" CHECK ((
+        "agreement_route_policies"."default_sub_agent_commission_unit" is null
+        and "agreement_route_policies"."default_sub_agent_commission_bps" is null
+        and "agreement_route_policies"."default_sub_agent_commission_amount_minor" is null
+        and "agreement_route_policies"."default_sub_agent_commission_currency_id" is null
+      ) or (
+        "agreement_route_policies"."default_sub_agent_commission_unit" = 'bps'
+        and "agreement_route_policies"."default_sub_agent_commission_bps" is not null
+        and "agreement_route_policies"."default_sub_agent_commission_amount_minor" is null
+        and "agreement_route_policies"."default_sub_agent_commission_currency_id" is null
+      ) or (
+        "agreement_route_policies"."default_sub_agent_commission_unit" = 'money'
+        and "agreement_route_policies"."default_sub_agent_commission_bps" is null
+        and "agreement_route_policies"."default_sub_agent_commission_amount_minor" is not null
+        and "agreement_route_policies"."default_sub_agent_commission_currency_id" is not null
+      ))
+);
+--> statement-breakpoint
+CREATE TABLE "agreement_route_template_links" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"agreement_route_policy_id" uuid NOT NULL,
+	"route_template_id" uuid NOT NULL,
+	"sequence" integer NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1416,6 +1479,13 @@ ALTER TABLE "agreement_parties" ADD CONSTRAINT "agreement_parties_agreement_vers
 ALTER TABLE "agreement_parties" ADD CONSTRAINT "agreement_parties_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agreement_parties" ADD CONSTRAINT "agreement_parties_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agreement_versions" ADD CONSTRAINT "agreement_versions_agreement_id_agreements_id_fk" FOREIGN KEY ("agreement_id") REFERENCES "public"."agreements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_agreement_version_id_agreement_versions_id_fk" FOREIGN KEY ("agreement_version_id") REFERENCES "public"."agreement_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_source_currency_id_currencies_id_fk" FOREIGN KEY ("source_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_target_currency_id_currencies_id_fk" FOREIGN KEY ("target_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_default_wire_fee_currency_id_currencies_id_fk" FOREIGN KEY ("default_wire_fee_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_default_sub_agent_commission_currency_id_currencies_id_fk" FOREIGN KEY ("default_sub_agent_commission_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_policies" ADD CONSTRAINT "agreement_route_policies_approval_threshold_currency_id_currencies_id_fk" FOREIGN KEY ("approval_threshold_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agreement_route_template_links" ADD CONSTRAINT "agreement_route_template_links_agreement_route_policy_id_agreement_route_policies_id_fk" FOREIGN KEY ("agreement_route_policy_id") REFERENCES "public"."agreement_route_policies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agreements" ADD CONSTRAINT "agreements_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agreements" ADD CONSTRAINT "agreements_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agreements" ADD CONSTRAINT "agreements_organization_requisite_id_requisites_id_fk" FOREIGN KEY ("organization_requisite_id") REFERENCES "public"."requisites"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1563,6 +1633,12 @@ CREATE UNIQUE INDEX "agreement_parties_version_role_uq" ON "agreement_parties" U
 CREATE INDEX "agreement_parties_version_idx" ON "agreement_parties" USING btree ("agreement_version_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "agreement_versions_agreement_version_uq" ON "agreement_versions" USING btree ("agreement_id","version_number");--> statement-breakpoint
 CREATE INDEX "agreement_versions_agreement_idx" ON "agreement_versions" USING btree ("agreement_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agreement_route_policies_version_sequence_uq" ON "agreement_route_policies" USING btree ("agreement_version_id","sequence");--> statement-breakpoint
+CREATE INDEX "agreement_route_policies_version_idx" ON "agreement_route_policies" USING btree ("agreement_version_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agreement_route_template_links_policy_template_uq" ON "agreement_route_template_links" USING btree ("agreement_route_policy_id","route_template_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agreement_route_template_links_policy_sequence_uq" ON "agreement_route_template_links" USING btree ("agreement_route_policy_id","sequence");--> statement-breakpoint
+CREATE UNIQUE INDEX "agreement_route_template_links_default_uq" ON "agreement_route_template_links" USING btree ("agreement_route_policy_id") WHERE "agreement_route_template_links"."is_default" = true;--> statement-breakpoint
+CREATE INDEX "agreement_route_template_links_policy_idx" ON "agreement_route_template_links" USING btree ("agreement_route_policy_id");--> statement-breakpoint
 CREATE INDEX "agreements_customer_idx" ON "agreements" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "agreements_organization_idx" ON "agreements" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "agreements_current_version_idx" ON "agreements" USING btree ("current_version_id");--> statement-breakpoint

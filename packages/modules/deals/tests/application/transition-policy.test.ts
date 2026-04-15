@@ -18,7 +18,6 @@ function createExecutionLeg(
 
 function createBaseInput() {
   return {
-    acceptance: null,
     approvals: [],
     calculationId: null,
     completeness: [
@@ -54,7 +53,7 @@ function createBaseInput() {
       createExecutionLeg(2, "convert", "pending"),
       createExecutionLeg(3, "payout", "pending"),
     ],
-    intake: {
+    header: {
       externalBeneficiary: { beneficiarySnapshot: null },
       incomingReceipt: { payerSnapshot: null },
       moneyRequest: {
@@ -184,12 +183,12 @@ function createBaseInput() {
       },
     ],
     status: "draft" as const,
-    targetStatus: "submitted" as const,
+    targetStatus: "pricing" as const,
   };
 }
 
 describe("deal transition policy", () => {
-  it("blocks draft -> submitted when required intake is incomplete", () => {
+  it("blocks draft -> pricing when required header data is incomplete", () => {
     const input = createBaseInput();
     input.completeness[0] = {
       blockingReasons: ["Applicant is required"],
@@ -200,27 +199,55 @@ describe("deal transition policy", () => {
     const readiness = evaluateDealTransitionReadiness(input);
 
     expect(readiness.allowed).toBe(false);
-    expect(readiness.blockers.some((blocker) => blocker.code === "intake_incomplete")).toBe(true);
+    expect(
+      readiness.blockers.some((blocker) => blocker.code === "header_incomplete"),
+    ).toBe(true);
   });
 
-  it("blocks submitted -> preparing_documents when convert deal has no accepted quote", () => {
+  it("blocks pricing -> quoted when convert deal has no calculation", () => {
     const input = createBaseInput();
-    input.intake.type = "currency_exchange";
-    input.intake.moneyRequest.targetCurrencyId = "currency-2";
-    input.status = "submitted";
-    input.targetStatus = "preparing_documents";
+    input.header.type = "currency_exchange";
+    input.header.moneyRequest.targetCurrencyId = "currency-2";
+    input.status = "pricing";
+    input.targetStatus = "quoted";
 
     const readiness = evaluateDealTransitionReadiness(input);
 
     expect(readiness.allowed).toBe(false);
-    expect(readiness.blockers.some((blocker) => blocker.code === "accepted_quote_missing")).toBe(true);
-    expect(readiness.blockers.some((blocker) => blocker.code === "calculation_missing")).toBe(true);
+    expect(
+      readiness.blockers.some(
+        (blocker) => blocker.code === "calculation_missing",
+      ),
+    ).toBe(true);
   });
 
-  it("blocks preparing_documents -> awaiting_funds when the opening document is missing", () => {
+  it("blocks awaiting_internal_approval -> approved_for_execution when the opening document is missing", () => {
     const input = createBaseInput();
-    input.status = "preparing_documents";
-    input.targetStatus = "awaiting_funds";
+    input.status = "awaiting_internal_approval";
+    input.targetStatus = "approved_for_execution";
+    input.calculationId = "calculation-1";
+    input.approvals = [
+      {
+        approvalType: "commercial",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:30:00.000Z"),
+        decidedBy: "user-1",
+        id: "approval-commercial",
+        requestedAt: new Date("2026-04-01T09:00:00.000Z"),
+        requestedBy: "user-1",
+        status: "approved",
+      },
+      {
+        approvalType: "operations",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:45:00.000Z"),
+        decidedBy: "user-2",
+        id: "approval-operations",
+        requestedAt: new Date("2026-04-01T09:05:00.000Z"),
+        requestedBy: "user-2",
+        status: "approved",
+      },
+    ];
     input.executionPlan = [
       createExecutionLeg(1, "collect", "ready"),
       createExecutionLeg(2, "payout", "ready"),
@@ -229,30 +256,41 @@ describe("deal transition policy", () => {
     const readiness = evaluateDealTransitionReadiness(input);
 
     expect(readiness.allowed).toBe(false);
-    expect(readiness.blockers.some((blocker) => blocker.code === "opening_document_missing")).toBe(true);
+    expect(
+      readiness.blockers.some(
+        (blocker) => blocker.code === "opening_document_missing",
+      ),
+    ).toBe(true);
   });
 
-  it("allows preparing_documents -> awaiting_funds when the accepted quote is already used and the opening document is posted", () => {
+  it("allows awaiting_internal_approval -> approved_for_execution when the opening document is posted", () => {
     const input = createBaseInput();
-    input.status = "preparing_documents";
-    input.targetStatus = "awaiting_funds";
-    input.intake.moneyRequest.targetCurrencyId = "currency-2";
-    input.acceptance = {
-      acceptedAt: new Date("2026-04-01T10:00:00.000Z"),
-      acceptedByUserId: "user-1",
-      agreementVersionId: null,
-      dealId: "deal-1",
-      dealRevision: 2,
-      expiresAt: new Date("2026-04-02T10:00:00.000Z"),
-      id: "acceptance-1",
-      quoteId: "quote-1",
-      quoteStatus: "used",
-      replacedByQuoteId: null,
-      revokedAt: null,
-      usedAt: new Date("2026-04-01T10:05:00.000Z"),
-      usedDocumentId: "doc-1",
-    };
+    input.status = "awaiting_internal_approval";
+    input.targetStatus = "approved_for_execution";
+    input.header.moneyRequest.targetCurrencyId = "currency-2";
     input.calculationId = "calculation-1";
+    input.approvals = [
+      {
+        approvalType: "commercial",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:30:00.000Z"),
+        decidedBy: "user-1",
+        id: "approval-commercial",
+        requestedAt: new Date("2026-04-01T09:00:00.000Z"),
+        requestedBy: "user-1",
+        status: "approved",
+      },
+      {
+        approvalType: "operations",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:45:00.000Z"),
+        decidedBy: "user-2",
+        id: "approval-operations",
+        requestedAt: new Date("2026-04-01T09:05:00.000Z"),
+        requestedBy: "user-2",
+        status: "approved",
+      },
+    ];
     input.documents = [
       {
         approvalStatus: "approved",
@@ -277,17 +315,14 @@ describe("deal transition policy", () => {
     const readiness = evaluateDealTransitionReadiness(input);
 
     expect(readiness.allowed).toBe(true);
-    expect(
-      readiness.blockers.some(
-        (blocker) => blocker.code === "accepted_quote_inactive",
-      ),
-    ).toBe(false);
+    expect(readiness.blockers).toEqual([]);
   });
 
-  it("allows submitted -> preparing_documents when only the removed capability checks used to block", () => {
+  it("allows pricing -> quoted when a calculation already exists", () => {
     const input = createBaseInput();
-    input.status = "submitted";
-    input.targetStatus = "preparing_documents";
+    input.status = "pricing";
+    input.targetStatus = "quoted";
+    input.calculationId = "calculation-1";
 
     const readiness = evaluateDealTransitionReadiness(input);
 
@@ -295,10 +330,33 @@ describe("deal transition policy", () => {
     expect(readiness.blockers).toEqual([]);
   });
 
-  it("blocks awaiting_funds -> awaiting_payment when collect or convert legs are not done", () => {
+  it("blocks approved_for_execution -> executing when collect or convert legs are not done", () => {
     const input = createBaseInput();
-    input.status = "awaiting_funds";
-    input.targetStatus = "awaiting_payment";
+    input.status = "approved_for_execution";
+    input.targetStatus = "executing";
+    input.calculationId = "calculation-1";
+    input.approvals = [
+      {
+        approvalType: "commercial",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:30:00.000Z"),
+        decidedBy: "user-1",
+        id: "approval-commercial",
+        requestedAt: new Date("2026-04-01T09:00:00.000Z"),
+        requestedBy: "user-1",
+        status: "approved",
+      },
+      {
+        approvalType: "operations",
+        comment: null,
+        decidedAt: new Date("2026-04-01T09:45:00.000Z"),
+        decidedBy: "user-2",
+        id: "approval-operations",
+        requestedAt: new Date("2026-04-01T09:05:00.000Z"),
+        requestedBy: "user-2",
+        status: "approved",
+      },
+    ];
     input.documents = [
       {
         approvalStatus: "approved",

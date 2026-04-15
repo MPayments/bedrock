@@ -10,13 +10,19 @@ import { areFiltersEqual } from "@/lib/utils/table-filters";
 export type CurrencyCode = "USD" | "EUR" | "RUB" | "CNY" | "TRY" | "AED";
 export type DealStatus =
   | "draft"
-  | "submitted"
+  | "pricing"
+  | "quoted"
+  | "awaiting_customer_approval"
+  | "awaiting_internal_approval"
+  | "approved_for_execution"
+  | "executing"
+  | "partially_executed"
+  | "executed"
+  | "reconciling"
+  | "closed"
+  | "expired"
+  | "failed"
   | "rejected"
-  | "preparing_documents"
-  | "awaiting_funds"
-  | "awaiting_payment"
-  | "closing_documents"
-  | "done"
   | "cancelled";
 
 export interface DealsRow {

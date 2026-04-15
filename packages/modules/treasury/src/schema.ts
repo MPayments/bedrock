@@ -1,6 +1,11 @@
 import { feeRules } from "./fees/adapters/drizzle/schema";
 import { treasuryInstructions } from "./instructions/adapters/drizzle/schema";
-import { treasuryOperations } from "./operations/adapters/drizzle/schema";
+import {
+  treasuryCashMovements,
+  treasuryExecutionFees,
+  treasuryExecutionFills,
+  treasuryOperations,
+} from "./operations/adapters/drizzle/schema";
 import {
   fxQuoteFeeComponents,
   fxQuoteFinancialLines,
@@ -18,6 +23,9 @@ export {
   fxRateSources,
   fxRates,
   treasuryInstructions,
+  treasuryCashMovements,
+  treasuryExecutionFees,
+  treasuryExecutionFills,
   treasuryOperations,
 };
 
@@ -30,5 +38,8 @@ export const schema = {
   fxRateSources,
   feeRules,
   treasuryInstructions,
+  treasuryCashMovements,
+  treasuryExecutionFees,
+  treasuryExecutionFills,
   treasuryOperations,
 };

@@ -26,6 +26,7 @@ const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
   currency_exchange: null,
   currency_transit: "acceptance",
   exporter_settlement: "acceptance",
+  internal_treasury: null,
   payment: "acceptance",
 };
 
@@ -327,7 +328,10 @@ function buildReconciliationState(input: {
 
 function createCriteria(input: {
   executionUnblocked: boolean;
+  operationIdsWithFacts: ReadonlySet<string>;
+  profitabilityCalculationId: string | null;
   latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+  requiredOperationIds: string[];
   reconciliationSummary: FinanceDealReconciliationSummary;
   workflow: DealWorkflowProjection;
 }) {
@@ -356,6 +360,17 @@ function createCriteria(input: {
       "Сверка завершена без открытых исключений",
       input.reconciliationSummary.state === "clear" ||
         input.reconciliationSummary.state === "not_started",
+    ),
+  );
+  criteria.push(
+    createCriterion(
+      "realized_profitability_available",
+      "Фактический финансовый результат зафиксирован",
+      Boolean(input.profitabilityCalculationId) &&
+        (input.requiredOperationIds.length === 0 ||
+          input.requiredOperationIds.every((operationId) =>
+            input.operationIdsWithFacts.has(operationId),
+          )),
     ),
   );
 
@@ -473,6 +488,8 @@ function createCriteria(input: {
 
 export function deriveFinanceDealReadiness(input: {
   latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+  operationIdsWithFacts: ReadonlySet<string>;
+  profitabilityCalculationId: string | null;
   reconciliationLinksByOperationId: ReadonlyMap<string, ReconciliationOperationLinkDto>;
   workflow: DealWorkflowProjection;
 }): {
@@ -482,7 +499,7 @@ export function deriveFinanceDealReadiness(input: {
   reconciliationSummary: FinanceDealReconciliationSummary;
 } {
   const readiness = input.workflow.transitionReadiness.find(
-    (item) => item.targetStatus === "done",
+    (item) => item.targetStatus === "closed",
   );
   const existingBlockers = readiness?.allowed === false
     ? readiness.blockers.map((blocker) => blocker.message)
@@ -501,17 +518,21 @@ export function deriveFinanceDealReadiness(input: {
   const {
     reconciliationExceptions,
     reconciliationSummary,
+    requiredOperationIds,
   } = buildReconciliationState(input);
   const criteria = createCriteria({
     executionUnblocked: !executionBlocked,
     latestInstructionByOperationId: input.latestInstructionByOperationId,
+    operationIdsWithFacts: input.operationIdsWithFacts,
+    profitabilityCalculationId: input.profitabilityCalculationId,
+    requiredOperationIds,
     reconciliationSummary,
     workflow: input.workflow,
   });
   const blockers = [...existingBlockers];
 
   if (
-    input.workflow.summary.status === "done" ||
+    input.workflow.summary.status === "closed" ||
     input.workflow.summary.status === "cancelled"
   ) {
     addUniqueBlocker(blockers, "Сделка уже находится в конечном статусе");
@@ -576,6 +597,8 @@ function mapCriterionToStage(input: {
     case "payment_documents_ready":
     case "payment_payout_settled":
       return "awaiting_payout" satisfies FinanceDealStage;
+    case "realized_profitability_available":
+      return "awaiting_reconciliation" satisfies FinanceDealStage;
     case "currency_transit_collect_settled":
       return "awaiting_collection" satisfies FinanceDealStage;
     case "currency_transit_in_transit_resolved":

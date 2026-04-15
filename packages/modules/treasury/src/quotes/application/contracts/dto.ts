@@ -25,6 +25,7 @@ export const QuoteDealRefSchema = z
       "currency_exchange",
       "currency_transit",
       "exporter_settlement",
+      "internal_treasury",
     ]),
   })
   .nullable();

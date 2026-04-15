@@ -1,26 +1,37 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { sql } from "drizzle-orm";
 
+import { buildRouteEstimateCalculationInput } from "@bedrock/calculations";
 import {
+  CalculationCompareSchema,
   CalculationDetailsSchema,
+  CalculationRateSourceSchema,
   CreateCalculationInputSchema,
 } from "@bedrock/calculations/contracts";
 import {
+  AcceptDealCalculationInputSchema,
   AssignDealAgentInputSchema,
+  ApplyDealRouteTemplateInputSchema,
+  ApproveDealInputSchema,
   CloseDealInputSchema,
   CreateDealLegOperationInputSchema,
   CreateDealDraftInputSchema,
+  CreateDealRouteDraftInputSchema,
   DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
+  DealRouteVersionSchema,
   DealWorkflowProjectionSchema,
   RequestDealExecutionInputSchema,
   DealTraceSchema,
-  ReplaceDealIntakeInputSchema,
+  ReplaceDealRouteVersionInputSchema,
+  RejectDealInputSchema,
   ResolveDealExecutionBlockerInputSchema,
+  SupersedeDealCalculationInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
   UpdateDealCommentInputSchema,
+  UpdateDealHeaderInputSchema,
   UpdateDealLegStateInputSchema,
 } from "@bedrock/deals/contracts";
 import {
@@ -30,6 +41,7 @@ import {
 } from "@bedrock/files/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { mulDivRoundHalfUp, parseDecimalToFraction } from "@bedrock/shared/money";
 import {
   PreviewQuoteInputSchema,
   QuotePreviewResponseSchema,
@@ -63,6 +75,10 @@ import {
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 import {
+  GeneratedDocumentFormatSchema,
+  GeneratedDocumentLangSchema,
+} from "./customer-files";
+import {
   buildDealTrace,
   createDealScopedFormalDocument,
   createDealScopedQuote,
@@ -71,8 +87,10 @@ import {
   assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
+import { serializeCalculationDocumentData } from "./internal/calculation-document";
 import { toDocumentDto } from "./internal/document-dto";
 import {
+  serializeQuoteDetails,
   serializeQuote,
   serializeQuoteListItem,
   serializeQuotePreview,
@@ -102,6 +120,17 @@ export function dealsRoutes(ctx: AppContext) {
         param: {
           in: "path",
           name: "quoteId",
+        },
+      }),
+  });
+  const DealCalculationParamsSchema = IdParamSchema.extend({
+    calculationId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: {
+          in: "path",
+          name: "calculationId",
         },
       }),
   });
@@ -148,9 +177,53 @@ export function dealsRoutes(ctx: AppContext) {
   const DealCalculationHistorySchema = z.array(
     DealCalculationHistoryItemSchema,
   );
-  const DealCalculationFromQuoteInputSchema = z
+  const NullableDealRouteVersionSchema = DealRouteVersionSchema.nullable();
+  const PositiveIntegerStringSchema = z
+    .string()
+    .trim()
+    .regex(/^[1-9]\d*$/u);
+  const NonNegativeIntegerStringSchema = z
+    .string()
+    .trim()
+    .regex(/^(0|[1-9]\d*)$/u);
+  const DealCalculationFromRouteInputSchema = z
     .object({
-      quoteId: z.string().uuid(),
+      calculationTimestamp: z.coerce.date().optional(),
+      quoteId: z.uuid().nullable().optional(),
+      rateDen: PositiveIntegerStringSchema.nullable().optional(),
+      rateNum: PositiveIntegerStringSchema.nullable().optional(),
+      rateSource: CalculationRateSourceSchema.optional(),
+      totalInBaseMinor: NonNegativeIntegerStringSchema.nullable().optional(),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      if (
+        value.quoteId &&
+        (value.rateNum != null ||
+          value.rateDen != null ||
+          value.rateSource != null ||
+          value.totalInBaseMinor != null)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["quoteId"],
+          message:
+            "quoteId cannot be combined with manual rate or totalInBaseMinor fields",
+        });
+      }
+
+      if ((value.rateNum == null) !== (value.rateDen == null)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["rateNum"],
+          message: "rateNum and rateDen must be provided together",
+        });
+      }
+    });
+  const DealCalculationCompareQuerySchema = z
+    .object({
+      leftCalculationId: z.uuid().optional(),
+      rightCalculationId: z.uuid().optional(),
     })
     .strict();
   const DealHistoricalCalculationImportInputSchema =
@@ -202,6 +275,83 @@ export function dealsRoutes(ctx: AppContext) {
       exception,
       workspace,
     };
+  }
+
+  async function resolveSourceAmountMinorFromWorkflow(input: {
+    workflow: Awaited<
+      ReturnType<AppContext["dealsModule"]["deals"]["queries"]["findWorkflowById"]>
+    >;
+  }) {
+    const sourceCurrencyId = input.workflow.header.moneyRequest.sourceCurrencyId;
+    const sourceAmount = input.workflow.header.moneyRequest.sourceAmount;
+
+    if (!sourceCurrencyId || !sourceAmount) {
+      throw new ValidationError(
+        `Deal ${input.workflow.summary.id} is missing source amount or source currency for route estimate`,
+      );
+    }
+
+    const currency = await ctx.currenciesService.findById(sourceCurrencyId);
+    const fraction = parseDecimalToFraction(sourceAmount, {
+      allowScientific: false,
+    });
+    const scale = 10n ** BigInt(currency.precision);
+
+    return {
+      sourceAmountMinor: mulDivRoundHalfUp(fraction.num, scale, fraction.den),
+      sourceCurrencyId,
+    };
+  }
+
+  async function resolveRouteEstimateComparePair(input: { dealId: string }) {
+    const [deal, history] = await Promise.all([
+      requireDeal(ctx, input.dealId),
+      ctx.dealsModule.deals.queries.listCalculationHistory(input.dealId),
+    ]);
+    const leftCalculationId = deal.calculationId ?? history[0]?.calculationId ?? null;
+    const rightCalculationId =
+      history.find((item) => item.calculationId !== leftCalculationId)
+        ?.calculationId ?? null;
+
+    if (!leftCalculationId || !rightCalculationId) {
+      throw new ValidationError(
+        `Deal ${input.dealId} does not have enough calculations to compare`,
+      );
+    }
+
+    return {
+      deal,
+      history,
+      leftCalculationId,
+      rightCalculationId,
+    };
+  }
+
+  async function requireDealLinkedCalculation(input: {
+    calculationId: string;
+    dealId: string;
+  }) {
+    const [deal, history] = await Promise.all([
+      requireDeal(ctx, input.dealId),
+      ctx.dealsModule.deals.queries.listCalculationHistory(input.dealId),
+    ]);
+    const allowedCalculationIds = new Set<string>(
+      history.map((item) => item.calculationId),
+    );
+
+    if (deal.calculationId) {
+      allowedCalculationIds.add(deal.calculationId);
+    }
+
+    if (!allowedCalculationIds.has(input.calculationId)) {
+      throw new ValidationError(
+        `Calculation ${input.calculationId} is not linked to deal ${input.dealId}`,
+      );
+    }
+
+    return ctx.calculationsModule.calculations.queries.findById(
+      input.calculationId,
+    );
   }
 
   async function listPendingDealReconciliationExternalRecordIds(dealId: string) {
@@ -387,6 +537,35 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Deal workflow projection",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+    },
+  });
+
+  const getCurrentRouteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/route",
+    tags: ["Deals"],
+    summary: "Get current deal route version",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: NullableDealRouteVersionSchema,
+          },
+        },
+        description: "Current deal route version or null when not drafted yet",
       },
       404: {
         content: {
@@ -605,6 +784,43 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const updateHeaderRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "put",
+    path: "/{id}/header",
+    tags: ["Deals"],
+    summary: "Replace canonical deal header for the current revision",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateDealHeaderInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Deal header updated",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
   const updateCommentRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
@@ -630,18 +846,18 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const replaceIntakeRoute = createRoute({
+  const createRouteDraftRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
-    method: "put",
-    path: "/{id}/intake",
+    method: "post",
+    path: "/{id}/route/draft",
     tags: ["Deals"],
-    summary: "Replace the full typed deal intake snapshot",
+    summary: "Create an empty deal route draft if it does not exist",
     request: {
       params: IdParamSchema,
       body: {
         content: {
           "application/json": {
-            schema: ReplaceDealIntakeInputSchema,
+            schema: CreateDealRouteDraftInputSchema,
           },
         },
         required: true,
@@ -650,9 +866,56 @@ export function dealsRoutes(ctx: AppContext) {
     responses: {
       200: {
         content: {
-          "application/json": { schema: DealWorkflowProjectionSchema },
+          "application/json": {
+            schema: DealRouteVersionSchema,
+          },
         },
-        description: "Deal workflow updated",
+        description: "Current deal route draft",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+    },
+  });
+
+  const applyRouteTemplateRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/route/apply-template",
+    tags: ["Deals"],
+    summary: "Apply a published route template to a deal",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: ApplyDealRouteTemplateInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealRouteVersionSchema,
+          },
+        },
+        description: "Current deal route version after template application",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or template not found",
       },
       409: {
         content: {
@@ -660,7 +923,52 @@ export function dealsRoutes(ctx: AppContext) {
             schema: ErrorSchema,
           },
         },
-        description: "Deal revision conflict",
+        description: "Template cannot be applied",
+      },
+    },
+  });
+
+  const replaceRouteVersionRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "put",
+    path: "/{id}/route",
+    tags: ["Deals"],
+    summary: "Replace the current deal route version",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: ReplaceDealRouteVersionInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealRouteVersionSchema,
+          },
+        },
+        description: "Current deal route version",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or referenced entity not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route validation failed",
       },
     },
   });
@@ -719,35 +1027,6 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const acceptQuoteRoute = createRoute({
-    middleware: [requirePermission({ deals: ["update"] })],
-    method: "post",
-    path: "/{id}/quotes/{quoteId}/accept",
-    tags: ["Deals"],
-    summary: "Accept the active executable quote for the current deal revision",
-    request: {
-      params: DealQuoteParamsSchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: DealWorkflowProjectionSchema,
-          },
-        },
-        description: "Quote accepted",
-      },
-      404: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Deal or quote not found",
-      },
-    },
-  });
-
   const listCalculationHistoryRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -769,19 +1048,150 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const createCalculationFromQuoteRoute = createRoute({
+  const acceptDealCalculationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"], calculations: ["update"] })],
+    method: "post",
+    path: "/{id}/calculations/{calculationId}/accept",
+    tags: ["Deals"],
+    summary: "Accept the linked calculation as the commercial freeze point",
+    request: {
+      params: DealCalculationParamsSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: AcceptDealCalculationInputSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Calculation accepted",
+      },
+    },
+  });
+
+  const supersedeDealCalculationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"], calculations: ["update"] })],
+    method: "post",
+    path: "/{id}/calculations/{calculationId}/supersede",
+    tags: ["Deals"],
+    summary: "Supersede a linked deal calculation",
+    request: {
+      params: DealCalculationParamsSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: SupersedeDealCalculationInputSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealWorkflowProjectionSchema,
+          },
+        },
+        description: "Calculation superseded",
+      },
+    },
+  });
+
+  const getDealCalculationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"], calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/calculations/{calculationId}",
+    tags: ["Deals"],
+    summary: "Get a calculation linked to a deal",
+    request: {
+      params: DealCalculationParamsSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CalculationDetailsSchema,
+          },
+        },
+        description: "Calculation detail",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Calculation is not linked to the deal",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or calculation not found",
+      },
+    },
+  });
+
+  const exportDealCalculationRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"], calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/calculations/{calculationId}/export",
+    tags: ["Deals"],
+    summary: "Export a calculation linked to a deal",
+    request: {
+      params: DealCalculationParamsSchema,
+      query: z.object({
+        format: GeneratedDocumentFormatSchema,
+        lang: GeneratedDocumentLangSchema,
+      }),
+    },
+    responses: {
+      200: {
+        description: "Calculation document",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Calculation is not linked to the deal",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or calculation not found",
+      },
+    },
+  });
+
+  const createCalculationFromRouteRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
-    path: "/{id}/calculations/from-quote",
+    path: "/{id}/calculations/from-route",
     tags: ["Deals"],
-    summary: "Create a calculation from a treasury quote and attach to deal",
+    summary: "Create a route-based calculation estimate and attach it to a deal",
     request: {
       params: IdParamSchema,
       body: {
         required: true,
         content: {
           "application/json": {
-            schema: DealCalculationFromQuoteInputSchema,
+            schema: DealCalculationFromRouteInputSchema,
           },
         },
       },
@@ -793,7 +1203,7 @@ export function dealsRoutes(ctx: AppContext) {
             schema: CalculationDetailsSchema,
           },
         },
-        description: "Calculation created and attached",
+        description: "Route-based calculation created and attached",
       },
       400: {
         content: {
@@ -818,6 +1228,44 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Idempotency conflict",
+      },
+    },
+  });
+
+  const compareDealCalculationsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"], calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/calculations/compare",
+    tags: ["Deals"],
+    summary: "Compare two deal calculations or default to current vs previous",
+    request: {
+      params: IdParamSchema,
+      query: DealCalculationCompareQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CalculationCompareSchema,
+          },
+        },
+        description: "Calculation comparison",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Invalid comparison request",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or calculation not found",
       },
     },
   });
@@ -1112,6 +1560,60 @@ export function dealsRoutes(ctx: AppContext) {
           },
         },
         description: "Transition blocked",
+      },
+    },
+  });
+
+  const approveDealRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/approve",
+    tags: ["Deals"],
+    summary: "Approve a deal for the requested scope",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: ApproveDealInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
+        description: "Deal approval recorded",
+      },
+    },
+  });
+
+  const rejectDealRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/reject",
+    tags: ["Deals"],
+    summary: "Reject a deal for the requested scope",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RejectDealInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
+        description: "Deal rejection recorded",
       },
     },
   });
@@ -1488,6 +1990,16 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(getCurrentRouteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.dealsModule.deals.queries.findCurrentRouteByDealId(id);
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(getCrmWorkbenchRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
@@ -1635,6 +2147,21 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(updateHeaderRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.updateHeader({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(updateCommentRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
@@ -1649,13 +2176,45 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(replaceIntakeRoute, async (c) => {
+    .openapi(createRouteDraftRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        c.req.valid("json");
+        const deal = await requireDeal(ctx, id);
+        assertDealAllowsCommercialWrite(deal);
+        const result = await ctx.dealsModule.deals.commands.createRouteDraft({
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(applyRouteTemplateRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await ctx.dealsModule.deals.commands.replaceIntake({
+        const deal = await requireDeal(ctx, id);
+        assertDealAllowsCommercialWrite(deal);
+        const result = await ctx.dealsModule.deals.commands.applyRouteTemplate({
+          dealId: id,
+          templateId: body.templateId,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(replaceRouteVersionRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const deal = await requireDeal(ctx, id);
+        assertDealAllowsCommercialWrite(deal);
+        const result = await ctx.dealsModule.deals.commands.replaceRouteVersion({
           ...body,
-          actorUserId: c.get("user")!.id,
           dealId: id,
         });
 
@@ -1694,20 +2253,6 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(acceptQuoteRoute, async (c) => {
-      try {
-        const { id, quoteId } = c.req.valid("param");
-        const result = await ctx.dealsModule.deals.commands.acceptQuote({
-          actorUserId: c.get("user")!.id,
-          dealId: id,
-          quoteId,
-        });
-
-        return jsonOk(c, result);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
     .openapi(listCalculationHistoryRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
@@ -1719,21 +2264,218 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(createCalculationFromQuoteRoute, async (c) => {
+    .openapi(acceptDealCalculationRoute, async (c) => {
+      try {
+        const { calculationId, id } = c.req.valid("param");
+        c.req.valid("json");
+
+        await ctx.calculationsModule.calculations.commands.updateState({
+          actorUserId: c.get("user")!.id,
+          calculationId,
+          state: "accepted",
+        });
+        const result = await ctx.dealsModule.deals.commands.acceptCalculation({
+          actorUserId: c.get("user")!.id,
+          calculationId,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(supersedeDealCalculationRoute, async (c) => {
+      try {
+        const { calculationId, id } = c.req.valid("param");
+        const body = c.req.valid("json");
+
+        await ctx.calculationsModule.calculations.commands.updateState({
+          actorUserId: c.get("user")!.id,
+          calculationId,
+          state: "superseded",
+        });
+        const result = await ctx.dealsModule.deals.commands.supersedeCalculation({
+          actorUserId: c.get("user")!.id,
+          calculationId,
+          dealId: id,
+          reason: body.reason ?? null,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createCalculationFromRouteRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await withRequiredIdempotency(
           c,
           async (idempotencyKey) => {
+            const actorUserId = c.get("user")!.id;
             const deal = await requireDeal(ctx, id);
             assertDealAllowsCommercialWrite(deal);
-            return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
-              actorUserId: c.get("user")!.id,
-              dealId: id,
-              idempotencyKey,
-              quoteId: body.quoteId,
+
+            const workflow =
+              await ctx.dealsModule.deals.queries.findWorkflowById(id);
+
+            if (!workflow) {
+              throw new ValidationError(
+                `Deal workflow is not available for deal ${id}`,
+              );
+            }
+
+            const route =
+              await ctx.dealsModule.deals.queries.findCurrentRouteByDealId(id);
+
+            if (!route) {
+              throw new ValidationError(
+                `Deal ${id} does not have a current route version`,
+              );
+            }
+
+            const { sourceAmountMinor, sourceCurrencyId } =
+              await resolveSourceAmountMinorFromWorkflow({
+                workflow,
+              });
+
+            let agreementPolicy: Parameters<
+              typeof buildRouteEstimateCalculationInput
+            >[0]["agreementPolicy"] = null;
+
+            if (workflow.summary.agreementId) {
+              const resolved =
+                await ctx.agreementsModule.agreements.queries.resolveRouteDefaults(
+                  {
+                    agreementId: workflow.summary.agreementId,
+                    dealType: deal.type,
+                    sourceCurrencyId,
+                    targetCurrencyId:
+                      workflow.header.moneyRequest.targetCurrencyId ?? null,
+                  },
+                );
+
+              agreementPolicy = {
+                agreementVersionId: resolved.agreementVersionId,
+                defaultMarkupBps: resolved.policy?.defaultMarkupBps ?? null,
+                defaultSubAgentCommissionAmountMinor:
+                  resolved.policy?.defaultSubAgentCommissionAmountMinor ?? null,
+                defaultSubAgentCommissionBps:
+                  resolved.policy?.defaultSubAgentCommissionBps ?? null,
+                defaultSubAgentCommissionCurrencyId:
+                  resolved.policy?.defaultSubAgentCommissionCurrencyId ?? null,
+                defaultSubAgentCommissionUnit:
+                  resolved.policy?.defaultSubAgentCommissionUnit ?? null,
+                defaultWireFeeAmountMinor:
+                  resolved.policy?.defaultWireFeeAmountMinor ?? null,
+                defaultWireFeeCurrencyId:
+                  resolved.policy?.defaultWireFeeCurrencyId ?? null,
+              };
+            }
+
+            const lastLeg = [...route.legs]
+              .sort((left, right) => left.idx - right.idx)
+              .at(-1) ?? null;
+            const now = body.calculationTimestamp ?? new Date();
+
+            const pricing = body.quoteId
+              ? await (async () => {
+                  const quoteId = body.quoteId;
+
+                  if (!quoteId) {
+                    throw new ValidationError("quoteId is required");
+                  }
+
+                  const quoteDetails =
+                    await ctx.treasuryModule.quotes.queries.getQuoteDetails({
+                      quoteRef: quoteId,
+                    });
+                  const quote = quoteDetails.quote;
+
+                  if (quote.dealId && quote.dealId !== id) {
+                    throw new ValidationError(
+                      `Quote ${quote.id} is linked to deal ${quote.dealId}, not ${id}`,
+                    );
+                  }
+
+                  if (quote.fromCurrencyId !== sourceCurrencyId) {
+                    throw new ValidationError(
+                      `Quote ${quote.id} source currency does not match deal ${id}`,
+                    );
+                  }
+
+                  if (lastLeg && lastLeg.toCurrencyId !== quote.toCurrencyId) {
+                    throw new ValidationError(
+                      `Quote ${quote.id} target currency does not match current route for deal ${id}`,
+                    );
+                  }
+
+                  return {
+                    baseCurrencyId: quote.toCurrencyId,
+                    calculationTimestamp: now,
+                    fxQuoteId: quote.id,
+                    quoteSnapshot: serializeQuoteDetails(quoteDetails),
+                    rateDen: quote.rateDen,
+                    rateNum: quote.rateNum,
+                    rateSource: "fx_quote" as const,
+                    totalInBaseMinor: quote.toAmountMinor,
+                  };
+                })()
+              : {
+                  baseCurrencyId: lastLeg?.toCurrencyId ?? null,
+                  calculationTimestamp: now,
+                  fxQuoteId: null,
+                  quoteSnapshot: null,
+                  rateDen:
+                    body.rateDen === undefined || body.rateDen === null
+                      ? null
+                      : BigInt(body.rateDen),
+                  rateNum:
+                    body.rateNum === undefined || body.rateNum === null
+                      ? null
+                      : BigInt(body.rateNum),
+                  rateSource: body.rateSource ?? "manual",
+                  totalInBaseMinor:
+                    body.totalInBaseMinor === undefined ||
+                    body.totalInBaseMinor === null
+                      ? null
+                      : BigInt(body.totalInBaseMinor),
+                };
+
+            const calculationInput = buildRouteEstimateCalculationInput({
+              agreementPolicy,
+              deal: {
+                dealId: id,
+                sourceAmountMinor,
+                sourceCurrencyId,
+              },
+              dealSnapshot: deal,
+              pricing,
+              route: {
+                costComponents: route.costComponents,
+                legs: route.legs,
+                routeSnapshot: route,
+                routeVersionId: route.id,
+              },
             });
+
+            const calculation =
+              await ctx.calculationsModule.calculations.commands.create({
+                ...calculationInput,
+                actorUserId,
+                idempotencyKey,
+              });
+
+            await ctx.dealsModule.deals.commands.linkCalculation({
+              actorUserId,
+              calculationId: calculation.id,
+              dealId: id,
+              sourceQuoteId: body.quoteId ?? null,
+            });
+
+            return calculation;
           },
         );
 
@@ -1742,6 +2484,69 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(compareDealCalculationsRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const deal = await requireDeal(ctx, id);
+        const history =
+          await ctx.dealsModule.deals.queries.listCalculationHistory(id);
+        const allowedCalculationIds = new Set<string>(
+          history.map((item) => item.calculationId),
+        );
+
+        if (deal.calculationId) {
+          allowedCalculationIds.add(deal.calculationId);
+        }
+
+        const hasExplicitPair =
+          query.leftCalculationId !== undefined ||
+          query.rightCalculationId !== undefined;
+
+        const selection = hasExplicitPair
+          ? {
+              leftCalculationId: query.leftCalculationId ?? null,
+              rightCalculationId: query.rightCalculationId ?? null,
+            }
+          : await resolveRouteEstimateComparePair({ dealId: id });
+
+        if (
+          (selection.leftCalculationId === null) !==
+          (selection.rightCalculationId === null)
+        ) {
+          throw new ValidationError(
+            "leftCalculationId and rightCalculationId must be provided together",
+          );
+        }
+
+        if (!selection.leftCalculationId || !selection.rightCalculationId) {
+          throw new ValidationError(
+            `Deal ${id} does not have enough calculations to compare`,
+          );
+        }
+
+        if (!allowedCalculationIds.has(selection.leftCalculationId)) {
+          throw new ValidationError(
+            `Calculation ${selection.leftCalculationId} is not linked to deal ${id}`,
+          );
+        }
+
+        if (!allowedCalculationIds.has(selection.rightCalculationId)) {
+          throw new ValidationError(
+            `Calculation ${selection.rightCalculationId} is not linked to deal ${id}`,
+          );
+        }
+
+        const result = await ctx.calculationsModule.calculations.queries.compare({
+          leftCalculationId: selection.leftCalculationId,
+          rightCalculationId: selection.rightCalculationId,
+        });
+
+        return jsonOk(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1779,6 +2584,47 @@ export function dealsRoutes(ctx: AppContext) {
         }
 
         return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getDealCalculationRoute, async (c) => {
+      try {
+        const { id, calculationId } = c.req.valid("param");
+        const calculation = await requireDealLinkedCalculation({
+          calculationId,
+          dealId: id,
+        });
+
+        return jsonOk(c, calculation);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(exportDealCalculationRoute, async (c) => {
+      try {
+        const { id, calculationId } = c.req.valid("param");
+        const { format, lang } = c.req.valid("query");
+        const calculation = await requireDealLinkedCalculation({
+          calculationId,
+          dealId: id,
+        });
+        const calculationData = await serializeCalculationDocumentData({
+          calculation,
+          currenciesService: ctx.currenciesService,
+        });
+        const result = await ctx.documentGenerationWorkflow.generateCalculation({
+          calculationData,
+          format,
+          lang,
+        });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -1902,6 +2748,36 @@ export function dealsRoutes(ctx: AppContext) {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await ctx.dealsModule.deals.commands.transitionStatus({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(approveDealRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.approve({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(rejectDealRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.reject({
           ...body,
           actorUserId: c.get("user")!.id,
           dealId: id,

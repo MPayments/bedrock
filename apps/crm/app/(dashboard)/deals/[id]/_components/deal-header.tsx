@@ -18,29 +18,25 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
 } from "./constants";
-import type { ApiDealTransitionReadiness, DealStatus, DealType } from "./types";
+import type { ApiCrmDealWorkbenchProjection, DealStatus } from "./types";
 
 type DealHeaderProps = {
-  applicantDisplayName: string | null;
   isUpdatingStatus: boolean;
   onBack: () => void;
   onBlockedStatusClick: (status: DealStatus) => void;
   onStatusChange: (status: DealStatus) => void;
-  status: DealStatus;
-  type: DealType;
-  transitionReadiness: ApiDealTransitionReadiness[];
+  workbench: ApiCrmDealWorkbenchProjection;
 };
 
 export function DealHeader({
-  applicantDisplayName,
   isUpdatingStatus,
   onBack,
   onBlockedStatusClick,
   onStatusChange,
-  status,
-  type,
-  transitionReadiness,
+  workbench,
 }: DealHeaderProps) {
+  const { applicantDisplayName, status, type } = workbench.summary;
+  const { transitionReadiness } = workbench;
   const hasTransitions = transitionReadiness.length > 0;
 
   return (
@@ -68,49 +64,51 @@ export function DealHeader({
         </div>
       </div>
 
-      {hasTransitions && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                data-testid="deal-change-status-button"
-                variant="default"
-                size="sm"
-              />
-            }
-          >
-            Изменить статус
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Доступные переходы</DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            {transitionReadiness.map((item) => (
-              <DropdownMenuItem
-                key={item.targetStatus}
-                data-testid={`deal-change-status-option-${item.targetStatus}`}
-                disabled={isUpdatingStatus}
-                onClick={() =>
-                  item.allowed
-                    ? onStatusChange(item.targetStatus)
-                    : onBlockedStatusClick(item.targetStatus)
-                }
-              >
-                <div className="flex flex-col">
-                  <span>{STATUS_LABELS[item.targetStatus]}</span>
-                  {!item.allowed && item.blockers[0] && (
-                    <span className="text-xs text-muted-foreground">
-                      {formatDealWorkflowMessage(item.blockers[0].message)}
-                    </span>
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <div className="flex items-center gap-2">
+        {hasTransitions ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  data-testid="deal-change-status-button"
+                  variant="default"
+                  size="sm"
+                />
+              }
+            >
+              Изменить статус
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Доступные переходы</DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              {transitionReadiness.map((item) => (
+                <DropdownMenuItem
+                  key={item.targetStatus}
+                  data-testid={`deal-change-status-option-${item.targetStatus}`}
+                  disabled={isUpdatingStatus}
+                  onClick={() =>
+                    item.allowed
+                      ? onStatusChange(item.targetStatus)
+                      : onBlockedStatusClick(item.targetStatus)
+                  }
+                >
+                  <div className="flex flex-col">
+                    <span>{STATUS_LABELS[item.targetStatus]}</span>
+                    {!item.allowed && item.blockers[0] && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatDealWorkflowMessage(item.blockers[0].message)}
+                      </span>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
     </div>
   );
 }

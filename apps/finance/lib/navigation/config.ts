@@ -131,6 +131,13 @@ const navItems: AppNavItem[] = [
         icon: "handshake",
         audience: "admin",
       },
+      {
+        id: "treasury-route-templates",
+        title: "Шаблоны маршрутов",
+        href: "/route-templates",
+        icon: "workflow",
+        audience: "admin",
+      },
     ],
   },
   {

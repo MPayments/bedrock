@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type {
-  DocumentPostingPlanRequest,
-} from "@bedrock/accounting/contracts";
+import type { DocumentPostingPlanRequest } from "@bedrock/accounting/contracts";
 import {
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
@@ -56,7 +54,9 @@ function resolveDealFundingStrategy(
   return dealFxContext.fundingResolution.strategy;
 }
 
-export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
+export function buildQuoteSnapshotHash(
+  snapshot: Omit<QuoteSnapshot, "snapshotHash">,
+) {
   return createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
 }
 
@@ -300,10 +300,7 @@ export function buildFinancialLineRequests(input: {
     if (line.bucket === "provider_fee_expense" && !input.includeProviderLines) {
       return;
     }
-    if (
-      line.bucket !== "provider_fee_expense" &&
-      !input.includeCustomerLines
-    ) {
+    if (line.bucket !== "provider_fee_expense" && !input.includeCustomerLines) {
       return;
     }
 
@@ -341,6 +338,58 @@ export function buildFinancialLineRequests(input: {
   });
 
   return requests;
+}
+
+export function resolveFinalizedCommercialFinancialLines(
+  dealFxContext: Pick<
+    NonNullable<Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>>,
+    "actualFinancialLines" | "financialLines"
+  >,
+) {
+  const estimated = dealFxContext.financialLines.map((line) =>
+    normalizeFinancialLine(line),
+  );
+  const actual = (dealFxContext.actualFinancialLines ?? []).map((line) =>
+    normalizeFinancialLine(line),
+  );
+
+  if (actual.length === 0) {
+    return estimated;
+  }
+
+  const actualByBucket = new Map<string, FinancialLine[]>();
+
+  for (const line of actual) {
+    const bucket = actualByBucket.get(line.bucket) ?? [];
+    bucket.push(line);
+    actualByBucket.set(line.bucket, bucket);
+  }
+
+  const resolved: FinancialLine[] = [];
+  const emittedBuckets = new Set<string>();
+
+  for (const line of estimated) {
+    if (actualByBucket.has(line.bucket)) {
+      if (!emittedBuckets.has(line.bucket)) {
+        resolved.push(...(actualByBucket.get(line.bucket) ?? []));
+        emittedBuckets.add(line.bucket);
+      }
+
+      continue;
+    }
+
+    resolved.push(line);
+  }
+
+  for (const [bucket, lines] of actualByBucket.entries()) {
+    if (emittedBuckets.has(bucket)) {
+      continue;
+    }
+
+    resolved.push(...lines);
+  }
+
+  return resolved;
 }
 
 export function buildDirectInvoicePostingPlan(input: {
@@ -388,30 +437,6 @@ export function buildDirectInvoicePostingPlan(input: {
         },
         memo: input.payload.memo ?? null,
       }),
-      ...buildFinancialLineRequests({
-        document: input.document,
-        bookId: input.bookId,
-        customerId: input.payload.customerId,
-        orderId: input.document.id,
-        counterpartyId: input.payload.counterpartyId,
-        quoteRef,
-        chainId,
-        lines: input.payload.financialLines.map((line) =>
-          normalizeFinancialLine({
-            id: line.id,
-            bucket: line.bucket,
-            currency: line.currency,
-            amountMinor: BigInt(line.amountMinor),
-            source: line.source,
-            settlementMode: line.settlementMode,
-            memo: line.memo ?? undefined,
-            metadata: line.metadata ?? undefined,
-          }),
-        ),
-        includeCustomerLines: true,
-        includeProviderLines: true,
-        postingPhase: "direct",
-      }),
     ],
   });
 }
@@ -419,11 +444,7 @@ export function buildDirectInvoicePostingPlan(input: {
 export async function buildDealLinkedInvoicePostingPlan(input: {
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
   dealFxContext: NonNullable<
-    Awaited<
-      ReturnType<
-        typeof resolveInvoiceDealFxContext
-      >
-    >
+    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
   >;
   context: DocumentModuleContext;
   document: Document;
@@ -581,9 +602,7 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
         counterpartyId: input.payload.counterpartyId,
         quoteRef: quoteSnapshot.quoteRef,
         chainId,
-        lines: input.dealFxContext.financialLines.map((line) =>
-          normalizeFinancialLine(line),
-        ),
+        lines: resolveFinalizedCommercialFinancialLines(input.dealFxContext),
         includeCustomerLines: true,
         includeProviderLines: true,
         postingPhase: "finalize",
@@ -594,9 +613,7 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
 
 export function buildExchangePostingPlan(input: {
   document: Document;
-  financialLines?: NonNullable<
-    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
-  >["financialLines"];
+  financialLines?: FinancialLine[];
   payload: ExchangePayload;
   bookId: string;
 }) {
@@ -701,10 +718,7 @@ export function parseInvoicePayload(document: Document) {
 }
 
 export async function invoiceRequiresExchange(
-  deps: Pick<
-    CommercialModuleDeps,
-    "dealFx" | "documentBusinessLinks"
-  >,
+  deps: Pick<CommercialModuleDeps, "dealFx" | "documentBusinessLinks">,
   invoice: Document,
 ) {
   const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);

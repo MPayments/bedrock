@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { DealIntakeDraft } from "@bedrock/deals/contracts";
+import type { DealHeader } from "@bedrock/deals/contracts";
 
 import {
   createDealAttachmentIngestionWorkflow,
-  mergeNormalizedPayloadIntoIntake,
+  mergeNormalizedPayloadIntoHeader,
 } from "../src";
 
-function createPaymentIntake(): DealIntakeDraft {
+function createPaymentHeader(): DealHeader {
   return {
     common: {
       applicantCounterpartyId: "00000000-0000-4000-8000-000000000111",
@@ -43,14 +43,14 @@ function createPaymentIntake(): DealIntakeDraft {
   };
 }
 
-describe("mergeNormalizedPayloadIntoIntake", () => {
+describe("mergeNormalizedPayloadIntoHeader", () => {
   it("maps invoice data into payment target-side fields without overwriting source-side input", () => {
-    const intake = createPaymentIntake();
-    intake.moneyRequest.purpose = "Оплатить поставщику";
-    intake.moneyRequest.sourceCurrencyId = "00000000-0000-4000-8000-000000000100";
+    const header = createPaymentHeader();
+    header.moneyRequest.purpose = "Оплатить поставщику";
+    header.moneyRequest.sourceCurrencyId = "00000000-0000-4000-8000-000000000100";
 
-    const result = mergeNormalizedPayloadIntoIntake({
-      intake,
+    const result = mergeNormalizedPayloadIntoHeader({
+      header,
       normalizedPayload: {
         amount: "1000.50",
         bankInstructionSnapshot: {
@@ -82,25 +82,25 @@ describe("mergeNormalizedPayloadIntoIntake", () => {
     });
 
     expect(result.changed).toBe(true);
-    expect(result.intake.incomingReceipt.invoiceNumber).toBe("INV-2026-77");
-    expect(result.intake.incomingReceipt.expectedAmount).toBe("1000.50");
-    expect(result.intake.moneyRequest.sourceAmount).toBeNull();
-    expect(result.intake.moneyRequest.sourceCurrencyId).toBe(
+    expect(result.header.incomingReceipt.invoiceNumber).toBe("INV-2026-77");
+    expect(result.header.incomingReceipt.expectedAmount).toBe("1000.50");
+    expect(result.header.moneyRequest.sourceAmount).toBeNull();
+    expect(result.header.moneyRequest.sourceCurrencyId).toBe(
       "00000000-0000-4000-8000-000000000100",
     );
-    expect(result.intake.moneyRequest.targetCurrencyId).toBe(
+    expect(result.header.moneyRequest.targetCurrencyId).toBe(
       "00000000-0000-4000-8000-000000000210",
     );
-    expect(result.intake.moneyRequest.purpose).toBe("Оплатить поставщику");
+    expect(result.header.moneyRequest.purpose).toBe("Оплатить поставщику");
     expect(result.skippedFields).toContain("moneyRequest.purpose");
-    expect(result.intake.externalBeneficiary.beneficiarySnapshot?.legalName).toBe(
+    expect(result.header.externalBeneficiary.beneficiarySnapshot?.legalName).toBe(
       "Shanghai Supplier Co Ltd",
     );
   });
 
   it("fills only contract number for contract purpose", () => {
-    const result = mergeNormalizedPayloadIntoIntake({
-      intake: createPaymentIntake(),
+    const result = mergeNormalizedPayloadIntoHeader({
+      header: createPaymentHeader(),
       normalizedPayload: {
         amount: "1000",
         bankInstructionSnapshot: null,
@@ -116,9 +116,9 @@ describe("mergeNormalizedPayloadIntoIntake", () => {
     });
 
     expect(result.appliedFields).toEqual(["incomingReceipt.contractNumber"]);
-    expect(result.intake.incomingReceipt.contractNumber).toBe("CTR-42");
-    expect(result.intake.incomingReceipt.invoiceNumber).toBeNull();
-    expect(result.intake.moneyRequest.sourceAmount).toBeNull();
+    expect(result.header.incomingReceipt.contractNumber).toBe("CTR-42");
+    expect(result.header.incomingReceipt.invoiceNumber).toBeNull();
+    expect(result.header.moneyRequest.sourceAmount).toBeNull();
   });
 });
 

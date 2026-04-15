@@ -16,7 +16,12 @@ import {
 } from "@bedrock/deals/adapters/drizzle";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import type { OrganizationRequisiteLiquidityQueryRow } from "@bedrock/ledger/contracts";
-import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
+import {
+  DrizzleCounterpartyReads,
+  DrizzleCustomerReads,
+  DrizzleOrganizationReads,
+  DrizzleRequisiteReads,
+} from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -84,9 +89,9 @@ function createDealFundingAssessmentPort(input: {
 }) {
   return {
     async assessFunding(inputParams: {
-      acceptedQuoteId: string | null;
       hasConvertLeg: boolean;
       internalEntityOrganizationId: string | null;
+      pricingQuoteId: string | null;
       targetCurrencyId: string | null;
     }) {
       const fallbackTargetCurrency = inputParams.targetCurrencyId
@@ -124,12 +129,12 @@ function createDealFundingAssessmentPort(input: {
         };
       }
 
-      if (!inputParams.acceptedQuoteId) {
+      if (!inputParams.pricingQuoteId) {
         return {
           availableMinor: null,
           fundingOrganizationId: inputParams.internalEntityOrganizationId,
           fundingRequisiteId: null,
-          reasonCode: "accepted_quote_missing",
+          reasonCode: "pricing_quote_missing",
           requiredAmountMinor: null,
           state: "blocked" as const,
           strategy: null,
@@ -142,14 +147,14 @@ function createDealFundingAssessmentPort(input: {
 
       try {
         quoteDetails = await input.quoteReads.getQuoteDetails({
-          quoteRef: inputParams.acceptedQuoteId,
+          quoteRef: inputParams.pricingQuoteId,
         });
       } catch {
         return {
           availableMinor: null,
           fundingOrganizationId: inputParams.internalEntityOrganizationId,
           fundingRequisiteId: null,
-          reasonCode: "accepted_quote_details_unavailable",
+          reasonCode: "pricing_quote_details_unavailable",
           requiredAmountMinor: null,
           state: "blocked" as const,
           strategy: null,
@@ -209,18 +214,6 @@ export function createApiDealsModule(input: {
   now?: DealsModuleDeps["now"];
   persistence?: PersistenceContext;
   quoteReads: {
-    findById(id: string): Promise<{
-      agreementVersionId?: string | null;
-      commercialTerms?: {
-        agreementVersionId: string | null;
-      } | null;
-      dealId: string | null;
-      expiresAt: Date | null;
-      id: string;
-      status: string;
-      usedAt: Date | null;
-      usedDocumentId: string | null;
-    } | null>;
     getQuoteDetails(input: {
       quoteRef: string;
     }): Promise<QuoteDetailsRecord>;
@@ -228,6 +221,8 @@ export function createApiDealsModule(input: {
 }): DealsModule {
   const customerReads = new DrizzleCustomerReads(input.db);
   const counterpartyReads = new DrizzleCounterpartyReads(input.db);
+  const organizationReads = new DrizzleOrganizationReads(input.db);
+  const requisiteReads = new DrizzleRequisiteReads(input.db);
   const calculationReads = new DrizzleCalculationReads(input.db);
   const persistence = input.persistence ?? createPersistenceContext(input.db);
   const currenciesQueries = createCurrenciesQueries({ db: input.db });
@@ -290,24 +285,20 @@ export function createApiDealsModule(input: {
       async findCustomerById(id: string) {
         return customerReads.findById(id);
       },
-      async findQuoteById(id: string) {
-        const quote = await input.quoteReads.findById(id);
+      async findOrganizationById(id: string) {
+        return organizationReads.findById(id);
+      },
+      async findRequisiteById(id: string) {
+        const requisite = await requisiteReads.findById(id);
 
-        if (!quote) {
+        if (!requisite) {
           return null;
         }
 
         return {
-          agreementVersionId:
-            quote.agreementVersionId ??
-            quote.commercialTerms?.agreementVersionId ??
-            null,
-          dealId: quote.dealId,
-          expiresAt: quote.expiresAt,
-          id: quote.id,
-          status: quote.status,
-          usedAt: quote.usedAt,
-          usedDocumentId: quote.usedDocumentId,
+          id: requisite.id,
+          ownerId: requisite.ownerId,
+          ownerType: requisite.ownerType,
         };
       },
       async listActiveAgreementsByCustomerId(customerId: string) {

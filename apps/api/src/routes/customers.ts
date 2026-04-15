@@ -6,9 +6,11 @@ import {
   CustomerNotFoundError,
 } from "@bedrock/parties";
 import {
+  CustomerLegalEntitiesQuerySchema,
   CreateCustomerInputSchema,
   CustomerSchema,
   ListCustomersQuerySchema,
+  ParticipantLookupResponseSchema,
   PaginatedCustomersSchema,
   UpdateCustomerInputSchema,
 } from "@bedrock/parties/contracts";
@@ -220,6 +222,36 @@ export function customersRoutes(ctx: AppContext) {
       },
     },
     summary: "Get customer by id",
+    tags: ["Customers"],
+  });
+
+  const legalEntitiesRoute = createRoute({
+    middleware: [
+      requirePermission({
+        counterparties: ["list"],
+        customers: ["list"],
+        requisites: ["list"],
+      }),
+    ],
+    method: "get",
+    path: "/{id}/legal-entities",
+    request: {
+      params: CustomerIdParamSchema,
+      query: CustomerLegalEntitiesQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: ParticipantLookupResponseSchema },
+        },
+        description: "Customer legal entities resolved from counterparties",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Customer not found",
+      },
+    },
+    summary: "List customer legal entities",
     tags: ["Customers"],
   });
 
@@ -453,6 +485,23 @@ export function customersRoutes(ctx: AppContext) {
 
         throw error;
       }
+    })
+    .openapi(legalEntitiesRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const query = c.req.valid("query");
+
+      const customer = await ctx.partiesModule.customers.queries.findById(id);
+      if (!customer) {
+        return c.json({ error: new CustomerNotFoundError(id).message }, 404);
+      }
+
+      const result =
+        await ctx.partiesModule.participants.queries.listCustomerLegalEntities({
+          customerId: id,
+          query,
+        });
+
+      return c.json(result, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

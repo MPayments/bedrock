@@ -95,7 +95,7 @@ export class UpdateDealAgreementCommand {
           customerId,
           dealId: validated.id,
           generateUuid: () => this.runtime.generateUuid(),
-          intake: existing.intake,
+          header: existing.header,
         }),
       });
       await tx.dealStore.createDealTimelineEvents([

@@ -1,5 +1,6 @@
 export {
   compileDealExecutionRecipe,
+  compileRouteExecutionRecipe,
   createDealExecutionWorkflow,
   type CompiledDealExecutionOperation,
   type DealExecutionAmountRef,
