@@ -34,12 +34,17 @@ function createDeal(): FinanceDealWorkspace {
       state: "accepted",
     },
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: true,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: false,
       canRunReconciliation: true,
       canResolveExecutionBlocker: true,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [

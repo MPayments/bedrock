@@ -91,12 +91,17 @@ function createData(): FinanceDealReconciliationWorkspace {
     deal: {
       acceptedCalculation: null,
       actions: {
+        canAcceptCalculation: false,
         canCloseDeal: false,
         canCreateCalculation: true,
         canCreateQuote: true,
+        canRecordCashMovement: false,
+        canRecordExecutionFee: false,
+        canRecordExecutionFill: false,
         canRequestExecution: false,
         canRunReconciliation: true,
         canResolveExecutionBlocker: false,
+        canSupersedeCalculation: false,
         canUploadAttachment: true,
       },
       attachmentRequirements: [],

@@ -151,6 +151,24 @@ export const DEAL_SECTION_LABELS: Record<string, string> = {
   settlementDestination: "Куда зачислить средства",
 };
 
+export const REQUIRED_DEAL_SECTION_IDS_BY_TYPE: Record<DealType, string[]> = {
+  payment: ["common", "moneyRequest", "externalBeneficiary"],
+  currency_exchange: ["common", "moneyRequest", "settlementDestination"],
+  currency_transit: [
+    "common",
+    "moneyRequest",
+    "incomingReceipt",
+    "externalBeneficiary",
+  ],
+  exporter_settlement: [
+    "common",
+    "moneyRequest",
+    "incomingReceipt",
+    "settlementDestination",
+  ],
+  internal_treasury: ["common", "moneyRequest", "settlementDestination"],
+};
+
 const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Accept calculation": "Принять расчет",
   "Collect customer approval": "Получить одобрение клиента",

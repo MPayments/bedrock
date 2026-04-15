@@ -140,12 +140,17 @@ function createDeal(): FinanceDealWorkbenchData {
   return {
     acceptedCalculation: null,
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: false,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: true,
       canRunReconciliation: false,
       canResolveExecutionBlocker: false,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [],

@@ -266,12 +266,17 @@ const FinanceDealsResponseSchema = z.object({
 });
 
 const FinanceDealWorkspaceActionsSchema = z.object({
+  canAcceptCalculation: z.boolean(),
   canCloseDeal: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
+  canRecordCashMovement: z.boolean(),
+  canRecordExecutionFee: z.boolean(),
+  canRecordExecutionFill: z.boolean(),
   canRequestExecution: z.boolean(),
   canRunReconciliation: z.boolean(),
   canResolveExecutionBlocker: z.boolean(),
+  canSupersedeCalculation: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
 
@@ -1028,7 +1033,10 @@ const getFinanceDealRouteComposerByIdUncached = async (
   let route: z.infer<typeof FinanceDealRouteVersionSchema> | null = null;
 
   if (routeResponse.ok) {
-    route = await readJsonWithSchema(routeResponse, FinanceDealRouteVersionSchema);
+    route = await readJsonWithSchema(
+      routeResponse,
+      FinanceDealRouteVersionSchema.nullable(),
+    );
   } else if (routeResponse.status !== 404) {
     await requestOk(routeResponse, "Не удалось загрузить маршрут сделки");
   }

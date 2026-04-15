@@ -16,12 +16,17 @@ function createDealWorkbenchPayload() {
   return {
     acceptedCalculation: null,
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: true,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: true,
       canRunReconciliation: true,
       canResolveExecutionBlocker: false,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [],

@@ -87,6 +87,17 @@ vi.mock("@/features/treasury/deals/components/workspace-layout", () => ({
   }) => createElement(Fragment, null, actions, children),
 }));
 
+vi.mock("@/features/treasury/deals/components/execution-actual-entry-actions", () => ({
+  ExecutionActualEntryActions: () =>
+    createElement(
+      Fragment,
+      null,
+      createElement("span", null, "Add fill"),
+      createElement("span", null, "Add fee"),
+      createElement("span", null, "Add cash movement"),
+    ),
+}));
+
 function createData(): FinanceDealExecutionWorkspace {
   return {
     currencies: [
@@ -98,14 +109,30 @@ function createData(): FinanceDealExecutionWorkspace {
       },
     ],
     deal: {
-      acceptedCalculation: null,
+      acceptedCalculation: {
+        acceptedAt: "2026-04-02T08:15:00.000Z",
+        calculationId: "914fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        calculationTimestamp: "2026-04-02T08:15:00.000Z",
+        pricingProvenance: {
+          mode: "route",
+        },
+        quoteProvenance: null,
+        routeVersionId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        snapshotId: "snapshot-1",
+        state: "accepted",
+      },
       actions: {
+        canAcceptCalculation: false,
         canCloseDeal: false,
         canCreateCalculation: true,
         canCreateQuote: true,
+        canRecordCashMovement: true,
+        canRecordExecutionFee: true,
+        canRecordExecutionFill: true,
         canRequestExecution: true,
         canRunReconciliation: true,
         canResolveExecutionBlocker: false,
+        canSupersedeCalculation: false,
         canUploadAttachment: true,
       },
       attachmentRequirements: [],
@@ -418,6 +445,9 @@ describe("treasury deal execution workspace", () => {
     expect(markup).toContain("Actual execution actuals");
     expect(markup).toContain("provider fee");
     expect(markup).toContain("Close blockers");
+    expect(markup).toContain("Add fill");
+    expect(markup).toContain("Add fee");
+    expect(markup).toContain("Add cash movement");
     expect(markup).toContain("Провайдер");
   });
 });

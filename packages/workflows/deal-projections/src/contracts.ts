@@ -642,12 +642,17 @@ export type FinanceDealQueueProjection = z.infer<
 >;
 
 export const FinanceDealWorkspaceActionsSchema = z.object({
+  canAcceptCalculation: z.boolean(),
   canCloseDeal: z.boolean(),
   canCreateCalculation: z.boolean(),
   canCreateQuote: z.boolean(),
+  canRecordCashMovement: z.boolean(),
+  canRecordExecutionFee: z.boolean(),
+  canRecordExecutionFill: z.boolean(),
   canRequestExecution: z.boolean(),
   canRunReconciliation: z.boolean(),
   canResolveExecutionBlocker: z.boolean(),
+  canSupersedeCalculation: z.boolean(),
   canUploadAttachment: z.boolean(),
 });
 

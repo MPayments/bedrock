@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   FileText,
   LayoutDashboard,
+  PencilLine,
   Wallet,
   Workflow,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
 
 export type DealPageTab =
   | "overview"
+  | "questionnaire"
   | "pricing"
   | "documents"
   | "execution";
@@ -26,6 +28,7 @@ export const DEFAULT_DEAL_PAGE_TAB: DealPageTab = "overview";
 export function isDealPageTab(value: string | null): value is DealPageTab {
   return (
     value === "overview" ||
+    value === "questionnaire" ||
     value === "pricing" ||
     value === "documents" ||
     value === "execution"
@@ -42,6 +45,7 @@ type DealTabsProps = {
   onTabChange: (tab: DealPageTab) => void;
   overview: ReactNode;
   pricing: ReactNode;
+  questionnaire: ReactNode;
 };
 
 const DEAL_TAB_META: Array<{
@@ -53,6 +57,11 @@ const DEAL_TAB_META: Array<{
     icon: LayoutDashboard,
     label: "Обзор",
     value: "overview",
+  },
+  {
+    icon: PencilLine,
+    label: "Анкета",
+    value: "questionnaire",
   },
   {
     icon: Wallet,
@@ -91,6 +100,7 @@ export function DealTabs({
   onTabChange,
   overview,
   pricing,
+  questionnaire,
 }: DealTabsProps) {
   return (
     <Tabs
@@ -124,6 +134,9 @@ export function DealTabs({
 
         <TabsContent className="space-y-6" value="overview">
           {overview}
+        </TabsContent>
+        <TabsContent className="space-y-6" value="questionnaire">
+          {questionnaire}
         </TabsContent>
         <TabsContent className="space-y-6" value="pricing">
           {pricing}

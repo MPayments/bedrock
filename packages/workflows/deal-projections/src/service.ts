@@ -17,6 +17,7 @@ import type { Counterparty, Customer } from "@bedrock/parties/contracts";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { NotFoundError } from "@bedrock/shared/core/errors";
 import {
   formatFractionDecimal,
   minorToAmountString,
@@ -195,13 +196,9 @@ async function buildPortalCalculationSummary(input: {
       ].filter((currencyId): currencyId is string => Boolean(currencyId)),
     ),
   );
-  const currencies = new Map(
-    await Promise.all(
-      currencyIds.map(
-        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-          [currencyId, await input.currencies.findById(currencyId)] as const,
-      ),
-    ),
+  const currencies = await loadOptionalLookupMap(
+    currencyIds,
+    (currencyId) => input.currencies.findById(currencyId),
   );
   const calculationCurrency = currencies.get(snapshot.calculationCurrencyId);
   const baseCurrency = currencies.get(snapshot.baseCurrencyId);
@@ -213,7 +210,7 @@ async function buildPortalCalculationSummary(input: {
     : null;
 
   if (!calculationCurrency || !baseCurrency) {
-    throw new Error("Missing currency metadata for portal projection");
+    return null;
   }
 
   return {
@@ -338,6 +335,44 @@ function toMap<K, V>(entries: readonly (readonly [K, V])[]): Map<K, V> {
   return new Map(entries);
 }
 
+async function resolveOptionalLookup<T>(
+  load: () => Promise<T | null>,
+): Promise<T | null> {
+  try {
+    return await load();
+  } catch (error) {
+    if (
+      error instanceof NotFoundError ||
+      (error instanceof Error && error.name.endsWith("NotFoundError"))
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function loadOptionalLookupMap<T>(
+  ids: readonly string[],
+  load: (id: string) => Promise<T | null>,
+): Promise<Map<string, NonNullable<T>>> {
+  const map = new Map<string, NonNullable<T>>();
+  const entries = await Promise.all(
+    ids.map(async (id) => {
+      const value = await resolveOptionalLookup(() => load(id));
+      return value ? ([id, value] as const) : null;
+    }),
+  );
+
+  for (const entry of entries) {
+    if (entry) {
+      map.set(entry[0], entry[1] as NonNullable<T>);
+    }
+  }
+
+  return map;
+}
+
 function buildCrmDealMoneySummary(input: {
   deal: DealListRecord;
   calculation: CalculationDetailsLike | null;
@@ -404,8 +439,8 @@ async function loadDealMoneyLookups(
         ): Promise<readonly [string, CalculationDetailsLike | null]> =>
           [
             calculationId,
-            (await deps.calculations.calculations.queries.findById(
-              calculationId,
+            (await resolveOptionalLookup(() =>
+              deps.calculations.calculations.queries.findById(calculationId),
             )) ?? null,
           ] as const,
       ),
@@ -422,18 +457,12 @@ async function loadDealMoneyLookups(
   ];
 
   const [currenciesById, baseCurrenciesById] = await Promise.all([
-    Promise.all(
-      sourceCurrencyIds.map(
-        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-          [currencyId, await deps.currencies.findById(currencyId)] as const,
-      ),
-    ).then(toMap),
-    Promise.all(
-      baseCurrencyIds.map(
-        async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-          [currencyId, await deps.currencies.findById(currencyId)] as const,
-      ),
-    ).then(toMap),
+    loadOptionalLookupMap(sourceCurrencyIds, (currencyId) =>
+      deps.currencies.findById(currencyId),
+    ),
+    loadOptionalLookupMap(baseCurrencyIds, (currencyId) =>
+      deps.currencies.findById(currencyId),
+    ),
   ]);
 
   return {
@@ -1725,7 +1754,7 @@ async function resolveProfitabilityAmounts(
 
   const currencies = await Promise.all(
     Array.from(currencyIdsToAmounts.keys()).map(async (currencyId) => ({
-      currency: await deps.currencies.findById(currencyId),
+      currency: await resolveOptionalLookup(() => deps.currencies.findById(currencyId)),
       currencyId,
     })),
   );
@@ -2162,11 +2191,12 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
+    const calculationId = workflow.summary.calculationId;
     const [attachments, calculation] = await Promise.all([
       deps.files.files.queries.listDealAttachments(dealId),
-      workflow.summary.calculationId
-        ? deps.calculations.calculations.queries.findById(
-            workflow.summary.calculationId,
+      calculationId
+        ? resolveOptionalLookup(() =>
+            deps.calculations.calculations.queries.findById(calculationId),
           )
         : Promise.resolve(null),
     ]);
@@ -2432,21 +2462,15 @@ export function createDealProjectionsWorkflow(
     input: CrmDealsStatsQuery,
   ): Promise<CrmDealsStats> {
     const listedDeals = await listAllDeals();
-    const currenciesById = toMap(
-      await Promise.all(
-        [
-          ...new Set(
-            listedDeals
-              .map((deal) => deal.currencyId)
-              .filter((currencyId): currencyId is string =>
-                Boolean(currencyId),
-              ),
-          ),
-        ].map(
-          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-            [currencyId, await deps.currencies.findById(currencyId)] as const,
+    const currenciesById = await loadOptionalLookupMap(
+      [
+        ...new Set(
+          listedDeals
+            .map((deal) => deal.currencyId)
+            .filter((currencyId): currencyId is string => Boolean(currencyId)),
         ),
-      ),
+      ],
+      (currencyId) => deps.currencies.findById(currencyId),
     );
     const from = new Date(`${input.dateFrom}T00:00:00Z`);
     const to = new Date(`${input.dateTo}T23:59:59.999Z`);
@@ -2579,21 +2603,15 @@ export function createDealProjectionsWorkflow(
     const listedDeals = await listAllDeals({ customerId: query.customerId });
     const requestedStatuses = parseOptionalSet(query.statuses);
     const requestedCurrencies = parseOptionalSet(query.currencies);
-    const currenciesById = toMap(
-      await Promise.all(
-        [
-          ...new Set(
-            listedDeals
-              .map((deal) => deal.currencyId)
-              .filter((currencyId): currencyId is string =>
-                Boolean(currencyId),
-              ),
-          ),
-        ].map(
-          async (currencyId): Promise<readonly [string, CurrencyDetailsLike]> =>
-            [currencyId, await deps.currencies.findById(currencyId)] as const,
+    const currenciesById = await loadOptionalLookupMap(
+      [
+        ...new Set(
+          listedDeals
+            .map((deal) => deal.currencyId)
+            .filter((currencyId): currencyId is string => Boolean(currencyId)),
         ),
-      ),
+      ],
+      (currencyId) => deps.currencies.findById(currencyId),
     );
     const precisionByCode = new Map(
       Array.from(currenciesById.values())
@@ -2737,21 +2755,32 @@ export function createDealProjectionsWorkflow(
       customer,
       internalEntity,
     ] = await Promise.all([
-      deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+      resolveOptionalLookup(() =>
+        deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+      ),
       applicantCounterpartyId
-        ? deps.parties.counterparties.queries.findById(applicantCounterpartyId)
+        ? resolveOptionalLookup(() =>
+            deps.parties.counterparties.queries.findById(
+              applicantCounterpartyId,
+            ),
+          )
         : Promise.resolve(null),
       deps.deals.deals.queries.listCalculationHistory(dealId),
       customerId
-        ? deps.parties.customers.queries.findById(customerId)
+        ? resolveOptionalLookup(() =>
+            deps.parties.customers.queries.findById(customerId),
+          )
         : Promise.resolve(null),
       internalEntityOrganizationId
-        ? deps.parties.organizations.queries.findById(
-            internalEntityOrganizationId,
+        ? resolveOptionalLookup(() =>
+            deps.parties.organizations.queries.findById(
+              internalEntityOrganizationId,
+            ),
           )
         : Promise.resolve(null),
     ]);
 
+    const currentCalculationId = workflow.summary.calculationId;
     const [
       legalEntitiesResult,
       currentCalculation,
@@ -2772,7 +2801,9 @@ export function createDealProjectionsWorkflow(
             const data = (
               await Promise.all(
                 result.data.map((item) =>
-                  deps.parties.counterparties.queries.findById(item.id),
+                  resolveOptionalLookup(() =>
+                    deps.parties.counterparties.queries.findById(item.id),
+                  ),
                 ),
               )
             ).filter((item): item is Counterparty => item !== null);
@@ -2780,14 +2811,18 @@ export function createDealProjectionsWorkflow(
             return { ...result, data };
           })()
         : Promise.resolve(null),
-      workflow.summary.calculationId
-        ? deps.calculations.calculations.queries.findById(
-            workflow.summary.calculationId,
+      currentCalculationId
+        ? resolveOptionalLookup(() =>
+            deps.calculations.calculations.queries.findById(
+              currentCalculationId,
+            ),
           )
         : Promise.resolve(null),
       agreement?.organizationRequisiteId
-        ? deps.parties.requisites.queries.findById(
-            agreement.organizationRequisiteId,
+        ? resolveOptionalLookup(() =>
+            deps.parties.requisites.queries.findById(
+              agreement.organizationRequisiteId,
+            ),
           )
         : Promise.resolve(null),
       listDealExecutionActuals({ dealId, deps }),
@@ -2808,8 +2843,10 @@ export function createDealProjectionsWorkflow(
     ]);
 
     const internalEntityRequisiteProvider = internalEntityRequisite?.providerId
-      ? await deps.parties.requisites.queries.findProviderById(
-          internalEntityRequisite.providerId,
+      ? await resolveOptionalLookup(() =>
+          deps.parties.requisites.queries.findProviderById(
+            internalEntityRequisite.providerId,
+          ),
         )
       : null;
     const currentCalculationSummary = await buildPortalCalculationSummary({
@@ -2972,7 +3009,9 @@ export function createDealProjectionsWorkflow(
 
         const customerId = getCustomerParticipant(workflow)?.customerId ?? null;
         const customer = customerId
-          ? await deps.parties.customers.queries.findById(customerId)
+          ? await resolveOptionalLookup(() =>
+              deps.parties.customers.queries.findById(customerId),
+            )
           : null;
         const stageContext = classifyCrmBoardStage(workflow);
 
@@ -3029,6 +3068,7 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
+    const currentCalculationId = workflow.summary.calculationId;
     const [
       attachments,
       currentCalculation,
@@ -3038,9 +3078,11 @@ export function createDealProjectionsWorkflow(
       quotesResult,
     ] = await Promise.all([
       deps.files.files.queries.listDealAttachments(dealId),
-      workflow.summary.calculationId
-        ? deps.calculations.calculations.queries.findById(
-            workflow.summary.calculationId,
+      currentCalculationId
+        ? resolveOptionalLookup(() =>
+            deps.calculations.calculations.queries.findById(
+              currentCalculationId,
+            ),
           )
         : Promise.resolve(null),
       deps.deals.deals.queries.findCurrentRouteByDealId?.(dealId) ??
@@ -3134,16 +3176,29 @@ export function createDealProjectionsWorkflow(
     const hasAnyMaterializedOperations = workflow.executionPlan.some(
       (leg) => leg.operationRefs.length > 0,
     );
+    const hasAcceptedCalculation = workflow.acceptedCalculation !== null;
+    const currentCalculationIsOffered =
+      currentCalculation?.currentSnapshot.state === "offered" &&
+      workflow.summary.calculationId === currentCalculation.id;
+    const canRecordExecutionActuals =
+      hasAcceptedCalculation &&
+      hasAnyMaterializedOperations &&
+      !isDealInTerminalStatus(workflow);
 
     return {
       acceptedCalculation: workflow.acceptedCalculation,
       actions: {
+        canAcceptCalculation:
+          currentCalculationIsOffered && !isDealInTerminalStatus(workflow),
         canCloseDeal: closeReadiness.ready,
         canCreateCalculation:
           currentRoute !== null &&
           workflow.summary.calculationId === null &&
           !isDealInTerminalStatus(workflow),
         canCreateQuote: false,
+        canRecordCashMovement: canRecordExecutionActuals,
+        canRecordExecutionFee: canRecordExecutionActuals,
+        canRecordExecutionFill: canRecordExecutionActuals,
         canRequestExecution:
           !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
         canRunReconciliation:
@@ -3154,6 +3209,8 @@ export function createDealProjectionsWorkflow(
             reconciliationSummary.state === "blocked"),
         canResolveExecutionBlocker:
           workflow.executionPlan.some((leg) => leg.state === "blocked"),
+        canSupersedeCalculation:
+          hasAcceptedCalculation && !isDealInTerminalStatus(workflow),
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,
@@ -3263,7 +3320,9 @@ export function createDealProjectionsWorkflow(
             getInternalEntityParticipant(workflow)?.displayName ?? null;
 
           const customer = customerId
-            ? await deps.parties.customers.queries.findById(customerId)
+            ? await resolveOptionalLookup(() =>
+                deps.parties.customers.queries.findById(customerId),
+              )
             : null;
           const applicantName =
             customer?.name ??
@@ -3277,13 +3336,18 @@ export function createDealProjectionsWorkflow(
             return null;
           }
 
+          const currentCalculationId = workflow.summary.calculationId;
           const [agreement, currentCalculation, executionActuals, operationsResult] = await Promise.all([
-            deps.agreements.agreements.queries.findById(
-              workflow.summary.agreementId,
+            resolveOptionalLookup(() =>
+              deps.agreements.agreements.queries.findById(
+                workflow.summary.agreementId,
+              ),
             ),
-            workflow.summary.calculationId
-              ? deps.calculations.calculations.queries.findById(
-                  workflow.summary.calculationId,
+            currentCalculationId
+              ? resolveOptionalLookup(() =>
+                  deps.calculations.calculations.queries.findById(
+                    currentCalculationId,
+                  ),
                 )
               : Promise.resolve(null),
             listDealExecutionActuals({ dealId: deal.id, deps }),

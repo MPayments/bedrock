@@ -14,6 +14,7 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 
 import {
+  REQUIRED_DEAL_SECTION_IDS_BY_TYPE,
   formatDealNextAction,
   formatDealWorkflowMessage,
 } from "./constants";
@@ -38,33 +39,12 @@ type DealOverviewTabProps = {
   workbench: ApiCrmDealWorkbenchProjection;
 };
 
-const REQUIRED_SECTION_IDS_BY_TYPE: Record<
-  ApiCrmDealWorkbenchProjection["summary"]["type"],
-  ApiCrmDealWorkbenchProjection["sectionCompleteness"][number]["sectionId"][]
-> = {
-  payment: ["common", "moneyRequest", "externalBeneficiary"],
-  currency_exchange: ["common", "moneyRequest", "settlementDestination"],
-  currency_transit: [
-    "common",
-    "moneyRequest",
-    "incomingReceipt",
-    "externalBeneficiary",
-  ],
-  exporter_settlement: [
-    "common",
-    "moneyRequest",
-    "incomingReceipt",
-    "settlementDestination",
-  ],
-  internal_treasury: ["common", "moneyRequest", "settlementDestination"],
-};
-
 function collectTopBlockers(
   workbench: ApiCrmDealWorkbenchProjection,
 ) {
   const messages = new Set<string>();
   const requiredSections = new Set(
-    REQUIRED_SECTION_IDS_BY_TYPE[workbench.summary.type],
+    REQUIRED_DEAL_SECTION_IDS_BY_TYPE[workbench.summary.type],
   );
 
   workbench.transitionReadiness.forEach((item) => {

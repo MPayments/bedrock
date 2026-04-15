@@ -46,12 +46,17 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       state: "accepted",
     },
     actions: {
+      canAcceptCalculation: false,
       canCloseDeal: false,
       canCreateCalculation: true,
       canCreateQuote: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
       canRequestExecution: false,
       canRunReconciliation: false,
       canResolveExecutionBlocker: false,
+      canSupersedeCalculation: false,
       canUploadAttachment: true,
     },
     attachmentRequirements: [
@@ -1092,6 +1097,64 @@ describe("treasury deals queries", () => {
             code: "RUB",
           }),
         ],
+      }),
+    );
+  });
+
+  it("treats a missing current route as null when the deals API returns 200 null", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerDealPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => null,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => createRouteComposerLookupContextPayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            {
+              code: "RUB",
+              id: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+              label: "RUB · Российский рубль",
+              name: "Российский рубль",
+            },
+          ],
+        }),
+      });
+
+    const { getFinanceDealRouteComposerById } = await import(
+      "@/features/treasury/deals/lib/queries"
+    );
+
+    const result = await getFinanceDealRouteComposerById(
+      "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        route: null,
+        templates: [],
       }),
     );
   });

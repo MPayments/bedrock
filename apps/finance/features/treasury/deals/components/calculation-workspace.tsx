@@ -29,7 +29,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@bedrock/sdk-ui/components/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@bedrock/sdk-ui/components/dialog";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Label } from "@bedrock/sdk-ui/components/label";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 import {
   Table,
@@ -40,6 +49,7 @@ import {
   TableRow,
 } from "@bedrock/sdk-ui/components/table";
 import { Alert, AlertDescription, AlertTitle } from "@bedrock/sdk-ui/components/alert";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import {
   formatQuoteAmountsSummary,
@@ -97,6 +107,14 @@ function formatAmountByCurrencyId(
     currencies.find((currency) => currency.id === currencyId)?.code ?? currencyId;
 
   return formatMinorAmountWithCurrency(amountMinor, currencyCode);
+}
+
+function formatProvenanceRecord(value: Record<string, unknown> | null) {
+  if (!value) {
+    return null;
+  }
+
+  return JSON.stringify(value, null, 2);
 }
 
 function SnapshotSummaryCards({
@@ -395,6 +413,10 @@ function CalculationSnapshotCompareDrawer({
 export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
   const router = useRouter();
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
+  const [isAcceptingCalculation, setIsAcceptingCalculation] = useState(false);
+  const [isSupersedingCalculation, setIsSupersedingCalculation] = useState(false);
+  const [isSupersedeDialogOpen, setIsSupersedeDialogOpen] = useState(false);
+  const [supersedeReason, setSupersedeReason] = useState("");
   const title = getFinanceDealDisplayTitle({
     applicantDisplayName: data.deal.summary.applicantDisplayName,
     id: data.deal.summary.id,
@@ -403,6 +425,7 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
 
   const currentCalculation =
     data.currentCalculation ?? data.comparison?.left ?? null;
+  const acceptedCalculation = data.deal.acceptedCalculation;
 
   const currentQuote = useMemo(() => {
     const currentHistoryItem =
@@ -412,6 +435,15 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
 
     return findQuoteDetailsById(data.deal, currentHistoryItem?.sourceQuoteId);
   }, [data.deal]);
+  const acceptedQuote = useMemo(
+    () =>
+      findQuoteDetailsById(
+        data.deal,
+        acceptedCalculation?.quoteProvenance?.sourceQuoteId ??
+          acceptedCalculation?.quoteProvenance?.fxQuoteId,
+      ),
+    [acceptedCalculation, data.deal],
+  );
 
   async function handleCreateCalculation() {
     setIsCreatingCalculation(true);
@@ -444,36 +476,142 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
     refreshPage(router);
   }
 
+  async function handleAcceptCalculation() {
+    if (!currentCalculation) {
+      return;
+    }
+
+    setIsAcceptingCalculation(true);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось принять расчет",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(data.deal.summary.id)}/calculations/${encodeURIComponent(currentCalculation.id)}/accept`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({
+              calculationId: currentCalculation.id,
+            }),
+          },
+        ),
+    });
+
+    setIsAcceptingCalculation(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Расчет принят как commercial freeze");
+    refreshPage(router);
+  }
+
+  async function handleSupersedeCalculation() {
+    if (!acceptedCalculation) {
+      return;
+    }
+
+    setIsSupersedingCalculation(true);
+
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось supersede расчет",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(data.deal.summary.id)}/calculations/${encodeURIComponent(acceptedCalculation.calculationId)}/supersede`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({
+              calculationId: acceptedCalculation.calculationId,
+              reason: supersedeReason.trim() || null,
+            }),
+          },
+        ),
+    });
+
+    setIsSupersedingCalculation(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Принятый расчет superseded");
+    setSupersedeReason("");
+    setIsSupersedeDialogOpen(false);
+    refreshPage(router);
+  }
+
+  function handleSupersedeDialogChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setSupersedeReason("");
+    }
+
+    setIsSupersedeDialogOpen(nextOpen);
+  }
+
   return (
-    <FinanceDealWorkspaceLayout
-      backHref={`/treasury/deals/${data.deal.summary.id}`}
-      title={title}
-      actions={
-        <>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/treasury/deals/${data.deal.summary.id}/compose`} />}
-          >
-            <Workflow className="mr-2 h-4 w-4" />
-            Маршрут
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/treasury/deals/${data.deal.summary.id}/execution`} />}
-          >
-            <ListChecks className="mr-2 h-4 w-4" />
-            Исполнение
-          </Button>
-          <Button onClick={handleCreateCalculation} disabled={isCreatingCalculation}>
-            <Save className="mr-2 h-4 w-4" />
-            {isCreatingCalculation ? "Создание..." : "Создать from route"}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-6">
+    <>
+      <FinanceDealWorkspaceLayout
+        backHref={`/treasury/deals/${data.deal.summary.id}`}
+        title={title}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${data.deal.summary.id}/compose`} />}
+            >
+              <Workflow className="mr-2 h-4 w-4" />
+              Маршрут
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/treasury/deals/${data.deal.summary.id}/execution`} />}
+            >
+              <ListChecks className="mr-2 h-4 w-4" />
+              Исполнение
+            </Button>
+            {data.deal.actions.canAcceptCalculation && currentCalculation ? (
+              <Button onClick={handleAcceptCalculation} disabled={isAcceptingCalculation}>
+                <Save className="mr-2 h-4 w-4" />
+                {isAcceptingCalculation ? "Принимаем..." : "Accept current calculation"}
+              </Button>
+            ) : null}
+            {data.deal.actions.canSupersedeCalculation && acceptedCalculation ? (
+              <Button
+                variant="outline"
+                onClick={() => setIsSupersedeDialogOpen(true)}
+                disabled={isSupersedingCalculation}
+              >
+                Supersede accepted
+              </Button>
+            ) : null}
+            <Button
+              onClick={handleCreateCalculation}
+              disabled={
+                isCreatingCalculation || !data.deal.actions.canCreateCalculation
+              }
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isCreatingCalculation ? "Создание..." : "Создать from route"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-6">
         <Card className="border-muted-foreground/10 bg-gradient-to-br from-background via-background to-muted/30">
           <CardContent className="space-y-5 pt-6">
             <div className="flex flex-wrap items-center gap-2">
@@ -523,6 +661,126 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="border-b">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Save className="h-5 w-5 text-muted-foreground" />
+                  Commercial freeze
+                </CardTitle>
+                <CardDescription>
+                  Accepted calculation is the only commercial freeze point for the deal.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {acceptedCalculation ? (
+                  <Badge variant="secondary">Accepted</Badge>
+                ) : (
+                  <Badge variant="outline">Not accepted</Badge>
+                )}
+                {currentCalculation ? (
+                  <Badge variant="outline">
+                    Current state: {currentCalculation.currentSnapshot.state}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {acceptedCalculation ? (
+              <>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Accepted calculation
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {acceptedCalculation.calculationId.slice(0, 8)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Snapshot
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {acceptedCalculation.snapshotId.slice(0, 8)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Accepted at
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {formatDate(acceptedCalculation.acceptedAt)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Route version
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {acceptedCalculation.routeVersionId?.slice(0, 8) ?? "—"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      State
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {acceptedCalculation.state}
+                    </div>
+                  </div>
+                </div>
+
+                {acceptedQuote ? (
+                  <div className="rounded-lg border p-4">
+                    <div className="font-medium">
+                      {formatQuoteAmountsSummary(acceptedQuote)}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      Quote provenance: {formatQuoteRateSummary(acceptedQuote)}
+                    </div>
+                  </div>
+                ) : null}
+
+                {acceptedCalculation.quoteProvenance ? (
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium">Quote provenance</div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div className="text-sm">
+                        Source quote:{" "}
+                        {acceptedCalculation.quoteProvenance.sourceQuoteId ?? "—"}
+                      </div>
+                      <div className="text-sm">
+                        FX quote: {acceptedCalculation.quoteProvenance.fxQuoteId ?? "—"}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {formatProvenanceRecord(acceptedCalculation.pricingProvenance) ? (
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium">Pricing provenance</div>
+                    <pre className="mt-2 overflow-x-auto rounded-md bg-muted/30 p-3 text-xs">
+                      {formatProvenanceRecord(acceptedCalculation.pricingProvenance)}
+                    </pre>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <Alert>
+                <Clock3 className="h-4 w-4" />
+                <AlertTitle>Принятого расчета пока нет</AlertTitle>
+                <AlertDescription>
+                  Calculation должен пройти явный accept в Finance, прежде чем
+                  сделка сможет перейти к исполнению как commercial freeze.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
@@ -698,6 +956,9 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
                         {data.deal.summary.calculationId === item.calculationId ? (
                           <Badge variant="secondary">Актуальный</Badge>
                         ) : null}
+                        {acceptedCalculation?.calculationId === item.calculationId ? (
+                          <Badge variant="outline">Commercial freeze</Badge>
+                        ) : null}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Создан {formatDate(item.createdAt)}
@@ -714,7 +975,46 @@ export function CalculationWorkspace({ data }: CalculationWorkspaceProps) {
             )}
           </CardContent>
         </Card>
-      </div>
-    </FinanceDealWorkspaceLayout>
+        </div>
+      </FinanceDealWorkspaceLayout>
+
+      <Dialog open={isSupersedeDialogOpen} onOpenChange={handleSupersedeDialogChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Supersede accepted calculation</DialogTitle>
+            <DialogDescription>
+              Accepted calculation больше не будет считаться действующим commercial
+              freeze. Причина опциональна, но лучше оставить короткий контекст.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="supersede-calculation-reason">Причина</Label>
+            <Textarea
+              id="supersede-calculation-reason"
+              value={supersedeReason}
+              onChange={(event) => setSupersedeReason(event.target.value)}
+              disabled={isSupersedingCalculation}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={isSupersedingCalculation}
+              onClick={() => handleSupersedeDialogChange(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              disabled={isSupersedingCalculation}
+              onClick={handleSupersedeCalculation}
+            >
+              {isSupersedingCalculation ? "Superseding..." : "Supersede calculation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

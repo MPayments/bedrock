@@ -162,6 +162,27 @@ export function resolveRouteTemplateForDeal(input: {
     }
   };
 
+  const buildUnresolvedParticipantMessage = (
+    participant: DealRouteTemplate["participants"][number],
+  ) => {
+    switch (participant.bindingKind) {
+      case "deal_applicant":
+        return `Template participant ${participant.code} uses deal_applicant binding, but deal ${input.deal.summary.id} has no applicantCounterpartyId`;
+      case "deal_payer":
+        return input.deal.header.incomingReceipt.payerSnapshot
+          ? `Template participant ${participant.code} uses deal_payer binding, but deal ${input.deal.summary.id} has only manual payer details. Select a linked payer counterparty so payerCounterpartyId is set.`
+          : `Template participant ${participant.code} uses deal_payer binding, but deal ${input.deal.summary.id} has no payerCounterpartyId`;
+      case "deal_beneficiary":
+        return input.deal.header.externalBeneficiary.beneficiarySnapshot
+          ? `Template participant ${participant.code} uses deal_beneficiary binding, but deal ${input.deal.summary.id} has only manual beneficiary details. Select a linked beneficiary counterparty so beneficiaryCounterpartyId is set.`
+          : `Template participant ${participant.code} uses deal_beneficiary binding, but deal ${input.deal.summary.id} has no beneficiaryCounterpartyId`;
+      case "deal_customer":
+        return `Template participant ${participant.code} uses deal_customer binding, but deal ${input.deal.summary.id} has no customer participant`;
+      case "fixed_party":
+        return `Template participant ${participant.code} uses fixed_party binding, but template ${input.template.id} has no partyId`;
+    }
+  };
+
   return {
     costComponents: input.template.costComponents.map((component) => ({
       basisType: component.basisType,
@@ -200,9 +221,7 @@ export function resolveRouteTemplateForDeal(input: {
       const partyId = resolveParticipantPartyId(participant);
 
       if (!partyId) {
-        throw new ValidationError(
-          `Template participant ${participant.code} could not be resolved from deal ${input.deal.summary.id}`,
-        );
+        throw new ValidationError(buildUnresolvedParticipantMessage(participant));
       }
 
       return {

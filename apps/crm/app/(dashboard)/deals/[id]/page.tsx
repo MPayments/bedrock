@@ -35,9 +35,11 @@ import { DealExecutionTab } from "./_components/deal-execution-tab";
 import { DealHeader } from "./_components/deal-header";
 import { DealOverviewTab } from "./_components/deal-overview-tab";
 import { DealPricingTab } from "./_components/deal-pricing-tab";
+import { DealQuestionnaireTab } from "./_components/deal-questionnaire-tab";
 import { ErrorDialog } from "./_components/error-dialog";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
+  REQUIRED_DEAL_SECTION_IDS_BY_TYPE,
   formatDealWorkflowMessage,
   getDealWorkflowMessageTone,
   STATUS_LABELS,
@@ -135,6 +137,7 @@ export default function DealDetailPage() {
   >([]);
   const [isUpdatingAgreement, setIsUpdatingAgreement] = useState(false);
   const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
+  const [isSavingHeader, setIsSavingHeader] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDescription, setUploadDescription] = useState("");
@@ -630,10 +633,58 @@ export default function DealDetailPage() {
     [dealId, loadDeal, showError],
   );
 
+  const handleHeaderSave = useCallback(
+    async (header: ApiCrmDealWorkbenchProjection["header"]) => {
+      if (!data) {
+        throw new Error("Данные сделки еще не загружены.");
+      }
+
+      try {
+        setIsSavingHeader(true);
+
+        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/header`, {
+          body: JSON.stringify({
+            expectedRevision: data.workbench.revision,
+            header,
+          }),
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          method: "PUT",
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await parseErrorMessage(
+              response,
+              `Ошибка сохранения анкеты: ${response.status}`,
+            ),
+          );
+        }
+
+        await loadDeal();
+      } catch (nextError) {
+        console.error("Deal header update error:", nextError);
+        const message =
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось сохранить анкету сделки";
+        showError("Ошибка сохранения анкеты", message);
+        throw nextError;
+      } finally {
+        setIsSavingHeader(false);
+      }
+    },
+    [data, dealId, loadDeal, showError],
+  );
+
   const tabBadges = useMemo(() => {
     if (!data) {
       return {};
     }
+
+    const requiredSections = new Set(
+      REQUIRED_DEAL_SECTION_IDS_BY_TYPE[data.workbench.summary.type],
+    );
 
     const missingEvidenceCount = data.workbench.evidenceRequirements.filter(
       (requirement) => requirement.state === "missing",
@@ -650,6 +701,10 @@ export default function DealDetailPage() {
       ).length;
 
     return {
+      questionnaire: data.workbench.sectionCompleteness.filter(
+        (section) =>
+          requiredSections.has(section.sectionId) && !section.complete,
+      ).length,
       documents: missingEvidenceCount + missingDocumentCount,
       execution: blockedLegCount + blockedPositionCount,
     } satisfies Partial<Record<DealPageTab, number | string | null>>;
@@ -719,6 +774,13 @@ export default function DealDetailPage() {
                 onEditComment={handleEditComment}
                 onSaveComment={handleSaveComment}
                 currency={data.currency}
+                workbench={data.workbench}
+              />
+            }
+            questionnaire={
+              <DealQuestionnaireTab
+                isSaving={isSavingHeader}
+                onSubmit={handleHeaderSave}
                 workbench={data.workbench}
               />
             }

@@ -21,6 +21,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@bedrock/sdk-ui/components/alert";
 
 import { FinanceDealWorkspaceLayout } from "@/features/treasury/deals/components/workspace-layout";
+import { ExecutionActualEntryActions } from "@/features/treasury/deals/components/execution-actual-entry-actions";
 import {
   getDealLegKindLabel,
   getDealLegStateLabel,
@@ -351,16 +352,33 @@ function ExecutionActualsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-muted-foreground" />
-          Actual execution actuals
-        </CardTitle>
-        <CardDescription>
-          Нормализованные fills, fees и cash movements из provider callbacks, manual
-          entry и reconciliation.
-        </CardDescription>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-muted-foreground" />
+              Actual execution actuals
+            </CardTitle>
+            <CardDescription>
+              Нормализованные fills, fees и cash movements из provider callbacks,
+              manual entry и reconciliation.
+            </CardDescription>
+          </div>
+          <ExecutionActualEntryActions
+            currencies={currencies}
+            deal={data.deal}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!data.deal.actions.canRecordExecutionFill &&
+        !data.deal.actions.canRecordExecutionFee &&
+        !data.deal.actions.canRecordCashMovement ? (
+          <div className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+            Manual actual entry доступен только после принятия расчета и
+            материализации treasury operations.
+          </div>
+        ) : null}
+
         {!hasActuals ? (
           <div className="text-sm text-muted-foreground">
             Execution actuals по сделке пока не записаны.

@@ -83,6 +83,26 @@ vi.mock("@bedrock/sdk-ui/components/sheet", () => ({
       : createElement(Fragment, null, children),
 }));
 
+vi.mock("@bedrock/sdk-ui/components/dialog", () => ({
+  Dialog: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  DialogContent: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  DialogDescription: ({ children }: { children?: ReactNode }) =>
+    createElement("p", null, children),
+  DialogFooter: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  DialogHeader: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  DialogTitle: ({ children }: { children?: ReactNode }) =>
+    createElement("h3", null, children),
+}));
+
+vi.mock("@bedrock/sdk-ui/components/label", () => ({
+  Label: ({ children }: { children?: ReactNode }) =>
+    createElement("label", null, children),
+}));
+
 vi.mock("@bedrock/sdk-ui/components/sonner", () => ({
   toast: {
     error: vi.fn(),
@@ -117,6 +137,11 @@ vi.mock("@bedrock/sdk-ui/components/alert", () => ({
 vi.mock("@bedrock/sdk-ui/components/badge", () => ({
   Badge: ({ children }: { children?: ReactNode }) =>
     createElement("span", null, children),
+}));
+
+vi.mock("@bedrock/sdk-ui/components/textarea", () => ({
+  Textarea: ({ value }: { value?: string }) =>
+    createElement("textarea", { value }),
 }));
 
 vi.mock("@/features/treasury/deals/components/workspace-layout", () => ({
@@ -302,11 +327,13 @@ function createData(): FinanceDealCalculationWorkspace {
       acceptedCalculation: {
         acceptedAt: "2026-04-02T08:15:00.000Z",
         calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
-        calculationTimestamp: "2026-04-02T08:15:00.000Z",
-        pricingProvenance: null,
-        quoteProvenance: {
-          fxQuoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
-          quoteSnapshot: null,
+      calculationTimestamp: "2026-04-02T08:15:00.000Z",
+      pricingProvenance: {
+        mode: "route",
+      },
+      quoteProvenance: {
+        fxQuoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
+        quoteSnapshot: null,
           sourceQuoteId: "a68fcc97-b77c-43b0-a323-45b6f783fd3a",
         },
         routeVersionId: null,
@@ -314,12 +341,17 @@ function createData(): FinanceDealCalculationWorkspace {
         state: "accepted",
       },
       actions: {
+        canAcceptCalculation: false,
         canCloseDeal: false,
         canCreateCalculation: true,
         canCreateQuote: true,
+        canRecordCashMovement: false,
+        canRecordExecutionFee: false,
+        canRecordExecutionFill: false,
         canRequestExecution: false,
         canRunReconciliation: false,
         canResolveExecutionBlocker: false,
+        canSupersedeCalculation: true,
         canUploadAttachment: true,
       },
       attachmentRequirements: [],
@@ -439,6 +471,30 @@ function createData(): FinanceDealCalculationWorkspace {
   };
 }
 
+function createOfferedData(): FinanceDealCalculationWorkspace {
+  const data = createData();
+
+  return {
+    ...data,
+    currentCalculation: {
+      ...data.currentCalculation!,
+      currentSnapshot: {
+        ...data.currentCalculation!.currentSnapshot,
+        state: "offered",
+      },
+    },
+    deal: {
+      ...data.deal,
+      acceptedCalculation: null,
+      actions: {
+        ...data.deal.actions,
+        canAcceptCalculation: true,
+        canSupersedeCalculation: false,
+      },
+    },
+  };
+}
+
 describe("treasury deal calculation workspace", () => {
   it("renders the current snapshot, compare drawer, and calculation history", async () => {
     (
@@ -462,6 +518,30 @@ describe("treasury deal calculation workspace", () => {
     expect(markup).toContain("Сравнить snapshots");
     expect(markup).toContain("Итоговые дельты");
     expect(markup).toContain("wire_fee");
+    expect(markup).toContain("Commercial freeze");
+    expect(markup).toContain("Supersede accepted");
     expect(markup).toContain("История расчетов");
+  });
+
+  it("renders accept action for the current offered calculation", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { CalculationWorkspace } = await import(
+      "@/features/treasury/deals/components/calculation-workspace"
+    );
+
+    const markup = renderToStaticMarkup(
+      createElement(CalculationWorkspace, {
+        data: createOfferedData(),
+      }),
+    );
+
+    expect(markup).toContain("Not accepted");
+    expect(markup).toContain("Current state: offered");
+    expect(markup).toContain("Accept current calculation");
   });
 });

@@ -2,12 +2,18 @@ DELETE FROM "file_assets"
 USING "file_links"
 WHERE "file_links"."file_asset_id" = "file_assets"."id"
   AND "file_links"."link_kind"::text = 'deal_application';--> statement-breakpoint
+CREATE TYPE "public"."calculation_state" AS ENUM('draft', 'offered', 'accepted', 'expired', 'cancelled', 'superseded');--> statement-breakpoint
+CREATE TYPE "public"."calculation_line_source_kind" AS ENUM('manual', 'agreement', 'quote', 'provider', 'system');--> statement-breakpoint
+CREATE TYPE "public"."calculation_component_classification" AS ENUM('revenue', 'expense', 'pass_through', 'adjustment');--> statement-breakpoint
+CREATE TYPE "public"."calculation_component_formula_type" AS ENUM('fixed', 'bps', 'per_million', 'manual');--> statement-breakpoint
+CREATE TYPE "public"."calculation_component_basis_type" AS ENUM('deal_source_amount', 'deal_target_amount', 'leg_from_amount', 'leg_to_amount', 'gross_revenue');--> statement-breakpoint
 ALTER TABLE "file_links" DROP CONSTRAINT "file_links_generated_variant_shape_chk";--> statement-breakpoint
+DROP INDEX "file_links_generated_deal_variant_uq";--> statement-breakpoint
+DROP INDEX "file_links_generated_counterparty_variant_uq";--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE text;--> statement-breakpoint
 DROP TYPE "public"."file_link_kind";--> statement-breakpoint
 CREATE TYPE "public"."file_link_kind" AS ENUM('deal_attachment', 'legal_entity_attachment', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract');--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE "public"."file_link_kind" USING "link_kind"::"public"."file_link_kind";--> statement-breakpoint
-DROP INDEX "file_links_generated_deal_variant_uq";--> statement-breakpoint
 ALTER TABLE "calculation_lines" ADD COLUMN "deal_id" uuid;--> statement-breakpoint
 ALTER TABLE "calculation_lines" ADD COLUMN "route_version_id" uuid;--> statement-breakpoint
 ALTER TABLE "calculation_lines" ADD COLUMN "route_leg_id" uuid;--> statement-breakpoint
@@ -41,6 +47,7 @@ CREATE INDEX "calculation_snapshots_route_version_idx" ON "calculation_snapshots
 CREATE INDEX "calculation_snapshots_state_idx" ON "calculation_snapshots" USING btree ("state","created_at");--> statement-breakpoint
 CREATE INDEX "treasury_operations_route_leg_idx" ON "treasury_operations" USING btree ("route_leg_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "file_links_generated_deal_variant_uq" ON "file_links" USING btree ("deal_id","link_kind","generated_format","generated_lang") WHERE "file_links"."deal_id" is not null and "file_links"."link_kind" in ('deal_invoice', 'deal_acceptance');--> statement-breakpoint
+CREATE UNIQUE INDEX "file_links_generated_counterparty_variant_uq" ON "file_links" USING btree ("counterparty_id","link_kind","generated_format","generated_lang") WHERE "file_links"."counterparty_id" is not null and "file_links"."link_kind" = 'legal_entity_contract';--> statement-breakpoint
 ALTER TABLE "file_links" ADD CONSTRAINT "file_links_generated_variant_shape_chk" CHECK ((
         "file_links"."link_kind" in ('deal_attachment', 'legal_entity_attachment')
         and "file_links"."attachment_purpose" is not null

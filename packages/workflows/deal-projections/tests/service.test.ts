@@ -1,6 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { AgreementNotFoundError } from "@bedrock/agreements";
+import { CalculationNotFoundError } from "@bedrock/calculations";
+import { CurrencyNotFoundError } from "@bedrock/currencies";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import {
+  CounterpartyNotFoundError,
+  CustomerNotFoundError,
+  OrganizationNotFoundError,
+  RequisiteNotFoundError,
+  RequisiteProviderNotFoundError,
+} from "@bedrock/parties";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
 import { createDealProjectionsWorkflow } from "../src";
@@ -185,6 +195,60 @@ function createBaseWorkflow(): DealWorkflowProjection {
   };
 }
 
+function createCurrentCalculation(
+  state: "accepted" | "offered" = "accepted",
+) {
+  return {
+    createdAt: new Date("2026-04-01T09:00:00.000Z"),
+    currentSnapshot: {
+      agreementVersionId: null,
+      agreementFeeAmountMinor: "2500",
+      agreementFeeBps: "150",
+      additionalExpensesAmountMinor: "1500",
+      additionalExpensesCurrencyId: null,
+      additionalExpensesInBaseMinor: "1500",
+      additionalExpensesRateDen: null,
+      additionalExpensesRateNum: null,
+      additionalExpensesRateSource: null,
+      baseCurrencyId: "currency-rub",
+      calculationCurrencyId: "currency-usd",
+      calculationTimestamp: new Date("2026-04-01T10:00:00.000Z"),
+      createdAt: new Date("2026-04-01T10:00:00.000Z"),
+      fixedFeeAmountMinor: "300",
+      fixedFeeCurrencyId: "currency-usd",
+      fxQuoteId: null,
+      id: "snapshot-current",
+      originalAmountMinor: "100000",
+      pricingProvenance: {
+        mode: "route",
+      },
+      quoteMarkupAmountMinor: "500",
+      quoteMarkupBps: "25",
+      quoteSnapshot: null,
+      referenceRateAsOf: null,
+      referenceRateDen: null,
+      referenceRateNum: null,
+      referenceRateSource: null,
+      rateDen: "100",
+      rateNum: "9715",
+      rateSource: "manual" as const,
+      snapshotNumber: 1,
+      state,
+      totalFeeAmountInBaseMinor: "29147",
+      totalFeeAmountMinor: "3000",
+      totalFeeBps: "175",
+      totalAmountMinor: "103000",
+      totalInBaseMinor: "1000715",
+      totalWithExpensesInBaseMinor: "1002215",
+      updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+    },
+    id: "calculation-current",
+    isActive: true,
+    lines: [],
+    updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+  };
+}
+
 function createWorkflow(overrides?: {
   attachments?: {
     createdAt: Date;
@@ -229,6 +293,7 @@ function createWorkflow(overrides?: {
       routeSnapshot?: Record<string, unknown> | null;
       routeVersionId?: string | null;
       snapshotNumber: number;
+      state?: string;
       totalFeeAmountInBaseMinor: string;
       totalFeeAmountMinor: string;
       totalFeeBps: string;
@@ -352,9 +417,35 @@ function createWorkflow(overrides?: {
     matchCount: number;
     operationId: string;
   }[];
+  missingRefs?: {
+    agreements?: string[];
+    calculations?: string[];
+    counterparties?: string[];
+    currencies?: string[];
+    customers?: string[];
+    organizations?: string[];
+    requisiteProviders?: string[];
+    requisites?: string[];
+  };
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
   const workflow = overrides?.workflow ?? createBaseWorkflow();
+  const missingAgreementIds = new Set(overrides?.missingRefs?.agreements ?? []);
+  const missingCalculationIds = new Set(
+    overrides?.missingRefs?.calculations ?? [],
+  );
+  const missingCounterpartyIds = new Set(
+    overrides?.missingRefs?.counterparties ?? [],
+  );
+  const missingCurrencyIds = new Set(overrides?.missingRefs?.currencies ?? []);
+  const missingCustomerIds = new Set(overrides?.missingRefs?.customers ?? []);
+  const missingOrganizationIds = new Set(
+    overrides?.missingRefs?.organizations ?? [],
+  );
+  const missingRequisiteProviderIds = new Set(
+    overrides?.missingRefs?.requisiteProviders ?? [],
+  );
+  const missingRequisiteIds = new Set(overrides?.missingRefs?.requisites ?? []);
   const attachments = overrides?.attachments ?? [
     {
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
@@ -431,23 +522,41 @@ function createWorkflow(overrides?: {
     agreements: {
       agreements: {
         queries: {
-          findById: vi.fn(async () => null),
+          findById: vi.fn(async (id: string) => {
+            if (missingAgreementIds.has(id)) {
+              throw new AgreementNotFoundError(id);
+            }
+
+            return null;
+          }),
         },
       },
     } as never,
     calculations: {
       calculations: {
         queries: {
-          findById: vi.fn(async () => overrides?.calculation ?? null),
+          findById: vi.fn(async (id: string) => {
+            if (missingCalculationIds.has(id)) {
+              throw new CalculationNotFoundError(id);
+            }
+
+            return overrides?.calculation ?? null;
+          }),
         },
       },
     } as never,
     currencies: {
-      findById: vi.fn(async (id: string) => ({
-        code: id === "currency-usd" ? "USD" : "RUB",
-        id,
-        precision: 2,
-      })),
+      findById: vi.fn(async (id: string) => {
+        if (missingCurrencyIds.has(id)) {
+          throw new CurrencyNotFoundError(id);
+        }
+
+        return {
+          code: id === "currency-usd" ? "USD" : "RUB",
+          id,
+          precision: 2,
+        };
+      }),
     } as never,
     deals: deals as never,
     documentsReadModel: {
@@ -471,7 +580,13 @@ function createWorkflow(overrides?: {
     parties: {
       counterparties: {
         queries: {
-          findById: vi.fn(async () => null),
+          findById: vi.fn(async (id: string) => {
+            if (missingCounterpartyIds.has(id)) {
+              throw new CounterpartyNotFoundError(id);
+            }
+
+            return null;
+          }),
           list: vi.fn(async () => ({
             data: [],
             limit: MAX_QUERY_LIST_LIMIT,
@@ -482,31 +597,57 @@ function createWorkflow(overrides?: {
       },
       customers: {
         queries: {
-          findById: vi.fn(async () => ({
-            description: "Customer description",
-            name: "Customer One",
-            externalRef: "cust-001",
-            id: "customer-1",
-          })),
-          listByIds: vi.fn(async () => [
-            {
+          findById: vi.fn(async (id: string) => {
+            if (missingCustomerIds.has(id)) {
+              throw new CustomerNotFoundError(id);
+            }
+
+            return {
               description: "Customer description",
               name: "Customer One",
               externalRef: "cust-001",
-              id: "customer-1",
-            },
-          ]),
+              id,
+            };
+          }),
+          listByIds: vi.fn(async (ids: string[]) =>
+            ids
+              .filter((id) => !missingCustomerIds.has(id))
+              .map((id) => ({
+                description: "Customer description",
+                name: "Customer One",
+                externalRef: "cust-001",
+                id,
+              })),
+          ),
         },
       },
       organizations: {
         queries: {
-          findById: vi.fn(async () => null),
+          findById: vi.fn(async (id: string) => {
+            if (missingOrganizationIds.has(id)) {
+              throw new OrganizationNotFoundError(id);
+            }
+
+            return null;
+          }),
         },
       },
       requisites: {
         queries: {
-          findById: vi.fn(async () => null),
-          findProviderById: vi.fn(async () => null),
+          findById: vi.fn(async (id: string) => {
+            if (missingRequisiteIds.has(id)) {
+              throw new RequisiteNotFoundError(id);
+            }
+
+            return null;
+          }),
+          findProviderById: vi.fn(async (id: string) => {
+            if (missingRequisiteProviderIds.has(id)) {
+              throw new RequisiteProviderNotFoundError(id);
+            }
+
+            return null;
+          }),
         },
       },
     } as never,
@@ -1442,6 +1583,92 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
   });
 
+  it("keeps CRM projections available when related currency and customer refs are missing", async () => {
+    const workflow = createWorkflow({
+      missingRefs: {
+        currencies: ["currency-usd"],
+        customers: ["customer-1"],
+      },
+    });
+
+    const [list, stats, buckets, byDay, board] = await Promise.all([
+      workflow.listCrmDeals({
+        limit: 20,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+      workflow.getCrmDealsStats({
+        dateFrom: "2026-04-01",
+        dateTo: "2026-04-30",
+      }),
+      workflow.listCrmDealsByStatus(),
+      workflow.listCrmDealsByDay({
+        dateFrom: "2026-04-01",
+      }),
+      workflow.listCrmDealBoard(),
+    ]);
+
+    expect(list.total).toBe(1);
+    expect(list.data[0]).toMatchObject({
+      client: "—",
+      currency: "RUB",
+    });
+    expect(stats).toEqual({
+      byStatus: { quoted: 1 },
+      totalAmount: "100000",
+      totalCount: 1,
+    });
+    expect(buckets.inProgress).toEqual([
+      expect.objectContaining({
+        client: "—",
+        currency: "RUB",
+      }),
+    ]);
+    expect(byDay).toEqual([
+      expect.objectContaining({
+        RUB: 1000,
+        amount: 1000,
+        count: 1,
+        date: "2026-04-01",
+      }),
+    ]);
+    expect(board.items[0]).toMatchObject({
+      customerName: null,
+      id: "deal-1",
+    });
+  });
+
+  it("builds CRM workbench even when related reference records were deleted", async () => {
+    const workflow = createWorkflow({
+      missingRefs: {
+        agreements: ["agreement-1"],
+        calculations: ["calculation-1"],
+        counterparties: ["counterparty-1"],
+        customers: ["customer-1"],
+        organizations: ["organization-1"],
+      },
+      workflow: {
+        ...createBaseWorkflow(),
+        summary: {
+          ...createBaseWorkflow().summary,
+          calculationId: "calculation-1",
+        },
+      },
+    });
+
+    const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.context).toMatchObject({
+      agreement: null,
+      applicant: null,
+      customer: null,
+      internalEntity: null,
+    });
+    expect(projection?.pricing.currentCalculation).toBeNull();
+  });
+
   it("returns day aggregates in the selected report currency without relabeling mixed totals", async () => {
     const workflow = createWorkflow();
 
@@ -1679,8 +1906,13 @@ describe("createDealProjectionsWorkflow", () => {
     expect(projection).not.toBeNull();
     expect(projection).toMatchObject({
       actions: {
+        canAcceptCalculation: false,
         canCreateCalculation: false,
         canCreateQuote: false,
+        canRecordCashMovement: true,
+        canRecordExecutionFee: true,
+        canRecordExecutionFill: true,
+        canSupersedeCalculation: true,
         canUploadAttachment: true,
       },
       attachmentRequirements: [
@@ -1791,6 +2023,31 @@ describe("createDealProjectionsWorkflow", () => {
           }),
         ],
       },
+    });
+  });
+
+  it("exposes accept action only for the current offered calculation", async () => {
+    const currentCalculation = createCurrentCalculation("offered");
+    const workflow = createWorkflow({
+      calculation: currentCalculation,
+      workflow: {
+        ...createBaseWorkflow(),
+        summary: {
+          ...createBaseWorkflow().summary,
+          calculationId: currentCalculation.id,
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.actions).toMatchObject({
+      canAcceptCalculation: true,
+      canRecordCashMovement: false,
+      canRecordExecutionFee: false,
+      canRecordExecutionFill: false,
+      canSupersedeCalculation: false,
     });
   });
 

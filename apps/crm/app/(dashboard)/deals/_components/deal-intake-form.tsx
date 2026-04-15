@@ -1,5 +1,8 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
+
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
 import { Input } from "@bedrock/sdk-ui/components/input";
@@ -17,7 +20,8 @@ export type CrmDealType =
   | "payment"
   | "currency_exchange"
   | "currency_transit"
-  | "exporter_settlement";
+  | "exporter_settlement"
+  | "internal_treasury";
 
 export type CrmDealHeaderDraft = {
   common: {
@@ -101,9 +105,11 @@ export type DealIntakeFormProps = {
   applicantRequisites: CrmApplicantRequisiteOption[];
   currencyOptions: CrmCurrencyOption[];
   intake: CrmDealHeaderDraft;
+  isCreatingBeneficiaryCounterparty?: boolean;
   counterparties: CrmCustomerCounterpartyOption[];
   moneyRequestLayout?: "inline" | "stacked";
   onChange: (next: CrmDealHeaderDraft) => void;
+  onCreateBeneficiaryCounterparty?: (() => void | Promise<void>) | undefined;
   readOnly?: boolean;
 };
 
@@ -238,7 +244,11 @@ function shouldRenderExternalBeneficiary(type: CrmDealType) {
 }
 
 function shouldRenderSettlementDestination(type: CrmDealType) {
-  return type === "currency_exchange" || type === "exporter_settlement";
+  return (
+    type === "currency_exchange" ||
+    type === "exporter_settlement" ||
+    type === "internal_treasury"
+  );
 }
 
 export function createDealIntakeFormContext({
@@ -248,6 +258,8 @@ export function createDealIntakeFormContext({
   counterparties,
   moneyRequestLayout = "stacked",
   onChange,
+  onCreateBeneficiaryCounterparty,
+  isCreatingBeneficiaryCounterparty = false,
   readOnly = false,
 }: DealIntakeFormProps) {
   const applicantSnapshot =
@@ -265,6 +277,21 @@ export function createDealIntakeFormContext({
     counterparties.find(
       (partyProfile) =>
         partyProfile.counterpartyId === intake.common.applicantCounterpartyId,
+    ) ?? null;
+  const selectedPayer =
+    counterparties.find(
+      (partyProfile) =>
+        partyProfile.counterpartyId === intake.incomingReceipt.payerCounterpartyId,
+    ) ?? null;
+  const beneficiaryCounterpartyOptions = counterparties.filter(
+    (partyProfile) =>
+      partyProfile.counterpartyId !== intake.common.applicantCounterpartyId,
+  );
+  const selectedBeneficiary =
+    beneficiaryCounterpartyOptions.find(
+      (partyProfile) =>
+        partyProfile.counterpartyId ===
+        intake.externalBeneficiary.beneficiaryCounterpartyId,
     ) ?? null;
   const selectedSourceCurrency =
     currencyOptions.find(
@@ -329,6 +356,34 @@ export function createDealIntakeFormContext({
     missingLabel: "Выбранный контрагент недоступен",
     optionsCount: counterparties.length,
     value: intake.common.applicantCounterpartyId,
+  });
+  const selectedPayerLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка контрагентов...",
+    matchedLabel: selectedPayer
+      ? `${selectedPayer.shortName}${
+          selectedPayer.inn ? ` · ИНН ${selectedPayer.inn}` : ""
+        }`
+      : null,
+    missingLabel: "Выбранный плательщик недоступен",
+    optionsCount: counterparties.length,
+    value: intake.incomingReceipt.payerCounterpartyId,
+  });
+  const selectedBeneficiaryLabel = resolveOptionLabel({
+    emptyLabel: "Не выбрано",
+    loadingLabel: "Загрузка контрагентов...",
+    matchedLabel: selectedBeneficiary
+      ? `${selectedBeneficiary.shortName}${
+          selectedBeneficiary.inn ? ` · ИНН ${selectedBeneficiary.inn}` : ""
+        }`
+      : null,
+    missingLabel:
+      intake.externalBeneficiary.beneficiaryCounterpartyId ===
+      intake.common.applicantCounterpartyId
+        ? "Заявитель не может быть получателем маршрута"
+        : "Выбранный получатель недоступен",
+    optionsCount: beneficiaryCounterpartyOptions.length,
+    value: intake.externalBeneficiary.beneficiaryCounterpartyId,
   });
   const sourceCurrencyLabel = resolveOptionLabel({
     emptyLabel: "Не выбрано",
@@ -451,6 +506,15 @@ export function createDealIntakeFormContext({
     });
   }
 
+  function updatePayerCounterpartyId(value: string | null) {
+    update({
+      incomingReceipt: {
+        ...intake.incomingReceipt,
+        payerCounterpartyId: value,
+      },
+    });
+  }
+
   function updateBeneficiarySnapshot(
     key: keyof CrmCounterpartySnapshot,
     value: string | null,
@@ -462,6 +526,15 @@ export function createDealIntakeFormContext({
           ...beneficiarySnapshot,
           [key]: value,
         },
+      },
+    });
+  }
+
+  function updateBeneficiaryCounterpartyId(value: string | null) {
+    update({
+      externalBeneficiary: {
+        ...intake.externalBeneficiary,
+        beneficiaryCounterpartyId: value,
       },
     });
   }
@@ -501,7 +574,12 @@ export function createDealIntakeFormContext({
     applicantSnapshot,
     applicantRequisiteLabel,
     beneficiaryBank,
+    beneficiaryCounterpartyOptions,
     beneficiarySnapshot,
+    canCreateBeneficiaryCounterparty: Boolean(
+      onCreateBeneficiaryCounterparty &&
+        (beneficiarySnapshot.displayName || beneficiarySnapshot.legalName),
+    ),
     currencyOptions,
     expectedAmountLabel,
     expectedCurrencyLabel,
@@ -521,7 +599,11 @@ export function createDealIntakeFormContext({
     primaryAmountLabel,
     primaryAmountValue,
     readOnly,
+    isCreatingBeneficiaryCounterparty,
+    onCreateBeneficiaryCounterparty,
     selectedApplicantLabel,
+    selectedBeneficiaryLabel,
+    selectedPayerLabel,
     settlementBank,
     settlementModeLabel,
     shouldInlineMoneyRequestFields,
@@ -533,10 +615,12 @@ export function createDealIntakeFormContext({
     targetCurrencyTitle,
     update,
     updateBeneficiaryBank,
+    updateBeneficiaryCounterpartyId,
     updateBeneficiarySnapshot,
     updateCommon,
     updateIncomingReceipt,
     updateMoneyRequest,
+    updatePayerCounterpartyId,
     updatePayerSnapshot,
     updatePrimaryAmount,
     updateSettlementBank,
@@ -780,6 +864,7 @@ export function DealIntakeIncomingReceiptSection({
   context,
 }: DealIntakeSectionProps) {
   const {
+    counterparties,
     applicantSnapshot,
     currencyOptions,
     expectedAmountLabel,
@@ -792,8 +877,10 @@ export function DealIntakeIncomingReceiptSection({
     intake,
     isPaymentDeal,
     readOnly,
+    selectedPayerLabel,
     shouldRenderPayerDetails,
     updateIncomingReceipt,
+    updatePayerCounterpartyId,
     updatePayerSnapshot,
   } = context;
 
@@ -898,6 +985,38 @@ export function DealIntakeIncomingReceiptSection({
       </div>
       {shouldRenderPayerDetails ? (
         <div className="grid gap-4">
+        <div className="space-y-2">
+            <Label>CRM-контрагент плательщика для маршрута</Label>
+          <Select
+            disabled={readOnly}
+            value={intake.incomingReceipt.payerCounterpartyId ?? "__none"}
+              onValueChange={(value) =>
+                updatePayerCounterpartyId(value === "__none" ? null : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите контрагента">
+                  {selectedPayerLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Не выбрано</SelectItem>
+                {counterparties.map((partyProfile) => (
+                  <SelectItem
+                    key={partyProfile.counterpartyId}
+                    value={partyProfile.counterpartyId}
+                  >
+                    {partyProfile.shortName}
+                    {partyProfile.inn ? ` · ИНН ${partyProfile.inn}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Используется только для route composer. Не меняет данные
+              плательщика ниже.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="deal-payer-display-name">Плательщик</Label>
             <Input
@@ -953,11 +1072,18 @@ export function DealIntakeExternalBeneficiarySection({
 }: DealIntakeSectionProps) {
   const {
     beneficiaryBank,
+    beneficiaryCounterpartyOptions,
     beneficiarySnapshot,
     hasExternalBeneficiarySection,
+    intake,
+    isCreatingBeneficiaryCounterparty,
+    canCreateBeneficiaryCounterparty,
+    onCreateBeneficiaryCounterparty,
     readOnly,
     updateBeneficiaryBank,
+    updateBeneficiaryCounterpartyId,
     updateBeneficiarySnapshot,
+    selectedBeneficiaryLabel,
   } = context;
 
   if (!hasExternalBeneficiarySection) {
@@ -967,12 +1093,65 @@ export function DealIntakeExternalBeneficiarySection({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="font-medium">Получатель выплаты</h3>
+        <h3 className="font-medium">Получатель и реквизиты выплаты</h3>
         <p className="text-sm text-muted-foreground">
-          Кому и по каким банковским реквизитам отправляем выплату.
+          Поля ниже описывают фактического получателя денег и его банковские
+          реквизиты по инвойсу.
         </p>
       </div>
       <div className="grid gap-4">
+        <div className="space-y-2">
+          <Label>CRM-контрагент получателя для маршрута</Label>
+          <Select
+            disabled={readOnly}
+            value={intake.externalBeneficiary.beneficiaryCounterpartyId ?? "__none"}
+            onValueChange={(value) =>
+              updateBeneficiaryCounterpartyId(value === "__none" ? null : value)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Выберите контрагента">
+                {selectedBeneficiaryLabel}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Не выбрано</SelectItem>
+              {beneficiaryCounterpartyOptions.map((partyProfile) => (
+                <SelectItem
+                  key={partyProfile.counterpartyId}
+                  value={partyProfile.counterpartyId}
+                >
+                  {partyProfile.shortName}
+                  {partyProfile.inn ? ` · ИНН ${partyProfile.inn}` : ""}
+                </SelectItem>
+              ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Используется только в шаблоне маршрута. Не меняет получателя и
+              реквизиты выплаты ниже. Если поставщик не заведен как отдельный
+              CRM-контрагент, оставьте поле пустым.
+            </p>
+            {canCreateBeneficiaryCounterparty ? (
+              <Button
+                className="w-fit"
+                disabled={readOnly || isCreatingBeneficiaryCounterparty}
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() => void onCreateBeneficiaryCounterparty?.()}
+              >
+                {isCreatingBeneficiaryCounterparty ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Создаем контрагента...
+                  </>
+                ) : (
+                  "Создать CRM-контрагента из получателя"
+                )}
+              </Button>
+            ) : null}
+          </div>
         <div className="space-y-2">
           <Label htmlFor="deal-beneficiary-display-name">Получатель</Label>
           <Input
