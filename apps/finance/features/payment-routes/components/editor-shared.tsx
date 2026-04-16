@@ -42,18 +42,6 @@ import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import { getPaymentRouteParticipantRequisiteContext } from "../lib/requisites";
 import type { PaymentRouteRequisitesState } from "../lib/use-payment-route-requisites";
 
-const LEG_KIND_LABELS: Record<
-  PaymentRouteEditorState["draft"]["legs"][number]["kind"],
-  string
-> = {
-  collect: "Сбор",
-  cross_company: "Межфирменный перевод",
-  exchange: "Обмен",
-  intercompany: "Внутригрупповой перевод",
-  payout: "Выплата",
-  transfer: "Перевод",
-};
-
 const FEE_KIND_LABELS: Record<PaymentRouteFee["kind"], string> = {
   fixed: "Фикс",
   percent: "Процент",
@@ -122,14 +110,6 @@ type ParticipantRequisiteFieldProps = {
   requisites: PaymentRouteRequisitesState;
   state: PaymentRouteEditorState;
 };
-
-export function getLegKindLabel(kind: string) {
-  return (
-    LEG_KIND_LABELS[
-      kind as PaymentRouteEditorState["draft"]["legs"][number]["kind"]
-    ] ?? kind
-  );
-}
 
 export function getFeeKindLabel(kind: PaymentRouteFee["kind"]) {
   return FEE_KIND_LABELS[kind] ?? kind;

@@ -291,7 +291,6 @@ async function runForwardPreview(input: {
       id: leg.id,
       idx: index + 1,
       inputAmountMinor: rollingAmount.toString(),
-      kind: leg.kind,
       netOutputMinor: netOutputMinor.toString(),
       rateDen: rateDen.toString(),
       rateNum: rateNum.toString(),

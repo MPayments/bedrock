@@ -8,7 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/compon
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
-import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
+import {
+  derivePaymentRouteLegSemantics,
+  formatPaymentRouteLegSemantics,
+  type PaymentRouteCalculation,
+  type PaymentRouteDraft,
+} from "@bedrock/treasury/contracts";
 
 import {
   getPaymentRouteAdditionalFeeTotals,
@@ -17,11 +22,11 @@ import {
 import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteRequisiteWarning } from "../lib/requisites";
-import { getLegKindLabel } from "./editor-shared";
 
 type PaymentRouteSummaryRailProps = {
   calculation: PaymentRouteCalculation | null;
   className?: string;
+  draft: PaymentRouteDraft;
   options: PaymentRouteConstructorOptions;
   sticky?: boolean;
   warnings?: PaymentRouteRequisiteWarning[];
@@ -34,6 +39,7 @@ function getCurrency(options: PaymentRouteConstructorOptions, currencyId: string
 export function PaymentRouteSummaryRail({
   calculation,
   className,
+  draft,
   options,
   sticky = true,
   warnings = [],
@@ -106,12 +112,18 @@ export function PaymentRouteSummaryRail({
               {calculation.legs.map((leg) => {
                 const fromCurrency = getCurrency(options, leg.fromCurrencyId);
                 const toCurrency = getCurrency(options, leg.toCurrencyId);
+                const semanticsLabel = formatPaymentRouteLegSemantics(
+                  derivePaymentRouteLegSemantics({
+                    draft,
+                    legIndex: leg.idx - 1,
+                  }),
+                );
 
                 return (
                   <div key={leg.id} className="rounded-xl border bg-muted/20 p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div className="text-sm font-medium">
-                        Шаг {leg.idx}. {getLegKindLabel(leg.kind)}
+                        Шаг {leg.idx}. {semanticsLabel}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {fromCurrency?.code} → {toCurrency?.code}

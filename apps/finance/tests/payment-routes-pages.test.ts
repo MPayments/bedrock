@@ -126,7 +126,6 @@ const TEMPLATE = {
         fees: [],
         fromCurrencyId: OPTIONS.currencies[0].id,
         id: "leg-1",
-        kind: "transfer",
         toCurrencyId: OPTIONS.currencies[0].id,
       },
     ],

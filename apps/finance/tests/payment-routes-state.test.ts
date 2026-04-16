@@ -388,7 +388,6 @@ describe("payment route editor state", () => {
           id: manualMode.draft.legs[0]!.id,
           idx: 1,
           inputAmountMinor: "1200000",
-          kind: "transfer",
           netOutputMinor: "1188000",
           rateDen: "1",
           rateNum: "1",

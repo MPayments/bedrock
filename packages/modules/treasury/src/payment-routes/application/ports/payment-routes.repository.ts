@@ -3,6 +3,7 @@ import type {
   PaymentRouteTemplate,
   PaymentRouteTemplateListItem,
 } from "../contracts/dto";
+import { PaymentRouteCalculationSchema } from "../contracts/dto";
 import type { ListPaymentRouteTemplatesQuery } from "../contracts/queries";
 import type {
   PaymentRouteDraft,
@@ -63,14 +64,22 @@ function normalizeRecordDraft(
   return PaymentRouteDraftSchema.parse(normalizePaymentRouteDraft(draft));
 }
 
+function normalizeRecordCalculation(
+  calculation: PaymentRouteTemplateRecord["lastCalculation"],
+): PaymentRouteCalculation | null {
+  return calculation ? PaymentRouteCalculationSchema.parse(calculation) : null;
+}
+
 export function mapPaymentRouteTemplateRecord(
   record: PaymentRouteTemplateRecord,
 ): PaymentRouteTemplate {
   const draft = normalizeRecordDraft(record.draft);
+  const lastCalculation = normalizeRecordCalculation(record.lastCalculation);
 
   return {
     ...record,
     draft,
+    lastCalculation,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
@@ -80,6 +89,7 @@ export function mapPaymentRouteTemplateListItem(
   record: PaymentRouteTemplateRecord,
 ): PaymentRouteTemplateListItem {
   const draft = normalizeRecordDraft(record.draft);
+  const lastCalculation = normalizeRecordCalculation(record.lastCalculation);
   const sourceEndpoint = draft.participants[0]!;
   const destinationEndpoint = draft.participants[draft.participants.length - 1]!;
 
@@ -90,7 +100,7 @@ export function mapPaymentRouteTemplateListItem(
     destinationEndpoint,
     hopCount: Math.max(draft.participants.length - 2, 0),
     id: record.id,
-    lastCalculation: record.lastCalculation,
+    lastCalculation,
     name: record.name,
     snapshotPolicy: record.snapshotPolicy,
     sourceEndpoint,

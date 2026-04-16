@@ -44,12 +44,9 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
+  derivePaymentRouteLegSemantics,
+  formatPaymentRouteLegSemantics,
+} from "@bedrock/treasury/contracts";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type {
   PaymentRouteGraphEdgeData,
@@ -79,7 +76,6 @@ import {
   CalculationHint,
   CurrencySelector,
   FeeListEditor,
-  getLegKindLabel,
   ParticipantRequisiteField,
   ParticipantSelector,
 } from "./editor-shared";
@@ -101,8 +97,8 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
   data,
   dragging,
   selected,
-}: NodeProps) {
-  const nodeData = data as PaymentRouteGraphNodeData;
+}: NodeProps<Node<PaymentRouteGraphNodeData>>) {
+  const nodeData = data;
   const themeClassName =
     nodeData.role === "source"
       ? "border-sky-300/80 bg-sky-50/95 hover:ring-sky-300"
@@ -192,9 +188,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
                     ? "border-amber-300/80 bg-amber-50/90"
                     : row.tone === "info"
                       ? "border-slate-200/80 bg-background/80"
-                      : row.tone === "muted"
-                        ? "border-slate-200/70 bg-background/60 opacity-60"
-                        : "border-slate-200/80 bg-background/85",
+                      : "border-slate-200/80 bg-background/85",
                 )}
               >
                 {row.active && row.handleId ? (
@@ -211,9 +205,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
                       "truncate text-[12px] font-medium",
                       row.tone === "warning"
                         ? "text-amber-900"
-                        : row.tone === "muted"
-                          ? "text-muted-foreground"
-                          : "text-foreground",
+                        : "text-foreground",
                     )}
                   >
                     {row.label}
@@ -363,7 +355,7 @@ function RouteGraphCanvas({
     state,
   ]);
   const [nodes, setNodes, onNodesChange] =
-    useNodesState<PaymentRouteGraphNodeData>(baseNodes);
+    useNodesState<Node<PaymentRouteGraphNodeData>>(baseNodes);
 
   React.useEffect(() => {
     setNodes((currentNodes) => {
@@ -574,46 +566,23 @@ function PaymentRouteGraphInspector({
       return null;
     }
 
+    const semanticsLabel = formatPaymentRouteLegSemantics(
+      derivePaymentRouteLegSemantics({
+        draft: state.draft,
+        legIndex,
+      }),
+    );
+
     return (
       <Card className="h-fit">
         <CardHeader>
           <CardTitle>Инспектор шага</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Select
-            value={leg.kind}
-            onValueChange={(kind) => {
-              if (!kind) {
-                return;
-              }
-
-              onStateChange(
-                setLegField(state, leg.id, {
-                  kind: kind as typeof leg.kind,
-                }),
-              );
-            }}
-          >
-            <SelectTrigger aria-label="Тип операции">
-              <SelectValue>{getLegKindLabel(leg.kind)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {(
-                [
-                  "collect",
-                  "exchange",
-                  "transfer",
-                  "intercompany",
-                  "cross_company",
-                  "payout",
-                ] as const
-              ).map((kind) => (
-                <SelectItem key={kind} value={kind}>
-                  {getLegKindLabel(kind)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="rounded-xl border bg-muted/20 px-3 py-2 text-sm">
+            <div className="font-medium">Семантика шага</div>
+            <div className="text-muted-foreground">{semanticsLabel}</div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <CurrencySelector
               ariaLabel="Валюта входа"
@@ -712,8 +681,8 @@ function PaymentRouteGraphInspector({
         <CardTitle>Инспектор графа</CardTitle>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        Выберите узел или ребро, чтобы отредактировать участника, операцию,
-        валюты и комиссии.
+        Выберите узел или ребро, чтобы отредактировать участника, валюты и
+        комиссии.
       </CardContent>
     </Card>
   );

@@ -69,7 +69,6 @@ const CALCULATION: PaymentRouteCalculation = {
       id: "leg-1",
       idx: 1,
       inputAmountMinor: "10000",
-      kind: "transfer",
       netOutputMinor: "9800",
       rateDen: "1",
       rateNum: "1",

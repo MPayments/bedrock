@@ -5,10 +5,13 @@ import { createModuleRuntime } from "@bedrock/shared/core";
 import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
 import { createPaymentRoutesService } from "../src/payment-routes/application";
 import {
+  PaymentRouteCalculationSchema,
   PaymentRouteCalculationFeeSchema,
   type PaymentRouteCalculation,
 } from "../src/payment-routes/application/contracts/dto";
 import {
+  derivePaymentRouteLegSemantics,
+  formatPaymentRouteLegSemantics,
   getPaymentRouteParticipantOperationalCurrency,
   PaymentRouteDraftSchema,
   type PaymentRouteDraft,
@@ -34,7 +37,6 @@ function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft 
         fees: [],
         fromCurrencyId: USD,
         id: "leg-1",
-        kind: "transfer",
         toCurrencyId: USD,
       },
     ],
@@ -221,7 +223,6 @@ describe("payment routes", () => {
           ],
           fromCurrencyId: USD,
           id: "leg-1",
-          kind: "transfer",
           toCurrencyId: USD,
         },
       ],
@@ -256,7 +257,6 @@ describe("payment routes", () => {
           ],
           fromCurrencyId: USD,
           id: "leg-1",
-          kind: "transfer",
           toCurrencyId: USD,
         },
       ],
@@ -286,7 +286,6 @@ describe("payment routes", () => {
           fees: [],
           fromCurrencyId: USD,
           id: "leg-1",
-          kind: "transfer",
           toCurrencyId: currencyIdForCode("EUR"),
         },
       ],
@@ -330,6 +329,54 @@ describe("payment routes", () => {
     ).toThrow();
   });
 
+  it("rejects route drafts that still include leg kind", () => {
+    expect(() =>
+      PaymentRouteDraftSchema.parse({
+        ...createDraft(),
+        legs: [
+          {
+            ...createDraft().legs[0],
+            kind: "transfer",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects calculations that still include leg kind", () => {
+    expect(() =>
+      PaymentRouteCalculationSchema.parse({
+        additionalFees: [],
+        amountInMinor: "10000",
+        amountOutMinor: "10000",
+        computedAt: "2026-04-16T08:00:00.000Z",
+        currencyInId: USD,
+        currencyOutId: USD,
+        feeTotals: [],
+        grossAmountOutMinor: "10000",
+        legs: [
+          {
+            asOf: "2026-04-16T08:00:00.000Z",
+            fees: [],
+            fromCurrencyId: USD,
+            grossOutputMinor: "10000",
+            id: "leg-1",
+            idx: 1,
+            inputAmountMinor: "10000",
+            kind: "transfer",
+            netOutputMinor: "10000",
+            rateDen: "1",
+            rateNum: "1",
+            rateSource: "identity",
+            toCurrencyId: USD,
+          },
+        ],
+        lockedSide: "currency_in",
+        netAmountOutMinor: "10000",
+      }),
+    ).toThrow();
+  });
+
   it("previews mixed-currency multi-hop routes with treasury rates", async () => {
     const { service } = createService();
     const draft = createDraft({
@@ -340,7 +387,6 @@ describe("payment routes", () => {
           fees: [],
           fromCurrencyId: USDT,
           id: "leg-1",
-          kind: "collect",
           toCurrencyId: AED,
         },
         {
@@ -354,7 +400,6 @@ describe("payment routes", () => {
           ],
           fromCurrencyId: AED,
           id: "leg-2",
-          kind: "exchange",
           toCurrencyId: USD,
         },
       ],
@@ -413,7 +458,6 @@ describe("payment routes", () => {
           ],
           fromCurrencyId: USD,
           id: "leg-1",
-          kind: "transfer",
           toCurrencyId: USD,
         },
       ],
@@ -548,6 +592,159 @@ describe("payment routes", () => {
     expect(draft.participants[1]?.requisiteId).toBeNull();
   });
 
+  it("derives stable route semantics labels from participants and currencies", () => {
+    expect(
+      derivePaymentRouteLegSemantics({
+        draft: createDraft(),
+        legIndex: 0,
+      }),
+    ).toEqual(["collection", "payout"]);
+    expect(
+      formatPaymentRouteLegSemantics(
+        derivePaymentRouteLegSemantics({
+          draft: createDraft({
+            currencyOutId: AED,
+            legs: [
+              {
+                fees: [],
+                fromCurrencyId: USD,
+                id: "leg-1",
+                toCurrencyId: AED,
+              },
+            ],
+          }),
+          legIndex: 0,
+        }),
+      ),
+    ).toBe("Сбор + Выплата + Обмен");
+
+    const routedDraft = createDraft({
+      participants: [
+        createDraft().participants[0]!,
+        {
+          binding: "bound",
+          displayName: "Org A",
+          entityId: "00000000-0000-4000-8000-000000000010",
+          entityKind: "organization",
+          nodeId: "node-org-a",
+          requisiteId: null,
+          role: "hop",
+        },
+        {
+          binding: "bound",
+          displayName: "Org B",
+          entityId: "00000000-0000-4000-8000-000000000011",
+          entityKind: "organization",
+          nodeId: "node-org-b",
+          requisiteId: null,
+          role: "destination",
+        },
+      ],
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-2",
+          toCurrencyId: AED,
+        },
+      ],
+      currencyOutId: AED,
+    });
+
+    expect(
+      derivePaymentRouteLegSemantics({
+        draft: routedDraft,
+        legIndex: 0,
+      }),
+    ).toEqual(["collection"]);
+    expect(
+      derivePaymentRouteLegSemantics({
+        draft: routedDraft,
+        legIndex: 1,
+      }),
+    ).toEqual(["payout", "fx_conversion"]);
+
+    const intraInterCounterpartyDraft = createDraft({
+      participants: [
+        {
+          binding: "bound",
+          displayName: "Org A",
+          entityId: "00000000-0000-4000-8000-000000000010",
+          entityKind: "organization",
+          nodeId: "node-org-a",
+          requisiteId: null,
+          role: "source",
+        },
+        {
+          binding: "bound",
+          displayName: "Org A mirror",
+          entityId: "00000000-0000-4000-8000-000000000010",
+          entityKind: "organization",
+          nodeId: "node-org-a-mirror",
+          requisiteId: null,
+          role: "hop",
+        },
+        {
+          binding: "bound",
+          displayName: "Core Bank",
+          entityId: "00000000-0000-4000-8000-000000000020",
+          entityKind: "counterparty",
+          nodeId: "node-bank",
+          requisiteId: null,
+          role: "hop",
+        },
+        {
+          binding: "bound",
+          displayName: "Org B",
+          entityId: "00000000-0000-4000-8000-000000000011",
+          entityKind: "organization",
+          nodeId: "node-org-b",
+          requisiteId: null,
+          role: "destination",
+        },
+      ],
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-2",
+          toCurrencyId: USD,
+        },
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-3",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    expect(
+      derivePaymentRouteLegSemantics({
+        draft: intraInterCounterpartyDraft,
+        legIndex: 1,
+      }),
+    ).toEqual(["counterparty_transfer"]);
+    expect(formatPaymentRouteLegSemantics(["intracompany_transfer"])).toBe(
+      "Внутренний перевод",
+    );
+    expect(formatPaymentRouteLegSemantics(["intercompany_transfer"])).toBe(
+      "Межкомпанейский перевод",
+    );
+  });
+
   it("resolves participant operational currency for source, hop, and destination", () => {
     const draft = createDraft({
       currencyInId: USDT,
@@ -557,14 +754,12 @@ describe("payment routes", () => {
           fees: [],
           fromCurrencyId: USDT,
           id: "leg-1",
-          kind: "collect",
           toCurrencyId: AED,
         },
         {
           fees: [],
           fromCurrencyId: AED,
           id: "leg-2",
-          kind: "exchange",
           toCurrencyId: USD,
         },
       ],

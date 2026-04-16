@@ -295,7 +295,6 @@ export function createPaymentRouteSeed(
         fees: [],
         fromCurrencyId: currency.id,
         id: createId("route-leg"),
-        kind: "transfer",
         toCurrencyId: currency.id,
       },
     ],
@@ -506,10 +505,13 @@ export function setParticipantRequisiteId(input: {
   }
 
   const draft = cloneDraft(input.state.draft);
-  draft.participants[input.index] = {
-    ...participant,
-    requisiteId: input.requisiteId,
-  };
+  const nextParticipant = draft.participants[input.index];
+
+  if (!nextParticipant || !supportsParticipantRequisites(nextParticipant)) {
+    return input.state;
+  }
+
+  nextParticipant.requisiteId = input.requisiteId;
 
   return {
     ...input.state,
@@ -755,7 +757,6 @@ export function insertIntermediateParticipant(input: {
     fees: [],
     fromCurrencyId: splitLeg.toCurrencyId,
     id: createId("route-leg"),
-    kind: "transfer" as const,
     toCurrencyId:
       input.afterLegIndex === draft.legs.length - 1
         ? draft.currencyOutId

@@ -37,21 +37,22 @@ export const PaymentRouteCalculationFeeSchema = z.discriminatedUnion("kind", [
   PaymentRouteCalculationFixedFeeSchema,
 ]);
 
-export const PaymentRouteCalculationLegSchema = z.object({
-  asOf: z.iso.datetime(),
-  fees: z.array(PaymentRouteCalculationFeeSchema),
-  fromCurrencyId: z.uuid(),
-  grossOutputMinor: z.string(),
-  id: z.string(),
-  idx: z.number().int().positive(),
-  inputAmountMinor: z.string(),
-  kind: z.string(),
-  netOutputMinor: z.string(),
-  rateDen: z.string(),
-  rateNum: z.string(),
-  rateSource: z.string(),
-  toCurrencyId: z.uuid(),
-});
+export const PaymentRouteCalculationLegSchema = z
+  .object({
+    asOf: z.iso.datetime(),
+    fees: z.array(PaymentRouteCalculationFeeSchema),
+    fromCurrencyId: z.uuid(),
+    grossOutputMinor: z.string(),
+    id: z.string(),
+    idx: z.number().int().positive(),
+    inputAmountMinor: z.string(),
+    netOutputMinor: z.string(),
+    rateDen: z.string(),
+    rateNum: z.string(),
+    rateSource: z.string(),
+    toCurrencyId: z.uuid(),
+  })
+  .strict();
 
 export const PaymentRouteAmountTotalSchema = z.object({
   amountMinor: z.string(),

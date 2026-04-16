@@ -1,9 +1,10 @@
+import { z } from "zod";
+
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
-import { z } from "zod";
 
 const positiveMinorStringSchema = z
   .string()
@@ -49,13 +50,21 @@ export const PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES = [
   "abstract",
   "bound",
 ] as const;
-export const PAYMENT_ROUTE_LEG_KIND_VALUES = [
-  "collect",
-  "exchange",
-  "transfer",
-  "intercompany",
-  "cross_company",
+export const PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES = [
+  "collection",
   "payout",
+  "intracompany_transfer",
+  "intercompany_transfer",
+  "counterparty_transfer",
+  "transfer",
+  "fx_conversion",
+] as const;
+export const PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES = [
+  "payin",
+  "payout",
+  "intracompany_transfer",
+  "intercompany_funding",
+  "fx_conversion",
 ] as const;
 export const PAYMENT_ROUTE_FEE_KIND_VALUES = ["percent", "fixed"] as const;
 export const PAYMENT_ROUTE_LOCKED_SIDE_VALUES = [
@@ -75,7 +84,12 @@ export const PaymentRouteParticipantRoleSchema = z.enum(
 export const PaymentRouteParticipantBindingSchema = z.enum(
   PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
 );
-export const PaymentRouteLegKindSchema = z.enum(PAYMENT_ROUTE_LEG_KIND_VALUES);
+export const PaymentRouteLegSemanticTagSchema = z.enum(
+  PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
+);
+export const PaymentRouteLegTreasuryOperationHintSchema = z.enum(
+  PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
+);
 export const PaymentRouteFeeKindSchema = z.enum(PAYMENT_ROUTE_FEE_KIND_VALUES);
 export const PaymentRouteLockedSideSchema = z.enum(
   PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
@@ -228,13 +242,14 @@ export const PaymentRouteFeeSchema = z
     }
   });
 
-export const PaymentRouteLegSchema = z.object({
-  fees: z.array(PaymentRouteFeeSchema).default([]),
-  fromCurrencyId: z.uuid(),
-  id: z.string().trim().min(1),
-  kind: PaymentRouteLegKindSchema,
-  toCurrencyId: z.uuid(),
-});
+export const PaymentRouteLegSchema = z
+  .object({
+    fees: z.array(PaymentRouteFeeSchema).default([]),
+    fromCurrencyId: z.uuid(),
+    id: z.string().trim().min(1),
+    toCurrencyId: z.uuid(),
+  })
+  .strict();
 
 const PaymentRouteNodePositionSchema = z.object({
   x: z.number(),
@@ -499,7 +514,12 @@ export type PaymentRouteParticipantRole = z.infer<
 export type PaymentRouteParticipantBinding = z.infer<
   typeof PaymentRouteParticipantBindingSchema
 >;
-export type PaymentRouteLegKind = z.infer<typeof PaymentRouteLegKindSchema>;
+export type PaymentRouteLegSemanticTag = z.infer<
+  typeof PaymentRouteLegSemanticTagSchema
+>;
+export type PaymentRouteLegTreasuryOperationHint = z.infer<
+  typeof PaymentRouteLegTreasuryOperationHintSchema
+>;
 export type PaymentRouteFeeKind = z.infer<typeof PaymentRouteFeeKindSchema>;
 export type PaymentRouteLockedSide = z.infer<
   typeof PaymentRouteLockedSideSchema
@@ -546,4 +566,109 @@ export function getPaymentRouteParticipantOperationalCurrency(input: {
     input.draft.legs[input.participantIndex]?.fromCurrencyId ??
     null
   );
+}
+
+const PAYMENT_ROUTE_LEG_SEMANTIC_LABELS: Record<
+  PaymentRouteLegSemanticTag,
+  string
+> = {
+  collection: "Сбор",
+  counterparty_transfer: "Перевод через контрагента",
+  fx_conversion: "Обмен",
+  intercompany_transfer: "Межкомпанейский перевод",
+  intracompany_transfer: "Внутренний перевод",
+  payout: "Выплата",
+  transfer: "Перевод",
+};
+
+const PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINTS: Partial<
+  Record<
+    PaymentRouteLegSemanticTag,
+    PaymentRouteLegTreasuryOperationHint
+  >
+> = {
+  collection: "payin",
+  fx_conversion: "fx_conversion",
+  intercompany_transfer: "intercompany_funding",
+  intracompany_transfer: "intracompany_transfer",
+  payout: "payout",
+};
+
+export function derivePaymentRouteLegSemantics(input: {
+  draft: Pick<PaymentRouteDraft, "legs" | "participants">;
+  legIndex: number;
+}): PaymentRouteLegSemanticTag[] {
+  const fromParticipant = input.draft.participants[input.legIndex];
+  const leg = input.draft.legs[input.legIndex];
+  const toParticipant = input.draft.participants[input.legIndex + 1];
+
+  if (!fromParticipant || !leg || !toParticipant) {
+    return [];
+  }
+
+  const tags: PaymentRouteLegSemanticTag[] = [];
+  const isCollection = fromParticipant.role === "source";
+  const isPayout = toParticipant.role === "destination";
+
+  if (isCollection) {
+    tags.push("collection");
+  }
+
+  if (isPayout) {
+    tags.push("payout");
+  }
+
+  if (!isCollection && !isPayout) {
+    if (
+      fromParticipant.binding === "bound" &&
+      toParticipant.binding === "bound" &&
+      fromParticipant.entityKind === "organization" &&
+      toParticipant.entityKind === "organization"
+    ) {
+      tags.push(
+        fromParticipant.entityId === toParticipant.entityId
+          ? "intracompany_transfer"
+          : "intercompany_transfer",
+      );
+    } else if (
+      (fromParticipant.binding === "bound" &&
+        fromParticipant.entityKind === "counterparty") ||
+      (toParticipant.binding === "bound" &&
+        toParticipant.entityKind === "counterparty")
+    ) {
+      tags.push("counterparty_transfer");
+    } else {
+      tags.push("transfer");
+    }
+  }
+
+  if (leg.fromCurrencyId !== leg.toCurrencyId) {
+    tags.push("fx_conversion");
+  }
+
+  return tags;
+}
+
+export function formatPaymentRouteLegSemantics(
+  semantics: PaymentRouteLegSemanticTag[],
+) {
+  return semantics
+    .map((semantic) => PAYMENT_ROUTE_LEG_SEMANTIC_LABELS[semantic] ?? semantic)
+    .join(" + ");
+}
+
+export function derivePaymentRouteLegTreasuryOperationHints(
+  semantics: PaymentRouteLegSemanticTag[],
+): PaymentRouteLegTreasuryOperationHint[] {
+  const hints = new Set<PaymentRouteLegTreasuryOperationHint>();
+
+  for (const semantic of semantics) {
+    const hint = PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINTS[semantic];
+
+    if (hint) {
+      hints.add(hint);
+    }
+  }
+
+  return Array.from(hints);
 }

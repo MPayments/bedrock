@@ -139,7 +139,6 @@ describe("payment route graph view model", () => {
           id: leg.id,
           idx: 1,
           inputAmountMinor: "1200000",
-          kind: "transfer",
           netOutputMinor: "1188000",
           rateDen: "1",
           rateNum: "1",

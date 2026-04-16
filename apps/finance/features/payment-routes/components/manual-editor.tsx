@@ -17,13 +17,10 @@ import {
   FieldTitle,
 } from "@bedrock/sdk-ui/components/field";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
-import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
+  derivePaymentRouteLegSemantics,
+  formatPaymentRouteLegSemantics,
+  type PaymentRouteCalculation,
+} from "@bedrock/treasury/contracts";
 
 import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
@@ -49,7 +46,6 @@ import {
   CalculationHint,
   CurrencySelector,
   FeeListEditor,
-  getLegKindLabel,
   ParticipantRequisiteField,
   ParticipantSelector,
 } from "./editor-shared";
@@ -117,6 +113,12 @@ export function PaymentRouteManualEditor({
           options.currencies.find(
             (currency) => currency.id === leg.toCurrencyId,
           ) ?? null;
+        const semanticsLabel = formatPaymentRouteLegSemantics(
+          derivePaymentRouteLegSemantics({
+            draft: state.draft,
+            legIndex: index,
+          }),
+        );
 
         return (
             <Card key={leg.id} className="border-border/70">
@@ -308,43 +310,10 @@ export function PaymentRouteManualEditor({
                 </Field>
               </FieldGroup>
 
-              <FieldGroup className="grid gap-4 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+              <FieldGroup className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
                 <Field>
-                  <FieldTitle>Операция</FieldTitle>
-                  <Select
-                    value={leg.kind}
-                    onValueChange={(kind) => {
-                      if (!kind) {
-                        return;
-                      }
-
-                      onStateChange(
-                        setLegField(state, leg.id, {
-                          kind: kind as typeof leg.kind,
-                        }),
-                      );
-                    }}
-                  >
-                    <SelectTrigger aria-label="Тип операции">
-                      <SelectValue>{getLegKindLabel(leg.kind)}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        [
-                          "collect",
-                          "exchange",
-                          "transfer",
-                          "intercompany",
-                          "cross_company",
-                          "payout",
-                        ] as const
-                      ).map((kind) => (
-                        <SelectItem key={kind} value={kind}>
-                          {getLegKindLabel(kind)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FieldTitle>Семантика шага</FieldTitle>
+                  <FieldDescription>{semanticsLabel}</FieldDescription>
                 </Field>
                 <Field>
                   <FieldTitle>Валюта входа</FieldTitle>

@@ -90,7 +90,6 @@ function createPreviewRequestKey(draft: PaymentRouteEditorState["draft"]) {
       fees: leg.fees,
       fromCurrencyId: leg.fromCurrencyId,
       id: leg.id,
-      kind: leg.kind,
       toCurrencyId: leg.toCurrencyId,
     })),
     lockedSide: draft.lockedSide,
@@ -661,6 +660,7 @@ export function PaymentRouteConstructorClient({
             <div className="order-last xl:order-none">
               <PaymentRouteSummaryRail
                 calculation={editorState.calculation}
+                draft={editorState.draft}
                 options={options}
                 warnings={requisiteWarnings}
               />
@@ -785,6 +785,7 @@ export function PaymentRouteConstructorClient({
                     sidebarChildren={
                       <PaymentRouteSummaryRail
                         calculation={editorState.calculation}
+                        draft={editorState.draft}
                         options={options}
                         sticky={false}
                         className="border-border/70 bg-background/90"

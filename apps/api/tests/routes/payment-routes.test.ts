@@ -74,7 +74,6 @@ function createDraft() {
         ],
         fromCurrencyId: IDS.usd,
         id: "leg-1",
-        kind: "transfer",
         toCurrencyId: IDS.usd,
       },
     ],
@@ -108,7 +107,7 @@ function createAbstractDraft() {
     participants: [
       {
         binding: "abstract",
-        displayName: "Любой клиент",
+        displayName: "Клиент",
         entityId: null,
         entityKind: null,
         nodeId: "node-customer",
@@ -151,6 +150,8 @@ function createCalculation() {
             amountMinor: "100",
             currencyId: IDS.usd,
             id: "fee-1",
+            inputImpactCurrencyId: IDS.usd,
+            inputImpactMinor: "100",
             kind: "fixed",
             label: "Bank fee",
             outputImpactCurrencyId: IDS.usd,
@@ -162,7 +163,6 @@ function createCalculation() {
         id: "leg-1",
         idx: 1,
         inputAmountMinor: "10000",
-        kind: "transfer",
         netOutputMinor: "9900",
         rateDen: "1",
         rateNum: "1",
@@ -714,6 +714,63 @@ describe("payment routes routes", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(previewTemplate).not.toHaveBeenCalled();
+  });
+
+  it("rejects legacy route payloads that still include leg kind", async () => {
+    const {
+      app,
+      createTemplateCommand,
+      previewTemplate,
+      updateTemplate,
+    } = createTestApp();
+    const invalidDraft = {
+      ...createDraft(),
+      legs: [
+        {
+          ...createDraft().legs[0],
+          kind: "transfer",
+        },
+      ],
+    };
+
+    const [createResponse, updateResponse, previewResponse] = await Promise.all([
+      app.request("http://localhost/payment-routes", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: invalidDraft,
+          name: "USD payout",
+          visual: createVisual(),
+        }),
+      }),
+      app.request(`http://localhost/payment-routes/${IDS.route}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: invalidDraft,
+        }),
+      }),
+      app.request("http://localhost/payment-routes/preview", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: invalidDraft,
+        }),
+      }),
+    ]);
+
+    expect(createResponse.status).toBe(400);
+    expect(updateResponse.status).toBe(400);
+    expect(previewResponse.status).toBe(400);
+    expect(createTemplateCommand).not.toHaveBeenCalled();
+    expect(updateTemplate).not.toHaveBeenCalled();
     expect(previewTemplate).not.toHaveBeenCalled();
   });
 
