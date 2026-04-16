@@ -38,11 +38,12 @@ COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
 
 # Build shared API artifacts first so finance consumes compiled RPC client types.
-WORKDIR /repo/apps/api
-RUN node build.mjs
-
+# Emit api type declarations (dist/types.d.ts) before bundling server.mjs, then
+# compile sdk-api-client which imports `api/types`.
 WORKDIR /repo
-RUN node_modules/.bin/tsc -p packages/sdk/api-client/tsconfig.build.json
+RUN node_modules/.bin/tsc --emitDeclarationOnly -p apps/api/tsconfig.json && \
+    (cd apps/api && node build.mjs) && \
+    node_modules/.bin/tsc -p packages/sdk/api-client/tsconfig.build.json
 
 # Build Next.js (produces .next/standalone)
 ARG API_INTERNAL_URL=http://localhost:3000
