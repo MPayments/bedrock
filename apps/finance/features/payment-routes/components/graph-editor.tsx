@@ -3,14 +3,19 @@
 import * as React from "react";
 import {
   Background,
+  BackgroundVariant,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   NodeToolbar,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  getBezierPath,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
@@ -18,7 +23,12 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import {
   Select,
   SelectContent,
@@ -26,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
@@ -48,8 +59,12 @@ import {
 } from "./editor-shared";
 
 type PaymentRouteGraphEditorProps = {
+  canvasClassName?: string;
+  className?: string;
   onStateChange: (state: PaymentRouteEditorState) => void;
   options: PaymentRouteConstructorOptions;
+  sidebarChildren?: React.ReactNode;
+  sidebarClassName?: string;
   state: PaymentRouteEditorState;
 };
 
@@ -63,10 +78,12 @@ type RouteGraphNodeData = {
   subtitle: string;
 };
 
-function RouteGraphNode({
-  data,
-  selected,
-}: NodeProps) {
+type RouteGraphEdgeData = {
+  amountLabel: string;
+  feeLabel: string;
+};
+
+function RouteGraphNode({ data, selected }: NodeProps) {
   const nodeData = data as RouteGraphNodeData;
   const themeClassName =
     nodeData.role === "source"
@@ -80,20 +97,34 @@ function RouteGraphNode({
       <NodeToolbar isVisible={selected} position={Position.Top}>
         <div className="flex items-center gap-2 rounded-lg border bg-background px-2 py-1 shadow-sm">
           {nodeData.canInsertAfter ? (
-            <Button type="button" size="sm" variant="outline" onClick={nodeData.onInsertAfter}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={nodeData.onInsertAfter}
+            >
               <Plus className="size-4" />
               Узел после
             </Button>
           ) : null}
           {nodeData.canRemove ? (
-            <Button type="button" size="sm" variant="outline" onClick={nodeData.onRemove}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={nodeData.onRemove}
+            >
               <Trash2 className="size-4" />
               Удалить
             </Button>
           ) : null}
         </div>
       </NodeToolbar>
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !bg-slate-500" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!h-3 !w-3 !bg-slate-500"
+      />
       <div
         className={`min-w-[220px] rounded-2xl border px-4 py-3 shadow-sm ${themeClassName}`}
       >
@@ -101,15 +132,91 @@ function RouteGraphNode({
           <div className="font-medium">{nodeData.displayName}</div>
           <Badge variant="outline">
             {nodeData.role === "source"
-              ? "Intake"
+              ? "Клиент"
               : nodeData.role === "destination"
-                ? "Beneficiary"
-                : "Hop"}
+                ? "Бенефициар"
+                : "Промежуточный"}
           </Badge>
         </div>
         <div className="text-xs text-muted-foreground">{nodeData.subtitle}</div>
       </div>
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !bg-slate-500" />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!h-3 !w-3 !bg-slate-500"
+      />
+    </>
+  );
+}
+
+function RouteGraphEdge({
+  animated,
+  data,
+  interactionWidth,
+  markerEnd,
+  selected,
+  sourcePosition,
+  sourceX,
+  sourceY,
+  style,
+  targetPosition,
+  targetX,
+  targetY,
+}: EdgeProps<Edge<RouteGraphEdgeData>>) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourcePosition,
+    sourceX,
+    sourceY,
+    targetPosition,
+    targetX,
+    targetY,
+  });
+
+  const feeLabel = data?.feeLabel ?? "Комиссия: нет";
+  const amountLabel = data?.amountLabel ?? "Сумма: —";
+
+  return (
+    <>
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        interactionWidth={interactionWidth}
+        style={{
+          ...style,
+          stroke: selected ? "#2563eb" : "#64748b",
+          strokeDasharray: animated ? "6 6" : undefined,
+          strokeWidth: selected ? 2.5 : 2,
+        }}
+      />
+      <EdgeLabelRenderer>
+        <div
+          className="pointer-events-none absolute left-0 top-0"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+          }}
+        >
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div
+              title={feeLabel}
+              className={cn(
+                "max-w-[260px] text-[11px] font-medium leading-none whitespace-nowrap",
+                selected ? "text-amber-800" : "text-muted-foreground",
+              )}
+            >
+              {feeLabel}
+            </div>
+            <div
+              title={amountLabel}
+              className={cn(
+                "max-w-[260px] text-[11px] font-semibold leading-none whitespace-nowrap",
+                selected ? "text-sky-700" : "text-foreground",
+              )}
+            >
+              {amountLabel}
+            </div>
+          </div>
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }
@@ -118,16 +225,82 @@ const nodeTypes = {
   routeParticipant: RouteGraphNode as React.ComponentType<any>,
 };
 
-function getLegCalculation(
-  state: PaymentRouteEditorState,
-  legId: string,
-) {
+const edgeTypes = {
+  routeLeg: RouteGraphEdge as React.ComponentType<any>,
+};
+
+function getLegCalculation(state: PaymentRouteEditorState, legId: string) {
   return state.calculation?.legs.find((leg) => leg.id === legId) ?? null;
 }
 
+function getCurrencyLabel(
+  options: PaymentRouteConstructorOptions,
+  currencyId: string,
+) {
+  return (
+    options.currencies.find((currency) => currency.id === currencyId) ?? null
+  );
+}
+
+function getEdgeAmountLabel(input: {
+  calculation: ReturnType<typeof getLegCalculation>;
+  leg: PaymentRouteEditorState["draft"]["legs"][number];
+  options: PaymentRouteConstructorOptions;
+}) {
+  const { calculation, leg, options } = input;
+
+  if (calculation) {
+    return `Сумма: ${formatCurrencyMinorAmount(
+      calculation.netOutputMinor,
+      getCurrencyLabel(options, leg.toCurrencyId),
+    )}`;
+  }
+
+  const fromCurrency = getCurrencyLabel(options, leg.fromCurrencyId);
+  const toCurrency = getCurrencyLabel(options, leg.toCurrencyId);
+
+  return `Сумма: ${fromCurrency?.code ?? "?"} → ${toCurrency?.code ?? "?"}`;
+}
+
+function getEdgeFeeLabel(input: {
+  calculation: ReturnType<typeof getLegCalculation>;
+  leg: PaymentRouteEditorState["draft"]["legs"][number];
+  options: PaymentRouteConstructorOptions;
+}) {
+  const { calculation, leg, options } = input;
+
+  const feeLabels = calculation
+    ? calculation.fees.map((fee) => {
+        const currency = getCurrencyLabel(options, fee.currencyId);
+        const amount = formatCurrencyMinorAmount(fee.amountMinor, currency);
+
+        if (fee.kind === "percent") {
+          return `${fee.label ?? "Комиссия"} ${fee.percentage}% (${amount})`;
+        }
+
+        return `${fee.label ?? "Комиссия"} ${amount}`;
+      })
+    : leg.fees.map((fee) => {
+        if (fee.kind === "percent") {
+          return `${fee.label ?? "Комиссия"} ${fee.percentage}%`;
+        }
+
+        return `${fee.label ?? "Комиссия"} ${formatCurrencyMinorAmount(
+          fee.amountMinor ?? "0",
+          getCurrencyLabel(options, fee.currencyId ?? leg.fromCurrencyId),
+        )}`;
+      });
+
+  return feeLabels.length > 0 ? feeLabels.join(" • ") : "Комиссия: нет";
+}
+
 function RouteGraphCanvas({
+  canvasClassName,
+  className,
   onStateChange,
   options,
+  sidebarChildren,
+  sidebarClassName,
   state,
 }: PaymentRouteGraphEditorProps) {
   const selection = state.selection;
@@ -145,7 +318,8 @@ function RouteGraphCanvas({
               state,
             }),
           ),
-        onRemove: () => onStateChange(removeIntermediateParticipant(state, index)),
+        onRemove: () =>
+          onStateChange(removeIntermediateParticipant(state, index)),
         role:
           index === 0
             ? "source"
@@ -171,45 +345,59 @@ function RouteGraphCanvas({
     }));
   }, [onStateChange, options, selection, state]);
 
-  const edges = React.useMemo<Edge[]>(() => {
+  const edges = React.useMemo<Edge<RouteGraphEdgeData>[]>(() => {
     return state.draft.legs.map((leg, index) => {
       const calculation = getLegCalculation(state, leg.id);
 
       return {
         animated: selection?.kind === "leg" && selection.legId === leg.id,
         data: {
+          amountLabel: getEdgeAmountLabel({
+            calculation,
+            leg,
+            options,
+          }),
+          feeLabel: getEdgeFeeLabel({
+            calculation,
+            leg,
+            options,
+          }),
           legId: leg.id,
         },
         id: leg.id,
-        label: calculation
-          ? `${formatCurrencyMinorAmount(
-              calculation.netOutputMinor,
-              options.currencies.find((currency) => currency.id === leg.toCurrencyId) ?? null,
-            )}`
-          : getLegKindLabel(leg.kind),
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },
-        selected:
-          selection?.kind === "leg" && selection.legId === leg.id,
+        selected: selection?.kind === "leg" && selection.legId === leg.id,
         source: state.draft.participants[index]!.nodeId,
         target: state.draft.participants[index + 1]!.nodeId,
+        type: "routeLeg",
       };
     });
-  }, [options.currencies, selection, state]);
+  }, [options, selection, state]);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="h-[640px] overflow-hidden rounded-2xl border bg-slate-50">
+    <div
+      className={cn("grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]", className)}
+    >
+      <div
+        className={cn(
+          "h-[640px] overflow-hidden rounded-2xl border bg-slate-50",
+          canvasClassName,
+        )}
+      >
         <ReactFlow
           fitView
           nodes={nodes}
           edges={edges}
+          edgeTypes={edgeTypes}
           nodeTypes={nodeTypes}
           nodesDraggable
           edgesFocusable
           onNodeClick={(_, node) =>
-            onStateChange(setSelection(state, { kind: "participant", nodeId: node.id }))
+            onStateChange(
+              setSelection(state, { kind: "participant", nodeId: node.id }),
+            )
           }
           onEdgeClick={(_, edge) =>
             onStateChange(setSelection(state, { kind: "leg", legId: edge.id }))
@@ -233,15 +421,23 @@ function RouteGraphCanvas({
             )
           }
         >
-          <Background color="#d6dbe4" gap={24} size={1} />
+          <Background
+            color="#cbd5e1"
+            gap={22}
+            size={1.6}
+            variant={BackgroundVariant.Dots}
+          />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
-      <PaymentRouteGraphInspector
-        onStateChange={onStateChange}
-        options={options}
-        state={state}
-      />
+      <div className={cn("space-y-4", sidebarClassName)}>
+        <PaymentRouteGraphInspector
+          onStateChange={onStateChange}
+          options={options}
+          state={state}
+        />
+        {sidebarChildren}
+      </div>
     </div>
   );
 }
@@ -302,7 +498,9 @@ function PaymentRouteGraphInspector({
   }
 
   if (selection?.kind === "leg") {
-    const legIndex = state.draft.legs.findIndex((leg) => leg.id === selection.legId);
+    const legIndex = state.draft.legs.findIndex(
+      (leg) => leg.id === selection.legId,
+    );
     const leg = state.draft.legs[legIndex];
     const calculation = leg ? getLegCalculation(state, leg.id) : null;
 
@@ -331,7 +529,7 @@ function PaymentRouteGraphInspector({
             }}
           >
             <SelectTrigger aria-label="Тип операции">
-              <SelectValue />
+              <SelectValue>{getLegKindLabel(leg.kind)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(
@@ -384,7 +582,7 @@ function PaymentRouteGraphInspector({
                     options.currencies.find(
                       (currency) => currency.id === leg.fromCurrencyId,
                     ) ?? null,
-                  )} to ${formatCurrencyMinorAmount(
+                  )} → ${formatCurrencyMinorAmount(
                     calculation.netOutputMinor,
                     options.currencies.find(
                       (currency) => currency.id === leg.toCurrencyId,
@@ -398,7 +596,9 @@ function PaymentRouteGraphInspector({
             fees={leg.fees}
             options={options}
             onAdd={() => {
-              const currentLeg = state.draft.legs.find((item) => item.id === leg.id);
+              const currentLeg = state.draft.legs.find(
+                (item) => item.id === leg.id,
+              );
               if (!currentLeg) {
                 return;
               }
@@ -428,7 +628,9 @@ function PaymentRouteGraphInspector({
             onChange={(feeId, updater) =>
               onStateChange(
                 setLegField(state, leg.id, {
-                  fees: leg.fees.map((fee) => (fee.id === feeId ? updater(fee) : fee)),
+                  fees: leg.fees.map((fee) =>
+                    fee.id === feeId ? updater(fee) : fee,
+                  ),
                 }),
               )
             }
@@ -444,7 +646,8 @@ function PaymentRouteGraphInspector({
         <CardTitle>Инспектор графа</CardTitle>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        Выберите узел или ребро, чтобы отредактировать участника, операцию, валюты и комиссии.
+        Выберите узел или ребро, чтобы отредактировать участника, операцию,
+        валюты и комиссии.
       </CardContent>
     </Card>
   );

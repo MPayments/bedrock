@@ -28,6 +28,40 @@ function mergeTotals(
   totals.set(currencyId, (totals.get(currencyId) ?? 0n) + amountMinor);
 }
 
+function createCalculationFee(input: {
+  amountMinor: bigint;
+  calculatedCurrencyId: string;
+  fee: PaymentRouteDraft["legs"][number]["fees"][number];
+  outputImpactCurrencyId: string;
+  outputImpactMinor: bigint;
+}): PaymentRouteCalculationFee {
+  const base = {
+    amountMinor: input.amountMinor.toString(),
+    currencyId: input.calculatedCurrencyId,
+    id: input.fee.id,
+    label: input.fee.label,
+    outputImpactCurrencyId: input.outputImpactCurrencyId,
+    outputImpactMinor: input.outputImpactMinor.toString(),
+  };
+
+  if (input.fee.kind === "percent") {
+    if (!input.fee.percentage) {
+      throw new ValidationError("Percent fee requires percentage");
+    }
+
+    return {
+      ...base,
+      kind: "percent",
+      percentage: input.fee.percentage,
+    };
+  }
+
+  return {
+    ...base,
+    kind: "fixed",
+  };
+}
+
 async function resolveCurrencyCode(
   currencies: CurrenciesPort,
   cache: CurrencyCodeCache,
@@ -209,13 +243,15 @@ async function runForwardPreview(input: {
 
       totalOutputImpactMinor += calculated.outputImpactMinor;
       mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
-      feeBreakdown.push({
-        ...fee,
-        amountMinor: calculated.amountMinor.toString(),
-        currencyId: calculated.currencyId,
-        outputImpactCurrencyId: calculated.outputImpactCurrencyId,
-        outputImpactMinor: calculated.outputImpactMinor.toString(),
-      });
+      feeBreakdown.push(
+        createCalculationFee({
+          amountMinor: calculated.amountMinor,
+          calculatedCurrencyId: calculated.currencyId,
+          fee,
+          outputImpactCurrencyId: calculated.outputImpactCurrencyId,
+          outputImpactMinor: calculated.outputImpactMinor,
+        }),
+      );
     }
 
     if (totalOutputImpactMinor > grossOutputMinor) {
@@ -269,13 +305,15 @@ async function runForwardPreview(input: {
 
     netAmountOutMinor -= calculated.outputImpactMinor;
     mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
-    additionalFees.push({
-      ...fee,
-      amountMinor: calculated.amountMinor.toString(),
-      currencyId: calculated.currencyId,
-      outputImpactCurrencyId: calculated.outputImpactCurrencyId,
-      outputImpactMinor: calculated.outputImpactMinor.toString(),
-    });
+    additionalFees.push(
+      createCalculationFee({
+        amountMinor: calculated.amountMinor,
+        calculatedCurrencyId: calculated.currencyId,
+        fee,
+        outputImpactCurrencyId: calculated.outputImpactCurrencyId,
+        outputImpactMinor: calculated.outputImpactMinor,
+      }),
+    );
   }
 
   return {

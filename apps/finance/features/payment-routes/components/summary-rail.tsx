@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
 
 import { formatCurrencyMinorAmount } from "../lib/format";
@@ -10,7 +11,9 @@ import { getLegKindLabel } from "./editor-shared";
 
 type PaymentRouteSummaryRailProps = {
   calculation: PaymentRouteCalculation | null;
+  className?: string;
   options: PaymentRouteConstructorOptions;
+  sticky?: boolean;
 };
 
 function getCurrency(options: PaymentRouteConstructorOptions, currencyId: string) {
@@ -19,12 +22,14 @@ function getCurrency(options: PaymentRouteConstructorOptions, currencyId: string
 
 export function PaymentRouteSummaryRail({
   calculation,
+  className,
   options,
+  sticky = true,
 }: PaymentRouteSummaryRailProps) {
   const feeTotalItems = calculation?.feeTotals ?? [];
 
   return (
-    <Card className="xl:sticky xl:top-6">
+    <Card className={cn(sticky ? "xl:sticky xl:top-6" : null, className)}>
       <CardHeader className="gap-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle>Сводка маршрута</CardTitle>
@@ -53,7 +58,7 @@ export function PaymentRouteSummaryRail({
                         Шаг {leg.idx}. {getLegKindLabel(leg.kind)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {fromCurrency?.code} to {toCurrency?.code}
+                        {fromCurrency?.code} → {toCurrency?.code}
                       </div>
                     </div>
                     <div className="space-y-1 text-sm">
@@ -149,11 +154,10 @@ export function PaymentRouteSummaryRail({
           </>
         ) : (
           <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-            После первого расчета здесь появятся breakdown по шагам, комиссии и итоговые суммы.
+            После первого расчета здесь появится разбивка по шагам, комиссии и итоговые суммы.
           </div>
         )}
       </CardContent>
     </Card>
   );
 }
-

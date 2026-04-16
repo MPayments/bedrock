@@ -38,7 +38,7 @@ function buildColumns(
         <div className="space-y-1">
           <div className="font-medium">{row.original.name}</div>
           <div className="text-xs text-muted-foreground">
-            {row.original.sourceParticipant.displayName} to{" "}
+            {row.original.sourceParticipant.displayName} →{" "}
             {row.original.destinationParticipant.displayName}
           </div>
         </div>
@@ -70,13 +70,13 @@ function buildColumns(
         const currencyIn = getCurrency(row.original.currencyInId);
         const currencyOut = getCurrency(row.original.currencyOutId);
 
-        return `${currencyIn?.code ?? "?"} to ${currencyOut?.code ?? "?"}`;
+        return `${currencyIn?.code ?? "?"} → ${currencyOut?.code ?? "?"}`;
       },
       enableSorting: false,
     },
     {
       accessorKey: "hopCount",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Хопы" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Шаги" />,
       cell: ({ row }) => row.original.hopCount,
       enableSorting: false,
     },
@@ -160,4 +160,3 @@ export function PaymentRoutesTable({
     />
   );
 }
-

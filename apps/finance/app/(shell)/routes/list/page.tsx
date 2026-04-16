@@ -28,7 +28,7 @@ export default async function PaymentRoutesListPage({
       title="Список маршрутов"
       description="Каталог route templates для treasury-операций, обменов, intercompany и payout-сценариев."
       actions={
-        <Button render={<Link href="/routes/constructor" />}>
+        <Button nativeButton={false} render={<Link href="/routes/constructor" />}>
           Конструктор маршрута
         </Button>
       }

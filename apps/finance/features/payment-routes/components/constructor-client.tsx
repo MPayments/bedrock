@@ -11,9 +11,10 @@ import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type { PaymentRouteTemplate } from "@bedrock/treasury/contracts";
 
-import { formatCurrencyRatio } from "../lib/format";
+import { formatCurrencyMinorAmount, formatCurrencyRatio } from "../lib/format";
 import {
   createPaymentRouteTemplate,
   previewPaymentRoute,
@@ -36,6 +37,7 @@ import {
   CurrencySelector,
 } from "./editor-shared";
 import { PaymentRouteManualEditor } from "./manual-editor";
+import { PaymentRouteWorkspaceLayout } from "./payment-route-workspace-layout";
 import { PaymentRouteSummaryRail } from "./summary-rail";
 
 const PaymentRouteGraphEditor = dynamic(
@@ -55,6 +57,32 @@ type PaymentRouteConstructorClientProps = {
   options: PaymentRouteConstructorOptions;
   template: PaymentRouteTemplate | null;
 };
+
+function createPreviewRequestKey(draft: PaymentRouteEditorState["draft"]) {
+  return JSON.stringify({
+    additionalFees: draft.additionalFees,
+    amountMinor:
+      draft.lockedSide === "currency_in"
+        ? draft.amountInMinor
+        : draft.amountOutMinor,
+    currencies: {
+      in: draft.currencyInId,
+      out: draft.currencyOutId,
+    },
+    legs: draft.legs.map((leg) => ({
+      fees: leg.fees,
+      fromCurrencyId: leg.fromCurrencyId,
+      id: leg.id,
+      kind: leg.kind,
+      toCurrencyId: leg.toCurrencyId,
+    })),
+    lockedSide: draft.lockedSide,
+    participants: draft.participants.map((participant) => ({
+      entityId: participant.entityId,
+      kind: participant.kind,
+    })),
+  });
+}
 
 function createInitialState(
   options: PaymentRouteConstructorOptions,
@@ -80,46 +108,93 @@ export function PaymentRouteConstructorClient({
     initialState,
   );
   const [previewError, setPreviewError] = React.useState<string | null>(null);
-  const [previewPending, startPreviewTransition] = React.useTransition();
+  const [previewPending, setPreviewPending] = React.useState(false);
+  const [previewIndicatorVisible, setPreviewIndicatorVisible] = React.useState(false);
   const [savePending, startSaveTransition] = React.useTransition();
-  const deferredDraft = React.useDeferredValue(state?.draft ?? null);
-  const runPreview = React.useEffectEvent(async (draft: PaymentRouteEditorState["draft"]) => {
-    const controller = new AbortController();
-
-    try {
-      const calculation = await previewPaymentRoute(draft, controller.signal);
-      setPreviewError(null);
-      startPreviewTransition(() => {
-        setState((current) => (current ? applyCalculation(current, calculation) : current));
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        return;
-      }
-
-      setPreviewError(
-        error instanceof Error && error.message.length > 0
-          ? error.message
-          : "Не удалось выполнить preview маршрута",
-      );
-    }
-
-    return () => controller.abort();
-  });
+  const previewRequestIdRef = React.useRef(0);
+  const previewDraft = state?.draft ?? null;
+  const previewDraftRef = React.useRef(previewDraft);
+  const previewRequestKey = React.useMemo(
+    () => (previewDraft ? createPreviewRequestKey(previewDraft) : null),
+    [previewDraft],
+  );
+  const deferredPreviewRequestKey = React.useDeferredValue(previewRequestKey);
 
   React.useEffect(() => {
-    if (!deferredDraft) {
+    previewDraftRef.current = previewDraft;
+  }, [previewDraft]);
+
+  React.useEffect(() => {
+    if (!deferredPreviewRequestKey) {
       return;
     }
 
+    const draft = previewDraftRef.current;
+    if (!draft || createPreviewRequestKey(draft) !== deferredPreviewRequestKey) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const requestId = ++previewRequestIdRef.current;
     const timeout = window.setTimeout(() => {
-      void runPreview(deferredDraft);
+      setPreviewPending(true);
+      void (async () => {
+        try {
+          const calculation = await previewPaymentRoute(draft, controller.signal);
+          setPreviewError(null);
+          setState((current) => {
+            if (!current) {
+              return current;
+            }
+
+            if (createPreviewRequestKey(current.draft) !== deferredPreviewRequestKey) {
+              return current;
+            }
+
+            return applyCalculation(current, calculation);
+          });
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") {
+            return;
+          }
+
+          setPreviewError(
+            error instanceof Error && error.message.length > 0
+              ? error.message
+              : "Не удалось выполнить предварительный расчет маршрута",
+          );
+        } finally {
+          if (previewRequestIdRef.current === requestId && !controller.signal.aborted) {
+            setPreviewPending(false);
+          }
+        }
+      })();
     }, 250);
 
     return () => {
       window.clearTimeout(timeout);
+      controller.abort();
+
+      if (previewRequestIdRef.current === requestId) {
+        setPreviewPending(false);
+      }
     };
-  }, [deferredDraft, runPreview]);
+  }, [deferredPreviewRequestKey]);
+
+  React.useEffect(() => {
+    if (!previewPending) {
+      setPreviewIndicatorVisible(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setPreviewIndicatorVisible(true);
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [previewPending]);
 
   if (!state) {
     return (
@@ -130,14 +205,28 @@ export function PaymentRouteConstructorClient({
             Для конструктора нужен как минимум один клиент, одна организация или контрагент и хотя бы одна валюта.
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button render={<Link href="/entities/customers" />}>Клиенты</Button>
-            <Button variant="outline" render={<Link href="/entities/counterparties" />}>
+            <Button nativeButton={false} render={<Link href="/entities/customers" />}>
+              Клиенты
+            </Button>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<Link href="/entities/counterparties" />}
+            >
               Контрагенты
             </Button>
-            <Button variant="outline" render={<Link href="/treasury/organizations" />}>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<Link href="/treasury/organizations" />}
+            >
               Организации
             </Button>
-            <Button variant="outline" render={<Link href="/entities/currencies" />}>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<Link href="/entities/currencies" />}
+            >
               Валюты
             </Button>
           </div>
@@ -147,6 +236,7 @@ export function PaymentRouteConstructorClient({
   }
 
   const editorState = state;
+  const isGraphMode = editorState.mode === "graph";
   const currencyIn =
     options.currencies.find((currency) => currency.id === editorState.draft.currencyInId) ?? null;
   const currencyOut =
@@ -159,6 +249,45 @@ export function PaymentRouteConstructorClient({
         currencyOut,
       })
     : null;
+  const displayAmountIn = editorState.calculation?.amountInMinor ?? editorState.draft.amountInMinor;
+  const displayAmountOut =
+    editorState.calculation?.netAmountOutMinor ?? editorState.draft.amountOutMinor;
+  const workspaceTitle = editorState.name.trim() || "Новый маршрут";
+  const workspaceSubtitle = editorState.templateId
+    ? "Редактирование шаблона маршрута"
+    : "Создание шаблона маршрута";
+
+  React.useEffect(() => {
+    if (!isGraphMode) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isGraphMode]);
+
+  React.useEffect(() => {
+    if (!isGraphMode) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setState((current) => (current ? setEditorMode(current, "manual") : current));
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isGraphMode]);
 
   function handleSave() {
     startSaveTransition(async () => {
@@ -178,7 +307,12 @@ export function PaymentRouteConstructorClient({
       }
 
       toast.success(editorState.templateId ? "Маршрут сохранен" : "Маршрут создан");
-      setState(createPaymentRouteEditorStateFromTemplate(result.data));
+      setState(
+        setEditorMode(
+          createPaymentRouteEditorStateFromTemplate(result.data),
+          editorState.mode,
+        ),
+      );
 
       if (!editorState.templateId) {
         router.replace(`/routes/constructor/${result.data.id}`);
@@ -189,27 +323,27 @@ export function PaymentRouteConstructorClient({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ArrowLeft className="size-4" />
-              <Link href="/routes/list" className="hover:text-foreground">
-                Назад к каталогу
-              </Link>
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold">Конструктор маршрута</h1>
-              <p className="text-sm text-muted-foreground">
-                Единый редактор route template для collect, exchange, transfer, intercompany и payout-сценариев.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" render={<Link href="/routes/list" />}>
+    <>
+      <PaymentRouteWorkspaceLayout
+        title={workspaceTitle}
+        subtitle={workspaceSubtitle}
+        headerControls={(
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<Link href="/routes/list" />}
+            >
               <LayoutList className="size-4" />
               Список маршрутов
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setState(setEditorMode(editorState, "graph"))}
+            >
+              <GitBranch className="size-4" />
+              Граф маршрута
             </Button>
             <Button onClick={handleSave} disabled={savePending}>
               {savePending ? (
@@ -220,199 +354,277 @@ export function PaymentRouteConstructorClient({
               Сохранить
             </Button>
           </div>
-        </div>
-
-        <Card className="rounded-2xl border-border/70">
-          <CardContent className="grid gap-4 p-5">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Название маршрута
-                </div>
-                <Input
-                  value={editorState.name}
-                  onChange={(event) =>
-                    setState(setRouteName(editorState, event.target.value))
-                  }
-                  placeholder="Например, USDT to AED via Dubai and USA"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Lock side
-                </div>
-                <ButtonGroup className="w-full">
-                  <Button
-                    type="button"
-                    variant={
-                      editorState.draft.lockedSide === "currency_in" ? "default" : "outline"
-                    }
-                    className="flex-1"
-                    onClick={() =>
-                      setState(setLockedSide(editorState, "currency_in"))
-                    }
-                  >
-                    Currency In
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      editorState.draft.lockedSide === "currency_out" ? "default" : "outline"
-                    }
-                    className="flex-1"
-                    onClick={() =>
-                      setState(setLockedSide(editorState, "currency_out"))
-                    }
-                  >
-                    Currency Out
-                  </Button>
-                </ButtonGroup>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Списать
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
-                  <BufferedMinorAmountInput
-                    ariaLabel="Сумма списания"
-                    currencyId={editorState.draft.currencyInId}
-                    options={options}
-                    valueMinor={editorState.draft.amountInMinor}
-                    onCommit={(amountMinor) =>
-                      setState(
-                        setRouteAmount({
-                          amountMinor,
-                          side: "in",
-                          state: editorState,
-                        }),
-                      )
-                    }
-                  />
-                  <CurrencySelector
-                    ariaLabel="Валюта списания"
-                    options={options}
-                    value={editorState.draft.currencyInId}
-                    onChange={(currencyId) =>
-                      setState(
-                        setRouteCurrency({
-                          currencyId,
-                          side: "in",
-                          state: editorState,
-                        }),
-                      )
-                    }
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-center text-sm text-muted-foreground">
-                <GitBranch className="size-4" />
-              </div>
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Получить
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
-                  <BufferedMinorAmountInput
-                    ariaLabel="Сумма получения"
-                    currencyId={editorState.draft.currencyOutId}
-                    options={options}
-                    valueMinor={editorState.draft.amountOutMinor}
-                    onCommit={(amountMinor) =>
-                      setState(
-                        setRouteAmount({
-                          amountMinor,
-                          side: "out",
-                          state: editorState,
-                        }),
-                      )
-                    }
-                  />
-                  <CurrencySelector
-                    ariaLabel="Валюта получения"
-                    options={options}
-                    value={editorState.draft.currencyOutId}
-                    onChange={(currencyId) =>
-                      setState(
-                        setRouteCurrency({
-                          currencyId,
-                          side: "out",
-                          state: editorState,
-                        }),
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
-              <div className="space-y-1">
-                <div className="font-medium">Realtime расчет</div>
-                <div className="text-muted-foreground">
-                  {rateContext ?? "После preview здесь появится текущий маршрутный курс."}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {previewPending ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <LoaderCircle className="size-4 animate-spin" />
-                    Пересчет
+        )}
+      >
+        <div
+          className={cn(
+            "grid gap-6",
+            isGraphMode ? null : "xl:grid-cols-[minmax(0,1fr)_360px]",
+          )}
+        >
+          <div className="space-y-6">
+            <Card className="rounded-2xl border-border/70">
+              <CardContent className="grid gap-4 p-5">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Название маршрута
+                    </div>
+                    <Input
+                      value={editorState.name}
+                      onChange={(event) =>
+                        setState(setRouteName(editorState, event.target.value))
+                      }
+                      placeholder="Например, USDT → AED через Дубай и США"
+                    />
                   </div>
-                ) : null}
-                {previewError ? (
-                  <div className="text-right text-sm text-red-600">{previewError}</div>
-                ) : null}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Фиксировать
+                    </div>
+                    <ButtonGroup className="w-full">
+                      <Button
+                        type="button"
+                        variant={
+                          editorState.draft.lockedSide === "currency_in" ? "default" : "outline"
+                        }
+                        className="flex-1"
+                        onClick={() =>
+                          setState(setLockedSide(editorState, "currency_in"))
+                        }
+                      >
+                        Сумму списания
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={
+                          editorState.draft.lockedSide === "currency_out" ? "default" : "outline"
+                        }
+                        className="flex-1"
+                        onClick={() =>
+                          setState(setLockedSide(editorState, "currency_out"))
+                        }
+                      >
+                        Сумму получения
+                      </Button>
+                    </ButtonGroup>
+                  </div>
+                </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm font-medium">Режим редактора</div>
-            <ButtonGroup>
-              <Button
-                type="button"
-                variant={editorState.mode === "manual" ? "default" : "outline"}
-                onClick={() => setState(setEditorMode(editorState, "manual"))}
-              >
-                Ручной
-              </Button>
-              <Button
-                type="button"
-                variant={editorState.mode === "graph" ? "default" : "outline"}
-                onClick={() => setState(setEditorMode(editorState, "graph"))}
-              >
-                Граф
-              </Button>
-            </ButtonGroup>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Списать
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+                      <BufferedMinorAmountInput
+                        ariaLabel="Сумма списания"
+                        currencyId={editorState.draft.currencyInId}
+                        options={options}
+                        valueMinor={editorState.draft.amountInMinor}
+                        onCommit={(amountMinor) =>
+                          setState(
+                            setRouteAmount({
+                              amountMinor,
+                              side: "in",
+                              state: editorState,
+                            }),
+                          )
+                        }
+                      />
+                      <CurrencySelector
+                        ariaLabel="Валюта списания"
+                        options={options}
+                        value={editorState.draft.currencyInId}
+                        onChange={(currencyId) =>
+                          setState(
+                            setRouteCurrency({
+                              currencyId,
+                              side: "in",
+                              state: editorState,
+                            }),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center text-sm text-muted-foreground">
+                    <GitBranch className="size-4" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Получить
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+                      <BufferedMinorAmountInput
+                        ariaLabel="Сумма получения"
+                        currencyId={editorState.draft.currencyOutId}
+                        options={options}
+                        valueMinor={editorState.draft.amountOutMinor}
+                        onCommit={(amountMinor) =>
+                          setState(
+                            setRouteAmount({
+                              amountMinor,
+                              side: "out",
+                              state: editorState,
+                            }),
+                          )
+                        }
+                      />
+                      <CurrencySelector
+                        ariaLabel="Валюта получения"
+                        options={options}
+                        value={editorState.draft.currencyOutId}
+                        onChange={(currencyId) =>
+                          setState(
+                            setRouteCurrency({
+                              currencyId,
+                              side: "out",
+                              state: editorState,
+                            }),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
+                  <div className="space-y-1">
+                    <div className="font-medium">Расчет в реальном времени</div>
+                    <div className="text-muted-foreground">
+                      {rateContext ?? "После предварительного расчета здесь появится текущий маршрутный курс."}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {previewIndicatorVisible ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Пересчет
+                      </div>
+                    ) : null}
+                    {previewError ? (
+                      <div className="text-right text-sm text-red-600">{previewError}</div>
+                    ) : null}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {editorState.mode === "manual" ? (
+              <PaymentRouteManualEditor
+                onStateChange={setState}
+                options={options}
+                state={editorState}
+              />
+            ) : null}
           </div>
 
-          {editorState.mode === "manual" ? (
-            <PaymentRouteManualEditor
-              onStateChange={setState}
-              options={options}
-              state={editorState}
-            />
-          ) : (
-            <PaymentRouteGraphEditor
-              onStateChange={setState}
-              options={options}
-              state={editorState}
-            />
+          {isGraphMode ? null : (
+            <div className="order-last xl:order-none">
+              <PaymentRouteSummaryRail
+                calculation={editorState.calculation}
+                options={options}
+              />
+            </div>
           )}
         </div>
-      </div>
+      </PaymentRouteWorkspaceLayout>
 
-      <div className="order-last xl:order-none">
-        <PaymentRouteSummaryRail
-          calculation={editorState.calculation}
-          options={options}
-        />
-      </div>
-    </div>
+      {isGraphMode ? (
+        <div
+          className="fixed inset-0 z-50 bg-background"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Полноэкранный граф маршрута"
+        >
+          <div className="flex h-[100dvh] flex-col bg-[radial-gradient(circle_at_top_left,#eef6ff,transparent_28%),radial-gradient(circle_at_top_right,#eefbf4,transparent_22%),linear-gradient(180deg,#fafcff_0%,#f6f8fc_100%)]">
+            <div className="border-b border-border/70 bg-background/90 backdrop-blur">
+              <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between gap-4 px-4 sm:px-6">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    Граф маршрута
+                  </div>
+                  <div className="truncate text-sm font-semibold">
+                    {editorState.name.trim() || "Маршрут без названия"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setState(setEditorMode(editorState, "manual"))}
+                  >
+                    <ArrowLeft className="size-4" />
+                    Закрыть граф
+                  </Button>
+                  <Button onClick={handleSave} disabled={savePending}>
+                    {savePending ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    Сохранить
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
+              <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-4">
+                <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Списать
+                    </div>
+                    <div className="font-semibold">
+                      {formatCurrencyMinorAmount(displayAmountIn, currencyIn)}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Получить
+                    </div>
+                    <div className="font-semibold">
+                      {formatCurrencyMinorAmount(displayAmountOut, currencyOut)}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Расчет в реальном времени
+                    </div>
+                    <div className="font-medium">
+                      {rateContext ?? "После предварительного расчета здесь появится текущий маршрутный курс."}
+                    </div>
+                    {previewError ? (
+                      <div className="text-sm text-red-600">{previewError}</div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1">
+                  <PaymentRouteGraphEditor
+                    onStateChange={setState}
+                    options={options}
+                    state={editorState}
+                    className="h-full min-h-0 xl:grid-cols-[minmax(0,1fr)_400px]"
+                    canvasClassName="h-full min-h-[58dvh] rounded-[28px] border-border/70 bg-[radial-gradient(circle_at_top,#f9fbff,white_58%,#edf3ff)] shadow-[0_24px_80px_rgba(15,23,42,0.08)]"
+                    sidebarClassName="min-h-0 overflow-y-auto pr-1"
+                    sidebarChildren={
+                      <PaymentRouteSummaryRail
+                        calculation={editorState.calculation}
+                        options={options}
+                        sticky={false}
+                        className="border-border/70 bg-background/90"
+                      />
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

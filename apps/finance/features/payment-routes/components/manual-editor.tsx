@@ -101,11 +101,11 @@ export function PaymentRouteManualEditor({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">Шаг {index + 1}</Badge>
                     <CardTitle className="text-base">
-                      {participant.displayName} to {destination.displayName}
+                      {participant.displayName} → {destination.displayName}
                     </CardTitle>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    От intake-клиента до beneficiary через связанные treasury-операции.
+                    Переход от клиента к бенефициару через связанные операции маршрута.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -248,7 +248,7 @@ export function PaymentRouteManualEditor({
                     }}
                   >
                     <SelectTrigger aria-label="Тип операции">
-                      <SelectValue />
+                      <SelectValue>{getLegKindLabel(leg.kind)}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {(
@@ -310,7 +310,7 @@ export function PaymentRouteManualEditor({
                     ? `${formatCurrencyMinorAmount(
                         calculation.inputAmountMinor,
                         fromCurrency,
-                      )} to ${formatCurrencyMinorAmount(
+                      )} → ${formatCurrencyMinorAmount(
                         calculation.netOutputMinor,
                         toCurrency,
                       )}`

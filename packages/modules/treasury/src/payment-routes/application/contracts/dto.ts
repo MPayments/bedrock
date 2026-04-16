@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import {
   PaymentRouteDraftSchema,
-  PaymentRouteFeeSchema,
   PaymentRouteLockedSideSchema,
   PaymentRouteParticipantRefSchema,
   PaymentRouteSnapshotPolicySchema,
@@ -11,12 +10,30 @@ import {
   PaymentRouteVisualMetadataSchema,
 } from "./zod";
 
-export const PaymentRouteCalculationFeeSchema = PaymentRouteFeeSchema.safeExtend({
+const PaymentRouteCalculationFeeSharedSchema = z.object({
   amountMinor: z.string(),
   currencyId: z.uuid(),
+  id: z.string().trim().min(1),
+  label: z.string().trim().min(1).optional(),
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),
 });
+
+const PaymentRouteCalculationPercentFeeSchema =
+  PaymentRouteCalculationFeeSharedSchema.extend({
+    kind: z.literal("percent"),
+    percentage: z.string().trim().min(1),
+  });
+
+const PaymentRouteCalculationFixedFeeSchema =
+  PaymentRouteCalculationFeeSharedSchema.extend({
+    kind: z.literal("fixed"),
+  });
+
+export const PaymentRouteCalculationFeeSchema = z.discriminatedUnion("kind", [
+  PaymentRouteCalculationPercentFeeSchema,
+  PaymentRouteCalculationFixedFeeSchema,
+]);
 
 export const PaymentRouteCalculationLegSchema = z.object({
   asOf: z.iso.datetime(),

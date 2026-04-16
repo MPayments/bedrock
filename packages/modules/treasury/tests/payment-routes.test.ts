@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
-import type { PaymentRouteCalculation } from "../src/payment-routes/application/contracts/dto";
+
+import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
 import { createPaymentRoutesService } from "../src/payment-routes/application";
+import {
+  PaymentRouteCalculationFeeSchema,
+  type PaymentRouteCalculation,
+} from "../src/payment-routes/application/contracts/dto";
+import type { PaymentRouteDraft } from "../src/payment-routes/application/contracts/zod";
 import type {
   PaymentRouteTemplateRecord,
   PaymentRouteTemplatesRepository,
 } from "../src/payment-routes/application/ports/payment-routes.repository";
-import type { PaymentRouteDraft } from "../src/payment-routes/application/contracts/zod";
-
-import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
 
 const USD = currencyIdForCode("USD");
 const AED = currencyIdForCode("AED");
@@ -253,6 +256,21 @@ describe("payment routes", () => {
 
     expect(calculation.amountOutMinor).toBe("8550");
     expectCalculationTotal(calculation, USD, "1500");
+  });
+
+  it("accepts computed amount fields for percentage fees in calculations", () => {
+    expect(() =>
+      PaymentRouteCalculationFeeSchema.parse({
+        amountMinor: "1000",
+        currencyId: USD,
+        id: "fee-leg",
+        kind: "percent",
+        label: "Hop",
+        outputImpactCurrencyId: USD,
+        outputImpactMinor: "1000",
+        percentage: "10",
+      }),
+    ).not.toThrow();
   });
 
   it("previews mixed-currency multi-hop routes with treasury rates", async () => {

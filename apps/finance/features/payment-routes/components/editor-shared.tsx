@@ -29,11 +29,25 @@ const LEG_KIND_LABELS: Record<
   string
 > = {
   collect: "Сбор",
-  cross_company: "Cross-company",
+  cross_company: "Межфирменный перевод",
   exchange: "Обмен",
-  intercompany: "Intercompany",
+  intercompany: "Внутригрупповой перевод",
   payout: "Выплата",
   transfer: "Перевод",
+};
+
+const FEE_KIND_LABELS: Record<PaymentRouteFee["kind"], string> = {
+  fixed: "Фикс",
+  percent: "Процент",
+};
+
+const PARTICIPANT_KIND_LABELS: Record<
+  PaymentRouteSelectableParticipantOption["kind"],
+  string
+> = {
+  counterparty: "Контрагент",
+  customer: "Клиент",
+  organization: "Организация",
 };
 
 type BufferedMinorAmountInputProps = {
@@ -84,6 +98,32 @@ export function getLegKindLabel(
   return LEG_KIND_LABELS[
     kind as PaymentRouteEditorState["draft"]["legs"][number]["kind"]
   ] ?? kind;
+}
+
+export function getFeeKindLabel(
+  kind: PaymentRouteFee["kind"],
+) {
+  return FEE_KIND_LABELS[kind] ?? kind;
+}
+
+export function getParticipantKindLabel(
+  kind: PaymentRouteSelectableParticipantOption["kind"],
+) {
+  return PARTICIPANT_KIND_LABELS[kind] ?? kind;
+}
+
+function getSelectableOptionLabel(
+  option:
+    | PaymentRouteConstructorOptions["customers"][number]
+    | PaymentRouteConstructorOptions["organizations"][number]
+    | PaymentRouteConstructorOptions["counterparties"][number]
+    | null,
+) {
+  if (!option) {
+    return null;
+  }
+
+  return "name" in option ? option.name : option.shortName;
 }
 
 export function BufferedMinorAmountInput({
@@ -193,6 +233,9 @@ export function CurrencySelector({
   options,
   value,
 }: CurrencySelectorProps) {
+  const selectedCurrency =
+    options.currencies.find((currency) => currency.id === value) ?? null;
+
   return (
     <Select
       value={value}
@@ -203,12 +246,14 @@ export function CurrencySelector({
       }}
     >
       <SelectTrigger aria-label={ariaLabel}>
-        <SelectValue placeholder="Выберите валюту" />
+        <SelectValue placeholder="Выберите валюту">
+          {selectedCurrency?.code ?? null}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.currencies.map((currency) => (
           <SelectItem key={currency.id} value={currency.id}>
-            {currency.code}
+            {currency.label}
           </SelectItem>
         ))}
       </SelectContent>
@@ -229,8 +274,10 @@ export function ParticipantSelector({
     participant.kind === "customer"
       ? options.customers
       : participant.kind === "organization"
-        ? options.organizations
+      ? options.organizations
         : options.counterparties;
+  const selectedOption =
+    selectableOptions.find((option) => option.id === participant.entityId) ?? null;
 
   return (
     <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
@@ -243,16 +290,14 @@ export function ParticipantSelector({
         }}
       >
         <SelectTrigger aria-label="Тип участника">
-          <SelectValue />
+          <SelectValue>
+            {getParticipantKindLabel(participant.kind)}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {kindOptions.map((kind) => (
             <SelectItem key={kind} value={kind}>
-              {kind === "customer"
-                ? "Клиент"
-                : kind === "organization"
-                  ? "Организация"
-                  : "Контрагент"}
+              {getParticipantKindLabel(kind)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -266,12 +311,14 @@ export function ParticipantSelector({
         }}
       >
         <SelectTrigger aria-label="Участник маршрута">
-          <SelectValue placeholder="Выберите участника" />
+          <SelectValue placeholder="Выберите участника">
+            {getSelectableOptionLabel(selectedOption)}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {selectableOptions.map((option) => (
             <SelectItem key={option.id} value={option.id}>
-              {"name" in option ? option.name : option.shortName}
+              {getSelectableOptionLabel(option)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -334,11 +381,13 @@ export function FeeListEditor({
                   }}
                 >
                   <SelectTrigger aria-label="Тип комиссии">
-                    <SelectValue />
+                    <SelectValue>
+                      {getFeeKindLabel(fee.kind)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed">Фикс</SelectItem>
-                    <SelectItem value="percent">Процент</SelectItem>
+                    <SelectItem value="fixed">{getFeeKindLabel("fixed")}</SelectItem>
+                    <SelectItem value="percent">{getFeeKindLabel("percent")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {fee.kind === "fixed" ? (
