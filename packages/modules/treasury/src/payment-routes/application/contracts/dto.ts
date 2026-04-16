@@ -14,6 +14,8 @@ const PaymentRouteCalculationFeeSharedSchema = z.object({
   amountMinor: z.string(),
   currencyId: z.uuid(),
   id: z.string().trim().min(1),
+  inputImpactCurrencyId: z.uuid(),
+  inputImpactMinor: z.string(),
   label: z.string().trim().min(1).optional(),
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),

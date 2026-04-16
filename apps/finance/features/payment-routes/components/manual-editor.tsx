@@ -40,20 +40,24 @@ import {
   setLegField,
   setParticipantBinding,
   setParticipantOption,
+  setParticipantRequisiteId,
   updateAdditionalFee,
   updateLegFee,
 } from "../lib/state";
+import type { PaymentRouteRequisitesState } from "../lib/use-payment-route-requisites";
 import {
   CalculationHint,
   CurrencySelector,
   FeeListEditor,
   getLegKindLabel,
+  ParticipantRequisiteField,
   ParticipantSelector,
 } from "./editor-shared";
 
 type PaymentRouteManualEditorProps = {
   onStateChange: (state: PaymentRouteEditorState) => void;
   options: PaymentRouteConstructorOptions;
+  requisites: PaymentRouteRequisitesState;
   state: PaymentRouteEditorState;
 };
 
@@ -67,6 +71,7 @@ function getLegCalculation(
 export function PaymentRouteManualEditor({
   onStateChange,
   options,
+  requisites,
   state,
 }: PaymentRouteManualEditorProps) {
   const canInsertHop =
@@ -225,6 +230,22 @@ export function PaymentRouteManualEditor({
                       )
                     }
                   />
+                  <ParticipantRequisiteField
+                    index={index}
+                    options={options}
+                    participant={participant}
+                    requisites={requisites}
+                    state={state}
+                    onChange={(requisiteId) =>
+                      onStateChange(
+                        setParticipantRequisiteId({
+                          index,
+                          requisiteId,
+                          state,
+                        }),
+                      )
+                    }
+                  />
                 </Field>
                 <Field>
                   <FieldTitle>Куда</FieldTitle>
@@ -263,6 +284,22 @@ export function PaymentRouteManualEditor({
                               : destination.entityKind,
                           index: index + 1,
                           options,
+                          state,
+                        }),
+                      )
+                    }
+                  />
+                  <ParticipantRequisiteField
+                    index={index + 1}
+                    options={options}
+                    participant={destination}
+                    requisites={requisites}
+                    state={state}
+                    onChange={(requisiteId) =>
+                      onStateChange(
+                        setParticipantRequisiteId({
+                          index: index + 1,
+                          requisiteId,
                           state,
                         }),
                       )
@@ -377,12 +414,15 @@ export function PaymentRouteManualEditor({
 
       <Card className="border-border/70">
         <CardHeader>
-          <CardTitle className="text-base">Дополнительные расходы</CardTitle>
+          <CardTitle className="text-base">Доплаты сверх маршрута</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Field>
+            <FieldTitle>Отдельные доплаты</FieldTitle>
+          </Field>
           <FeeListEditor
             addLabel="Добавить расход"
-            fallbackCurrencyId={state.draft.currencyOutId}
+            fallbackCurrencyId={state.draft.currencyInId}
             fees={state.draft.additionalFees}
             options={options}
             onAdd={() => onStateChange(addAdditionalFee(state))}

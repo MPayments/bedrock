@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { PaymentRouteConstructorOptions } from "@/features/payment-routes/lib/queries";
 import {
+  ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+  ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+} from "@bedrock/treasury/contracts";
+import type { PaymentRouteConstructorOptions } from "@/features/payment-routes/lib/queries";
+import { syncPaymentRouteDraftRequisites } from "@/features/payment-routes/lib/requisites";
+import {
+  addAdditionalFee,
   applyCalculation,
   createPaymentRouteSeed,
   insertIntermediateParticipant,
@@ -11,6 +17,7 @@ import {
   setLegField,
   setParticipantBinding,
   setParticipantOption,
+  setParticipantRequisiteId,
   setVisualNodePosition,
 } from "@/features/payment-routes/lib/state";
 
@@ -81,16 +88,18 @@ describe("payment route editor state", () => {
 
     expect(seed.draft.participants[0]).toMatchObject({
       binding: "abstract",
-      displayName: "Любой клиент",
+      displayName: ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
       entityId: null,
       entityKind: null,
+      requisiteId: null,
       role: "source",
     });
     expect(seed.draft.participants[1]).toMatchObject({
       binding: "abstract",
-      displayName: "Любой бенефициар",
+      displayName: ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
       entityId: null,
       entityKind: null,
+      requisiteId: null,
       role: "destination",
     });
   });
@@ -151,6 +160,7 @@ describe("payment route editor state", () => {
       binding: "bound",
       entityId: OPTIONS.customers[0]!.id,
       entityKind: "customer",
+      requisiteId: null,
       role: "source",
     });
 
@@ -163,9 +173,10 @@ describe("payment route editor state", () => {
 
     expect(abstract.draft.participants[0]).toMatchObject({
       binding: "abstract",
-      displayName: "Любой клиент",
+      displayName: ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
       entityId: null,
       entityKind: null,
+      requisiteId: null,
       role: "source",
     });
   });
@@ -195,7 +206,9 @@ describe("payment route editor state", () => {
       fromCurrencyId: OPTIONS.currencies[1]!.id,
     });
 
-    expect(changedFirstInput.draft.currencyInId).toBe(OPTIONS.currencies[1]!.id);
+    expect(changedFirstInput.draft.currencyInId).toBe(
+      OPTIONS.currencies[1]!.id,
+    );
     expect(changedFirstInput.draft.legs[0]!.fromCurrencyId).toBe(
       OPTIONS.currencies[1]!.id,
     );
@@ -206,6 +219,134 @@ describe("payment route editor state", () => {
 
     expect(changedLastOutput.draft.currencyOutId).toBe(USD.id);
     expect(changedLastOutput.draft.legs[1]!.toCurrencyId).toBe(USD.id);
+  });
+
+  it("clears a selected requisite when the participant operational currency changes", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const boundDestination = setParticipantBinding({
+      binding: "bound",
+      index: 1,
+      options: OPTIONS,
+      state: seed,
+    });
+    const withRequisite = setParticipantRequisiteId({
+      index: 1,
+      requisiteId: "00000000-0000-4000-8000-000000000901",
+      state: boundDestination,
+    });
+    const changedCurrency = setLegField(
+      withRequisite,
+      withRequisite.draft.legs[0]!.id,
+      {
+        toCurrencyId: OPTIONS.currencies[1]!.id,
+      },
+    );
+
+    expect(changedCurrency.draft.participants[1]?.requisiteId).toBeNull();
+  });
+
+  it("defaults a new additional fee to the route input currency", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const next = addAdditionalFee(seed);
+
+    expect(next.draft.additionalFees[0]).toMatchObject({
+      currencyId: seed.draft.currencyInId,
+      label: "Доп. расход",
+    });
+  });
+
+  it("auto-selects the default matching requisite and leaves ambiguous sets unresolved", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const boundDestination = setParticipantBinding({
+      binding: "bound",
+      index: 1,
+      options: OPTIONS,
+      state: seed,
+    });
+
+    const autoSelected = syncPaymentRouteDraftRequisites({
+      draft: boundDestination.draft,
+      options: OPTIONS,
+      requisitesByOwner: {
+        [`organization:${OPTIONS.organizations[0]!.id}`]: [
+          {
+            currencyCode: "USD",
+            currencyId: USD.id,
+            id: "00000000-0000-4000-8000-000000000911",
+            identity: "Default account",
+            isDefault: true,
+            kind: "bank",
+            kindLabel: "Банк",
+            label: "USD default",
+            ownerId: OPTIONS.organizations[0]!.id,
+            ownerType: "organization",
+          },
+          {
+            currencyCode: "USD",
+            currencyId: USD.id,
+            id: "00000000-0000-4000-8000-000000000912",
+            identity: "Backup account",
+            isDefault: false,
+            kind: "bank",
+            kindLabel: "Банк",
+            label: "USD backup",
+            ownerId: OPTIONS.organizations[0]!.id,
+            ownerType: "organization",
+          },
+        ],
+      },
+      statusByOwner: {
+        [`organization:${OPTIONS.organizations[0]!.id}`]: {
+          error: null,
+          pending: false,
+        },
+      },
+    });
+
+    expect(autoSelected.participants[1]?.requisiteId).toBe(
+      "00000000-0000-4000-8000-000000000911",
+    );
+
+    const ambiguous = syncPaymentRouteDraftRequisites({
+      draft: boundDestination.draft,
+      options: OPTIONS,
+      requisitesByOwner: {
+        [`organization:${OPTIONS.organizations[0]!.id}`]: [
+          {
+            currencyCode: "USD",
+            currencyId: USD.id,
+            id: "00000000-0000-4000-8000-000000000921",
+            identity: "Primary",
+            isDefault: false,
+            kind: "bank",
+            kindLabel: "Банк",
+            label: "USD A",
+            ownerId: OPTIONS.organizations[0]!.id,
+            ownerType: "organization",
+          },
+          {
+            currencyCode: "USD",
+            currencyId: USD.id,
+            id: "00000000-0000-4000-8000-000000000922",
+            identity: "Secondary",
+            isDefault: false,
+            kind: "bank",
+            kindLabel: "Банк",
+            label: "USD B",
+            ownerId: OPTIONS.organizations[0]!.id,
+            ownerType: "organization",
+          },
+        ],
+      },
+      statusByOwner: {
+        [`organization:${OPTIONS.organizations[0]!.id}`]: {
+          error: null,
+          pending: false,
+        },
+      },
+    });
+
+    expect(ambiguous.participants[1]?.requisiteId).toBeNull();
   });
 
   it("applies calculator results and preserves state across manual and graph modes", () => {
@@ -234,6 +375,8 @@ describe("payment route editor state", () => {
               amountMinor: "12000",
               currencyId: USD.id,
               id: "fee-1",
+              inputImpactCurrencyId: USD.id,
+              inputImpactMinor: "12000",
               kind: "fixed",
               label: "Bank fee",
               outputImpactCurrencyId: USD.id,

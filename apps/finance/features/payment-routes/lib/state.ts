@@ -1,6 +1,7 @@
 import {
   ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
   ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+  getPaymentRouteParticipantOperationalCurrency,
   PaymentRouteDraftSchema,
   type PaymentRouteParticipantBinding,
   type PaymentRouteParticipantRole,
@@ -78,6 +79,57 @@ function cloneDraft(draft: PaymentRouteDraft) {
   return PaymentRouteDraftSchema.parse(structuredClone(draft));
 }
 
+function supportsParticipantRequisites(
+  participant: PaymentRouteDraft["participants"][number],
+) {
+  return (
+    participant.binding === "bound" &&
+    (participant.entityKind === "organization" ||
+      participant.entityKind === "counterparty")
+  );
+}
+
+function clearChangedParticipantRequisites(input: {
+  nextDraft: PaymentRouteDraft;
+  previousDraft: PaymentRouteDraft;
+}) {
+  const previousCurrencyByNodeId = new Map(
+    input.previousDraft.participants.map((participant, index) => [
+      participant.nodeId,
+      getPaymentRouteParticipantOperationalCurrency({
+        draft: input.previousDraft,
+        participantIndex: index,
+      }),
+    ]),
+  );
+
+  input.nextDraft.participants = input.nextDraft.participants.map(
+    (participant, index) => {
+      if (!supportsParticipantRequisites(participant) || !participant.requisiteId) {
+        return participant;
+      }
+
+      const previousCurrencyId =
+        previousCurrencyByNodeId.get(participant.nodeId) ?? null;
+      const nextCurrencyId = getPaymentRouteParticipantOperationalCurrency({
+        draft: input.nextDraft,
+        participantIndex: index,
+      });
+
+      if (!previousCurrencyId || previousCurrencyId === nextCurrencyId) {
+        return participant;
+      }
+
+      return {
+        ...participant,
+        requisiteId: null,
+      };
+    },
+  );
+
+  return input.nextDraft;
+}
+
 function cloneVisual(visual: PaymentRouteVisualMetadata) {
   return PaymentRouteVisualMetadataSchema.parse(structuredClone(visual));
 }
@@ -100,6 +152,7 @@ function createBoundParticipantRef(input: {
       entityId: input.option.id,
       entityKind: "customer",
       nodeId,
+      requisiteId: null,
       role: "source",
     };
   }
@@ -111,6 +164,7 @@ function createBoundParticipantRef(input: {
       entityId: input.option.id,
       entityKind: input.option.kind as "counterparty" | "organization",
       nodeId,
+      requisiteId: null,
       role: "destination",
     };
   }
@@ -121,6 +175,7 @@ function createBoundParticipantRef(input: {
     entityId: input.option.id,
     entityKind: input.option.kind as "counterparty" | "organization",
     nodeId,
+    requisiteId: null,
     role: "hop",
   };
 }
@@ -136,6 +191,7 @@ function createAbstractEndpointParticipantRef(
       entityId: null,
       entityKind: null,
       nodeId,
+      requisiteId: null,
       role: "source",
     };
   }
@@ -146,6 +202,7 @@ function createAbstractEndpointParticipantRef(
     entityId: null,
     entityKind: null,
     nodeId,
+    requisiteId: null,
     role: "destination",
   };
 }
@@ -388,6 +445,11 @@ export function setRouteCurrency(input: {
     draft.legs[draft.legs.length - 1]!.toCurrencyId = input.currencyId;
   }
 
+  clearChangedParticipantRequisites({
+    nextDraft: draft,
+    previousDraft: input.state.draft,
+  });
+
   return {
     ...input.state,
     draft: PaymentRouteDraftSchema.parse(draft),
@@ -429,6 +491,29 @@ export function setParticipantOption(input: {
     ...input.state,
     draft,
     visual: ensureVisualMetadata(draft, input.state.visual),
+  };
+}
+
+export function setParticipantRequisiteId(input: {
+  index: number;
+  requisiteId: string | null;
+  state: PaymentRouteEditorState;
+}): PaymentRouteEditorState {
+  const participant = input.state.draft.participants[input.index];
+
+  if (!participant || !supportsParticipantRequisites(participant)) {
+    return input.state;
+  }
+
+  const draft = cloneDraft(input.state.draft);
+  draft.participants[input.index] = {
+    ...participant,
+    requisiteId: input.requisiteId,
+  };
+
+  return {
+    ...input.state,
+    draft: PaymentRouteDraftSchema.parse(draft),
   };
 }
 
@@ -517,6 +602,11 @@ export function setLegField(
     }
   }
 
+  clearChangedParticipantRequisites({
+    nextDraft: draft,
+    previousDraft: state.draft,
+  });
+
   return {
     ...state,
     draft: PaymentRouteDraftSchema.parse(draft),
@@ -530,6 +620,16 @@ function createDefaultFixedFee(currencyId: string): PaymentRouteFee {
     id: createId("route-fee"),
     kind: "fixed",
     label: "Комиссия",
+  };
+}
+
+function createDefaultAdditionalFee(currencyId: string): PaymentRouteFee {
+  return {
+    amountMinor: "100",
+    currencyId,
+    id: createId("route-fee"),
+    kind: "fixed",
+    label: "Доп. расход",
   };
 }
 
@@ -590,7 +690,7 @@ export function removeLegFee(
 export function addAdditionalFee(
   state: PaymentRouteEditorState,
 ): PaymentRouteEditorState {
-  const fee = createDefaultFixedFee(state.draft.currencyOutId);
+  const fee = createDefaultAdditionalFee(state.draft.currencyInId);
 
   return {
     ...state,
@@ -664,6 +764,10 @@ export function insertIntermediateParticipant(input: {
 
   draft.participants.splice(input.afterLegIndex + 1, 0, participant);
   draft.legs.splice(input.afterLegIndex + 1, 0, trailingLeg);
+  clearChangedParticipantRequisites({
+    nextDraft: draft,
+    previousDraft: input.state.draft,
+  });
 
   return {
     ...input.state,
@@ -698,6 +802,10 @@ export function removeIntermediateParticipant(
   previousLeg.toCurrencyId = nextLeg.toCurrencyId;
   draft.participants.splice(participantIndex, 1);
   draft.legs.splice(participantIndex, 1);
+  clearChangedParticipantRequisites({
+    nextDraft: draft,
+    previousDraft: state.draft,
+  });
 
   return {
     ...state,
@@ -733,6 +841,10 @@ export function moveIntermediateParticipant(input: {
   const participant = draft.participants[participantIndex]!;
   draft.participants.splice(participantIndex, 1);
   draft.participants.splice(targetIndex, 0, participant);
+  clearChangedParticipantRequisites({
+    nextDraft: draft,
+    previousDraft: state.draft,
+  });
 
   return {
     ...state,

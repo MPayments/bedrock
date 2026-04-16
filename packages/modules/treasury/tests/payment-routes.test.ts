@@ -8,7 +8,11 @@ import {
   PaymentRouteCalculationFeeSchema,
   type PaymentRouteCalculation,
 } from "../src/payment-routes/application/contracts/dto";
-import type { PaymentRouteDraft } from "../src/payment-routes/application/contracts/zod";
+import {
+  getPaymentRouteParticipantOperationalCurrency,
+  PaymentRouteDraftSchema,
+  type PaymentRouteDraft,
+} from "../src/payment-routes/application/contracts/zod";
 import type {
   PaymentRouteTemplateRecord,
   PaymentRouteTemplatesRepository,
@@ -42,6 +46,7 @@ function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft 
         entityId: "00000000-0000-4000-8000-000000000001",
         entityKind: "customer",
         nodeId: "node-customer",
+        requisiteId: null,
         role: "source",
       },
       {
@@ -50,6 +55,7 @@ function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft 
         entityId: "00000000-0000-4000-8000-000000000002",
         entityKind: "organization",
         nodeId: "node-org",
+        requisiteId: null,
         role: "destination",
       },
     ],
@@ -223,7 +229,7 @@ describe("payment routes", () => {
 
     const calculation = await service.queries.previewTemplate({ draft });
 
-    expect(calculation.amountOutMinor).toBe("9850");
+    expect(calculation.amountOutMinor).toBe("9900");
     expectCalculationTotal(calculation, USD, "150");
   });
 
@@ -258,8 +264,39 @@ describe("payment routes", () => {
 
     const calculation = await service.queries.previewTemplate({ draft });
 
-    expect(calculation.amountOutMinor).toBe("8550");
+    expect(calculation.amountOutMinor).toBe("9000");
     expectCalculationTotal(calculation, USD, "1500");
+  });
+
+  it("treats additional fees as separate costs without reducing payout", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      additionalFees: [
+        {
+          amountMinor: "20000",
+          currencyId: USD,
+          id: "fee-extra",
+          kind: "fixed",
+          label: "Bank",
+        },
+      ],
+      currencyOutId: currencyIdForCode("EUR"),
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          kind: "transfer",
+          toCurrencyId: currencyIdForCode("EUR"),
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("20000");
+    expect(calculation.netAmountOutMinor).toBe("20000");
+    expectCalculationTotal(calculation, USD, "20000");
   });
 
   it("accepts computed amount fields for percentage fees in calculations", () => {
@@ -268,6 +305,8 @@ describe("payment routes", () => {
         amountMinor: "1000",
         currencyId: USD,
         id: "fee-leg",
+        inputImpactCurrencyId: USD,
+        inputImpactMinor: "1000",
         kind: "percent",
         label: "Hop",
         outputImpactCurrencyId: USD,
@@ -275,6 +314,20 @@ describe("payment routes", () => {
         percentage: "10",
       }),
     ).not.toThrow();
+  });
+
+  it("rejects calculation fees without input impact fields", () => {
+    expect(() =>
+      PaymentRouteCalculationFeeSchema.parse({
+        amountMinor: "1000",
+        currencyId: USD,
+        id: "fee-legacy",
+        kind: "fixed",
+        label: "Legacy",
+        outputImpactCurrencyId: USD,
+        outputImpactMinor: "1000",
+      }),
+    ).toThrow();
   });
 
   it("previews mixed-currency multi-hop routes with treasury rates", async () => {
@@ -312,6 +365,7 @@ describe("payment routes", () => {
           entityId: "00000000-0000-4000-8000-000000000001",
           entityKind: "customer",
           nodeId: "node-customer",
+          requisiteId: null,
           role: "source",
         },
         {
@@ -320,6 +374,7 @@ describe("payment routes", () => {
           entityId: "00000000-0000-4000-8000-000000000002",
           entityKind: "organization",
           nodeId: "node-dubai",
+          requisiteId: null,
           role: "hop",
         },
         {
@@ -328,6 +383,7 @@ describe("payment routes", () => {
           entityId: "00000000-0000-4000-8000-000000000003",
           entityKind: "organization",
           nodeId: "node-usa",
+          requisiteId: null,
           role: "destination",
         },
       ],
@@ -379,6 +435,7 @@ describe("payment routes", () => {
           entityId: null,
           entityKind: null,
           nodeId: "node-source",
+          requisiteId: null,
           role: "source",
         },
         {
@@ -387,6 +444,7 @@ describe("payment routes", () => {
           entityId: null,
           entityKind: null,
           nodeId: "node-destination",
+          requisiteId: null,
           role: "destination",
         },
       ],
@@ -459,7 +517,106 @@ describe("payment routes", () => {
       binding: "bound",
       entityKind: "organization",
       role: "destination",
+      requisiteId: null,
     });
+  });
+
+  it("normalizes missing participant requisite ids to null", () => {
+    const draft = PaymentRouteDraftSchema.parse({
+      ...createDraft(),
+      participants: [
+        {
+          binding: "bound",
+          displayName: "Acme Customer",
+          entityId: "00000000-0000-4000-8000-000000000001",
+          entityKind: "customer",
+          nodeId: "node-customer",
+          role: "source",
+        },
+        {
+          binding: "bound",
+          displayName: "Bedrock Treasury",
+          entityId: "00000000-0000-4000-8000-000000000002",
+          entityKind: "organization",
+          nodeId: "node-org",
+          role: "destination",
+        },
+      ],
+    });
+
+    expect(draft.participants[0]?.requisiteId).toBeNull();
+    expect(draft.participants[1]?.requisiteId).toBeNull();
+  });
+
+  it("resolves participant operational currency for source, hop, and destination", () => {
+    const draft = createDraft({
+      currencyInId: USDT,
+      currencyOutId: USD,
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USDT,
+          id: "leg-1",
+          kind: "collect",
+          toCurrencyId: AED,
+        },
+        {
+          fees: [],
+          fromCurrencyId: AED,
+          id: "leg-2",
+          kind: "exchange",
+          toCurrencyId: USD,
+        },
+      ],
+      participants: [
+        {
+          binding: "bound",
+          displayName: "Acme Customer",
+          entityId: "00000000-0000-4000-8000-000000000001",
+          entityKind: "customer",
+          nodeId: "node-customer",
+          requisiteId: null,
+          role: "source",
+        },
+        {
+          binding: "bound",
+          displayName: "Dubai Bank",
+          entityId: "00000000-0000-4000-8000-000000000002",
+          entityKind: "organization",
+          nodeId: "node-dubai",
+          requisiteId: null,
+          role: "hop",
+        },
+        {
+          binding: "bound",
+          displayName: "USA Bank",
+          entityId: "00000000-0000-4000-8000-000000000003",
+          entityKind: "organization",
+          nodeId: "node-usa",
+          requisiteId: null,
+          role: "destination",
+        },
+      ],
+    });
+
+    expect(
+      getPaymentRouteParticipantOperationalCurrency({
+        draft,
+        participantIndex: 0,
+      }),
+    ).toBe(USDT);
+    expect(
+      getPaymentRouteParticipantOperationalCurrency({
+        draft,
+        participantIndex: 1,
+      }),
+    ).toBe(AED);
+    expect(
+      getPaymentRouteParticipantOperationalCurrency({
+        draft,
+        participantIndex: 2,
+      }),
+    ).toBe(USD);
   });
 
   it("duplicates and archives templates without mutating the copied snapshot", async () => {

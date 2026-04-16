@@ -31,6 +31,7 @@ export default async function CreateRequisitePage({
   const params = await searchParams;
   const ownerTypeValue = readSingleSearchValue(params.ownerType);
   const ownerId = readSingleSearchValue(params.ownerId);
+  const currencyId = readSingleSearchValue(params.currencyId);
   const ownerType: RequisiteOwnerType | undefined =
     ownerTypeValue === "counterparty" || ownerTypeValue === "organization"
       ? ownerTypeValue
@@ -42,7 +43,14 @@ export default async function CreateRequisitePage({
       <CreateRequisiteFormClient
         options={options}
         initialOwnerType={ownerType}
-        initialValues={ownerType && ownerId ? { ownerId } : undefined}
+        initialValues={
+          ownerType && ownerId
+            ? {
+                currencyId,
+                ownerId,
+              }
+            : undefined
+        }
         ownerReadonly={Boolean(ownerType && ownerId)}
         ownerTypeReadonly={Boolean(ownerType && ownerId)}
       />

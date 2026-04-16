@@ -205,6 +205,7 @@ export {
 export {
   ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
   ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+  getPaymentRouteParticipantOperationalCurrency,
   ListPaymentRouteTemplatesQuerySchema,
   PaymentRouteParticipantBindingSchema,
   PaymentRouteDraftSchema,

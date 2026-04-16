@@ -32,6 +32,8 @@ function createCalculationFee(input: {
   amountMinor: bigint;
   calculatedCurrencyId: string;
   fee: PaymentRouteDraft["legs"][number]["fees"][number];
+  inputImpactCurrencyId: string;
+  inputImpactMinor: bigint;
   outputImpactCurrencyId: string;
   outputImpactMinor: bigint;
 }): PaymentRouteCalculationFee {
@@ -39,6 +41,8 @@ function createCalculationFee(input: {
     amountMinor: input.amountMinor.toString(),
     currencyId: input.calculatedCurrencyId,
     id: input.fee.id,
+    inputImpactCurrencyId: input.inputImpactCurrencyId,
+    inputImpactMinor: input.inputImpactMinor.toString(),
     label: input.fee.label,
     outputImpactCurrencyId: input.outputImpactCurrencyId,
     outputImpactMinor: input.outputImpactMinor.toString(),
@@ -154,6 +158,8 @@ async function calculateFee(input: {
 }): Promise<{
   amountMinor: bigint;
   currencyId: string;
+  inputImpactCurrencyId: string;
+  inputImpactMinor: bigint;
   outputImpactCurrencyId: string;
   outputImpactMinor: bigint;
 }> {
@@ -175,6 +181,8 @@ async function calculateFee(input: {
     return {
       amountMinor,
       currencyId: input.inputCurrencyId,
+      inputImpactCurrencyId: input.inputCurrencyId,
+      inputImpactMinor: amountMinor,
       outputImpactCurrencyId: input.outputCurrencyId,
       outputImpactMinor,
     };
@@ -182,6 +190,15 @@ async function calculateFee(input: {
 
   const amountMinor = BigInt(input.fee.amountMinor!);
   const currencyId = input.fee.currencyId!;
+  const inputImpactMinor = await convertAmount({
+    amountMinor,
+    asOf: input.asOf,
+    cache: input.cache,
+    currencies: input.currencies,
+    fromCurrencyId: currencyId,
+    getCrossRate: input.getCrossRate,
+    toCurrencyId: input.inputCurrencyId,
+  });
   const outputImpactMinor = await convertAmount({
     amountMinor,
     asOf: input.asOf,
@@ -195,6 +212,8 @@ async function calculateFee(input: {
   return {
     amountMinor,
     currencyId,
+    inputImpactCurrencyId: input.inputCurrencyId,
+    inputImpactMinor,
     outputImpactCurrencyId: input.outputCurrencyId,
     outputImpactMinor,
   };
@@ -248,6 +267,8 @@ async function runForwardPreview(input: {
           amountMinor: calculated.amountMinor,
           calculatedCurrencyId: calculated.currencyId,
           fee,
+          inputImpactCurrencyId: calculated.inputImpactCurrencyId,
+          inputImpactMinor: calculated.inputImpactMinor,
           outputImpactCurrencyId: calculated.outputImpactCurrencyId,
           outputImpactMinor: calculated.outputImpactMinor,
         }),
@@ -282,7 +303,7 @@ async function runForwardPreview(input: {
   }
 
   const grossAmountOutMinor = rollingAmount;
-  let netAmountOutMinor = grossAmountOutMinor;
+  const netAmountOutMinor = grossAmountOutMinor;
   const additionalFees: PaymentRouteCalculationFee[] = [];
 
   for (const fee of input.draft.additionalFees) {
@@ -298,18 +319,14 @@ async function runForwardPreview(input: {
       outputRateDen: input.amountInMinor,
       outputRateNum: grossAmountOutMinor,
     });
-
-    if (calculated.outputImpactMinor > netAmountOutMinor) {
-      throw new ValidationError("Additional fees exceed the route output amount");
-    }
-
-    netAmountOutMinor -= calculated.outputImpactMinor;
     mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
     additionalFees.push(
       createCalculationFee({
         amountMinor: calculated.amountMinor,
         calculatedCurrencyId: calculated.currencyId,
         fee,
+        inputImpactCurrencyId: calculated.inputImpactCurrencyId,
+        inputImpactMinor: calculated.inputImpactMinor,
         outputImpactCurrencyId: calculated.outputImpactCurrencyId,
         outputImpactMinor: calculated.outputImpactMinor,
       }),

@@ -4,13 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  GitBranch,
-  LayoutList,
-  LoaderCircle,
-  Save,
-} from "lucide-react";
+import { ArrowLeft, GitBranch, LoaderCircle, Save } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
@@ -27,13 +21,25 @@ import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type { PaymentRouteTemplate } from "@bedrock/treasury/contracts";
 
-import { formatCurrencyMinorAmount, formatCurrencyRatio } from "../lib/format";
+import {
+  formatCurrencyMinorAmount,
+  getPaymentRouteRateLines,
+} from "../lib/format";
 import {
   createPaymentRouteTemplate,
   previewPaymentRoute,
   updatePaymentRouteTemplate,
 } from "../lib/mutations";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
+import {
+  getPaymentRouteRequisiteWarnings,
+  syncPaymentRouteDraftRequisites,
+} from "../lib/requisites";
+import {
+  getPaymentRouteAdditionalFeeTotals,
+  getPaymentRoutePureAmountOutMinor,
+  getPaymentRouteTotalClientCostInMinor,
+} from "../lib/cost-summary";
 import {
   applyCalculation,
   createPaymentRouteEditorStateFromTemplate,
@@ -45,6 +51,7 @@ import {
   setRouteName,
   type PaymentRouteEditorState,
 } from "../lib/state";
+import { usePaymentRouteRequisites } from "../lib/use-payment-route-requisites";
 import { BufferedMinorAmountInput, CurrencySelector } from "./editor-shared";
 import { PaymentRouteManualEditor } from "./manual-editor";
 import { PaymentRouteWorkspaceLayout } from "./payment-route-workspace-layout";
@@ -126,6 +133,10 @@ export function PaymentRouteConstructorClient({
   const [savePending, startSaveTransition] = React.useTransition();
   const previewRequestIdRef = React.useRef(0);
   const previewDraft = state?.draft ?? null;
+  const requisites = usePaymentRouteRequisites({
+    draft: previewDraft ?? initialState?.draft ?? null,
+    options,
+  });
   const previewDraftRef = React.useRef(previewDraft);
   const previewRequestKey = React.useMemo(
     () => (previewDraft ? createPreviewRequestKey(previewDraft) : null),
@@ -136,6 +147,30 @@ export function PaymentRouteConstructorClient({
   React.useEffect(() => {
     previewDraftRef.current = previewDraft;
   }, [previewDraft]);
+
+  React.useEffect(() => {
+    setState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const draft = syncPaymentRouteDraftRequisites({
+        draft: current.draft,
+        options,
+        requisitesByOwner: requisites.requisitesByOwner,
+        statusByOwner: requisites.statusByOwner,
+      });
+
+      if (draft === current.draft) {
+        return current;
+      }
+
+      return {
+        ...current,
+        draft,
+      };
+    });
+  }, [options, requisites.requisitesByOwner, requisites.statusByOwner]);
 
   React.useEffect(() => {
     if (!deferredPreviewRequestKey) {
@@ -274,23 +309,57 @@ export function PaymentRouteConstructorClient({
     options.currencies.find(
       (currency) => currency.id === editorState.draft.currencyOutId,
     ) ?? null;
-  const rateContext = editorState.calculation
-    ? formatCurrencyRatio({
+  const totalClientCostInMinor = getPaymentRouteTotalClientCostInMinor(
+    editorState.calculation,
+  );
+  const pureAmountOutMinor = getPaymentRoutePureAmountOutMinor(
+    editorState.calculation,
+  );
+  const rateLines = editorState.calculation
+    ? getPaymentRouteRateLines({
         amountInMinor: editorState.calculation.amountInMinor,
-        amountOutMinor: editorState.calculation.netAmountOutMinor,
+        cleanAmountOutMinor:
+          pureAmountOutMinor ?? editorState.calculation.amountOutMinor,
+        costInclusiveAmountInMinor: totalClientCostInMinor,
+        effectiveAmountOutMinor: editorState.calculation.amountOutMinor,
         currencyIn,
         currencyOut,
       })
-    : null;
-  const displayAmountIn =
-    editorState.calculation?.amountInMinor ?? editorState.draft.amountInMinor;
+    : {
+        cleanForward: null,
+        cleanReverse: null,
+        effectiveForward: null,
+        effectiveReverse: null,
+      };
+  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(
+    editorState.calculation,
+  );
+  const additionalFeeSummary = additionalFeeTotals
+    .map((feeTotal) =>
+      formatCurrencyMinorAmount(
+        feeTotal.amountMinor,
+        options.currencies.find((currency) => currency.id === feeTotal.currencyId) ??
+          null,
+      ),
+    )
+    .join(" • ");
   const displayAmountOut =
-    editorState.calculation?.netAmountOutMinor ??
+    editorState.calculation?.amountOutMinor ??
     editorState.draft.amountOutMinor;
   const workspaceTitle = editorState.name.trim() || "Новый маршрут";
   const workspaceSubtitle = editorState.templateId
     ? "Редактирование шаблона маршрута"
     : "Создание шаблона маршрута";
+  const requisiteWarnings = React.useMemo(
+    () =>
+      getPaymentRouteRequisiteWarnings({
+        draft: editorState.draft,
+        options,
+        requisitesByOwner: requisites.requisitesByOwner,
+        statusByOwner: requisites.statusByOwner,
+      }),
+    [editorState.draft, options, requisites.requisitesByOwner, requisites.statusByOwner],
+  );
 
   React.useEffect(() => {
     if (!isGraphMode) {
@@ -449,7 +518,8 @@ export function PaymentRouteConstructorClient({
                   <Field>
                     <FieldTitle>Сумма списания</FieldTitle>
                     <FieldDescription>
-                      Сколько списать на входе маршрута.
+                      Сколько отправить в первый шаг маршрута. Доплаты сверх
+                      маршрута считаются отдельно.
                     </FieldDescription>
                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
                       <BufferedMinorAmountInput
@@ -489,7 +559,8 @@ export function PaymentRouteConstructorClient({
                   <Field>
                     <FieldTitle>Сумма получения</FieldTitle>
                     <FieldDescription>
-                      Сколько должен получить бенефициар на выходе.
+                      Сколько должен получить бенефициар. Доплаты сверх
+                      маршрута эту сумму не уменьшают.
                     </FieldDescription>
                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
                       <BufferedMinorAmountInput
@@ -527,11 +598,37 @@ export function PaymentRouteConstructorClient({
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
                   <div className="space-y-1">
-                    <div className="font-medium">Расчет в реальном времени</div>
+                    <div className="font-medium">Курс</div>
                     <div className="text-muted-foreground">
-                      {rateContext ??
-                        "После предварительного расчета здесь появится текущий маршрутный курс."}
+                      {rateLines.cleanForward ? (
+                        <>
+                          {rateLines.cleanForward ? (
+                            <div>Прямой чистый курс: {rateLines.cleanForward}</div>
+                          ) : null}
+                          {rateLines.cleanReverse ? (
+                            <div>Обратный чистый курс: {rateLines.cleanReverse}</div>
+                          ) : null}
+                          {rateLines.effectiveForward ? (
+                            <div>
+                              Прямой курс с себестоимостью: {rateLines.effectiveForward}
+                            </div>
+                          ) : null}
+                          {rateLines.effectiveReverse ? (
+                            <div>
+                              Обратный курс с себестоимостью: {rateLines.effectiveReverse}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        "После предварительного расчета здесь появится текущий маршрутный курс."
+                      )}
                     </div>
+                    {additionalFeeTotals.length > 0 ? (
+                      <div className="text-xs text-amber-700">
+                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
+                        {additionalFeeSummary}.
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     {previewIndicatorVisible ? (
@@ -554,6 +651,7 @@ export function PaymentRouteConstructorClient({
               <PaymentRouteManualEditor
                 onStateChange={setState}
                 options={options}
+                requisites={requisites}
                 state={editorState}
               />
             ) : null}
@@ -564,6 +662,7 @@ export function PaymentRouteConstructorClient({
               <PaymentRouteSummaryRail
                 calculation={editorState.calculation}
                 options={options}
+                warnings={requisiteWarnings}
               />
             </div>
           )}
@@ -616,15 +715,19 @@ export function PaymentRouteConstructorClient({
                 <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Списать
+                      Доплаты сверх маршрута
                     </div>
-                    <div className="font-semibold">
-                      {formatCurrencyMinorAmount(displayAmountIn, currencyIn)}
-                    </div>
+                    {additionalFeeTotals.length > 0 ? (
+                      <div className="font-semibold">{additionalFeeSummary}</div>
+                    ) : (
+                      <div className="font-medium text-muted-foreground">
+                        Нет отдельных доплат
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Получить
+                      Бенефициар получит
                     </div>
                     <div className="font-semibold">
                       {formatCurrencyMinorAmount(displayAmountOut, currencyOut)}
@@ -632,12 +735,38 @@ export function PaymentRouteConstructorClient({
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Расчет в реальном времени
+                      Курс
                     </div>
-                    <div className="font-medium">
-                      {rateContext ??
-                        "После предварительного расчета здесь появится текущий маршрутный курс."}
+                    <div className="space-y-1 font-medium">
+                      {rateLines.cleanForward ? (
+                        <>
+                          {rateLines.cleanForward ? (
+                            <div>Прямой чистый курс: {rateLines.cleanForward}</div>
+                          ) : null}
+                          {rateLines.cleanReverse ? (
+                            <div>Обратный чистый курс: {rateLines.cleanReverse}</div>
+                          ) : null}
+                          {rateLines.effectiveForward ? (
+                            <div>
+                              Прямой курс с себестоимостью: {rateLines.effectiveForward}
+                            </div>
+                          ) : null}
+                          {rateLines.effectiveReverse ? (
+                            <div>
+                              Обратный курс с себестоимостью: {rateLines.effectiveReverse}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        "После предварительного расчета здесь появится текущий маршрутный курс."
+                      )}
                     </div>
+                    {additionalFeeTotals.length > 0 ? (
+                      <div className="text-xs text-amber-700">
+                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
+                        {additionalFeeSummary}.
+                      </div>
+                    ) : null}
                     {previewError ? (
                       <div className="text-sm text-red-600">{previewError}</div>
                     ) : null}
@@ -648,6 +777,7 @@ export function PaymentRouteConstructorClient({
                   <PaymentRouteGraphEditor
                     onStateChange={setState}
                     options={options}
+                    requisites={requisites}
                     state={editorState}
                     className="h-full min-h-0 xl:grid-cols-[minmax(0,1fr)_400px]"
                     canvasClassName="h-full min-h-[58dvh] rounded-[28px] border-border/70 bg-[radial-gradient(circle_at_top,#f9fbff,white_58%,#edf3ff)] shadow-[0_24px_80px_rgba(15,23,42,0.08)]"
@@ -658,6 +788,7 @@ export function PaymentRouteConstructorClient({
                         options={options}
                         sticky={false}
                         className="border-border/70 bg-background/90"
+                        warnings={requisiteWarnings}
                       />
                     }
                   />

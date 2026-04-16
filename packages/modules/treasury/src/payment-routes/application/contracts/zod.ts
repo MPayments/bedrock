@@ -95,6 +95,7 @@ const PaymentRouteAbstractSourceParticipantRefSchema = z.object({
   entityId: z.null(),
   entityKind: z.null(),
   nodeId: z.string().trim().min(1),
+  requisiteId: z.null().default(null),
   role: z.literal("source"),
 });
 
@@ -104,6 +105,7 @@ const PaymentRouteBoundSourceParticipantRefSchema = z.object({
   entityId: z.uuid(),
   entityKind: z.literal("customer"),
   nodeId: z.string().trim().min(1),
+  requisiteId: z.null().default(null),
   role: z.literal("source"),
 });
 
@@ -113,6 +115,7 @@ const PaymentRouteAbstractDestinationParticipantRefSchema = z.object({
   entityId: z.null(),
   entityKind: z.null(),
   nodeId: z.string().trim().min(1),
+  requisiteId: z.null().default(null),
   role: z.literal("destination"),
 });
 
@@ -122,6 +125,7 @@ const PaymentRouteBoundDestinationParticipantRefSchema = z.object({
   entityId: z.uuid(),
   entityKind: z.enum(["organization", "counterparty"]),
   nodeId: z.string().trim().min(1),
+  requisiteId: z.uuid().nullable().default(null),
   role: z.literal("destination"),
 });
 
@@ -131,6 +135,7 @@ const PaymentRouteHopParticipantRefSchema = z.object({
   entityId: z.uuid(),
   entityKind: z.enum(["organization", "counterparty"]),
   nodeId: z.string().trim().min(1),
+  requisiteId: z.uuid().nullable().default(null),
   role: z.literal("hop"),
 });
 
@@ -287,6 +292,7 @@ export function normalizePaymentRouteParticipantRef(input: {
       entityId: input.participant.entityId,
       entityKind: input.participant.kind,
       nodeId: input.participant.nodeId,
+      requisiteId: null,
       role,
     };
   }
@@ -302,6 +308,7 @@ export function normalizePaymentRouteParticipantRef(input: {
         displayName: ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
         entityId: null,
         entityKind: null,
+        requisiteId: null,
       };
     }
 
@@ -311,6 +318,7 @@ export function normalizePaymentRouteParticipantRef(input: {
         displayName: ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
         entityId: null,
         entityKind: null,
+        requisiteId: null,
       };
     }
   }
@@ -508,3 +516,34 @@ export type PaymentRouteDraft = z.infer<typeof PaymentRouteDraftSchema>;
 export type ListPaymentRouteTemplatesQuery = z.infer<
   typeof ListPaymentRouteTemplatesQuerySchema
 >;
+
+export function getPaymentRouteParticipantOperationalCurrency(input: {
+  draft: Pick<
+    PaymentRouteDraft,
+    "currencyInId" | "currencyOutId" | "legs" | "participants"
+  >;
+  participantIndex: number;
+}) {
+  const participant = input.draft.participants[input.participantIndex];
+
+  if (!participant) {
+    return null;
+  }
+
+  if (participant.role === "source") {
+    return input.draft.legs[0]?.fromCurrencyId ?? input.draft.currencyInId;
+  }
+
+  if (participant.role === "destination") {
+    return (
+      input.draft.legs[input.draft.legs.length - 1]?.toCurrencyId ??
+      input.draft.currencyOutId
+    );
+  }
+
+  return (
+    input.draft.legs[input.participantIndex - 1]?.toCurrencyId ??
+    input.draft.legs[input.participantIndex]?.fromCurrencyId ??
+    null
+  );
+}

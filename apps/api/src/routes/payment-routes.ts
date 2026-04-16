@@ -9,6 +9,7 @@ import {
   ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
   ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
   CreatePaymentRouteTemplateInputSchema,
+  getPaymentRouteParticipantOperationalCurrency,
   ListPaymentRouteTemplatesQuerySchema,
   PaymentRouteCalculationSchema,
   PaymentRouteDraftSchema,
@@ -74,10 +75,51 @@ async function normalizeRouteDraftParticipants(
   draft: ReturnType<typeof PaymentRouteDraftSchema.parse>,
 ) {
   const participants = await Promise.all(
-    draft.participants.map(async (participant) => ({
-      ...participant,
-      displayName: await resolveParticipantDisplayName(ctx, participant),
-    })),
+    draft.participants.map(async (participant, participantIndex) => {
+      if (
+        participant.binding === "bound" &&
+        (participant.entityKind === "organization" ||
+          participant.entityKind === "counterparty") &&
+        participant.requisiteId
+      ) {
+        const requisite = await ctx.partiesModule.requisites.queries.findById(
+          participant.requisiteId,
+        );
+
+        if (!requisite || requisite.archivedAt) {
+          throw new ValidationError("Выбранный реквизит не найден");
+        }
+
+        if (
+          requisite.ownerType !== participant.entityKind ||
+          requisite.ownerId !== participant.entityId
+        ) {
+          throw new ValidationError(
+            "Реквизит не принадлежит выбранному участнику маршрута",
+          );
+        }
+
+        const participantCurrencyId =
+          getPaymentRouteParticipantOperationalCurrency({
+            draft,
+            participantIndex,
+          });
+
+        if (
+          participantCurrencyId &&
+          requisite.currencyId !== participantCurrencyId
+        ) {
+          throw new ValidationError(
+            "Валюта реквизита не совпадает с валютой шага маршрута",
+          );
+        }
+      }
+
+      return {
+        ...participant,
+        displayName: await resolveParticipantDisplayName(ctx, participant),
+      };
+    }),
   );
 
   return PaymentRouteDraftSchema.parse({

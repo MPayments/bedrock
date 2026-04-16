@@ -1,10 +1,21 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { ExternalLink, RefreshCw } from "lucide-react";
 
+import {
+  Alert,
+  AlertDescription,
+} from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
+import {
+  Field,
+  FieldDescription,
+  FieldTitle,
+} from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Select,
@@ -28,6 +39,8 @@ import {
   parseMajorToMinorAmount,
 } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
+import { getPaymentRouteParticipantRequisiteContext } from "../lib/requisites";
+import type { PaymentRouteRequisitesState } from "../lib/use-payment-route-requisites";
 
 const LEG_KIND_LABELS: Record<
   PaymentRouteEditorState["draft"]["legs"][number]["kind"],
@@ -99,6 +112,15 @@ type FeeListEditorProps = {
   ) => void;
   onRemove: (feeId: string) => void;
   options: PaymentRouteConstructorOptions;
+};
+
+type ParticipantRequisiteFieldProps = {
+  index: number;
+  onChange: (requisiteId: string | null) => void;
+  options: PaymentRouteConstructorOptions;
+  participant: PaymentRouteEditorState["draft"]["participants"][number];
+  requisites: PaymentRouteRequisitesState;
+  state: PaymentRouteEditorState;
 };
 
 export function getLegKindLabel(kind: string) {
@@ -428,6 +450,159 @@ export function ParticipantSelector({
         </Select>
       </div>
     </div>
+  );
+}
+
+export function ParticipantRequisiteField({
+  index,
+  onChange,
+  options,
+  participant,
+  requisites,
+  state,
+}: ParticipantRequisiteFieldProps) {
+  const context = getPaymentRouteParticipantRequisiteContext({
+    draft: state.draft,
+    index,
+    options,
+    requisitesByOwner: requisites.requisitesByOwner,
+  });
+  const ownerStatus = context.ownerKey
+    ? requisites.statusByOwner[context.ownerKey]
+    : null;
+  const isOwnerPending = context.ownerKey
+    ? !ownerStatus || ownerStatus.pending
+    : false;
+  const selectedValue = participant.requisiteId ?? "__none__";
+
+  if (context.note) {
+    return (
+      <Field className="space-y-2 pt-3">
+        <FieldTitle>Реквизит</FieldTitle>
+        <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          {context.note}
+        </div>
+      </Field>
+    );
+  }
+
+  return (
+    <Field>
+      <FieldTitle>Реквизит</FieldTitle>
+      <FieldDescription>
+        {context.operationalCurrency
+          ? `Операционная валюта: ${context.operationalCurrency.code}`
+          : "Операционная валюта шага еще не определена."}
+      </FieldDescription>
+
+      <Select
+        value={selectedValue}
+        onValueChange={(nextValue) =>
+          onChange(nextValue === "__none__" ? null : nextValue)
+        }
+      >
+        <SelectTrigger
+          aria-label="Реквизит участника"
+          className="w-full min-w-0 max-w-[36rem]"
+        >
+          <SelectValue placeholder="Выберите реквизит" className="min-w-0">
+            <span className="block min-w-0 truncate">
+              {context.selectedRequisite
+                ? `${context.selectedRequisite.label} · ${context.selectedRequisite.identity}`
+                : isOwnerPending
+                  ? "Загрузка реквизитов..."
+                  : context.matchingRequisites.length > 0
+                    ? "Выберите реквизит"
+                    : "Подходящих реквизитов нет"}
+            </span>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Не выбран</SelectItem>
+          {context.matchingRequisites.map((requisite) => (
+            <SelectItem key={requisite.id} value={requisite.id}>
+              {requisite.label} · {requisite.identity}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {context.matchingRequisites.length === 0 &&
+      !isOwnerPending &&
+      !ownerStatus?.error ? (
+        <Alert variant="warning" className="gap-3 py-3">
+          <AlertDescription className="space-y-3">
+            <div>
+              Подходящих реквизитов для валюты{" "}
+              {context.operationalCurrency?.code ?? "—"} нет. Перед
+              использованием шаблона добавьте нужный реквизит.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {context.createHref ? (
+                <Button
+                  nativeButton={false}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  render={
+                    <Link
+                      href={context.createHref}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    />
+                  }
+                >
+                  <ExternalLink className="size-4" />
+                  Создать реквизит
+                </Button>
+              ) : null}
+              {context.ownerKey ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => requisites.refreshOwner(context.ownerKey!)}
+                >
+                  <RefreshCw className="size-4" />
+                  Обновить
+                </Button>
+              ) : null}
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {context.unresolvedKind === "selection_required" &&
+      !isOwnerPending &&
+      !ownerStatus?.error ? (
+        <Alert variant="warning" className="gap-3 py-3">
+          <AlertDescription>
+            Выберите реквизит в валюте{" "}
+            {context.operationalCurrency?.code ?? "—"}, чтобы шаблон был готов к
+            использованию.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {ownerStatus?.error ? (
+        <Alert variant="warning" className="gap-3 py-3">
+          <AlertDescription className="space-y-3">
+            <div>{ownerStatus.error}</div>
+            {context.ownerKey ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => requisites.refreshOwner(context.ownerKey!)}
+              >
+                <RefreshCw className="size-4" />
+                Повторить
+              </Button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </Field>
   );
 }
 

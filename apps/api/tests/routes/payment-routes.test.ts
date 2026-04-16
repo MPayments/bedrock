@@ -35,7 +35,11 @@ const IDS = {
   counterparty: "00000000-0000-4000-8000-000000000003",
   route: "00000000-0000-4000-8000-000000000004",
   duplicateRoute: "00000000-0000-4000-8000-000000000005",
+  organizationUsdRequisite: "00000000-0000-4000-8000-000000000006",
+  counterpartyUsdRequisite: "00000000-0000-4000-8000-000000000007",
+  organizationEurRequisite: "00000000-0000-4000-8000-000000000008",
   usd: "00000000-0000-4000-8000-000000000101",
+  eur: "00000000-0000-4000-8000-000000000102",
 } as const;
 
 const NOW = "2026-04-16T08:00:00.000Z";
@@ -82,6 +86,7 @@ function createDraft() {
         entityId: IDS.customer,
         entityKind: "customer",
         nodeId: "node-customer",
+        requisiteId: null,
         role: "source",
       },
       {
@@ -90,6 +95,7 @@ function createDraft() {
         entityId: IDS.organization,
         entityKind: "organization",
         nodeId: "node-organization",
+        requisiteId: null,
         role: "destination",
       },
     ],
@@ -106,14 +112,16 @@ function createAbstractDraft() {
         entityId: null,
         entityKind: null,
         nodeId: "node-customer",
+        requisiteId: null,
         role: "source",
       },
       {
         binding: "abstract",
-        displayName: "Любой бенефициар",
+        displayName: "Бенефициар",
         entityId: null,
         entityKind: null,
         nodeId: "node-organization",
+        requisiteId: null,
         role: "destination",
       },
     ],
@@ -177,6 +185,7 @@ function createTemplate(overrides: Record<string, unknown> = {}) {
         entityId: IDS.customer,
         entityKind: "customer",
         nodeId: "node-customer",
+        requisiteId: null,
         role: "source",
       },
       {
@@ -185,6 +194,7 @@ function createTemplate(overrides: Record<string, unknown> = {}) {
         entityId: IDS.organization,
         entityKind: "organization",
         nodeId: "node-organization",
+        requisiteId: null,
         role: "destination",
       },
     ],
@@ -243,6 +253,39 @@ function createTestApp() {
     id: IDS.counterparty,
     shortName: "Core Bank",
   }));
+  const findRequisiteById = vi.fn(async (id: string) => {
+    if (id === IDS.organizationUsdRequisite) {
+      return {
+        archivedAt: null,
+        currencyId: IDS.usd,
+        id,
+        ownerId: IDS.organization,
+        ownerType: "organization",
+      };
+    }
+
+    if (id === IDS.counterpartyUsdRequisite) {
+      return {
+        archivedAt: null,
+        currencyId: IDS.usd,
+        id,
+        ownerId: IDS.counterparty,
+        ownerType: "counterparty",
+      };
+    }
+
+    if (id === IDS.organizationEurRequisite) {
+      return {
+        archivedAt: null,
+        currencyId: IDS.eur,
+        id,
+        ownerId: IDS.organization,
+        ownerType: "organization",
+      };
+    }
+
+    return null;
+  });
 
   const app = new OpenAPIHono();
   app.use("*", async (c, next) => {
@@ -267,6 +310,11 @@ function createTestApp() {
         organizations: {
           queries: {
             findById: findOrganizationById,
+          },
+        },
+        requisites: {
+          queries: {
+            findById: findRequisiteById,
           },
         },
       },
@@ -296,6 +344,7 @@ function createTestApp() {
     findCounterpartyById,
     findCustomerById,
     findOrganizationById,
+    findRequisiteById,
     findTemplateById,
     listTemplates,
     previewTemplate,
@@ -368,6 +417,7 @@ describe("payment routes routes", () => {
             entityId: IDS.customer,
             entityKind: "customer",
             nodeId: "node-customer",
+            requisiteId: null,
             role: "source",
           },
           {
@@ -376,6 +426,7 @@ describe("payment routes routes", () => {
             entityId: IDS.organization,
             entityKind: "organization",
             nodeId: "node-organization",
+            requisiteId: null,
             role: "destination",
           },
         ],
@@ -479,6 +530,7 @@ describe("payment routes routes", () => {
             entityId: IDS.customer,
             entityKind: "customer",
             nodeId: "node-customer",
+            requisiteId: null,
             role: "source",
           },
           {
@@ -487,6 +539,7 @@ describe("payment routes routes", () => {
             entityId: IDS.organization,
             entityKind: "organization",
             nodeId: "node-organization",
+            requisiteId: null,
             role: "destination",
           },
         ],
@@ -584,10 +637,11 @@ describe("payment routes routes", () => {
               createDraft().participants[0],
               {
                 binding: "abstract",
-                displayName: "Любой бенефициар",
+                displayName: "Бенефициар",
                 entityId: null,
                 entityKind: null,
                 nodeId: "node-organization",
+                requisiteId: null,
                 role: "destination",
               },
             ],
@@ -607,14 +661,16 @@ describe("payment routes routes", () => {
             entityId: IDS.customer,
             entityKind: "customer",
             nodeId: "node-customer",
+            requisiteId: null,
             role: "source",
           },
           {
             binding: "abstract",
-            displayName: "Любой бенефициар",
+            displayName: "Бенефициар",
             entityId: null,
             entityKind: null,
             nodeId: "node-organization",
+            requisiteId: null,
             role: "destination",
           },
         ],
@@ -659,5 +715,129 @@ describe("payment routes routes", () => {
 
     expect(response.status).toBe(400);
     expect(previewTemplate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid selected requisite for a bound organization participant", async () => {
+    const { app, createTemplateCommand, findRequisiteById } = createTestApp();
+
+    createTemplateCommand.mockResolvedValue(
+      createTemplate({
+        draft: {
+          ...createDraft(),
+          participants: [
+            createDraft().participants[0],
+            {
+              ...createDraft().participants[1],
+              requisiteId: IDS.organizationUsdRequisite,
+            },
+          ],
+        },
+      }),
+    );
+
+    const response = await app.request("http://localhost/payment-routes", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        draft: {
+          ...createDraft(),
+          participants: [
+            createDraft().participants[0],
+            {
+              ...createDraft().participants[1],
+              requisiteId: IDS.organizationUsdRequisite,
+            },
+          ],
+        },
+        name: "USD payout",
+        visual: createVisual(),
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(findRequisiteById).toHaveBeenCalledWith(IDS.organizationUsdRequisite);
+    expect(createTemplateCommand).toHaveBeenCalledWith({
+      draft: {
+        ...createDraft(),
+        participants: [
+          {
+            ...createDraft().participants[0],
+            displayName: "Acme Customer",
+          },
+          {
+            ...createDraft().participants[1],
+            displayName: "Bedrock Treasury",
+            requisiteId: IDS.organizationUsdRequisite,
+          },
+        ],
+      },
+      name: "USD payout",
+      visual: createVisual(),
+    });
+  });
+
+  it("rejects a selected requisite when the owner does not match the participant", async () => {
+    const { app, createTemplateCommand } = createTestApp();
+
+    const response = await app.request("http://localhost/payment-routes", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        draft: {
+          ...createDraft(),
+          participants: [
+            createDraft().participants[0],
+            {
+              ...createDraft().participants[1],
+              requisiteId: IDS.counterpartyUsdRequisite,
+            },
+          ],
+        },
+        name: "USD payout",
+        visual: createVisual(),
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(createTemplateCommand).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Реквизит не принадлежит выбранному участнику маршрута",
+    });
+  });
+
+  it("rejects a selected requisite when the currency does not match the participant step", async () => {
+    const { app, previewTemplate } = createTestApp();
+
+    const response = await app.request(
+      "http://localhost/payment-routes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: {
+            ...createDraft(),
+            participants: [
+              createDraft().participants[0],
+              {
+                ...createDraft().participants[1],
+                requisiteId: IDS.organizationEurRequisite,
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(previewTemplate).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Валюта реквизита не совпадает с валютой шага маршрута",
+    });
   });
 });
