@@ -40,6 +40,7 @@ export const COUNTERPARTY_IDS = {
 export const ORGANIZATION_IDS = {
   MULTIHANSA_BROKERS: "00000000-0000-4000-8000-000000000310",
   ARABIAN_FUEL_ALLIANCE: "00000000-0000-4000-8000-000000000320",
+  BINTANG_UTARA_TRADING: "00000000-0000-4000-8000-000000000330",
 } as const;
 
 export const REQUISITE_PROVIDER_IDS = {
@@ -517,6 +518,47 @@ export const ORGANIZATIONS: readonly SeedOrganizationFixture[] = [
     },
     signatureAssetFileName: "arabian-fuel-alliance-signature.png",
     sealAssetFileName: "arabian-fuel-alliance-seal.png",
+  },
+  {
+    id: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    externalRef: "pt-bintang-utara-trading",
+    shortName: "PT BINTANG UTARA TRADING",
+    shortNameI18n: {
+      en: "PT BINTANG UTARA TRADING",
+    },
+    fullName: "PT BINTANG UTARA TRADING",
+    fullNameI18n: {
+      en: "PT BINTANG UTARA TRADING",
+    },
+    description:
+      "Foreign investment company in Indonesia engaged in wholesale trading, land transport equipment trading, construction materials trading, management consulting, and advertising activities under KBLI 46100, 46411, 46412, 46414, 46419, 46593, 46631, 46639, 46699, 46900, 70209, and 73100.",
+    kind: "legal_entity",
+    country: "ID",
+    orgType: "PT PMA",
+    orgTypeI18n: {
+      en: "PT PMA",
+    },
+    city: "Badung",
+    cityI18n: {
+      en: "Badung",
+    },
+    address:
+      "Jl. Dewi Sri I, No. 20, Legian, Kuta, Kabupaten Badung, Bali, Indonesia",
+    addressI18n: {
+      en: "Jl. Dewi Sri I, No. 20, Legian, Kuta, Kabupaten Badung, Bali, Indonesia",
+    },
+    directorName: "Ni Ketut Rai Swaryani Dewi",
+    directorNameI18n: {
+      en: "Ni Ketut Rai Swaryani Dewi",
+    },
+    directorTitle: "Direktur",
+    directorTitleI18n: {
+      en: "Director",
+    },
+    directorBasis: "Akta Nomor 005 tanggal 10 Maret 2026",
+    directorBasisI18n: {
+      en: "Deed No. 005 dated March 10, 2026",
+    },
   },
 ] as const;
 
