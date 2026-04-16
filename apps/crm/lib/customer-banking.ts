@@ -356,6 +356,7 @@ export async function searchCustomerBankProviders(input: {
     ),
   );
 
+  const MAX_DETAIL_FETCHES = 8;
   const seen = new Set<string>();
   const providerIds: string[] = [];
   for (const payload of payloads) {
@@ -365,6 +366,12 @@ export async function searchCustomerBankProviders(input: {
       }
       seen.add(provider.id);
       providerIds.push(provider.id);
+      if (providerIds.length >= MAX_DETAIL_FETCHES) {
+        break;
+      }
+    }
+    if (providerIds.length >= MAX_DETAIL_FETCHES) {
+      break;
     }
   }
 

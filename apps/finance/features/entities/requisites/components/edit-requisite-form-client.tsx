@@ -3,18 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
+import {
+  RequisiteProviderBranchesResponseSchema,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
-import { z } from "zod";
-
-const ProviderBranchesResponseSchema = z.object({
-  branches: z.array(
-    z.object({
-      id: z.uuid(),
-      name: z.string(),
-    }),
-  ),
-});
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type { RequisiteFormValues } from "@/features/entities/requisites-shared/lib/constants";
@@ -159,7 +152,9 @@ export function EditRequisiteFormClient({
       return [];
     }
 
-    const payload = ProviderBranchesResponseSchema.parse(await response.json());
+    const payload = RequisiteProviderBranchesResponseSchema.parse(
+      await response.json(),
+    );
     return payload.branches.map((branch) => ({
       id: branch.id,
       label: branch.name,

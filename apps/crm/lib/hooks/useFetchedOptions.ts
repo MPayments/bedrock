@@ -20,15 +20,19 @@ export function useFetchedOptions<T>({
 }: UseFetchedOptionsParams<T>): UseFetchedOptionsResult<T> {
   const [items, setItems] = React.useState<T[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const loadedRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!(open || (value && items.length === 0))) return;
+    if (loadedRef.current) return;
+    if (!(open || value)) return;
 
     let cancelled = false;
     setLoading(true);
     fetcher()
       .then((data) => {
-        if (!cancelled) setItems(data);
+        if (cancelled) return;
+        loadedRef.current = true;
+        setItems(data);
       })
       .catch((err) => {
         if (!cancelled) console.error("useFetchedOptions error:", err);
@@ -40,7 +44,7 @@ export function useFetchedOptions<T>({
     return () => {
       cancelled = true;
     };
-  }, [open, value, items.length, fetcher]);
+  }, [open, value, fetcher]);
 
   return { items, loading };
 }

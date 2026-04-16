@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
@@ -37,6 +37,7 @@ export function useOrganizationBankRequisites(
   const [currencyOptions, setCurrencyOptions] = useState<CurrencyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const attemptedProviderIdsRef = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     if (!organizationId) {
@@ -124,12 +125,23 @@ export function useOrganizationBankRequisites(
 
   const ensureProviderOptions = useCallback(
     async (providerIds: readonly string[]) => {
+      const attempted = attemptedProviderIdsRef.current;
       const missingIds = Array.from(
         new Set(providerIds.filter(Boolean)),
-      ).filter((id) => !providerOptions.some((option) => option.id === id));
+      ).filter(
+        (id) =>
+          !attempted.has(id) &&
+          !providerOptions.some((option) => option.id === id),
+      );
 
       if (missingIds.length === 0) {
         return;
+      }
+
+      // Mark as attempted *before* the request so a failed fetch doesn't
+      // retrigger on every re-render.
+      for (const id of missingIds) {
+        attempted.add(id);
       }
 
       const response = await apiClient.v1.requisites.providers.options.$get({

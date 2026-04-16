@@ -47,7 +47,7 @@
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
-    "fast-xml-parser": "^4.5.0",
+    "fast-xml-parser": "^5.5.8",
     "iconv-lite": "^0.7.2",
     "tsx": "^4.21.0",
     "uuid": "^13.0.0"

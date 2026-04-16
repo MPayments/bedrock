@@ -65,7 +65,7 @@ const idsPreprocess = (value: unknown) => {
 
 export const ListRequisiteProviderOptionsQuerySchema = z.object({
   q: z.string().trim().min(1).optional(),
-  ids: z.preprocess(idsPreprocess, z.array(z.uuid())).optional(),
+  ids: z.preprocess(idsPreprocess, z.array(z.uuid()).optional()).optional(),
   kind: z.string().trim().optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });

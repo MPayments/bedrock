@@ -2,9 +2,11 @@
 
 import { AlertCircle, Loader2, Plus, Wallet } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
 
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
+import {
+  RequisiteProviderBranchesResponseSchema,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 import { RequisiteEditor } from "@bedrock/sdk-parties-ui/components/requisite-editor";
 import type { RequisiteFormValues } from "@bedrock/sdk-parties-ui/lib/requisites";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
@@ -47,15 +49,6 @@ type EditorState =
   | { kind: "idle" }
   | { kind: "create" }
   | { kind: "existing"; requisiteId: string };
-
-const ProviderBranchesResponseSchema = z.object({
-  branches: z.array(
-    z.object({
-      id: z.uuid(),
-      name: z.string(),
-    }),
-  ),
-});
 
 function isSameEditorState(left: EditorState, right: EditorState) {
   if (left.kind !== right.kind) {
@@ -217,7 +210,9 @@ export function OrganizationBankRequisitesWorkspace({
       return [];
     }
 
-    const payload = ProviderBranchesResponseSchema.parse(await response.json());
+    const payload = RequisiteProviderBranchesResponseSchema.parse(
+      await response.json(),
+    );
     return payload.branches.map((branch) => ({
       id: branch.id,
       label: branch.name,
