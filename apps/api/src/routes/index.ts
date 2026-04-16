@@ -13,6 +13,7 @@ export { dealsRoutes } from "./deals";
 export { documentsRoutes } from "./documents";
 export { counterpartyDirectoryRoutes } from "./counterparty-directory";
 export { organizationsRoutes } from "./organizations";
+export { paymentRoutesRoutes } from "./payment-routes";
 export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";

@@ -5,9 +5,12 @@ export {
   type UpdateCustomerInput,
 } from "./customers/application/contracts/commands";
 export {
+  CustomerOptionSchema,
+  CustomerOptionsResponseSchema,
   CustomerSchema,
   PaginatedCustomersSchema,
   type Customer,
+  type CustomerOption,
   type PaginatedCustomers,
 } from "./customers/application/contracts/dto";
 export {

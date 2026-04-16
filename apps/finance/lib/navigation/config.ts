@@ -83,6 +83,29 @@ const navItems: AppNavItem[] = [
     ],
   },
   {
+    id: "routes",
+    title: "Маршруты",
+    href: "/routes",
+    icon: "workflow",
+    audience: "finance",
+    children: [
+      {
+        id: "routes-constructor",
+        title: "Конструктор маршрута",
+        href: "/routes/constructor",
+        icon: "workflow",
+        audience: "finance",
+      },
+      {
+        id: "routes-list",
+        title: "Список маршрутов",
+        href: "/routes/list",
+        icon: "workflow",
+        audience: "finance",
+      },
+    ],
+  },
+  {
     id: "treasury",
     title: "Казначейство",
     href: "/treasury",

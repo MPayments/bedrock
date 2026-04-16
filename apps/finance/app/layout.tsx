@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "@bedrock/sdk-ui/globals.css";
+import "@xyflow/react/dist/style.css";
 import { Providers } from "@/components/providers";
 
 const geist = Geist({

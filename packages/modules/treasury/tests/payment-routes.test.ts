@@ -1,0 +1,368 @@
+import { describe, expect, it } from "vitest";
+
+import { createModuleRuntime } from "@bedrock/shared/core";
+import type { PaymentRouteCalculation } from "../src/payment-routes/application/contracts/dto";
+import { createPaymentRoutesService } from "../src/payment-routes/application";
+import type {
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplatesRepository,
+} from "../src/payment-routes/application/ports/payment-routes.repository";
+import type { PaymentRouteDraft } from "../src/payment-routes/application/contracts/zod";
+
+import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
+
+const USD = currencyIdForCode("USD");
+const AED = currencyIdForCode("AED");
+const USDT = currencyIdForCode("USDT");
+
+function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft {
+  return {
+    additionalFees: [],
+    amountInMinor: "10000",
+    amountOutMinor: "10000",
+    currencyInId: USD,
+    currencyOutId: USD,
+    legs: [
+      {
+        fees: [],
+        fromCurrencyId: USD,
+        id: "leg-1",
+        kind: "transfer",
+        toCurrencyId: USD,
+      },
+    ],
+    lockedSide: "currency_in",
+    participants: [
+      {
+        displayName: "Acme Customer",
+        entityId: "00000000-0000-4000-8000-000000000001",
+        kind: "customer",
+        nodeId: "node-customer",
+      },
+      {
+        displayName: "Bedrock Treasury",
+        entityId: "00000000-0000-4000-8000-000000000002",
+        kind: "organization",
+        nodeId: "node-org",
+      },
+    ],
+    ...input,
+  };
+}
+
+class InMemoryPaymentRouteTemplatesRepository
+  implements PaymentRouteTemplatesRepository
+{
+  private readonly rows = new Map<string, PaymentRouteTemplateRecord>();
+
+  async insertTemplate(
+    input: PaymentRouteTemplateRecord,
+  ): Promise<PaymentRouteTemplateRecord> {
+    const snapshot = structuredClone(input);
+    this.rows.set(snapshot.id, snapshot);
+    return structuredClone(snapshot);
+  }
+
+  async updateTemplate(
+    id: string,
+    input: Partial<PaymentRouteTemplateRecord>,
+  ): Promise<PaymentRouteTemplateRecord | null> {
+    const existing = this.rows.get(id);
+    if (!existing) {
+      return null;
+    }
+
+    const next = structuredClone({
+      ...existing,
+      ...input,
+    });
+    this.rows.set(id, next);
+    return structuredClone(next);
+  }
+
+  async findTemplateById(id: string): Promise<PaymentRouteTemplateRecord | null> {
+    const existing = this.rows.get(id);
+    return existing ? structuredClone(existing) : null;
+  }
+
+  async listTemplates() {
+    const rows = Array.from(this.rows.values()).map((row) => structuredClone(row));
+    return {
+      rows,
+      total: rows.length,
+    };
+  }
+}
+
+function createService() {
+  const repository = new InMemoryPaymentRouteTemplatesRepository();
+  const now = new Date("2026-04-16T08:00:00.000Z");
+  const service = createPaymentRoutesService({
+    currencies: createMockCurrenciesService([
+      { code: "USD", id: USD, name: "US Dollar", precision: 2, symbol: "$" },
+      { code: "AED", id: AED, name: "UAE Dirham", precision: 2, symbol: "AED" },
+      { code: "USDT", id: USDT, name: "Tether", precision: 6, symbol: "USDT" },
+      { code: "EUR", id: currencyIdForCode("EUR"), name: "Euro", precision: 2, symbol: "EUR" },
+    ]),
+    repository,
+    runtime: createModuleRuntime({
+      generateUuid: () => crypto.randomUUID(),
+      now: () => now,
+      service: "treasury.payment-routes.test",
+    }),
+    getCrossRate: async (base, quote) => {
+      const pair = `${base}/${quote}`;
+
+      if (pair === "USD/AED" || pair === "USDT/AED") {
+        return {
+          base,
+          quote,
+          rateDen: 100n,
+          rateNum: 367n,
+        };
+      }
+
+      if (pair === "AED/USD") {
+        return {
+          base,
+          quote,
+          rateDen: 367n,
+          rateNum: 100n,
+        };
+      }
+
+      if (pair === "USD/EUR") {
+        return {
+          base,
+          quote,
+          rateDen: 1n,
+          rateNum: 2n,
+        };
+      }
+
+      if (pair === "EUR/USD") {
+        return {
+          base,
+          quote,
+          rateDen: 2n,
+          rateNum: 1n,
+        };
+      }
+
+      if (base === quote) {
+        return {
+          base,
+          quote,
+          rateDen: 1n,
+          rateNum: 1n,
+        };
+      }
+
+      throw new Error(`Unhandled test pair ${pair}`);
+    },
+  });
+
+  return {
+    now,
+    repository,
+    service,
+  };
+}
+
+function expectCalculationTotal(
+  calculation: PaymentRouteCalculation,
+  currencyId: string,
+  amountMinor: string,
+) {
+  expect(calculation.feeTotals).toEqual([
+    {
+      amountMinor,
+      currencyId,
+    },
+  ]);
+}
+
+describe("payment routes", () => {
+  it("previews fixed-only fees", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      additionalFees: [
+        {
+          amountMinor: "50",
+          currencyId: USD,
+          id: "fee-extra",
+          kind: "fixed",
+          label: "Bank",
+        },
+      ],
+      legs: [
+        {
+          fees: [
+            {
+              amountMinor: "100",
+              currencyId: USD,
+              id: "fee-leg",
+              kind: "fixed",
+              label: "Hop",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          kind: "transfer",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("9850");
+    expectCalculationTotal(calculation, USD, "150");
+  });
+
+  it("previews percent-only fees", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      additionalFees: [
+        {
+          id: "fee-extra",
+          kind: "percent",
+          label: "Bank",
+          percentage: "5",
+        },
+      ],
+      legs: [
+        {
+          fees: [
+            {
+              id: "fee-leg",
+              kind: "percent",
+              label: "Hop",
+              percentage: "10",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          kind: "transfer",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("8550");
+    expectCalculationTotal(calculation, USD, "1500");
+  });
+
+  it("previews mixed-currency multi-hop routes with treasury rates", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      currencyInId: USDT,
+      currencyOutId: USD,
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USDT,
+          id: "leg-1",
+          kind: "collect",
+          toCurrencyId: AED,
+        },
+        {
+          fees: [
+            {
+              id: "fee-leg",
+              kind: "percent",
+              label: "FX spread",
+              percentage: "10",
+            },
+          ],
+          fromCurrencyId: AED,
+          id: "leg-2",
+          kind: "exchange",
+          toCurrencyId: USD,
+        },
+      ],
+      participants: [
+        {
+          displayName: "Acme Customer",
+          entityId: "00000000-0000-4000-8000-000000000001",
+          kind: "customer",
+          nodeId: "node-customer",
+        },
+        {
+          displayName: "Dubai Bank",
+          entityId: "00000000-0000-4000-8000-000000000002",
+          kind: "organization",
+          nodeId: "node-dubai",
+        },
+        {
+          displayName: "USA Bank",
+          entityId: "00000000-0000-4000-8000-000000000003",
+          kind: "organization",
+          nodeId: "node-usa",
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("9000");
+    expectCalculationTotal(calculation, AED, "3670");
+  });
+
+  it("recomputes the opposite side when currencyOut is locked", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      amountInMinor: "1",
+      amountOutMinor: "9000",
+      lockedSide: "currency_out",
+      legs: [
+        {
+          fees: [
+            {
+              id: "fee-leg",
+              kind: "percent",
+              label: "Hop",
+              percentage: "10",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          kind: "transfer",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountInMinor).toBe("10000");
+    expect(calculation.amountOutMinor).toBe("9000");
+  });
+
+  it("duplicates and archives templates without mutating the copied snapshot", async () => {
+    const { service } = createService();
+    const created = await service.commands.createTemplate({
+      draft: createDraft(),
+      name: "USD payout",
+      visual: {
+        nodePositions: {
+          "node-customer": { x: 0, y: 0 },
+          "node-org": { x: 200, y: 0 },
+        },
+        viewport: { x: 10, y: 20, zoom: 1.1 },
+      },
+    });
+
+    const duplicate = await service.commands.duplicateTemplate(created.id);
+    const archived = await service.commands.archiveTemplate(created.id);
+
+    expect(archived.status).toBe("archived");
+    expect(duplicate.status).toBe("active");
+    expect(duplicate.name).toBe("USD payout (копия)");
+    expect(duplicate.snapshotPolicy).toBe("clone_on_attach");
+    expect(duplicate.visual).toEqual(created.visual);
+    expect(duplicate.lastCalculation).toEqual(created.lastCalculation);
+  });
+});
