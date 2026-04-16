@@ -166,7 +166,9 @@ export {
   type UpdateSubAgentProfileInput,
 } from "./sub-agent-profiles/application/contracts/commands";
 export {
+  RequisiteProviderBranchesResponseSchema,
   RequisiteProviderBranchIdentifierSchema,
+  RequisiteProviderBranchOptionSchema,
   RequisiteProviderBranchSchema,
   RequisiteProviderIdentifierSchema,
   RequisiteProviderListItemSchema,
@@ -174,6 +176,7 @@ export {
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
   type RequisiteProvider,
+  type RequisiteProviderBranchOption,
   type RequisiteProviderListItem,
   type RequisiteProviderOption,
 } from "./requisites/application/contracts/dto";

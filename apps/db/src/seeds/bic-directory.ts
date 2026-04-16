@@ -3,13 +3,27 @@ import { eq } from "drizzle-orm";
 import { XMLParser } from "fast-xml-parser";
 import iconv from "iconv-lite";
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { v5 as uuidv5 } from "uuid";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
 
+// uuidv5 namespaces for deterministic provider/branch IDs from BIC.
+// MUST NOT change: any edit re-mints every ID and produces duplicate rows
+// on the next seed run instead of upserting the existing ones.
 const PROVIDER_NAMESPACE = "a3f0b2f4-2345-4c6e-bf5a-1d0b92e7d100";
 const BRANCH_NAMESPACE = "a3f0b2f4-2345-4c6e-bf5a-1d0b92e7d200";
+
+// Bundled snapshot of the CBR ED807 directory, shipped with the seed app
+// (see apps/db/src/seeds/assets/bic-directory-snapshot.xml). Used as a
+// fallback when cbr.ru is unreachable so `bun run db:seed` still works
+// offline / in CI without external network access.
+const BUNDLED_FALLBACK_PATH = resolve(
+  import.meta.dirname,
+  "assets",
+  "bic-directory-snapshot.xml",
+);
 
 type DbLike = Database | Transaction;
 
@@ -98,19 +112,33 @@ function extractXmlFromZip(buffer: Buffer): Buffer {
   return xmlEntry.getData();
 }
 
+async function loadBundledFallback(reason: string): Promise<Buffer> {
+  console.warn(
+    `[seed:bic-directory] ${reason}; falling back to bundled snapshot at ${BUNDLED_FALLBACK_PATH}`,
+  );
+  return readFile(BUNDLED_FALLBACK_PATH);
+}
+
 async function resolveSourceBuffer(options: ResolvedOptions): Promise<Buffer> {
   if (options.sourceFile) {
     return readFile(options.sourceFile);
   }
-  const response = await fetch(options.sourceUrl, {
-    signal: AbortSignal.timeout(options.timeoutMs),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `[seed:bic-directory] Failed to fetch ${options.sourceUrl}: HTTP ${response.status}`,
+  try {
+    const response = await fetch(options.sourceUrl, {
+      signal: AbortSignal.timeout(options.timeoutMs),
+    });
+    if (!response.ok) {
+      return loadBundledFallback(
+        `Failed to fetch ${options.sourceUrl}: HTTP ${response.status}`,
+      );
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return loadBundledFallback(
+      `Failed to fetch ${options.sourceUrl}: ${message}`,
     );
   }
-  return Buffer.from(await response.arrayBuffer());
 }
 
 function toArray<T>(value: T | T[] | undefined | null): T[] {

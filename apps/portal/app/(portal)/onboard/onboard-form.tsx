@@ -1617,7 +1617,6 @@ export function CustomerOnboardingForm() {
 
         {showAdvancedRequisiteFields ? (
           <div className="grid gap-4 md:grid-cols-2">
-
             <div className="space-y-1.5">
               <Label htmlFor="bankRequisite.iban">IBAN</Label>
               <Input
