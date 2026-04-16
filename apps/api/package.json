@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./types": {
-      "types": "./src/types.ts",
+      "types": "./dist/types.d.ts",
       "default": "./dist/types.js"
     }
   },
