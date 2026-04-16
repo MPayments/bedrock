@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
-
 import AdmZip from "adm-zip";
 import { eq } from "drizzle-orm";
 import { XMLParser } from "fast-xml-parser";
 import iconv from "iconv-lite";
+import { readFile } from "node:fs/promises";
 import { v5 as uuidv5 } from "uuid";
 
 import type { Database, Transaction } from "../client";
@@ -14,7 +13,7 @@ const BRANCH_NAMESPACE = "a3f0b2f4-2345-4c6e-bf5a-1d0b92e7d200";
 
 type DbLike = Database | Transaction;
 
-type BicParticipantInfo = {
+interface BicParticipantInfo {
   NameP: string;
   CntrCd?: string;
   Rgn?: string;
@@ -29,22 +28,22 @@ type BicParticipantInfo = {
   XchType?: string;
   UID?: string;
   ParticipantStatus?: string;
-};
+}
 
-type BicAccount = {
+interface BicAccount {
   Account: string;
   RegulationAccountType: string;
   CK?: string;
   AccountCBRBIC?: string;
   DateIn?: string;
   AccountStatus?: string;
-};
+}
 
-type BicEntry = {
+interface BicEntry {
   BIC: string;
   ParticipantInfo: BicParticipantInfo;
   Accounts?: BicAccount | BicAccount[];
-};
+}
 
 export interface SeedBicDirectoryOptions {
   sourceUrl?: string;
@@ -216,7 +215,7 @@ async function insertRootProvider(
 async function replaceProviderIdentifiers(
   db: DbLike,
   providerId: string,
-  identifiers: Array<{ scheme: string; value: string }>,
+  identifiers: { scheme: string; value: string }[],
 ) {
   await db
     .delete(schema.requisiteProviderIdentifiers)
@@ -240,7 +239,7 @@ async function replaceProviderIdentifiers(
 async function replaceBranchIdentifiers(
   db: DbLike,
   branchId: string,
-  identifiers: Array<{ scheme: string; value: string }>,
+  identifiers: { scheme: string; value: string }[],
 ) {
   await db
     .delete(schema.requisiteProviderBranchIdentifiers)
@@ -375,7 +374,7 @@ export async function seedBicDirectory(
       providersInserted += 1;
 
       const corrAccount = findCrsaAccount(entry);
-      const providerIdentifiers: Array<{ scheme: string; value: string }> = [
+      const providerIdentifiers: { scheme: string; value: string }[] = [
         { scheme: "bic", value: entry.BIC },
       ];
       if (corrAccount) {
@@ -392,7 +391,7 @@ export async function seedBicDirectory(
       });
       branchesInserted += 1;
 
-      const branchIdentifiers: Array<{ scheme: string; value: string }> = [
+      const branchIdentifiers: { scheme: string; value: string }[] = [
         { scheme: "bic", value: entry.BIC },
       ];
       if (corrAccount) {
@@ -428,7 +427,7 @@ export async function seedBicDirectory(
     branchesInserted += 1;
 
     const corrAccount = findCrsaAccount(entry);
-    const branchIdentifiers: Array<{ scheme: string; value: string }> = [
+    const branchIdentifiers: { scheme: string; value: string }[] = [
       { scheme: "bic", value: entry.BIC },
     ];
     if (corrAccount) {
