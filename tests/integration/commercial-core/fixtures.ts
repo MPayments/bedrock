@@ -239,7 +239,6 @@ export function createPaymentIntakeDraft(input: {
         bankName: "Beneficiary Bank",
         beneficiaryName: "Beneficiary GmbH",
         bic: "DEUTDEFF",
-        corrAccount: null,
         iban: "DE89370400440532013000",
         label: "Main payout bank",
         swift: "DEUTDEFF",

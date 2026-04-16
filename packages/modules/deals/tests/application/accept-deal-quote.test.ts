@@ -49,7 +49,6 @@ describe("accept deal quote command", () => {
             bankName: "Bank",
             beneficiaryName: "Beneficiary",
             bic: "DEUTDEFF",
-            corrAccount: null,
             iban: "DE123",
             label: "Label",
             swift: "DEUTDEFF",

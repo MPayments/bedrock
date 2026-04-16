@@ -67,7 +67,6 @@ export type CrmBankInstructionSnapshot = {
   bankName: string | null;
   beneficiaryName: string | null;
   bic: string | null;
-  corrAccount: string | null;
   iban: string | null;
   label: string | null;
   swift: string | null;
@@ -147,7 +146,6 @@ function emptyBankInstructionSnapshot(): CrmBankInstructionSnapshot {
     bankName: null,
     beneficiaryName: null,
     bic: null,
-    corrAccount: null,
     iban: null,
     label: null,
     swift: null,

@@ -111,7 +111,6 @@ export interface RequisiteFieldsInput {
   beneficiaryName?: string | null;
   institutionName?: string | null;
   accountNo?: string | null;
-  corrAccount?: string | null;
   iban?: string | null;
   bic?: string | null;
   swift?: string | null;
@@ -132,7 +131,6 @@ export interface RequisiteDetailsFields {
   beneficiaryName: string | null;
   institutionName: string | null;
   accountNo: string | null;
-  corrAccount: string | null;
   iban: string | null;
   bic: string | null;
   swift: string | null;
@@ -160,7 +158,6 @@ function normalizeRequisiteDetails(
     beneficiaryName: normalizeOptionalText(input.beneficiaryName),
     institutionName: normalizeOptionalText(input.institutionName),
     accountNo: normalizeOptionalText(input.accountNo),
-    corrAccount: normalizeOptionalText(input.corrAccount),
     iban: normalizeOptionalText(input.iban),
     bic: normalizeOptionalText(input.bic),
     swift: normalizeOptionalText(input.swift),

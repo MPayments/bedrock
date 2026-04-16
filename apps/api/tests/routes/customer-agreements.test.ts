@@ -116,4 +116,121 @@ describe("customer agreement helpers", () => {
       ),
     ).rejects.toBe(error);
   });
+
+  it("generates a unique default contract number when create omits it", async () => {
+    const ctx = createContext();
+    ctx.agreementsModule.agreements.commands.create.mockResolvedValue(
+      createAgreementDetail(),
+    );
+
+    await createCustomerAgreementForCustomer(
+      ctx,
+      {
+        customerId: IDS.customer,
+        organizationId: IDS.organization,
+        organizationRequisiteId: IDS.organizationRequisite,
+        contractNumber: null,
+      },
+      IDS.user,
+      "agreement-create-default-1",
+    );
+
+    const call =
+      ctx.agreementsModule.agreements.commands.create.mock.calls[0][0];
+    expect(call.contractNumber).toMatch(
+      /^contract#[0-9A-F]{8}-[0-9A-F]{8}$/,
+    );
+    expect(call.contractNumber).toContain(
+      IDS.customer.slice(0, 8).toUpperCase(),
+    );
+  });
+
+  it("produces a distinct default contract number on each create", async () => {
+    const ctx = createContext();
+    ctx.agreementsModule.agreements.commands.create.mockResolvedValue(
+      createAgreementDetail(),
+    );
+
+    await createCustomerAgreementForCustomer(
+      ctx,
+      {
+        customerId: IDS.customer,
+        organizationId: IDS.organization,
+        organizationRequisiteId: IDS.organizationRequisite,
+      },
+      IDS.user,
+      "agreement-create-default-2",
+    );
+    await createCustomerAgreementForCustomer(
+      ctx,
+      {
+        customerId: IDS.customer,
+        organizationId: IDS.organization,
+        organizationRequisiteId: IDS.organizationRequisite,
+      },
+      IDS.user,
+      "agreement-create-default-3",
+    );
+
+    const [firstCall, secondCall] =
+      ctx.agreementsModule.agreements.commands.create.mock.calls;
+    expect(firstCall[0].contractNumber).not.toBe(secondCall[0].contractNumber);
+  });
+
+  it("clears contract number on update when null is provided", async () => {
+    const ctx = createContext();
+    const current = createAgreementDetail();
+    ctx.agreementsModule.agreements.queries.findById.mockResolvedValue(current);
+    ctx.agreementsModule.agreements.commands.update.mockResolvedValue(current);
+
+    await updateCustomerAgreement(
+      ctx,
+      { contractNumber: null },
+      current.id,
+      IDS.user,
+      "agreement-update-clear",
+    );
+
+    const call =
+      ctx.agreementsModule.agreements.commands.update.mock.calls[0][0];
+    expect(call.contractNumber).toBeNull();
+  });
+
+  it("clears contract number on update when an empty string is provided", async () => {
+    const ctx = createContext();
+    const current = createAgreementDetail();
+    ctx.agreementsModule.agreements.queries.findById.mockResolvedValue(current);
+    ctx.agreementsModule.agreements.commands.update.mockResolvedValue(current);
+
+    await updateCustomerAgreement(
+      ctx,
+      { contractNumber: "   " },
+      current.id,
+      IDS.user,
+      "agreement-update-clear-blank",
+    );
+
+    const call =
+      ctx.agreementsModule.agreements.commands.update.mock.calls[0][0];
+    expect(call.contractNumber).toBeNull();
+  });
+
+  it("leaves contract number unchanged on update when field is omitted", async () => {
+    const ctx = createContext();
+    const current = createAgreementDetail();
+    ctx.agreementsModule.agreements.queries.findById.mockResolvedValue(current);
+    ctx.agreementsModule.agreements.commands.update.mockResolvedValue(current);
+
+    await updateCustomerAgreement(
+      ctx,
+      {},
+      current.id,
+      IDS.user,
+      "agreement-update-untouched",
+    );
+
+    const call =
+      ctx.agreementsModule.agreements.commands.update.mock.calls[0][0];
+    expect(call.contractNumber).toBeUndefined();
+  });
 });

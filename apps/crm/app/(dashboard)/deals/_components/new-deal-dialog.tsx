@@ -452,7 +452,7 @@ export function NewDealDialog({
           ))}
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {step === 1 ? (
             <div className="space-y-2">
               <Label>Клиент</Label>
@@ -484,19 +484,18 @@ export function NewDealDialog({
                     className="w-full min-w-0"
                     data-testid="deal-applicant-select"
                   >
-                    <SelectValue
-                      className="min-w-0 truncate"
-                      placeholder="Выберите контрагента"
-                    >
-                      {selectedApplicant
-                        ? `${selectedApplicant.shortName}${
-                            selectedApplicant.inn
-                              ? ` · ИНН ${selectedApplicant.inn}`
-                              : ""
-                          }`
-                        : selectedApplicantId
-                          ? "Выбранное юрлицо недоступно"
-                          : "Не выбрано"}
+                    <SelectValue placeholder="Выберите контрагента">
+                      <span className="truncate">
+                        {selectedApplicant
+                          ? `${selectedApplicant.shortName}${
+                              selectedApplicant.inn
+                                ? ` · ИНН ${selectedApplicant.inn}`
+                                : ""
+                            }`
+                          : selectedApplicantId
+                            ? "Выбранное юрлицо недоступно"
+                            : "Не выбрано"}
+                      </span>
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>

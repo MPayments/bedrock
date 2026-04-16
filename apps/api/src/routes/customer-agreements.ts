@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { randomUUID } from "node:crypto";
 
 import {
   AgreementActiveCustomerInvariantError,
@@ -11,6 +12,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/shared/core/errors";
+import { formatCompactUuid } from "@bedrock/shared/core/uuid";
 
 import type { AppContext } from "../context";
 
@@ -40,6 +42,12 @@ function trimToNull(value: string | null | undefined): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildDefaultCustomerAgreementContractNumber(
+  customerId: string,
+): string {
+  return `contract#${formatCompactUuid(customerId)}-${formatCompactUuid(randomUUID())}`;
 }
 
 function trimLeadingZeros(value: string): string {
@@ -332,7 +340,9 @@ export async function createCustomerAgreementForCustomer(
     organizationId: input.organizationId,
     organizationRequisiteId: input.organizationRequisiteId,
     contractDate: parseCompatibilityDate(input.contractDate) ?? undefined,
-    contractNumber: trimToNull(input.contractNumber),
+    contractNumber:
+      trimToNull(input.contractNumber) ??
+      buildDefaultCustomerAgreementContractNumber(input.customerId),
     feeRules: await buildAgreementFeeRules({
       agentFee: input.agentFee,
       ctx,

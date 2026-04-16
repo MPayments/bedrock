@@ -11,6 +11,7 @@ export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_LABELS: Record<
 > = {
   bic: "BIC",
   swift: "SWIFT",
+  corr_account: "Корр. счёт",
 };
 
 export const REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_LABELS: Record<
@@ -20,6 +21,7 @@ export const REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_LABELS: Record<
   bic: "BIC",
   branch_code: "Код филиала банка",
   swift: "SWIFT",
+  corr_account: "Корр. счёт",
 };
 
 export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_OPTIONS =

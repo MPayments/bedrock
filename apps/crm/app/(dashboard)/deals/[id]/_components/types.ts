@@ -192,7 +192,6 @@ export type ApiDealBankInstructionSnapshot = {
   bankName: string | null;
   beneficiaryName: string | null;
   bic: string | null;
-  corrAccount: string | null;
   iban: string | null;
   label: string | null;
   swift: string | null;
@@ -478,7 +477,6 @@ export type ApiOrganization = {
 
 export type ApiRequisite = {
   accountNo: string | null;
-  corrAccount: string | null;
   iban: string | null;
   id: string;
   label: string;

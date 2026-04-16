@@ -141,7 +141,7 @@ async function getProviderLabelById() {
   const payload = await readOptionsList({
     request: () =>
       client.v1.requisites.providers.options.$get(
-        {},
+        { query: {} },
         { init: { cache: "force-cache" } },
       ),
     schema: RequisiteProviderOptionsResponseSchema,
@@ -293,7 +293,7 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
     readOptionsList({
       request: () =>
         client.v1.requisites.providers.options.$get(
-          {},
+          { query: {} },
           { init: { cache: "no-store" } },
         ),
       schema: RequisiteProviderOptionsResponseSchema,

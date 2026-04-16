@@ -10,7 +10,6 @@ export const bankRequisiteFormSchema = z.object({
   beneficiaryNameLocal: z.string().optional(),
   beneficiaryAddress: z.string().optional(),
   accountNo: z.string().trim().min(1, "Номер счёта обязателен"),
-  corrAccount: z.string().optional(),
   iban: z.string().optional(),
   currencyId: z.string().uuid("Выберите валюту"),
   label: z.string().trim().min(1, "Название реквизита обязательно"),
@@ -49,7 +48,6 @@ export function createEmptyBankRequisiteValues(
     beneficiaryNameLocal: "",
     beneficiaryAddress: "",
     accountNo: "",
-    corrAccount: "",
     iban: "",
     currencyId: "",
     label: "",
@@ -83,7 +81,6 @@ export function toBankRequisiteFormValues(
     beneficiaryNameLocal: requisite.beneficiaryNameLocal ?? "",
     beneficiaryAddress: requisite.beneficiaryAddress ?? "",
     accountNo: findIdentifier(requisite.identifiers, "local_account_number"),
-    corrAccount: findIdentifier(requisite.identifiers, "corr_account"),
     iban: findIdentifier(requisite.identifiers, "iban"),
     currencyId: requisite.currencyId,
     label: requisite.label,
@@ -96,9 +93,8 @@ export function toBankRequisiteFormValues(
 }
 
 export function buildBankRequisiteIdentifiers(
-  values: Pick<BankRequisiteFormValues, "accountNo" | "corrAccount" | "iban">,
+  values: Pick<BankRequisiteFormValues, "accountNo" | "iban">,
 ) {
-  const corrAccount = values.corrAccount?.trim() ?? "";
   const iban = values.iban?.trim() ?? "";
 
   return [
@@ -107,13 +103,6 @@ export function buildBankRequisiteIdentifiers(
           scheme: "local_account_number",
           value: values.accountNo.trim(),
           isPrimary: !iban,
-        }
-      : null,
-    corrAccount
-      ? {
-          scheme: "corr_account",
-          value: corrAccount,
-          isPrimary: false,
         }
       : null,
     iban

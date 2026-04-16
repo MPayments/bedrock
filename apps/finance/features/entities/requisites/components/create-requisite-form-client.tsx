@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { RequisiteProviderSchema } from "@bedrock/parties/contracts";
+import {
+  RequisiteProviderBranchesResponseSchema,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
-import { z } from "zod";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type {
@@ -60,22 +62,28 @@ export function CreateRequisiteFormClient({
       return [];
     }
 
-    const provider = RequisiteProviderSchema.omit({
-      createdAt: true,
-      updatedAt: true,
-      archivedAt: true,
-    })
-      .extend({
-        createdAt: z.iso.datetime(),
-        updatedAt: z.iso.datetime(),
-        archivedAt: z.iso.datetime().nullable(),
-      })
-      .parse(await response.json());
-
-    return provider.branches.map((branch) => ({
+    const payload = RequisiteProviderBranchesResponseSchema.parse(
+      await response.json(),
+    );
+    return payload.branches.map((branch) => ({
       id: branch.id,
       label: branch.name,
     }));
+  }
+
+  async function loadProviderOptions(query: string) {
+    const response = await apiClient.v1.requisites.providers.options.$get({
+      query: { q: query },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = RequisiteProviderOptionsResponseSchema.parse(
+      await response.json(),
+    );
+    return payload.data.map((item) => ({ id: item.id, label: item.label }));
   }
 
   async function handleSubmit(values: RequisiteFormValues) {
@@ -137,6 +145,7 @@ export function CreateRequisiteFormClient({
       ownerOptions={ownerOptions}
       ownerTypeReadonly={ownerTypeReadonly}
       providerOptions={options.providers}
+      loadProviderOptions={loadProviderOptions}
       loadProviderBranches={loadProviderBranches}
       currencyOptions={options.currencies}
       initialValues={initialValues}

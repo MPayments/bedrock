@@ -302,7 +302,6 @@ export const PortalSettlementDestinationInputSchema = z.object({
       bankName: nullableShortText,
       beneficiaryName: nullableShortText,
       bic: nullableShortText,
-      corrAccount: nullableShortText,
       iban: nullableShortText,
       label: nullableShortText,
       swift: nullableShortText,

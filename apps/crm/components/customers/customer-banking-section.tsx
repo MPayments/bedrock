@@ -48,7 +48,6 @@ type BankingFieldValues = {
   bankRequisite: {
     accountNo?: string;
     beneficiaryName?: string;
-    corrAccount?: string;
     iban?: string;
   };
 };
@@ -225,18 +224,15 @@ export function CustomerBankingSection(props: {
     "bankRequisite.beneficiaryName",
   ) as string | undefined;
   const accountNo = form.watch("bankRequisite.accountNo") as string | undefined;
-  const corrAccount = form.watch(
-    "bankRequisite.corrAccount",
-  ) as string | undefined;
   const iban = form.watch("bankRequisite.iban") as string | undefined;
   const providerSelected = bankMode === "existing" && Boolean(bankProviderId);
   const errors = form.formState.errors as Record<string, unknown>;
 
   useEffect(() => {
-    if ((corrAccount?.trim() ?? "") || (iban?.trim() ?? "")) {
+    if (iban?.trim() ?? "") {
       setShowAdvancedFields(true);
     }
-  }, [corrAccount, iban]);
+  }, [iban]);
 
   function setField<TPath extends Path<BankingFieldValues>>(
     name: TPath,
@@ -527,23 +523,6 @@ export function CustomerBankingSection(props: {
 
           {showAdvancedFields ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="bankRequisite.corrAccount">Корр. счет</Label>
-                <Input
-                  id="bankRequisite.corrAccount"
-                  disabled={disabled}
-                  value={corrAccount ?? ""}
-                  onChange={(event) =>
-                    setField("bankRequisite.corrAccount", event.target.value)
-                  }
-                  placeholder="30101810..."
-                />
-                {getNestedError(errors, "bankRequisite.corrAccount") ? (
-                  <p className="text-xs text-destructive">
-                    {getNestedError(errors, "bankRequisite.corrAccount")}
-                  </p>
-                ) : null}
-              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="bankRequisite.iban">IBAN</Label>
                 <Input

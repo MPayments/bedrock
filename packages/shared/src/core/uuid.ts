@@ -14,3 +14,7 @@ export function formatCompactId(value: string): string {
 export function getUuidPrefix(value: string): string {
   return isUuidLike(value) ? value.slice(0, 8) : value;
 }
+
+export function formatCompactUuid(value: string): string {
+  return getUuidPrefix(value).toUpperCase();
+}

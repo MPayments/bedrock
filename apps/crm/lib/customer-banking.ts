@@ -15,7 +15,6 @@ export type CustomerBankProviderSnapshot = {
 export type CustomerBankRequisiteSnapshot = {
   accountNo?: string;
   beneficiaryName?: string;
-  corrAccount?: string;
   iban?: string;
 };
 
@@ -87,7 +86,6 @@ type FlatBankingSource = {
   bankProviderId?: string | null;
   beneficiaryName?: string | null;
   bic?: string | null;
-  corrAccount?: string | null;
   iban?: string | null;
   swift?: string | null;
 };
@@ -177,7 +175,6 @@ export function getDefaultCustomerBankingValues(): CustomerBankingFormValues {
     bankRequisite: {
       accountNo: "",
       beneficiaryName: "",
-      corrAccount: "",
       iban: "",
     },
   };
@@ -208,7 +205,6 @@ export function mapFlatBankingToFormValues(
     bankRequisite: {
       accountNo: normalizeNullableText(input.account) ?? "",
       beneficiaryName: normalizeNullableText(input.beneficiaryName) ?? "",
-      corrAccount: normalizeNullableText(input.corrAccount) ?? "",
       iban: normalizeNullableText(input.iban) ?? "",
     },
   };
@@ -243,12 +239,10 @@ export function createCustomerBankingPayload(
     bankRequisite: {
       accountNo: normalizeNullableText(values.bankRequisite.accountNo),
       beneficiaryName: normalizeNullableText(values.bankRequisite.beneficiaryName),
-      corrAccount: normalizeNullableText(values.bankRequisite.corrAccount),
       iban: normalizeNullableText(values.bankRequisite.iban),
     },
     beneficiaryName: normalizeNullableText(values.bankRequisite.beneficiaryName),
     bic: routing.bic,
-    corrAccount: normalizeNullableText(values.bankRequisite.corrAccount),
     iban: normalizeNullableText(values.bankRequisite.iban),
     swift: routing.swift,
   };
@@ -303,36 +297,89 @@ export async function searchCustomerBankProviders(input: {
     return [];
   }
 
-  const response = await apiClient.v1.requisites.providers.$get(
-    {
-      query: {
-        displayName: trimmed,
-        kind: ["bank"],
-        limit: 8,
-        offset: 0,
-        sortBy: "displayName",
-        sortOrder: "asc",
-      },
-    },
-    {
-      init: { signal: input.signal },
-    },
-  );
+  const compact = trimmed.replace(/\s+/g, "");
+  const upper = compact.toUpperCase();
+  const looksLikeBic = /^\d{9}$/u.test(compact);
+  const looksLikeSwift = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/u.test(upper);
 
-  if (!response.ok) {
-    throw new Error(`Ошибка поиска банка: ${response.status}`);
+  const queries: Array<Parameters<typeof apiClient.v1.requisites.providers.$get>[0]["query"]> = [
+    {
+      displayName: trimmed,
+      kind: ["bank"],
+      limit: 8,
+      offset: 0,
+      sortBy: "displayName",
+      sortOrder: "asc",
+    },
+  ];
+
+  if (looksLikeBic) {
+    queries.push({
+      bic: [compact],
+      kind: ["bank"],
+      limit: 8,
+      offset: 0,
+      sortBy: "displayName",
+      sortOrder: "asc",
+    });
   }
 
-  const payload = await readJsonWithSchema(
-    response,
-    RequisiteProviderListResponseSchema,
+  if (looksLikeSwift) {
+    queries.push({
+      swift: [upper],
+      kind: ["bank"],
+      limit: 8,
+      offset: 0,
+      sortBy: "displayName",
+      sortOrder: "asc",
+    });
+  }
+
+  const responses = await Promise.all(
+    queries.map((query) =>
+      apiClient.v1.requisites.providers.$get(
+        { query },
+        { init: { signal: input.signal } },
+      ),
+    ),
   );
 
+  for (const response of responses) {
+    if (!response.ok) {
+      throw new Error(`Ошибка поиска банка: ${response.status}`);
+    }
+  }
+
+  const payloads = await Promise.all(
+    responses.map((response) =>
+      readJsonWithSchema(response, RequisiteProviderListResponseSchema),
+    ),
+  );
+
+  const MAX_DETAIL_FETCHES = 8;
+  const seen = new Set<string>();
+  const providerIds: string[] = [];
+  for (const payload of payloads) {
+    for (const provider of payload.data) {
+      if (seen.has(provider.id)) {
+        continue;
+      }
+      seen.add(provider.id);
+      providerIds.push(provider.id);
+      if (providerIds.length >= MAX_DETAIL_FETCHES) {
+        break;
+      }
+    }
+    if (providerIds.length >= MAX_DETAIL_FETCHES) {
+      break;
+    }
+  }
+
   const details = await Promise.all(
-    payload.data.map(async (provider) => {
+    providerIds.map(async (providerId) => {
       const detailResponse = await apiClient.v1.requisites.providers[":id"].$get(
         {
-          param: { id: provider.id },
+          param: { id: providerId },
         },
         {
           init: { signal: input.signal },
