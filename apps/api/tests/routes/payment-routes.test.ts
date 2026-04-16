@@ -77,16 +77,44 @@ function createDraft() {
     lockedSide: "currency_in",
     participants: [
       {
+        binding: "bound",
         displayName: "placeholder",
         entityId: IDS.customer,
-        kind: "customer",
+        entityKind: "customer",
         nodeId: "node-customer",
+        role: "source",
       },
       {
+        binding: "bound",
         displayName: "placeholder",
         entityId: IDS.organization,
-        kind: "organization",
+        entityKind: "organization",
         nodeId: "node-organization",
+        role: "destination",
+      },
+    ],
+  } as const;
+}
+
+function createAbstractDraft() {
+  return {
+    ...createDraft(),
+    participants: [
+      {
+        binding: "abstract",
+        displayName: "Любой клиент",
+        entityId: null,
+        entityKind: null,
+        nodeId: "node-customer",
+        role: "source",
+      },
+      {
+        binding: "abstract",
+        displayName: "Любой бенефициар",
+        entityId: null,
+        entityKind: null,
+        nodeId: "node-organization",
+        role: "destination",
       },
     ],
   } as const;
@@ -144,16 +172,20 @@ function createTemplate(overrides: Record<string, unknown> = {}) {
     ...createDraft(),
     participants: [
       {
+        binding: "bound",
         displayName: "Acme Customer",
         entityId: IDS.customer,
-        kind: "customer",
+        entityKind: "customer",
         nodeId: "node-customer",
+        role: "source",
       },
       {
+        binding: "bound",
         displayName: "Bedrock Treasury",
         entityId: IDS.organization,
-        kind: "organization",
+        entityKind: "organization",
         nodeId: "node-organization",
+        role: "destination",
       },
     ],
   };
@@ -179,13 +211,13 @@ function createListItem() {
     createdAt: template.createdAt,
     currencyInId: template.draft.currencyInId,
     currencyOutId: template.draft.currencyOutId,
-    destinationParticipant: template.draft.participants[1],
+    destinationEndpoint: template.draft.participants[1],
     hopCount: 0,
     id: template.id,
     lastCalculation: template.lastCalculation,
     name: template.name,
     snapshotPolicy: template.snapshotPolicy,
-    sourceParticipant: template.draft.participants[0],
+    sourceEndpoint: template.draft.participants[0],
     status: template.status,
     updatedAt: template.updatedAt,
   };
@@ -331,16 +363,20 @@ describe("payment routes routes", () => {
         ...createDraft(),
         participants: [
           {
+            binding: "bound",
             displayName: "Acme Customer",
             entityId: IDS.customer,
-            kind: "customer",
+            entityKind: "customer",
             nodeId: "node-customer",
+            role: "source",
           },
           {
+            binding: "bound",
             displayName: "Bedrock Treasury",
             entityId: IDS.organization,
-            kind: "organization",
+            entityKind: "organization",
             nodeId: "node-organization",
+            role: "destination",
           },
         ],
       },
@@ -438,16 +474,20 @@ describe("payment routes routes", () => {
         ...createDraft(),
         participants: [
           {
+            binding: "bound",
             displayName: "Acme Customer",
             entityId: IDS.customer,
-            kind: "customer",
+            entityKind: "customer",
             nodeId: "node-customer",
+            role: "source",
           },
           {
+            binding: "bound",
             displayName: "Bedrock Treasury",
             entityId: IDS.organization,
-            kind: "organization",
+            entityKind: "organization",
             nodeId: "node-organization",
+            role: "destination",
           },
         ],
       },
@@ -480,6 +520,108 @@ describe("payment routes routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: expect.stringContaining("Customer not found"),
     });
+  });
+
+  it("creates templates with abstract endpoints without resolving party records", async () => {
+    const {
+      app,
+      createTemplateCommand,
+      findCounterpartyById,
+      findCustomerById,
+      findOrganizationById,
+    } = createTestApp();
+
+    createTemplateCommand.mockResolvedValue(
+      createTemplate({
+        draft: createAbstractDraft(),
+      }),
+    );
+
+    const response = await app.request("http://localhost/payment-routes", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        draft: createAbstractDraft(),
+        name: "Generic USD payout",
+        visual: createVisual(),
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTemplateCommand).toHaveBeenCalledWith({
+      draft: createAbstractDraft(),
+      name: "Generic USD payout",
+      visual: createVisual(),
+    });
+    expect(findCustomerById).not.toHaveBeenCalled();
+    expect(findOrganizationById).not.toHaveBeenCalled();
+    expect(findCounterpartyById).not.toHaveBeenCalled();
+  });
+
+  it("previews mixed abstract and bound endpoints", async () => {
+    const {
+      app,
+      findCustomerById,
+      findOrganizationById,
+      previewTemplate,
+    } = createTestApp();
+
+    previewTemplate.mockResolvedValue(createCalculation());
+
+    const response = await app.request(
+      "http://localhost/payment-routes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: {
+            ...createDraft(),
+            participants: [
+              createDraft().participants[0],
+              {
+                binding: "abstract",
+                displayName: "Любой бенефициар",
+                entityId: null,
+                entityKind: null,
+                nodeId: "node-organization",
+                role: "destination",
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(previewTemplate).toHaveBeenCalledWith({
+      draft: {
+        ...createDraft(),
+        participants: [
+          {
+            binding: "bound",
+            displayName: "Acme Customer",
+            entityId: IDS.customer,
+            entityKind: "customer",
+            nodeId: "node-customer",
+            role: "source",
+          },
+          {
+            binding: "abstract",
+            displayName: "Любой бенефициар",
+            entityId: null,
+            entityKind: null,
+            nodeId: "node-organization",
+            role: "destination",
+          },
+        ],
+      },
+    });
+    expect(findCustomerById).toHaveBeenCalledTimes(1);
+    expect(findOrganizationById).not.toHaveBeenCalled();
   });
 
   it("rejects invalid fee payloads before the preview handler runs", async () => {

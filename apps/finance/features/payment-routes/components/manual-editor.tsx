@@ -4,7 +4,18 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldTitle,
+} from "@bedrock/sdk-ui/components/field";
 import {
   Select,
   SelectContent,
@@ -14,6 +25,7 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
 
+import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
@@ -26,11 +38,11 @@ import {
   removeIntermediateParticipant,
   removeLegFee,
   setLegField,
+  setParticipantBinding,
   setParticipantOption,
   updateAdditionalFee,
   updateLegFee,
 } from "../lib/state";
-import { formatCurrencyMinorAmount } from "../lib/format";
 import {
   CalculationHint,
   CurrencySelector,
@@ -57,6 +69,9 @@ export function PaymentRouteManualEditor({
   options,
   state,
 }: PaymentRouteManualEditorProps) {
+  const canInsertHop =
+    options.organizations.length > 0 || options.counterparties.length > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -69,6 +84,7 @@ export function PaymentRouteManualEditor({
         <Button
           type="button"
           variant="outline"
+          disabled={!canInsertHop}
           onClick={() =>
             onStateChange(
               insertIntermediateParticipant({
@@ -89,23 +105,28 @@ export function PaymentRouteManualEditor({
         const destination = state.draft.participants[index + 1]!;
         const calculation = getLegCalculation(state.calculation, leg.id);
         const fromCurrency =
-          options.currencies.find((currency) => currency.id === leg.fromCurrencyId) ?? null;
+          options.currencies.find(
+            (currency) => currency.id === leg.fromCurrencyId,
+          ) ?? null;
         const toCurrency =
-          options.currencies.find((currency) => currency.id === leg.toCurrencyId) ?? null;
+          options.currencies.find(
+            (currency) => currency.id === leg.toCurrencyId,
+          ) ?? null;
 
         return (
-          <Card key={leg.id} className="border-border/70">
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Шаг {index + 1}</Badge>
-                    <CardTitle className="text-base">
-                      {participant.displayName} → {destination.displayName}
-                    </CardTitle>
-                  </div>
+            <Card key={leg.id} className="border-border/70">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Badge variant="outline">Шаг {index + 1}</Badge>
+                      <CardTitle className="min-w-0 truncate text-base">
+                        {participant.displayName} → {destination.displayName}
+                      </CardTitle>
+                    </div>
                   <div className="text-sm text-muted-foreground">
-                    Переход от клиента к бенефициару через связанные операции маршрута.
+                    Переход от клиента к бенефициару через связанные операции
+                    маршрута.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -161,21 +182,29 @@ export function PaymentRouteManualEditor({
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Откуда
-                  </div>
+              <FieldGroup className="grid gap-4 xl:grid-cols-2">
+                <Field>
+                  <FieldTitle>Откуда</FieldTitle>
                   <ParticipantSelector
                     index={index}
                     options={options}
                     participant={participant}
                     state={state}
-                    onKindChange={(kind) =>
+                    onBindingChange={(binding) =>
+                      onStateChange(
+                        setParticipantBinding({
+                          binding,
+                          index,
+                          options,
+                          state,
+                        }),
+                      )
+                    }
+                    onKindChange={(entityKind) =>
                       onStateChange(
                         changeParticipantKind({
+                          entityKind,
                           index,
-                          kind,
                           options,
                           state,
                         }),
@@ -185,29 +214,40 @@ export function PaymentRouteManualEditor({
                       onStateChange(
                         setParticipantOption({
                           entityId,
+                          entityKind:
+                            participant.entityKind === null
+                              ? "customer"
+                              : participant.entityKind,
                           index,
-                          kind: participant.kind,
                           options,
                           state,
                         }),
                       )
                     }
                   />
-                </div>
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Куда
-                  </div>
+                </Field>
+                <Field>
+                  <FieldTitle>Куда</FieldTitle>
                   <ParticipantSelector
                     index={index + 1}
                     options={options}
                     participant={destination}
                     state={state}
-                    onKindChange={(kind) =>
+                    onBindingChange={(binding) =>
+                      onStateChange(
+                        setParticipantBinding({
+                          binding,
+                          index: index + 1,
+                          options,
+                          state,
+                        }),
+                      )
+                    }
+                    onKindChange={(entityKind) =>
                       onStateChange(
                         changeParticipantKind({
+                          entityKind,
                           index: index + 1,
-                          kind,
                           options,
                           state,
                         }),
@@ -217,22 +257,23 @@ export function PaymentRouteManualEditor({
                       onStateChange(
                         setParticipantOption({
                           entityId,
+                          entityKind:
+                            destination.entityKind === null
+                              ? "organization"
+                              : destination.entityKind,
                           index: index + 1,
-                          kind: destination.kind,
                           options,
                           state,
                         }),
                       )
                     }
                   />
-                </div>
-              </div>
+                </Field>
+              </FieldGroup>
 
-              <div className="grid gap-4 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Операция
-                  </div>
+              <FieldGroup className="grid gap-4 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+                <Field>
+                  <FieldTitle>Операция</FieldTitle>
                   <Select
                     value={leg.kind}
                     onValueChange={(kind) => {
@@ -267,11 +308,9 @@ export function PaymentRouteManualEditor({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Валюта входа
-                  </div>
+                </Field>
+                <Field>
+                  <FieldTitle>Валюта входа</FieldTitle>
                   <CurrencySelector
                     ariaLabel="Валюта входа"
                     options={options}
@@ -284,11 +323,9 @@ export function PaymentRouteManualEditor({
                       )
                     }
                   />
-                </div>
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Валюта выхода
-                  </div>
+                </Field>
+                <Field>
+                  <FieldTitle>Валюта выхода</FieldTitle>
                   <CurrencySelector
                     ariaLabel="Валюта выхода"
                     options={options}
@@ -301,8 +338,8 @@ export function PaymentRouteManualEditor({
                       )
                     }
                   />
-                </div>
-              </div>
+                </Field>
+              </FieldGroup>
 
               <CalculationHint
                 text={
@@ -318,21 +355,21 @@ export function PaymentRouteManualEditor({
                 }
               />
 
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Комиссии шага
-                </div>
+              <Field>
+                <FieldTitle>Комиссии шага</FieldTitle>
                 <FeeListEditor
                   fallbackCurrencyId={leg.fromCurrencyId}
                   fees={leg.fees}
                   options={options}
                   onAdd={() => onStateChange(addLegFee(state, leg.id))}
-                  onRemove={(feeId) => onStateChange(removeLegFee(state, leg.id, feeId))}
+                  onRemove={(feeId) =>
+                    onStateChange(removeLegFee(state, leg.id, feeId))
+                  }
                   onChange={(feeId, updater) =>
                     onStateChange(updateLegFee(state, leg.id, feeId, updater))
                   }
                 />
-              </div>
+              </Field>
             </CardContent>
           </Card>
         );
@@ -349,7 +386,9 @@ export function PaymentRouteManualEditor({
             fees={state.draft.additionalFees}
             options={options}
             onAdd={() => onStateChange(addAdditionalFee(state))}
-            onRemove={(feeId) => onStateChange(removeAdditionalFee(state, feeId))}
+            onRemove={(feeId) =>
+              onStateChange(removeAdditionalFee(state, feeId))
+            }
             onChange={(feeId, updater) =>
               onStateChange(updateAdditionalFee(state, feeId, updater))
             }

@@ -37,16 +37,20 @@ function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft 
     lockedSide: "currency_in",
     participants: [
       {
+        binding: "bound",
         displayName: "Acme Customer",
         entityId: "00000000-0000-4000-8000-000000000001",
-        kind: "customer",
+        entityKind: "customer",
         nodeId: "node-customer",
+        role: "source",
       },
       {
+        binding: "bound",
         displayName: "Bedrock Treasury",
         entityId: "00000000-0000-4000-8000-000000000002",
-        kind: "organization",
+        entityKind: "organization",
         nodeId: "node-org",
+        role: "destination",
       },
     ],
     ...input,
@@ -303,22 +307,28 @@ describe("payment routes", () => {
       ],
       participants: [
         {
+          binding: "bound",
           displayName: "Acme Customer",
           entityId: "00000000-0000-4000-8000-000000000001",
-          kind: "customer",
+          entityKind: "customer",
           nodeId: "node-customer",
+          role: "source",
         },
         {
+          binding: "bound",
           displayName: "Dubai Bank",
           entityId: "00000000-0000-4000-8000-000000000002",
-          kind: "organization",
+          entityKind: "organization",
           nodeId: "node-dubai",
+          role: "hop",
         },
         {
+          binding: "bound",
           displayName: "USA Bank",
           entityId: "00000000-0000-4000-8000-000000000003",
-          kind: "organization",
+          entityKind: "organization",
           nodeId: "node-usa",
+          role: "destination",
         },
       ],
     });
@@ -357,6 +367,99 @@ describe("payment routes", () => {
 
     expect(calculation.amountInMinor).toBe("10000");
     expect(calculation.amountOutMinor).toBe("9000");
+  });
+
+  it("previews routes with abstract source and destination endpoints", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      participants: [
+        {
+          binding: "abstract",
+          displayName: "Любой клиент",
+          entityId: null,
+          entityKind: null,
+          nodeId: "node-source",
+          role: "source",
+        },
+        {
+          binding: "abstract",
+          displayName: "Любой бенефициар",
+          entityId: null,
+          entityKind: null,
+          nodeId: "node-destination",
+          role: "destination",
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("10000");
+    expect(calculation.netAmountOutMinor).toBe("10000");
+  });
+
+  it("normalizes legacy concrete templates on read", async () => {
+    const { now, repository, service } = createService();
+
+    await repository.insertTemplate({
+      createdAt: now,
+      draft: {
+        ...createDraft(),
+        participants: [
+          {
+            displayName: "Legacy Customer",
+            entityId: "00000000-0000-4000-8000-000000000001",
+            kind: "customer",
+            nodeId: "node-legacy-source",
+          },
+          {
+            displayName: "Legacy Treasury",
+            entityId: "00000000-0000-4000-8000-000000000002",
+            kind: "organization",
+            nodeId: "node-legacy-destination",
+          },
+        ],
+      } as PaymentRouteDraft,
+      id: "00000000-0000-4000-8000-000000000099",
+      lastCalculation: null,
+      name: "Legacy route",
+      snapshotPolicy: "clone_on_attach",
+      status: "active",
+      updatedAt: now,
+      visual: {
+        nodePositions: {},
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+    } as any);
+
+    const template = await service.queries.findTemplateById(
+      "00000000-0000-4000-8000-000000000099",
+    );
+    const list = await service.queries.listTemplates({
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(template.draft.participants[0]).toMatchObject({
+      binding: "bound",
+      entityKind: "customer",
+      role: "source",
+    });
+    expect(template.draft.participants[1]).toMatchObject({
+      binding: "bound",
+      entityKind: "organization",
+      role: "destination",
+    });
+    expect(list.data[0]?.sourceEndpoint).toMatchObject({
+      binding: "bound",
+      entityKind: "customer",
+      role: "source",
+    });
+    expect(list.data[0]?.destinationEndpoint).toMatchObject({
+      binding: "bound",
+      entityKind: "organization",
+      role: "destination",
+    });
   });
 
   it("duplicates and archives templates without mutating the copied snapshot", async () => {

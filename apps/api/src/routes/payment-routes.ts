@@ -6,6 +6,8 @@ import {
   OrganizationNotFoundError,
 } from "@bedrock/parties";
 import {
+  ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+  ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
   CreatePaymentRouteTemplateInputSchema,
   ListPaymentRouteTemplatesQuerySchema,
   PaymentRouteCalculationSchema,
@@ -29,15 +31,21 @@ async function resolveParticipantDisplayName(
   ctx: AppContext,
   participant: ReturnType<typeof PaymentRouteDraftSchema.parse>["participants"][number],
 ) {
+  if (participant.binding === "abstract") {
+    return participant.role === "source"
+      ? ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME
+      : ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME;
+  }
+
   try {
-    if (participant.kind === "customer") {
+    if (participant.entityKind === "customer") {
       const customer = await ctx.partiesModule.customers.queries.findById(
         participant.entityId,
       );
       return customer.name;
     }
 
-    if (participant.kind === "organization") {
+    if (participant.entityKind === "organization") {
       const organization = await ctx.partiesModule.organizations.queries.findById(
         participant.entityId,
       );
@@ -72,10 +80,10 @@ async function normalizeRouteDraftParticipants(
     })),
   );
 
-  return {
+  return PaymentRouteDraftSchema.parse({
     ...draft,
     participants,
-  };
+  });
 }
 
 export function paymentRoutesRoutes(ctx: AppContext) {

@@ -38,8 +38,8 @@ function buildColumns(
         <div className="space-y-1">
           <div className="font-medium">{row.original.name}</div>
           <div className="text-xs text-muted-foreground">
-            {row.original.sourceParticipant.displayName} →{" "}
-            {row.original.destinationParticipant.displayName}
+            {row.original.sourceEndpoint.displayName} →{" "}
+            {row.original.destinationEndpoint.displayName}
           </div>
         </div>
       ),
@@ -52,15 +52,15 @@ function buildColumns(
       enableSorting: true,
     },
     {
-      id: "sourceParticipant",
+      id: "sourceEndpoint",
       header: () => "Клиент",
-      cell: ({ row }) => row.original.sourceParticipant.displayName,
+      cell: ({ row }) => row.original.sourceEndpoint.displayName,
       enableSorting: false,
     },
     {
-      id: "destinationParticipant",
+      id: "destinationEndpoint",
       header: () => "Бенефициар",
-      cell: ({ row }) => row.original.destinationParticipant.displayName,
+      cell: ({ row }) => row.original.destinationEndpoint.displayName,
       enableSorting: false,
     },
     {

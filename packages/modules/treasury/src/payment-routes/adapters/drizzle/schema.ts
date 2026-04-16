@@ -26,11 +26,10 @@ export const paymentRouteTemplates = pgTable(
       .$type<PaymentRouteTemplateStatus>()
       .notNull()
       .default("active"),
-    sourceCustomerId: uuid("source_customer_id").notNull(),
+    sourceCustomerId: uuid("source_customer_id"),
     destinationEntityKind: text("destination_entity_kind")
-      .$type<Exclude<PaymentRouteParticipantKind, "customer">>()
-      .notNull(),
-    destinationEntityId: uuid("destination_entity_id").notNull(),
+      .$type<Exclude<PaymentRouteParticipantKind, "customer"> | null>(),
+    destinationEntityId: uuid("destination_entity_id"),
     currencyInId: uuid("currency_in_id").notNull(),
     currencyOutId: uuid("currency_out_id").notNull(),
     hopCount: integer("hop_count").notNull().default(0),

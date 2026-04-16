@@ -133,16 +133,20 @@ const TEMPLATE = {
     lockedSide: "currency_in",
     participants: [
       {
+        binding: "bound",
         displayName: "Acme Customer",
         entityId: OPTIONS.customers[0].id,
-        kind: "customer",
+        entityKind: "customer",
         nodeId: "node-customer",
+        role: "source",
       },
       {
+        binding: "bound",
         displayName: "Bedrock Treasury",
         entityId: OPTIONS.organizations[0].id,
-        kind: "organization",
+        entityKind: "organization",
         nodeId: "node-organization",
+        role: "destination",
       },
     ],
   },

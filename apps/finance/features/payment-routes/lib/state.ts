@@ -1,5 +1,9 @@
 import {
+  ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+  ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
   PaymentRouteDraftSchema,
+  type PaymentRouteParticipantBinding,
+  type PaymentRouteParticipantRole,
   PaymentRouteVisualMetadataSchema,
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
@@ -82,15 +86,67 @@ function getDefaultEntityOption(options: PaymentRouteConstructorOptions) {
   return getEntityOptions(options)[0] ?? null;
 }
 
-function createParticipantRef(
-  option: PaymentRouteSelectableParticipantOption,
+function createBoundParticipantRef(input: {
+  nodeId?: string;
+  option: PaymentRouteSelectableParticipantOption;
+  role: PaymentRouteParticipantRole;
+}): PaymentRouteParticipantRef {
+  const nodeId = input.nodeId ?? createId("route-node");
+
+  if (input.role === "source") {
+    return {
+      binding: "bound",
+      displayName: input.option.shortLabel,
+      entityId: input.option.id,
+      entityKind: "customer",
+      nodeId,
+      role: "source",
+    };
+  }
+
+  if (input.role === "destination") {
+    return {
+      binding: "bound",
+      displayName: input.option.shortLabel,
+      entityId: input.option.id,
+      entityKind: input.option.kind as "counterparty" | "organization",
+      nodeId,
+      role: "destination",
+    };
+  }
+
+  return {
+    binding: "bound",
+    displayName: input.option.shortLabel,
+    entityId: input.option.id,
+    entityKind: input.option.kind as "counterparty" | "organization",
+    nodeId,
+    role: "hop",
+  };
+}
+
+function createAbstractEndpointParticipantRef(
+  role: Extract<PaymentRouteParticipantRole, "destination" | "source">,
   nodeId = createId("route-node"),
 ): PaymentRouteParticipantRef {
+  if (role === "source") {
+    return {
+      binding: "abstract",
+      displayName: ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+      entityId: null,
+      entityKind: null,
+      nodeId,
+      role: "source",
+    };
+  }
+
   return {
-    displayName: option.shortLabel,
-    entityId: option.id,
-    kind: option.kind,
+    binding: "abstract",
+    displayName: ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+    entityId: null,
+    entityKind: null,
     nodeId,
+    role: "destination",
   };
 }
 
@@ -124,46 +180,53 @@ export function getCustomerOptions(
   }));
 }
 
-export function getSelectableParticipantOptions(input: {
-  index: number;
-  options: PaymentRouteConstructorOptions;
-}) {
-  if (input.index === 0) {
-    return getCustomerOptions(input.options);
+function getSelectableParticipantOptionsForRole(
+  role: PaymentRouteParticipantRole,
+  options: PaymentRouteConstructorOptions,
+) {
+  if (role === "source") {
+    return getCustomerOptions(options);
   }
 
-  return getEntityOptions(input.options);
+  return getEntityOptions(options);
+}
+
+export function getSelectableParticipantOptions(input: {
+  options: PaymentRouteConstructorOptions;
+  participant: PaymentRouteDraft["participants"][number];
+}) {
+  return getSelectableParticipantOptionsForRole(
+    input.participant.role,
+    input.options,
+  );
 }
 
 export function findSelectableParticipantOption(input: {
   entityId: string;
-  kind: PaymentRouteParticipantKind;
   options: PaymentRouteConstructorOptions;
+  role: PaymentRouteParticipantRole;
+  entityKind: PaymentRouteParticipantKind;
 }) {
-  return getSelectableParticipantOptions({
-    index: input.kind === "customer" ? 0 : 1,
-    options: input.options,
-  }).find(
-    (option) => option.id === input.entityId && option.kind === input.kind,
+  return getSelectableParticipantOptionsForRole(input.role, input.options).find(
+    (option) =>
+      option.id === input.entityId && option.kind === input.entityKind,
   ) ?? null;
 }
 
 export function createPaymentRouteSeed(
   options: PaymentRouteConstructorOptions,
 ): PaymentRouteEditorState | null {
-  const customer = getCustomerOptions(options)[0] ?? null;
-  const destination = getDefaultEntityOption(options);
   const currency = options.currencies[0] ?? null;
 
-  if (!customer || !destination || !currency) {
+  if (!currency) {
     return null;
   }
 
   const amountMinor = toMinorAmountString("12000", currency.code, {
     requirePositive: true,
   });
-  const source = createParticipantRef(customer);
-  const target = createParticipantRef(destination);
+  const source = createAbstractEndpointParticipantRef("source");
+  const target = createAbstractEndpointParticipantRef("destination");
   const draft = PaymentRouteDraftSchema.parse({
     additionalFees: [],
     amountInMinor: amountMinor,
@@ -334,14 +397,21 @@ export function setRouteCurrency(input: {
 export function setParticipantOption(input: {
   entityId: string;
   index: number;
-  kind: PaymentRouteParticipantKind;
+  entityKind: PaymentRouteParticipantKind;
   options: PaymentRouteConstructorOptions;
   state: PaymentRouteEditorState;
 }): PaymentRouteEditorState {
+  const participant = input.state.draft.participants[input.index];
+
+  if (!participant) {
+    return input.state;
+  }
+
   const option = findSelectableParticipantOption({
     entityId: input.entityId,
-    kind: input.kind,
+    entityKind: input.entityKind,
     options: input.options,
+    role: participant.role,
   });
 
   if (!option) {
@@ -349,10 +419,65 @@ export function setParticipantOption(input: {
   }
 
   const draft = cloneDraft(input.state.draft);
-  draft.participants[input.index] = createParticipantRef(
+  draft.participants[input.index] = createBoundParticipantRef({
+    nodeId: draft.participants[input.index]!.nodeId,
     option,
-    draft.participants[input.index]!.nodeId,
-  );
+    role: participant.role,
+  });
+
+  return {
+    ...input.state,
+    draft,
+    visual: ensureVisualMetadata(draft, input.state.visual),
+  };
+}
+
+export function setParticipantBinding(input: {
+  binding: Extract<PaymentRouteParticipantBinding, "abstract" | "bound">;
+  index: number;
+  options: PaymentRouteConstructorOptions;
+  state: PaymentRouteEditorState;
+}): PaymentRouteEditorState {
+  const participant = input.state.draft.participants[input.index];
+
+  if (
+    !participant ||
+    participant.role === "hop" ||
+    participant.binding === input.binding
+  ) {
+    return input.state;
+  }
+
+  const draft = cloneDraft(input.state.draft);
+  const current = draft.participants[input.index]!;
+
+  if (input.binding === "abstract") {
+    draft.participants[input.index] = createAbstractEndpointParticipantRef(
+      current.role as Extract<PaymentRouteParticipantRole, "destination" | "source">,
+      current.nodeId,
+    );
+
+    return {
+      ...input.state,
+      draft,
+      visual: ensureVisualMetadata(draft, input.state.visual),
+    };
+  }
+
+  const option = getSelectableParticipantOptionsForRole(
+    current.role,
+    input.options,
+  )[0];
+
+  if (!option) {
+    return input.state;
+  }
+
+  draft.participants[input.index] = createBoundParticipantRef({
+    nodeId: current.nodeId,
+    option,
+    role: current.role,
+  });
 
   return {
     ...input.state,
@@ -367,13 +492,30 @@ export function setLegField(
   patch: Partial<PaymentRouteDraft["legs"][number]>,
 ): PaymentRouteEditorState {
   const draft = cloneDraft(state.draft);
-  const leg = draft.legs.find((item) => item.id === legId);
+  const legIndex = draft.legs.findIndex((item) => item.id === legId);
+  const leg = draft.legs[legIndex];
 
   if (!leg) {
     return state;
   }
 
   Object.assign(leg, patch);
+
+  if (patch.fromCurrencyId) {
+    if (legIndex === 0) {
+      draft.currencyInId = patch.fromCurrencyId;
+    } else {
+      draft.legs[legIndex - 1]!.toCurrencyId = patch.fromCurrencyId;
+    }
+  }
+
+  if (patch.toCurrencyId) {
+    if (legIndex === draft.legs.length - 1) {
+      draft.currencyOutId = patch.toCurrencyId;
+    } else {
+      draft.legs[legIndex + 1]!.fromCurrencyId = patch.toCurrencyId;
+    }
+  }
 
   return {
     ...state,
@@ -505,7 +647,10 @@ export function insertIntermediateParticipant(input: {
     return input.state;
   }
 
-  const participant = createParticipantRef(option);
+  const participant = createBoundParticipantRef({
+    option,
+    role: "hop",
+  });
   const trailingLeg = {
     fees: [],
     fromCurrencyId: splitLeg.toCurrencyId,
@@ -653,13 +798,11 @@ export function createDuplicateRouteName(name: string) {
   return `${name} (копия)`;
 }
 
-export function getParticipantKindOptions(index: number, draft: PaymentRouteDraft) {
-  if (index === 0) {
+export function getParticipantKindOptions(
+  participant: PaymentRouteDraft["participants"][number],
+) {
+  if (participant.role === "source") {
     return ["customer"] as const;
-  }
-
-  if (index === draft.participants.length - 1) {
-    return ["organization", "counterparty"] as const satisfies readonly PaymentRouteParticipantKind[];
   }
 
   return ["organization", "counterparty"] as const satisfies readonly PaymentRouteParticipantKind[];
@@ -687,14 +830,20 @@ export function changeFeeKind(input: {
 
 export function changeParticipantKind(input: {
   index: number;
-  kind: PaymentRouteParticipantKind;
+  entityKind: PaymentRouteParticipantKind;
   options: PaymentRouteConstructorOptions;
   state: PaymentRouteEditorState;
 }): PaymentRouteEditorState {
+  const participant = input.state.draft.participants[input.index];
+
+  if (!participant) {
+    return input.state;
+  }
+
   const available = getSelectableParticipantOptions({
-    index: input.index,
     options: input.options,
-  }).filter((option) => option.kind === input.kind);
+    participant,
+  }).filter((option) => option.kind === input.entityKind);
   const option = available[0] ?? null;
 
   if (!option) {
@@ -703,8 +852,8 @@ export function changeParticipantKind(input: {
 
   return setParticipantOption({
     entityId: option.id,
+    entityKind: option.kind,
     index: input.index,
-    kind: option.kind,
     options: input.options,
     state: input.state,
   });

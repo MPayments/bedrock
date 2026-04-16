@@ -9,6 +9,10 @@ import type {
   PaymentRouteTemplateStatus,
   PaymentRouteVisualMetadata,
 } from "../contracts/zod";
+import {
+  PaymentRouteDraftSchema,
+  normalizePaymentRouteDraft,
+} from "../contracts/zod";
 
 export interface PaymentRouteTemplateRecord {
   createdAt: Date;
@@ -53,11 +57,20 @@ export interface PaymentRouteTemplatesRepository {
   ): Promise<{ rows: PaymentRouteTemplateRecord[]; total: number }>;
 }
 
+function normalizeRecordDraft(
+  draft: PaymentRouteTemplateRecord["draft"],
+): PaymentRouteDraft {
+  return PaymentRouteDraftSchema.parse(normalizePaymentRouteDraft(draft));
+}
+
 export function mapPaymentRouteTemplateRecord(
   record: PaymentRouteTemplateRecord,
 ): PaymentRouteTemplate {
+  const draft = normalizeRecordDraft(record.draft);
+
   return {
     ...record,
+    draft,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
@@ -66,21 +79,21 @@ export function mapPaymentRouteTemplateRecord(
 export function mapPaymentRouteTemplateListItem(
   record: PaymentRouteTemplateRecord,
 ): PaymentRouteTemplateListItem {
-  const sourceParticipant = record.draft.participants[0]!;
-  const destinationParticipant =
-    record.draft.participants[record.draft.participants.length - 1]!;
+  const draft = normalizeRecordDraft(record.draft);
+  const sourceEndpoint = draft.participants[0]!;
+  const destinationEndpoint = draft.participants[draft.participants.length - 1]!;
 
   return {
     createdAt: record.createdAt.toISOString(),
-    currencyInId: record.draft.currencyInId,
-    currencyOutId: record.draft.currencyOutId,
-    destinationParticipant,
-    hopCount: Math.max(record.draft.participants.length - 2, 0),
+    currencyInId: draft.currencyInId,
+    currencyOutId: draft.currencyOutId,
+    destinationEndpoint,
+    hopCount: Math.max(draft.participants.length - 2, 0),
     id: record.id,
     lastCalculation: record.lastCalculation,
     name: record.name,
     snapshotPolicy: record.snapshotPolicy,
-    sourceParticipant,
+    sourceEndpoint,
     status: record.status,
     updatedAt: record.updatedAt.toISOString(),
   };

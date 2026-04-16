@@ -4,11 +4,24 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, GitBranch, LayoutList, LoaderCircle, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  GitBranch,
+  LayoutList,
+  LoaderCircle,
+  Save,
+} from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
@@ -32,10 +45,7 @@ import {
   setRouteName,
   type PaymentRouteEditorState,
 } from "../lib/state";
-import {
-  BufferedMinorAmountInput,
-  CurrencySelector,
-} from "./editor-shared";
+import { BufferedMinorAmountInput, CurrencySelector } from "./editor-shared";
 import { PaymentRouteManualEditor } from "./manual-editor";
 import { PaymentRouteWorkspaceLayout } from "./payment-route-workspace-layout";
 import { PaymentRouteSummaryRail } from "./summary-rail";
@@ -78,8 +88,10 @@ function createPreviewRequestKey(draft: PaymentRouteEditorState["draft"]) {
     })),
     lockedSide: draft.lockedSide,
     participants: draft.participants.map((participant) => ({
+      binding: participant.binding,
       entityId: participant.entityId,
-      kind: participant.kind,
+      entityKind: participant.entityKind,
+      role: participant.role,
     })),
   });
 }
@@ -109,7 +121,8 @@ export function PaymentRouteConstructorClient({
   );
   const [previewError, setPreviewError] = React.useState<string | null>(null);
   const [previewPending, setPreviewPending] = React.useState(false);
-  const [previewIndicatorVisible, setPreviewIndicatorVisible] = React.useState(false);
+  const [previewIndicatorVisible, setPreviewIndicatorVisible] =
+    React.useState(false);
   const [savePending, startSaveTransition] = React.useTransition();
   const previewRequestIdRef = React.useRef(0);
   const previewDraft = state?.draft ?? null;
@@ -130,7 +143,10 @@ export function PaymentRouteConstructorClient({
     }
 
     const draft = previewDraftRef.current;
-    if (!draft || createPreviewRequestKey(draft) !== deferredPreviewRequestKey) {
+    if (
+      !draft ||
+      createPreviewRequestKey(draft) !== deferredPreviewRequestKey
+    ) {
       return;
     }
 
@@ -140,14 +156,20 @@ export function PaymentRouteConstructorClient({
       setPreviewPending(true);
       void (async () => {
         try {
-          const calculation = await previewPaymentRoute(draft, controller.signal);
+          const calculation = await previewPaymentRoute(
+            draft,
+            controller.signal,
+          );
           setPreviewError(null);
           setState((current) => {
             if (!current) {
               return current;
             }
 
-            if (createPreviewRequestKey(current.draft) !== deferredPreviewRequestKey) {
+            if (
+              createPreviewRequestKey(current.draft) !==
+              deferredPreviewRequestKey
+            ) {
               return current;
             }
 
@@ -164,7 +186,10 @@ export function PaymentRouteConstructorClient({
               : "Не удалось выполнить предварительный расчет маршрута",
           );
         } finally {
-          if (previewRequestIdRef.current === requestId && !controller.signal.aborted) {
+          if (
+            previewRequestIdRef.current === requestId &&
+            !controller.signal.aborted
+          ) {
             setPreviewPending(false);
           }
         }
@@ -202,18 +227,22 @@ export function PaymentRouteConstructorClient({
         <CardContent className="space-y-3 px-6 py-10">
           <div className="text-lg font-medium">Маршрут пока не собрать</div>
           <div className="text-sm text-muted-foreground">
-            Для конструктора нужен как минимум один клиент, одна организация или контрагент и хотя бы одна валюта.
+            Для конструктора нужна хотя бы одна валюта. Клиентов, организации и
+            контрагентов можно привязать позже.
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button nativeButton={false} render={<Link href="/entities/customers" />}>
-              Клиенты
+            <Button
+              nativeButton={false}
+              render={<Link href="/entities/currencies" />}
+            >
+              Валюты
             </Button>
             <Button
               nativeButton={false}
               variant="outline"
-              render={<Link href="/entities/counterparties" />}
+              render={<Link href="/entities/customers" />}
             >
-              Контрагенты
+              Клиенты
             </Button>
             <Button
               nativeButton={false}
@@ -225,9 +254,9 @@ export function PaymentRouteConstructorClient({
             <Button
               nativeButton={false}
               variant="outline"
-              render={<Link href="/entities/currencies" />}
+              render={<Link href="/entities/counterparties" />}
             >
-              Валюты
+              Контрагенты
             </Button>
           </div>
         </CardContent>
@@ -238,9 +267,13 @@ export function PaymentRouteConstructorClient({
   const editorState = state;
   const isGraphMode = editorState.mode === "graph";
   const currencyIn =
-    options.currencies.find((currency) => currency.id === editorState.draft.currencyInId) ?? null;
+    options.currencies.find(
+      (currency) => currency.id === editorState.draft.currencyInId,
+    ) ?? null;
   const currencyOut =
-    options.currencies.find((currency) => currency.id === editorState.draft.currencyOutId) ?? null;
+    options.currencies.find(
+      (currency) => currency.id === editorState.draft.currencyOutId,
+    ) ?? null;
   const rateContext = editorState.calculation
     ? formatCurrencyRatio({
         amountInMinor: editorState.calculation.amountInMinor,
@@ -249,9 +282,11 @@ export function PaymentRouteConstructorClient({
         currencyOut,
       })
     : null;
-  const displayAmountIn = editorState.calculation?.amountInMinor ?? editorState.draft.amountInMinor;
+  const displayAmountIn =
+    editorState.calculation?.amountInMinor ?? editorState.draft.amountInMinor;
   const displayAmountOut =
-    editorState.calculation?.netAmountOutMinor ?? editorState.draft.amountOutMinor;
+    editorState.calculation?.netAmountOutMinor ??
+    editorState.draft.amountOutMinor;
   const workspaceTitle = editorState.name.trim() || "Новый маршрут";
   const workspaceSubtitle = editorState.templateId
     ? "Редактирование шаблона маршрута"
@@ -281,7 +316,9 @@ export function PaymentRouteConstructorClient({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setState((current) => (current ? setEditorMode(current, "manual") : current));
+        setState((current) =>
+          current ? setEditorMode(current, "manual") : current,
+        );
       }
     }
 
@@ -306,7 +343,9 @@ export function PaymentRouteConstructorClient({
         return;
       }
 
-      toast.success(editorState.templateId ? "Маршрут сохранен" : "Маршрут создан");
+      toast.success(
+        editorState.templateId ? "Маршрут сохранен" : "Маршрут создан",
+      );
       setState(
         setEditorMode(
           createPaymentRouteEditorStateFromTemplate(result.data),
@@ -327,16 +366,8 @@ export function PaymentRouteConstructorClient({
       <PaymentRouteWorkspaceLayout
         title={workspaceTitle}
         subtitle={workspaceSubtitle}
-        headerControls={(
+        headerControls={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              nativeButton={false}
-              variant="outline"
-              render={<Link href="/routes/list" />}
-            >
-              <LayoutList className="size-4" />
-              Список маршрутов
-            </Button>
             <Button
               type="button"
               variant="outline"
@@ -354,7 +385,7 @@ export function PaymentRouteConstructorClient({
               Сохранить
             </Button>
           </div>
-        )}
+        }
       >
         <div
           className={cn(
@@ -365,28 +396,29 @@ export function PaymentRouteConstructorClient({
           <div className="space-y-6">
             <Card className="rounded-2xl border-border/70">
               <CardContent className="grid gap-4 p-5">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <FieldGroup className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+                  <Field>
+                    <FieldLabel htmlFor="payment-route-name">
                       Название маршрута
-                    </div>
+                    </FieldLabel>
                     <Input
+                      id="payment-route-name"
                       value={editorState.name}
                       onChange={(event) =>
                         setState(setRouteName(editorState, event.target.value))
                       }
                       placeholder="Например, USDT → AED через Дубай и США"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Фиксировать
-                    </div>
+                  </Field>
+                  <Field>
+                    <FieldTitle>Фиксировать</FieldTitle>
                     <ButtonGroup className="w-full">
                       <Button
                         type="button"
                         variant={
-                          editorState.draft.lockedSide === "currency_in" ? "default" : "outline"
+                          editorState.draft.lockedSide === "currency_in"
+                            ? "default"
+                            : "outline"
                         }
                         className="flex-1"
                         onClick={() =>
@@ -398,7 +430,9 @@ export function PaymentRouteConstructorClient({
                       <Button
                         type="button"
                         variant={
-                          editorState.draft.lockedSide === "currency_out" ? "default" : "outline"
+                          editorState.draft.lockedSide === "currency_out"
+                            ? "default"
+                            : "outline"
                         }
                         className="flex-1"
                         onClick={() =>
@@ -408,14 +442,15 @@ export function PaymentRouteConstructorClient({
                         Сумму получения
                       </Button>
                     </ButtonGroup>
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Списать
-                    </div>
+                <FieldGroup className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <Field>
+                    <FieldTitle>Сумма списания</FieldTitle>
+                    <FieldDescription>
+                      Сколько списать на входе маршрута.
+                    </FieldDescription>
                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
                       <BufferedMinorAmountInput
                         ariaLabel="Сумма списания"
@@ -447,14 +482,15 @@ export function PaymentRouteConstructorClient({
                         }
                       />
                     </div>
-                  </div>
+                  </Field>
                   <div className="flex items-center justify-center text-sm text-muted-foreground">
                     <GitBranch className="size-4" />
                   </div>
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Получить
-                    </div>
+                  <Field>
+                    <FieldTitle>Сумма получения</FieldTitle>
+                    <FieldDescription>
+                      Сколько должен получить бенефициар на выходе.
+                    </FieldDescription>
                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
                       <BufferedMinorAmountInput
                         ariaLabel="Сумма получения"
@@ -486,14 +522,15 @@ export function PaymentRouteConstructorClient({
                         }
                       />
                     </div>
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
                   <div className="space-y-1">
                     <div className="font-medium">Расчет в реальном времени</div>
                     <div className="text-muted-foreground">
-                      {rateContext ?? "После предварительного расчета здесь появится текущий маршрутный курс."}
+                      {rateContext ??
+                        "После предварительного расчета здесь появится текущий маршрутный курс."}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -504,7 +541,9 @@ export function PaymentRouteConstructorClient({
                       </div>
                     ) : null}
                     {previewError ? (
-                      <div className="text-right text-sm text-red-600">{previewError}</div>
+                      <div className="text-right text-sm text-red-600">
+                        {previewError}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -553,7 +592,9 @@ export function PaymentRouteConstructorClient({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setState(setEditorMode(editorState, "manual"))}
+                    onClick={() =>
+                      setState(setEditorMode(editorState, "manual"))
+                    }
                   >
                     <ArrowLeft className="size-4" />
                     Закрыть граф
@@ -594,7 +635,8 @@ export function PaymentRouteConstructorClient({
                       Расчет в реальном времени
                     </div>
                     <div className="font-medium">
-                      {rateContext ?? "После предварительного расчета здесь появится текущий маршрутный курс."}
+                      {rateContext ??
+                        "После предварительного расчета здесь появится текущий маршрутный курс."}
                     </div>
                     {previewError ? (
                       <div className="text-sm text-red-600">{previewError}</div>

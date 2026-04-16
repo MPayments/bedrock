@@ -8,6 +8,8 @@ import {
   moveIntermediateParticipant,
   removeIntermediateParticipant,
   setEditorMode,
+  setLegField,
+  setParticipantBinding,
   setParticipantOption,
   setVisualNodePosition,
 } from "@/features/payment-routes/lib/state";
@@ -74,6 +76,25 @@ describe("payment route editor state", () => {
     expect(next.visual.nodePositions[sourceNodeId]).toEqual({ x: 640, y: 220 });
   });
 
+  it("creates new routes with abstract source and destination endpoints", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+
+    expect(seed.draft.participants[0]).toMatchObject({
+      binding: "abstract",
+      displayName: "Любой клиент",
+      entityId: null,
+      entityKind: null,
+      role: "source",
+    });
+    expect(seed.draft.participants[1]).toMatchObject({
+      binding: "abstract",
+      displayName: "Любой бенефициар",
+      entityId: null,
+      entityKind: null,
+      role: "destination",
+    });
+  });
+
   it("reorders intermediate hops while keeping participants and legs aligned", () => {
     const seed = createPaymentRouteSeed(OPTIONS)!;
     const withFirstHop = insertIntermediateParticipant({
@@ -88,8 +109,8 @@ describe("payment route editor state", () => {
     });
     const withDistinctMiddle = setParticipantOption({
       entityId: COUNTERPARTY.id,
+      entityKind: "counterparty",
       index: 1,
-      kind: "counterparty",
       options: OPTIONS,
       state: withSecondHop,
     });
@@ -102,8 +123,10 @@ describe("payment route editor state", () => {
     expect(reordered.draft.participants).toHaveLength(4);
     expect(reordered.draft.legs).toHaveLength(3);
     expect(reordered.draft.participants[2]).toMatchObject({
+      binding: "bound",
       entityId: COUNTERPARTY.id,
-      kind: "counterparty",
+      entityKind: "counterparty",
+      role: "hop",
     });
 
     const removed = removeIntermediateParticipant(reordered, 2);
@@ -113,6 +136,76 @@ describe("payment route editor state", () => {
     expect(removed.selection).toMatchObject({
       kind: "leg",
     });
+  });
+
+  it("toggles source endpoint between abstract and bound customer", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const bound = setParticipantBinding({
+      binding: "bound",
+      index: 0,
+      options: OPTIONS,
+      state: seed,
+    });
+
+    expect(bound.draft.participants[0]).toMatchObject({
+      binding: "bound",
+      entityId: OPTIONS.customers[0]!.id,
+      entityKind: "customer",
+      role: "source",
+    });
+
+    const abstract = setParticipantBinding({
+      binding: "abstract",
+      index: 0,
+      options: OPTIONS,
+      state: bound,
+    });
+
+    expect(abstract.draft.participants[0]).toMatchObject({
+      binding: "abstract",
+      displayName: "Любой клиент",
+      entityId: null,
+      entityKind: null,
+      role: "source",
+    });
+  });
+
+  it("keeps route currencies continuous when a leg currency changes", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const withSecondLeg = insertIntermediateParticipant({
+      afterLegIndex: 0,
+      options: OPTIONS,
+      state: seed,
+    });
+
+    const firstLeg = withSecondLeg.draft.legs[0]!;
+    const secondLeg = withSecondLeg.draft.legs[1]!;
+    const changedFirstOutput = setLegField(withSecondLeg, firstLeg.id, {
+      toCurrencyId: OPTIONS.currencies[1]!.id,
+    });
+
+    expect(changedFirstOutput.draft.legs[0]!.toCurrencyId).toBe(
+      OPTIONS.currencies[1]!.id,
+    );
+    expect(changedFirstOutput.draft.legs[1]!.fromCurrencyId).toBe(
+      OPTIONS.currencies[1]!.id,
+    );
+
+    const changedFirstInput = setLegField(changedFirstOutput, firstLeg.id, {
+      fromCurrencyId: OPTIONS.currencies[1]!.id,
+    });
+
+    expect(changedFirstInput.draft.currencyInId).toBe(OPTIONS.currencies[1]!.id);
+    expect(changedFirstInput.draft.legs[0]!.fromCurrencyId).toBe(
+      OPTIONS.currencies[1]!.id,
+    );
+
+    const changedLastOutput = setLegField(changedFirstInput, secondLeg.id, {
+      toCurrencyId: USD.id,
+    });
+
+    expect(changedLastOutput.draft.currencyOutId).toBe(USD.id);
+    expect(changedLastOutput.draft.legs[1]!.toCurrencyId).toBe(USD.id);
   });
 
   it("applies calculator results and preserves state across manual and graph modes", () => {

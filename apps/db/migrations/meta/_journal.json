@@ -29,6 +29,13 @@
       "when": 1776291253914,
       "tag": "0003_small_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776343327670,
+      "tag": "0004_shocking_dragon_man",
+      "breakpoints": true
     }
   ]
 }

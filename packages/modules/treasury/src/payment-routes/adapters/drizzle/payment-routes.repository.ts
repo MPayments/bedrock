@@ -10,28 +10,45 @@ import type {
   PaymentRouteTemplateWriteModel,
   PaymentRouteTemplatesRepository,
 } from "../../application/ports/payment-routes.repository";
+import {
+  PaymentRouteDraftSchema,
+  normalizePaymentRouteDraft,
+} from "../../application/contracts/zod";
 import { paymentRouteTemplates } from "./schema";
 
 function deriveSummaryColumns(draft: PaymentRouteTemplateWriteModel["draft"]) {
-  const sourceParticipant = draft.participants[0]!;
-  const destinationParticipant = draft.participants[draft.participants.length - 1]!;
+  const sourceEndpoint = draft.participants[0]!;
+  const destinationEndpoint = draft.participants[draft.participants.length - 1]!;
 
   return {
     currencyInId: draft.currencyInId,
     currencyOutId: draft.currencyOutId,
-    destinationEntityId: destinationParticipant.entityId,
-    destinationEntityKind: destinationParticipant.kind as "counterparty" | "organization",
+    destinationEntityId:
+      destinationEndpoint.role === "destination" &&
+      destinationEndpoint.binding === "bound"
+        ? destinationEndpoint.entityId
+        : null,
+    destinationEntityKind:
+      destinationEndpoint.role === "destination" &&
+      destinationEndpoint.binding === "bound"
+        ? destinationEndpoint.entityKind
+        : null,
     hopCount: Math.max(draft.participants.length - 2, 0),
-    sourceCustomerId: sourceParticipant.entityId,
+    sourceCustomerId:
+      sourceEndpoint.role === "source" && sourceEndpoint.binding === "bound"
+        ? sourceEndpoint.entityId
+        : null,
   };
 }
 
 function mapRecord(
   row: typeof paymentRouteTemplates.$inferSelect,
 ): PaymentRouteTemplateRecord {
+  const draft = PaymentRouteDraftSchema.parse(normalizePaymentRouteDraft(row.draft));
+
   return {
     createdAt: row.createdAt,
-    draft: row.draft,
+    draft,
     id: row.id,
     lastCalculation: row.lastCalculation ?? null,
     name: row.name,

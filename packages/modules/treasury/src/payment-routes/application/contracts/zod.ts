@@ -1,4 +1,7 @@
-import { createListQuerySchemaFromContract, type ListQueryContract } from "@bedrock/shared/core/pagination";
+import {
+  createListQuerySchemaFromContract,
+  type ListQueryContract,
+} from "@bedrock/shared/core/pagination";
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 import { z } from "zod";
 
@@ -24,6 +27,10 @@ const positiveDecimalStringSchema = z
     }
   }, "Value must be a positive decimal");
 
+export const ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME = "Клиент";
+export const ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME =
+  "Бенефициар";
+
 export const PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES = [
   "active",
   "archived",
@@ -32,6 +39,15 @@ export const PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES = [
   "customer",
   "counterparty",
   "organization",
+] as const;
+export const PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES = [
+  "source",
+  "hop",
+  "destination",
+] as const;
+export const PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES = [
+  "abstract",
+  "bound",
 ] as const;
 export const PAYMENT_ROUTE_LEG_KIND_VALUES = [
   "collect",
@@ -53,6 +69,12 @@ export const PaymentRouteTemplateStatusSchema = z.enum(
 export const PaymentRouteParticipantKindSchema = z.enum(
   PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES,
 );
+export const PaymentRouteParticipantRoleSchema = z.enum(
+  PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
+);
+export const PaymentRouteParticipantBindingSchema = z.enum(
+  PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
+);
 export const PaymentRouteLegKindSchema = z.enum(PAYMENT_ROUTE_LEG_KIND_VALUES);
 export const PaymentRouteFeeKindSchema = z.enum(PAYMENT_ROUTE_FEE_KIND_VALUES);
 export const PaymentRouteLockedSideSchema = z.enum(
@@ -60,12 +82,65 @@ export const PaymentRouteLockedSideSchema = z.enum(
 );
 export const PaymentRouteSnapshotPolicySchema = z.literal("clone_on_attach");
 
-export const PaymentRouteParticipantRefSchema = z.object({
+const PaymentRouteLegacyParticipantRefSchema = z.object({
   displayName: z.string().trim().min(1),
   entityId: z.uuid(),
   kind: PaymentRouteParticipantKindSchema,
   nodeId: z.string().trim().min(1),
 });
+
+const PaymentRouteAbstractSourceParticipantRefSchema = z.object({
+  binding: z.literal("abstract"),
+  displayName: z.string().trim().min(1),
+  entityId: z.null(),
+  entityKind: z.null(),
+  nodeId: z.string().trim().min(1),
+  role: z.literal("source"),
+});
+
+const PaymentRouteBoundSourceParticipantRefSchema = z.object({
+  binding: z.literal("bound"),
+  displayName: z.string().trim().min(1),
+  entityId: z.uuid(),
+  entityKind: z.literal("customer"),
+  nodeId: z.string().trim().min(1),
+  role: z.literal("source"),
+});
+
+const PaymentRouteAbstractDestinationParticipantRefSchema = z.object({
+  binding: z.literal("abstract"),
+  displayName: z.string().trim().min(1),
+  entityId: z.null(),
+  entityKind: z.null(),
+  nodeId: z.string().trim().min(1),
+  role: z.literal("destination"),
+});
+
+const PaymentRouteBoundDestinationParticipantRefSchema = z.object({
+  binding: z.literal("bound"),
+  displayName: z.string().trim().min(1),
+  entityId: z.uuid(),
+  entityKind: z.enum(["organization", "counterparty"]),
+  nodeId: z.string().trim().min(1),
+  role: z.literal("destination"),
+});
+
+const PaymentRouteHopParticipantRefSchema = z.object({
+  binding: z.literal("bound"),
+  displayName: z.string().trim().min(1),
+  entityId: z.uuid(),
+  entityKind: z.enum(["organization", "counterparty"]),
+  nodeId: z.string().trim().min(1),
+  role: z.literal("hop"),
+});
+
+export const PaymentRouteParticipantRefSchema = z.union([
+  PaymentRouteAbstractSourceParticipantRefSchema,
+  PaymentRouteBoundSourceParticipantRefSchema,
+  PaymentRouteAbstractDestinationParticipantRefSchema,
+  PaymentRouteBoundDestinationParticipantRefSchema,
+  PaymentRouteHopParticipantRefSchema,
+]);
 
 export const PaymentRouteFeeSchema = z
   .object({
@@ -162,7 +237,9 @@ const PaymentRouteNodePositionSchema = z.object({
 });
 
 export const PaymentRouteVisualMetadataSchema = z.object({
-  nodePositions: z.record(z.string(), PaymentRouteNodePositionSchema).default({}),
+  nodePositions: z.record(z.string(), PaymentRouteNodePositionSchema).default(
+    {},
+  ),
   viewport: z
     .object({
       x: z.number(),
@@ -175,6 +252,90 @@ export const PaymentRouteVisualMetadataSchema = z.object({
       zoom: 1,
     }),
 });
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isLegacyPaymentRouteParticipantRef(
+  value: unknown,
+): value is z.infer<typeof PaymentRouteLegacyParticipantRefSchema> {
+  return (
+    isRecord(value) &&
+    typeof value.kind === "string" &&
+    !("role" in value) &&
+    !("binding" in value)
+  );
+}
+
+export function normalizePaymentRouteParticipantRef(input: {
+  index: number;
+  participant: unknown;
+  total: number;
+}) {
+  if (isLegacyPaymentRouteParticipantRef(input.participant)) {
+    const role =
+      input.index === 0
+        ? "source"
+        : input.index === input.total - 1
+          ? "destination"
+          : "hop";
+
+    return {
+      binding: "bound" as const,
+      displayName: input.participant.displayName,
+      entityId: input.participant.entityId,
+      entityKind: input.participant.kind,
+      nodeId: input.participant.nodeId,
+      role,
+    };
+  }
+
+  if (!isRecord(input.participant)) {
+    return input.participant;
+  }
+
+  if (input.participant.binding === "abstract") {
+    if (input.participant.role === "source") {
+      return {
+        ...input.participant,
+        displayName: ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+        entityId: null,
+        entityKind: null,
+      };
+    }
+
+    if (input.participant.role === "destination") {
+      return {
+        ...input.participant,
+        displayName: ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+        entityId: null,
+        entityKind: null,
+      };
+    }
+  }
+
+  return input.participant;
+}
+
+export function normalizePaymentRouteDraft(input: unknown) {
+  if (!isRecord(input) || !Array.isArray(input.participants)) {
+    return input;
+  }
+
+  const participants = input.participants.map((participant, index, items) =>
+    normalizePaymentRouteParticipantRef({
+      index,
+      participant,
+      total: items.length,
+    }),
+  );
+
+  return {
+    ...input,
+    participants,
+  };
+}
 
 export const PaymentRouteDraftSchema = z
   .object({
@@ -199,29 +360,38 @@ export const PaymentRouteDraftSchema = z
     const firstParticipant = value.participants[0];
     const lastParticipant = value.participants[value.participants.length - 1];
 
-    if (firstParticipant?.kind !== "customer") {
+    if (firstParticipant?.role !== "source") {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "The first participant must be a customer",
-        path: ["participants", 0, "kind"],
+        message: "The first participant must be a source endpoint",
+        path: ["participants", 0, "role"],
       });
     }
 
-    if (lastParticipant?.kind === "customer") {
+    if (lastParticipant?.role !== "destination") {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "The destination participant cannot be a customer",
-        path: ["participants", value.participants.length - 1, "kind"],
+        message: "The last participant must be a destination endpoint",
+        path: ["participants", value.participants.length - 1, "role"],
       });
     }
 
-    for (let index = 1; index < value.participants.length; index += 1) {
+    for (let index = 1; index < value.participants.length - 1; index += 1) {
       const participant = value.participants[index];
-      if (participant?.kind === "customer") {
+
+      if (participant?.role !== "hop") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Only the first participant can be a customer",
-          path: ["participants", index, "kind"],
+          message: "Intermediate participants must be hop nodes",
+          path: ["participants", index, "role"],
+        });
+      }
+
+      if (participant?.binding !== "bound") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Intermediate participants cannot be abstract",
+          path: ["participants", index, "binding"],
         });
       }
     }
@@ -246,7 +416,9 @@ export const PaymentRouteDraftSchema = z
       });
     }
 
-    if (value.legs[value.legs.length - 1]?.toCurrencyId !== value.currencyOutId) {
+    if (
+      value.legs[value.legs.length - 1]?.toCurrencyId !== value.currencyOutId
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "The last leg must end with currencyOutId",
@@ -312,6 +484,12 @@ export type PaymentRouteTemplateStatus = z.infer<
 >;
 export type PaymentRouteParticipantKind = z.infer<
   typeof PaymentRouteParticipantKindSchema
+>;
+export type PaymentRouteParticipantRole = z.infer<
+  typeof PaymentRouteParticipantRoleSchema
+>;
+export type PaymentRouteParticipantBinding = z.infer<
+  typeof PaymentRouteParticipantBindingSchema
 >;
 export type PaymentRouteLegKind = z.infer<typeof PaymentRouteLegKindSchema>;
 export type PaymentRouteFeeKind = z.infer<typeof PaymentRouteFeeKindSchema>;

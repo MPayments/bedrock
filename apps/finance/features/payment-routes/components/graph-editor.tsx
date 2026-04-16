@@ -44,6 +44,7 @@ import {
   insertIntermediateParticipant,
   removeIntermediateParticipant,
   setLegField,
+  setParticipantBinding,
   setParticipantOption,
   setSelection,
   setViewport,
@@ -304,10 +305,13 @@ function RouteGraphCanvas({
   state,
 }: PaymentRouteGraphEditorProps) {
   const selection = state.selection;
+  const canInsertHop =
+    options.organizations.length > 0 || options.counterparties.length > 0;
   const nodes = React.useMemo<Node<RouteGraphNodeData>[]>(() => {
     return state.draft.participants.map((participant, index) => ({
       data: {
-        canInsertAfter: index < state.draft.participants.length - 1,
+        canInsertAfter:
+          canInsertHop && index < state.draft.participants.length - 1,
         canRemove: index > 0 && index < state.draft.participants.length - 1,
         displayName: participant.displayName,
         onInsertAfter: () =>
@@ -320,16 +324,17 @@ function RouteGraphCanvas({
           ),
         onRemove: () =>
           onStateChange(removeIntermediateParticipant(state, index)),
-        role:
-          index === 0
-            ? "source"
-            : index === state.draft.participants.length - 1
-              ? "destination"
-              : "hop",
+        role: participant.role,
         subtitle:
-          participant.kind === "customer"
-            ? "Клиент"
-            : participant.kind === "organization"
+          participant.binding === "abstract"
+            ? participant.role === "source"
+              ? "Клиент"
+              : participant.role === "destination"
+                ? "Бенефициар"
+                : "Промежуточный"
+            : participant.entityKind === "customer"
+              ? "Клиент"
+              : participant.entityKind === "organization"
               ? "Организация"
               : "Контрагент",
       },
@@ -343,7 +348,7 @@ function RouteGraphCanvas({
         selection.nodeId === participant.nodeId,
       type: "routeParticipant",
     }));
-  }, [onStateChange, options, selection, state]);
+  }, [canInsertHop, onStateChange, options, selection, state]);
 
   const edges = React.useMemo<Edge<RouteGraphEdgeData>[]>(() => {
     return state.draft.legs.map((leg, index) => {
@@ -470,11 +475,21 @@ function PaymentRouteGraphInspector({
             options={options}
             participant={participant}
             state={state}
-            onKindChange={(kind) =>
+            onBindingChange={(binding) =>
+              onStateChange(
+                setParticipantBinding({
+                  binding,
+                  index: participantIndex,
+                  options,
+                  state,
+                }),
+              )
+            }
+            onKindChange={(entityKind) =>
               onStateChange(
                 changeParticipantKind({
+                  entityKind,
                   index: participantIndex,
-                  kind,
                   options,
                   state,
                 }),
@@ -484,8 +499,13 @@ function PaymentRouteGraphInspector({
               onStateChange(
                 setParticipantOption({
                   entityId,
+                  entityKind:
+                    participant.entityKind === null
+                      ? participant.role === "source"
+                        ? "customer"
+                        : "organization"
+                      : participant.entityKind,
                   index: participantIndex,
-                  kind: participant.kind,
                   options,
                   state,
                 }),

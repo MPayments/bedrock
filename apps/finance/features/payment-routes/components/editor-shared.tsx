@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Select,
@@ -18,10 +19,14 @@ import type { PaymentRouteFee } from "@bedrock/treasury/contracts";
 import {
   changeFeeKind,
   getParticipantKindOptions,
+  getSelectableParticipantOptions,
   type PaymentRouteEditorState,
   type PaymentRouteSelectableParticipantOption,
 } from "../lib/state";
-import { formatCurrencyMinorAmount, parseMajorToMinorAmount } from "../lib/format";
+import {
+  formatCurrencyMinorAmount,
+  parseMajorToMinorAmount,
+} from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 
 const LEG_KIND_LABELS: Record<
@@ -67,9 +72,10 @@ type BufferedDecimalInputProps = {
 };
 
 type ParticipantSelectorProps = {
+  onBindingChange: (binding: "abstract" | "bound") => void;
   index: number;
   onEntityChange: (entityId: string) => void;
-  onKindChange: (kind: PaymentRouteSelectableParticipantOption["kind"]) => void;
+  onKindChange: (entityKind: PaymentRouteSelectableParticipantOption["kind"]) => void;
   options: PaymentRouteConstructorOptions;
   participant: PaymentRouteEditorState["draft"]["participants"][number];
   state: PaymentRouteEditorState;
@@ -87,22 +93,23 @@ type FeeListEditorProps = {
   fallbackCurrencyId: string;
   fees: PaymentRouteFee[];
   onAdd: () => void;
-  onChange: (feeId: string, updater: (fee: PaymentRouteFee) => PaymentRouteFee) => void;
+  onChange: (
+    feeId: string,
+    updater: (fee: PaymentRouteFee) => PaymentRouteFee,
+  ) => void;
   onRemove: (feeId: string) => void;
   options: PaymentRouteConstructorOptions;
 };
 
-export function getLegKindLabel(
-  kind: string,
-) {
-  return LEG_KIND_LABELS[
-    kind as PaymentRouteEditorState["draft"]["legs"][number]["kind"]
-  ] ?? kind;
+export function getLegKindLabel(kind: string) {
+  return (
+    LEG_KIND_LABELS[
+      kind as PaymentRouteEditorState["draft"]["legs"][number]["kind"]
+    ] ?? kind
+  );
 }
 
-export function getFeeKindLabel(
-  kind: PaymentRouteFee["kind"],
-) {
+export function getFeeKindLabel(kind: PaymentRouteFee["kind"]) {
   return FEE_KIND_LABELS[kind] ?? kind;
 }
 
@@ -113,17 +120,13 @@ export function getParticipantKindLabel(
 }
 
 function getSelectableOptionLabel(
-  option:
-    | PaymentRouteConstructorOptions["customers"][number]
-    | PaymentRouteConstructorOptions["organizations"][number]
-    | PaymentRouteConstructorOptions["counterparties"][number]
-    | null,
+  option: PaymentRouteSelectableParticipantOption | null,
 ) {
   if (!option) {
     return null;
   }
 
-  return "name" in option ? option.name : option.shortName;
+  return option.shortLabel;
 }
 
 export function BufferedMinorAmountInput({
@@ -137,13 +140,21 @@ export function BufferedMinorAmountInput({
   const currency =
     options.currencies.find((candidate) => candidate.id === currencyId) ?? null;
   const [value, setValue] = React.useState(
-    currency ? formatCurrencyMinorAmount(valueMinor, currency).replace(` ${currency.code}`, "") : valueMinor,
+    currency
+      ? formatCurrencyMinorAmount(valueMinor, currency).replace(
+          ` ${currency.code}`,
+          "",
+        )
+      : valueMinor,
   );
 
   React.useEffect(() => {
     setValue(
       currency
-        ? formatCurrencyMinorAmount(valueMinor, currency).replace(` ${currency.code}`, "")
+        ? formatCurrencyMinorAmount(valueMinor, currency).replace(
+            ` ${currency.code}`,
+            "",
+          )
         : valueMinor,
     );
   }, [currency, valueMinor]);
@@ -157,7 +168,10 @@ export function BufferedMinorAmountInput({
     if (!parsed) {
       setValue(
         currency
-          ? formatCurrencyMinorAmount(valueMinor, currency).replace(` ${currency.code}`, "")
+          ? formatCurrencyMinorAmount(valueMinor, currency).replace(
+              ` ${currency.code}`,
+              "",
+            )
           : valueMinor,
       );
       return;
@@ -247,7 +261,7 @@ export function CurrencySelector({
     >
       <SelectTrigger aria-label={ariaLabel}>
         <SelectValue placeholder="Выберите валюту">
-          {selectedCurrency?.code ?? null}
+          {selectedCurrency?.code ?? "Выберите валюту"}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -263,35 +277,81 @@ export function CurrencySelector({
 
 export function ParticipantSelector({
   index,
+  onBindingChange,
   onEntityChange,
   onKindChange,
   options,
   participant,
   state,
 }: ParticipantSelectorProps) {
-  const kindOptions = getParticipantKindOptions(index, state.draft);
-  const selectableOptions =
-    participant.kind === "customer"
-      ? options.customers
-      : participant.kind === "organization"
-      ? options.organizations
-        : options.counterparties;
+  const kindOptions = getParticipantKindOptions(participant);
+  const boundKind =
+    participant.binding === "bound" ? participant.entityKind : kindOptions[0];
+  const allSelectableOptions = getSelectableParticipantOptions({
+    options,
+    participant,
+  });
+  const selectableOptions = allSelectableOptions.filter(
+    (option) => option.kind === boundKind,
+  );
   const selectedOption =
-    selectableOptions.find((option) => option.id === participant.entityId) ?? null;
+    participant.binding === "bound"
+      ? selectableOptions.find((option) => option.id === participant.entityId) ?? null
+      : null;
+  const selectedOptionLabel =
+    getSelectableOptionLabel(selectedOption) ?? participant.displayName;
+  const canBindConcrete = allSelectableOptions.length > 0;
+  const showsBindingToggle = participant.role !== "hop";
 
-  return (
-    <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+  if (participant.binding === "abstract") {
+    return (
+      <div className="space-y-3">
+        {showsBindingToggle ? (
+          <ButtonGroup className="w-full">
+            <Button
+              type="button"
+              variant="default"
+              className="flex-1"
+              onClick={() => onBindingChange("abstract")}
+            >
+              Любой
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              disabled={!canBindConcrete}
+              onClick={() => onBindingChange("bound")}
+            >
+              Конкретный
+            </Button>
+          </ButtonGroup>
+        ) : null}
+        <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          {participant.displayName}
+        </div>
+      </div>
+    );
+  }
+
+  const kindSelector =
+    kindOptions.length > 1 ? (
       <Select
-        value={participant.kind}
+        value={boundKind}
         onValueChange={(value) => {
           if (value) {
             onKindChange(value as PaymentRouteSelectableParticipantOption["kind"]);
           }
         }}
       >
-        <SelectTrigger aria-label="Тип участника">
-          <SelectValue>
-            {getParticipantKindLabel(participant.kind)}
+        <SelectTrigger
+          aria-label="Тип участника"
+          className="w-full min-w-0 max-w-[9.5rem]"
+        >
+          <SelectValue className="min-w-0">
+            <span className="block min-w-0 truncate">
+              {getParticipantKindLabel(boundKind)}
+            </span>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -302,27 +362,71 @@ export function ParticipantSelector({
           ))}
         </SelectContent>
       </Select>
-      <Select
-        value={participant.entityId}
-        onValueChange={(nextValue) => {
-          if (nextValue) {
-            onEntityChange(nextValue);
-          }
-        }}
+    ) : null;
+
+  return (
+    <div className="space-y-3">
+      {showsBindingToggle ? (
+        <ButtonGroup className="w-full">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={() => onBindingChange("abstract")}
+          >
+            Любой
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            className="flex-1"
+            disabled={!canBindConcrete}
+            onClick={() => onBindingChange("bound")}
+          >
+            Конкретный
+          </Button>
+        </ButtonGroup>
+      ) : null}
+      <div
+        className={cn(
+          "grid max-w-[36rem] gap-2",
+          kindSelector ? "sm:grid-cols-[9.5rem_minmax(0,22rem)]" : null,
+        )}
       >
-        <SelectTrigger aria-label="Участник маршрута">
-          <SelectValue placeholder="Выберите участника">
-            {getSelectableOptionLabel(selectedOption)}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {selectableOptions.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {getSelectableOptionLabel(option)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        {kindSelector}
+        <Select
+          value={participant.entityId ?? ""}
+          onValueChange={(nextValue) => {
+            if (nextValue) {
+              onEntityChange(nextValue);
+            }
+          }}
+        >
+          <SelectTrigger
+            aria-label="Участник маршрута"
+            className={cn(
+              "w-full min-w-0 max-w-[22rem]",
+              kindSelector ? null : "max-w-[36rem]",
+            )}
+          >
+            <SelectValue
+              placeholder="Выберите участника"
+              className="min-w-0"
+            >
+              <span className="block min-w-0 truncate">
+                {selectedOptionLabel}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {selectableOptions.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {getSelectableOptionLabel(option)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
@@ -345,7 +449,9 @@ export function FeeListEditor({
       ) : (
         fees.map((fee) => {
           const currencyId =
-            fee.kind === "fixed" ? fee.currencyId ?? fallbackCurrencyId : fallbackCurrencyId;
+            fee.kind === "fixed"
+              ? (fee.currencyId ?? fallbackCurrencyId)
+              : fallbackCurrencyId;
 
           return (
             <div
@@ -381,13 +487,15 @@ export function FeeListEditor({
                   }}
                 >
                   <SelectTrigger aria-label="Тип комиссии">
-                    <SelectValue>
-                      {getFeeKindLabel(fee.kind)}
-                    </SelectValue>
+                    <SelectValue>{getFeeKindLabel(fee.kind)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed">{getFeeKindLabel("fixed")}</SelectItem>
-                    <SelectItem value="percent">{getFeeKindLabel("percent")}</SelectItem>
+                    <SelectItem value="fixed">
+                      {getFeeKindLabel("fixed")}
+                    </SelectItem>
+                    <SelectItem value="percent">
+                      {getFeeKindLabel("percent")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {fee.kind === "fixed" ? (
