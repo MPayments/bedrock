@@ -212,9 +212,10 @@ describe("payment route pages", () => {
       status: "active",
     });
     expect(PaymentRoutesTable).toHaveBeenCalledTimes(1);
-    const tableProps = PaymentRoutesTable.mock.calls[0]?.[0] as
-      | Record<string, unknown>
-      | undefined;
+    const tableCalls = PaymentRoutesTable.mock.calls as unknown as Array<
+      [Record<string, unknown>]
+    >;
+    const tableProps = tableCalls[0]?.[0];
 
     expect(tableProps).toMatchObject({
       currencies: OPTIONS.currencies,
