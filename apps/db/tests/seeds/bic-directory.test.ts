@@ -12,6 +12,7 @@ const FIXTURE_PATH = resolve(
 
 interface MockState {
   existingBics: { providerId: string; normalizedValue: string }[];
+  existingPrimaryBranches: { branchId: string; providerId: string }[];
   inserts: Record<string, unknown[]>;
   deletes: Record<string, unknown[]>;
 }
@@ -44,8 +45,16 @@ function makeChain(state: MockState, name: string, args: unknown) {
 function createMockDb(state: MockState) {
   return {
     select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(async () => state.existingBics),
+      from: vi.fn((table: unknown) => ({
+        where: vi.fn(async () => {
+          if (table === schema.requisiteProviderIdentifiers) {
+            return state.existingBics;
+          }
+          if (table === schema.requisiteProviderBranches) {
+            return state.existingPrimaryBranches;
+          }
+          return [];
+        }),
       })),
     })),
     insert: vi.fn((table: unknown) => {
@@ -91,6 +100,7 @@ describe("seedBicDirectory", () => {
   it("inserts active root providers, primary branches, and resolves child branches against parents", async () => {
     const state: MockState = {
       existingBics: [],
+      existingPrimaryBranches: [],
       inserts: {},
       deletes: {},
     };
@@ -137,12 +147,16 @@ describe("seedBicDirectory", () => {
     expect(state.deletes.requisiteProviderBranchIdentifiers).toHaveLength(3);
   });
 
-  it("is idempotent: re-running with the same BICs already seeded skips provider inserts", async () => {
+  it("rebuilds root branch identifiers when the provider BIC already exists", async () => {
     // Pretend Bank One and Bank Two already exist with these provider IDs
     const state: MockState = {
       existingBics: [
         { providerId: "existing-1", normalizedValue: "044525001" },
         { providerId: "existing-2", normalizedValue: "044525002" },
+      ],
+      existingPrimaryBranches: [
+        { branchId: "branch-existing-1", providerId: "existing-1" },
+        { branchId: "branch-existing-2", providerId: "existing-2" },
       ],
       inserts: {},
       deletes: {},
@@ -153,13 +167,22 @@ describe("seedBicDirectory", () => {
 
     // No root providers re-inserted
     expect(state.inserts.requisiteProviders ?? []).toHaveLength(0);
-    expect(state.inserts.requisiteProviderIdentifiers ?? []).toHaveLength(0);
+    expect(state.inserts.requisiteProviderIdentifiers ?? []).toHaveLength(3);
 
-    // Children still get upserted: 1 active child whose parent now resolves
-    expect(state.inserts.requisiteProviderBranches ?? []).toHaveLength(1);
+    // Root primary branches are refreshed for existing providers, and the
+    // active child branch is still upserted against its resolved parent.
+    const branches = state.inserts.requisiteProviderBranches ?? [];
+    expect(branches).toHaveLength(3);
+    expect(
+      branches
+        .filter((row) => (row as { isPrimary: boolean }).isPrimary)
+        .map((row) => (row as { id: string }).id),
+    ).toEqual(["branch-existing-1", "branch-existing-2"]);
+
     expect(state.inserts.requisiteProviderBranchIdentifiers ?? []).toHaveLength(
-      2,
+      5,
     );
+    expect(state.deletes.requisiteProviderBranchIdentifiers).toHaveLength(3);
   });
 
   it("honors BIC_DIRECTORY_SKIP=1 and exits without touching the database", async () => {
@@ -167,6 +190,7 @@ describe("seedBicDirectory", () => {
 
     const state: MockState = {
       existingBics: [],
+      existingPrimaryBranches: [],
       inserts: {},
       deletes: {},
     };

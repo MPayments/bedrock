@@ -1,5 +1,5 @@
 import AdmZip from "adm-zip";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { XMLParser } from "fast-xml-parser";
 import iconv from "iconv-lite";
 import { readFile } from "node:fs/promises";
@@ -204,6 +204,29 @@ async function prefetchExistingBics(db: DbLike): Promise<Map<string, string>> {
   return map;
 }
 
+async function prefetchExistingPrimaryBranches(
+  db: DbLike,
+): Promise<Map<string, string>> {
+  const rows = await db
+    .select({
+      branchId: schema.requisiteProviderBranches.id,
+      providerId: schema.requisiteProviderBranches.providerId,
+    })
+    .from(schema.requisiteProviderBranches)
+    .where(
+      and(
+        eq(schema.requisiteProviderBranches.isPrimary, true),
+        isNull(schema.requisiteProviderBranches.archivedAt),
+      ),
+    );
+
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    map.set(row.providerId, row.branchId);
+  }
+  return map;
+}
+
 function normalizeBic(bic: string): string {
   return bic.trim().toUpperCase();
 }
@@ -291,6 +314,7 @@ async function replaceBranchIdentifiers(
 async function upsertBranch(
   db: DbLike,
   input: {
+    branchId?: string;
     providerId: string;
     bic: string;
     info: BicParticipantInfo;
@@ -298,7 +322,7 @@ async function upsertBranch(
     code: string | null;
   },
 ): Promise<string> {
-  const branchId = uuidv5(input.bic, BRANCH_NAMESPACE);
+  const branchId = input.branchId ?? uuidv5(input.bic, BRANCH_NAMESPACE);
   const country = nullIfEmpty(input.info.CntrCd);
   const postalCode = nullIfEmpty(input.info.Ind);
   const city = formatCity(input.info.Tnp, input.info.Nnp);
@@ -383,10 +407,12 @@ export async function seedBicDirectory(
   );
 
   const existingBicToProviderId = await prefetchExistingBics(db);
+  const existingPrimaryBranchByProviderId =
+    await prefetchExistingPrimaryBranches(db);
 
   let providersInserted = 0;
   let providersSkipped = 0;
-  let branchesInserted = 0;
+  let branchesUpserted = 0;
   let orphansSkipped = 0;
 
   let rootIndex = 0;
@@ -394,39 +420,43 @@ export async function seedBicDirectory(
     const normalizedBic = normalizeBic(entry.BIC);
     const existingProviderId = existingBicToProviderId.get(normalizedBic);
 
+    let providerId: string;
     if (existingProviderId) {
+      providerId = existingProviderId;
       providersSkipped += 1;
     } else {
-      const providerId = await insertRootProvider(db, entry);
+      providerId = await insertRootProvider(db, entry);
       existingBicToProviderId.set(normalizedBic, providerId);
       providersInserted += 1;
-
-      const corrAccount = findCrsaAccount(entry);
-      const providerIdentifiers: { scheme: string; value: string }[] = [
-        { scheme: "bic", value: entry.BIC },
-      ];
-      if (corrAccount) {
-        providerIdentifiers.push({ scheme: "corr_account", value: corrAccount });
-      }
-      await replaceProviderIdentifiers(db, providerId, providerIdentifiers);
-
-      const branchId = await upsertBranch(db, {
-        providerId,
-        bic: entry.BIC,
-        info: entry.ParticipantInfo,
-        isPrimary: true,
-        code: null,
-      });
-      branchesInserted += 1;
-
-      const branchIdentifiers: { scheme: string; value: string }[] = [
-        { scheme: "bic", value: entry.BIC },
-      ];
-      if (corrAccount) {
-        branchIdentifiers.push({ scheme: "corr_account", value: corrAccount });
-      }
-      await replaceBranchIdentifiers(db, branchId, branchIdentifiers);
     }
+
+    const corrAccount = findCrsaAccount(entry);
+    const providerIdentifiers: { scheme: string; value: string }[] = [
+      { scheme: "bic", value: entry.BIC },
+    ];
+    if (corrAccount) {
+      providerIdentifiers.push({ scheme: "corr_account", value: corrAccount });
+    }
+    await replaceProviderIdentifiers(db, providerId, providerIdentifiers);
+
+    const branchId = await upsertBranch(db, {
+      branchId: existingPrimaryBranchByProviderId.get(providerId),
+      providerId,
+      bic: entry.BIC,
+      info: entry.ParticipantInfo,
+      isPrimary: true,
+      code: null,
+    });
+    existingPrimaryBranchByProviderId.set(providerId, branchId);
+    branchesUpserted += 1;
+
+    const branchIdentifiers: { scheme: string; value: string }[] = [
+      { scheme: "bic", value: entry.BIC },
+    ];
+    if (corrAccount) {
+      branchIdentifiers.push({ scheme: "corr_account", value: corrAccount });
+    }
+    await replaceBranchIdentifiers(db, branchId, branchIdentifiers);
 
     rootIndex += 1;
     if (rootIndex % 1000 === 0) {
@@ -452,7 +482,7 @@ export async function seedBicDirectory(
       isPrimary: false,
       code: entry.BIC,
     });
-    branchesInserted += 1;
+    branchesUpserted += 1;
 
     const corrAccount = findCrsaAccount(entry);
     const branchIdentifiers: { scheme: string; value: string }[] = [
@@ -472,6 +502,6 @@ export async function seedBicDirectory(
   }
 
   console.log(
-    `[seed:bic-directory] Done. Providers inserted: ${providersInserted}, skipped (BIC already existed): ${providersSkipped}, branches inserted: ${branchesInserted}, orphan children skipped: ${orphansSkipped}`,
+    `[seed:bic-directory] Done. Providers inserted: ${providersInserted}, skipped (BIC already existed): ${providersSkipped}, branches upserted: ${branchesUpserted}, orphan children skipped: ${orphansSkipped}`,
   );
 }
