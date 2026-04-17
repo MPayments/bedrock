@@ -7,7 +7,6 @@ import {
   type CreatePaymentRouteTemplateInput,
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
-  type PaymentRouteTemplate,
   type UpdatePaymentRouteTemplateInput,
 } from "@bedrock/treasury/contracts";
 
@@ -114,4 +113,3 @@ export async function previewPaymentRoute(
 
   return readJsonWithSchema(response, PaymentRouteCalculationSchema);
 }
-

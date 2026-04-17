@@ -14,10 +14,12 @@ import {
   ReactFlowProvider,
   getBezierPath,
   useNodesState,
+  type EdgeTypes,
   type Edge,
   type EdgeProps,
   type Node,
   type NodeProps,
+  type NodeTypes,
 } from "@xyflow/react";
 import {
   BriefcaseBusiness,
@@ -306,12 +308,12 @@ const RouteGraphEdge = React.memo(function RouteGraphEdge({
 });
 
 const nodeTypes = {
-  routeParticipant: RouteGraphNode as React.ComponentType<any>,
-};
+  routeParticipant: RouteGraphNode,
+} satisfies NodeTypes;
 
 const edgeTypes = {
-  routeLeg: RouteGraphEdge as React.ComponentType<any>,
-};
+  routeLeg: RouteGraphEdge,
+} satisfies EdgeTypes;
 
 function RouteGraphCanvas({
   canvasClassName,
@@ -491,10 +493,8 @@ function PaymentRouteGraphInspector({
         </CardHeader>
         <CardContent className="space-y-4">
           <ParticipantSelector
-            index={participantIndex}
             options={options}
             participant={participant}
-            state={state}
             onBindingChange={(binding) =>
               onStateChange(
                 setParticipantBinding({

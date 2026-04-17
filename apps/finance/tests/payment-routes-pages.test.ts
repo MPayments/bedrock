@@ -15,10 +15,8 @@ const parseSearchParams = vi.fn();
 const getPaymentRouteConstructorOptions = vi.fn();
 const getPaymentRoutesList = vi.fn();
 const getPaymentRouteTemplateById = vi.fn();
-const PaymentRoutesTable = vi.fn((_props: Record<string, unknown>) => null);
-const PaymentRouteConstructorClient = vi.fn(
-  (_props: Record<string, unknown>) => null,
-);
+const PaymentRoutesTable = vi.fn(() => null);
+const PaymentRouteConstructorClient = vi.fn(() => null);
 
 vi.mock("next/navigation", () => ({
   notFound,

@@ -74,12 +74,10 @@ type BufferedDecimalInputProps = {
 
 type ParticipantSelectorProps = {
   onBindingChange: (binding: "abstract" | "bound") => void;
-  index: number;
   onEntityChange: (entityId: string) => void;
   onKindChange: (entityKind: PaymentRouteSelectableParticipantOption["kind"]) => void;
   options: PaymentRouteConstructorOptions;
   participant: PaymentRouteEditorState["draft"]["participants"][number];
-  state: PaymentRouteEditorState;
 };
 
 type CurrencySelectorProps = {
@@ -278,13 +276,11 @@ export function CurrencySelector({
 }
 
 export function ParticipantSelector({
-  index,
   onBindingChange,
   onEntityChange,
   onKindChange,
   options,
   participant,
-  state,
 }: ParticipantSelectorProps) {
   const kindOptions = getParticipantKindOptions(participant);
   const boundKind =

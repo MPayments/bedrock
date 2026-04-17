@@ -2,19 +2,14 @@ import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import {
-  type ListPaymentRouteTemplatesQuery,
-} from "../../application/contracts/queries";
+import { paymentRouteTemplates } from "./schema";
+import type { ListPaymentRouteTemplatesQuery } from "../../application/contracts/queries";
+import { PaymentRouteDraftSchema, normalizePaymentRouteDraft } from "../../application/contracts/zod";
 import type {
   PaymentRouteTemplateRecord,
   PaymentRouteTemplateWriteModel,
   PaymentRouteTemplatesRepository,
 } from "../../application/ports/payment-routes.repository";
-import {
-  PaymentRouteDraftSchema,
-  normalizePaymentRouteDraft,
-} from "../../application/contracts/zod";
-import { paymentRouteTemplates } from "./schema";
 
 function deriveSummaryColumns(draft: PaymentRouteTemplateWriteModel["draft"]) {
   const sourceEndpoint = draft.participants[0]!;

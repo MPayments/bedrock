@@ -173,6 +173,7 @@ export function PaymentRouteConstructorClient({
 
   React.useEffect(() => {
     if (!deferredPreviewRequestKey) {
+      setPreviewPending(false);
       return;
     }
 
@@ -233,10 +234,6 @@ export function PaymentRouteConstructorClient({
     return () => {
       window.clearTimeout(timeout);
       controller.abort();
-
-      if (previewRequestIdRef.current === requestId) {
-        setPreviewPending(false);
-      }
     };
   }, [deferredPreviewRequestKey]);
 
@@ -255,7 +252,113 @@ export function PaymentRouteConstructorClient({
     };
   }, [previewPending]);
 
-  if (!state) {
+  const editorState = state;
+  const isGraphMode = editorState?.mode === "graph";
+  const currencyIn =
+    editorState
+      ? options.currencies.find(
+          (currency) => currency.id === editorState.draft.currencyInId,
+        ) ?? null
+      : null;
+  const currencyOut =
+    editorState
+      ? options.currencies.find(
+          (currency) => currency.id === editorState.draft.currencyOutId,
+        ) ?? null
+      : null;
+  const totalClientCostInMinor = getPaymentRouteTotalClientCostInMinor(
+    editorState?.calculation ?? null,
+  );
+  const pureAmountOutMinor = getPaymentRoutePureAmountOutMinor(
+    editorState?.calculation ?? null,
+  );
+  const rateLines = editorState?.calculation
+    ? getPaymentRouteRateLines({
+        amountInMinor: editorState.calculation.amountInMinor,
+        cleanAmountOutMinor:
+          pureAmountOutMinor ?? editorState.calculation.amountOutMinor,
+        costInclusiveAmountInMinor: totalClientCostInMinor,
+        effectiveAmountOutMinor: editorState.calculation.amountOutMinor,
+        currencyIn,
+        currencyOut,
+      })
+    : {
+        cleanForward: null,
+        cleanReverse: null,
+        effectiveForward: null,
+        effectiveReverse: null,
+      };
+  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(
+    editorState?.calculation ?? null,
+  );
+  const additionalFeeSummary = additionalFeeTotals
+    .map((feeTotal) =>
+      formatCurrencyMinorAmount(
+        feeTotal.amountMinor,
+        options.currencies.find((currency) => currency.id === feeTotal.currencyId) ??
+          null,
+      ),
+    )
+    .join(" • ");
+  const displayAmountOut =
+    editorState?.calculation?.amountOutMinor ??
+    editorState?.draft.amountOutMinor ??
+    "0";
+  const workspaceTitle = editorState?.name.trim() || "Новый маршрут";
+  const workspaceSubtitle = editorState?.templateId
+    ? "Редактирование шаблона маршрута"
+    : "Создание шаблона маршрута";
+  const requisiteWarnings = React.useMemo(
+    () => {
+      if (!editorState) {
+        return [];
+      }
+
+      return getPaymentRouteRequisiteWarnings({
+        draft: editorState.draft,
+        options,
+        requisitesByOwner: requisites.requisitesByOwner,
+        statusByOwner: requisites.statusByOwner,
+      });
+    },
+    [editorState, options, requisites.requisitesByOwner, requisites.statusByOwner],
+  );
+
+  React.useEffect(() => {
+    if (!isGraphMode) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isGraphMode]);
+
+  React.useEffect(() => {
+    if (!isGraphMode) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setState((current) =>
+          current ? setEditorMode(current, "manual") : current,
+        );
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isGraphMode]);
+
+  if (!editorState) {
     return (
       <Card className="border-dashed">
         <CardContent className="space-y-3 px-6 py-10">
@@ -297,102 +400,6 @@ export function PaymentRouteConstructorClient({
       </Card>
     );
   }
-
-  const editorState = state;
-  const isGraphMode = editorState.mode === "graph";
-  const currencyIn =
-    options.currencies.find(
-      (currency) => currency.id === editorState.draft.currencyInId,
-    ) ?? null;
-  const currencyOut =
-    options.currencies.find(
-      (currency) => currency.id === editorState.draft.currencyOutId,
-    ) ?? null;
-  const totalClientCostInMinor = getPaymentRouteTotalClientCostInMinor(
-    editorState.calculation,
-  );
-  const pureAmountOutMinor = getPaymentRoutePureAmountOutMinor(
-    editorState.calculation,
-  );
-  const rateLines = editorState.calculation
-    ? getPaymentRouteRateLines({
-        amountInMinor: editorState.calculation.amountInMinor,
-        cleanAmountOutMinor:
-          pureAmountOutMinor ?? editorState.calculation.amountOutMinor,
-        costInclusiveAmountInMinor: totalClientCostInMinor,
-        effectiveAmountOutMinor: editorState.calculation.amountOutMinor,
-        currencyIn,
-        currencyOut,
-      })
-    : {
-        cleanForward: null,
-        cleanReverse: null,
-        effectiveForward: null,
-        effectiveReverse: null,
-      };
-  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(
-    editorState.calculation,
-  );
-  const additionalFeeSummary = additionalFeeTotals
-    .map((feeTotal) =>
-      formatCurrencyMinorAmount(
-        feeTotal.amountMinor,
-        options.currencies.find((currency) => currency.id === feeTotal.currencyId) ??
-          null,
-      ),
-    )
-    .join(" • ");
-  const displayAmountOut =
-    editorState.calculation?.amountOutMinor ??
-    editorState.draft.amountOutMinor;
-  const workspaceTitle = editorState.name.trim() || "Новый маршрут";
-  const workspaceSubtitle = editorState.templateId
-    ? "Редактирование шаблона маршрута"
-    : "Создание шаблона маршрута";
-  const requisiteWarnings = React.useMemo(
-    () =>
-      getPaymentRouteRequisiteWarnings({
-        draft: editorState.draft,
-        options,
-        requisitesByOwner: requisites.requisitesByOwner,
-        statusByOwner: requisites.statusByOwner,
-      }),
-    [editorState.draft, options, requisites.requisitesByOwner, requisites.statusByOwner],
-  );
-
-  React.useEffect(() => {
-    if (!isGraphMode) {
-      return;
-    }
-
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
-  }, [isGraphMode]);
-
-  React.useEffect(() => {
-    if (!isGraphMode) {
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setState((current) =>
-          current ? setEditorMode(current, "manual") : current,
-        );
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isGraphMode]);
 
   function handleSave() {
     startSaveTransition(async () => {

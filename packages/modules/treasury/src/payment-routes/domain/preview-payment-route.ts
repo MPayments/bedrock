@@ -1,5 +1,10 @@
-import { mulDivFloor, mulDivRoundHalfUp, parseDecimalToFraction } from "@bedrock/shared/money/math";
+import {
+  mulDivFloor,
+  mulDivRoundHalfUp,
+  parseDecimalToFraction,
+} from "@bedrock/shared/money/math";
 
+import { ValidationError } from "../../errors";
 import type { CrossRate } from "../../rates/application/ports/rates.repository";
 import type { CurrenciesPort } from "../../shared/application/external-ports";
 import type {
@@ -9,7 +14,6 @@ import type {
   PaymentRouteCalculationLeg,
 } from "../application/contracts/dto";
 import type { PaymentRouteDraft, PaymentRouteFee } from "../application/contracts/zod";
-import { ValidationError } from "../../errors";
 
 type CrossRateLookup = (
   base: string,

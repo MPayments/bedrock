@@ -1,7 +1,5 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import type { CrossRate } from "../../rates/application/ports/rates.repository";
-import type { CurrenciesPort } from "../../shared/application/external-ports";
 import { ArchivePaymentRouteTemplateCommand } from "./commands/archive-template";
 import { CreatePaymentRouteTemplateCommand } from "./commands/create-template";
 import { DuplicatePaymentRouteTemplateCommand } from "./commands/duplicate-template";
@@ -10,6 +8,8 @@ import type { PaymentRouteTemplatesRepository } from "./ports/payment-routes.rep
 import { GetPaymentRouteTemplateByIdQuery } from "./queries/get-template-by-id";
 import { ListPaymentRouteTemplatesQueryHandler } from "./queries/list-templates";
 import { PreviewPaymentRouteQuery } from "./queries/preview-template";
+import type { CrossRate } from "../../rates/application/ports/rates.repository";
+import type { CurrenciesPort } from "../../shared/application/external-ports";
 
 export interface PaymentRoutesServiceDeps {
   currencies: CurrenciesPort;

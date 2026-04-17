@@ -1,5 +1,6 @@
 import { Entity } from "@bedrock/shared/core/domain";
 
+import type { PaymentRouteCalculation } from "../application/contracts/dto";
 import {
   PaymentRouteDraftSchema,
   PaymentRouteVisualMetadataSchema,
@@ -8,7 +9,6 @@ import {
   type PaymentRouteTemplateStatus,
   type PaymentRouteVisualMetadata,
 } from "../application/contracts/zod";
-import type { PaymentRouteCalculation } from "../application/contracts/dto";
 import type { PaymentRouteTemplateRecord } from "../application/ports/payment-routes.repository";
 
 function cloneDraft(draft: PaymentRouteDraft): PaymentRouteDraft {

@@ -16,8 +16,6 @@ import {
 } from "@bedrock/parties/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
-import { DeletedSchema, ErrorSchema } from "../common";
-import { buildOptionsResponse } from "../common/options";
 import {
   assertCustomerOwnsCounterparty,
   createCustomerAgreementForCustomer,
@@ -25,14 +23,16 @@ import {
   resolveEffectiveCustomerAgreementByCustomerId,
   updateCustomerAgreement,
 } from "./customer-agreements";
-import { handleRouteError } from "../common/errors";
-import type { AppContext } from "../context";
 import {
   CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
   GeneratedDocumentLangSchema,
   serializeCustomerFileAttachment,
 } from "./customer-files";
+import { DeletedSchema, ErrorSchema } from "../common";
+import { handleRouteError } from "../common/errors";
+import { buildOptionsResponse } from "../common/options";
+import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";

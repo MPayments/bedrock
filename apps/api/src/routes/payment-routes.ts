@@ -6,6 +6,10 @@ import {
   OrganizationNotFoundError,
 } from "@bedrock/parties";
 import {
+  PaymentRouteTemplateNotFoundError,
+  ValidationError,
+} from "@bedrock/treasury";
+import {
   ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
   ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
   CreatePaymentRouteTemplateInputSchema,
@@ -18,10 +22,6 @@ import {
   PreviewPaymentRouteInputSchema,
   UpdatePaymentRouteTemplateInputSchema,
 } from "@bedrock/treasury/contracts";
-import {
-  PaymentRouteTemplateNotFoundError,
-  ValidationError,
-} from "@bedrock/treasury";
 
 import { ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

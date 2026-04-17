@@ -96,12 +96,12 @@ export const PaymentRouteLockedSideSchema = z.enum(
 );
 export const PaymentRouteSnapshotPolicySchema = z.literal("clone_on_attach");
 
-const PaymentRouteLegacyParticipantRefSchema = z.object({
-  displayName: z.string().trim().min(1),
-  entityId: z.uuid(),
-  kind: PaymentRouteParticipantKindSchema,
-  nodeId: z.string().trim().min(1),
-});
+interface PaymentRouteLegacyParticipantRef {
+  displayName: string;
+  entityId: string;
+  kind: z.infer<typeof PaymentRouteParticipantKindSchema>;
+  nodeId: string;
+}
 
 const PaymentRouteAbstractSourceParticipantRefSchema = z.object({
   binding: z.literal("abstract"),
@@ -279,7 +279,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isLegacyPaymentRouteParticipantRef(
   value: unknown,
-): value is z.infer<typeof PaymentRouteLegacyParticipantRefSchema> {
+): value is PaymentRouteLegacyParticipantRef {
   return (
     isRecord(value) &&
     typeof value.kind === "string" &&

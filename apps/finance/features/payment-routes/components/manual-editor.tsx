@@ -193,10 +193,8 @@ export function PaymentRouteManualEditor({
                 <Field>
                   <FieldTitle>Откуда</FieldTitle>
                   <ParticipantSelector
-                    index={index}
                     options={options}
                     participant={participant}
-                    state={state}
                     onBindingChange={(binding) =>
                       onStateChange(
                         setParticipantBinding({
@@ -252,10 +250,8 @@ export function PaymentRouteManualEditor({
                 <Field>
                   <FieldTitle>Куда</FieldTitle>
                   <ParticipantSelector
-                    index={index + 1}
                     options={options}
                     participant={destination}
-                    state={state}
                     onBindingChange={(binding) =>
                       onStateChange(
                         setParticipantBinding({
