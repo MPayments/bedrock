@@ -8,7 +8,14 @@ const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@bedrock/sdk-ui"],
+  transpilePackages: [
+    "@bedrock/sdk-clients-ui",
+    "@bedrock/sdk-organizations-ui",
+    "@bedrock/sdk-parties-ui",
+    "@bedrock/sdk-tables-ui",
+    "@bedrock/sdk-ui",
+    "@bedrock/sdk-users-ui",
+  ],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

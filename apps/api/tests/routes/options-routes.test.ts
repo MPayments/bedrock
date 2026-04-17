@@ -16,6 +16,7 @@ vi.mock("../../src/auth", () => ({
 }));
 
 import { organizationsRoutes } from "../../src/routes/organizations";
+import { customersRoutes } from "../../src/routes/customers";
 import { requisiteProvidersRoutes } from "../../src/routes/requisite-providers";
 
 function createOrganizationsQueryStub() {
@@ -25,6 +26,22 @@ function createOrganizationsQueryStub() {
         {
           id: "11111111-1111-4111-8111-111111111111",
           shortName: "Bedrock Treasury",
+        },
+      ],
+      total: 1,
+      limit: 1,
+      offset: 0,
+    }),
+  };
+}
+
+function createCustomersQueryStub() {
+  return {
+    list: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "Acme Trading",
         },
       ],
       total: 1,
@@ -98,6 +115,38 @@ describe("options routes", () => {
           id: "11111111-1111-4111-8111-111111111111",
           shortName: "Bedrock Treasury",
           label: "Bedrock Treasury",
+        },
+      ],
+    });
+  });
+
+  it("bounds customer options requests to the validated page size", async () => {
+    const customersQueries = createCustomersQueryStub();
+    const app = createTestApp(() =>
+      customersRoutes({
+        partiesModule: {
+          customers: {
+            queries: customersQueries,
+          },
+        },
+      } as any),
+    );
+
+    const response = await app.request("http://localhost/options");
+
+    expect(response.status).toBe(200);
+    expect(customersQueries.list).toHaveBeenCalledWith({
+      limit: MAX_QUERY_LIST_LIMIT,
+      offset: 0,
+      sortBy: "name",
+      sortOrder: "asc",
+    });
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "Acme Trading",
+          label: "Acme Trading",
         },
       ],
     });

@@ -12,6 +12,7 @@ import {
   type TreasuryModuleDeps,
 } from "@bedrock/treasury";
 import {
+  DrizzlePaymentRouteTemplatesRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionsRepository,
   DrizzleTreasuryOperationsRepository,
@@ -47,6 +48,8 @@ export function createApiTreasuryModule(input: {
     quoteFeeComponentsRepository:
       new DrizzleTreasuryQuoteFeeComponentsRepository(input.db),
     feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(input.db),
+    paymentRouteTemplatesRepository:
+      new DrizzlePaymentRouteTemplatesRepository(input.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({ persistence }),
     rateSourceProviders: createDefaultRateSourceProviders(),
   });

@@ -13,6 +13,7 @@ type EntityWorkspaceLayoutProps = {
   icon: LucideIcon;
   children: React.ReactNode;
   controls?: React.ReactNode;
+  headerControls?: React.ReactNode;
 };
 
 export function EntityWorkspaceLayout({
@@ -20,6 +21,7 @@ export function EntityWorkspaceLayout({
   subtitle,
   icon: Icon,
   controls,
+  headerControls,
   children,
 }: EntityWorkspaceLayoutProps) {
   return (
@@ -36,6 +38,11 @@ export function EntityWorkspaceLayout({
             </p>
           </div>
         </div>
+        {headerControls ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {headerControls}
+          </div>
+        ) : null}
       </div>
       <Separator className="w-full h-px" />
       {controls}

@@ -86,6 +86,7 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
+  paymentRouteTemplates,
   treasuryInstructions,
   treasuryOperations,
 } from "@bedrock/treasury/schema";

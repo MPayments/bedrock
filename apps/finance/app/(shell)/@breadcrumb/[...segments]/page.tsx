@@ -4,6 +4,7 @@ import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { getOrganizationById } from "@/features/entities/organizations/lib/queries";
 import { getRequisiteProviderById } from "@/features/entities/requisite-providers/lib/queries";
 import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
+import { getPaymentRouteTemplateById } from "@/features/payment-routes/lib/queries";
 import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
 import { getFinanceDealBreadcrumbById } from "@/features/treasury/deals/lib/queries";
 import {
@@ -75,6 +76,13 @@ const dynamicResolvers = {
     getById: getCounterpartyById,
     getLabel: (counterparty) => counterparty.shortName,
     getId: (counterparty) => counterparty.id,
+  }),
+  constructor: createResourceSegmentResolver({
+    singularLabel: "Маршрут",
+    hrefPrefix: "/routes/constructor",
+    getById: getPaymentRouteTemplateById,
+    getLabel: (route) => route.name,
+    getId: (route) => route.id,
   }),
   deals: createResourceSegmentResolver({
     singularLabel: "Сделка",

@@ -7,13 +7,15 @@ import {
 } from "@bedrock/parties";
 import {
   CreateCustomerInputSchema,
+  CustomerOptionSchema,
+  CustomerOptionsResponseSchema,
   CustomerSchema,
   ListCustomersQuerySchema,
   PaginatedCustomersSchema,
   UpdateCustomerInputSchema,
 } from "@bedrock/parties/contracts";
+import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
-import { DeletedSchema, ErrorSchema } from "../common";
 import {
   assertCustomerOwnsCounterparty,
   createCustomerAgreementForCustomer,
@@ -21,14 +23,16 @@ import {
   resolveEffectiveCustomerAgreementByCustomerId,
   updateCustomerAgreement,
 } from "./customer-agreements";
-import { handleRouteError } from "../common/errors";
-import type { AppContext } from "../context";
 import {
   CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
   GeneratedDocumentLangSchema,
   serializeCustomerFileAttachment,
 } from "./customer-files";
+import { DeletedSchema, ErrorSchema } from "../common";
+import { handleRouteError } from "../common/errors";
+import { buildOptionsResponse } from "../common/options";
+import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
@@ -199,6 +203,22 @@ export function customersRoutes(ctx: AppContext) {
     path: "/export/xlsx",
     responses: { 200: { description: "Customers XLSX file" } },
     summary: "Export customers to XLSX",
+    tags: ["Customers"],
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ customers: ["list"] })],
+    method: "get",
+    path: "/options",
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CustomerOptionsResponseSchema },
+        },
+        description: "Customer option list",
+      },
+    },
+    summary: "List customers for select inputs",
     tags: ["Customers"],
   });
 
@@ -434,6 +454,25 @@ export function customersRoutes(ctx: AppContext) {
         },
         status: 200,
       });
+    })
+    .openapi(optionsRoute, async (c) => {
+      const result = await ctx.partiesModule.customers.queries.list({
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+
+      return c.json(
+        buildOptionsResponse(result, (customer) =>
+          CustomerOptionSchema.parse({
+            id: customer.id,
+            label: customer.name,
+            name: customer.name,
+          }),
+        ),
+        200,
+      );
     })
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");

@@ -30,6 +30,7 @@ type ResolveBreadcrumbItemsOptions = {
 };
 
 const segmentMap: Record<string, SegmentConfig> = {
+  routes: { label: "Маршруты", href: "/routes", icon: "workflow" },
   treasury: { label: "Казначейство", href: "/treasury", icon: "landmark" },
   transfers: {
     label: "Переводы",
@@ -78,6 +79,12 @@ const segmentMap: Record<string, SegmentConfig> = {
     icon: "vault",
   },
   create: { label: "Создать" },
+  list: { label: "Список маршрутов", href: "/routes/list", icon: "workflow" },
+  ["constructor"]: {
+    label: "Конструктор маршрута",
+    href: "/routes/constructor",
+    icon: "workflow",
+  } as SegmentConfig,
   type: { label: "Тип" },
   accounts: { label: "Реквизиты", icon: "wallet" },
   balances: { label: "Балансы", href: "/treasury/balances", icon: "wallet" },

@@ -34,6 +34,7 @@ import {
   documentsRoutes,
   counterpartyDirectoryRoutes,
   organizationsRoutes,
+  paymentRoutesRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
@@ -216,6 +217,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
+    .route("/payment-routes", paymentRoutesRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
     .route("/sub-agent-profiles", subAgentProfilesRoutes(ctx))

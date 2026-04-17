@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";
-import { readJsonWithSchema, requestOk } from "@/lib/api/response";
+import {
+  readJsonWithSchema,
+  requestOk,
+} from "@/lib/api/response";
 
 const TreasuryOrganizationBalanceRowSchema = z.object({
   organizationId: z.uuid(),
@@ -32,7 +35,7 @@ export async function getTreasuryOrganizationBalances(): Promise<TreasuryOrganiz
   const client = await getServerApiClient();
   const response = await requestOk(
     await client.v1.treasury.organizations.balances.$get(),
-    "Не удалось загрузить balances treasury-организаций",
+    "Не удалось загрузить балансы казначейских организаций",
   );
 
   return readJsonWithSchema(

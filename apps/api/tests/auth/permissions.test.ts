@@ -90,6 +90,19 @@ describe("auth permissions", () => {
     ]);
   });
 
+  it("grants payment route management separately from treasury rates", () => {
+    expect((finance as any).statements.payment_routes).toEqual([
+      "list",
+      "create",
+      "update",
+      "archive",
+    ]);
+    expect((finance as any).statements.treasury_rates).toEqual(["list"]);
+    expect((user as any).statements.payment_routes).toEqual(["list"]);
+    expect((agent as any).statements.payment_routes).toEqual(["list"]);
+    expect((customer as any).statements.payment_routes).toBeUndefined();
+  });
+
   it("grants reconciliation permissions to admin and finance roles only", () => {
     expect((admin as any).statements.reconciliation).toEqual([
       "list",

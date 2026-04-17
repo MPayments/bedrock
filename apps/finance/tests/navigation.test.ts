@@ -30,7 +30,12 @@ describe("navigation config", () => {
   it("hides admin-only sections for finance users", () => {
     const items = getPrimaryNavigation(createSession("finance"));
 
-    expect(items.map((item) => item.href)).toEqual(["/", "/documents", "/settings"]);
+    expect(items.map((item) => item.href)).toEqual([
+      "/",
+      "/documents",
+      "/routes",
+      "/settings",
+    ]);
   });
 
   it("shows admin sections and no dead placeholder links", () => {
@@ -44,6 +49,9 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/documents/commercial");
     expect(hrefs).toContain("/documents/transfers");
     expect(hrefs).toContain("/documents/journal");
+    expect(hrefs).toContain("/routes");
+    expect(hrefs).toContain("/routes/constructor");
+    expect(hrefs).toContain("/routes/list");
     expect(hrefs).toContain("/entities");
     expect(hrefs).toContain("/settings");
     expect(hrefs).toContain("/settings/profile");

@@ -13,6 +13,15 @@ import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 
+const LatestRateResponseSchema = z.object({
+  asOf: z.iso.datetime(),
+  base: z.string(),
+  quote: z.string(),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  source: z.string(),
+});
+
 export type SerializedRatePair = z.infer<
   typeof RatePairsResponseSchema.shape.data.element
 >;
@@ -23,6 +32,7 @@ export type SerializedSourceStatus = z.infer<
 export type SerializedRateHistoryPoint = z.infer<
   typeof RateHistoryResponseSchema.shape.data.element
 >;
+export type SerializedLatestRate = z.infer<typeof LatestRateResponseSchema>;
 export type CurrencyOption = Pick<
   z.infer<typeof CurrencyOptionsResponseSchema.shape.data.element>,
   "code" | "name"
@@ -89,4 +99,24 @@ export async function getCurrencyOptions(): Promise<CurrencyOption[]> {
     code: currency.code,
     name: currency.name,
   }));
+}
+
+export async function getLatestRate(
+  base: string,
+  quote: string,
+  asOf?: string,
+): Promise<SerializedLatestRate> {
+  const client = await getServerApiClient();
+  const response = await requestOk(
+    await client.v1.treasury.rates.latest.$get({
+      query: {
+        base,
+        quote,
+        ...(asOf ? { asOf } : {}),
+      },
+    }),
+    "Не удалось загрузить последний валютный курс",
+  );
+
+  return readJsonWithSchema(response, LatestRateResponseSchema);
 }
