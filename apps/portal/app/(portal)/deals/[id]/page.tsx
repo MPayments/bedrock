@@ -113,6 +113,7 @@ function formatDate(value: string | null) {
 function formatDecimal(value: string, maximumFractionDigits = 2) {
   try {
     return formatDecimalString(value, {
+      groupSeparator: ",",
       minimumFractionDigits: 2,
       maximumFractionDigits,
     });
@@ -122,9 +123,13 @@ function formatDecimal(value: string, maximumFractionDigits = 2) {
 }
 
 function formatCurrencyAmount(
-  value: string,
+  value: string | null | undefined,
   currencyCode: string | null | undefined,
 ) {
+  if (!value) {
+    return "Не указана";
+  }
+
   const formattedValue = formatDecimal(value);
 
   if (!currencyCode || formattedValue === "—") {
@@ -323,10 +328,20 @@ export default function PortalDealDetailPage() {
 
   const primaryAmountLabel =
     data.summary.type === "payment" ? "Сумма оплаты" : "Сумма сделки";
+  const primaryAmountCurrencyCode =
+    data.summary.type === "payment"
+      ? data.customerSafeIntake.expectedCurrencyCode
+      : data.customerSafeIntake.sourceCurrencyCode;
   const primaryAmountValue =
     data.summary.type === "payment"
-      ? data.customerSafeIntake.expectedAmount
-      : data.customerSafeIntake.sourceAmount;
+      ? formatCurrencyAmount(
+          data.customerSafeIntake.expectedAmount,
+          primaryAmountCurrencyCode,
+        )
+      : formatCurrencyAmount(
+          data.customerSafeIntake.sourceAmount,
+          primaryAmountCurrencyCode,
+        );
 
   return (
     <div className="space-y-4">
@@ -428,9 +443,7 @@ export default function PortalDealDetailPage() {
             <p className="text-xs uppercase text-muted-foreground">
               {primaryAmountLabel}
             </p>
-            <p className="text-sm font-medium">
-              {primaryAmountValue ?? "Не указана"}
-            </p>
+            <p className="text-sm font-medium">{primaryAmountValue}</p>
           </div>
           <div>
             <p className="text-xs uppercase text-muted-foreground">Цель</p>
@@ -467,7 +480,10 @@ export default function PortalDealDetailPage() {
               Ожидаемая сумма поступления
             </p>
             <p className="text-sm font-medium">
-              {data.customerSafeIntake.expectedAmount ?? "Не указана"}
+              {formatCurrencyAmount(
+                data.customerSafeIntake.expectedAmount,
+                data.customerSafeIntake.expectedCurrencyCode,
+              )}
             </p>
           </div>
           <div className="md:col-span-2">

@@ -970,27 +970,78 @@ function buildPortalRequiredActions(input: {
   return Array.from(actions);
 }
 
-function toPortalIntakeSummary(workflow: DealWorkflowProjection) {
+async function resolvePortalIntakeCurrencyCodes(
+  workflow: DealWorkflowProjection,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+) {
+  const currencyIds = [
+    workflow.intake.incomingReceipt.expectedCurrencyId,
+    workflow.intake.moneyRequest.sourceCurrencyId,
+    workflow.intake.moneyRequest.targetCurrencyId,
+  ].filter((currencyId): currencyId is string => Boolean(currencyId));
+
+  if (currencyIds.length === 0) {
+    return {
+      expectedCurrencyCode: null,
+      sourceCurrencyCode: null,
+      targetCurrencyCode: null,
+    };
+  }
+
+  const codeById = toMap(
+    await Promise.all(
+      Array.from(new Set(currencyIds)).map(
+        async (currencyId): Promise<readonly [string, string | null]> =>
+          [currencyId, (await deps.currencies.findById(currencyId))?.code ?? null] as const,
+      ),
+    ),
+  );
+
+  return {
+    expectedCurrencyCode: workflow.intake.incomingReceipt.expectedCurrencyId
+      ? (codeById.get(workflow.intake.incomingReceipt.expectedCurrencyId) ?? null)
+      : null,
+    sourceCurrencyCode: workflow.intake.moneyRequest.sourceCurrencyId
+      ? (codeById.get(workflow.intake.moneyRequest.sourceCurrencyId) ?? null)
+      : null,
+    targetCurrencyCode: workflow.intake.moneyRequest.targetCurrencyId
+      ? (codeById.get(workflow.intake.moneyRequest.targetCurrencyId) ?? null)
+      : null,
+  };
+}
+
+async function toPortalIntakeSummary(
+  workflow: DealWorkflowProjection,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+) {
+  const currencyCodes = await resolvePortalIntakeCurrencyCodes(workflow, deps);
+
   return {
     contractNumber: workflow.intake.incomingReceipt.contractNumber,
     customerNote: workflow.intake.common.customerNote,
     expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
+    expectedCurrencyCode: currencyCodes.expectedCurrencyCode,
     expectedCurrencyId: workflow.intake.incomingReceipt.expectedCurrencyId,
     invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
     purpose: workflow.intake.moneyRequest.purpose,
     requestedExecutionDate: workflow.intake.common.requestedExecutionDate,
     sourceAmount: workflow.intake.moneyRequest.sourceAmount,
+    sourceCurrencyCode: currencyCodes.sourceCurrencyCode,
     sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId,
+    targetCurrencyCode: currencyCodes.targetCurrencyCode,
     targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId,
   };
 }
 
-function buildPortalProjection(input: {
+async function buildPortalProjection(
+  input: {
   attachments: Awaited<
     ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
   >;
   workflow: DealWorkflowProjection;
-}): PortalDealProjection {
+},
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<PortalDealProjection> {
   const customerSafeTimeline = getCustomerSafeTimeline(input.workflow.timeline);
   const attachments = buildCustomerSafeAttachments(
     input.attachments,
@@ -1009,7 +1060,7 @@ function buildPortalProjection(input: {
     calculationSummary: input.workflow.summary.calculationId
       ? { id: input.workflow.summary.calculationId }
       : null,
-    customerSafeIntake: toPortalIntakeSummary(input.workflow),
+    customerSafeIntake: await toPortalIntakeSummary(input.workflow, deps),
     nextAction: mapPortalNextAction({
       hasRequiredInvoice,
       nextAction: input.workflow.nextAction,
@@ -1376,7 +1427,7 @@ export function createDealProjectionsWorkflow(
 
     const attachments =
       await deps.files.files.queries.listDealAttachments(dealId);
-    return buildPortalProjection({ attachments, workflow });
+    return buildPortalProjection({ attachments, workflow }, deps);
   }
 
   async function listPortalDeals(

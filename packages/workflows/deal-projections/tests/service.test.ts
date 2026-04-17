@@ -537,6 +537,11 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
     expect(projection?.timeline).toHaveLength(1);
     expect(projection?.summary.applicantDisplayName).toBe("Applicant One");
+    expect(projection?.customerSafeIntake).toMatchObject({
+      expectedCurrencyCode: "USD",
+      sourceCurrencyCode: "RUB",
+      targetCurrencyCode: "USD",
+    });
     expect(projection?.submissionCompleteness.complete).toBe(true);
     expect(projection?.requiredActions).toContain("Ожидайте или примите котировку");
   });

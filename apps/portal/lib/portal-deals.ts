@@ -170,12 +170,15 @@ export interface PortalDealProjectionResponse {
     contractNumber: string | null;
     customerNote: string | null;
     expectedAmount: string | null;
+    expectedCurrencyCode: string | null;
     expectedCurrencyId: string | null;
     invoiceNumber: string | null;
     purpose: string | null;
     requestedExecutionDate: string | null;
     sourceAmount: string | null;
+    sourceCurrencyCode: string | null;
     sourceCurrencyId: string | null;
+    targetCurrencyCode: string | null;
     targetCurrencyId: string | null;
   };
   nextAction: string;

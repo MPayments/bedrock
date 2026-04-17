@@ -78,9 +78,6 @@ export function PaymentRouteManualEditor({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-sm font-medium">Цепочка операций</div>
-          <div className="text-sm text-muted-foreground">
-            Каждый шаг описывает переход между соседними участниками маршрута.
-          </div>
         </div>
         <Button
           type="button"
@@ -121,19 +118,15 @@ export function PaymentRouteManualEditor({
         );
 
         return (
-            <Card key={leg.id} className="border-border/70">
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Badge variant="outline">Шаг {index + 1}</Badge>
-                      <CardTitle className="min-w-0 truncate text-base">
-                        {participant.displayName} → {destination.displayName}
-                      </CardTitle>
-                    </div>
-                  <div className="text-sm text-muted-foreground">
-                    Переход от клиента к бенефициару через связанные операции
-                    маршрута.
+          <Card key={leg.id} className="border-border/70">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Badge variant="outline">Шаг {index + 1}</Badge>
+                    <CardTitle className="min-w-0 truncate text-base">
+                      {participant.displayName} → {destination.displayName}
+                    </CardTitle>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
