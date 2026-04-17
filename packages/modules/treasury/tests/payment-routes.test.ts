@@ -469,6 +469,60 @@ describe("payment routes", () => {
     expect(calculation.amountOutMinor).toBe("9000");
   });
 
+  it("keeps increasing the input in currencyOut mode until fixed fees are coverable", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      amountInMinor: "1",
+      amountOutMinor: "9000",
+      lockedSide: "currency_out",
+      legs: [
+        {
+          fees: [
+            {
+              amountMinor: "100",
+              currencyId: USD,
+              id: "fee-leg",
+              kind: "fixed",
+              label: "Hop",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountInMinor).toBe("9100");
+    expect(calculation.amountOutMinor).toBe("9000");
+  });
+
+  it("reports the actual payout amount when locked output rounds up", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      amountInMinor: "1",
+      amountOutMinor: "1",
+      currencyOutId: AED,
+      lockedSide: "currency_out",
+      legs: [
+        {
+          fees: [],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: AED,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountInMinor).toBe("1");
+    expect(calculation.amountOutMinor).toBe("3");
+    expect(calculation.netAmountOutMinor).toBe("3");
+  });
+
   it("previews routes with abstract source and destination endpoints", async () => {
     const { service } = createService();
     const draft = createDraft({

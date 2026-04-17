@@ -65,11 +65,21 @@ export type PaymentRouteEditorState = {
   visual: PaymentRouteVisualMetadata;
 };
 
-const DEFAULT_VIEWPORT = {
+export const DEFAULT_PAYMENT_ROUTE_VIEWPORT = {
   x: 0,
   y: 0,
   zoom: 1,
 } as const;
+
+export function isDefaultPaymentRouteViewport(
+  viewport: PaymentRouteVisualMetadata["viewport"],
+) {
+  return (
+    viewport.x === DEFAULT_PAYMENT_ROUTE_VIEWPORT.x &&
+    viewport.y === DEFAULT_PAYMENT_ROUTE_VIEWPORT.y &&
+    viewport.zoom === DEFAULT_PAYMENT_ROUTE_VIEWPORT.zoom
+  );
+}
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -315,7 +325,7 @@ export function createPaymentRouteSeed(
     templateId: null,
     visual: ensureVisualMetadata(draft, {
       nodePositions: {},
-      viewport: DEFAULT_VIEWPORT,
+      viewport: DEFAULT_PAYMENT_ROUTE_VIEWPORT,
     }),
   };
 }
@@ -360,7 +370,7 @@ export function ensureVisualMetadata(
     };
   });
 
-  next.viewport = next.viewport ?? { ...DEFAULT_VIEWPORT };
+  next.viewport = next.viewport ?? { ...DEFAULT_PAYMENT_ROUTE_VIEWPORT };
 
   return PaymentRouteVisualMetadataSchema.parse(next);
 }
@@ -644,6 +654,22 @@ function createDefaultPercentFee(): PaymentRouteFee {
   };
 }
 
+function reconnectLegCurrencies(draft: PaymentRouteDraft) {
+  if (draft.legs.length === 0) {
+    return draft;
+  }
+
+  draft.legs[0]!.fromCurrencyId = draft.currencyInId;
+
+  for (let index = 1; index < draft.legs.length; index += 1) {
+    draft.legs[index]!.fromCurrencyId = draft.legs[index - 1]!.toCurrencyId;
+  }
+
+  draft.legs[draft.legs.length - 1]!.toCurrencyId = draft.currencyOutId;
+
+  return draft;
+}
+
 export function addLegFee(
   state: PaymentRouteEditorState,
   legId: string,
@@ -840,8 +866,20 @@ export function moveIntermediateParticipant(input: {
 
   const draft = cloneDraft(state.draft);
   const participant = draft.participants[participantIndex]!;
+  const legIndex = participantIndex - 1;
+  const leg = draft.legs[legIndex];
+
   draft.participants.splice(participantIndex, 1);
   draft.participants.splice(targetIndex, 0, participant);
+
+  if (leg) {
+    const targetLegIndex = input.direction === "up" ? legIndex - 1 : legIndex + 1;
+
+    draft.legs.splice(legIndex, 1);
+    draft.legs.splice(targetLegIndex, 0, leg);
+    reconnectLegCurrencies(draft);
+  }
+
   clearChangedParticipantRequisites({
     nextDraft: draft,
     previousDraft: state.draft,

@@ -402,15 +402,21 @@ export function PaymentRouteConstructorClient({
   }
 
   function handleSave() {
+    const currentState = editorState;
+
+    if (!currentState) {
+      return;
+    }
+
     startSaveTransition(async () => {
       const payload = {
-        draft: editorState.draft,
-        name: editorState.name.trim() || "Маршрут без названия",
-        visual: editorState.visual,
+        draft: currentState.draft,
+        name: currentState.name.trim() || "Маршрут без названия",
+        visual: currentState.visual,
       };
 
-      const result = editorState.templateId
-        ? await updatePaymentRouteTemplate(editorState.templateId, payload)
+      const result = currentState.templateId
+        ? await updatePaymentRouteTemplate(currentState.templateId, payload)
         : await createPaymentRouteTemplate(payload);
 
       if (!result.ok) {
@@ -419,16 +425,16 @@ export function PaymentRouteConstructorClient({
       }
 
       toast.success(
-        editorState.templateId ? "Маршрут сохранен" : "Маршрут создан",
+        currentState.templateId ? "Маршрут сохранен" : "Маршрут создан",
       );
       setState(
         setEditorMode(
           createPaymentRouteEditorStateFromTemplate(result.data),
-          editorState.mode,
+          currentState.mode,
         ),
       );
 
-      if (!editorState.templateId) {
+      if (!currentState.templateId) {
         router.replace(`/routes/constructor/${result.data.id}`);
       }
 
@@ -683,7 +689,7 @@ export function PaymentRouteConstructorClient({
           aria-modal="true"
           aria-label="Полноэкранный граф маршрута"
         >
-          <div className="flex h-[100dvh] flex-col bg-[radial-gradient(circle_at_top_left,#eef6ff,transparent_28%),radial-gradient(circle_at_top_right,#eefbf4,transparent_22%),linear-gradient(180deg,#fafcff_0%,#f6f8fc_100%)]">
+          <div className="flex h-dvh flex-col bg-[radial-gradient(circle_at_top_left,#eef6ff,transparent_28%),radial-gradient(circle_at_top_right,#eefbf4,transparent_22%),linear-gradient(180deg,#fafcff_0%,#f6f8fc_100%)]">
             <div className="border-b border-border/70 bg-background/90 backdrop-blur">
               <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between gap-4 px-4 sm:px-6">
                 <div className="min-w-0">

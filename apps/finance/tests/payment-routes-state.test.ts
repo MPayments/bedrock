@@ -11,6 +11,7 @@ import {
   applyCalculation,
   createPaymentRouteSeed,
   insertIntermediateParticipant,
+  isDefaultPaymentRouteViewport,
   moveIntermediateParticipant,
   removeIntermediateParticipant,
   setEditorMode,
@@ -83,6 +84,23 @@ describe("payment route editor state", () => {
     expect(next.visual.nodePositions[sourceNodeId]).toEqual({ x: 640, y: 220 });
   });
 
+  it("detects when a stored graph viewport should be restored", () => {
+    expect(
+      isDefaultPaymentRouteViewport({
+        x: 0,
+        y: 0,
+        zoom: 1,
+      }),
+    ).toBe(true);
+    expect(
+      isDefaultPaymentRouteViewport({
+        x: 120,
+        y: -48,
+        zoom: 0.82,
+      }),
+    ).toBe(false);
+  });
+
   it("creates new routes with abstract source and destination endpoints", () => {
     const seed = createPaymentRouteSeed(OPTIONS)!;
 
@@ -123,6 +141,8 @@ describe("payment route editor state", () => {
       options: OPTIONS,
       state: withSecondHop,
     });
+    const firstLegId = withDistinctMiddle.draft.legs[0]!.id;
+    const secondLegId = withDistinctMiddle.draft.legs[1]!.id;
     const reordered = moveIntermediateParticipant({
       direction: "down",
       participantIndex: 1,
@@ -137,6 +157,14 @@ describe("payment route editor state", () => {
       entityKind: "counterparty",
       role: "hop",
     });
+    expect(reordered.draft.legs[0]!.id).toBe(secondLegId);
+    expect(reordered.draft.legs[1]!.id).toBe(firstLegId);
+    expect(reordered.draft.legs[0]!.fromCurrencyId).toBe(
+      reordered.draft.currencyInId,
+    );
+    expect(reordered.draft.legs[1]!.fromCurrencyId).toBe(
+      reordered.draft.legs[0]!.toCurrencyId,
+    );
 
     const removed = removeIntermediateParticipant(reordered, 2);
 

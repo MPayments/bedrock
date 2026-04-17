@@ -354,6 +354,31 @@ function serializeTotals(totals: Map<string, bigint>): PaymentRouteAmountTotal[]
     }));
 }
 
+function isInsufficientInputPreviewError(error: unknown) {
+  return (
+    error instanceof ValidationError &&
+    error.message.includes("fees exceed the converted amount")
+  );
+}
+
+async function tryRunForwardPreviewForTargetSearch(input: {
+  amountInMinor: bigint;
+  asOf: Date;
+  currencies: CurrenciesPort;
+  draft: PaymentRouteDraft;
+  getCrossRate: CrossRateLookup;
+}) {
+  try {
+    return await runForwardPreview(input);
+  } catch (error) {
+    if (isInsufficientInputPreviewError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 async function resolveMinimalInputForTargetOutput(input: {
   asOf: Date;
   currencies: CurrenciesPort;
@@ -363,7 +388,7 @@ async function resolveMinimalInputForTargetOutput(input: {
 }) {
   let low = 1n;
   let high = 1n;
-  let highResult = await runForwardPreview({
+  let highResult = await tryRunForwardPreviewForTargetSearch({
     amountInMinor: high,
     asOf: input.asOf,
     currencies: input.currencies,
@@ -372,9 +397,12 @@ async function resolveMinimalInputForTargetOutput(input: {
   });
   let guard = 0;
 
-  while (highResult.netAmountOutMinor < input.desiredAmountOutMinor) {
+  while (
+    !highResult ||
+    highResult.netAmountOutMinor < input.desiredAmountOutMinor
+  ) {
     high *= 2n;
-    highResult = await runForwardPreview({
+    highResult = await tryRunForwardPreviewForTargetSearch({
       amountInMinor: high,
       asOf: input.asOf,
       currencies: input.currencies,
@@ -390,12 +418,18 @@ async function resolveMinimalInputForTargetOutput(input: {
     }
   }
 
+  if (!highResult) {
+    throw new ValidationError(
+      "Unable to satisfy the requested output with the current route",
+    );
+  }
+
   let bestAmount = high;
   let bestResult = highResult;
 
   while (low <= high) {
     const middle = (low + high) / 2n;
-    const result = await runForwardPreview({
+    const result = await tryRunForwardPreviewForTargetSearch({
       amountInMinor: middle,
       asOf: input.asOf,
       currencies: input.currencies,
@@ -403,7 +437,7 @@ async function resolveMinimalInputForTargetOutput(input: {
       getCrossRate: input.getCrossRate,
     });
 
-    if (result.netAmountOutMinor >= input.desiredAmountOutMinor) {
+    if (result && result.netAmountOutMinor >= input.desiredAmountOutMinor) {
       bestAmount = middle;
       bestResult = result;
       if (middle === 0n) {
@@ -466,7 +500,7 @@ export async function previewPaymentRoute(input: {
   return {
     additionalFees: resolved.result.additionalFees,
     amountInMinor: resolved.amountInMinor.toString(),
-    amountOutMinor: desiredAmountOutMinor.toString(),
+    amountOutMinor: resolved.result.netAmountOutMinor.toString(),
     computedAt: asOf.toISOString(),
     currencyInId: input.draft.currencyInId,
     currencyOutId: input.draft.currencyOutId,

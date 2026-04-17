@@ -64,6 +64,7 @@ import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
   changeParticipantKind,
+  isDefaultPaymentRouteViewport,
   insertIntermediateParticipant,
   removeIntermediateParticipant,
   setLegField,
@@ -198,7 +199,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
                     id={row.handleId}
                     type="target"
                     position={Position.Left}
-                    className="!left-[-14px] !top-1/2 !h-3 !w-3 !-translate-y-1/2 !border-slate-400 !bg-background"
+                    className="left-[-14px]! top-1/2! h-3! w-3! -translate-y-1/2! border-slate-400! bg-background!"
                   />
                 ) : null}
                 <div className="space-y-1">
@@ -223,7 +224,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
                     id={row.handleId}
                     type="source"
                     position={Position.Right}
-                    className="!right-[-14px] !top-1/2 !h-3 !w-3 !-translate-y-1/2 !border-slate-400 !bg-background"
+                    className="right-[-14px]! top-1/2! h-3! w-3! -translate-y-1/2! border-slate-400! bg-background!"
                   />
                 ) : null}
               </div>
@@ -406,7 +407,8 @@ function RouteGraphCanvas({
         )}
       >
         <ReactFlow
-          fitView
+          defaultViewport={state.visual.viewport}
+          fitView={isDefaultPaymentRouteViewport(state.visual.viewport)}
           nodes={nodes}
           edges={edges}
           edgeTypes={edgeTypes}
