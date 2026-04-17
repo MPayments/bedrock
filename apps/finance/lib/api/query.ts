@@ -53,7 +53,7 @@ export async function readEntityById<TSchema extends ZodTypeAny>({
   schema: TSchema;
   resourceName: string;
 }): Promise<z.infer<TSchema> | null> {
-  if (!z.uuid({ version: "v4" }).safeParse(id).success) {
+  if (!z.uuid().safeParse(id).success) {
     return null;
   }
 
