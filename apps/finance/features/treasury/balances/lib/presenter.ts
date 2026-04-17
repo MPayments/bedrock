@@ -4,10 +4,10 @@ import {
 } from "@bedrock/shared/money";
 
 import type {
-  TreasuryBalancesEvaluationSummary,
   TreasuryOrganizationBalanceRow,
   TreasuryOrganizationBalancesSnapshot,
-} from "./queries";
+} from "./server-queries";
+import type { TreasuryBalancesEvaluationSummary } from "./evaluation";
 
 const BALANCE_METRICS = [
   {

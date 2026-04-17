@@ -8,10 +8,10 @@ import {
   resolveTreasuryBalancesEvaluationCurrency,
   resolveTreasuryBalancesOrganizationId,
 } from "@/features/treasury/balances/lib/presenter";
+import { getTreasuryBalancesEvaluationTotal } from "@/features/treasury/balances/lib/evaluation";
 import {
-  getTreasuryBalancesEvaluationTotal,
   getTreasuryOrganizationBalances,
-} from "@/features/treasury/balances/lib/queries";
+} from "@/features/treasury/balances/lib/server-queries";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

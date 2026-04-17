@@ -6,8 +6,11 @@ const getTreasuryOrganizationBalances = vi.fn();
 const getTreasuryBalancesEvaluationTotal = vi.fn();
 const replace = vi.fn();
 
-vi.mock("@/features/treasury/balances/lib/queries", () => ({
+vi.mock("@/features/treasury/balances/lib/evaluation", () => ({
   getTreasuryBalancesEvaluationTotal,
+}));
+
+vi.mock("@/features/treasury/balances/lib/server-queries", () => ({
   getTreasuryOrganizationBalances,
 }));
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getTreasuryBalancesEvaluationTotal } from "@/features/treasury/balances/lib/queries";
+import { getTreasuryBalancesEvaluationTotal } from "@/features/treasury/balances/lib/evaluation";
 import { ApiRequestError } from "@/lib/api/response";
 
 const { getLatestRate } = vi.hoisted(() => ({
