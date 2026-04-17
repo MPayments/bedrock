@@ -569,7 +569,6 @@ export default function NewCustomerPage() {
         bankCountry: extractedData.bankCountry,
         bankName: extractedData.bankName,
         bic: extractedData.bic,
-        corrAccount: extractedData.corrAccount,
         swift: extractedData.swift,
       });
       const fieldsToSet: Path<CustomerCreateFormData>[] = [
@@ -607,8 +606,7 @@ export default function NewCustomerPage() {
         extractedData.bankAddress ||
         extractedData.account ||
         extractedData.bic ||
-        extractedData.swift ||
-        extractedData.corrAccount
+        extractedData.swift
       ) {
         form.setValue("bankMode", bankDefaults.bankMode, {
           shouldDirty: true,

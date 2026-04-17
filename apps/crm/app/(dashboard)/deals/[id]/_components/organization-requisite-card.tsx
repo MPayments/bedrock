@@ -44,16 +44,6 @@ export function OrganizationRequisiteCard({
             {requisite.accountNo || requisite.iban || "—"}
           </div>
         </div>
-        {requisite.corrAccount && (
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">
-              Корр. счет
-            </div>
-            <div className="break-all font-mono text-sm">
-              {requisite.corrAccount}
-            </div>
-          </div>
-        )}
         {provider?.bic && (
           <div>
             <div className="text-sm font-medium text-muted-foreground">BIC</div>

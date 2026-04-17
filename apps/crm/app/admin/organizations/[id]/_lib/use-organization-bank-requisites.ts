@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { RequisiteProviderOptionsResponseSchema } from "@bedrock/parties/contracts";
@@ -23,6 +23,7 @@ type UseOrganizationBankRequisitesResult = {
   loading: boolean;
   providerOptions: RequisiteProviderOption[];
   refresh: () => Promise<OrganizationBankRequisite[]>;
+  ensureProviderOptions: (providerIds: readonly string[]) => Promise<void>;
   requisites: OrganizationBankRequisite[];
 };
 
@@ -36,6 +37,7 @@ export function useOrganizationBankRequisites(
   const [currencyOptions, setCurrencyOptions] = useState<CurrencyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const attemptedProviderIdsRef = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     if (!organizationId) {
@@ -82,7 +84,9 @@ export function useOrganizationBankRequisites(
 
   const fetchOptions = useCallback(async () => {
     const [providersResponse, currenciesResponse] = await Promise.all([
-      apiClient.v1.requisites.providers.options.$get({}),
+      apiClient.v1.requisites.providers.options.$get({
+        query: { kind: "bank" },
+      }),
       apiClient.v1.currencies.options.$get({}),
     ]);
 
@@ -118,6 +122,59 @@ export function useOrganizationBankRequisites(
       ),
     );
   }, []);
+
+  const ensureProviderOptions = useCallback(
+    async (providerIds: readonly string[]) => {
+      const attempted = attemptedProviderIdsRef.current;
+      const missingIds = Array.from(
+        new Set(providerIds.filter(Boolean)),
+      ).filter(
+        (id) =>
+          !attempted.has(id) &&
+          !providerOptions.some((option) => option.id === id),
+      );
+
+      if (missingIds.length === 0) {
+        return;
+      }
+
+      // Mark as attempted *before* the request so a failed fetch doesn't
+      // retrigger on every re-render.
+      for (const id of missingIds) {
+        attempted.add(id);
+      }
+
+      const response = await apiClient.v1.requisites.providers.options.$get({
+        query: { ids: missingIds.join(",") },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = await readJsonWithSchema(
+        response,
+        RequisiteProviderOptionsResponseSchema,
+      );
+
+      if (payload.data.length === 0) {
+        return;
+      }
+
+      setProviderOptions((current) => {
+        const merged = [...current];
+        for (const item of payload.data) {
+          if (!merged.some((option) => option.id === item.id)) {
+            merged.push(item);
+          }
+        }
+        return merged.sort((left, right) =>
+          left.label.localeCompare(right.label, "ru"),
+        );
+      });
+    },
+    [providerOptions],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +221,7 @@ export function useOrganizationBankRequisites(
     loading,
     providerOptions,
     refresh,
+    ensureProviderOptions,
     requisites,
   };
 }

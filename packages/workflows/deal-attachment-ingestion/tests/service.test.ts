@@ -60,7 +60,6 @@ describe("mergeNormalizedPayloadIntoIntake", () => {
           bankName: "Bank of Shanghai",
           beneficiaryName: "Shanghai Supplier Co",
           bic: null,
-          corrAccount: null,
           iban: null,
           label: null,
           swift: "BOSHSH22",

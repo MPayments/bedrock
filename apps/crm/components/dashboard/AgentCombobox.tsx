@@ -20,6 +20,7 @@ import {
 } from "@bedrock/sdk-ui/components/popover";
 import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
 import { API_BASE_URL } from "@/lib/constants";
+import { useFetchedOptions } from "@/lib/hooks/useFetchedOptions";
 
 interface Agent {
   id: string;
@@ -43,42 +44,28 @@ export function AgentCombobox({
   disabled = false,
 }: AgentComboboxProps) {
   const [open, setOpen] = React.useState(false);
-  const [agents, setAgents] = React.useState<Agent[]>([]);
-  const [loading, setLoading] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  // Найти выбранного агента
-  const selectedAgent = agents.find((agent) => agent.id === value);
+  const fetchAgents = React.useCallback(async (): Promise<Agent[]> => {
+    const res = await fetch(`${API_BASE_URL}/agents`, {
+      credentials: "include",
+    });
 
-  // Загрузка агентов с сервера
-  const fetchAgents = React.useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const url = `${API_BASE_URL}/agents`;
-      const res = await fetch(url, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Ошибка загрузки: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setAgents(data.data ?? data);
-    } catch (err) {
-      console.error("Agents fetch error:", err);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error(`Ошибка загрузки: ${res.status}`);
     }
+
+    const data = await res.json();
+    return data.data ?? data;
   }, []);
 
-  // Загружаем агентов при открытии
-  React.useEffect(() => {
-    if (open) {
-      fetchAgents();
-    }
-  }, [open, fetchAgents]);
+  const { items: agents, loading } = useFetchedOptions<Agent>({
+    fetcher: fetchAgents,
+    open,
+    value,
+  });
+
+  const selectedAgent = agents.find((agent) => agent.id === value);
 
   // Фильтрация агентов по поисковому запросу
   const filteredAgents = React.useMemo(() => {

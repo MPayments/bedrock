@@ -50,7 +50,6 @@ export const DealBankInstructionSnapshotSchema = z.object({
   bankName: z.string().nullable(),
   beneficiaryName: z.string().nullable(),
   bic: z.string().nullable(),
-  corrAccount: z.string().nullable(),
   iban: z.string().nullable(),
   label: z.string().nullable(),
   swift: z.string().nullable(),

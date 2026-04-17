@@ -6,10 +6,6 @@ export default defineProject({
   resolve: {
     alias: {
       "@": path.resolve(__dirname),
-      "@bedrock/sdk-api-client": path.resolve(
-        __dirname,
-        "../../packages/sdk/api-client/src/index.ts",
-      ),
     },
   },
   test: {

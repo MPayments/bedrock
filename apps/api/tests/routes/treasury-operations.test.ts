@@ -49,7 +49,6 @@ function createRequisite(input: {
     assetCode: null,
     beneficiaryName: input.beneficiaryName ?? input.label,
     contact: null,
-    corrAccount: null,
     iban: input.iban ?? null,
     id: input.id,
     kind: "bank",
@@ -158,7 +157,6 @@ function createWorkflow(input: {
     label?: string | null;
     bankName?: string | null;
     bic?: string | null;
-    corrAccount?: string | null;
     swift?: string | null;
   } | null;
   status:

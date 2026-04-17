@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCompactId, getUuidPrefix } from "../src/core/uuid";
+import {
+  formatCompactId,
+  formatCompactUuid,
+  getUuidPrefix,
+} from "../src/core/uuid";
 
 describe("formatCompactId", () => {
   it("returns the uppercased first identifier segment", () => {
@@ -24,5 +28,18 @@ describe("getUuidPrefix", () => {
 
   it("keeps non-UUID values unchanged", () => {
     expect(getUuidPrefix("deal-123")).toBe("deal-123");
+  });
+});
+
+describe("formatCompactUuid", () => {
+  it("returns the uppercased first UUID segment", () => {
+    expect(formatCompactUuid("69d37570-f03a-4b5e-8acb-5f3d30afdcdb")).toBe(
+      "69D37570",
+    );
+  });
+
+  it("uppercases non-UUID values without truncating", () => {
+    expect(formatCompactUuid("deal-123")).toBe("DEAL-123");
+    expect(formatCompactUuid("invoice")).toBe("INVOICE");
   });
 });

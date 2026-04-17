@@ -82,7 +82,9 @@ export function useCounterpartyBankRequisites(
 
   const fetchOptions = useCallback(async () => {
     const [providersResponse, currenciesResponse] = await Promise.all([
-      apiClient.v1.requisites.providers.options.$get({}),
+      apiClient.v1.requisites.providers.options.$get({
+        query: { kind: "bank" },
+      }),
       apiClient.v1.currencies.options.$get({}),
     ]);
 

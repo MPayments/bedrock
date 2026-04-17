@@ -24,13 +24,6 @@ const bankProviderSnapshotSchema = z.object({
 const bankRequisiteSnapshotSchema = z.object({
   accountNo: z.string().optional(),
   beneficiaryName: z.string().optional(),
-  corrAccount: z
-    .string()
-    .optional()
-    .refine(
-      (value) => value === "" || value === undefined || (/^\d+$/.test(value) && value.length === 20),
-      { message: "Корреспондентский счёт должен содержать 20 цифр" },
-    ),
   iban: z
     .string()
     .optional()
@@ -73,7 +66,6 @@ function refineCustomerBanking(
       hasText(data.bankProvider.address) ||
       hasText(data.bankProvider.routingCode) ||
       hasText(data.bankRequisite.accountNo) ||
-      hasText(data.bankRequisite.corrAccount) ||
       hasText(data.bankRequisite.iban),
   );
 
@@ -554,7 +546,6 @@ function hasBankingSignal(values: CustomerCreateFormData) {
       hasText(values.bankProvider.address) ||
       hasText(values.bankProvider.routingCode) ||
       hasText(values.bankRequisite.accountNo) ||
-      hasText(values.bankRequisite.corrAccount) ||
       hasText(values.bankRequisite.iban),
   );
 }
@@ -700,15 +691,6 @@ export function buildCounterpartyBankRequisiteCreatePayload(input: {
         value: accountNo,
         isPrimary: true,
       },
-      ...(normalizeOptionalText(values.bankRequisite.corrAccount)
-        ? [
-            {
-              scheme: "corr_account",
-              value: normalizeOptionalText(values.bankRequisite.corrAccount)!,
-              isPrimary: true,
-            },
-          ]
-        : []),
       ...(normalizeOptionalText(values.bankRequisite.iban)
         ? [
             {

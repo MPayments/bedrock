@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, Save, Trash2, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -70,6 +70,7 @@ export type RequisiteEditorProps = {
   ownerOptions: RelationOption[];
   ownerTypeReadonly?: boolean;
   providerOptions: RelationOption[];
+  loadProviderOptions?: (query: string) => Promise<RelationOption[]>;
   loadProviderBranches?: (providerId: string) => Promise<RelationOption[]>;
   currencyOptions: RelationOption[];
   initialValues?: Partial<RequisiteFormValues>;
@@ -104,7 +105,6 @@ const DEFAULT_VALUES: RequisiteFormValues = {
   beneficiaryNameLocal: "",
   beneficiaryAddress: "",
   accountNo: "",
-  corrAccount: "",
   iban: "",
   network: "",
   assetCode: "",
@@ -137,7 +137,6 @@ function createSchema() {
       beneficiaryNameLocal: z.string(),
       beneficiaryAddress: z.string(),
       accountNo: z.string(),
-      corrAccount: z.string(),
       iban: z.string(),
       network: z.string(),
       assetCode: z.string(),
@@ -216,7 +215,6 @@ function normalizeValues(values: RequisiteFormValues): RequisiteFormValues {
     beneficiaryNameLocal: values.beneficiaryNameLocal.trim(),
     beneficiaryAddress: values.beneficiaryAddress.trim(),
     accountNo: values.accountNo.trim(),
-    corrAccount: values.corrAccount.trim(),
     iban: values.iban.trim(),
     network: values.network.trim(),
     assetCode: values.assetCode.trim(),
@@ -253,6 +251,8 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+const ASYNC_SEARCH_DEBOUNCE_MS = 250;
+
 function SearchablePicker({
   value,
   onValueChange,
@@ -264,6 +264,7 @@ function SearchablePicker({
   invalid = false,
   clearable = false,
   fallbackLabel,
+  onSearch,
 }: {
   value: string;
   onValueChange: (nextValue: string) => void;
@@ -275,11 +276,87 @@ function SearchablePicker({
   invalid?: boolean;
   clearable?: boolean;
   fallbackLabel?: string;
+  onSearch?: (query: string) => Promise<SearchablePickerOption[]>;
 }) {
   const [open, setOpen] = useState(false);
-  const selectedOption = options.find((option) => option.value === value);
+  const [query, setQuery] = useState("");
+  const [asyncResults, setAsyncResults] = useState<
+    SearchablePickerOption[] | null
+  >(null);
+  const [searching, setSearching] = useState(false);
+  const [pickedOption, setPickedOption] =
+    useState<SearchablePickerOption | null>(null);
+  const requestIdRef = useRef(0);
+
+  const isAsync = Boolean(onSearch);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setAsyncResults(null);
+      setSearching(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!onSearch) {
+      return;
+    }
+
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setAsyncResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setSearching(true);
+
+    const handle = setTimeout(async () => {
+      try {
+        const results = await onSearch(trimmed);
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        setAsyncResults(results);
+      } catch {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        setAsyncResults([]);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setSearching(false);
+        }
+      }
+    }, ASYNC_SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(handle);
+  }, [onSearch, query]);
+
+  const selectedOption =
+    options.find((option) => option.value === value) ??
+    (pickedOption && pickedOption.value === value ? pickedOption : undefined);
   const displayLabel =
     selectedOption?.label ?? fallbackLabel ?? (value ? value.trim() : placeholder);
+
+  const dedupedVisibleOptions = useMemo(() => {
+    const visibleOptions = isAsync
+      ? query.trim()
+        ? (asyncResults ?? [])
+        : options
+      : options;
+    if (!isAsync || !selectedOption) {
+      return visibleOptions;
+    }
+    if (visibleOptions.some((option) => option.value === selectedOption.value)) {
+      return visibleOptions;
+    }
+    return [selectedOption, ...visibleOptions];
+  }, [asyncResults, isAsync, options, query, selectedOption]);
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -306,18 +383,32 @@ function SearchablePicker({
         <ChevronDown className="text-muted-foreground size-4" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-(--anchor-width) p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={!isAsync}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={isAsync ? query : undefined}
+            onValueChange={isAsync ? setQuery : undefined}
+          />
           <CommandList className="max-h-64">
-            <CommandEmpty>{emptyLabel}</CommandEmpty>
+            {searching ? (
+              <div className="text-muted-foreground flex items-center gap-2 px-3 py-2 text-sm">
+                <Spinner className="h-3.5 w-3.5" /> Поиск…
+              </div>
+            ) : null}
+            <CommandEmpty>
+              {isAsync && !query.trim() && options.length === 0
+                ? "Начните вводить название"
+                : emptyLabel}
+            </CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {dedupedVisibleOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.search}
+                  value={isAsync ? option.value : option.search}
                   data-checked={value === option.value || undefined}
                   onSelect={() => {
                     onValueChange(option.value);
+                    setPickedOption(option);
                     setOpen(false);
                   }}
                 >
@@ -332,6 +423,7 @@ function SearchablePicker({
                   <CommandItem
                     onSelect={() => {
                       onValueChange("");
+                      setPickedOption(null);
                       setOpen(false);
                     }}
                   >
@@ -354,6 +446,7 @@ export function RequisiteEditor({
   ownerOptions,
   ownerTypeReadonly = false,
   providerOptions,
+  loadProviderOptions,
   loadProviderBranches,
   currencyOptions,
   initialValues,
@@ -392,6 +485,13 @@ export function RequisiteEditor({
     () => toSearchableRelationOptions(providerOptions),
     [providerOptions],
   );
+  const providerSearchHandler = useMemo(() => {
+    if (!loadProviderOptions) {
+      return undefined;
+    }
+    return async (query: string) =>
+      toSearchableRelationOptions(await loadProviderOptions(query));
+  }, [loadProviderOptions]);
   const currencySelectOptions = useMemo(
     () => toSearchableRelationOptions(currencyOptions),
     [currencyOptions],
@@ -705,6 +805,7 @@ export function RequisiteEditor({
                       emptyLabel="Провайдер не найден"
                       disabled={submitting || deleting}
                       invalid={Boolean(form.formState.errors.providerId)}
+                      onSearch={providerSearchHandler}
                     />
                   )}
                 />
@@ -784,13 +885,6 @@ export function RequisiteEditor({
                   <FieldError>
                     {form.formState.errors.accountNo?.message}
                   </FieldError>
-                </Field>
-                <Field>
-                  <FieldLabel>Корр. счёт</FieldLabel>
-                  <Input
-                    {...form.register("corrAccount")}
-                    disabled={submitting || deleting}
-                  />
                 </Field>
                 <Field>
                   <FieldLabel>IBAN</FieldLabel>

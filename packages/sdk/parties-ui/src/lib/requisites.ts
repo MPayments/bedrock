@@ -58,7 +58,6 @@ export type RequisiteFormValues = {
   beneficiaryNameLocal: string;
   beneficiaryAddress: string;
   accountNo: string;
-  corrAccount: string;
   iban: string;
   network: string;
   assetCode: string;
@@ -167,7 +166,6 @@ export function buildRequisiteIdentifiers(values: RequisiteFormValues) {
   switch (values.kind) {
     case "bank":
       push("local_account_number", values.accountNo, !values.iban.trim());
-      push("corr_account", values.corrAccount);
       push("iban", values.iban, !values.accountNo.trim());
       break;
     case "blockchain":
@@ -207,7 +205,6 @@ export function toLegacyRequisiteValues(input: {
     beneficiaryNameLocal: input.beneficiaryNameLocal ?? "",
     beneficiaryAddress: input.beneficiaryAddress ?? "",
     accountNo: findRequisiteIdentifier(input.identifiers, "local_account_number"),
-    corrAccount: findRequisiteIdentifier(input.identifiers, "corr_account"),
     iban: findRequisiteIdentifier(input.identifiers, "iban"),
     network: findRequisiteIdentifier(input.identifiers, "network"),
     assetCode: findRequisiteIdentifier(input.identifiers, "asset_code"),

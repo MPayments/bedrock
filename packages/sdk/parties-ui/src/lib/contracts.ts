@@ -126,6 +126,7 @@ export type PartyProfileBundleInput = {
 export const REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES = [
   "swift",
   "bic",
+  "corr_account",
 ] as const;
 
 export type RequisiteProviderIdentifierSchemeValue =

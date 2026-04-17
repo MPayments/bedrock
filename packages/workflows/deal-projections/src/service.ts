@@ -701,7 +701,6 @@ function countBankInstructionFields(
     snapshot.bankName,
     snapshot.beneficiaryName,
     snapshot.bic,
-    snapshot.corrAccount,
     snapshot.iban,
     snapshot.label,
     snapshot.swift,

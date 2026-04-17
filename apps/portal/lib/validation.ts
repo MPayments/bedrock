@@ -15,16 +15,6 @@ const bankProviderSnapshotSchema = z.object({
 const bankRequisiteSnapshotSchema = z.object({
   accountNo: z.string().optional(),
   beneficiaryName: z.string().optional(),
-  corrAccount: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val === "") return true;
-        return /^\d+$/.test(val) && val.length === 20;
-      },
-      { message: "Корреспондентский счёт должен содержать 20 цифр" },
-    ),
   iban: z
     .string()
     .optional()
@@ -82,7 +72,6 @@ function hasBankSignal(input: {
       hasText(input.bankProvider?.address) ||
       hasText(input.bankProvider?.routingCode) ||
       hasText(input.bankRequisite?.accountNo) ||
-      hasText(input.bankRequisite?.corrAccount) ||
       hasText(input.bankRequisite?.iban),
   );
 }

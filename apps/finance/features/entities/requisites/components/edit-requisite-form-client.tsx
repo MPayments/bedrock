@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { RequisiteProviderSchema } from "@bedrock/parties/contracts";
+import {
+  RequisiteProviderBranchesResponseSchema,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
-import { z } from "zod";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type { RequisiteFormValues } from "@/features/entities/requisites-shared/lib/constants";
@@ -71,7 +73,6 @@ function toFormValues(
     beneficiaryNameLocal: requisite.beneficiaryNameLocal,
     beneficiaryAddress: requisite.beneficiaryAddress,
     accountNo: requisite.accountNo,
-    corrAccount: requisite.corrAccount,
     iban: requisite.iban,
     network: requisite.network,
     assetCode: requisite.assetCode,
@@ -113,7 +114,6 @@ function toUpdatedRequisite(
     beneficiaryNameLocal: legacyValues.beneficiaryNameLocal,
     beneficiaryAddress: legacyValues.beneficiaryAddress,
     accountNo: legacyValues.accountNo,
-    corrAccount: legacyValues.corrAccount,
     iban: legacyValues.iban,
     network: legacyValues.network,
     assetCode: legacyValues.assetCode,
@@ -152,22 +152,28 @@ export function EditRequisiteFormClient({
       return [];
     }
 
-    const provider = RequisiteProviderSchema.omit({
-      createdAt: true,
-      updatedAt: true,
-      archivedAt: true,
-    })
-      .extend({
-        createdAt: z.iso.datetime(),
-        updatedAt: z.iso.datetime(),
-        archivedAt: z.iso.datetime().nullable(),
-      })
-      .parse(await response.json());
-
-    return provider.branches.map((branch) => ({
+    const payload = RequisiteProviderBranchesResponseSchema.parse(
+      await response.json(),
+    );
+    return payload.branches.map((branch) => ({
       id: branch.id,
       label: branch.name,
     }));
+  }
+
+  async function loadProviderOptions(query: string) {
+    const response = await apiClient.v1.requisites.providers.options.$get({
+      query: { q: query },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = RequisiteProviderOptionsResponseSchema.parse(
+      await response.json(),
+    );
+    return payload.data.map((item) => ({ id: item.id, label: item.label }));
   }
 
   async function handleSubmit(
@@ -252,6 +258,7 @@ export function EditRequisiteFormClient({
       ownerOptions={ownerOptions}
       ownerTypeReadonly
       providerOptions={options.providers}
+      loadProviderOptions={loadProviderOptions}
       loadProviderBranches={loadProviderBranches}
       currencyOptions={options.currencies}
       initialValues={toFormValues(current)}

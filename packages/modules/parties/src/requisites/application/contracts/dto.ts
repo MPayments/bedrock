@@ -103,3 +103,16 @@ export const RequisiteProviderOptionsResponseSchema = z.object({
 export type RequisiteProviderOption = z.infer<
   typeof RequisiteProviderOptionSchema
 >;
+
+export const RequisiteProviderBranchOptionSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+});
+
+export const RequisiteProviderBranchesResponseSchema = z.object({
+  branches: z.array(RequisiteProviderBranchOptionSchema),
+});
+
+export type RequisiteProviderBranchOption = z.infer<
+  typeof RequisiteProviderBranchOptionSchema
+>;

@@ -3,11 +3,12 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { RequisiteProviderNotFoundError } from "@bedrock/parties";
 import {
   CreateRequisiteProviderInputSchema,
+  ListRequisiteProviderOptionsQuerySchema,
+  ListRequisiteProvidersQuerySchema,
   RequisiteProviderListItemSchema,
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
   RequisiteProviderSchema,
-  ListRequisiteProvidersQuerySchema,
   UpdateRequisiteProviderInputSchema,
 } from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
@@ -55,6 +56,9 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
     path: "/options",
     tags: ["Requisite Providers"],
     summary: "List requisite provider options",
+    request: {
+      query: ListRequisiteProviderOptionsQuerySchema,
+    },
     responses: {
       200: {
         content: {
@@ -215,11 +219,15 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
+      const query = c.req.valid("query");
       const result = await ctx.partiesModule.requisites.queries.listProviders({
-        limit: MAX_QUERY_LIST_LIMIT,
+        limit: query.limit ?? MAX_QUERY_LIST_LIMIT,
         offset: 0,
         sortBy: "displayName",
         sortOrder: "asc",
+        id: query.ids,
+        kind: query.kind ? [query.kind] : undefined,
+        displayName: query.q,
       });
 
       return c.json(

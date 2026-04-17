@@ -58,6 +58,11 @@ ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
 ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 COPY --from=installer /repo/ ./
 COPY --from=pruner /repo/out/full/ ./
+# Pre-build api types + sdk-api-client so Turbopack can resolve @bedrock/sdk-api-client
+# through its package exports (the tsconfig path alias was removed).
+RUN node_modules/.bin/tsc --emitDeclarationOnly -p apps/api/tsconfig.json && \
+    (cd apps/api && node build.mjs) && \
+    node_modules/.bin/tsc -p packages/sdk/api-client/tsconfig.build.json
 RUN node ${APP_DIR}/node_modules/.bin/next build ${APP_DIR}
 
 FROM node:24-slim AS runner
