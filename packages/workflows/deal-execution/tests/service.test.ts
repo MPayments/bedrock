@@ -145,7 +145,6 @@ function createWorkflowProjection(input?: {
         contractNumber: "contract-1",
         expectedAmount: "90.00",
         expectedAt: null,
-        expectedCurrencyId: "cur-eur",
         invoiceNumber: "invoice-1",
         payerCounterpartyId: "payer-1",
         payerSnapshot: null,

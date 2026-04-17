@@ -250,7 +250,6 @@ export function createPaymentIntakeDraft(input: {
       contractNumber: null,
       expectedAmount: sourceAmount,
       expectedAt: null,
-      expectedCurrencyId: targetCurrencyId,
       invoiceNumber: null,
       payerCounterpartyId: null,
       payerSnapshot: null,

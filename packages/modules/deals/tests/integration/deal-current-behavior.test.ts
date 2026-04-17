@@ -10,6 +10,56 @@ import {
 } from "../../../../../tests/integration/commercial-core/fixtures";
 
 describe("deals integration characterization", () => {
+  it("does not surface a separate expected currency on payment intakes", async () => {
+    const fixture = await createAgreementFixture();
+
+    const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      agreementId: fixture.agreement.id,
+      customerId: fixture.customer.id,
+      idempotencyKey: randomUUID(),
+      intake: {
+        ...createPaymentIntakeDraft({
+          applicantCounterpartyId: fixture.applicant.id,
+          beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+          sourceCurrencyId: fixture.currencies.rub.id,
+          targetCurrencyId: fixture.currencies.usd.id,
+        }),
+        incomingReceipt: {
+          ...createPaymentIntakeDraft({
+            applicantCounterpartyId: fixture.applicant.id,
+            beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
+            sourceCurrencyId: fixture.currencies.rub.id,
+            targetCurrencyId: fixture.currencies.usd.id,
+          }).incomingReceipt,
+        },
+      },
+    });
+
+    expect(created.intake.moneyRequest.targetCurrencyId).toBe(
+      fixture.currencies.usd.id,
+    );
+    expect("expectedCurrencyId" in created.intake.incomingReceipt).toBe(false);
+
+    const updated = await fixture.runtime.modules.deals.deals.commands.replaceIntake({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      dealId: created.summary.id,
+      expectedRevision: created.revision,
+      intake: {
+        ...created.intake,
+        moneyRequest: {
+          ...created.intake.moneyRequest,
+          targetCurrencyId: fixture.currencies.usd.id,
+        },
+      },
+    });
+
+    expect(updated.intake.moneyRequest.targetCurrencyId).toBe(
+      fixture.currencies.usd.id,
+    );
+    expect("expectedCurrencyId" in updated.intake.incomingReceipt).toBe(false);
+  });
+
   it("creates and updates typed payment intake without source-side compatibility fields", async () => {
     const fixture = await createAgreementFixture();
 
@@ -65,7 +115,6 @@ describe("deals integration characterization", () => {
         incomingReceipt: {
           ...created.intake.incomingReceipt,
           expectedAmount: "1250.00",
-          expectedCurrencyId: fixture.currencies.usd.id,
         },
         moneyRequest: {
           ...created.intake.moneyRequest,
@@ -99,8 +148,8 @@ describe("deals integration characterization", () => {
       fixture.currencies.usd.id,
     );
     expect(workflow?.intake.incomingReceipt.expectedAmount).toBe("1250.00");
-    expect(workflow?.intake.incomingReceipt.expectedCurrencyId).toBe(
-      fixture.currencies.usd.id,
+    expect(workflow?.intake.incomingReceipt).not.toHaveProperty(
+      "expectedCurrencyId",
     );
     expect(detail?.amount).toBe("1250.00");
     expect(detail?.currencyId).toBe(fixture.currencies.usd.id);
@@ -184,7 +233,6 @@ describe("deals integration characterization", () => {
           contractNumber: null,
           expectedAmount: "1000.00",
           expectedAt: null,
-          expectedCurrencyId: fixture.currencies.usd.id,
           invoiceNumber: null,
           payerCounterpartyId: null,
           payerSnapshot: null,

@@ -497,14 +497,6 @@ export function mergeNormalizedPayloadIntoIntake(input: {
     applyCurrencyField({
       appliedFields,
       nextValue: input.normalizedPayload.currencyId,
-      path: "incomingReceipt.expectedCurrencyId",
-      skippedFields,
-      target: intake.incomingReceipt,
-      targetKey: "expectedCurrencyId",
-    });
-    applyCurrencyField({
-      appliedFields,
-      nextValue: input.normalizedPayload.currencyId,
       path: "moneyRequest.targetCurrencyId",
       skippedFields,
       target: intake.moneyRequest,

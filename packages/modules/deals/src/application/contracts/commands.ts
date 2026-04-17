@@ -87,7 +87,6 @@ export const CreatePortalDealInputSchema = z.object({
       contractNumber: nullableShortText,
       expectedAmount: nullableDecimalText,
       expectedAt: z.coerce.date().nullable().optional().default(null),
-      expectedCurrencyId: nullablePortalCurrencyReference.optional().default(null),
       invoiceNumber: nullableShortText,
     })
     .optional()
@@ -95,7 +94,6 @@ export const CreatePortalDealInputSchema = z.object({
       contractNumber: null,
       expectedAmount: null,
       expectedAt: null,
-      expectedCurrencyId: null,
       invoiceNumber: null,
     })),
   moneyRequest: z.object({
@@ -321,7 +319,6 @@ export const PortalIncomingReceiptInputSchema = z.object({
   contractNumber: nullableShortText,
   expectedAmount: nullableDecimalText,
   expectedAt: nullableDateText.optional(),
-  expectedCurrencyId: z.uuid().nullable().optional(),
   invoiceNumber: nullableShortText,
 });
 

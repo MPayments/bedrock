@@ -975,14 +975,12 @@ async function resolvePortalIntakeCurrencyCodes(
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ) {
   const currencyIds = [
-    workflow.intake.incomingReceipt.expectedCurrencyId,
     workflow.intake.moneyRequest.sourceCurrencyId,
     workflow.intake.moneyRequest.targetCurrencyId,
   ].filter((currencyId): currencyId is string => Boolean(currencyId));
 
   if (currencyIds.length === 0) {
     return {
-      expectedCurrencyCode: null,
       sourceCurrencyCode: null,
       targetCurrencyCode: null,
     };
@@ -998,9 +996,6 @@ async function resolvePortalIntakeCurrencyCodes(
   );
 
   return {
-    expectedCurrencyCode: workflow.intake.incomingReceipt.expectedCurrencyId
-      ? (codeById.get(workflow.intake.incomingReceipt.expectedCurrencyId) ?? null)
-      : null,
     sourceCurrencyCode: workflow.intake.moneyRequest.sourceCurrencyId
       ? (codeById.get(workflow.intake.moneyRequest.sourceCurrencyId) ?? null)
       : null,
@@ -1020,8 +1015,6 @@ async function toPortalIntakeSummary(
     contractNumber: workflow.intake.incomingReceipt.contractNumber,
     customerNote: workflow.intake.common.customerNote,
     expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
-    expectedCurrencyCode: currencyCodes.expectedCurrencyCode,
-    expectedCurrencyId: workflow.intake.incomingReceipt.expectedCurrencyId,
     invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
     purpose: workflow.intake.moneyRequest.purpose,
     requestedExecutionDate: workflow.intake.common.requestedExecutionDate,

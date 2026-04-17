@@ -144,9 +144,6 @@ export function evaluateDealSectionCompleteness(
   if (!hasMoneyAmount(intake.incomingReceipt.expectedAmount)) {
     incomingReceiptBlockingReasons.push("Expected amount is required");
   }
-  if (!intake.incomingReceipt.expectedCurrencyId) {
-    incomingReceiptBlockingReasons.push("Expected currency is required");
-  }
   if (!hasText(intake.incomingReceipt.invoiceNumber)) {
     incomingReceiptBlockingReasons.push("Invoice number is required");
   }

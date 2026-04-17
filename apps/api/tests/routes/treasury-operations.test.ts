@@ -204,7 +204,6 @@ function createWorkflow(input: {
         contractNumber: null,
         expectedAmount: null,
         expectedAt: null,
-        expectedCurrencyId: null,
         invoiceNumber: null,
         payerCounterpartyId: null,
         payerSnapshot: null,

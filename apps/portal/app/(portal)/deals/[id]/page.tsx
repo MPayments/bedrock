@@ -330,7 +330,7 @@ export default function PortalDealDetailPage() {
     data.summary.type === "payment" ? "Сумма оплаты" : "Сумма сделки";
   const primaryAmountCurrencyCode =
     data.summary.type === "payment"
-      ? data.customerSafeIntake.expectedCurrencyCode
+      ? data.customerSafeIntake.targetCurrencyCode
       : data.customerSafeIntake.sourceCurrencyCode;
   const primaryAmountValue =
     data.summary.type === "payment"
@@ -482,7 +482,7 @@ export default function PortalDealDetailPage() {
             <p className="text-sm font-medium">
               {formatCurrencyAmount(
                 data.customerSafeIntake.expectedAmount,
-                data.customerSafeIntake.expectedCurrencyCode,
+                data.customerSafeIntake.targetCurrencyCode,
               )}
             </p>
           </div>

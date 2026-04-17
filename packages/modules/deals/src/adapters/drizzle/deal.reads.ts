@@ -969,8 +969,6 @@ export class DrizzleDealReads implements DealReads {
         contractNumber: workflow.intake.incomingReceipt.contractNumber,
         customerNote: workflow.intake.common.customerNote,
         expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
-        expectedCurrencyCode: null,
-        expectedCurrencyId: workflow.intake.incomingReceipt.expectedCurrencyId,
         invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
         purpose: workflow.intake.moneyRequest.purpose,
         requestedExecutionDate: workflow.intake.common.requestedExecutionDate,

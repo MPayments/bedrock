@@ -242,7 +242,6 @@ export type ApiDealWorkflowProjection = {
       contractNumber: string | null;
       expectedAmount: string | null;
       expectedAt: string | null;
-      expectedCurrencyId: string | null;
       invoiceNumber: string | null;
       payerCounterpartyId: string | null;
       payerSnapshot: ApiDealCounterpartySnapshot | null;

@@ -118,7 +118,7 @@ const DEAL_TYPE_OPTIONS: {
 
 const STEP_LABELS = ["Контрагент", "Тип", "Данные"] as const;
 const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
-const DEFAULT_EXPECTED_CURRENCY = "USD";
+const DEFAULT_TARGET_CURRENCY = "USD";
 
 function formatDatePickerValue(value: Date | undefined) {
   if (!value) {
@@ -165,7 +165,7 @@ export function NewDealDialog({
     DEFAULT_PAYMENT_SOURCE_CURRENCY,
   );
   const [targetCurrencyId, setTargetCurrencyId] = useState<string | null>(
-    DEFAULT_EXPECTED_CURRENCY,
+    DEFAULT_TARGET_CURRENCY,
   );
   const [purpose, setPurpose] = useState("");
   const [customerNote, setCustomerNote] = useState("");
@@ -173,9 +173,6 @@ export function NewDealDialog({
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [contractNumber, setContractNumber] = useState("");
   const [expectedAmount, setExpectedAmount] = useState("");
-  const [expectedCurrencyId, setExpectedCurrencyId] = useState(
-    DEFAULT_EXPECTED_CURRENCY,
-  );
   const [expectedAt, setExpectedAt] = useState("");
   const [step, setStep] = useState(1);
   const [creating, setCreating] = useState(false);
@@ -270,8 +267,7 @@ export function NewDealDialog({
     }
 
     setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
-    setTargetCurrencyId((current) => current ?? DEFAULT_EXPECTED_CURRENCY);
-    setExpectedCurrencyId((current) => current || DEFAULT_EXPECTED_CURRENCY);
+    setTargetCurrencyId((current) => current ?? DEFAULT_TARGET_CURRENCY);
   }, [dealType]);
 
   async function fetchClients() {
@@ -293,14 +289,13 @@ export function NewDealDialog({
     setDealType("payment");
     setSourceAmount("");
     setSourceCurrencyId(DEFAULT_PAYMENT_SOURCE_CURRENCY);
-    setTargetCurrencyId(DEFAULT_EXPECTED_CURRENCY);
+    setTargetCurrencyId(DEFAULT_TARGET_CURRENCY);
     setPurpose("");
     setCustomerNote("");
     setRequestedExecutionDate("");
     setInvoiceNumber("");
     setContractNumber("");
     setExpectedAmount("");
-    setExpectedCurrencyId(DEFAULT_EXPECTED_CURRENCY);
     setExpectedAt("");
     setSelectedCounterpartyId(undefined);
     setShowCloseConfirm(false);
@@ -364,7 +359,12 @@ export function NewDealDialog({
       }
 
       if (requiresIncomingReceipt) {
-        if (!expectedAmount || !invoiceNumber.trim() || !contractNumber.trim()) {
+        if (
+          !expectedAmount ||
+          !targetCurrencyId ||
+          !invoiceNumber.trim() ||
+          !contractNumber.trim()
+        ) {
           setError("Для этого типа сделки заполните данные ожидаемого поступления.");
           return false;
         }
@@ -411,9 +411,6 @@ export function NewDealDialog({
                   ? expectedAmount || null
                   : expectedAmount || null,
                 expectedAt: expectedAt ? `${expectedAt}T00:00:00.000Z` : null,
-                expectedCurrencyId: isPaymentDeal
-                  ? targetCurrencyId
-                  : expectedCurrencyId,
                 invoiceNumber: invoiceNumber || null,
               },
             }
@@ -589,11 +586,10 @@ export function NewDealDialog({
               <div className="space-y-2">
                 <Label>Валюта оплаты</Label>
                 <Select
-                  value={targetCurrencyId ?? DEFAULT_EXPECTED_CURRENCY}
+                  value={targetCurrencyId ?? DEFAULT_TARGET_CURRENCY}
                   onValueChange={(value) => {
-                    const nextValue = value ?? DEFAULT_EXPECTED_CURRENCY;
+                    const nextValue = value ?? DEFAULT_TARGET_CURRENCY;
                     setTargetCurrencyId(nextValue);
-                    setExpectedCurrencyId(nextValue);
                   }}
                 >
                   <SelectTrigger>
@@ -662,7 +658,7 @@ export function NewDealDialog({
           </div>
         )}
 
-        {isPaymentDeal ? null : (
+        {isPaymentDeal || requiresIncomingReceipt ? null : (
           <div className="space-y-2">
             <Label>Целевая валюта</Label>
             <Select
@@ -724,8 +720,10 @@ export function NewDealDialog({
             <div className="space-y-2">
               <Label>Валюта поступления</Label>
               <Select
-                value={expectedCurrencyId}
-                onValueChange={(value) => setExpectedCurrencyId(value ?? "USD")}
+                value={targetCurrencyId ?? DEFAULT_TARGET_CURRENCY}
+                onValueChange={(value) =>
+                  setTargetCurrencyId(value ?? DEFAULT_TARGET_CURRENCY)
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
