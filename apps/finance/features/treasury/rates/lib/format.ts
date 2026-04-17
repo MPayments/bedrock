@@ -1,3 +1,4 @@
+import { getKnownCurrency } from "@bedrock/currencies/catalog";
 import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import { SOURCE_LABELS } from "./constants";
@@ -7,6 +8,11 @@ export function sourceLabel(source: string): string {
 }
 
 export function currencySymbol(code: string): string {
+  const knownCurrency = getKnownCurrency(code);
+  if (knownCurrency?.symbol) {
+    return knownCurrency.symbol;
+  }
+
   try {
     const currencyPart = new Intl.NumberFormat("ru-RU", {
       style: "currency",
