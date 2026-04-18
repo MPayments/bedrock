@@ -24,3 +24,9 @@ export class CalculationFxQuoteRateMismatchError extends ValidationError {
     );
   }
 }
+
+export class PaymentRouteTemplateNotFoundError extends NotFoundError {
+  constructor(id: string) {
+    super("Payment route template", id);
+  }
+}

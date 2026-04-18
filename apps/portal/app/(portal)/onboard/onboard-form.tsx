@@ -432,7 +432,7 @@ function BankCombobox(props: {
           query: trimmed,
         });
         const response = await fetch(
-          `${API_BASE_URL}/customer/counterparties/bank-providers?${search.toString()}`,
+          `${API_BASE_URL}/portal/counterparties/bank-providers?${search.toString()}`,
           {
             credentials: "include",
             signal: controller.signal,
@@ -788,7 +788,7 @@ export function CustomerOnboardingForm() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/customer/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
+        `${API_BASE_URL}/portal/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
         {
           credentials: "include",
         },
@@ -831,7 +831,7 @@ export function CustomerOnboardingForm() {
       formData.append("file", file);
 
       const response = await fetch(
-        `${API_BASE_URL}/customer/counterparties/parse-card`,
+        `${API_BASE_URL}/portal/counterparties/parse-card`,
         {
           method: "POST",
           credentials: "include",
@@ -914,7 +914,7 @@ export function CustomerOnboardingForm() {
         },
       } satisfies CustomerOnboardingRequest;
 
-      const response = await fetch(`${API_BASE_URL}/customer/counterparties`, {
+      const response = await fetch(`${API_BASE_URL}/portal/counterparties`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -931,7 +931,7 @@ export function CustomerOnboardingForm() {
         );
       }
 
-      router.push("/clients");
+      router.push("/customers");
       router.refresh();
     } catch (submitError) {
       console.error("Onboard error:", submitError);

@@ -1,44 +1,26 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { createAudienceProxy } from "@bedrock/iam/adapters/next";
 
-import { fetchSessionSnapshot } from "@/lib/auth/access";
+const PROTECTED_PREFIXES = ["/deals", "/customers", "/calendar", "/reports"];
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const audienceHeaders = new Headers(request.headers);
-  audienceHeaders.set("x-bedrock-app-audience", "crm");
+export const proxy = createAudienceProxy({
+  audience: "crm",
+  async handle({ getSession, pathname, redirect, next }) {
+    const isProtectedPath =
+      pathname === "/" ||
+      PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  if (pathname.startsWith("/api/auth/") || pathname.startsWith("/v1/")) {
-    return NextResponse.next({
-      request: {
-        headers: audienceHeaders,
-      },
-    });
-  }
-
-  const session = await fetchSessionSnapshot({
-    cookie: request.headers.get("cookie") ?? "",
-  });
-
-  if (
-    pathname.startsWith("/deals") ||
-    pathname.startsWith("/customers") ||
-    pathname.startsWith("/calendar") ||
-    pathname.startsWith("/reports") ||
-    pathname === "/"
-  ) {
-    if (!session.isAuthenticated || !session.canAccessDashboard) {
-      return NextResponse.redirect(new URL("/login", request.url));
+    if (!isProtectedPath) {
+      return next();
     }
-    return NextResponse.next();
-  }
 
-  return NextResponse.next({
-    request: {
-      headers: audienceHeaders,
-    },
-  });
-}
+    const session = await getSession();
+    if (!session.isAuthenticated || !session.canAccessDashboard) {
+      return redirect("/login");
+    }
+
+    return next();
+  },
+});
 
 export const config = {
   matcher: [

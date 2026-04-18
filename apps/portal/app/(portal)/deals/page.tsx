@@ -19,16 +19,19 @@ import { formatCompactId } from "@bedrock/shared/core/uuid";
 
 import { NewDealDialog } from "@/components/portal/new-application-dialog";
 import {
-  hasActiveAgentAgreement,
   type PortalCustomerContext,
-  requestCustomerContexts,
-} from "@/lib/customer-contexts";
+  requestPortalCustomers,
+} from "@/lib/api/customers";
 import {
   type PortalDealListItemProjection,
   type PortalDealStatus,
   type PortalDealType,
   requestPortalDealProjections,
-} from "@/lib/portal-deals";
+} from "@/lib/api/deals";
+
+function hasActiveAgentAgreement(customer: PortalCustomerContext) {
+  return customer.agentAgreement.status === "active";
+}
 
 const STATUS_CONFIG: Record<
   PortalDealStatus,
@@ -163,7 +166,7 @@ export default function PortalDealsPage() {
     try {
       setLoadingCustomerContexts(true);
       setCustomerContextsError(null);
-      const data = await requestCustomerContexts();
+      const data = await requestPortalCustomers();
       setCustomerContexts(data.data ?? []);
     } catch (fetchError) {
       console.error("Error fetching customer contexts:", fetchError);

@@ -71,11 +71,3 @@ export class TreasuryInstructionNotActionableError extends TreasuryError {
     );
   }
 }
-
-export class PaymentRouteTemplateNotFoundError extends TreasuryError {
-  name = "PaymentRouteTemplateNotFoundError";
-
-  constructor(routeTemplateId: string) {
-    super(`Payment route template not found: ${routeTemplateId}`);
-  }
-}

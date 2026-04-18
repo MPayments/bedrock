@@ -15,6 +15,7 @@ export {
   calculations,
   calculationRateSourceEnum,
   calculationSnapshots,
+  paymentRouteTemplates,
 } from "@bedrock/calculations/schema";
 export {
   dealAttachmentIngestionStatusEnum,
@@ -86,7 +87,6 @@ export {
   fxQuotes,
   fxRateSources,
   fxRates,
-  paymentRouteTemplates,
   treasuryInstructions,
   treasuryOperations,
 } from "@bedrock/treasury/schema";

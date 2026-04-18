@@ -34,7 +34,7 @@ import {
   createManualBankProvider,
   searchCustomerBankProviders,
   type CustomerBankProviderSearchResult,
-} from "@/lib/customer-banking";
+} from "@/app/(dashboard)/customers/_lib/customer-banking";
 
 type BankingFieldValues = {
   bankMode: "existing" | "manual";

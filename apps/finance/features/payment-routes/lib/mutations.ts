@@ -8,7 +8,7 @@ import {
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
   type UpdatePaymentRouteTemplateInput,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 
 import { executeApiMutation } from "@/lib/api/mutation";
 import { readJsonWithSchema } from "@/lib/api/response";
@@ -29,7 +29,7 @@ async function readErrorMessage(response: Response, fallbackMessage: string) {
 export function createPaymentRouteTemplate(input: CreatePaymentRouteTemplateInput) {
   return executeApiMutation({
     request: () =>
-      fetch("/v1/payment-routes", {
+      fetch("/v1/calculations/route-templates", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
@@ -49,7 +49,7 @@ export function updatePaymentRouteTemplate(
 ) {
   return executeApiMutation({
     request: () =>
-      fetch(`/v1/payment-routes/${encodeURIComponent(id)}`, {
+      fetch(`/v1/calculations/route-templates/${encodeURIComponent(id)}`, {
         method: "PATCH",
         credentials: "include",
         cache: "no-store",
@@ -66,7 +66,7 @@ export function updatePaymentRouteTemplate(
 export function duplicatePaymentRouteTemplate(id: string) {
   return executeApiMutation({
     request: () =>
-      fetch(`/v1/payment-routes/${encodeURIComponent(id)}/duplicate`, {
+      fetch(`/v1/calculations/route-templates/${encodeURIComponent(id)}/duplicate`, {
         method: "POST",
         credentials: "include",
         cache: "no-store",
@@ -79,7 +79,7 @@ export function duplicatePaymentRouteTemplate(id: string) {
 export function archivePaymentRouteTemplate(id: string) {
   return executeApiMutation({
     request: () =>
-      fetch(`/v1/payment-routes/${encodeURIComponent(id)}/archive`, {
+      fetch(`/v1/calculations/route-templates/${encodeURIComponent(id)}/archive`, {
         method: "POST",
         credentials: "include",
         cache: "no-store",
@@ -94,7 +94,7 @@ export async function previewPaymentRoute(
   signal?: AbortSignal,
 ): Promise<PaymentRouteCalculation> {
   const payload = PaymentRouteDraftSchema.parse(draft);
-  const response = await fetch("/v1/payment-routes/preview", {
+  const response = await fetch("/v1/calculations/route-templates/preview", {
     method: "POST",
     credentials: "include",
     cache: "no-store",

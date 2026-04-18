@@ -45,7 +45,7 @@ import {
   type PortalDealType,
   requestPortalDealPageData,
   uploadPortalDealAttachment,
-} from "@/lib/portal-deals";
+} from "@/lib/api/deals";
 
 const STATUS_LABELS: Record<PortalDealStatus, string> = {
   draft: "Черновик",

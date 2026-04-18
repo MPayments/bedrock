@@ -4,15 +4,15 @@ import { z } from "zod";
 
 import { CurrencySchema } from "@bedrock/currencies/contracts";
 import {
+  PaymentRouteTemplateListResponseSchema,
+  PaymentRouteTemplateSchema,
+} from "@bedrock/calculations/contracts";
+import {
   CounterpartyOptionsResponseSchema,
   CustomerOptionsResponseSchema,
   OrganizationOptionsResponseSchema,
 } from "@bedrock/parties/contracts";
 import { MAX_QUERY_LIST_LIMIT, createPaginatedListSchema } from "@bedrock/shared/core/pagination";
-import {
-  PaymentRouteTemplateListResponseSchema,
-  PaymentRouteTemplateSchema,
-} from "@bedrock/treasury/contracts";
 
 import { createResourceListQuery } from "@/lib/resources/search-params";
 import { readEntityById, readOptionsList } from "@/lib/api/query";
@@ -72,7 +72,7 @@ function createListPath(search: PaymentRoutesSearchParams) {
     params.set("status", query.status);
   }
 
-  return `/v1/payment-routes?${params.toString()}`;
+  return `/v1/calculations/route-templates?${params.toString()}`;
 }
 
 const getPaymentRoutesListUncached = async (
@@ -89,7 +89,8 @@ const getPaymentRoutesListUncached = async (
 const getPaymentRouteTemplateByIdUncached = async (id: string) =>
   readEntityById({
     id,
-    request: (validId) => fetchApi(`/v1/payment-routes/${encodeURIComponent(validId)}`),
+    request: (validId) =>
+      fetchApi(`/v1/calculations/route-templates/${encodeURIComponent(validId)}`),
     schema: PaymentRouteTemplateSchema,
     resourceName: "маршрут",
   });
@@ -145,4 +146,3 @@ export const getPaymentRouteTemplateById = cache(
 export const getPaymentRouteConstructorOptions = cache(
   getPaymentRouteConstructorOptionsUncached,
 );
-

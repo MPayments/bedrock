@@ -1,12 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@bedrock/sdk-ui/components/card";
-import { ScrollText } from "lucide-react";
 import { DashboardTodo } from "@/components/dashboard/dashboard-todo";
 import { DashboardDeals } from "@/components/dashboard/dashboard-deals";
 import { DashboardChart } from "@/components/dashboard/dashboard-chart";
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { WidthProvider, Responsive, type Layouts } from "react-grid-layout";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -20,8 +17,7 @@ export default function Home() {
       lg: [
         { i: "todo", x: 0, y: 0, w: 12, h: 20, minW: 4, minH: 6 },
         { i: "chart", x: 12, y: 0, w: 12, h: 20, minW: 3, minH: 6 },
-        { i: "deals", x: 0, y: 20, w: 12, h: 20, minW: 4, minH: 6 },
-        { i: "log", x: 12, y: 20, w: 12, h: 20, minW: 3, minH: 6 },
+        { i: "deals", x: 0, y: 20, w: 24, h: 20, minW: 4, minH: 6 },
       ],
     }),
     []
@@ -77,19 +73,6 @@ export default function Home() {
       </div>
       <div key="deals">
         <DashboardDeals className="h-full" />
-      </div>
-      <div key="log">
-        <Card className="h-full flex flex-col">
-          <CardHeader className="shrink-0">
-            <CardTitle className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5 text-muted-foreground" />
-              Журнал
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 min-h-0 overflow-auto">
-            <ActivityFeed />
-          </CardContent>
-        </Card>
       </div>
     </ResponsiveGridLayout>
   );

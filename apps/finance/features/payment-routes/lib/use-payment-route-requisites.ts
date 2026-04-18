@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 
-import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
+import type { PaymentRouteDraft } from "@bedrock/calculations/contracts";
 
 import {
   getPaymentRouteParticipantOwnerKey,

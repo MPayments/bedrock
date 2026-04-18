@@ -13,7 +13,7 @@ import {
   formatPaymentRouteLegSemantics,
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 
 import {
   getPaymentRouteAdditionalFeeTotals,

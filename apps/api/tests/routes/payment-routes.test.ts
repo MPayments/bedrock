@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CustomerNotFoundError } from "@bedrock/parties";
 
-import { paymentRoutesRoutes } from "../../src/routes/payment-routes";
+import { calculationsRoutes } from "../../src/routes/calculations";
 
 const { userHasPermission } = vi.hoisted(() => ({
   userHasPermission: vi.fn(async () => ({ success: true })),
@@ -294,8 +294,27 @@ function createTestApp() {
     await next();
   });
   app.route(
-    "/payment-routes",
-    paymentRoutesRoutes({
+    "/calculations",
+    calculationsRoutes({
+      calculationsModule: {
+        calculations: {
+          commands: {},
+          queries: {},
+        },
+        routeTemplates: {
+          commands: {
+            archiveTemplate,
+            createTemplate: createTemplateCommand,
+            duplicateTemplate,
+            updateTemplate,
+          },
+          queries: {
+            findTemplateById,
+            listTemplates,
+            previewTemplate,
+          },
+        },
+      },
       partiesModule: {
         counterparties: {
           queries: {
@@ -318,21 +337,6 @@ function createTestApp() {
           },
         },
       },
-      treasuryModule: {
-        paymentRoutes: {
-          commands: {
-            archiveTemplate,
-            createTemplate: createTemplateCommand,
-            duplicateTemplate,
-            updateTemplate,
-          },
-          queries: {
-            findTemplateById,
-            listTemplates,
-            previewTemplate,
-          },
-        },
-      },
     } as any),
   );
 
@@ -352,7 +356,7 @@ function createTestApp() {
   };
 }
 
-describe("payment routes routes", () => {
+describe("calculation route templates routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userHasPermission.mockResolvedValue({ success: true });
@@ -369,7 +373,7 @@ describe("payment routes routes", () => {
     });
 
     const response = await app.request(
-      "http://localhost/payment-routes?limit=5&offset=10&sortBy=name&sortOrder=asc&name=USD&status=active",
+      "http://localhost/calculations/route-templates?limit=5&offset=10&sortBy=name&sortOrder=asc&name=USD&status=active",
     );
 
     expect(response.status).toBe(200);
@@ -394,17 +398,20 @@ describe("payment routes routes", () => {
 
     createTemplateCommand.mockResolvedValue(createTemplate());
 
-    const response = await app.request("http://localhost/payment-routes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await app.request(
+      "http://localhost/calculations/route-templates",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
         draft: createDraft(),
         name: "USD payout",
         visual: createVisual(),
       }),
-    });
+      },
+    );
 
     expect(response.status).toBe(201);
     expect(createTemplateCommand).toHaveBeenCalledWith({
@@ -464,10 +471,10 @@ describe("payment routes routes", () => {
     );
 
     const getResponse = await app.request(
-      `http://localhost/payment-routes/${IDS.route}`,
+      `http://localhost/calculations/route-templates/${IDS.route}`,
     );
     const updateResponse = await app.request(
-      `http://localhost/payment-routes/${IDS.route}`,
+      `http://localhost/calculations/route-templates/${IDS.route}`,
       {
         method: "PATCH",
         headers: {
@@ -477,13 +484,13 @@ describe("payment routes routes", () => {
       },
     );
     const duplicateResponse = await app.request(
-      `http://localhost/payment-routes/${IDS.route}/duplicate`,
+      `http://localhost/calculations/route-templates/${IDS.route}/duplicate`,
       {
         method: "POST",
       },
     );
     const archiveResponse = await app.request(
-      `http://localhost/payment-routes/${IDS.route}/archive`,
+      `http://localhost/calculations/route-templates/${IDS.route}/archive`,
       {
         method: "POST",
       },
@@ -507,7 +514,7 @@ describe("payment routes routes", () => {
     previewTemplate.mockResolvedValue(createCalculation());
 
     const response = await app.request(
-      "http://localhost/payment-routes/preview",
+      "http://localhost/calculations/route-templates/preview",
       {
         method: "POST",
         headers: {
@@ -556,17 +563,20 @@ describe("payment routes routes", () => {
 
     findCustomerById.mockRejectedValueOnce(new CustomerNotFoundError(IDS.customer));
 
-    const response = await app.request("http://localhost/payment-routes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await app.request(
+      "http://localhost/calculations/route-templates",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
         draft: createDraft(),
         name: "USD payout",
         visual: createVisual(),
       }),
-    });
+      },
+    );
 
     expect(response.status).toBe(400);
     expect(createTemplateCommand).not.toHaveBeenCalled();
@@ -590,17 +600,20 @@ describe("payment routes routes", () => {
       }),
     );
 
-    const response = await app.request("http://localhost/payment-routes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await app.request(
+      "http://localhost/calculations/route-templates",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
         draft: createAbstractDraft(),
         name: "Generic USD payout",
         visual: createVisual(),
       }),
-    });
+      },
+    );
 
     expect(response.status).toBe(201);
     expect(createTemplateCommand).toHaveBeenCalledWith({
@@ -624,7 +637,7 @@ describe("payment routes routes", () => {
     previewTemplate.mockResolvedValue(createCalculation());
 
     const response = await app.request(
-      "http://localhost/payment-routes/preview",
+      "http://localhost/calculations/route-templates/preview",
       {
         method: "POST",
         headers: {
@@ -685,7 +698,7 @@ describe("payment routes routes", () => {
 
     const draft = createDraft();
     const response = await app.request(
-      "http://localhost/payment-routes/preview",
+      "http://localhost/calculations/route-templates/preview",
       {
         method: "POST",
         headers: {
@@ -735,7 +748,7 @@ describe("payment routes routes", () => {
     };
 
     const [createResponse, updateResponse, previewResponse] = await Promise.all([
-      app.request("http://localhost/payment-routes", {
+      app.request("http://localhost/calculations/route-templates", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -746,7 +759,7 @@ describe("payment routes routes", () => {
           visual: createVisual(),
         }),
       }),
-      app.request(`http://localhost/payment-routes/${IDS.route}`, {
+      app.request(`http://localhost/calculations/route-templates/${IDS.route}`, {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
@@ -755,7 +768,7 @@ describe("payment routes routes", () => {
           draft: invalidDraft,
         }),
       }),
-      app.request("http://localhost/payment-routes/preview", {
+      app.request("http://localhost/calculations/route-templates/preview", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -792,12 +805,14 @@ describe("payment routes routes", () => {
       }),
     );
 
-    const response = await app.request("http://localhost/payment-routes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    const response = await app.request(
+      "http://localhost/calculations/route-templates",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
         draft: {
           ...createDraft(),
           participants: [
@@ -811,7 +826,8 @@ describe("payment routes routes", () => {
         name: "USD payout",
         visual: createVisual(),
       }),
-    });
+      },
+    );
 
     expect(response.status).toBe(201);
     expect(findRequisiteById).toHaveBeenCalledWith(IDS.organizationUsdRequisite);
@@ -838,26 +854,29 @@ describe("payment routes routes", () => {
   it("rejects a selected requisite when the owner does not match the participant", async () => {
     const { app, createTemplateCommand } = createTestApp();
 
-    const response = await app.request("http://localhost/payment-routes", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        draft: {
-          ...createDraft(),
-          participants: [
-            createDraft().participants[0],
-            {
-              ...createDraft().participants[1],
-              requisiteId: IDS.counterpartyUsdRequisite,
-            },
-          ],
+    const response = await app.request(
+      "http://localhost/calculations/route-templates",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
         },
-        name: "USD payout",
-        visual: createVisual(),
-      }),
-    });
+        body: JSON.stringify({
+          draft: {
+            ...createDraft(),
+            participants: [
+              createDraft().participants[0],
+              {
+                ...createDraft().participants[1],
+                requisiteId: IDS.counterpartyUsdRequisite,
+              },
+            ],
+          },
+          name: "USD payout",
+          visual: createVisual(),
+        }),
+      },
+    );
 
     expect(response.status).toBe(400);
     expect(createTemplateCommand).not.toHaveBeenCalled();
@@ -870,7 +889,7 @@ describe("payment routes routes", () => {
     const { app, previewTemplate } = createTestApp();
 
     const response = await app.request(
-      "http://localhost/payment-routes/preview",
+      "http://localhost/calculations/route-templates/preview",
       {
         method: "POST",
         headers: {
@@ -896,5 +915,13 @@ describe("payment routes routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "Валюта реквизита не совпадает с валютой шага маршрута",
     });
+  });
+
+  it("does not mount the legacy top-level payment-routes path", async () => {
+    const { app } = createTestApp();
+
+    const response = await app.request("http://localhost/payment-routes");
+
+    expect(response.status).toBe(404);
   });
 });

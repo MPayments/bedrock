@@ -1,4 +1,6 @@
 import type { AccountingModule } from "@bedrock/accounting";
+import { createAccountingModuleFromDrizzle } from "@bedrock/accounting/adapters/drizzle";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import {
   createCustomerMembershipsService,
   createIamService,
@@ -19,6 +21,8 @@ import {
   DrizzlePortalAccessGrantsUnitOfWork,
 } from "@bedrock/iam/adapters/drizzle";
 import type { LedgerModule } from "@bedrock/ledger";
+import { createLedgerModuleFromDrizzle } from "@bedrock/ledger/adapters/drizzle";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
   createIdempotencyService,
   type IdempotencyService,
@@ -31,9 +35,6 @@ import {
   createPersistenceContext,
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
-
-import { createApiAccountingModule } from "./accounting-module";
-import { createApiLedgerModule } from "./ledger-module";
 import { db } from "../db/client";
 
 export interface ApiCoreServices {
@@ -56,15 +57,22 @@ export function createCoreServices(): ApiCoreServices {
     persistence,
   });
   const passwordHasher = createBetterAuthPasswordHasher();
-  const ledgerModule = createApiLedgerModule({
+  const partiesQueries = createPartiesQueries({ db });
+  const ledgerModule = createLedgerModuleFromDrizzle({
+    assertInternalLedgerBooks:
+      ({ bookIds }) =>
+        partiesQueries.organizations.assertBooksBelongToInternalLedgerOrganizations(
+          bookIds,
+        ),
     db,
     idempotency,
     logger,
   });
-  const accountingModule = createApiAccountingModule({
+  const accountingModule = createAccountingModuleFromDrizzle({
     db,
-    persistence,
+    documentsReadModel: createDrizzleDocumentsReadModel({ db }),
     logger,
+    persistence,
   });
   const iamService = createIamService({
     reads: iamReads,

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "@bedrock/sdk-ui/components/auth-shell";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 
-import { CustomerLoginForm } from "./customer-login-form";
+import { PortalLoginForm } from "./portal-login-form";
 
 const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || "Multihansa Portal";
 
@@ -12,7 +12,7 @@ export default async function PortalLoginPage() {
 
   if (session.isAuthenticated) {
     if (session.hasCustomerPortalAccess) {
-      redirect("/clients");
+      redirect("/customers");
     }
 
     if (session.hasOnboardingAccess) {
@@ -22,7 +22,7 @@ export default async function PortalLoginPage() {
 
   return (
     <AuthShell title={APP_TITLE}>
-      <CustomerLoginForm />
+      <PortalLoginForm />
     </AuthShell>
   );
 }

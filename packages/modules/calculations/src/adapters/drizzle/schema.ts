@@ -16,7 +16,6 @@ import {
 
 import { currencies } from "@bedrock/currencies/schema";
 import { fxQuotes } from "@bedrock/treasury/schema";
-
 import {
   CALCULATION_LINE_KIND_VALUES,
   CALCULATION_RATE_SOURCE_VALUES,

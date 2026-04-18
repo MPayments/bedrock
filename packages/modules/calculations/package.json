@@ -17,6 +17,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/agreements": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/shared": "workspace:*",

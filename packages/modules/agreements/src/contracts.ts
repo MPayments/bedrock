@@ -1,4 +1,10 @@
 export {
+  CommercialRouteFeeKindSchema,
+  CommercialRouteFeeSchema,
+  type CommercialRouteFee,
+  type CommercialRouteFeeKind,
+} from "./application/contracts/payment-route-fee";
+export {
   CreateAgreementFeeRuleInputSchema,
   CreateAgreementInputSchema,
   UpdateAgreementInputSchema,

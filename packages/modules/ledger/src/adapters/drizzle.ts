@@ -9,3 +9,9 @@ export { DrizzleOperationsReads } from "../operations/adapters/drizzle/operation
 export { DrizzleOperationsRepository } from "../operations/adapters/drizzle/operations.repository";
 export { DrizzleLedgerReportsReads } from "../reports/adapters/drizzle/reports.reads";
 export { DrizzleLedgerUnitOfWork } from "../shared/adapters/drizzle/ledger.uow";
+export {
+  createLedgerModuleFromDrizzle,
+  createLedgerReadRuntimeFromDrizzle,
+  type CreateLedgerModuleFromDrizzleInput,
+  type LedgerReadRuntime,
+} from "./drizzle/module";

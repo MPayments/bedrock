@@ -5,6 +5,7 @@ import {
   calculationRateSourceEnum,
   calculationSnapshots,
 } from "./adapters/drizzle/schema";
+import { paymentRouteTemplates } from "./route-templates/adapters/drizzle/schema";
 
 export {
   calculationLineKindEnum,
@@ -12,6 +13,7 @@ export {
   calculations,
   calculationRateSourceEnum,
   calculationSnapshots,
+  paymentRouteTemplates,
 };
 
 export const schema = {
@@ -20,4 +22,5 @@ export const schema = {
   calculationLines,
   calculationRateSourceEnum,
   calculationLineKindEnum,
+  paymentRouteTemplates,
 };

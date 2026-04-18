@@ -1,70 +1,34 @@
-import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-import { FinanceAuthSessionSnapshotSchema } from "@bedrock/iam/contracts";
+import { createAudienceProxy } from "@bedrock/iam/adapters/next";
 
 const PUBLIC_PATHS = new Set(["/login", "/two-factor"]);
-const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-bedrock-app-audience", "finance");
-
-  if (pathname.startsWith("/api/auth/") || pathname.startsWith("/v1/")) {
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-  }
-
-  if (PUBLIC_PATHS.has(pathname)) {
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-  }
-
-  const sessionCookie = getSessionCookie(request, {
-    cookiePrefix: "bedrock-finance",
-  });
-  if (!sessionCookie) {
-    return redirectToLogin(request, pathname);
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/api/auth/finance/session-snapshot`, {
-      headers: {
-        cookie: request.headers.get("cookie") ?? "",
-        "x-bedrock-app-audience": "finance",
-      },
-    });
-    if (!res.ok) {
-      return redirectToLogin(request, pathname);
+export const proxy = createAudienceProxy({
+  audience: "finance",
+  async handle({ getSession, pathname, redirect, request, next }) {
+    if (PUBLIC_PATHS.has(pathname)) {
+      return next();
     }
 
-    const payload = await res.json().catch(() => null);
-    const parsed = FinanceAuthSessionSnapshotSchema.safeParse(payload);
-    if (!parsed.success || !parsed.data.isAuthenticated) {
-      return redirectToLogin(request, pathname);
+    const sessionCookie = getSessionCookie(request, {
+      cookiePrefix: "bedrock-finance",
+    });
+    if (!sessionCookie) {
+      return redirectToLogin(redirect, pathname);
     }
-  } catch {
-    return redirectToLogin(request, pathname);
-  }
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-}
+    const session = await getSession();
+    if (!session.isAuthenticated) {
+      return redirectToLogin(redirect, pathname);
+    }
 
-function redirectToLogin(request: NextRequest, pathname: string) {
-  const url = new URL("/login", request.url);
-  url.searchParams.set("redirect", pathname);
-  return NextResponse.redirect(url);
+    return next();
+  },
+});
+
+function redirectToLogin(redirect: (path: string) => Response, pathname: string) {
+  return redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
 }
 
 export const config = {

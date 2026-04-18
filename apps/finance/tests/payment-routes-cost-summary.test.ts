@@ -6,7 +6,7 @@ import {
   getPaymentRoutePureAmountOutMinor,
   getPaymentRouteTotalClientCostInMinor,
 } from "@/features/payment-routes/lib/cost-summary";
-import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
+import type { PaymentRouteCalculation } from "@bedrock/calculations/contracts";
 
 const USD = "00000000-0000-4000-8000-000000000101";
 const EUR = "00000000-0000-4000-8000-000000000102";

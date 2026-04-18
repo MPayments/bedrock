@@ -209,7 +209,7 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                   asChild
                   className={navigationMenuTriggerStyle()}
                 >
-                  <Link href="/documents">Документы</Link>
+                  <Link href="/calendar">Календарь</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>

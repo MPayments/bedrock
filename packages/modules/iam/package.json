@@ -8,7 +8,9 @@
     "./contracts": "./src/contracts/index.ts",
     "./schema": "./src/schema.ts",
     "./adapters/drizzle": "./src/adapters/drizzle/index.ts",
-    "./adapters/better-auth": "./src/adapters/better-auth/index.ts"
+    "./adapters/better-auth": "./src/adapters/better-auth/index.ts",
+    "./adapters/http": "./src/adapters/http/index.ts",
+    "./adapters/next": "./src/adapters/next/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -34,9 +36,13 @@
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
     "eslint": "^10.2.0",
+    "next": "^16.0.10",
     "pg": "^8.18.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
+  },
+  "peerDependencies": {
+    "next": "^16.0.10"
   },
   "bedrock": {
     "kind": "module",

@@ -48,7 +48,7 @@ import {
 import {
   derivePaymentRouteLegSemantics,
   formatPaymentRouteLegSemantics,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type {
   PaymentRouteGraphEdgeData,

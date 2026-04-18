@@ -7,7 +7,44 @@ import { DrizzleRequisitesQueries } from "./requisites/adapters/drizzle/requisit
 
 export interface PartiesQueries {
   counterparties: {
+    listAssignmentsByCounterpartyIds(
+      counterpartyIds: string[],
+    ): Promise<
+      Map<
+        string,
+        {
+          counterpartyId: string;
+          subAgentCounterpartyId: string | null;
+        }
+      >
+    >;
+    listGroupMembers(input: {
+      groupIds: string[];
+      includeDescendants: boolean;
+    }): Promise<
+      {
+        rootGroupId: string;
+        counterpartyId: string;
+      }[]
+    >;
     listShortNamesById(ids: string[]): Promise<Map<string, string>>;
+    searchCustomerOwnedCounterparties(input: {
+      limit: number;
+      offset: number;
+      q: string;
+    }): Promise<
+      {
+        counterpartyId: string;
+        customerId: string | null;
+        inn: string | null;
+        orgName: string;
+        shortName: string;
+      }[]
+    >;
+    upsertAssignment(input: {
+      counterpartyId: string;
+      subAgentCounterpartyId: string | null;
+    }): Promise<void>;
   };
   customers: {
     listNamesById(ids: string[]): Promise<Map<string, string>>;
@@ -16,10 +53,19 @@ export interface PartiesQueries {
     assertBooksBelongToInternalLedgerOrganizations(bookIds: string[]): Promise<void>;
     assertInternalLedgerOrganization(organizationId: string): Promise<void>;
     isInternalLedgerOrganization(organizationId: string): Promise<boolean>;
+    listInternalLedgerOrganizations(): Promise<
+      {
+        id: string;
+        shortName: string;
+      }[]
+    >;
     listInternalLedgerOrganizationIds(): Promise<string[]>;
     listShortNamesById(ids: string[]): Promise<Map<string, string>>;
   };
   requisites: {
+    findById(
+      id: string,
+    ): ReturnType<DrizzleRequisitesQueries["findById"]>;
     bindings: {
       findByRequisiteId(
         requisiteId: string,
@@ -29,6 +75,14 @@ export interface PartiesQueries {
       ): ReturnType<DrizzleRequisitesQueries["bindings"]["listByRequisiteId"]>;
     };
     listLabelsById(ids: string[]): Promise<Map<string, string>>;
+    listOptions(
+      input: Parameters<DrizzleRequisitesQueries["listOptions"]>[0],
+    ): ReturnType<DrizzleRequisitesQueries["listOptions"]>;
+    providers: {
+      findById(
+        id: string,
+      ): ReturnType<DrizzleRequisitesQueries["providers"]["findById"]>;
+    };
   };
 }
 
@@ -42,8 +96,16 @@ export function createPartiesQueries(input: {
 
   return {
     counterparties: {
+      listAssignmentsByCounterpartyIds:
+        counterparties.listAssignmentsByCounterpartyIds.bind(counterparties),
+      listGroupMembers:
+        counterparties.listGroupMembers.bind(counterparties),
       listShortNamesById:
         counterparties.listShortNamesById.bind(counterparties),
+      searchCustomerOwnedCounterparties:
+        counterparties.searchCustomerOwnedCounterparties.bind(counterparties),
+      upsertAssignment:
+        counterparties.upsertAssignment.bind(counterparties),
     },
     customers: {
       listNamesById:
@@ -58,12 +120,15 @@ export function createPartiesQueries(input: {
         organizations.assertInternalLedgerOrganization.bind(organizations),
       isInternalLedgerOrganization:
         organizations.isInternalLedgerOrganization.bind(organizations),
+      listInternalLedgerOrganizations:
+        organizations.listInternalLedgerOrganizations.bind(organizations),
       listInternalLedgerOrganizationIds:
         organizations.listInternalLedgerOrganizationIds.bind(organizations),
       listShortNamesById:
         organizations.listShortNamesById.bind(organizations),
     },
     requisites: {
+      findById: requisites.findById.bind(requisites),
       bindings: {
         findByRequisiteId:
           requisites.bindings.findByRequisiteId.bind(requisites.bindings),
@@ -71,6 +136,10 @@ export function createPartiesQueries(input: {
           requisites.bindings.listByRequisiteId.bind(requisites.bindings),
       },
       listLabelsById: requisites.listLabelsById.bind(requisites),
+      listOptions: requisites.listOptions.bind(requisites),
+      providers: {
+        findById: requisites.providers.findById.bind(requisites.providers),
+      },
     },
   };
 }

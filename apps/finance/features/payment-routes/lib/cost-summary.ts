@@ -2,7 +2,7 @@ import type {
   PaymentRouteAmountTotal,
   PaymentRouteCalculation,
   PaymentRouteCalculationFee,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 import { mulDivFloor } from "@bedrock/shared/money/math";
 
 export function aggregatePaymentRouteFeeTotals(

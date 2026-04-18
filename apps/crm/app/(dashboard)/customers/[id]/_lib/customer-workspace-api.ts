@@ -4,6 +4,10 @@ import { apiClient } from "@/lib/api-client";
 import { executeApiMutation } from "@/lib/api/mutation";
 import { API_BASE_URL } from "@/lib/constants";
 import {
+  requestCustomerWorkspace,
+  type CrmCustomerWorkspace as CustomerWorkspaceDetail,
+} from "@/lib/customer-workspaces";
+import {
   parseJsonSafely,
   readJsonWithSchema,
   type HttpResponseLike,
@@ -13,9 +17,6 @@ import {
   ClientDocumentSchema,
   ClientDocumentsSchema,
   type ClientDocument,
-  type CustomerCounterparty,
-  type CustomerWorkspaceDetail,
-  type SubAgent,
 } from "./customer-detail";
 
 type UpdateCustomerWorkspaceInput = {
@@ -27,70 +28,10 @@ type UpdateCustomerWorkspaceInput = {
 const CustomerRecordSchema = z.object({
   createdAt: z.iso.datetime(),
   description: z.string().nullable(),
+  externalRef: z.string().nullable(),
+  id: z.uuid(),
   name: z.string(),
-  externalRef: z.string().nullable(),
-  id: z.uuid(),
   updatedAt: z.iso.datetime(),
-});
-
-const CounterpartyListItemIdSchema = z.object({
-  id: z.uuid(),
-});
-
-const CounterpartyListResponseSchema = z.object({
-  data: z.array(CounterpartyListItemIdSchema),
-});
-
-const CounterpartyDetailSchema = z.object({
-  id: z.uuid(),
-  shortName: z.string(),
-  fullName: z.string(),
-  externalRef: z.string().nullable(),
-  relationshipKind: z.enum(["customer_owned", "external"]),
-  country: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-  partyProfile: z
-    .object({
-      contacts: z.array(
-        z.object({
-          type: z.string(),
-          value: z.string(),
-        }),
-      ),
-      identifiers: z.array(
-        z.object({
-          scheme: z.string(),
-          value: z.string(),
-        }),
-      ),
-    })
-    .passthrough()
-    .nullable(),
-});
-
-const SubAgentSchema = z.object({
-  commissionRate: z.number(),
-  counterpartyId: z.string(),
-  country: z.string().nullable(),
-  fullName: z.string(),
-  isActive: z.boolean(),
-  kind: z.enum(["individual", "legal_entity"]),
-  shortName: z.string(),
-});
-
-const CounterpartyAssignmentSchema = z.object({
-  counterpartyId: z.uuid(),
-  subAgent: SubAgentSchema.nullable(),
-  subAgentCounterpartyId: z.uuid().nullable(),
-});
-
-const AgreementsListResponseSchema = z.object({
-  data: z.array(
-    z.object({
-      isActive: z.boolean(),
-    }),
-  ),
 });
 
 function buildCounterpartyDocumentsBasePath(
@@ -119,37 +60,6 @@ function buildCustomerContractPath(
   const basePath = `${API_BASE_URL}/customers/${customerId}/counterparties/${counterpartyId}/contract`;
   const suffix = query.toString();
   return suffix ? `${basePath}?${suffix}` : basePath;
-}
-
-function findIdentifier(
-  counterparty: z.infer<typeof CounterpartyDetailSchema>,
-  scheme: string,
-) {
-  return (
-    counterparty.partyProfile?.identifiers.find(
-      (identifier) => identifier.scheme === scheme,
-    )?.value ?? null
-  );
-}
-
-function mapCustomerCounterparty(input: {
-  assignment: z.infer<typeof CounterpartyAssignmentSchema>;
-  counterparty: z.infer<typeof CounterpartyDetailSchema>;
-}): CustomerCounterparty {
-  return {
-    counterpartyId: input.counterparty.id,
-    country: input.counterparty.country,
-    createdAt: input.counterparty.createdAt,
-    externalRef: input.counterparty.externalRef,
-    fullName: input.counterparty.fullName,
-    inn: findIdentifier(input.counterparty, "inn"),
-    orgName: input.counterparty.shortName,
-    relationshipKind: input.counterparty.relationshipKind,
-    shortName: input.counterparty.shortName,
-    subAgent: input.assignment.subAgent as SubAgent | null,
-    subAgentCounterpartyId: input.assignment.subAgentCounterpartyId,
-    updatedAt: input.counterparty.updatedAt,
-  };
 }
 
 async function resolveErrorMessage(
@@ -197,115 +107,7 @@ async function requestBinaryResource(
 export async function getCustomerWorkspace(
   customerId: string,
 ): Promise<CustomerWorkspaceDetail> {
-  const [customerResponse, counterpartiesResponse, agreementsResponse] =
-    await Promise.all([
-      apiClient.v1.customers[":id"].$get({
-        param: { id: customerId },
-      }),
-      apiClient.v1.counterparties.$get({
-        query: {
-          customerId,
-          limit: 100,
-          offset: 0,
-          relationshipKind: ["customer_owned"],
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        },
-      }),
-      apiClient.v1.agreements.$get({
-        query: {
-          customerId,
-          limit: 100,
-          offset: 0,
-        },
-      }),
-    ]);
-
-  if (!customerResponse.ok) {
-    throw new Error(
-      customerResponse.status === 404
-        ? "Клиент не найден"
-        : await resolveErrorMessage(customerResponse, "Не удалось загрузить клиента"),
-    );
-  }
-
-  if (!counterpartiesResponse.ok) {
-    throw new Error(
-      await resolveErrorMessage(
-        counterpartiesResponse,
-        "Не удалось загрузить юридические лица клиента",
-      ),
-    );
-  }
-
-  if (!agreementsResponse.ok) {
-    throw new Error(
-      await resolveErrorMessage(
-        agreementsResponse,
-        "Не удалось загрузить договоры клиента",
-      ),
-    );
-  }
-
-  const [customer, counterpartiesList, agreementsPayload] = await Promise.all([
-    readJsonWithSchema(customerResponse, CustomerRecordSchema),
-    readJsonWithSchema(counterpartiesResponse, CounterpartyListResponseSchema),
-    readJsonWithSchema(agreementsResponse, AgreementsListResponseSchema),
-  ]);
-
-  const counterparties = await Promise.all(
-    counterpartiesList.data.map(async ({ id }) => {
-      const [detailResponse, assignmentResponse] = await Promise.all([
-        apiClient.v1.counterparties[":id"].$get({
-          param: { id },
-        }),
-        apiClient.v1.counterparties[":id"].assignment.$get({
-          param: { id },
-        }),
-      ]);
-
-      if (!detailResponse.ok) {
-        throw new Error(
-          await resolveErrorMessage(
-            detailResponse,
-            `Не удалось загрузить субъекта ${id}`,
-          ),
-        );
-      }
-
-      if (!assignmentResponse.ok) {
-        throw new Error(
-          await resolveErrorMessage(
-            assignmentResponse,
-            `Не удалось загрузить назначение субъекта ${id}`,
-          ),
-        );
-      }
-
-      const [counterparty, assignment] = await Promise.all([
-        readJsonWithSchema(detailResponse, CounterpartyDetailSchema),
-        readJsonWithSchema(assignmentResponse, CounterpartyAssignmentSchema),
-      ]);
-
-      return mapCustomerCounterparty({
-        assignment,
-        counterparty,
-      });
-    }),
-  );
-
-  return {
-    createdAt: customer.createdAt,
-    description: customer.description,
-    name: customer.name,
-    externalRef: customer.externalRef,
-    hasActiveAgreement: agreementsPayload.data.some((agreement) => agreement.isActive),
-    id: customer.id,
-    counterparties,
-    counterpartyCount: counterparties.length,
-    primaryCounterpartyId: counterparties[0]?.counterpartyId ?? null,
-    updatedAt: customer.updatedAt,
-  };
+  return requestCustomerWorkspace(customerId);
 }
 
 export async function updateCustomerWorkspace(

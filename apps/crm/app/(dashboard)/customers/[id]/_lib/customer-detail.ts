@@ -1,42 +1,16 @@
 import { z } from "zod";
 
-export type SubAgent = {
-  commissionRate: number;
-  counterpartyId: string;
-  country: string | null;
-  fullName: string;
-  isActive: boolean;
-  kind: "individual" | "legal_entity";
-  shortName: string;
-};
+import type {
+  CrmCustomerWorkspace as CustomerWorkspaceDetail,
+  CrmCustomerWorkspaceCounterparty as CustomerCounterparty,
+  CrmCustomerWorkspaceSubAgent as SubAgent,
+} from "@/lib/customer-workspaces";
 
-export type CustomerCounterparty = {
-  counterpartyId: string;
-  country: string | null;
-  createdAt: string;
-  externalRef: string | null;
-  fullName: string;
-  inn: string | null;
-  orgName: string;
-  relationshipKind: "customer_owned" | "external";
-  shortName: string;
-  subAgent: SubAgent | null;
-  subAgentCounterpartyId: string | null;
-  updatedAt: string;
-};
-
-export type CustomerWorkspaceDetail = {
-  createdAt: string;
-  description: string | null;
-  name: string;
-  externalRef: string | null;
-  hasActiveAgreement: boolean;
-  id: string;
-  counterparties: CustomerCounterparty[];
-  counterpartyCount: number;
-  primaryCounterpartyId: string | null;
-  updatedAt: string;
-};
+export type {
+  CrmCustomerWorkspace as CustomerWorkspaceDetail,
+  CrmCustomerWorkspaceCounterparty as CustomerCounterparty,
+  CrmCustomerWorkspaceSubAgent as SubAgent,
+} from "@/lib/customer-workspaces";
 
 export const ClientDocumentSchema = z.object({
   createdAt: z.iso.datetime(),

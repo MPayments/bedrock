@@ -1,86 +1,62 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { createAudienceProxy } from "@bedrock/iam/adapters/next";
 
-import { fetchSessionSnapshot } from "@/lib/auth/access";
+export const proxy = createAudienceProxy({
+  audience: "portal",
+  async handle({ getSession, pathname, redirect, next }) {
+    const requiresPortalMembership =
+      pathname.startsWith("/customers") || pathname.startsWith("/deals");
+    const isHandledPath =
+      pathname === "/" ||
+      pathname === "/login" ||
+      pathname.startsWith("/onboard") ||
+      requiresPortalMembership;
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const audienceHeaders = new Headers(request.headers);
-  audienceHeaders.set("x-bedrock-app-audience", "portal");
+    if (!isHandledPath) {
+      return next();
+    }
 
-  if (pathname.startsWith("/api/auth/") || pathname.startsWith("/v1/")) {
-    return NextResponse.next({
-      request: {
-        headers: audienceHeaders,
-      },
-    });
-  }
+    const session = await getSession();
 
-  const session = await fetchSessionSnapshot({
-    cookie: request.headers.get("cookie") ?? "",
-  });
-  const redirectTo = (path: string) =>
-    NextResponse.redirect(new URL(path, request.url));
-  const requiresPortalMembership =
-    pathname.startsWith("/clients") ||
-    pathname.startsWith("/deals");
-
-  if (
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname.startsWith("/onboard") ||
-    requiresPortalMembership
-  ) {
     if (!session.isAuthenticated) {
       if (pathname === "/login") {
-        return NextResponse.next();
+        return next();
       }
 
-      return redirectTo("/login");
+      return redirect("/login");
     }
 
-    if (pathname === "/login") {
-      return redirectTo(
-        session.hasCustomerPortalAccess ? "/clients" : "/onboard",
-      );
-    }
-
-    if (pathname === "/") {
-      return redirectTo(
-        session.hasCustomerPortalAccess ? "/clients" : "/onboard",
+    if (pathname === "/login" || pathname === "/") {
+      return redirect(
+        session.hasCustomerPortalAccess ? "/customers" : "/onboard",
       );
     }
 
     if (pathname.startsWith("/onboard")) {
       if (!session.hasOnboardingAccess && !session.hasCustomerPortalAccess) {
-        return redirectTo("/login");
+        return redirect("/login");
       }
 
       if (session.hasCustomerPortalAccess) {
-        return redirectTo("/clients");
+        return redirect("/customers");
       }
 
-      return NextResponse.next();
+      return next();
     }
 
     if (requiresPortalMembership && !session.hasCustomerPortalAccess) {
-      return redirectTo("/onboard");
+      return redirect("/onboard");
     }
-  }
 
-  return NextResponse.next({
-    request: {
-      headers: audienceHeaders,
-    },
-  });
-}
+    return next();
+  },
+});
 
 export const config = {
   matcher: [
     "/",
     "/login",
     "/onboard/:path*",
-    "/clients/:path*",
+    "/customers/:path*",
     "/deals/:path*",
     "/api/auth/:path*",
     "/v1/:path*",

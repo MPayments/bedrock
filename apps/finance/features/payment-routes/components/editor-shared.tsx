@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
-import type { PaymentRouteFee } from "@bedrock/treasury/contracts";
+import type { PaymentRouteFee } from "@bedrock/calculations/contracts";
 
 import {
   changeFeeKind,

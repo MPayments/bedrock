@@ -11,7 +11,7 @@ import {
   getDefaultCustomerBankingValues,
   normalizeRoutingCode,
   type CustomerBankingFormValues,
-} from "@/lib/customer-banking";
+} from "@/app/(dashboard)/customers/_lib/customer-banking";
 import { localizedTextSchema } from "@/lib/validation";
 
 const bankProviderSnapshotSchema = z.object({

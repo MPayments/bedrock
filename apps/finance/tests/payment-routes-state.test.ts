@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
   ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 import type { PaymentRouteConstructorOptions } from "@/features/payment-routes/lib/queries";
 import { syncPaymentRouteDraftRequisites } from "@/features/payment-routes/lib/requisites";
 import {

@@ -22,3 +22,7 @@ export { DrizzleRequisitesQueries } from "../requisites/adapters/drizzle/requisi
 export { DrizzleSubAgentProfileReads } from "../sub-agent-profiles/adapters/drizzle/sub-agent-profile.reads";
 export { DrizzleSubAgentProfileStore } from "../sub-agent-profiles/adapters/drizzle/sub-agent-profile.store";
 export { DrizzlePartyRegistryUnitOfWork } from "../shared/adapters/drizzle/party-registry.uow";
+export {
+  createPartiesModuleFromDrizzle,
+  type CreatePartiesModuleFromDrizzleInput,
+} from "./drizzle/module";

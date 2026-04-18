@@ -7,11 +7,11 @@ import { csrf } from "hono/csrf";
 
 import {
   authByAudience,
+  buildSessionSnapshotForAudience,
   getValidatedSessionForAudience,
   type AuthAudience,
 } from "./auth";
-import { buildSessionSnapshotForAudience } from "./auth/session-snapshots";
-import { createAppContext, parseEnv, type AppContext } from "./context";
+import type { AppContext } from "./context";
 import {
   authMiddleware,
   requireAuth,
@@ -20,21 +20,19 @@ import {
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
-  activityRoutes,
   agentsRoutes,
   agreementsRoutes,
   balancesRoutes,
   calculationsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
-  customerRoutes,
   customersRoutes,
   currenciesRoutes,
   dealsRoutes,
   documentsRoutes,
   counterpartyDirectoryRoutes,
   organizationsRoutes,
-  paymentRoutesRoutes,
+  portalRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
@@ -46,12 +44,21 @@ import {
   treasuryRatesRoutes,
   usersRoutes,
 } from "./routes";
-import { customerAuthRoutes } from "./routes/customer-auth";
+import { portalPublicRoutes } from "./routes/portal-public";
+import { ctx, env } from "./runtime";
 import { assertApiSchemaReady } from "./startup/schema-readiness";
 
-const env = parseEnv();
+function parseConfiguredOrigins(value: string | undefined) {
+  if (!value) {
+    return [];
+  }
 
-const ctx = createAppContext(env);
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
 void assertApiSchemaReady(ctx.persistence).catch((error: unknown) => {
   ctx.logger.error("API runtime schema is out of date", {
     error: error instanceof Error ? error.message : String(error),
@@ -73,9 +80,14 @@ void ctx.documentsService
     setImmediate(() => process.exit(1));
   });
 
-const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
-  .map((origin) => origin.trim())
-  .filter((origin) => origin.length > 0);
+const configuredAuthOrigins = Array.from(
+  new Set([
+    ...parseConfiguredOrigins(env.BETTER_AUTH_TRUSTED_ORIGINS),
+    ...parseConfiguredOrigins(env.BETTER_AUTH_CRM_TRUSTED_ORIGINS),
+    ...parseConfiguredOrigins(env.BETTER_AUTH_FINANCE_TRUSTED_ORIGINS),
+    ...parseConfiguredOrigins(env.BETTER_AUTH_PORTAL_TRUSTED_ORIGINS),
+  ]),
+);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
 const app = new OpenAPIHono<{ Variables: AuthVariables }>({
@@ -110,6 +122,7 @@ app.use(
       "Authorization",
       "Idempotency-Key",
       "X-Book-Id",
+      "X-Bedrock-App-Audience",
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["set-cookie", "Retry-After"],
@@ -139,7 +152,6 @@ function registerSessionSnapshotRoute(audience: AuthAudience) {
   app.get(`/api/auth/${audience}/session-snapshot`, async (c) => {
     const sessionSnapshot = await buildSessionSnapshotForAudience({
       audience,
-      ctx,
       headers: c.req.raw.headers,
     });
 
@@ -164,7 +176,7 @@ app.on(["POST", "GET"], "/api/auth/portal/*", (c) => {
   return authByAudience.portal.handler(c.req.raw);
 });
 
-app.route("/api/customer-auth", customerAuthRoutes(ctx));
+app.route("/api/portal", portalPublicRoutes(ctx));
 
 app.use("*", authMiddleware());
 app.use("*", requestContextMiddleware());
@@ -203,7 +215,6 @@ app.get("/health", async (c) => {
 function createV1Routes(ctx: AppContext) {
   return new OpenAPIHono<{ Variables: AuthVariables }>()
     .route("/accounting", accountingRoutes(ctx))
-    .route("/activity", activityRoutes(ctx))
     .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
@@ -211,13 +222,12 @@ function createV1Routes(ctx: AppContext) {
     .route("/counterparties", counterpartyDirectoryRoutes(ctx))
     .route("/counterparties", counterpartiesRoutes(ctx))
     .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
-    .route("/customer", customerRoutes(ctx))
     .route("/customers", customersRoutes(ctx))
     .route("/currencies", currenciesRoutes(ctx))
     .route("/deals", dealsRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
-    .route("/payment-routes", paymentRoutesRoutes(ctx))
+    .route("/portal", portalRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
     .route("/sub-agent-profiles", subAgentProfilesRoutes(ctx))

@@ -49,22 +49,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  type PortalCustomerContext,
   type PortalCounterpartyContext,
-  resolvePortalCustomerDisplayName,
-  resolvePortalCustomerId,
-  resolvePortalCounterpartyInn,
-  resolvePortalPrimaryCounterpartyId,
-  requestCustomerContexts,
-} from "@/lib/customer-contexts";
+  type PortalCustomerContext,
+  requestPortalCustomers,
+} from "@/lib/api/customers";
 import {
   createPortalDealDraft,
   type PortalDealType,
-} from "@/lib/portal-deals";
-import {
-  formatCustomerCounterpartyLabel,
-  isDuplicateCustomerCounterpartyName,
-} from "@/lib/counterparties";
+} from "@/lib/api/deals";
 import { cn } from "@/lib/utils";
 
 interface CounterpartyOption extends PortalCounterpartyContext {
@@ -119,6 +111,51 @@ const DEAL_TYPE_OPTIONS: {
 const STEP_LABELS = ["Контрагент", "Тип", "Данные"] as const;
 const DEFAULT_PAYMENT_SOURCE_CURRENCY = "RUB";
 const DEFAULT_TARGET_CURRENCY = "USD";
+
+function resolvePortalCustomerId(customer: PortalCustomerContext) {
+  return customer.customer.id;
+}
+
+function resolvePortalCustomerDisplayName(customer: PortalCustomerContext) {
+  return customer.customer.name;
+}
+
+function resolvePortalPrimaryCounterpartyId(customer: PortalCustomerContext) {
+  return customer.counterparties[0]?.id ?? null;
+}
+
+function normalizeComparableName(value: string): string {
+  return value.replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+function isDuplicateCustomerCounterpartyName(input: {
+  counterpartyName: string;
+  customerDisplayName: string;
+}) {
+  return (
+    normalizeComparableName(input.customerDisplayName) ===
+    normalizeComparableName(input.counterpartyName)
+  );
+}
+
+function formatCustomerCounterpartyLabel(input: {
+  counterpartyName: string;
+  customerDisplayName: string;
+}) {
+  return isDuplicateCustomerCounterpartyName(input)
+    ? input.counterpartyName
+    : `${input.customerDisplayName} / ${input.counterpartyName}`;
+}
+
+function resolvePortalCounterpartyInn(counterparty: PortalCounterpartyContext) {
+  return (
+    counterparty.partyProfile?.identifiers.find(
+      (identifier) => identifier.scheme === "inn",
+    )?.value ??
+    counterparty.externalRef ??
+    null
+  );
+}
 
 function formatDatePickerValue(value: Date | undefined) {
   if (!value) {
@@ -273,7 +310,7 @@ export function NewDealDialog({
   async function fetchClients() {
     try {
       setLoadingClients(true);
-      const data = await requestCustomerContexts();
+      const data = await requestPortalCustomers();
       setCustomers(data.data ?? []);
     } catch (fetchError) {
       console.error("Error fetching clients:", fetchError);

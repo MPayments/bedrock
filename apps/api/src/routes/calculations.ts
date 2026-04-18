@@ -3,11 +3,28 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import {
   CalculationDetailsSchema,
   CreateCalculationInputSchema,
+  CreatePaymentRouteTemplateInputSchema,
   ListCalculationsQuerySchema,
+  ListPaymentRouteTemplatesQuerySchema,
   PaginatedCalculationsSchema,
+  PaymentRouteCalculationSchema,
+  PaymentRouteDraftSchema,
+  PaymentRouteTemplateListResponseSchema,
+  PaymentRouteTemplateSchema,
+  PreviewPaymentRouteInputSchema,
+  UpdatePaymentRouteTemplateInputSchema,
+  ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME,
+  ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME,
+  getPaymentRouteParticipantOperationalCurrency,
   type CalculationDetails,
 } from "@bedrock/calculations/contracts";
+import {
+  CounterpartyNotFoundError,
+  CustomerNotFoundError,
+  OrganizationNotFoundError,
+} from "@bedrock/parties";
 import { formatFractionDecimal } from "@bedrock/shared/money";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import type { CalculationDocumentData } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
@@ -140,8 +157,439 @@ function serializeCalculationForDocumentGeneration(input: {
   };
 }
 
+async function resolvePaymentRouteParticipantDisplayName(
+  ctx: AppContext,
+  participant: ReturnType<typeof PaymentRouteDraftSchema.parse>["participants"][number],
+) {
+  if (participant.binding === "abstract") {
+    return participant.role === "source"
+      ? ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME
+      : ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME;
+  }
+
+  try {
+    if (participant.entityKind === "customer") {
+      const customer = await ctx.partiesModule.customers.queries.findById(
+        participant.entityId,
+      );
+      return customer.name;
+    }
+
+    if (participant.entityKind === "organization") {
+      const organization = await ctx.partiesModule.organizations.queries.findById(
+        participant.entityId,
+      );
+      return organization.shortName;
+    }
+
+    const counterparty = await ctx.partiesModule.counterparties.queries.findById(
+      participant.entityId,
+    );
+    return counterparty.shortName;
+  } catch (error) {
+    if (
+      error instanceof CounterpartyNotFoundError ||
+      error instanceof CustomerNotFoundError ||
+      error instanceof OrganizationNotFoundError
+    ) {
+      throw new ValidationError(error.message);
+    }
+
+    throw error;
+  }
+}
+
+async function normalizePaymentRouteDraftParticipants(
+  ctx: AppContext,
+  draft: ReturnType<typeof PaymentRouteDraftSchema.parse>,
+) {
+  const participants = await Promise.all(
+    draft.participants.map(async (participant, participantIndex) => {
+      if (
+        participant.binding === "bound" &&
+        (participant.entityKind === "organization" ||
+          participant.entityKind === "counterparty") &&
+        participant.requisiteId
+      ) {
+        const requisite = await ctx.partiesModule.requisites.queries.findById(
+          participant.requisiteId,
+        );
+
+        if (!requisite || requisite.archivedAt) {
+          throw new ValidationError("Выбранный реквизит не найден");
+        }
+
+        if (
+          requisite.ownerType !== participant.entityKind ||
+          requisite.ownerId !== participant.entityId
+        ) {
+          throw new ValidationError(
+            "Реквизит не принадлежит выбранному участнику маршрута",
+          );
+        }
+
+        const participantCurrencyId =
+          getPaymentRouteParticipantOperationalCurrency({
+            draft,
+            participantIndex,
+          });
+
+        if (
+          participantCurrencyId &&
+          requisite.currencyId !== participantCurrencyId
+        ) {
+          throw new ValidationError(
+            "Валюта реквизита не совпадает с валютой шага маршрута",
+          );
+        }
+      }
+
+      return {
+        ...participant,
+        displayName: await resolvePaymentRouteParticipantDisplayName(
+          ctx,
+          participant,
+        ),
+      };
+    }),
+  );
+
+  return PaymentRouteDraftSchema.parse({
+    ...draft,
+    participants,
+  });
+}
+
+function calculationRouteTemplatesRoutes(ctx: AppContext) {
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  const listRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["list"] })],
+    method: "get",
+    path: "/",
+    tags: ["Calculations"],
+    summary: "List route templates",
+    request: {
+      query: ListPaymentRouteTemplatesQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateListResponseSchema,
+          },
+        },
+        description: "Paginated route templates",
+      },
+    },
+  });
+
+  const createRoute_ = createRoute({
+    middleware: [requirePermission({ payment_routes: ["create"] })],
+    method: "post",
+    path: "/",
+    tags: ["Calculations"],
+    summary: "Create a route template",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: CreatePaymentRouteTemplateInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateSchema,
+          },
+        },
+        description: "Route template created",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const previewRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["list"] })],
+    method: "post",
+    path: "/preview",
+    tags: ["Calculations"],
+    summary: "Preview a route template calculation",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: PreviewPaymentRouteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteCalculationSchema,
+          },
+        },
+        description: "Route calculation preview",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const getRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["list"] })],
+    method: "get",
+    path: "/{id}",
+    tags: ["Calculations"],
+    summary: "Get route template by id",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateSchema,
+          },
+        },
+        description: "Route template",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route template not found",
+      },
+    },
+  });
+
+  const updateRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["update"] })],
+    method: "patch",
+    path: "/{id}",
+    tags: ["Calculations"],
+    summary: "Update a route template",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdatePaymentRouteTemplateInputSchema,
+          },
+        },
+        required: true,
+      },
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateSchema,
+          },
+        },
+        description: "Route template updated",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route template not found",
+      },
+    },
+  });
+
+  const duplicateRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["create"] })],
+    method: "post",
+    path: "/{id}/duplicate",
+    tags: ["Calculations"],
+    summary: "Duplicate a route template",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateSchema,
+          },
+        },
+        description: "Route template duplicated",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route template not found",
+      },
+    },
+  });
+
+  const archiveRoute = createRoute({
+    middleware: [requirePermission({ payment_routes: ["archive"] })],
+    method: "post",
+    path: "/{id}/archive",
+    tags: ["Calculations"],
+    summary: "Archive a route template",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PaymentRouteTemplateSchema,
+          },
+        },
+        description: "Route template archived",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route template not found",
+      },
+    },
+  });
+
+  return app
+    .openapi(listRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result = await ctx.calculationsModule.routeTemplates.queries.listTemplates(
+          query,
+        );
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createRoute_, async (c) => {
+      try {
+        const body = c.req.valid("json");
+        const result =
+          await ctx.calculationsModule.routeTemplates.commands.createTemplate({
+            ...body,
+            draft: await normalizePaymentRouteDraftParticipants(ctx, body.draft),
+          });
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(previewRoute, async (c) => {
+      try {
+        const body = c.req.valid("json");
+        const result =
+          await ctx.calculationsModule.routeTemplates.queries.previewTemplate({
+            draft: await normalizePaymentRouteDraftParticipants(ctx, body.draft),
+          });
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.calculationsModule.routeTemplates.queries.findTemplateById(
+            id,
+          );
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(updateRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result =
+          await ctx.calculationsModule.routeTemplates.commands.updateTemplate(
+            id,
+            {
+              ...body,
+              ...(body.draft
+                ? {
+                    draft: await normalizePaymentRouteDraftParticipants(
+                      ctx,
+                      body.draft,
+                    ),
+                  }
+                : {}),
+            },
+          );
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(duplicateRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.calculationsModule.routeTemplates.commands.duplicateTemplate(
+            id,
+          );
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(archiveRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result =
+          await ctx.calculationsModule.routeTemplates.commands.archiveTemplate(
+            id,
+          );
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    });
+}
+
 export function calculationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  app.route("/route-templates", calculationRouteTemplatesRoutes(ctx));
 
   const listRoute = createRoute({
     middleware: [requirePermission({ calculations: ["list"] })],

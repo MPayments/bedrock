@@ -12,6 +12,7 @@ import type { IamService } from "@bedrock/iam";
 import type { PortalAccessGrantsService } from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
+import type { PartiesQueries } from "@bedrock/parties/queries";
 import type { DocumentExtractionPort } from "@bedrock/platform/ai";
 import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
@@ -31,9 +32,9 @@ import type { ReconciliationAdjustmentsWorkflow } from "@bedrock/workflow-reconc
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
+import type { ApiPartiesReadRuntime } from "./composition/application";
 import { createCoreServices } from "./composition/core";
 import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
-import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -55,6 +56,9 @@ const EnvSchema = z.object({
   BETTER_AUTH_TRUSTED_ORIGINS: z
     .string()
     .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
+  BETTER_AUTH_CRM_TRUSTED_ORIGINS: z.string().optional(),
+  BETTER_AUTH_FINANCE_TRUSTED_ORIGINS: z.string().optional(),
+  BETTER_AUTH_PORTAL_TRUSTED_ORIGINS: z.string().optional(),
 
   // Operations adapters (all optional — graceful degradation)
   S3_ENDPOINT: z.string().optional(),

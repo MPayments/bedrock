@@ -20,7 +20,7 @@ import {
   derivePaymentRouteLegSemantics,
   formatPaymentRouteLegSemantics,
   type PaymentRouteCalculation,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 
 import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";

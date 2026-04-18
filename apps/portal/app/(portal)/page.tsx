@@ -10,7 +10,7 @@ export default async function PortalRootPage() {
   }
 
   if (session.hasCustomerPortalAccess) {
-    redirect("/clients");
+    redirect("/customers");
   }
 
   if (session.hasOnboardingAccess) {

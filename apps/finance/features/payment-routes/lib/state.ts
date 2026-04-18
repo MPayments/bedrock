@@ -13,7 +13,7 @@ import {
   type PaymentRouteParticipantRef,
   type PaymentRouteTemplate,
   type PaymentRouteVisualMetadata,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 import { toMinorAmountString } from "@bedrock/shared/money";
 
 import type { PaymentRouteConstructorOptions } from "./queries";

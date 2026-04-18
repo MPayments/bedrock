@@ -28,6 +28,52 @@ const IDS = {
 } as const;
 
 function createTestApp() {
+  const now = new Date("2026-04-18T08:00:00.000Z");
+  const customerRecord = {
+    createdAt: now,
+    description: "Workspace customer",
+    externalRef: "C-402",
+    id: IDS.customer,
+    name: "Workspace Customer",
+    updatedAt: now,
+  };
+  const counterpartyRecord = {
+    country: "RU",
+    createdAt: now,
+    customerId: IDS.customer,
+    description: null,
+    externalRef: "CP-401",
+    fullName: "Workspace Customer LLC",
+    groupIds: [],
+    id: IDS.counterparty,
+    kind: "legal_entity",
+    partyProfile: {
+      contacts: [],
+      identifiers: [{ scheme: "inn", value: "7701234567" }],
+    },
+    relationshipKind: "customer_owned",
+    shortName: "Workspace Customer",
+    updatedAt: now,
+  };
+  const activeAgreement = {
+    createdAt: now,
+    currentVersion: {
+      contractDate: now,
+      contractNumber: "AG-2026-001",
+      createdAt: now,
+      feeRules: [],
+      id: "00000000-0000-4000-8000-000000000403",
+      parties: [],
+      updatedAt: now,
+      versionNumber: 1,
+    },
+    customerId: IDS.customer,
+    id: "00000000-0000-4000-8000-000000000404",
+    isActive: true,
+    organizationId: "00000000-0000-4000-8000-000000000405",
+    organizationRequisiteId: "00000000-0000-4000-8000-000000000406",
+    updatedAt: now,
+  };
   const documentGenerationWorkflow = {
     generateCustomerContract: vi.fn(async () => ({
       buffer: Buffer.from("contract-pdf"),
@@ -39,6 +85,69 @@ function createTestApp() {
     files: {
       commands: {
         persistGeneratedCounterpartyFile: vi.fn(async () => undefined),
+      },
+    },
+  };
+  const partiesModule = {
+    customers: {
+      queries: {
+        findById: vi.fn(async () => customerRecord),
+      },
+    },
+    counterparties: {
+      queries: {
+        findById: vi.fn(async (id: string) =>
+          id === IDS.counterparty ? counterpartyRecord : null,
+        ),
+        list: vi.fn(async () => ({
+          data: [counterpartyRecord],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })),
+      },
+    },
+    subAgentProfiles: {
+      queries: {
+        findById: vi.fn(async () => ({
+          commissionRate: 0.15,
+          counterpartyId: "00000000-0000-4000-8000-000000000407",
+          country: "RU",
+          createdAt: now,
+          fullName: "Sub Agent",
+          isActive: true,
+          kind: "legal_entity",
+          shortName: "Sub Agent",
+          updatedAt: now,
+        })),
+      },
+    },
+  };
+  const partiesReadRuntime = {
+    counterpartiesQueries: {
+      listAssignmentsByCounterpartyIds: vi.fn(async () =>
+        new Map([
+          [
+            IDS.counterparty,
+            {
+              counterpartyId: IDS.counterparty,
+              subAgentCounterpartyId: "00000000-0000-4000-8000-000000000407",
+            },
+          ],
+        ]),
+      ),
+    },
+  };
+  const agreementsModule = {
+    agreements: {
+      queries: {
+        findById: vi.fn(async () => activeAgreement),
+        list: vi.fn(async () => ({
+          data: [activeAgreement],
+          limit: 2,
+          offset: 0,
+          total: 1,
+        })),
       },
     },
   };
@@ -60,12 +169,24 @@ function createTestApp() {
   app.route(
     "/customers",
     customersRoutes({
+      agreementsModule,
       documentGenerationWorkflow,
       filesModule,
+      partiesModule,
+      partiesReadRuntime,
     } as any),
   );
 
-  return { app, documentGenerationWorkflow, filesModule };
+  return {
+    app,
+    agreementsModule,
+    customerRecord,
+    counterpartyRecord,
+    documentGenerationWorkflow,
+    filesModule,
+    partiesModule,
+    partiesReadRuntime,
+  };
 }
 
 describe("customers routes", () => {
@@ -174,5 +295,52 @@ describe("customers routes", () => {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ownerId: IDS.counterparty,
     });
+  });
+
+  it("returns the CRM customer workspace projection from canonical module reads", async () => {
+    const {
+      agreementsModule,
+      app,
+      partiesModule,
+      partiesReadRuntime,
+    } = createTestApp();
+
+    const response = await app.request(
+      `http://localhost/customers/${IDS.customer}/workspace`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      counterparties: [
+        expect.objectContaining({
+          counterpartyId: IDS.counterparty,
+          fullName: "Workspace Customer LLC",
+          inn: "7701234567",
+          orgName: "Workspace Customer",
+          relationshipKind: "customer_owned",
+          subAgent: expect.objectContaining({
+            counterpartyId: "00000000-0000-4000-8000-000000000407",
+            shortName: "Sub Agent",
+          }),
+          subAgentCounterpartyId: "00000000-0000-4000-8000-000000000407",
+        }),
+      ],
+      counterpartyCount: 1,
+      createdAt: "2026-04-18T08:00:00.000Z",
+      description: "Workspace customer",
+      externalRef: "C-402",
+      hasActiveAgreement: true,
+      id: IDS.customer,
+      name: "Workspace Customer",
+      primaryCounterpartyId: IDS.counterparty,
+      updatedAt: "2026-04-18T08:00:00.000Z",
+    });
+    expect(partiesModule.customers.queries.findById).toHaveBeenCalledWith(
+      IDS.customer,
+    );
+    expect(agreementsModule.agreements.queries.list).toHaveBeenCalled();
+    expect(
+      partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds,
+    ).toHaveBeenCalledWith([IDS.counterparty]);
   });
 });

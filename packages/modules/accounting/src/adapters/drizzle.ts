@@ -8,6 +8,11 @@ export {
   createInMemoryCompiledPackCache,
   InMemoryCompiledPackCache,
 } from "../packs/adapters/cache/in-memory-compiled-pack.cache";
+export {
+  createAccountingModuleFromDrizzle,
+  type AccountingDocumentsReadModel,
+  type CreateAccountingModuleFromDrizzleInput,
+} from "./drizzle/module";
 export { DrizzlePackReads } from "../packs/adapters/drizzle/pack.reads";
 export { DrizzlePackRepository } from "../packs/adapters/drizzle/pack.repository";
 export { createAccountingClosePackageSnapshotPort } from "../periods/adapters/close-package-snapshot.port";

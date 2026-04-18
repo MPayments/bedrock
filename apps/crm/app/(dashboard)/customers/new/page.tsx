@@ -60,7 +60,7 @@ import { CustomerBankingSection } from "@/components/customers/customer-banking-
 import { apiClient } from "@/lib/api-client";
 import { readJsonWithSchema } from "@/lib/api/response";
 import { API_BASE_URL } from "@/lib/constants";
-import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
+import { mapFlatBankingToFormValues } from "@/app/(dashboard)/customers/_lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import type { CustomerBankingFormData } from "@/lib/validation";
 import { CustomerCreateHeader } from "./_components/customer-create-header";

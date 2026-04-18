@@ -13,19 +13,32 @@ import {
 import type { CalculationReads } from "./application/ports/calculation.reads";
 import type { CalculationsCommandUnitOfWork } from "./application/ports/calculations.uow";
 import type { CalculationReferencesPort } from "./application/ports/references.port";
+import {
+  createPaymentRoutesService,
+  type PaymentRoutesService,
+} from "./route-templates/application";
+import type { PaymentRouteTemplatesRepository } from "./route-templates/application/ports/payment-routes.repository";
+import type {
+  RouteTemplateCrossRateLookup,
+  RouteTemplateCurrenciesPort,
+} from "./route-templates/application/ports/external-ports";
 
 export interface CalculationsModuleDeps {
   commandUow: CalculationsCommandUnitOfWork;
+  currencies: RouteTemplateCurrenciesPort;
   generateUuid: UuidGenerator;
+  getCrossRate: RouteTemplateCrossRateLookup;
   idempotency: IdempotencyPort;
   logger: Logger;
   now: Clock;
   reads: CalculationReads;
   references: CalculationReferencesPort;
+  routeTemplatesRepository: PaymentRouteTemplatesRepository;
 }
 
 export interface CalculationsModule {
   calculations: CalculationsService;
+  routeTemplates: PaymentRoutesService;
 }
 
 export function createCalculationsModule(
@@ -42,6 +55,17 @@ export function createCalculationsModule(
         now: deps.now,
         generateUuid: deps.generateUuid,
         service: "calculations",
+      }),
+    }),
+    routeTemplates: createPaymentRoutesService({
+      currencies: deps.currencies,
+      getCrossRate: deps.getCrossRate,
+      repository: deps.routeTemplatesRepository,
+      runtime: createModuleRuntime({
+        logger: deps.logger,
+        now: deps.now,
+        generateUuid: deps.generateUuid,
+        service: "calculations.route_templates",
       }),
     }),
   };

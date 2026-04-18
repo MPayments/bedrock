@@ -19,7 +19,7 @@ import {
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
-import type { PaymentRouteTemplate } from "@bedrock/treasury/contracts";
+import type { PaymentRouteTemplate } from "@bedrock/calculations/contracts";
 
 import {
   formatCurrencyMinorAmount,

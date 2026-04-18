@@ -4,14 +4,17 @@ import ExcelJS from "exceljs";
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
+  SubAgentProfileNotFoundError,
 } from "@bedrock/parties";
 import {
+  CounterpartySchema,
   CreateCustomerInputSchema,
   CustomerOptionSchema,
   CustomerOptionsResponseSchema,
   CustomerSchema,
   ListCustomersQuerySchema,
   PaginatedCustomersSchema,
+  SubAgentProfileSchema,
   UpdateCustomerInputSchema,
 } from "@bedrock/parties/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
@@ -22,13 +25,13 @@ import {
   CustomerAgreementSchema,
   resolveEffectiveCustomerAgreementByCustomerId,
   updateCustomerAgreement,
-} from "./customer-agreements";
+} from "./customers-contracts";
 import {
   CustomerFileAttachmentSchema,
   GeneratedDocumentFormatSchema,
   GeneratedDocumentLangSchema,
   serializeCustomerFileAttachment,
-} from "./customer-files";
+} from "./customers-documents";
 import { DeletedSchema, ErrorSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import { buildOptionsResponse } from "../common/options";
@@ -87,6 +90,34 @@ const CustomerCounterpartyDocumentParamsSchema =
         },
       }),
   });
+
+const CustomerWorkspaceCounterpartySchema = z.object({
+  counterpartyId: CounterpartySchema.shape.id,
+  country: CounterpartySchema.shape.country,
+  createdAt: CounterpartySchema.shape.createdAt,
+  externalRef: CounterpartySchema.shape.externalRef,
+  fullName: CounterpartySchema.shape.fullName,
+  inn: z.string().nullable(),
+  orgName: CounterpartySchema.shape.shortName,
+  relationshipKind: CounterpartySchema.shape.relationshipKind,
+  shortName: CounterpartySchema.shape.shortName,
+  subAgent: SubAgentProfileSchema.nullable(),
+  subAgentCounterpartyId: z.string().uuid().nullable(),
+  updatedAt: CounterpartySchema.shape.updatedAt,
+});
+
+const CustomerWorkspaceSchema = z.object({
+  createdAt: CustomerSchema.shape.createdAt,
+  description: CustomerSchema.shape.description,
+  name: CustomerSchema.shape.name,
+  externalRef: CustomerSchema.shape.externalRef,
+  hasActiveAgreement: z.boolean(),
+  id: CustomerSchema.shape.id,
+  counterparties: z.array(CustomerWorkspaceCounterpartySchema),
+  counterpartyCount: z.number().int().nonnegative(),
+  primaryCounterpartyId: z.string().uuid().nullable(),
+  updatedAt: CustomerSchema.shape.updatedAt,
+});
 
 const CustomerAgreementUpsertInputSchema = z.object({
   agentFee: z.string().optional(),
@@ -177,6 +208,14 @@ function xlsxFilename(prefix: string) {
   return `${prefix}-${formatDate(new Date())}.xlsx`;
 }
 
+function findInn(counterparty: z.infer<typeof CounterpartySchema>) {
+  return (
+    counterparty.partyProfile?.identifiers.find(
+      (identifier) => identifier.scheme === "inn",
+    )?.value ?? null
+  );
+}
+
 export function customersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -240,6 +279,27 @@ export function customersRoutes(ctx: AppContext) {
       },
     },
     summary: "Get customer by id",
+    tags: ["Customers"],
+  });
+
+  const getWorkspaceRoute = createRoute({
+    middleware: [requirePermission({ customers: ["list"] })],
+    method: "get",
+    path: "/{id}/workspace",
+    request: { params: CustomerIdParamSchema },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: CustomerWorkspaceSchema },
+        },
+        description: "CRM customer workspace projection",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Customer not found",
+      },
+    },
+    summary: "Get CRM customer workspace projection",
     tags: ["Customers"],
   });
 
@@ -443,6 +503,113 @@ export function customersRoutes(ctx: AppContext) {
     tags: ["Customers"],
   });
 
+  async function findSubAgentProfileOrNull(counterpartyId: string) {
+    try {
+      return await ctx.partiesModule.subAgentProfiles.queries.findById(
+        counterpartyId,
+      );
+    } catch (error) {
+      if (error instanceof SubAgentProfileNotFoundError) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  async function buildCustomerWorkspace(customerId: string) {
+    const [customer, activeAgreement, counterpartiesResult] = await Promise.all([
+      ctx.partiesModule.customers.queries.findById(customerId),
+      resolveEffectiveCustomerAgreementByCustomerId(ctx, customerId),
+      ctx.partiesModule.counterparties.queries.list({
+        customerId,
+        limit: 100,
+        offset: 0,
+        relationshipKind: ["customer_owned"],
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+    ]);
+
+    const assignments =
+      await ctx.partiesReadRuntime.counterpartiesQueries.listAssignmentsByCounterpartyIds(
+        counterpartiesResult.data.map((counterparty) => counterparty.id),
+      );
+
+    const detailedCounterparties = await Promise.all(
+      counterpartiesResult.data.map((counterparty) =>
+        ctx.partiesModule.counterparties.queries.findById(counterparty.id),
+      ),
+    );
+
+    const subAgentIds = Array.from(
+      new Set(
+        detailedCounterparties
+          .map((counterparty) =>
+            counterparty
+              ? assignments.get(counterparty.id)?.subAgentCounterpartyId ?? null
+              : null,
+          )
+          .filter((counterpartyId): counterpartyId is string =>
+            counterpartyId !== null,
+          ),
+      ),
+    );
+    const subAgents = new Map<string, z.infer<typeof SubAgentProfileSchema> | null>(
+      await Promise.all(
+        subAgentIds.map(
+          async (counterpartyId) =>
+            [
+              counterpartyId,
+              await findSubAgentProfileOrNull(counterpartyId),
+            ] as const,
+        ),
+      ),
+    );
+
+    const counterparties: z.infer<typeof CustomerWorkspaceCounterpartySchema>[] =
+      detailedCounterparties
+      .filter(
+        (
+          counterparty,
+        ): counterparty is NonNullable<typeof counterparty> => Boolean(counterparty),
+      )
+      .map((counterparty) => {
+        const assignment = assignments.get(counterparty.id);
+
+        return {
+          counterpartyId: counterparty.id,
+          country: counterparty.country,
+          createdAt: counterparty.createdAt,
+          externalRef: counterparty.externalRef,
+          fullName: counterparty.fullName,
+          inn: findInn(counterparty),
+          orgName: counterparty.shortName,
+          relationshipKind: counterparty.relationshipKind,
+          shortName: counterparty.shortName,
+          subAgent:
+            assignment?.subAgentCounterpartyId != null
+              ? (subAgents.get(assignment.subAgentCounterpartyId) ?? null)
+              : null,
+          subAgentCounterpartyId: assignment?.subAgentCounterpartyId ?? null,
+          updatedAt: counterparty.updatedAt,
+        };
+      });
+
+    return {
+      createdAt: customer.createdAt,
+      description: customer.description,
+      name: customer.name,
+      externalRef: customer.externalRef,
+      hasActiveAgreement: activeAgreement !== null,
+      id: customer.id,
+      counterparties,
+      counterpartyCount: counterparties.length,
+      primaryCounterpartyId: counterparties[0]?.counterpartyId ?? null,
+      updatedAt: customer.updatedAt,
+    } satisfies z.infer<typeof CustomerWorkspaceSchema>;
+  }
+
   return app
     .openapi(exportRoute, async () => {
       const buffer = await exportCustomersXlsx(ctx);
@@ -485,6 +652,20 @@ export function customersRoutes(ctx: AppContext) {
       try {
         const customer = await ctx.partiesModule.customers.queries.findById(id);
         return c.json(customer, 200);
+      } catch (error) {
+        if (error instanceof CustomerNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(getWorkspaceRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        const workspace = await buildCustomerWorkspace(id);
+        return c.json(workspace, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
           return c.json({ error: error.message }, 404);

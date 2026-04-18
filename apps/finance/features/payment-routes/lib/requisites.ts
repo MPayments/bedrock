@@ -3,7 +3,7 @@ import {
   PaymentRouteDraftSchema,
   type PaymentRouteDraft,
   type PaymentRouteParticipantRef,
-} from "@bedrock/treasury/contracts";
+} from "@bedrock/calculations/contracts";
 
 import { getRequisiteKindLabel } from "@/features/entities/requisites-shared/lib/constants";
 import { resolveLegacyRequisiteIdentity } from "@/features/entities/requisites-shared/lib/master-data";

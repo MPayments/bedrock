@@ -8,7 +8,7 @@ export default async function PortalOnboardPage() {
   const session = await getServerSessionSnapshot();
 
   if (session.hasCustomerPortalAccess) {
-    redirect("/clients");
+    redirect("/customers");
   }
 
   if (!session.hasOnboardingAccess) {

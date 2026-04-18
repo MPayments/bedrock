@@ -25,8 +25,11 @@ import {
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
-import { loadCustomerOwnedCounterparties } from "@/lib/customer-owned-counterparties";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  buildDealDraftCustomerContext,
+  requestCustomerWorkspace,
+} from "@/lib/customer-workspaces";
 import { cn } from "@/lib/utils";
 
 import {
@@ -223,14 +226,9 @@ export function NewDealDialog({
         setError(null);
 
         const [customer, agreementsPayload] = await Promise.all([
-          loadCustomerOwnedCounterparties(currentSelectedCustomerId).then(
-            (counterparties) =>
-              ({
-                id: currentSelectedCustomerId,
-                counterparties,
-                primaryCounterpartyId:
-                  counterparties[0]?.counterpartyId ?? null,
-              }) satisfies CustomerDetail,
+          requestCustomerWorkspace(currentSelectedCustomerId).then(
+            (workspace) =>
+              buildDealDraftCustomerContext(workspace) satisfies CustomerDetail,
           ),
           fetchJson<{ data: AgreementOption[] }>(
             `${API_BASE_URL}/agreements?customerId=${currentSelectedCustomerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
