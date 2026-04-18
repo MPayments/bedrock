@@ -802,7 +802,7 @@ export function customersRoutes(ctx: AppContext) {
         const { counterpartyId, customerId } = c.req.valid("param");
         const { format, lang } = c.req.valid("query");
         const result =
-          await ctx.documentGenerationWorkflow.generateCustomerContract({
+          await ctx.documentGenerationService.generateCustomerContract({
             counterpartyId,
             customerId,
             format,

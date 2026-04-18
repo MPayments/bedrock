@@ -8,15 +8,15 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleTreasuryFeeRulesRepository } from "../../fees/adapters/drizzle/fee-rules.repository";
+import { DrizzleTreasuryInstructionsRepository } from "../../instructions/adapters/drizzle/instructions.repository";
 import {
   createTreasuryModule,
   type TreasuryModule,
   type TreasuryModuleDeps,
 } from "../../module";
-import { createDefaultRateSourceProviders } from "../../providers";
-import { DrizzleTreasuryFeeRulesRepository } from "../../fees/adapters/drizzle/fee-rules.repository";
-import { DrizzleTreasuryInstructionsRepository } from "../../instructions/adapters/drizzle/instructions.repository";
 import { DrizzleTreasuryOperationsRepository } from "../../operations/adapters/drizzle/operations.repository";
+import { createDefaultRateSourceProviders } from "../../providers";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../../quotes/adapters/drizzle/quote-fee-components.repository";
 import { DrizzleTreasuryQuoteFinancialLinesRepository } from "../../quotes/adapters/drizzle/quote-financial-lines.repository";
 import { DrizzleTreasuryQuotesRepository } from "../../quotes/adapters/drizzle/quotes.repository";

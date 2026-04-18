@@ -46,16 +46,15 @@
         "@bedrock/reconciliation": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/treasury": "workspace:*",
-        "@bedrock/workflow-customer-portal": "workspace:*",
+        "@bedrock/use-case-deal-quote": "workspace:*",
+        "@bedrock/use-case-organization-bootstrap": "workspace:*",
+        "@bedrock/use-case-portal": "workspace:*",
+        "@bedrock/use-case-requisite-accounting": "workspace:*",
         "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
         "@bedrock/workflow-deal-execution": "workspace:*",
         "@bedrock/workflow-deal-projections": "workspace:*",
-        "@bedrock/workflow-document-drafts": "workspace:*",
-        "@bedrock/workflow-document-generation": "workspace:*",
         "@bedrock/workflow-document-posting": "workspace:*",
-        "@bedrock/workflow-organization-bootstrap": "workspace:*",
         "@bedrock/workflow-reconciliation-adjustments": "workspace:*",
-        "@bedrock/workflow-requisite-accounting": "workspace:*",
         "@hono/node-server": "^1.19.9",
         "@hono/zod-openapi": "^1.2.2",
         "@scalar/hono-api-reference": "^0.9.44",
@@ -283,7 +282,6 @@
         "@bedrock/reconciliation": "workspace:*",
         "@bedrock/treasury": "workspace:*",
         "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
-        "@bedrock/workflow-document-drafts": "workspace:*",
         "@bedrock/workflow-period-close": "workspace:*",
         "dotenv": "^17.3.1",
         "drizzle-orm": "^0.45.1",
@@ -418,6 +416,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
+        "@bedrock/agreements": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/ledger": "workspace:*",
@@ -425,6 +424,11 @@
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
+        "easy-template-x": "^7.1.1",
+        "libreoffice-convert": "^1.6.1",
+        "lvovich": "^2.0.0",
+        "number-to-words-ru": "^2.1.0",
+        "russian-nouns-js": "^2.1.0",
         "zod": "^4.1.11",
       },
       "devDependencies": {
@@ -881,8 +885,44 @@
       "name": "@bedrock/typescript-config",
       "version": "0.0.0",
     },
-    "packages/workflows/customer-portal": {
-      "name": "@bedrock/workflow-customer-portal",
+    "packages/use-cases/deal-quote": {
+      "name": "@bedrock/use-case-deal-quote",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/calculations": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
+        "@bedrock/deals": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+        "@bedrock/treasury": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+        "vitest": "^4.1.4",
+      },
+    },
+    "packages/use-cases/organization-bootstrap": {
+      "name": "@bedrock/use-case-organization-bootstrap",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/parties": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+        "vitest": "^4.1.4",
+      },
+    },
+    "packages/use-cases/portal": {
+      "name": "@bedrock/use-case-portal",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/calculations": "workspace:*",
@@ -892,8 +932,28 @@
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
+        "@bedrock/workflow-deal-projections": "workspace:*",
       },
       "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+        "vitest": "^4.1.4",
+      },
+    },
+    "packages/use-cases/requisite-accounting": {
+      "name": "@bedrock/use-case-requisite-accounting",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/parties": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "eslint": "^10.2.0",
@@ -911,21 +971,6 @@
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^10.2.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.1.4",
-      },
-    },
-    "packages/workflows/deal-commission": {
-      "name": "@bedrock/workflow-deal-commission",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/platform": "workspace:*",
-        "@bedrock/shared": "workspace:*",
       },
       "devDependencies": {
         "@bedrock/typescript-config": "workspace:*",
@@ -983,67 +1028,12 @@
         "vitest": "^4.1.4",
       },
     },
-    "packages/workflows/document-drafts": {
-      "name": "@bedrock/workflow-document-drafts",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/platform": "workspace:*",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^10.2.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.1.4",
-      },
-    },
-    "packages/workflows/document-generation": {
-      "name": "@bedrock/workflow-document-generation",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/agreements": "workspace:*",
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/parties": "workspace:*",
-        "@bedrock/platform": "workspace:*",
-        "@bedrock/shared": "workspace:*",
-        "easy-template-x": "^7.1.1",
-        "libreoffice-convert": "^1.6.1",
-        "lvovich": "^2.0.0",
-        "number-to-words-ru": "^2.1.0",
-        "russian-nouns-js": "^2.1.0",
-        "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^10.2.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.1.4",
-      },
-    },
     "packages/workflows/document-posting": {
       "name": "@bedrock/workflow-document-posting",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/documents": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/platform": "workspace:*",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^10.2.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.1.4",
-      },
-    },
-    "packages/workflows/organization-bootstrap": {
-      "name": "@bedrock/workflow-organization-bootstrap",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/ledger": "workspace:*",
-        "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
       },
       "devDependencies": {
@@ -1075,24 +1065,6 @@
         "@bedrock/documents": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/reconciliation": "workspace:*",
-        "@bedrock/shared": "workspace:*",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^10.2.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.1.4",
-      },
-    },
-    "packages/workflows/requisite-accounting": {
-      "name": "@bedrock/workflow-requisite-accounting",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "@bedrock/parties": "workspace:*",
-        "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
       },
       "devDependencies": {
@@ -1276,29 +1248,25 @@
 
     "@bedrock/typescript-config": ["@bedrock/typescript-config@workspace:packages/tooling/typescript-config"],
 
-    "@bedrock/workflow-customer-portal": ["@bedrock/workflow-customer-portal@workspace:packages/workflows/customer-portal"],
+    "@bedrock/use-case-deal-quote": ["@bedrock/use-case-deal-quote@workspace:packages/use-cases/deal-quote"],
+
+    "@bedrock/use-case-organization-bootstrap": ["@bedrock/use-case-organization-bootstrap@workspace:packages/use-cases/organization-bootstrap"],
+
+    "@bedrock/use-case-portal": ["@bedrock/use-case-portal@workspace:packages/use-cases/portal"],
+
+    "@bedrock/use-case-requisite-accounting": ["@bedrock/use-case-requisite-accounting@workspace:packages/use-cases/requisite-accounting"],
 
     "@bedrock/workflow-deal-attachment-ingestion": ["@bedrock/workflow-deal-attachment-ingestion@workspace:packages/workflows/deal-attachment-ingestion"],
-
-    "@bedrock/workflow-deal-commission": ["@bedrock/workflow-deal-commission@workspace:packages/workflows/deal-commission"],
 
     "@bedrock/workflow-deal-execution": ["@bedrock/workflow-deal-execution@workspace:packages/workflows/deal-execution"],
 
     "@bedrock/workflow-deal-projections": ["@bedrock/workflow-deal-projections@workspace:packages/workflows/deal-projections"],
 
-    "@bedrock/workflow-document-drafts": ["@bedrock/workflow-document-drafts@workspace:packages/workflows/document-drafts"],
-
-    "@bedrock/workflow-document-generation": ["@bedrock/workflow-document-generation@workspace:packages/workflows/document-generation"],
-
     "@bedrock/workflow-document-posting": ["@bedrock/workflow-document-posting@workspace:packages/workflows/document-posting"],
-
-    "@bedrock/workflow-organization-bootstrap": ["@bedrock/workflow-organization-bootstrap@workspace:packages/workflows/organization-bootstrap"],
 
     "@bedrock/workflow-period-close": ["@bedrock/workflow-period-close@workspace:packages/workflows/period-close"],
 
     "@bedrock/workflow-reconciliation-adjustments": ["@bedrock/workflow-reconciliation-adjustments@workspace:packages/workflows/reconciliation-adjustments"],
-
-    "@bedrock/workflow-requisite-accounting": ["@bedrock/workflow-requisite-accounting@workspace:packages/workflows/requisite-accounting"],
 
     "@better-auth/core": ["@better-auth/core@1.4.18", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "zod": "^4.3.5" }, "peerDependencies": { "@better-auth/utils": "0.3.0", "@better-fetch/fetch": "1.1.21", "better-call": "1.1.8", "jose": "^6.1.0", "kysely": "^0.28.5", "nanostores": "^1.0.1" } }, "sha512-q+awYgC7nkLEBdx2sW0iJjkzgSHlIxGnOpsN1r/O1+a4m7osJNHtfK2mKJSL1I+GfNyIlxJF8WvD/NLuYMpmcg=="],
 
@@ -2066,7 +2034,7 @@
 
     "@xmldom/is-dom-node": ["@xmldom/is-dom-node@1.0.1", "", {}, "sha512-CJDxIgE5I0FH+ttq/Fxy6nRpxP70+e2O048EPe85J2use3XKdatVM7dDVvFNjQudd9B49NPoZ+8PG49zj4Er8Q=="],
 
-    "@xmldom/xmldom": ["@xmldom/xmldom@0.8.11", "", {}, "sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw=="],
+    "@xmldom/xmldom": ["@xmldom/xmldom@0.8.10", "", {}, "sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw=="],
 
     "@xyflow/react": ["@xyflow/react@12.10.2", "", { "dependencies": { "@xyflow/system": "0.0.76", "classcat": "^5.0.3", "zustand": "^4.4.0" }, "peerDependencies": { "react": ">=17", "react-dom": ">=17" } }, "sha512-CgIi6HwlcHXwlkTpr0fxLv/0sRVNZ8IdwKLzzeCscaYBwpvfcH1QFOCeaTCuEn1FQEs/B8CjnTSjhs8udgmBgQ=="],
 
@@ -3294,29 +3262,25 @@
 
     "@bedrock/treasury/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/workflow-customer-portal/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/use-case-deal-quote/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/use-case-organization-bootstrap/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/use-case-portal/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/use-case-requisite-accounting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-deal-attachment-ingestion/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/workflow-deal-commission/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-deal-execution/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-deal-projections/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/workflow-document-drafts/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/workflow-document-generation/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
     "@bedrock/workflow-document-posting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/workflow-organization-bootstrap/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-period-close/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-reconciliation-adjustments/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/workflow-requisite-accounting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@better-auth/core/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -3468,8 +3432,6 @@
 
     "duplexer2/readable-stream": ["readable-stream@2.3.8", "", { "dependencies": { "core-util-is": "~1.0.0", "inherits": "~2.0.3", "isarray": "~1.0.0", "process-nextick-args": "~2.0.0", "safe-buffer": "~5.1.1", "string_decoder": "~1.1.1", "util-deprecate": "~1.0.1" } }, "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA=="],
 
-    "easy-template-x/@xmldom/xmldom": ["@xmldom/xmldom@0.8.10", "", {}, "sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw=="],
-
     "eslint/ignore": ["ignore@5.3.2", "", {}, "sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g=="],
 
     "eslint-import-resolver-node/debug": ["debug@3.2.7", "", { "dependencies": { "ms": "^2.1.1" } }, "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ=="],
@@ -3511,6 +3473,8 @@
     "lazystream/readable-stream": ["readable-stream@2.3.8", "", { "dependencies": { "core-util-is": "~1.0.0", "inherits": "~2.0.3", "isarray": "~1.0.0", "process-nextick-args": "~2.0.0", "safe-buffer": "~5.1.1", "string_decoder": "~1.1.1", "util-deprecate": "~1.0.1" } }, "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA=="],
 
     "loose-envify/js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
+
+    "mammoth/@xmldom/xmldom": ["@xmldom/xmldom@0.8.11", "", {}, "sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw=="],
 
     "micromatch/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 
@@ -3557,6 +3521,8 @@
     "which-builtin-type/isarray": ["isarray@2.0.5", "", {}, "sha512-xHjhDr3cNBK0BzdUJSPXZntQUx/mwMS5Rw4A7lPJ90XGAO6ISP/ePDNuo0vhqOZU+UD5JoodwCAAoZQd3FeAKw=="],
 
     "workers/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "xml-crypto/@xmldom/xmldom": ["@xmldom/xmldom@0.8.11", "", {}, "sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw=="],
 
     "zip-stream/archiver-utils": ["archiver-utils@3.0.4", "", { "dependencies": { "glob": "^7.2.3", "graceful-fs": "^4.2.0", "lazystream": "^1.0.0", "lodash.defaults": "^4.2.0", "lodash.difference": "^4.5.0", "lodash.flatten": "^4.4.0", "lodash.isplainobject": "^4.0.6", "lodash.union": "^4.6.0", "normalize-path": "^3.0.0", "readable-stream": "^3.6.0" } }, "sha512-KVgf4XQVrTjhyWmx6cte4RxonPLR9onExufI1jhvw/MQ4BB6IsZD5gT8Lq+u/+pRkWna/6JoHpiQioaqFP5Rzw=="],
 
@@ -3614,29 +3580,25 @@
 
     "@bedrock/treasury/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/workflow-customer-portal/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/use-case-deal-quote/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/use-case-organization-bootstrap/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/use-case-portal/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/use-case-requisite-accounting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-deal-attachment-ingestion/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/workflow-deal-commission/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-deal-execution/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-deal-projections/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/workflow-document-drafts/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/workflow-document-generation/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
     "@bedrock/workflow-document-posting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/workflow-organization-bootstrap/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-period-close/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-reconciliation-adjustments/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/workflow-requisite-accounting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/android-arm": ["@esbuild/android-arm@0.18.20", "", { "os": "android", "cpu": "arm" }, "sha512-fyi7TDI/ijKKNZTUJAQqiG5T7YjJXgnzkURqmGj13C6dCqckZBLdl4h7bkhHt/t0WP+zO9/zwroDvANaOqO5Sw=="],
 

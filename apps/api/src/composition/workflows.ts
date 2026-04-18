@@ -1,11 +1,7 @@
+import { DrizzleDealStore } from "@bedrock/deals/adapters/drizzle";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import { DrizzleDealStore } from "@bedrock/deals/adapters/drizzle";
-import {
-  createCustomerPortalWorkflow,
-  type CustomerPortalWorkflow,
-} from "@bedrock/workflow-customer-portal";
 import {
   createDealAttachmentIngestionWorkflow,
   type DealAttachmentIngestionWorkflow,
@@ -19,56 +15,28 @@ import {
   type DealProjectionsWorkflow,
 } from "@bedrock/workflow-deal-projections";
 import {
-  createDocumentDraftWorkflow,
-  type DocumentDraftWorkflow,
-} from "@bedrock/workflow-document-drafts";
-import {
-  createDocumentGenerationWorkflow,
-  createEasyTemplateXAdapter,
-  createLibreOfficeConvertAdapter,
-  type DocumentGenerationWorkflow,
-} from "@bedrock/workflow-document-generation";
-import {
   createDocumentPostingWorkflow,
   type DocumentPostingWorkflow,
 } from "@bedrock/workflow-document-posting";
 import {
-  createOrganizationBootstrapWorkflow,
-  type OrganizationBootstrapWorkflow,
-} from "@bedrock/workflow-organization-bootstrap";
-import {
   createReconciliationAdjustmentsWorkflow,
   type ReconciliationAdjustmentsWorkflow,
 } from "@bedrock/workflow-reconciliation-adjustments";
-import {
-  createRequisiteAccountingWorkflow,
-  type RequisiteAccountingWorkflow,
-} from "@bedrock/workflow-requisite-accounting";
 
-import type { Env } from "../context";
-import { db } from "../db/client";
 import type { ApiCoreServices } from "./core";
-import {
-  createDealQuoteWorkflow,
-  type DealQuoteWorkflow,
-} from "./deal-quote-workflow";
 import type { ApplicationDocuments } from "./documents";
 import type { ApplicationModules } from "./modules";
 import type { ApplicationTransactions } from "./transactions";
+import type { Env } from "../context";
+import { db } from "../db/client";
 
 export interface ApplicationWorkflows {
-  customerPortalWorkflow: CustomerPortalWorkflow;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
-  dealQuoteWorkflow: DealQuoteWorkflow;
-  documentDraftWorkflow: DocumentDraftWorkflow;
   documentExtraction?: OpenAIDocumentExtractionAdapter;
-  documentGenerationWorkflow: DocumentGenerationWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
-  requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
 }
 
 export function createObjectStorageAdapter(
@@ -105,16 +73,8 @@ export function createApplicationWorkflows(input: {
   transactions: ApplicationTransactions;
 }): ApplicationWorkflows {
   const { documents, env, modules, platform, transactions } = input;
-  const { customerMembershipsService, iamService, idempotency, logger, portalAccessGrantsService } =
-    platform;
+  const { iamService, idempotency, logger } = platform;
 
-  const dealQuoteWorkflow = createDealQuoteWorkflow({
-    agreements: modules.agreementsModule,
-    calculations: modules.calculationsModule,
-    currencies: modules.currenciesService,
-    deals: modules.dealsModule,
-    treasury: modules.treasuryModule,
-  });
   const dealExecutionWorkflow = createDealExecutionWorkflow({
     agreements: modules.agreementsModule,
     currencies: modules.currenciesService,
@@ -125,21 +85,6 @@ export function createApplicationWorkflows(input: {
     createReconciliationService:
       transactions.createReconciliationServiceForTransaction,
     createTreasuryModule: transactions.createTreasuryModuleForTransaction,
-  });
-  const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
-    db,
-    createLedgerModule: transactions.createLedgerModuleForTransaction,
-    logger,
-  });
-  const requisiteAccountingWorkflow = createRequisiteAccountingWorkflow({
-    db,
-    createLedgerModule: transactions.createLedgerModuleForTransaction,
-    currencies: modules.currenciesPort,
-    logger,
-  });
-  const documentDraftWorkflow = createDocumentDraftWorkflow({
-    db,
-    createDocumentsService: documents.createDocumentsServiceForTransaction,
   });
   const documentPostingWorkflow = createDocumentPostingWorkflow({
     db,
@@ -167,41 +112,6 @@ export function createApplicationWorkflows(input: {
     reconciliation: modules.reconciliationService,
     treasury: modules.treasuryModule,
   });
-  const customerPortalWorkflow = createCustomerPortalWorkflow({
-    calculations: modules.calculationsModule,
-    currencies: modules.currenciesService,
-    deals: modules.dealsModule,
-    iam: {
-      customerMemberships: customerMembershipsService,
-      portalAccessGrants: portalAccessGrantsService,
-      users: iamService,
-    },
-    parties: {
-      counterparties: modules.partiesModule.counterparties,
-      customers: modules.partiesModule.customers,
-      requisites: modules.partiesModule.requisites,
-    },
-    logger,
-  });
-
-  const templatesDir = new URL(
-    "../../../../packages/workflows/document-generation/templates",
-    import.meta.url,
-  ).pathname;
-  const templateAdapter = createEasyTemplateXAdapter({
-    templatesDir,
-    logger,
-  });
-  const documentGenerationWorkflow = createDocumentGenerationWorkflow({
-    agreements: modules.agreementsModule,
-    currencies: modules.currenciesService,
-    parties: modules.partiesModule,
-    templateRenderer: templateAdapter,
-    pdfConverter: createLibreOfficeConvertAdapter(),
-    templateManager: templateAdapter,
-    objectStorage: modules.objectStorage,
-    logger,
-  });
 
   const documentExtraction = createDocumentExtractionAdapter(env);
   const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow({
@@ -213,17 +123,11 @@ export function createApplicationWorkflows(input: {
   });
 
   return {
-    customerPortalWorkflow,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,
     dealProjectionsWorkflow,
-    dealQuoteWorkflow,
-    documentDraftWorkflow,
     documentExtraction,
-    documentGenerationWorkflow,
     documentPostingWorkflow,
-    organizationBootstrapWorkflow,
     reconciliationAdjustmentsWorkflow,
-    requisiteAccountingWorkflow,
   };
 }

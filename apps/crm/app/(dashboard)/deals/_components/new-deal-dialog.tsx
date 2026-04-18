@@ -24,13 +24,13 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
-import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { API_BASE_URL } from "@/lib/constants";
 import {
   buildDealDraftCustomerContext,
   requestCustomerWorkspace,
 } from "@/lib/customer-workspaces";
 import { cn } from "@/lib/utils";
+import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "../_lib/load-applicant-requisites";
 
 import {
   createEmptyCrmDealIntake,

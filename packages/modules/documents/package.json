@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
+    "./generation": "./src/generation/index.ts",
     "./model": "./src/model.ts",
     "./plugins": "./src/plugins.ts",
     "./read-model": "./src/read-model.ts",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
+    "@bedrock/agreements": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/ledger": "workspace:*",
@@ -32,6 +34,11 @@
     "@bedrock/platform": "workspace:*",
     "@bedrock/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
+    "easy-template-x": "^7.1.1",
+    "libreoffice-convert": "^1.6.1",
+    "lvovich": "^2.0.0",
+    "number-to-words-ru": "^2.1.0",
+    "russian-nouns-js": "^2.1.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {

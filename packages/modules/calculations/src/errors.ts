@@ -30,3 +30,21 @@ export class PaymentRouteTemplateNotFoundError extends NotFoundError {
     super("Payment route template", id);
   }
 }
+
+export class DealCalculationSourceNotFoundError extends NotFoundError {
+  constructor(id: string) {
+    super("Deal", id);
+  }
+}
+
+export class DealCalculationQuoteNotAcceptedError extends ValidationError {
+  constructor(dealId: string, quoteId: string) {
+    super(`Quote ${quoteId} is not the accepted quote for deal ${dealId}`);
+  }
+}
+
+export class DealCalculationQuoteInactiveError extends ValidationError {
+  constructor(quoteId: string, status: string) {
+    super(`Quote ${quoteId} is not active: ${status}`);
+  }
+}

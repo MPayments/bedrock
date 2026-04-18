@@ -19,15 +19,15 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleDealReads } from "./deal.reads";
+import { DrizzleDealsUnitOfWork } from "./deals.uow";
+import type { DealFundingAssessmentPort } from "../../application/ports/deal.reads";
+import { DealTypeNotSupportedError } from "../../errors";
 import {
   createDealsModule,
   type DealsModule,
   type DealsModuleDeps,
 } from "../../module";
-import type { DealFundingAssessmentPort } from "../../application/ports/deal.reads";
-import { DealTypeNotSupportedError } from "../../errors";
-import { DrizzleDealReads } from "./deal.reads";
-import { DrizzleDealsUnitOfWork } from "./deals.uow";
 
 interface OrganizationRequisiteLiquidityQueryRow {
   organizationId: string;

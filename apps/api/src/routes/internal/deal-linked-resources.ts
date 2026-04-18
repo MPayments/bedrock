@@ -1,6 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { and, eq, inArray } from "drizzle-orm";
 
+import {
+  extractAgreementCommercialDefaults,
+  normalizeOptionalDecimalString,
+  percentStringToBps,
+} from "@bedrock/calculations/adapters/drizzle";
 import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
@@ -8,11 +13,6 @@ import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
 
-import {
-  extractAgreementCommercialDefaults,
-  normalizeOptionalDecimalString,
-  percentStringToBps,
-} from "../../composition/commercial-pricing";
 import type { AppContext } from "../../context";
 import { db } from "../../db/client";
 
@@ -140,7 +140,7 @@ export async function createDealScopedFormalDocument(input: {
   dealId: string;
   docType: string;
   idempotencyKey: string;
-  requestContext?: Parameters<AppContext["documentDraftWorkflow"]["createDraft"]>[0]["requestContext"];
+  requestContext?: Parameters<AppContext["documentsService"]["createDraft"]>[0]["requestContext"];
 }) {
   const deal = await requireDeal(input.ctx, input.dealId);
   assertDealAllowsCommercialWrite(deal);
@@ -151,7 +151,7 @@ export async function createDealScopedFormalDocument(input: {
     );
   }
 
-  return input.ctx.documentDraftWorkflow.createDraft({
+  return input.ctx.documentsService.createDraft({
     actorUserId: input.actorUserId,
     createIdempotencyKey: input.idempotencyKey,
     dealId: input.dealId,

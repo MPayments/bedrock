@@ -92,6 +92,7 @@ function createDocumentWithOperationFor(docType: string) {
 
 function createDocumentsServiceStub() {
   return {
+    createDraft: vi.fn(),
     list: vi.fn(),
     updateDraft: vi.fn(),
     get: vi.fn(),
@@ -99,12 +100,6 @@ function createDocumentsServiceStub() {
     actions: {
       execute: vi.fn(),
     },
-  };
-}
-
-function createDocumentDraftWorkflowStub() {
-  return {
-    createDraft: vi.fn(),
   };
 }
 
@@ -133,7 +128,6 @@ function createTestApp(input?: {
       : "idem-1";
   const role = input?.role ?? "admin";
   const documentsService = createDocumentsServiceStub();
-  const documentDraftWorkflow = createDocumentDraftWorkflowStub();
   const documentPostingWorkflow = createDocumentPostingWorkflowStub();
   const accountingReportsService = createAccountingReportsServiceStub();
   const app = new OpenAPIHono();
@@ -166,7 +160,6 @@ function createTestApp(input?: {
       },
       accountingReportsService,
       documentsService,
-      documentDraftWorkflow,
       documentPostingWorkflow,
     } as any),
   );
@@ -175,7 +168,6 @@ function createTestApp(input?: {
     app,
     accountingReportsService,
     documentsService,
-    documentDraftWorkflow,
     documentPostingWorkflow,
   };
 }
@@ -388,7 +380,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("blocks system-only document creation for non-admin users", async () => {
-    const { app, documentDraftWorkflow } = createTestApp({ role: "operator" });
+    const { app, documentsService } = createTestApp({ role: "operator" });
 
     const response = await app.request("http://localhost/period_close", {
       method: "POST",
@@ -408,12 +400,12 @@ describe("documentsRoutes mutation actions", () => {
       error:
         'Document type "period_close" is system-only and cannot be mutated via public API',
     });
-    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+    expect(documentsService.createDraft).not.toHaveBeenCalled();
   });
 
   it("allows admins to create public period_reopen documents", async () => {
-    const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
-    documentDraftWorkflow.createDraft.mockResolvedValue(
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.createDraft.mockResolvedValue(
       createDocumentWithOperationFor("period_reopen"),
     );
 
@@ -431,7 +423,7 @@ describe("documentsRoutes mutation actions", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(documentDraftWorkflow.createDraft).toHaveBeenCalledWith({
+    expect(documentsService.createDraft).toHaveBeenCalledWith({
       docType: "period_reopen",
       createIdempotencyKey: "create-idem",
       payload: {
@@ -446,7 +438,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("blocks public creation for system-only fx_resolution documents", async () => {
-    const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
+    const { app, documentsService } = createTestApp({ role: "admin" });
 
     const response = await app.request("http://localhost/fx_resolution", {
       method: "POST",
@@ -469,7 +461,7 @@ describe("documentsRoutes mutation actions", () => {
       error:
         'Document type "fx_resolution" is system-only and cannot be mutated via public API',
     });
-    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+    expect(documentsService.createDraft).not.toHaveBeenCalled();
   });
 
   it("allows admins to approve period_close documents", async () => {

@@ -5,6 +5,27 @@ vi.mock("../../src/routes/counterparty-directory", () => ({
   lookupCompanyByInn: vi.fn(),
 }));
 
+const { portalService } = vi.hoisted(() => ({
+  portalService: {
+    assertOnboardingAccess: vi.fn(async () => createPortalProfile()),
+    assertPortalAccess: vi.fn(async () => undefined),
+    createCounterparty: vi.fn(),
+    createDealDraft: vi.fn(async () => createPortalProjection()),
+    getCustomerContexts: vi.fn(async () => ({
+      data: [createPortalCustomerContext()],
+      total: 1,
+    })),
+    getDealById: vi.fn(async () => createPortalDealDetail()),
+    listMyDeals: vi.fn(async () => ({
+      data: [],
+      limit: 20,
+      offset: 0,
+      total: 0,
+    })),
+    searchBankProviders: vi.fn(async () => []),
+  },
+}));
+
 import { portalRoutes } from "../../src/routes/portal";
 
 const IDS = {
@@ -144,23 +165,6 @@ function createPortalDealDetail() {
 
 function createTestApp() {
   let currentProjection = createPortalProjection();
-
-  const customerPortalWorkflow = {
-    assertOnboardingAccess: vi.fn(async () => createPortalProfile()),
-    assertPortalAccess: vi.fn(async () => undefined),
-    createDealDraft: vi.fn(async () => createPortalProjection()),
-    getCustomerContexts: vi.fn(async () => ({
-      data: [createPortalCustomerContext()],
-      total: 1,
-    })),
-    getDealById: vi.fn(async () => createPortalDealDetail()),
-    listMyDeals: vi.fn(async () => ({
-      data: [],
-      limit: 20,
-      offset: 0,
-      total: 0,
-    })),
-  };
   const dealProjectionsWorkflow = {
     getPortalDealProjection: vi.fn(async () => currentProjection),
     listPortalDeals: vi.fn(async () => ({
@@ -214,6 +218,11 @@ function createTestApp() {
       },
     },
   };
+  const partiesModule = {
+    counterparties: {},
+    customers: {},
+    requisites: {},
+  };
   const dealAttachmentIngestionWorkflow = {
     enqueueIfEligible: vi.fn(async () => undefined),
   };
@@ -235,20 +244,26 @@ function createTestApp() {
     "/v1/portal",
     portalRoutes({
       agreementsModule,
-      customerPortalWorkflow,
+      calculationsModule: {},
+      currenciesService: {},
+      customerMembershipsService: {},
       dealAttachmentIngestionWorkflow,
       dealProjectionsWorkflow,
       dealsModule,
       filesModule,
+      iamService: {},
       logger: {
         warn: vi.fn(),
       },
+      partiesModule,
+      portalService,
+      portalAccessGrantsService: {},
     } as any),
   );
 
   return {
     app,
-    customerPortalWorkflow,
+    portalService,
     dealAttachmentIngestionWorkflow,
     dealProjectionsWorkflow,
     dealsModule,
@@ -262,7 +277,7 @@ describe("portal routes", () => {
   });
 
   it("serves the portal profile and leaves the legacy customer profile path unmounted", async () => {
-    const { app, customerPortalWorkflow } = createTestApp();
+    const { app, portalService } = createTestApp();
 
     const profileResponse = await app.request(
       "http://localhost/v1/portal/profile",
@@ -273,7 +288,7 @@ describe("portal routes", () => {
 
     expect(profileResponse.status).toBe(200);
     await expect(profileResponse.json()).resolves.toEqual(createPortalProfile());
-    expect(customerPortalWorkflow.assertOnboardingAccess).toHaveBeenCalledWith({
+    expect(portalService.assertOnboardingAccess).toHaveBeenCalledWith({
       userId: IDS.user,
     });
     expect(legacyResponse.status).toBe(404);
@@ -312,7 +327,7 @@ describe("portal routes", () => {
   });
 
   it("creates portal deal drafts with idempotency", async () => {
-    const { app, customerPortalWorkflow } = createTestApp();
+    const { app, portalService } = createTestApp();
 
     const response = await app.request(
       "http://localhost/v1/portal/deals/drafts",
@@ -340,7 +355,7 @@ describe("portal routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(customerPortalWorkflow.createDealDraft).toHaveBeenCalledWith(
+    expect(portalService.createDealDraft).toHaveBeenCalledWith(
       { userId: IDS.user },
       expect.objectContaining({
         type: "payment",

@@ -495,7 +495,7 @@ export function documentsRoutes(ctx: AppContext) {
           role: c.get("user")?.role,
         });
         const body = CreateDocumentInputSchema.parse(await c.req.json());
-        const result = await ctx.documentDraftWorkflow.createDraft({
+        const result = await ctx.documentsService.createDraft({
           docType,
           createIdempotencyKey: body.createIdempotencyKey,
           dealId: body.dealId,
@@ -667,7 +667,7 @@ export function documentsRoutes(ctx: AppContext) {
         })
         .parse(queryObjectFromUrl(c.req.url));
       const templates =
-        await ctx.documentGenerationWorkflow.listTemplates(organizationId);
+        await ctx.documentGenerationService.listTemplates(organizationId);
 
       return c.json(
         templates.map((name) => ({
@@ -689,7 +689,7 @@ export function documentsRoutes(ctx: AppContext) {
         })
         .parse(queryObjectFromUrl(c.req.url));
       const { name } = c.req.param();
-      const fields = await ctx.documentGenerationWorkflow.getTemplateFields(
+      const fields = await ctx.documentGenerationService.getTemplateFields(
         name,
         organizationId,
       );
@@ -721,7 +721,7 @@ export function documentsRoutes(ctx: AppContext) {
         })
         .parse(await c.req.json());
       const result =
-        await ctx.documentGenerationWorkflow.generateFromRawData(input);
+        await ctx.documentGenerationService.generateFromRawData(input);
 
       c.header("Content-Type", result.mimeType);
       c.header(

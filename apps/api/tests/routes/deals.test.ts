@@ -462,7 +462,7 @@ function createTestApp() {
     listCrmDealsByStatus: vi.fn(),
     listFinanceDealQueues: vi.fn(),
   };
-  const dealQuoteWorkflow = {
+  const dealQuoteService = {
     createCalculationFromAcceptedQuote: vi.fn(),
   };
   const dealExecutionWorkflow = {
@@ -545,7 +545,7 @@ function createTestApp() {
     dealsRoutes({
       dealProjectionsWorkflow,
       dealExecutionWorkflow,
-      dealQuoteWorkflow,
+      dealQuoteService,
       dealsModule,
       agreementsModule,
       iamService,
@@ -563,7 +563,7 @@ function createTestApp() {
     app,
     dealProjectionsWorkflow,
     dealExecutionWorkflow,
-    dealQuoteWorkflow,
+    dealQuoteService,
     dealsModule,
     agreementsModule,
     treasuryModule,
@@ -1225,14 +1225,14 @@ describe("deals routes", () => {
   });
 
   it("creates a calculation from the accepted quote via the workflow", async () => {
-    const { app, dealQuoteWorkflow, dealsModule } = createTestApp();
+    const { app, dealQuoteService, dealsModule } = createTestApp();
     const detail = {
       ...createDealDetail(),
       status: "submitted" as const,
       calculationId: null,
     };
     dealsModule.deals.queries.findById.mockResolvedValue(detail);
-    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
+    dealQuoteService.createCalculationFromAcceptedQuote.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000501",
       isActive: true,
       currentSnapshot: {
@@ -1295,7 +1295,7 @@ describe("deals routes", () => {
 
     expect(response.status).toBe(201);
     expect(
-      dealQuoteWorkflow.createCalculationFromAcceptedQuote,
+      dealQuoteService.createCalculationFromAcceptedQuote,
     ).toHaveBeenCalledWith({
       actorUserId: "user-1",
       dealId: detail.id,

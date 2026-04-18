@@ -58,6 +58,7 @@ function normalizeKind(kind) {
   switch (kind) {
     case "shared":
     case "module":
+    case "use-case":
     case "workflow":
     case "platform":
     case "plugin":
@@ -76,6 +77,7 @@ function classifyPackageKind(relDir) {
     return "shared";
   }
   if (relDir.startsWith("packages/modules/")) return "module";
+  if (relDir.startsWith("packages/use-cases/")) return "use-case";
   if (relDir.startsWith("packages/workflows/")) return "workflow";
   if (
     relDir === "packages/platform" ||

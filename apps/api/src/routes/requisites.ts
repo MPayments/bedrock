@@ -380,7 +380,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisiteAccountingWorkflow.update(
+        const requisite = await ctx.requisiteAccountingService.update(
           id,
           input,
         );
@@ -432,7 +432,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const binding = await ctx.requisiteAccountingWorkflow.upsertBinding(
+        const binding = await ctx.requisiteAccountingService.upsertBinding(
           id,
           input,
         );

@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ColumnFiltersState, SortingState, Updater } from "@tanstack/react-table";
 import type { DateRange } from "react-day-picker";
+import { buildDealsQueryParams } from "@/app/(dashboard)/deals/_lib/build-deals-query-params";
 import { API_BASE_URL } from "@/lib/constants";
-import { buildDealsQueryParams } from "@/lib/deals-query";
 import { areFiltersEqual } from "@/lib/utils/table-filters";
 
 export type CurrencyCode = "USD" | "EUR" | "RUB" | "CNY" | "TRY" | "AED";

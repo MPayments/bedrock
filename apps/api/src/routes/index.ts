@@ -1,6 +1,5 @@
 export { agreementsRoutes } from "./agreements";
 export { accountingRoutes } from "./accounting";
-export { agentsRoutes } from "./agents";
 export { balancesRoutes } from "./balances";
 export { calculationsRoutes } from "./calculations";
 export { counterpartiesRoutes } from "./counterparties";

@@ -15,6 +15,7 @@ The repo is being reshaped into a modular monolith with extractable bounded-cont
 - `packages/shared/*`
 - `packages/platform/*`
 - `packages/modules/*`
+- `packages/use-cases/*`
 - `packages/workflows/*`
 - `packages/plugins/*`
 - `packages/sdk/*`
@@ -36,7 +37,9 @@ Bedrock uses:
 1. package by bounded context at the workspace level
 2. explicit `contracts`, `application`, `domain`, and `infra` layers inside runtime packages
 3. ports defined by the application core and implemented by adapters in `infra`
-4. thin apps and workflows that compose and trigger use cases instead of owning business logic
+4. thin apps that compose modules, use-cases, and workflows instead of owning business logic
+5. synchronous cross-context orchestration in dedicated use-case packages
+6. async, retryable, or stateful orchestration in workflow packages
 
 This is a repo-specific adaptation of Explicit Architecture, not a literal framework import. Bedrock keeps closure-based service factories and thin root facade entrypoints where that is the established package API.
 
@@ -47,7 +50,8 @@ The repo-wide package kinds are:
 - `shared`: tiny shared kernel primitives only
 - `platform`: technical runtime/tooling packages reused across contexts
 - `modules`: bounded-context business packages
-- `workflows`: cross-context orchestration
+- `use-cases`: synchronous cross-context application services
+- `workflows`: async, retryable, or stateful cross-context orchestration
 - `plugins`: extensions of a host context
 - `sdk`: downstream-facing clients and reusable consumer packages
 - `tooling`: repo-only build/lint/test/generator packages
@@ -149,8 +153,17 @@ If a type is both public and domain-native, it belongs in `domain` or `shared`, 
   - `shared`
   - `platform`
   - concrete external libraries and tool APIs
-- `apps` and `workflows` may depend on:
+- `apps` may depend on:
   - public package exports only
+  - `shared`
+  - `platform`
+- `use-cases` may depend on:
+  - public module exports
+  - `shared`
+  - `platform`
+- `workflows` may depend on:
+  - public module exports
+  - public use-case exports
   - `shared`
   - `platform`
 
@@ -178,6 +191,7 @@ Ports belong to the application core and are shaped by the core's needs.
 Concrete adapters should be instantiated in:
 
 - module-root composition
+- use-cases
 - apps
 - workflows
 
@@ -228,8 +242,9 @@ or narrowly scoped infra-level migration queries documented by the owning packag
 ## Cross-Context Dependency Rules
 
 - A module must not import another module's `application`, `domain`, `infra`, or non-exported files.
-- Direct module-to-module imports, when allowed, are limited to stable exported contract surfaces.
-- Multi-context orchestration belongs in `workflows` or app composition.
+- Direct module-to-module imports, when allowed, are limited to stable exported contract, schema, or query surfaces.
+- Synchronous multi-context orchestration belongs in `packages/use-cases/*`.
+- Async, retryable, or stateful multi-context orchestration belongs in `packages/workflows/*`.
 - Cross-context mutation is forbidden.
 
 ## Reference Set

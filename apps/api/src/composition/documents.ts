@@ -10,19 +10,19 @@ import { UserNotFoundError } from "@bedrock/iam";
 import { bindPersistenceSession } from "@bedrock/platform/persistence";
 import {
   createCommercialDocumentModules,
+  createCommercialDocumentDeps,
 } from "@bedrock/plugin-documents-commercial";
-import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
+import {
+  createIfrsDocumentDeps,
+  createIfrsDocumentModules,
+} from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 
 import type { ApiCoreServices } from "./core";
 import type { ApplicationModules } from "./modules";
+import type { ApplicationOwnedServices } from "./services";
 import type { ApplicationTransactions } from "./transactions";
-import type { DealQuoteWorkflow } from "./deal-quote-workflow";
-import {
-  createCommercialDocumentDeps,
-  createIfrsDocumentDeps,
-} from "./document-plugin-adapters";
 
 const DOCUMENT_QUOTE_REF_PATTERN =
   /^(invoice|fx_execute):([0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[1-8][0-9a-fA-F-]{3}-[89abAB][0-9a-fA-F-]{3}-[0-9a-fA-F-]{12})$/;
@@ -53,7 +53,7 @@ export interface ApplicationDocuments {
 }
 
 type DealQuoteWorkflowPort = Pick<
-  DealQuoteWorkflow,
+  ApplicationOwnedServices["dealQuoteService"],
   "expireQuotes" | "markQuoteUsed"
 >;
 
@@ -61,7 +61,7 @@ type TransactionLike = Parameters<
   ApplicationTransactions["createAccountingModuleForTransaction"]
 >[0];
 
-export type AccountingPeriodsPort = {
+export interface AccountingPeriodsPort {
   assertOrganizationPeriodsOpen(input: {
     occurredAt: Date;
     organizationIds: string[];
@@ -92,7 +92,7 @@ export type AccountingPeriodsPort = {
     reopenDocumentId?: string | null;
     db?: unknown;
   }): Promise<unknown>;
-};
+}
 
 export function createAccountingPeriodsPort(input: {
   accountingModule: AccountingModule;
@@ -172,15 +172,15 @@ export function createAccountingPeriodsPort(input: {
 
 export function createTreasuryQuotesAdapter(input: {
   documentsReadModel: ApplicationModules["documentsReadModel"];
-  getDealQuoteWorkflow: () => DealQuoteWorkflowPort;
+  dealQuoteService: DealQuoteWorkflowPort;
   treasuryModule: ApplicationModules["treasuryModule"];
 }) {
-  const { documentsReadModel, getDealQuoteWorkflow, treasuryModule } = input;
+  const { dealQuoteService, documentsReadModel, treasuryModule } = input;
 
   return {
     createQuote: treasuryModule.quotes.commands.createQuote,
     async expireQuotes(now: Date) {
-      return getDealQuoteWorkflow().expireQuotes(now);
+      return dealQuoteService.expireQuotes(now);
     },
     getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
     async markQuoteUsed(
@@ -218,7 +218,7 @@ export function createTreasuryQuotesAdapter(input: {
         dealId = dealId ?? linkedDocument.dealId ?? null;
       }
 
-      return getDealQuoteWorkflow().markQuoteUsed({
+      return dealQuoteService.markQuoteUsed({
         ...input,
         dealId,
         usedDocumentId,
@@ -228,7 +228,7 @@ export function createTreasuryQuotesAdapter(input: {
 }
 
 export function createApplicationDocuments(input: {
-  getDealQuoteWorkflow: () => DealQuoteWorkflowPort;
+  dealQuoteService: DealQuoteWorkflowPort;
   modules: ApplicationModules;
   platform: Pick<
     ApiCoreServices,
@@ -236,7 +236,7 @@ export function createApplicationDocuments(input: {
   >;
   transactions: ApplicationTransactions;
 }): ApplicationDocuments {
-  const { getDealQuoteWorkflow, modules, platform, transactions } = input;
+  const { dealQuoteService, modules, platform, transactions } = input;
 
   const documentsAccountingPort = {
     getDefaultCompiledPack:
@@ -263,8 +263,8 @@ export function createApplicationDocuments(input: {
     },
   };
   const treasuryQuotes = createTreasuryQuotesAdapter({
+    dealQuoteService,
     documentsReadModel: modules.documentsReadModel,
-    getDealQuoteWorkflow,
     treasuryModule: modules.treasuryModule,
   });
   const documentRegistry = createDocumentRegistry([

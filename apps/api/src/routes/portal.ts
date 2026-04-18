@@ -100,7 +100,7 @@ const CustomerPortalBankRequisiteInputSchema = z
   .optional();
 
 type CustomerPortalCreateCounterpartyResponse = Awaited<
-  ReturnType<AppContext["customerPortalWorkflow"]["createCounterparty"]>
+  ReturnType<AppContext["portalService"]["createCounterparty"]>
 >;
 
 const CUSTOMER_PORTAL_CREATE_COUNTERPARTY_IDEMPOTENCY_SCOPE =
@@ -398,7 +398,7 @@ function requireCustomerPortalAccess(
     }
 
     try {
-      await ctx.customerPortalWorkflow.assertPortalAccess({
+      await ctx.portalService.assertPortalAccess({
         userId: user.id,
       });
     } catch (error) {
@@ -417,6 +417,7 @@ function requireCustomerPortalAccess(
 }
 
 export function portalRoutes(ctx: AppContext) {
+  const portalService = ctx.portalService;
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   const getProfileRoute = createRoute({
@@ -772,7 +773,7 @@ export function portalRoutes(ctx: AppContext) {
   });
 
   async function listAuthorizedCustomerIds(userId: string) {
-    const result = await ctx.customerPortalWorkflow.getCustomerContexts({ userId });
+    const result = await portalService.getCustomerContexts({ userId });
     return Array.from(new Set(result.data.map((item) => item.customer.id)));
   }
 
@@ -826,7 +827,7 @@ export function portalRoutes(ctx: AppContext) {
     .openapi(getProfileRoute, async (c) => {
       const user = c.get("user")!;
       try {
-        const result = await ctx.customerPortalWorkflow.assertOnboardingAccess({
+        const result = await portalService.assertOnboardingAccess({
           userId: user.id,
         });
         return c.json(result, 200);
@@ -843,7 +844,7 @@ export function portalRoutes(ctx: AppContext) {
     })
     .openapi(listContextsRoute, async (c) => {
       const user = c.get("user")!;
-      const result = await ctx.customerPortalWorkflow.getCustomerContexts({
+      const result = await portalService.getCustomerContexts({
         userId: user.id,
       });
       const contractsByCustomerId = new Map(
@@ -892,7 +893,7 @@ export function portalRoutes(ctx: AppContext) {
           ctx,
           request: input,
           run: () =>
-            ctx.customerPortalWorkflow.createCounterparty(
+            portalService.createCounterparty(
               {
                 userId: user.id,
               },
@@ -922,7 +923,7 @@ export function portalRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
 
       try {
-        const data = await ctx.customerPortalWorkflow.searchBankProviders(
+        const data = await portalService.searchBankProviders(
           { userId: user.id },
           query,
         );
@@ -943,7 +944,7 @@ export function portalRoutes(ctx: AppContext) {
       const { inn } = c.req.valid("query");
 
       try {
-        await ctx.customerPortalWorkflow.assertOnboardingAccess({
+        await portalService.assertOnboardingAccess({
           userId: user.id,
         });
         const result = await lookupCompanyByInn(
@@ -967,7 +968,7 @@ export function portalRoutes(ctx: AppContext) {
       const user = c.get("user")!;
 
       try {
-        await ctx.customerPortalWorkflow.assertOnboardingAccess({
+        await portalService.assertOnboardingAccess({
           userId: user.id,
         });
       } catch (error) {
@@ -1010,7 +1011,7 @@ export function portalRoutes(ctx: AppContext) {
 
       try {
         const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          ctx.customerPortalWorkflow.createDealDraft(
+          portalService.createDealDraft(
             { userId: user.id },
             input,
             { idempotencyKey },
@@ -1057,7 +1058,7 @@ export function portalRoutes(ctx: AppContext) {
     .openapi(listDealsRoute, async (c) => {
       const user = c.get("user")!;
       const query = c.req.valid("query");
-      const result = await ctx.customerPortalWorkflow.listMyDeals(
+      const result = await portalService.listMyDeals(
         { userId: user.id },
         query,
       );
@@ -1074,7 +1075,7 @@ export function portalRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const result = await ctx.customerPortalWorkflow.getDealById(
+        const result = await portalService.getDealById(
           { userId: user.id },
           id,
         );

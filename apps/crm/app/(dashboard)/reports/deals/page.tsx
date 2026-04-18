@@ -39,6 +39,7 @@ import {
 import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
 import { DataTableFacetedMultiFilter } from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
 import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
+import { buildDealsQueryParams } from "@/app/(dashboard)/deals/_lib/build-deals-query-params";
 import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
 import type { DateRange } from "react-day-picker";
@@ -61,7 +62,6 @@ import {
   STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
 import { API_BASE_URL } from "@/lib/constants";
-import { buildDealsQueryParams } from "@/lib/deals-query";
 
 const REPORT_CURRENCY_OPTIONS = [
   { value: "RUB", label: "RUB" },

@@ -6,7 +6,8 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 - `packages/shared` - stable shared primitives exposed as `@bedrock/shared/core`, `@bedrock/shared/money`, and `@bedrock/shared/reference-data`
 - `packages/modules/*` - write-side business capabilities published as flat `@bedrock/<name>` packages
-- `packages/workflows/*` - cross-module orchestration such as `@bedrock/workflow-period-close`
+- `packages/use-cases/*` - synchronous cross-context application services such as `@bedrock/use-case-deal-quote`
+- `packages/workflows/*` - async, retryable, or stateful cross-module orchestration such as `@bedrock/workflow-period-close`
 - `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/persistence`, `@bedrock/platform/worker-runtime`, and related subpaths
 - `packages/plugins/*` - document plugins and plugin SDK packages
 - `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
@@ -31,7 +32,9 @@ The short version:
 - workspace packages are organized by bounded context and package kind
 - runtime packages use explicit `contracts`, `application`, `domain`, and `infra` layers
 - package exports define the only supported runtime entrypoints
-- apps and workflows do composition and delivery; they do not own core business logic
+- apps are thin delivery/composition adapters
+- `packages/use-cases/*` own synchronous cross-context orchestration
+- `packages/workflows/*` own async, retryable, or stateful orchestration
 
 ## Stack
 

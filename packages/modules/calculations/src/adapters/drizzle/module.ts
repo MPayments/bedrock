@@ -10,14 +10,14 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleCalculationReads } from "./calculation.reads";
+import { DrizzleCalculationsUnitOfWork } from "./calculations.uow";
 import {
   createCalculationsModule,
   type CalculationsModule,
   type CalculationsModuleDeps,
 } from "../../module";
 import { DrizzlePaymentRouteTemplatesRepository } from "../../route-templates/adapters/drizzle/payment-routes.repository";
-import { DrizzleCalculationReads } from "./calculation.reads";
-import { DrizzleCalculationsUnitOfWork } from "./calculations.uow";
 
 export interface CreateCalculationsModuleFromDrizzleInput {
   currencies: Pick<CurrenciesService, "findById">;

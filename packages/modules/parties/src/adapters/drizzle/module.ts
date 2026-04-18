@@ -8,14 +8,14 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleCounterpartyGroupReads } from "../../counterparties/adapters/drizzle/counterparty-group.reads";
+import { DrizzleCounterpartyReads } from "../../counterparties/adapters/drizzle/counterparty.reads";
+import { DrizzleCustomerReads } from "../../customers/adapters/drizzle/customer.reads";
 import {
   createPartiesModule,
   type PartiesModule,
   type PartiesModuleDeps,
 } from "../../module";
-import { DrizzleCounterpartyGroupReads } from "../../counterparties/adapters/drizzle/counterparty-group.reads";
-import { DrizzleCounterpartyReads } from "../../counterparties/adapters/drizzle/counterparty.reads";
-import { DrizzleCustomerReads } from "../../customers/adapters/drizzle/customer.reads";
 import { DrizzleOrganizationReads } from "../../organizations/adapters/drizzle/organization.reads";
 import { DrizzlePartyProfilesReads } from "../../party-profiles/adapters/drizzle/party-profiles.reads";
 import { DrizzleRequisiteBindingReads } from "../../requisites/adapters/drizzle/requisite-binding.reads";

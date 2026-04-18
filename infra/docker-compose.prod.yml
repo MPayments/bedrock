@@ -233,7 +233,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_SSL: ${DB_SSL:-false}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://bedrock-api:3000}
-      CRM_ACTIVITY_UPSTREAM_URL: ${CRM_ACTIVITY_UPSTREAM_URL:-http://bedrock-api:3000/v1/activity}
       NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL:-https://portal.multihansa.com}
       NEXT_PUBLIC_APP_URL: ${CRM_PUBLIC_URL:-https://crm.multihansa.com}
       NEXT_PUBLIC_APP_TITLE: ${CRM_NEXT_PUBLIC_APP_TITLE:-Multihansa CRM}

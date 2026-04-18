@@ -40,4 +40,25 @@ export {
   type DocumentTransitionEffectsService,
   type DocumentTransitionEffectsServices,
 } from "./application/shared/transition-effects";
+export {
+  createDocumentGenerationService,
+  createEasyTemplateXAdapter,
+  createLibreOfficeConvertAdapter,
+} from "./generation";
+export type {
+  CalculationDocumentData,
+  ClientContractAgreement,
+  ClientContractFormat,
+  DocumentGenerationService,
+  DocumentGenerationServiceDeps,
+  DocumentLanguage,
+  DocumentTemplateType,
+  GenerateCustomerContractInput,
+  GenerateDocumentInput,
+  GeneratedDocument,
+  PdfConverterPort,
+  RenderClientContractInput,
+  TemplateManagerPort,
+  TemplateRendererPort,
+} from "./generation";
 export * from "./errors";

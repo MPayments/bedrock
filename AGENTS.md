@@ -18,15 +18,16 @@ Runtime is split by package kind:
 
 - `packages/shared` for stable shared primitives
 - `packages/modules/*` for business capabilities, published as flat `@bedrock/<name>` packages
-- `packages/workflows/*` for cross-module orchestration
+- `packages/use-cases/*` for synchronous cross-context application services
+- `packages/workflows/*` for async, retryable, or stateful cross-module orchestration
 - `packages/platform` for technical platform/runtime code exposed through subpaths
 - `packages/plugins/*` for document plugins and plugin SDKs
 - `packages/sdk/*` for downstream API clients and reusable UI packages
 
 Core dependency direction:
 
-- `shared -> modules/workflows/plugins/sdk -> apps/*`
-- `@bedrock/platform/*` subpaths provide shared runtime infrastructure for modules, workflows, and apps.
+- `shared -> modules/use-cases/workflows/plugins/sdk -> apps/*`
+- `@bedrock/platform/*` subpaths provide shared runtime infrastructure for modules, use-cases, workflows, and apps.
 - `apps/db` owns schema aggregation, migrations, DB reset, and shared seed/bootstrap runners.
 
 Hard rules:
@@ -61,7 +62,7 @@ Repo-wide rules:
 - `domain` contains pure business rules and must not depend on Drizzle, database clients, transport code, or concrete adapters.
 - `application` owns use cases and ports; it coordinates domain logic and should not own tool-specific implementations.
 - `infra` or slice-local `adapters` own repositories, DB schema, SQL helpers, and external adapters; they implement application ports.
-- Concrete adapter creation belongs in module-root composition, apps, or workflows. Do not instantiate adapters deep inside domain logic.
+- Concrete adapter creation belongs in module-root composition, use-cases, apps, or workflows. Do not instantiate adapters deep inside domain logic.
 - Do not create new generic `internal/` folders in runtime packages.
 - Use `package.json#exports` to define all supported runtime entrypoints. Non-exported deep imports are forbidden.
 - Each bounded context owns its runtime schema. Shared DB packages aggregate schemas; they do not own business tables.
@@ -188,6 +189,7 @@ export function createXxxService(deps: XxxServiceDeps) {
 Runtime domain code lives under consolidated folders:
 
 - `packages/modules/<module>/src/**`
+- `packages/use-cases/<use-case>/src/**`
 - `packages/workflows/<workflow>/src/**`
 - `packages/platform/src/<domain>/**`
 - `packages/plugins/<plugin>/src/**`

@@ -55,6 +55,12 @@ export {
   QuoteLegInputSchema,
   QuotePricingTraceSchema,
 } from "./quotes/application/contracts/zod";
+export {
+  serializeQuote,
+  serializeQuoteDetails,
+  serializeQuoteListItem,
+  serializeQuotePreview,
+} from "./quotes/application/contracts/serialization";
 export type {
   Quote,
   QuoteDetailsResponse,

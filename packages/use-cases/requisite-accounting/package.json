@@ -1,0 +1,37 @@
+{
+  "name": "@bedrock/use-case-requisite-accounting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.test.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "bedrock": {
+    "kind": "use-case",
+    "tags": [
+      "use-case",
+      "requisite-accounting"
+    ]
+  }
+}

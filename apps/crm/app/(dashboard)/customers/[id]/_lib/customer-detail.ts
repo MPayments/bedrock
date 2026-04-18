@@ -3,7 +3,6 @@ import { z } from "zod";
 import type {
   CrmCustomerWorkspace as CustomerWorkspaceDetail,
   CrmCustomerWorkspaceCounterparty as CustomerCounterparty,
-  CrmCustomerWorkspaceSubAgent as SubAgent,
 } from "@/lib/customer-workspaces";
 
 export type {

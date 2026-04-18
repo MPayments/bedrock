@@ -18,21 +18,21 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
-import { rawPackDefinition } from "../../packs/bedrock-core-default";
+import { relabelOrganizationBookNames } from "./relabel-organization-book-names";
+import { DrizzleChartReads } from "../../chart/adapters/drizzle/chart.reads";
 import {
   createAccountingModule,
   type AccountingModule,
   type AccountingModuleDeps,
 } from "../../module";
-import { DrizzleChartReads } from "../../chart/adapters/drizzle/chart.reads";
 import { createInMemoryCompiledPackCache } from "../../packs/adapters/cache/in-memory-compiled-pack.cache";
+import { DrizzlePackReads } from "../../packs/adapters/drizzle/pack.reads";
+import { rawPackDefinition } from "../../packs/bedrock-core-default";
 import { createAccountingClosePackageSnapshotPort } from "../../periods/adapters/close-package-snapshot.port";
 import { DrizzlePeriodReads } from "../../periods/adapters/drizzle/period.reads";
 import { DrizzlePeriodRepository } from "../../periods/adapters/drizzle/period.repository";
 import { DrizzleReportsReads } from "../../reports/adapters/drizzle/reports.reads";
 import { DrizzleAccountingUnitOfWork } from "../../shared/adapters/drizzle/accounting.uow";
-import { DrizzlePackReads } from "../../packs/adapters/drizzle/pack.reads";
-import { relabelOrganizationBookNames } from "./relabel-organization-book-names";
 
 export interface AccountingDocumentsReadModel {
   listAdjustmentsForOrganizationPeriod(input: {

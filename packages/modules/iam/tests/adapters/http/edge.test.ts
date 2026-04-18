@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { UserNotFoundError } from "../../../src/errors";
 import {
   buildSessionSnapshotForAudienceFromSurfaces,
   getValidatedSessionForAudienceFromSurfaces,
@@ -8,6 +7,7 @@ import {
   type AuthSession,
   type ResolvedAuthSurface,
 } from "../../../src/adapters/http/edge";
+import { UserNotFoundError } from "../../../src/errors";
 
 function createAuthSession(input: {
   audience?: "crm" | "finance" | "portal";

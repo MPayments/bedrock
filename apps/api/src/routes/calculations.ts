@@ -18,14 +18,14 @@ import {
   getPaymentRouteParticipantOperationalCurrency,
   type CalculationDetails,
 } from "@bedrock/calculations/contracts";
+import type { CalculationDocumentData } from "@bedrock/documents/generation";
 import {
   CounterpartyNotFoundError,
   CustomerNotFoundError,
   OrganizationNotFoundError,
 } from "@bedrock/parties";
-import { formatFractionDecimal } from "@bedrock/shared/money";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import type { CalculationDocumentData } from "@bedrock/workflow-document-generation";
+import { formatFractionDecimal } from "@bedrock/shared/money";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -835,7 +835,7 @@ export function calculationsRoutes(ctx: AppContext) {
           calculation,
           currencies,
         });
-        const result = await ctx.documentGenerationWorkflow.generateCalculation({
+        const result = await ctx.documentGenerationService.generateCalculation({
           calculationData: serialized,
           format,
           lang,

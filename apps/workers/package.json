@@ -31,7 +31,6 @@
     "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/treasury": "workspace:*",
     "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
-    "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",

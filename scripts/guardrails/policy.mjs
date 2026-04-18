@@ -15,6 +15,9 @@ export const ARCHITECTURE_LINT_GLOBS = [
   "packages/modules/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "packages/modules/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "packages/modules/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/use-cases/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/use-cases/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/use-cases/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "packages/workflows/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "packages/workflows/*/tests/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
   "packages/workflows/*/scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
@@ -34,6 +37,7 @@ export const ARCHITECTURE_LINT_GLOBS = [
 export const RUNTIME_EXPORT_KINDS = new Set([
   "shared",
   "module",
+  "use-case",
   "workflow",
   "platform",
   "plugin",
@@ -43,7 +47,14 @@ export const RUNTIME_EXPORT_KINDS = new Set([
 export const ALLOWED_PACKAGE_KIND_DEPENDENCIES = {
   shared: new Set(["shared"]),
   module: new Set(["shared", "module", "platform"]),
-  workflow: new Set(["shared", "module", "platform", "workflow"]),
+  "use-case": new Set(["shared", "module", "platform", "use-case"]),
+  workflow: new Set([
+    "shared",
+    "module",
+    "platform",
+    "use-case",
+    "workflow",
+  ]),
   platform: new Set(["shared", "platform"]),
   plugin: new Set(["shared", "module", "platform", "plugin"]),
   sdk: new Set(["shared", "sdk"]),

@@ -10,13 +10,13 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleBalancesReads } from "../../balances/adapters/drizzle/balances.reads";
+import { DrizzleBooksReads } from "../../books/adapters/drizzle/book.reads";
 import {
   createLedgerModule,
   type LedgerModule,
   type LedgerModuleDeps,
 } from "../../module";
-import { DrizzleBalancesReads } from "../../balances/adapters/drizzle/balances.reads";
-import { DrizzleBooksReads } from "../../books/adapters/drizzle/book.reads";
 import { DrizzleOperationsReads } from "../../operations/adapters/drizzle/operations.reads";
 import { DrizzleLedgerReportsReads } from "../../reports/adapters/drizzle/reports.reads";
 import { DrizzleLedgerUnitOfWork } from "../../shared/adapters/drizzle/ledger.uow";

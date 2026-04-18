@@ -1,13 +1,13 @@
 # @bedrock/platform
 
-Merged platform package for runtime infrastructure.
+Runtime infrastructure shared by apps, modules, and workflows.
 
 ## What it provides
 
-- Shared `Database` and `Transaction` types
-- Generic Postgres connection helpers (`packages/platform/src/persistence/postgres.ts`)
-- Auth and idempotency infrastructure
-- Worker runtime, crypto, and observability helpers
+- Persistence primitives and Postgres connection helpers
+- Idempotency, observability, notifications, crypto, and AI adapters
+- Object storage and worker-runtime infrastructure
+- Shared runtime types used by apps and bounded-context packages
 
 ## Schema ownership
 
@@ -21,8 +21,8 @@ Table definitions are colocated with runtime domains:
 ## Key design notes
 
 - Financial IDs for TB integration use a custom `uint128` type (`numeric(39,0)` in Postgres).
-- Idempotency is enforced with unique indexes in ledger, orders, transfers, and quotes.
-- `fx_quotes` canonical definition lives in `packages/modules/fx/src/schema/quotes.ts`.
+- Idempotency is enforced with unique indexes in the owning bounded contexts.
+- Platform does not own auth or business-domain runtime schemas.
 
 ## Scripts
 

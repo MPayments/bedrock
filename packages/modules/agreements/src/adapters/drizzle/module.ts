@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 
+import type { CurrenciesService } from "@bedrock/currencies";
+import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   DrizzleCustomerReads,
   DrizzleOrganizationReads,
   DrizzleRequisiteBindingReads,
   DrizzleRequisiteReads,
 } from "@bedrock/parties/adapters/drizzle";
-import type { CurrenciesService } from "@bedrock/currencies";
-import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
@@ -17,13 +17,13 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleAgreementReads } from "./agreement.reads";
+import { DrizzleAgreementsUnitOfWork } from "./agreements.uow";
 import {
   createAgreementsModule,
   type AgreementsModule,
   type AgreementsModuleDeps,
 } from "../../module";
-import { DrizzleAgreementReads } from "./agreement.reads";
-import { DrizzleAgreementsUnitOfWork } from "./agreements.uow";
 
 export interface CreateAgreementsModuleFromDrizzleInput {
   currencies: Pick<CurrenciesService, "findById">;

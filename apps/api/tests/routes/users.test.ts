@@ -6,6 +6,13 @@ const { userHasPermission } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/auth", () => ({
+  authByAudience: {
+    crm: {
+      api: {
+        userHasPermission,
+      },
+    },
+  },
   default: {
     api: {
       userHasPermission,

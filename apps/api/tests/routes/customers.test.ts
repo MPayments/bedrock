@@ -74,7 +74,7 @@ function createTestApp() {
     organizationRequisiteId: "00000000-0000-4000-8000-000000000406",
     updatedAt: now,
   };
-  const documentGenerationWorkflow = {
+  const documentGenerationService = {
     generateCustomerContract: vi.fn(async () => ({
       buffer: Buffer.from("contract-pdf"),
       fileName: "contract.pdf",
@@ -170,7 +170,7 @@ function createTestApp() {
     "/customers",
     customersRoutes({
       agreementsModule,
-      documentGenerationWorkflow,
+      documentGenerationService,
       filesModule,
       partiesModule,
       partiesReadRuntime,
@@ -182,7 +182,7 @@ function createTestApp() {
     agreementsModule,
     customerRecord,
     counterpartyRecord,
-    documentGenerationWorkflow,
+    documentGenerationService,
     filesModule,
     partiesModule,
     partiesReadRuntime,
@@ -214,7 +214,7 @@ describe("customers routes", () => {
   });
 
   it("delegates legal entity contract generation to the workflow and persists the generated file", async () => {
-    const { app, documentGenerationWorkflow, filesModule } = createTestApp();
+    const { app, documentGenerationService, filesModule } = createTestApp();
 
     const response = await app.request(
       `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=pdf&lang=en`,
@@ -228,7 +228,7 @@ describe("customers routes", () => {
     );
 
     expect(
-      documentGenerationWorkflow.generateCustomerContract,
+      documentGenerationService.generateCustomerContract,
     ).toHaveBeenCalledWith({
       counterpartyId: IDS.counterparty,
       customerId: IDS.customer,
@@ -251,9 +251,9 @@ describe("customers routes", () => {
   });
 
   it("returns DOCX contracts and persists the generated DOCX file", async () => {
-    const { app, documentGenerationWorkflow, filesModule } = createTestApp();
+    const { app, documentGenerationService, filesModule } = createTestApp();
 
-    documentGenerationWorkflow.generateCustomerContract.mockResolvedValueOnce({
+    documentGenerationService.generateCustomerContract.mockResolvedValueOnce({
       buffer: Buffer.from("contract-docx"),
       fileName: "contract.docx",
       mimeType:
@@ -274,7 +274,7 @@ describe("customers routes", () => {
     );
 
     expect(
-      documentGenerationWorkflow.generateCustomerContract,
+      documentGenerationService.generateCustomerContract,
     ).toHaveBeenCalledWith({
       counterpartyId: IDS.counterparty,
       customerId: IDS.customer,

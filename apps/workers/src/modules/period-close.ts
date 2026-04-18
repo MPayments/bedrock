@@ -20,7 +20,6 @@ import type { Database } from "@bedrock/platform/persistence/drizzle";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
-import { createDocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import {
   createPeriodCloseWorkflow,
   createPeriodCloseWorkerRunner,
@@ -198,6 +197,18 @@ export function createPeriodCloseWorkerDefinition(deps: {
   });
   const documentTransitionEffects =
     createAccountingPeriodDocumentTransitionEffectsService();
+  const createDocumentsServiceForTransaction = (tx: Transaction) =>
+    createDocumentsService({
+      persistence: bindPersistenceSession(tx),
+      idempotency,
+      accounting: documentsAccountingPort,
+      accountingPeriods,
+      ledgerReadService: ledgerReadPort,
+      policy: documentsPolicy,
+      registry: documentRegistry,
+      transitionEffects: documentTransitionEffects,
+      logger: deps.logger,
+    });
   const documentsService = createDocumentsService({
     persistence: createPersistenceContext(deps.db),
     idempotency,
@@ -208,21 +219,6 @@ export function createPeriodCloseWorkerDefinition(deps: {
     registry: documentRegistry,
     transitionEffects: documentTransitionEffects,
     logger: deps.logger,
-  });
-  const documentDraftWorkflow = createDocumentDraftWorkflow({
-    db: deps.db,
-    createDocumentsService: (tx) =>
-      createDocumentsService({
-        persistence: bindPersistenceSession(tx),
-        idempotency,
-        accounting: documentsAccountingPort,
-        accountingPeriods,
-        ledgerReadService: ledgerReadPort,
-        policy: documentsPolicy,
-        registry: documentRegistry,
-        transitionEffects: documentTransitionEffects,
-        logger: deps.logger,
-      }),
   });
   const periodCloseWorkflow = createPeriodCloseWorkflow({
     documents: {
@@ -246,7 +242,10 @@ export function createPeriodCloseWorkerDefinition(deps: {
 
         return loaded.filter((document) => document !== null);
       },
-      createDraft: documentDraftWorkflow.createDraft,
+      createDraft: (input) =>
+        deps.db.transaction((tx) =>
+          createDocumentsServiceForTransaction(tx).createDraft(input),
+        ),
       submit: ({ actorUserId, docType, documentId, idempotencyKey }) =>
         documentsService.actions.execute({
           action: "submit",

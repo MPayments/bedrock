@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
 } from "@bedrock/sdk-ui/components/popover";
 import { OverflowTooltip } from "@/components/ui/overflow-tooltip";
-import { API_BASE_URL } from "@/lib/constants";
+import { listAssignableUsers } from "@/lib/api/users";
 import { useFetchedOptions } from "@/lib/hooks/useFetchedOptions";
 
 interface Agent {
@@ -47,16 +47,7 @@ export function AgentCombobox({
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const fetchAgents = React.useCallback(async (): Promise<Agent[]> => {
-    const res = await fetch(`${API_BASE_URL}/agents`, {
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Ошибка загрузки: ${res.status}`);
-    }
-
-    const data = await res.json();
-    return data.data ?? data;
+    return listAssignableUsers();
   }, []);
 
   const { items: agents, loading } = useFetchedOptions<Agent>({

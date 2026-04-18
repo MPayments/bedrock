@@ -1,5 +1,3 @@
-/// <reference path="./next-server.d.ts" />
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -10,6 +8,7 @@ import {
   parseSessionSnapshot,
   type SessionSnapshotByAudience,
 } from "../shared/session-snapshots";
+import type {} from "./next-server";
 
 function resolveApiUrl(apiUrl?: string) {
   return apiUrl ?? process.env.API_INTERNAL_URL ?? "http://localhost:3000";

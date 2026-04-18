@@ -18,12 +18,24 @@ import {
   finance,
   user,
 } from "../../application/access-policy";
-import { UserNotFoundError } from "../../errors";
 import {
   AUTH_AUDIENCE_VALUES,
+  CrmSessionSnapshotSchema,
+  FinanceAuthSessionSnapshotSchema,
+  PortalSessionSnapshotSchema,
   type AuthAudience,
   type User,
 } from "../../contracts";
+import { UserNotFoundError } from "../../errors";
+import {
+  betterAuthSchema,
+  betterAuthSessionAdditionalFields,
+} from "../better-auth";
+import {
+  DrizzleCustomerMembershipReads,
+  DrizzlePortalAccessGrantReads,
+  DrizzleUserAccountRepository,
+} from "../drizzle";
 import {
   AUTH_AUDIENCE_HEADER,
   AUTH_AUDIENCES,
@@ -35,20 +47,6 @@ import {
   mapUser,
   type PortalProfileSnapshot,
 } from "../shared/session-snapshots";
-import {
-  betterAuthSchema,
-  betterAuthSessionAdditionalFields,
-} from "../better-auth";
-import {
-  DrizzleCustomerMembershipReads,
-  DrizzlePortalAccessGrantReads,
-  DrizzleUserAccountRepository,
-} from "../drizzle";
-import {
-  CrmSessionSnapshotSchema,
-  FinanceAuthSessionSnapshotSchema,
-  PortalSessionSnapshotSchema,
-} from "../../contracts";
 
 interface AuthSurfaceConfig {
   appName: string;

@@ -5,11 +5,17 @@ import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealsModule } from "@bedrock/deals";
-import type { DocumentsService } from "@bedrock/documents";
+import type {
+  DocumentGenerationService,
+  DocumentsService,
+} from "@bedrock/documents";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
-import type { IamService } from "@bedrock/iam";
-import type { PortalAccessGrantsService } from "@bedrock/iam";
+import type {
+  CustomerMembershipsService,
+  IamService,
+  PortalAccessGrantsService,
+} from "@bedrock/iam";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import type { PartiesQueries } from "@bedrock/parties/queries";
@@ -20,21 +26,19 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 import type { PersistenceContext } from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
+import type { PortalService } from "@bedrock/use-case-portal";
+import type { DealQuoteService } from "@bedrock/use-case-deal-quote";
+import type { OrganizationBootstrapService } from "@bedrock/use-case-organization-bootstrap";
+import type { RequisiteAccountingService } from "@bedrock/use-case-requisite-accounting";
 import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
 import type { DealExecutionWorkflow } from "@bedrock/workflow-deal-execution";
 import type { DealProjectionsWorkflow } from "@bedrock/workflow-deal-projections";
-import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
-import type { DocumentGenerationWorkflow } from "@bedrock/workflow-document-generation";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
-import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
 import type { ReconciliationAdjustmentsWorkflow } from "@bedrock/workflow-reconciliation-adjustments";
-import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 
 import { createApplicationServices } from "./composition/application";
 import type { ApiPartiesReadRuntime } from "./composition/application";
 import { createCoreServices } from "./composition/core";
-import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -120,21 +124,21 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   reconciliationService: ReconciliationService;
+  customerMembershipsService: CustomerMembershipsService;
+  dealQuoteService: DealQuoteService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
-  dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
-  organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
-  requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
+  organizationBootstrapService: OrganizationBootstrapService;
+  portalService: PortalService;
+  requisiteAccountingService: RequisiteAccountingService;
   iamService: IamService;
   portalAccessGrantsService: PortalAccessGrantsService;
   ledgerModule: LedgerModule;
   documentsService: DocumentsService;
-  documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
-  customerPortalWorkflow: CustomerPortalWorkflow;
-  documentGenerationWorkflow: DocumentGenerationWorkflow;
+  documentGenerationService: DocumentGenerationService;
   documentsReadModel: DocumentsReadModel;
   partiesReadRuntime: ApiPartiesReadRuntime;
   documentExtraction?: DocumentExtractionPort;
@@ -160,24 +164,24 @@ export function createAppContext(env: Env): AppContext {
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
     reconciliationService: applicationServices.reconciliationService,
+    customerMembershipsService: core.customerMembershipsService,
+    dealQuoteService: applicationServices.dealQuoteService,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
-    dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     reconciliationAdjustmentsWorkflow:
       applicationServices.reconciliationAdjustmentsWorkflow,
-    organizationBootstrapWorkflow:
-      applicationServices.organizationBootstrapWorkflow,
-    requisiteAccountingWorkflow:
-      applicationServices.requisiteAccountingWorkflow,
+    organizationBootstrapService:
+      applicationServices.organizationBootstrapService,
+    portalService: applicationServices.portalService,
+    requisiteAccountingService:
+      applicationServices.requisiteAccountingService,
     iamService: core.iamService,
     portalAccessGrantsService: core.portalAccessGrantsService,
     documentsService: applicationServices.documentsService,
-    documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
-    customerPortalWorkflow: applicationServices.customerPortalWorkflow,
-    documentGenerationWorkflow: applicationServices.documentGenerationWorkflow,
+    documentGenerationService: applicationServices.documentGenerationService,
     documentsReadModel: applicationServices.documentsReadModel,
     partiesReadRuntime: applicationServices.partiesReadRuntime,
     documentExtraction: applicationServices.documentExtraction,

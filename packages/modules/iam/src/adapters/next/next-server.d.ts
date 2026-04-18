@@ -13,3 +13,5 @@ declare module "next/server" {
     static redirect(url: string | URL, init?: number | ResponseInit): NextResponse;
   }
 }
+
+export {};

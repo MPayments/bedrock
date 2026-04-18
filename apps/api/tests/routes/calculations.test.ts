@@ -109,7 +109,7 @@ function createTestApp() {
   const currenciesService = {
     findById: vi.fn(),
   };
-  const documentGenerationWorkflow = {
+  const documentGenerationService = {
     generateCalculation: vi.fn(),
   };
   const app = new OpenAPIHono();
@@ -131,7 +131,7 @@ function createTestApp() {
     calculationsRoutes({
       calculationsModule,
       currenciesService,
-      documentGenerationWorkflow,
+      documentGenerationService,
     } as any),
   );
 
@@ -139,7 +139,7 @@ function createTestApp() {
     app,
     calculationsModule,
     currenciesService,
-    documentGenerationWorkflow,
+    documentGenerationService,
   };
 }
 
@@ -290,7 +290,7 @@ describe("calculations routes", () => {
   });
 
   it("exports calculation using canonical document data without compatibility serializer", async () => {
-    const { app, calculationsModule, currenciesService, documentGenerationWorkflow } =
+    const { app, calculationsModule, currenciesService, documentGenerationService } =
       createTestApp();
     const detail = createCalculationDetail();
     calculationsModule.calculations.queries.findById.mockResolvedValue(detail);
@@ -313,7 +313,7 @@ describe("calculations routes", () => {
 
       throw new Error(`Unexpected currency id ${id}`);
     });
-    documentGenerationWorkflow.generateCalculation.mockResolvedValue({
+    documentGenerationService.generateCalculation.mockResolvedValue({
       fileName: "calculation.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from("pdf"),
@@ -324,7 +324,7 @@ describe("calculations routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(documentGenerationWorkflow.generateCalculation).toHaveBeenCalledWith({
+    expect(documentGenerationService.generateCalculation).toHaveBeenCalledWith({
       calculationData: {
         additionalExpenses: "0.00",
         additionalExpensesInBase: "0.00",

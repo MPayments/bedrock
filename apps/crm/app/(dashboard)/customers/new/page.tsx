@@ -61,7 +61,6 @@ import { apiClient } from "@/lib/api-client";
 import { readJsonWithSchema } from "@/lib/api/response";
 import { API_BASE_URL } from "@/lib/constants";
 import { mapFlatBankingToFormValues } from "@/app/(dashboard)/customers/_lib/customer-banking";
-import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import type { CustomerBankingFormData } from "@/lib/validation";
 import { CustomerCreateHeader } from "./_components/customer-create-header";
 import { PendingCreateLeaveDialog } from "./_components/pending-create-leave-dialog";
@@ -76,6 +75,7 @@ import {
   resolveDefaultRequisiteCurrencyCode,
   type CustomerCreateFormData,
 } from "./_lib/customer-create";
+import { translateFieldsToEnglish } from "./_lib/translate-fields";
 
 type SubAgent = {
   commission: number;

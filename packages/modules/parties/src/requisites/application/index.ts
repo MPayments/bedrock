@@ -1,5 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { createCustomerBankingService } from "./bank-requisites";
 import { CreateRequisiteCommand } from "./commands/create-requisite";
 import { CreateRequisiteProviderCommand } from "./commands/create-requisite-provider";
 import { RemoveRequisiteCommand } from "./commands/remove-requisite";
@@ -94,6 +95,37 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
     deps.bindingReads,
     deps.runtime.log,
   );
+  const customerBankingService = createCustomerBankingService({
+    currencies: deps.currencies,
+    logger: deps.runtime.log,
+    requisites: {
+      commands: {
+        create: createRequisite.execute.bind(createRequisite),
+        createProvider: createRequisiteProvider.execute.bind(
+          createRequisiteProvider,
+        ),
+        remove: removeRequisite.execute.bind(removeRequisite),
+        removeProvider: removeRequisiteProvider.execute.bind(
+          removeRequisiteProvider,
+        ),
+        update: updateRequisite.execute.bind(updateRequisite),
+        updateProvider: updateRequisiteProvider.execute.bind(
+          updateRequisiteProvider,
+        ),
+        upsertBinding: upsertRequisiteBinding.execute.bind(upsertRequisiteBinding),
+      },
+      queries: {
+        findById: findRequisiteById.execute.bind(findRequisiteById),
+        findProviderById: findRequisiteProviderById.execute.bind(
+          findRequisiteProviderById,
+        ),
+        list: listRequisites.execute.bind(listRequisites),
+        listProviders: listRequisiteProviders.execute.bind(
+          listRequisiteProviders,
+        ),
+      },
+    } as RequisitesService,
+  });
 
   return {
     commands: {
@@ -104,6 +136,8 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
       updateProvider: updateRequisiteProvider.execute.bind(updateRequisiteProvider),
       removeProvider: removeRequisiteProvider.execute.bind(removeRequisiteProvider),
       upsertBinding: upsertRequisiteBinding.execute.bind(upsertRequisiteBinding),
+      upsertCounterpartyBankRequisite:
+        customerBankingService.upsertCounterpartyBankRequisite,
     },
     queries: {
       list: listRequisites.execute.bind(listRequisites),
@@ -120,6 +154,7 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
         findRequisiteProviderById,
       ),
       getBinding: getRequisiteBinding.execute.bind(getRequisiteBinding),
+      searchBankProviders: customerBankingService.searchBankProviders,
       resolveBindings: resolveRequisiteBindings.execute.bind(
         resolveRequisiteBindings,
       ),

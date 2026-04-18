@@ -17,11 +17,11 @@ import {
   createPaymentRoutesService,
   type PaymentRoutesService,
 } from "./route-templates/application";
-import type { PaymentRouteTemplatesRepository } from "./route-templates/application/ports/payment-routes.repository";
 import type {
   RouteTemplateCrossRateLookup,
   RouteTemplateCurrenciesPort,
 } from "./route-templates/application/ports/external-ports";
+import type { PaymentRouteTemplatesRepository } from "./route-templates/application/ports/payment-routes.repository";
 
 export interface CalculationsModuleDeps {
   commandUow: CalculationsCommandUnitOfWork;

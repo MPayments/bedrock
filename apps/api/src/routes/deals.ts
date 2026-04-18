@@ -1728,7 +1728,7 @@ export function dealsRoutes(ctx: AppContext) {
           async (idempotencyKey) => {
             const deal = await requireDeal(ctx, id);
             assertDealAllowsCommercialWrite(deal);
-            return ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+            return ctx.dealQuoteService.createCalculationFromAcceptedQuote({
               actorUserId: c.get("user")!.id,
               dealId: id,
               idempotencyKey,

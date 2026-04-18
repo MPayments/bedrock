@@ -8,13 +8,13 @@ import {
   type Transaction,
 } from "@bedrock/platform/persistence";
 
+import { DrizzleFileReads } from "./file.reads";
+import { DrizzleFilesUnitOfWork } from "./files.uow";
 import {
   createFilesModule,
   type FilesModule,
   type FilesModuleDeps,
 } from "../../module";
-import { DrizzleFileReads } from "./file.reads";
-import { DrizzleFilesUnitOfWork } from "./files.uow";
 
 export interface CreateFilesModuleFromDrizzleInput {
   db: Database | Transaction;

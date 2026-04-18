@@ -26,31 +26,32 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import { createTreasuryModuleFromDrizzle } from "@bedrock/treasury/adapters/drizzle";
 
 import type { Env } from "../context";
-import { db } from "../db/client";
 import type { ApiCoreServices } from "./core";
 import { createObjectStorageAdapter } from "./workflows";
+import { db } from "../db/client";
 
-export type ApplicationPartiesReadRuntime = {
+export interface ApplicationPartiesReadRuntime {
   counterpartiesQueries: PartiesQueries["counterparties"];
   customersQueries: PartiesQueries["customers"];
   organizationsQueries: PartiesQueries["organizations"];
   requisitesQueries: PartiesQueries["requisites"];
-};
+}
 
-export type ApplicationCurrenciesPort = {
+export interface ApplicationCurrenciesPort {
   assertCurrencyExists(id: string): Promise<void>;
+  findByCode: CurrenciesService["findByCode"];
   listCodesById(ids: string[]): Promise<Map<string, string>>;
-};
+}
 
 export type ApplicationTreasuryCurrenciesPort = Pick<
   CurrenciesService,
   "findByCode" | "findById"
 >;
 
-export type ApplicationLedgerReadPort = {
+export interface ApplicationLedgerReadPort {
   getOperationDetails: ApiCoreServices["ledgerModule"]["operations"]["queries"]["getDetails"];
   listOperationDetails: ApiCoreServices["ledgerModule"]["operations"]["queries"]["listDetails"];
-};
+}
 
 export interface ApplicationModules {
   agreementsModule: AgreementsModule;
@@ -90,6 +91,7 @@ export function createApplicationModules(input: {
     async assertCurrencyExists(id: string) {
       await currenciesService.findById(id);
     },
+    findByCode: currenciesService.findByCode,
     async listCodesById(ids: string[]) {
       const rows = await Promise.all(
         ids.map(

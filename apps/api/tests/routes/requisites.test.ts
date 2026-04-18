@@ -6,6 +6,23 @@ const { userHasPermission } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/auth", () => ({
+  authByAudience: {
+    crm: {
+      api: {
+        userHasPermission,
+      },
+    },
+    finance: {
+      api: {
+        userHasPermission,
+      },
+    },
+    portal: {
+      api: {
+        userHasPermission,
+      },
+    },
+  },
   default: {
     api: {
       userHasPermission,
@@ -73,7 +90,7 @@ function createTestApp() {
       },
     },
   };
-  const requisiteAccountingWorkflow = {
+  const requisiteAccountingService = {
     update: vi.fn(),
     upsertBinding: vi.fn(),
   };
@@ -92,11 +109,11 @@ function createTestApp() {
     requisitesRoutes({
       currenciesService,
       partiesModule,
-      requisiteAccountingWorkflow,
+      requisiteAccountingService,
     } as any),
   );
 
-  return { app, requisiteAccountingWorkflow };
+  return { app, requisiteAccountingService };
 }
 
 describe("requisites routes", () => {
@@ -116,8 +133,8 @@ describe("requisites routes", () => {
   });
 
   it("updates requisite identifiers through the top-level patch route", async () => {
-    const { app, requisiteAccountingWorkflow } = createTestApp();
-    requisiteAccountingWorkflow.update.mockResolvedValue(createRequisite());
+    const { app, requisiteAccountingService } = createTestApp();
+    requisiteAccountingService.update.mockResolvedValue(createRequisite());
 
     const response = await app.request(
       "http://localhost/requisites/11111111-1111-4111-8111-111111111111",
@@ -138,7 +155,7 @@ describe("requisites routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(requisiteAccountingWorkflow.update).toHaveBeenCalledWith(
+    expect(requisiteAccountingService.update).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
       {
         label: "USD settlement",

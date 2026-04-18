@@ -19,7 +19,6 @@ import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { API_BASE_URL } from "@/lib/constants";
-import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { AgreementCard } from "./_components/agreement-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CreateCalculationDialog } from "./_components/create-calculation-dialog";
@@ -39,6 +38,7 @@ import { DealOverviewTab } from "./_components/deal-overview-tab";
 import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
+import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "../_lib/load-applicant-requisites";
 import {
   formatDealWorkflowMessage,
   getDealWorkflowMessageTone,

@@ -45,7 +45,7 @@ ENV NODE_ENV=production
 # Copy only the esbuild bundle
 COPY --from=builder /repo/apps/api/dist/server.mjs ./server.mjs
 # Bundle document templates at the absolute path the compiled server resolves.
-COPY --from=builder /repo/packages/workflows/document-generation/templates /packages/workflows/document-generation/templates
+COPY --from=builder /repo/packages/modules/documents/templates /packages/modules/documents/templates
 
 # Install native/unbundleable external dependencies.
 # These must stay pinned to the same versions used by the workspace lockfile and

@@ -44,7 +44,7 @@ const httpEdge = createIamHttpEdge({
     trustedOrigins: parseOrigins(env.BETTER_AUTH_TRUSTED_ORIGINS),
   },
   db,
-  getPortalProfile: ({ userId }) => ctx.customerPortalWorkflow.getProfile({ userId }),
+  getPortalProfile: ({ userId }) => ctx.portalService.getProfile({ userId }),
   iamService: ctx.iamService,
 });
 

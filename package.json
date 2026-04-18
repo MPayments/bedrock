@@ -86,6 +86,7 @@
     "packages/platform",
     "packages/plugins/*",
     "packages/sdk/*",
+    "packages/use-cases/*",
     "packages/workflows/*",
     "packages/tooling/*"
   ],

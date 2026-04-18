@@ -1,9 +1,9 @@
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   mulDivFloor,
   mulDivRoundHalfUp,
   parseDecimalToFraction,
 } from "@bedrock/shared/money/math";
-import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type {
   PaymentRouteAmountTotal,
@@ -11,11 +11,11 @@ import type {
   PaymentRouteCalculationFee,
   PaymentRouteCalculationLeg,
 } from "../application/contracts/dto";
+import type { PaymentRouteDraft, PaymentRouteFee } from "../application/contracts/zod";
 import type {
   RouteTemplateCrossRate,
   RouteTemplateCurrenciesPort,
 } from "../application/ports/external-ports";
-import type { PaymentRouteDraft, PaymentRouteFee } from "../application/contracts/zod";
 
 type CrossRateLookup = (
   base: string,
