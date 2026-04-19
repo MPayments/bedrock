@@ -8,7 +8,12 @@ export type CustomerCounterpartyKey =
   | "rsi_capital"
   | "oney_finansal"
   | "prime_trade"
-  | "coinex";
+  | "coinex"
+  | "uexpo_lojistik"
+  | "ashon_international"
+  | "carbonpro"
+  | "fahr_energy"
+  | "barnava_trading";
 
 export type CustomerContractOrganizationKey =
   | "multihansa_brokers"
@@ -698,6 +703,294 @@ export const CUSTOMER_COUNTERPARTY_SOURCES: readonly CustomerCounterpartySource[
             isPrimary: true,
           },
         ],
+      },
+    },
+    {
+      key: "uexpo_lojistik",
+      name: "UEXPO LOJISTIK SANAYI TICARET LIMITED SIRKETI",
+      customerExternalRef: "uexpo-lojistik",
+      counterpartyExternalRef: "uexpo-lojistik-sanayi-ticaret",
+      shortName: "UEXPO LOJISTIK",
+      shortNameI18n: {
+        ru: "ЮЭКСПО ЛОЖИСТИК",
+        en: "UEXPO LOJISTIK",
+      },
+      fullName: "UEXPO LOJISTIK SANAYI TICARET LIMITED SIRKETI",
+      fullNameI18n: {
+        ru: "ЮЭКСПО ЛОЖИСТИК САНАЙИ ТИДЖАРЕТ ЛИМИТЕД ШИРКЕТИ",
+        en: "UEXPO LOJISTIK SANAYI TICARET LIMITED SIRKETI",
+      },
+      kind: "legal_entity",
+      country: "TR",
+      profile: {
+        legalFormCode: "limited_sirketi",
+        legalFormLabel: "Limited Sirketi",
+        legalFormLabelI18n: {
+          ru: "Лимитед Ширкети",
+          en: "Limited Sirketi",
+        },
+        identifiers: [
+          { scheme: "inn", value: "9909672214" },
+          { scheme: "kpp", value: "770887001" },
+        ],
+        address: {
+          countryCode: "TR",
+          city: "Antalya",
+          cityI18n: {
+            ru: "Анталия",
+            en: "Antalya",
+          },
+          fullAddress:
+            "Турецкая Республика, квартал Енигюн, проспект Мевлана, блок Б, №54Б, квартира №203, Муратпаша / Анталия",
+          fullAddressI18n: {
+            en: "Republic of Turkiye, Yenigun Quarter, Mevlana Avenue, Block B, No. 54B, Apartment No. 203, Muratpasa / Antalya",
+          },
+        },
+        representatives: [
+          {
+            role: "director",
+            fullName: "Saul Askarbekov",
+            fullNameI18n: {
+              ru: "Саул Аскарбеков",
+              en: "Saul Askarbekov",
+            },
+            title: "Director",
+            titleI18n: {
+              ru: "Директор",
+              en: "Director",
+            },
+            isPrimary: true,
+          },
+        ],
+      },
+    },
+    {
+      key: "ashon_international",
+      name: "Ashon International DMSS",
+      customerExternalRef: "ashon-international",
+      counterpartyExternalRef: "ashon-international-dmss",
+      shortName: "Ashon International",
+      shortNameI18n: {
+        ru: "Ашон Интернэшил",
+        en: "Ashon International",
+      },
+      fullName: "Ashon International DMSS",
+      fullNameI18n: {
+        ru: "Ашон Интернэшил ДМСС",
+        en: "Ashon International DMSS",
+      },
+      kind: "legal_entity",
+      country: "AE",
+      profile: {
+        legalFormCode: "dmss",
+        legalFormLabel: "DMSS",
+        legalFormLabelI18n: {
+          ru: "ДМСС",
+          en: "DMSS",
+        },
+        address: {
+          countryCode: "AE",
+          city: "Dubai",
+          cityI18n: {
+            ru: "Дубай",
+            en: "Dubai",
+          },
+          addressDetails:
+            "Block No. 2401, JBC 1, Section JLT-PH1-G2 A, Jumeirah Lakes Towers, Dubai, United Arab Emirates",
+          addressDetailsI18n: {
+            ru: "Блок № 2401, JBC 1, секция JLT-PH1-G2 A, Джумейра Лейкс Тауэрс, Дубай, ОАЭ",
+          },
+          fullAddress:
+            "Plot No. 25, Jumeirah Business Centre 1, Al Thanyah Fifth, Dubai, United Arab Emirates",
+          fullAddressI18n: {
+            ru: "Plot No. 25, Jumeirah Business Centre 1, Al Thanyah Fifth, Дубай, ОАЭ",
+          },
+        },
+        contacts: [
+          {
+            type: "email",
+            value: "jde@ashon.ae",
+            isPrimary: true,
+          },
+          {
+            type: "email",
+            value: "info@ashon.ae",
+          },
+          {
+            type: "phone",
+            value: "+971-54-217-1415",
+          },
+        ],
+        representatives: [
+          {
+            role: "contact",
+            fullName: "Jean-Paul-Etienne Deco",
+            fullNameI18n: {
+              ru: "Жан-Поль-Этьен Деко",
+              en: "Jean-Paul-Etienne Deco",
+            },
+            title: "Manager",
+            titleI18n: {
+              ru: "Менеджер",
+              en: "Manager",
+            },
+            isPrimary: true,
+          },
+        ],
+      },
+    },
+    {
+      key: "carbonpro",
+      name: "ООО «КарбонПро»",
+      customerExternalRef: "carbonpro",
+      counterpartyExternalRef: "carbonpro-llc",
+      shortName: "ООО «КарбонПро»",
+      shortNameI18n: {
+        ru: "ООО «КарбонПро»",
+        en: "LLC \"CarbonPro\"",
+      },
+      fullName: "ООО «КарбонПро»",
+      fullNameI18n: {
+        ru: "ООО «КарбонПро»",
+        en: "LLC \"CarbonPro\"",
+      },
+      kind: "legal_entity",
+      country: "RU",
+      profile: {
+        legalFormCode: "ooo",
+        legalFormLabel: "ООО",
+        legalFormLabelI18n: {
+          ru: "ООО",
+          en: "LLC",
+        },
+        identifiers: [
+          { scheme: "inn", value: "9703159418" },
+          { scheme: "kpp", value: "770301001" },
+        ],
+        address: {
+          countryCode: "RU",
+          postalCode: "123112",
+          city: "Moscow",
+          cityI18n: {
+            ru: "Москва",
+            en: "Moscow",
+          },
+          fullAddress:
+            "Россия, 123112, г. Москва, Муниципальный округ Пресненский, наб. Пресненская, д. 8, стр. 1, помещ. 7Н/10",
+          fullAddressI18n: {
+            en: "Russia, 123112, Moscow, Presnensky Municipal District, Presnenskaya Embankment, building 8, structure 1, premises 7N/10",
+          },
+        },
+        contacts: [
+          {
+            type: "email",
+            value: "panukov@carbonprotrade.com",
+            isPrimary: true,
+          },
+        ],
+        representatives: [
+          {
+            role: "director",
+            fullName: "Panyukov N.V.",
+            fullNameI18n: {
+              ru: "Панюков Н. В.",
+              en: "Panyukov N.V.",
+            },
+            title: "General Director",
+            titleI18n: {
+              ru: "Генеральный директор",
+              en: "General Director",
+            },
+            isPrimary: true,
+          },
+        ],
+      },
+    },
+    {
+      key: "fahr_energy",
+      name: "FAHR ENERGY DMCC",
+      customerExternalRef: "fahr-energy",
+      counterpartyExternalRef: "fahr-energy-dmcc",
+      shortName: "FAHR ENERGY DMCC",
+      shortNameI18n: {
+        ru: "ФАХР ЭНЕРДЖИ ДИ-ЭМ-СИ-СИ",
+        en: "FAHR ENERGY DMCC",
+      },
+      fullName: "FAHR ENERGY DMCC",
+      fullNameI18n: {
+        ru: "ФАХР ЭНЕРДЖИ ДИ-ЭМ-СИ-СИ",
+        en: "FAHR ENERGY DMCC",
+      },
+      kind: "legal_entity",
+      country: "AE",
+      profile: {
+        legalFormCode: "dmcc",
+        legalFormLabel: "DMCC",
+        legalFormLabelI18n: {
+          ru: "ДМСС",
+          en: "DMCC",
+        },
+        identifiers: [
+          { scheme: "inn", value: "9909687612" },
+          { scheme: "kpp", value: "772887001" },
+        ],
+        representatives: [
+          {
+            role: "director",
+            fullName: "Zahid Ismailov",
+            fullNameI18n: {
+              ru: "Захид Исмаилов",
+              en: "Zahid Ismailov",
+            },
+            title: "Director",
+            titleI18n: {
+              ru: "Директор",
+              en: "Director",
+            },
+            basisDocument: "Charter",
+            basisDocumentI18n: {
+              ru: "Устав",
+              en: "Charter",
+            },
+            isPrimary: true,
+          },
+        ],
+      },
+    },
+    {
+      key: "barnava_trading",
+      name: "BARNAVA TRADING FZCO",
+      customerExternalRef: "barnava-trading",
+      counterpartyExternalRef: "barnava-trading-fzco",
+      shortName: "BARNAVA TRADING FZCO",
+      shortNameI18n: {
+        en: "BARNAVA TRADING FZCO",
+      },
+      fullName: "BARNAVA TRADING FZCO",
+      fullNameI18n: {
+        en: "BARNAVA TRADING FZCO",
+      },
+      kind: "legal_entity",
+      country: "AE",
+      profile: {
+        legalFormCode: "fzco",
+        legalFormLabel: "FZCO",
+        legalFormLabelI18n: {
+          en: "FZCO",
+        },
+        address: {
+          countryCode: "AE",
+          city: "Dubai",
+          cityI18n: {
+            ru: "Дубай",
+            en: "Dubai",
+          },
+          fullAddress:
+            "Building A1, Dubai Digital Park, Dubai Silicon Oasis, Dubai, United Arab Emirates",
+          fullAddressI18n: {
+            ru: "Building A1, Dubai Digital Park, Dubai Silicon Oasis, Дубай, ОАЭ",
+          },
+        },
       },
     },
   ] as const;

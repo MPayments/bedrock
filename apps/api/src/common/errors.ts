@@ -19,6 +19,11 @@ import {
   PermissionError,
   ValidationError,
 } from "@bedrock/shared/core/errors";
+import {
+  RateNotFoundError,
+  RateSourceStaleError,
+  RateSourceSyncError,
+} from "@bedrock/treasury";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -65,6 +70,7 @@ export function handleRouteError(c: Context, error: unknown): any {
   }
 
   if (
+    error instanceof RateNotFoundError ||
     error instanceof DocumentNotFoundError ||
     error instanceof NotFoundError
   ) {
@@ -94,6 +100,13 @@ export function handleRouteError(c: Context, error: unknown): any {
     error instanceof ActionReceiptStoredError
   ) {
     return c.json(buildErrorBody(error), 409);
+  }
+
+  if (
+    error instanceof RateSourceStaleError ||
+    error instanceof RateSourceSyncError
+  ) {
+    return c.json(buildErrorBody(error), 503);
   }
 
   // Unknown error -- rethrow to let global handler return 500

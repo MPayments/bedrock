@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CustomerNotFoundError } from "@bedrock/parties";
+import { RateNotFoundError, RateSourceStaleError } from "@bedrock/treasury";
 
 import { paymentRoutesRoutes } from "../../src/routes/payment-routes";
 
@@ -548,6 +549,58 @@ describe("payment routes routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       amountOutMinor: "9900",
       netAmountOutMinor: "9900",
+    });
+  });
+
+  it("returns 503 when previewing a route requires refreshing a stale rate source", async () => {
+    const { app, previewTemplate } = createTestApp();
+
+    previewTemplate.mockRejectedValue(
+      new RateSourceStaleError("cbr", new Error("cbr: request GetCursOnDate failed")),
+    );
+
+    const response = await app.request(
+      "http://localhost/payment-routes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: createDraft(),
+        }),
+      },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Rate source is stale and refresh failed: cbr",
+    });
+  });
+
+  it("returns 404 when a preview route cannot resolve a market rate", async () => {
+    const { app, previewTemplate } = createTestApp();
+
+    previewTemplate.mockRejectedValue(
+      new RateNotFoundError("Rate not found for USD/AED asOf=2026-04-16T08:00:00.000Z"),
+    );
+
+    const response = await app.request(
+      "http://localhost/payment-routes/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          draft: createDraft(),
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Rate not found for USD/AED asOf=2026-04-16T08:00:00.000Z",
     });
   });
 
