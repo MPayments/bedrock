@@ -21,6 +21,11 @@ export const CUSTOMER_IDS = {
   ONEY_FINANSAL: "00000000-0000-4000-8000-000000000208",
   PRIME_TRADE: "00000000-0000-4000-8000-000000000209",
   COINEX: "00000000-0000-4000-8000-000000000210",
+  UEXPO_LOJISTIK: "00000000-0000-4000-8000-000000000211",
+  ASHON_INTERNATIONAL: "00000000-0000-4000-8000-000000000212",
+  CARBONPRO: "00000000-0000-4000-8000-000000000213",
+  FAHR_ENERGY: "00000000-0000-4000-8000-000000000214",
+  BARNAVA_TRADING: "00000000-0000-4000-8000-000000000215",
 } as const;
 
 export const COUNTERPARTY_IDS = {
@@ -34,6 +39,11 @@ export const COUNTERPARTY_IDS = {
   ONEY_FINANSAL: "00000000-0000-4000-8000-000000000308",
   PRIME_TRADE: "00000000-0000-4000-8000-000000000309",
   COINEX: "00000000-0000-4000-8000-000000000311",
+  UEXPO_LOJISTIK: "00000000-0000-4000-8000-000000000312",
+  ASHON_INTERNATIONAL: "00000000-0000-4000-8000-000000000313",
+  CARBONPRO: "00000000-0000-4000-8000-000000000314",
+  FAHR_ENERGY: "00000000-0000-4000-8000-000000000315",
+  BARNAVA_TRADING: "00000000-0000-4000-8000-000000000316",
 } as const;
 
 export const ORGANIZATION_IDS = {
@@ -46,6 +56,9 @@ export const REQUISITE_PROVIDER_IDS = {
   ABU_DHABI_COMMERCIAL_BANK: "00000000-0000-4000-8000-000000000402",
   DUBAI_ISLAMIC_BANK: "00000000-0000-4000-8000-000000000408",
   EMIRATES_ISLAMIC_BANK: "00000000-0000-4000-8000-000000000409",
+  ZHEJIANG_CHOUZHOU_COMMERCIAL_BANK:
+    "00000000-0000-4000-8000-000000000410",
+  UNITED_BANK_LIMITED: "00000000-0000-4000-8000-000000000411",
 } as const;
 
 export const REQUISITE_IDS = {
@@ -74,6 +87,14 @@ export const REQUISITE_IDS = {
   PRIME_TRADE_RUB_VTB: "00000000-0000-4000-8000-000000000554",
   RSI_CAPITAL_RUB_VTB: "00000000-0000-4000-8000-000000000555",
   COINEX_RUB_BANK_TOCHKA: "00000000-0000-4000-8000-000000000556",
+  UEXPO_RUB_TBANK: "00000000-0000-4000-8000-000000000557",
+  ASHON_USD_ZHEJIANG_CHOUZHOU: "00000000-0000-4000-8000-000000000558",
+  ASHON_CNY_ZHEJIANG_CHOUZHOU: "00000000-0000-4000-8000-000000000559",
+  CARBONPRO_RUB_EXPOBANK: "00000000-0000-4000-8000-000000000560",
+  CARBONPRO_USD_EXPOBANK: "00000000-0000-4000-8000-000000000561",
+  CARBONPRO_CNY_EXPOBANK: "00000000-0000-4000-8000-000000000562",
+  FAHR_RUB_SLAVIA: "00000000-0000-4000-8000-000000000563",
+  BARNAVA_AED_UNITED_BANK: "00000000-0000-4000-8000-000000000564",
 } as const;
 
 const CUSTOMER_ID_BY_KEY: Record<CustomerCounterpartyKey, string> = {
@@ -87,6 +108,11 @@ const CUSTOMER_ID_BY_KEY: Record<CustomerCounterpartyKey, string> = {
   oney_finansal: CUSTOMER_IDS.ONEY_FINANSAL,
   prime_trade: CUSTOMER_IDS.PRIME_TRADE,
   coinex: CUSTOMER_IDS.COINEX,
+  uexpo_lojistik: CUSTOMER_IDS.UEXPO_LOJISTIK,
+  ashon_international: CUSTOMER_IDS.ASHON_INTERNATIONAL,
+  carbonpro: CUSTOMER_IDS.CARBONPRO,
+  fahr_energy: CUSTOMER_IDS.FAHR_ENERGY,
+  barnava_trading: CUSTOMER_IDS.BARNAVA_TRADING,
 };
 
 const COUNTERPARTY_ID_BY_KEY: Record<CustomerCounterpartyKey, string> = {
@@ -100,6 +126,11 @@ const COUNTERPARTY_ID_BY_KEY: Record<CustomerCounterpartyKey, string> = {
   oney_finansal: COUNTERPARTY_IDS.ONEY_FINANSAL,
   prime_trade: COUNTERPARTY_IDS.PRIME_TRADE,
   coinex: COUNTERPARTY_IDS.COINEX,
+  uexpo_lojistik: COUNTERPARTY_IDS.UEXPO_LOJISTIK,
+  ashon_international: COUNTERPARTY_IDS.ASHON_INTERNATIONAL,
+  carbonpro: COUNTERPARTY_IDS.CARBONPRO,
+  fahr_energy: COUNTERPARTY_IDS.FAHR_ENERGY,
+  barnava_trading: COUNTERPARTY_IDS.BARNAVA_TRADING,
 };
 
 const ORGANIZATION_ID_BY_KEY: Record<CustomerContractOrganizationKey, string> = {
@@ -610,6 +641,50 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
     bic: null,
     swift: "MEBLAEAD",
   },
+  {
+    id: REQUISITE_PROVIDER_IDS.ZHEJIANG_CHOUZHOU_COMMERCIAL_BANK,
+    kind: "bank",
+    legalName: "Zhejiang Chouzhou Commercial Bank",
+    legalNameI18n: {
+      en: "Zhejiang Chouzhou Commercial Bank",
+      ru: "Чжэцзян Чоучжоу Коммершиал Банк",
+    },
+    displayName: "Zhejiang Chouzhou Commercial Bank",
+    displayNameI18n: {
+      en: "Zhejiang Chouzhou Commercial Bank",
+      ru: "Чжэцзян Чоучжоу Коммершиал Банк",
+    },
+    description:
+      "Provider inferred from SWIFT ZJCBCN2N on the Ashon International account card.",
+    country: "CN",
+    address: null,
+    addressI18n: null,
+    contact: null,
+    bic: null,
+    swift: "ZJCBCN2N",
+  },
+  {
+    id: REQUISITE_PROVIDER_IDS.UNITED_BANK_LIMITED,
+    kind: "bank",
+    legalName: "United Bank Limited",
+    legalNameI18n: {
+      en: "United Bank Limited",
+      ru: "Юнайтед Банк Лимитед",
+    },
+    displayName: "United Bank Limited",
+    displayNameI18n: {
+      en: "United Bank Limited",
+      ru: "Юнайтед Банк Лимитед",
+    },
+    description:
+      "Settlement bank shown on the Barnava Trading FZCO account information card.",
+    country: "AE",
+    address: null,
+    addressI18n: null,
+    contact: null,
+    bic: null,
+    swift: "UNILAEADXXX",
+  },
 ] as const;
 
 const CUSTOMER_REQUISITES: readonly SeedRequisiteFixture[] =
@@ -637,6 +712,137 @@ const CUSTOMER_REQUISITES: readonly SeedRequisiteFixture[] =
       isDefault: source.isDefault ?? false,
     };
   });
+
+const IMAGE_COUNTERPARTY_REQUISITES: readonly SeedRequisiteFixture[] = [
+  {
+    id: REQUISITE_IDS.UEXPO_RUB_TBANK,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.UEXPO_LOJISTIK,
+    providerBic: "044525113",
+    currencyCode: "RUB",
+    kind: "bank",
+    label: "Uexpo RUB (TBank)",
+    beneficiaryName: "UEXPO LOJISTIK SANAYI TICARET LIMITED SIRKETI",
+    institutionName: 'Rosbank Moscow branch of JSC "TBank"',
+    accountNo: "40807810587360000415",
+    bic: "044525113",
+    swift: "TICSRUMMXXX",
+    bankAddress:
+      "123112, Moscow, Presnensky municipal district, 1st Krasnogvardeisky passage, 19",
+    notes: "Correspondent account: 30101810545374525113.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.ASHON_USD_ZHEJIANG_CHOUZHOU,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.ASHON_INTERNATIONAL,
+    providerId: REQUISITE_PROVIDER_IDS.ZHEJIANG_CHOUZHOU_COMMERCIAL_BANK,
+    currencyCode: "USD",
+    kind: "bank",
+    label: "Ashon USD (Zhejiang Chouzhou)",
+    beneficiaryName: "Ashon International DMSS",
+    institutionName: "Zhejiang Chouzhou Commercial Bank",
+    accountNo: "FTN29004099910071416",
+    swift: "ZJCBCN2N",
+    notes:
+      "USD correspondents: JPMorgan Chase Bank, N.A., New York (CHASUS33); Wells Fargo Bank, N.A., New York (PNBPUS3NNYC).",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.ASHON_CNY_ZHEJIANG_CHOUZHOU,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.ASHON_INTERNATIONAL,
+    providerId: REQUISITE_PROVIDER_IDS.ZHEJIANG_CHOUZHOU_COMMERCIAL_BANK,
+    currencyCode: "CNY",
+    kind: "bank",
+    label: "Ashon CNY (Zhejiang Chouzhou)",
+    beneficiaryName: "Ashon International DMSS",
+    institutionName: "Zhejiang Chouzhou Commercial Bank",
+    accountNo: "FTN29004099910071416",
+    swift: "ZJCBCN2N",
+    notes:
+      "CNY correspondents: Bank of China Zhejiang Branch (BKCHCNBJ910); Shanghai Pudong Development Bank Hangzhou Branch (SPDBCNSH336).",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.CARBONPRO_RUB_EXPOBANK,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.CARBONPRO,
+    providerBic: "044525460",
+    currencyCode: "RUB",
+    kind: "bank",
+    label: "CarbonPro RUB (Expobank)",
+    beneficiaryName: "Carbonpro LLC / OOO «КарбонПро»",
+    institutionName: "Expobank JSC",
+    accountNo: "40702810101360166846",
+    bic: "044525460",
+    swift: "EXPNRUMMXXX",
+    notes: "RUB account confirmed on the dedicated CarbonPro account snippet.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.CARBONPRO_USD_EXPOBANK,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.CARBONPRO,
+    providerBic: "044525460",
+    currencyCode: "USD",
+    kind: "bank",
+    label: "CarbonPro USD (Expobank)",
+    beneficiaryName: "Carbonpro LLC / OOO «КарбонПро»",
+    institutionName: "Expobank JSC",
+    accountNo: "40702840401360166846",
+    bic: "044525460",
+    swift: "EXPNRUMMXXX",
+    notes: "Source card labels this as the USD transit account.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.CARBONPRO_CNY_EXPOBANK,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.CARBONPRO,
+    providerBic: "044525460",
+    currencyCode: "CNY",
+    kind: "bank",
+    label: "CarbonPro CNY (Expobank)",
+    beneficiaryName: "Carbonpro LLC / OOO «КарбонПро»",
+    institutionName: "Expobank JSC",
+    accountNo: "40702156001360166846",
+    bic: "044525460",
+    swift: "EXPNRUMMXXX",
+    notes: "Current CNY account; transit CNY account 40702156701369166846 is also listed on the source card.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.FAHR_RUB_SLAVIA,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.FAHR_ENERGY,
+    providerBic: "044030742",
+    currencyCode: "RUB",
+    kind: "bank",
+    label: "Fahr Energy RUB (Slavia)",
+    beneficiaryName: "FAHR ENERGY DMCC",
+    institutionName: 'Branch of AKB "Slavia" (JSC) in Saint Petersburg',
+    accountNo: "40807810300050000036",
+    bic: "044030742",
+    notes: "Correspondent account: 30101810140300000742.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BARNAVA_AED_UNITED_BANK,
+    ownerType: "counterparty",
+    ownerId: COUNTERPARTY_IDS.BARNAVA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.UNITED_BANK_LIMITED,
+    currencyCode: "AED",
+    kind: "bank",
+    label: "Barnava AED (United Bank Limited)",
+    beneficiaryName: "BARNAVA TRADING FZCO",
+    institutionName: "United Bank Limited",
+    accountNo: "000200853936",
+    iban: "AE890470000000200853936",
+    swift: "UNILAEADXXX",
+    isDefault: true,
+  },
+] as const;
 
 export const REQUISITES: readonly SeedRequisiteFixture[] = [
   {
@@ -908,6 +1114,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: false,
   },
   ...CUSTOMER_REQUISITES,
+  ...IMAGE_COUNTERPARTY_REQUISITES,
 ] as const;
 
 export const AGREEMENTS: readonly SeedAgreementFixture[] =

@@ -14,6 +14,7 @@ vi.mock("../../src/auth", () => ({
 }));
 
 import { CalculationNotFoundError } from "@bedrock/calculations";
+import { RateSourceSyncError } from "@bedrock/treasury";
 
 import { calculationsRoutes } from "../../src/routes/calculations";
 
@@ -275,6 +276,58 @@ describe("calculations routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("returns 503 when calculation creation depends on an unavailable rate source", async () => {
+    const { app, calculationsModule } = createTestApp();
+
+    calculationsModule.calculations.commands.create.mockRejectedValue(
+      new RateSourceSyncError("cbr", "sync failed"),
+    );
+
+    const response = await app.request("http://localhost/calculations", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": "calc-create-cbr",
+      },
+      body: JSON.stringify({
+        agreementVersionId: null,
+        agreementFeeBps: "125",
+        agreementFeeAmountMinor: "125",
+        calculationCurrencyId: "00000000-0000-4000-8000-000000000001",
+        originalAmountMinor: "10000",
+        totalFeeBps: "125",
+        totalFeeAmountMinor: "125",
+        totalAmountMinor: "10125",
+        baseCurrencyId: "00000000-0000-4000-8000-000000000002",
+        totalFeeAmountInBaseMinor: "100",
+        totalInBaseMinor: "8100",
+        additionalExpensesCurrencyId: null,
+        additionalExpensesAmountMinor: "0",
+        additionalExpensesInBaseMinor: "0",
+        fixedFeeAmountMinor: "0",
+        fixedFeeCurrencyId: null,
+        pricingProvenance: null,
+        quoteMarkupAmountMinor: "0",
+        quoteMarkupBps: "0",
+        referenceRateAsOf: null,
+        referenceRateSource: null,
+        referenceRateNum: null,
+        referenceRateDen: null,
+        totalWithExpensesInBaseMinor: "8100",
+        rateSource: "manual",
+        rateNum: "81",
+        rateDen: "100",
+        calculationTimestamp: "2026-03-30T00:00:00.000Z",
+        fxQuoteId: null,
+      }),
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "cbr: sync failed",
+    });
   });
 
   it("exports calculation using canonical document data without compatibility serializer", async () => {

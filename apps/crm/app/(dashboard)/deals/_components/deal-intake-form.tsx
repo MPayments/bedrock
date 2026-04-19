@@ -34,7 +34,6 @@ export type CrmDealIntakeDraft = {
     contractNumber: string | null;
     expectedAmount: string | null;
     expectedAt: string | null;
-    expectedCurrencyId: string | null;
     invoiceNumber: string | null;
     payerCounterpartyId: string | null;
     payerSnapshot: CrmCounterpartySnapshot | null;
@@ -171,7 +170,6 @@ export function createEmptyCrmDealIntake(input: {
       contractNumber: null,
       expectedAmount: null,
       expectedAt: null,
-      expectedCurrencyId: null,
       invoiceNumber: null,
       payerCounterpartyId: null,
       payerSnapshot: null,
@@ -272,10 +270,6 @@ export function createDealIntakeFormContext({
     currencyOptions.find(
       (currency) => currency.id === intake.moneyRequest.targetCurrencyId,
     ) ?? null;
-  const selectedExpectedCurrency =
-    currencyOptions.find(
-      (currency) => currency.id === intake.incomingReceipt.expectedCurrencyId,
-    ) ?? null;
   const selectedApplicantRequisite =
     applicantRequisites.find(
       (requisite) => requisite.id === intake.settlementDestination.requisiteId,
@@ -292,6 +286,9 @@ export function createDealIntakeFormContext({
   const targetCurrencyTitle = isPaymentDeal
     ? "Валюта оплаты"
     : "Целевая валюта";
+  const incomingReceiptCurrencyTitle = isPaymentDeal
+    ? "Валюта оплаты"
+    : "Валюта поступления";
   const sourceAmountLabel = isPaymentDeal
     ? "Сумма списания, если согласована"
     : "Сумма списания";
@@ -304,9 +301,6 @@ export function createDealIntakeFormContext({
   const expectedAmountLabel = isPaymentDeal
     ? "Сумма инвойса"
     : "Ожидаемая сумма";
-  const expectedCurrencyTitle = isPaymentDeal
-    ? "Валюта инвойса"
-    : "Валюта поступления";
   const expectedDateLabel = isPaymentDeal
     ? "Плановая дата выплаты"
     : "Ожидаемая дата поступления";
@@ -343,14 +337,6 @@ export function createDealIntakeFormContext({
     missingLabel: "Выбранная валюта недоступна",
     optionsCount: currencyOptions.length,
     value: intake.moneyRequest.targetCurrencyId,
-  });
-  const expectedCurrencyLabel = resolveOptionLabel({
-    emptyLabel: "Не выбрано",
-    loadingLabel: "Загрузка валют...",
-    matchedLabel: selectedExpectedCurrency?.label ?? null,
-    missingLabel: "Выбранная валюта недоступна",
-    optionsCount: currencyOptions.length,
-    value: intake.incomingReceipt.expectedCurrencyId,
   });
   const settlementModeLabel =
     intake.settlementDestination.mode === "applicant_requisite"
@@ -396,21 +382,12 @@ export function createDealIntakeFormContext({
     key: keyof CrmDealIntakeDraft["moneyRequest"],
     value: string | null,
   ) {
-    const nextIntake: Partial<CrmDealIntakeDraft> = {
+    update({
       moneyRequest: {
         ...intake.moneyRequest,
         [key]: value,
       },
-    };
-
-    if (intake.type === "payment" && key === "targetCurrencyId") {
-      nextIntake.incomingReceipt = {
-        ...intake.incomingReceipt,
-        expectedCurrencyId: value,
-      };
-    }
-
-    update(nextIntake);
+    });
   }
 
   function updatePrimaryAmount(value: string | null) {
@@ -502,8 +479,6 @@ export function createDealIntakeFormContext({
     beneficiarySnapshot,
     currencyOptions,
     expectedAmountLabel,
-    expectedCurrencyLabel,
-    expectedCurrencyTitle,
     expectedDateLabel,
     hasExternalBeneficiarySection: shouldRenderExternalBeneficiary(intake.type),
     hasIncomingReceiptSection: shouldRenderIncomingReceipt(intake.type),
@@ -524,11 +499,14 @@ export function createDealIntakeFormContext({
     settlementModeLabel,
     shouldInlineMoneyRequestFields,
     shouldRenderPayerDetails,
+    incomingReceiptCurrencyTitle,
     sourceAmountLabel,
     sourceCurrencyLabel,
     sourceCurrencyTitle,
     targetCurrencyLabel,
     targetCurrencyTitle,
+    hasDedicatedIncomingReceiptCurrency:
+      shouldRenderIncomingReceipt(intake.type) && !isPaymentDeal,
     update,
     updateBeneficiaryBank,
     updateBeneficiarySnapshot,
@@ -633,6 +611,7 @@ export function DealIntakeMoneyRequestSection({
   context,
 }: DealIntakeSectionProps) {
   const {
+    hasDedicatedIncomingReceiptCurrency,
     currencyOptions,
     intake,
     isPaymentDeal,
@@ -675,36 +654,38 @@ export function DealIntakeMoneyRequestSection({
             }
           />
         </div>
-        <div className="min-w-0 space-y-2">
-          <Label>{targetCurrencyTitle}</Label>
-          <Select
-            disabled={readOnly}
-            value={intake.moneyRequest.targetCurrencyId ?? "__none"}
-            onValueChange={(value) =>
-              updateMoneyRequest(
-                "targetCurrencyId",
-                value === "__none" ? null : value,
-              )
-            }
-          >
-            <SelectTrigger
-              className="w-full"
-              data-testid="deal-target-currency-select"
+        {!hasDedicatedIncomingReceiptCurrency ? (
+          <div className="min-w-0 space-y-2">
+            <Label>{targetCurrencyTitle}</Label>
+            <Select
+              disabled={readOnly}
+              value={intake.moneyRequest.targetCurrencyId ?? "__none"}
+              onValueChange={(value) =>
+                updateMoneyRequest(
+                  "targetCurrencyId",
+                  value === "__none" ? null : value,
+                )
+              }
             >
-              <SelectValue placeholder="Выберите валюту">
-                {targetCurrencyLabel}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">Не выбрано</SelectItem>
-              {currencyOptions.map((currency) => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              <SelectTrigger
+                className="w-full"
+                data-testid="deal-target-currency-select"
+              >
+                <SelectValue placeholder="Выберите валюту">
+                  {targetCurrencyLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Не выбрано</SelectItem>
+                {currencyOptions.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.id}>
+                    {currency.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
         <div
           className={
             shouldInlineMoneyRequestFields
@@ -781,10 +762,10 @@ export function DealIntakeIncomingReceiptSection({
     applicantSnapshot,
     currencyOptions,
     expectedAmountLabel,
-    expectedCurrencyLabel,
-    expectedCurrencyTitle,
     expectedDateLabel,
+    hasDedicatedIncomingReceiptCurrency,
     hasIncomingReceiptSection,
+    incomingReceiptCurrencyTitle,
     incomingReceiptSectionDescription,
     incomingReceiptSectionTitle,
     intake,
@@ -792,7 +773,9 @@ export function DealIntakeIncomingReceiptSection({
     readOnly,
     shouldRenderPayerDetails,
     updateIncomingReceipt,
+    updateMoneyRequest,
     updatePayerSnapshot,
+    targetCurrencyLabel,
   } = context;
 
   if (!hasIncomingReceiptSection) {
@@ -825,22 +808,22 @@ export function DealIntakeIncomingReceiptSection({
             />
           </div>
         ) : null}
-        {!isPaymentDeal ? (
+        {hasDedicatedIncomingReceiptCurrency ? (
           <div className="space-y-2">
-            <Label>{expectedCurrencyTitle}</Label>
+            <Label>{incomingReceiptCurrencyTitle}</Label>
             <Select
               disabled={readOnly}
-              value={intake.incomingReceipt.expectedCurrencyId ?? "__none"}
+              value={intake.moneyRequest.targetCurrencyId ?? "__none"}
               onValueChange={(value) =>
-                updateIncomingReceipt(
-                  "expectedCurrencyId",
+                updateMoneyRequest(
+                  "targetCurrencyId",
                   value === "__none" ? null : value,
                 )
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Выберите валюту">
-                  {expectedCurrencyLabel}
+                  {targetCurrencyLabel}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

@@ -276,7 +276,7 @@ async function resolveAmountRef(input: {
   const currencyId =
     input.amountRef === "money_request_source"
       ? input.workflow.intake.moneyRequest.sourceCurrencyId
-      : input.workflow.intake.incomingReceipt.expectedCurrencyId;
+      : input.workflow.intake.moneyRequest.targetCurrencyId;
 
   if (!rawAmount || !currencyId) {
     return {

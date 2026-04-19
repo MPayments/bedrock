@@ -24,6 +24,7 @@ import {
 } from "@bedrock/treasury/contracts";
 
 import { ErrorSchema, IdParamSchema } from "../common";
+import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
@@ -221,6 +222,22 @@ export function paymentRoutesRoutes(ctx: AppContext) {
         },
         description: "Validation error",
       },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Route rate not found",
+      },
+      503: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Rate source is unavailable",
+      },
     },
   });
 
@@ -389,10 +406,7 @@ export function paymentRoutesRoutes(ctx: AppContext) {
           });
         return c.json(calculation, 200);
       } catch (error) {
-        if (error instanceof ValidationError) {
-          return c.json({ error: error.message }, 400);
-        }
-        throw error;
+        return handleRouteError(c, error);
       }
     })
     .openapi(getTemplateRoute, async (c) => {

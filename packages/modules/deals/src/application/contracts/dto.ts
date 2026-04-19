@@ -84,7 +84,6 @@ export const DealIncomingReceiptIntakeSectionSchema = z.object({
   contractNumber: z.string().nullable(),
   expectedAmount: nullableDecimalStringSchema,
   expectedAt: z.coerce.date().nullable(),
-  expectedCurrencyId: z.uuid().nullable(),
   invoiceNumber: z.string().nullable(),
   payerCounterpartyId: z.uuid().nullable(),
   payerSnapshot: DealCounterpartySnapshotSchema.nullable(),
@@ -428,12 +427,13 @@ export const PortalDealIntakeSummarySchema = z.object({
   contractNumber: z.string().nullable(),
   customerNote: z.string().nullable(),
   expectedAmount: z.string().nullable(),
-  expectedCurrencyId: z.uuid().nullable(),
   invoiceNumber: z.string().nullable(),
   purpose: z.string().nullable(),
   requestedExecutionDate: z.date().nullable(),
   sourceAmount: z.string().nullable(),
+  sourceCurrencyCode: z.string().nullable(),
   sourceCurrencyId: z.uuid().nullable(),
+  targetCurrencyCode: z.string().nullable(),
   targetCurrencyId: z.uuid().nullable(),
 });
 

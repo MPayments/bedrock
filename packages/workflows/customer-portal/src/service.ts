@@ -556,7 +556,6 @@ function createEmptyPortalDealIntakeDraft(
       contractNumber: null,
       expectedAmount: null,
       expectedAt: null,
-      expectedCurrencyId: null,
       invoiceNumber: null,
       payerCounterpartyId: null,
       payerSnapshot: null,
@@ -597,7 +596,6 @@ function buildPortalDealIntakeDraft(
       contractNumber: input.incomingReceipt.contractNumber ?? null,
       expectedAmount: input.incomingReceipt.expectedAmount ?? null,
       expectedAt: input.incomingReceipt.expectedAt ?? null,
-      expectedCurrencyId: input.incomingReceipt.expectedCurrencyId ?? null,
       invoiceNumber: input.incomingReceipt.invoiceNumber ?? null,
       payerCounterpartyId: null,
       payerSnapshot: null,
@@ -1016,24 +1014,14 @@ export function createCustomerPortalWorkflow(
         );
       }
 
-      const [
-        sourceCurrencyId,
-        targetCurrencyId,
-        expectedCurrencyId,
-      ] = await Promise.all([
+      const [sourceCurrencyId, targetCurrencyId] = await Promise.all([
         resolvePortalCurrencyId(deps, input.moneyRequest.sourceCurrencyId),
         resolvePortalCurrencyId(deps, input.moneyRequest.targetCurrencyId),
-        resolvePortalCurrencyId(deps, input.incomingReceipt?.expectedCurrencyId),
       ]);
 
       const normalizedInput: CreatePortalDealInput = {
         ...input,
-        incomingReceipt: input.incomingReceipt
-          ? {
-              ...input.incomingReceipt,
-              expectedCurrencyId,
-            }
-          : input.incomingReceipt,
+        incomingReceipt: input.incomingReceipt,
         moneyRequest: {
           ...input.moneyRequest,
           sourceCurrencyId,

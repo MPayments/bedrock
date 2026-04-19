@@ -4,9 +4,7 @@ export function getPrimaryDealAmountFields(intake: DealIntakeDraft) {
   if (intake.type === "payment") {
     return {
       amount: intake.incomingReceipt.expectedAmount,
-      currencyId:
-        intake.moneyRequest.targetCurrencyId ??
-        intake.incomingReceipt.expectedCurrencyId,
+      currencyId: intake.moneyRequest.targetCurrencyId,
     };
   }
 

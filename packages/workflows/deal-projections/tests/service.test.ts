@@ -53,7 +53,6 @@ function createBaseWorkflow(): DealWorkflowProjection {
         contractNumber: null,
         expectedAmount: "1000",
         expectedAt: null,
-        expectedCurrencyId: "currency-usd",
         invoiceNumber: null,
         payerCounterpartyId: null,
         payerSnapshot: null,
@@ -537,6 +536,10 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
     expect(projection?.timeline).toHaveLength(1);
     expect(projection?.summary.applicantDisplayName).toBe("Applicant One");
+    expect(projection?.customerSafeIntake).toMatchObject({
+      sourceCurrencyCode: "RUB",
+      targetCurrencyCode: "USD",
+    });
     expect(projection?.submissionCompleteness.complete).toBe(true);
     expect(projection?.requiredActions).toContain("Ожидайте или примите котировку");
   });

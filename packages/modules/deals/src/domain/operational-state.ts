@@ -245,7 +245,7 @@ export function buildDealOperationalState(input: {
         if (incomingReceiptSection?.complete) {
           return {
             amountMinor: null,
-            currencyId: input.intake.incomingReceipt.expectedCurrencyId,
+            currencyId: input.intake.moneyRequest.targetCurrencyId,
             kind,
             reasonCode: null,
             sourceRefs: ["section:incomingReceipt", ...sourceRefsFromLegs(collectLegs)],

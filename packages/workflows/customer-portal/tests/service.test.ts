@@ -105,7 +105,6 @@ function createWorkflow(overrides?: {
             contractNumber: null,
             customerNote: null,
             expectedAmount: null,
-            expectedCurrencyId: null,
             invoiceNumber: null,
             purpose: null,
             requestedExecutionDate: null,
@@ -964,7 +963,6 @@ describe("customer portal workflow", () => {
           contractNumber: null,
           expectedAmount: null,
           expectedAt: null,
-          expectedCurrencyId: null,
           invoiceNumber: null,
         },
         moneyRequest: {
