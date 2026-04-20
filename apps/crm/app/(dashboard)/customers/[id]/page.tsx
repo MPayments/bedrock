@@ -103,6 +103,7 @@ export default function CustomerDetailPage() {
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [deletingDocumentId, setDeletingDocumentId] = useState<
     ClientDocument["id"] | null
   >(null);
@@ -400,6 +401,13 @@ export default function CustomerDetailPage() {
     }
   }
 
+  function closeUploadDialog() {
+    setUploadDialogOpen(false);
+    setUploadDocumentDescription("");
+    setUploadDocumentFile(null);
+    setUploadError(null);
+  }
+
   async function handleUploadDocument() {
     if (!selectedCounterparty || !uploadDocumentFile) {
       return;
@@ -407,21 +415,20 @@ export default function CustomerDetailPage() {
 
     try {
       setUploadingDocument(true);
+      setUploadError(null);
       await uploadCustomerCounterpartyDocument({
         customerId,
         counterpartyId: selectedCounterparty.counterpartyId,
         description: uploadDocumentDescription,
         file: uploadDocumentFile,
       });
-      setUploadDialogOpen(false);
-      setUploadDocumentDescription("");
-      setUploadDocumentFile(null);
+      closeUploadDialog();
       await fetchDocuments(selectedCounterparty.counterpartyId);
-    } catch (uploadError) {
-      console.error("Failed to upload document", uploadError);
-      setError(
-        uploadError instanceof Error
-          ? uploadError.message
+    } catch (uploadErrorValue) {
+      console.error("Failed to upload document", uploadErrorValue);
+      setUploadError(
+        uploadErrorValue instanceof Error
+          ? uploadErrorValue.message
           : "Не удалось загрузить документ",
       );
     } finally {
@@ -730,8 +737,20 @@ export default function CustomerDetailPage() {
         )}
       </div>
 
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
+      <Dialog
+        open={uploadDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setUploadDialogOpen(true);
+            return;
+          }
+          if (uploadingDocument) {
+            return;
+          }
+          closeUploadDialog();
+        }}
+      >
+        <DialogContent showCloseButton={!uploadingDocument}>
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
@@ -770,14 +789,16 @@ export default function CustomerDetailPage() {
               />
             </div>
           </div>
+          {uploadError ? (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {uploadError}
+            </div>
+          ) : null}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setUploadDialogOpen(false);
-                setUploadDocumentDescription("");
-                setUploadDocumentFile(null);
-              }}
+              onClick={closeUploadDialog}
+              disabled={uploadingDocument}
               type="button"
             >
               Отмена
