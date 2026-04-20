@@ -762,7 +762,7 @@ export default function NewCustomerPage() {
         throw new Error(
           getResponseErrorMessage(
             errorData,
-            `Ошибка создания субъекта: ${counterpartyResponse.status}`,
+            `Ошибка создания контрагента: ${counterpartyResponse.status}`,
           ),
         );
       }
@@ -988,7 +988,7 @@ export default function NewCustomerPage() {
                 {innSearchSuccess ? (
                   <div className="flex items-center gap-2 text-xs text-green-600">
                     <CheckCircle2 className="h-4 w-4" />
-                    Данные субъекта обновлены
+                    Данные контрагента обновлены
                   </div>
                 ) : null}
               </CardContent>
@@ -1046,7 +1046,7 @@ export default function NewCustomerPage() {
                     Английская версия
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Заполнит англоязычные поля по русским данным субъекта.
+                    Заполнит англоязычные поля по русским данным контрагента.
                   </p>
                 </div>
               </CardHeader>
@@ -1143,7 +1143,7 @@ export default function NewCustomerPage() {
         <Card>
           <CardHeader className="border-b">
             <div className="space-y-1">
-              <CardTitle>Первый субъект сделки</CardTitle>
+              <CardTitle>Первый контрагент</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Заполните данные компании или физлица, от имени которого будут
                 оформляться сделки.
@@ -1152,7 +1152,7 @@ export default function NewCustomerPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2 md:max-w-sm">
-              <Label htmlFor="counterparty-kind">Тип субъекта</Label>
+              <Label htmlFor="counterparty-kind">Тип контрагента</Label>
               <Select
                 value={counterpartyKind}
                 onValueChange={(value) =>
@@ -1196,7 +1196,7 @@ export default function NewCustomerPage() {
                       Идентификация компании
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Базовые данные, по которым субъект будет виден в CRM и
+                      Базовые данные, по которым контрагент будет виден в CRM и
                       документах.
                     </p>
                   </div>
@@ -1300,7 +1300,7 @@ export default function NewCustomerPage() {
                 <div className="space-y-1">
                   <h3 className="text-sm font-medium">Идентификация физлица</h3>
                   <p className="text-sm text-muted-foreground">
-                    Основные данные субъекта, который будет участвовать в
+                    Основные данные контрагента, который будет участвовать в
                     сделках.
                   </p>
                 </div>

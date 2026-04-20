@@ -45,7 +45,7 @@ const CUSTOMER_TAB_BREADCRUMBS = {
   },
   counterparties: {
     icon: "counterparty" as const,
-    label: "Субъекты сделки",
+    label: "Контрагенты",
   },
   documents: {
     icon: "documents" as const,
@@ -299,12 +299,14 @@ export function buildCrmBreadcrumbs(
         return breadcrumbs;
       }
 
-      const counterpartiesHref = `${customerHref}/counterparties`;
-      breadcrumbs.push({
-        href: counterpartiesHref,
-        icon: "counterparty",
-        label: "Субъекты сделки",
-      });
+      const counterpartiesTabBreadcrumb = buildCustomerTabBreadcrumb(
+        customerHref,
+        "counterparties",
+      );
+
+      if (counterpartiesTabBreadcrumb) {
+        breadcrumbs.push(counterpartiesTabBreadcrumb);
+      }
 
       if (!pathSegments[3]) {
         return breadcrumbs;
@@ -314,14 +316,14 @@ export function buildCrmBreadcrumbs(
         return [
           ...breadcrumbs,
           {
-            href: `${counterpartiesHref}/new`,
+            href: `${customerHref}/counterparties/new`,
             icon: "counterparty",
             label: "Новый контрагент",
           },
         ];
       }
 
-      const counterpartyHref = `${counterpartiesHref}/${pathSegments[3]}`;
+      const counterpartyHref = `${customerHref}/counterparties/${pathSegments[3]}`;
       return [
         ...breadcrumbs,
         {

@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
@@ -37,6 +38,10 @@ export function CustomerSummaryCard({
   workspace,
 }: CustomerSummaryCardProps) {
   const isDirty = form.formState.isDirty;
+  const customerName = form.watch("name");
+  const statusMessage = isDirty
+    ? "Есть несохранённые изменения"
+    : "Данные актуальны";
 
   return (
     <Card>
@@ -49,31 +54,6 @@ export function CustomerSummaryCard({
               комментарий менеджера.
             </CardDescription>
           </div>
-          {isDirty ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="submit"
-                form="customer-summary-form"
-                disabled={saving}
-              >
-                {saving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                Сохранить
-              </Button>
-              <Button
-                variant="outline"
-                type="button"
-                disabled={saving}
-                onClick={() => form.reset(customerToFormValues(workspace))}
-              >
-                <X className="size-4" />
-                Отменить
-              </Button>
-            </div>
-          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -86,7 +66,7 @@ export function CustomerSummaryCard({
             <Label htmlFor="customer-display-name">Название клиента</Label>
             <Input
               id="customer-display-name"
-              value={form.watch("name")}
+              value={customerName}
               onChange={(event) =>
                 form.setValue("name", event.target.value, {
                   shouldDirty: true,
@@ -138,6 +118,37 @@ export function CustomerSummaryCard({
           </div>
         </form>
       </CardContent>
+      <CardFooter className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-muted-foreground flex items-center gap-3">
+          {isDirty ? (
+            <div className="h-2 w-2 rounded-full bg-amber-500" />
+          ) : null}
+          <span>{statusMessage}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            type="button"
+            disabled={!isDirty || saving}
+            onClick={() => form.reset(customerToFormValues(workspace))}
+          >
+            <X className="size-4" />
+            Отменить
+          </Button>
+          <Button
+            type="submit"
+            form="customer-summary-form"
+            disabled={!isDirty || saving}
+          >
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            Сохранить
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }

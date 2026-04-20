@@ -23,6 +23,7 @@ import {
   FileText,
   FileType,
   Handshake,
+  Info,
   Loader2,
   Paperclip,
   Pencil,
@@ -76,7 +77,10 @@ import {
   TabsTrigger,
 } from "@bedrock/sdk-ui/components/tabs";
 
-import { NewContractDialog, type ContractDialogInitialValues } from "@/components/dashboard/NewContractDialog";
+import {
+  NewContractDialog,
+  type ContractDialogInitialValues,
+} from "@/components/dashboard/NewContractDialog";
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import {
   AlertDialog,
@@ -145,8 +149,7 @@ async function downloadResponseAsFile(
 
   const contentDisposition = response.headers.get("Content-Disposition");
   const matchedFileName =
-    contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ??
-    fallbackFileName;
+    contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackFileName;
   anchor.download = decodeURIComponent(matchedFileName);
 
   document.body.appendChild(anchor);
@@ -197,6 +200,15 @@ function getDefaultCounterparty(
     ) ??
     counterparties[0] ??
     null
+  );
+}
+
+function getCounterpartyLabel(counterparty: CustomerCounterparty) {
+  return (
+    normalizeOptionalText(counterparty.shortName) ??
+    normalizeOptionalText(counterparty.orgName) ??
+    normalizeOptionalText(counterparty.fullName) ??
+    counterparty.counterpartyId
   );
 }
 
@@ -285,22 +297,18 @@ function getAgreementDialogInitialValues(
   };
 }
 
-type RequisiteDialogState =
-  | {
-      counterpartyId: string;
-      counterpartyName: string;
-      initialMode: "create" | "existing";
-      initialRequisiteId: string | null;
-      key: number;
-    }
-  | null;
+type RequisiteDialogState = {
+  counterpartyId: string;
+  counterpartyName: string;
+  initialMode: "create" | "existing";
+  initialRequisiteId: string | null;
+  key: number;
+} | null;
 
-type ContractDialogState =
-  | {
-      counterpartyId: string;
-      initialValues: ContractDialogInitialValues | null;
-    }
-  | null;
+type ContractDialogState = {
+  counterpartyId: string;
+  initialValues: ContractDialogInitialValues | null;
+} | null;
 
 type RequisiteTableRow = {
   counterpartyId: string;
@@ -339,8 +347,10 @@ export default function CustomerDetailPage() {
     useState(false);
   const [requisiteOwnerPickerOpen, setRequisiteOwnerPickerOpen] =
     useState(false);
-  const [requisiteOwnerPickerCounterpartyId, setRequisiteOwnerPickerCounterpartyId] =
-    useState("");
+  const [
+    requisiteOwnerPickerCounterpartyId,
+    setRequisiteOwnerPickerCounterpartyId,
+  ] = useState("");
 
   const [requisiteReferenceData, setRequisiteReferenceData] =
     useState<CounterpartyBankRequisitesReferenceData | null>(null);
@@ -356,8 +366,10 @@ export default function CustomerDetailPage() {
   >({});
   const [documentErrorsByCounterpartyId, setDocumentErrorsByCounterpartyId] =
     useState<Record<string, string>>({});
-  const [loadingDocumentsByCounterpartyId, setLoadingDocumentsByCounterpartyId] =
-    useState<Record<string, boolean>>({});
+  const [
+    loadingDocumentsByCounterpartyId,
+    setLoadingDocumentsByCounterpartyId,
+  ] = useState<Record<string, boolean>>({});
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadTargetCounterpartyId, setUploadTargetCounterpartyId] = useState<
     string | null
@@ -371,8 +383,10 @@ export default function CustomerDetailPage() {
   const [deletingDocumentKey, setDeletingDocumentKey] = useState<string | null>(
     null,
   );
-  const [downloadingContractCounterpartyId, setDownloadingContractCounterpartyId] =
-    useState<string | null>(null);
+  const [
+    downloadingContractCounterpartyId,
+    setDownloadingContractCounterpartyId,
+  ] = useState<string | null>(null);
   const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
 
   const [agreements, setAgreements] = useState<CustomerAgreementDetail[]>([]);
@@ -416,11 +430,33 @@ export default function CustomerDetailPage() {
     [workspace],
   );
   const requisitesTabCount = requisiteRows.length;
-  const documentsTabCount = workspace?.counterparties.length ?? 0;
+  const documentsTabCount = useMemo(() => {
+    if (!workspace) {
+      return 0;
+    }
+
+    return workspace.counterparties.reduce(
+      (total, counterparty) =>
+        total +
+        (documentsByCounterpartyId[counterparty.counterpartyId]?.length ?? 0),
+      0,
+    );
+  }, [documentsByCounterpartyId, workspace]);
   const agreementsTabCount = agreements.length;
   const uploadTargetCounterparty =
     workspace?.counterparties.find(
-      (counterparty) => counterparty.counterpartyId === uploadTargetCounterpartyId,
+      (counterparty) =>
+        counterparty.counterpartyId === uploadTargetCounterpartyId,
+    ) ?? null;
+  const agreementPickerCounterparty =
+    workspace?.counterparties.find(
+      (counterparty) =>
+        counterparty.counterpartyId === agreementPickerCounterpartyId,
+    ) ?? null;
+  const requisiteOwnerPickerCounterparty =
+    workspace?.counterparties.find(
+      (counterparty) =>
+        counterparty.counterpartyId === requisiteOwnerPickerCounterpartyId,
     ) ?? null;
   const showMissingAgreementAlert =
     workspace !== null &&
@@ -651,7 +687,7 @@ export default function CustomerDetailPage() {
   }, [hasCustomerAgreement]);
 
   useEffect(() => {
-    if (activeTab !== "documents" || !workspace) {
+    if (!workspace) {
       return;
     }
 
@@ -660,7 +696,7 @@ export default function CustomerDetailPage() {
         fetchDocumentsForCounterparty(counterparty.counterpartyId),
       ),
     );
-  }, [activeTab, fetchDocumentsForCounterparty, workspace]);
+  }, [fetchDocumentsForCounterparty, workspace]);
 
   useEffect(() => {
     if (!workspace) {
@@ -934,9 +970,6 @@ export default function CustomerDetailPage() {
       <CustomerDetailHeader
         deleting={deleting}
         counterpartyCount={workspace.counterpartyCount}
-        onAddCounterparty={() => {
-          router.push(buildCustomerCounterpartyCreateHref(customerId));
-        }}
         onArchive={handleArchive}
         title={workspace.name}
       />
@@ -951,7 +984,7 @@ export default function CustomerDetailPage() {
         <Alert variant="warning" className="pr-12">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            У клиента пока нет субъектов сделки. Добавьте первый субъект, чтобы
+            У клиента пока нет контрагентов. Добавьте первого контрагента, чтобы
             продолжить работу.
             <Button
               type="button"
@@ -962,7 +995,7 @@ export default function CustomerDetailPage() {
                 router.push(buildCustomerCounterpartyCreateHref(customerId));
               }}
             >
-              Добавить субъекта
+              Добавить контрагента
             </Button>
           </AlertDescription>
           <Button
@@ -1021,32 +1054,35 @@ export default function CustomerDetailPage() {
         }}
         className="w-full"
       >
-        <TabsList variant="line" className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="common">
-            <CustomerTabLabel icon={Handshake} label="Общее" />
+        <TabsList
+          variant="line"
+          className="w-full justify-start overflow-x-auto"
+        >
+          <TabsTrigger className="flex-none" value="common">
+            <CustomerTabLabel icon={Info} label="Общее" />
           </TabsTrigger>
-          <TabsTrigger value="counterparties">
+          <TabsTrigger className="flex-none" value="counterparties">
             <CustomerTabLabel
               count={workspace.counterparties.length}
               icon={Building2}
               label="Контрагенты"
             />
           </TabsTrigger>
-          <TabsTrigger value="requisites">
+          <TabsTrigger className="flex-none" value="requisites">
             <CustomerTabLabel
               count={requisitesTabCount}
               icon={Wallet}
               label="Реквизиты"
             />
           </TabsTrigger>
-          <TabsTrigger value="documents">
+          <TabsTrigger className="flex-none" value="documents">
             <CustomerTabLabel
               count={documentsTabCount}
               icon={File}
               label="Документы"
             />
           </TabsTrigger>
-          <TabsTrigger value="agreements">
+          <TabsTrigger className="flex-none" value="agreements">
             <CustomerTabLabel
               count={agreementsTabCount}
               icon={FileText}
@@ -1110,7 +1146,9 @@ export default function CustomerDetailPage() {
             counterpartyErrors={documentErrorsByCounterpartyId}
             counterparties={workspace.counterparties}
             deletingDocumentKey={deletingDocumentKey}
-            downloadingContractCounterpartyId={downloadingContractCounterpartyId}
+            downloadingContractCounterpartyId={
+              downloadingContractCounterpartyId
+            }
             hasActiveAgreement={hasCustomerAgreement}
             loadingByCounterpartyId={loadingDocumentsByCounterpartyId}
             onContractLangChange={setContractLang}
@@ -1187,10 +1225,10 @@ export default function CustomerDetailPage() {
       <Dialog open={agreementPickerOpen} onOpenChange={setAgreementPickerOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Выберите субъекта для договора</DialogTitle>
+            <DialogTitle>Выберите контрагента для договора</DialogTitle>
             <DialogDescription>
               Договор хранится на уровне клиента, но создание запускается из
-              контекста одного из его субъектов сделки.
+              контекста одного из его контрагентов.
             </DialogDescription>
           </DialogHeader>
 
@@ -1202,7 +1240,11 @@ export default function CustomerDetailPage() {
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Выберите субъекта" />
+                <SelectValue placeholder="Выберите контрагента">
+                  {agreementPickerCounterparty
+                    ? getCounterpartyLabel(agreementPickerCounterparty)
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {workspace.counterparties.map((counterparty) => (
@@ -1210,7 +1252,7 @@ export default function CustomerDetailPage() {
                     key={counterparty.counterpartyId}
                     value={counterparty.counterpartyId}
                   >
-                    {counterparty.shortName}
+                    {getCounterpartyLabel(counterparty)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1248,10 +1290,9 @@ export default function CustomerDetailPage() {
       >
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Выберите субъекта для реквизита</DialogTitle>
+            <DialogTitle>Выберите контрагента для реквизита</DialogTitle>
             <DialogDescription>
-              Новый реквизит нужно привязать к одному из субъектов сделки
-              клиента.
+              Новый реквизит нужно привязать к одному из контрагентов клиента.
             </DialogDescription>
           </DialogHeader>
 
@@ -1263,7 +1304,11 @@ export default function CustomerDetailPage() {
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Выберите субъекта" />
+                <SelectValue placeholder="Выберите контрагента">
+                  {requisiteOwnerPickerCounterparty
+                    ? getCounterpartyLabel(requisiteOwnerPickerCounterparty)
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {workspace.counterparties.map((counterparty) => (
@@ -1271,7 +1316,7 @@ export default function CustomerDetailPage() {
                     key={counterparty.counterpartyId}
                     value={counterparty.counterpartyId}
                   >
-                    {counterparty.shortName}
+                    {getCounterpartyLabel(counterparty)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1319,8 +1364,8 @@ export default function CustomerDetailPage() {
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
               {uploadTargetCounterparty
-                ? `Документ будет привязан к субъекту "${uploadTargetCounterparty.shortName}".`
-                : "Документ будет привязан к выбранному субъекту сделки."}
+                ? `Документ будет привязан к контрагенту "${uploadTargetCounterparty.shortName}".`
+                : "Документ будет привязан к выбранному контрагенту."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1451,9 +1496,12 @@ function CustomerTabLabel(props: {
       <Icon className="h-4 w-4" />
       <span>{label}</span>
       {typeof count === "number" ? (
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+        <Badge
+          variant="ghost"
+          className="h-5 min-w-5 px-1.5 text-[11px] rounded-sm"
+        >
           {count}
-        </span>
+        </Badge>
       ) : null}
     </>
   );
@@ -1533,8 +1581,7 @@ function CounterpartiesTab(props: {
       },
       {
         accessorKey: "country",
-        cell: ({ row }) =>
-          row.original.country?.trim().toUpperCase() || "—",
+        cell: ({ row }) => row.original.country?.trim().toUpperCase() || "—",
         header: ({ column }) => (
           <DataTableColumnHeader column={column} label="Страна" />
         ),
@@ -1598,15 +1645,15 @@ function CounterpartiesTab(props: {
             <Handshake className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-1">
-            <p className="font-medium">У клиента пока нет субъектов сделки</p>
+            <p className="font-medium">У клиента пока нет контрагентов</p>
             <p className="text-sm text-muted-foreground">
-              Добавьте первый субъект, чтобы настроить реквизиты, документы и
-              договоры.
+              Добавьте первого контрагента, чтобы настроить реквизиты, документы
+              и договоры.
             </p>
           </div>
           <Button type="button" onClick={onAdd}>
             <Plus className="mr-2 h-4 w-4" />
-            Добавить субъекта
+            Добавить контрагента
           </Button>
         </CardContent>
       </Card>
@@ -1617,14 +1664,14 @@ function CounterpartiesTab(props: {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
         <div className="space-y-1">
-          <CardTitle className="text-base">Counterparties</CardTitle>
+          <CardTitle className="text-base">Контрагенты</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Все субъекты сделки клиента в одном списке.
+            Все контрагенты клиента в одном списке.
           </p>
         </div>
         <Button type="button" onClick={onAdd}>
           <Plus className="mr-2 h-4 w-4" />
-          Добавить субъекта
+          Добавить контрагента
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1665,11 +1712,11 @@ function RequisitesTab(props: {
       {
         accessorKey: "counterpartyName",
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} label="Субъект" />
+          <DataTableColumnHeader column={column} label="Контрагент" />
         ),
         meta: {
-          label: "Субъект",
-          placeholder: "Поиск по субъекту...",
+          label: "Контрагент",
+          placeholder: "Поиск по контрагенту...",
           variant: "text",
         },
       },
@@ -1692,7 +1739,9 @@ function RequisitesTab(props: {
       },
       {
         accessorKey: "currencyCode",
-        cell: ({ row }) => <Badge variant="secondary">{row.original.currencyCode}</Badge>,
+        cell: ({ row }) => (
+          <Badge variant="secondary">{row.original.currencyCode}</Badge>
+        ),
         header: ({ column }) => (
           <DataTableColumnHeader column={column} label="Валюта" />
         ),
@@ -1758,7 +1807,7 @@ function RequisitesTab(props: {
     return (
       <Card className="border-dashed">
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Сначала добавьте субъект сделки, чтобы создать для него реквизиты.
+          Сначала добавьте контрагента, чтобы создать для него реквизиты.
         </CardContent>
       </Card>
     );
@@ -1768,15 +1817,12 @@ function RequisitesTab(props: {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
         <div className="space-y-1">
-          <CardTitle className="text-base">Requisites</CardTitle>
+          <CardTitle className="text-base">Реквизиты</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Банковские реквизиты всех субъектов сделки клиента.
+            Банковские реквизиты всех контрагентов клиента.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={onAdd}
-        >
+        <Button type="button" onClick={onAdd}>
           <Plus className="mr-2 h-4 w-4" />
           Добавить реквизит
         </Button>
@@ -1797,9 +1843,11 @@ function RequisitesTab(props: {
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
               <Wallet className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="font-medium">У клиента пока нет банковских реквизитов</p>
+            <p className="font-medium">
+              У клиента пока нет банковских реквизитов
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Создайте первый реквизит и привяжите его к нужному субъекту.
+              Создайте первый реквизит и привяжите его к нужному контрагенту.
             </p>
           </div>
         ) : (
@@ -1835,10 +1883,7 @@ function DocumentsTab(props: {
     counterpartyId: string,
     documentId: ClientDocument["id"],
   ) => void;
-  onDownloadContract: (
-    counterpartyId: string,
-    format: "docx" | "pdf",
-  ) => void;
+  onDownloadContract: (counterpartyId: string, format: "docx" | "pdf") => void;
   onDownloadDocument: (
     counterpartyId: string,
     document: ClientDocument,
@@ -1867,7 +1912,7 @@ function DocumentsTab(props: {
     return (
       <Card className="border-dashed">
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Документы появятся после добавления субъектов сделки.
+          Документы появятся после добавления контрагентов.
         </CardContent>
       </Card>
     );
@@ -1878,9 +1923,9 @@ function DocumentsTab(props: {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
           <div className="space-y-1">
-            <CardTitle className="text-base">Documents</CardTitle>
+            <CardTitle className="text-base">Документы</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Документы и шаблоны договоров сгруппированы по субъектам сделки.
+              Документы и шаблоны договоров сгруппированы по контрагентам.
             </p>
           </div>
           <div className="w-full max-w-[180px] space-y-1">
@@ -1924,7 +1969,7 @@ function DocumentsTab(props: {
                     {counterparty.shortName}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Документы субъекта сделки и выгрузка шаблона договора.
+                    Документы контрагента и выгрузка шаблона договора.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1963,7 +2008,9 @@ function DocumentsTab(props: {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onUploadDocument(counterparty.counterpartyId)}
+                    onClick={() =>
+                      onUploadDocument(counterparty.counterpartyId)
+                    }
                     type="button"
                   >
                     <UploadIcon className="mr-2 h-4 w-4" />
@@ -2005,14 +2052,18 @@ function DocumentsTab(props: {
                       className="flex items-center justify-between gap-3 rounded-lg border p-3"
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <div className="shrink-0">{getFileIcon(document.mimeType)}</div>
+                        <div className="shrink-0">
+                          {getFileIcon(document.mimeType)}
+                        </div>
                         <div className="min-w-0">
                           <p className="truncate font-medium">
                             {document.fileName}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {formatFileSize(document.fileSize)} •{" "}
-                            {new Date(document.createdAt).toLocaleString("ru-RU")}
+                            {new Date(document.createdAt).toLocaleString(
+                              "ru-RU",
+                            )}
                           </p>
                           {document.description ? (
                             <p className="truncate text-xs text-muted-foreground">
@@ -2026,7 +2077,10 @@ function DocumentsTab(props: {
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            onDownloadDocument(counterparty.counterpartyId, document)
+                            onDownloadDocument(
+                              counterparty.counterpartyId,
+                              document,
+                            )
                           }
                           type="button"
                         >

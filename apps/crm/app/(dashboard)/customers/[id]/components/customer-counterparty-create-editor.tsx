@@ -39,16 +39,16 @@ const INITIAL_VALUES: CounterpartyGeneralFormValues = {
   groupIds: [],
 };
 
-function getSubjectDetailsCopy(kind: "individual" | "legal_entity") {
+function getCounterpartyDetailsCopy(kind: "individual" | "legal_entity") {
   return kind === "individual"
     ? {
         description:
-          "Идентификаторы, адрес, контакты и англоязычные поля будущего субъекта сделки.",
-        title: "Детали субъекта",
+          "Идентификаторы, адрес, контакты и англоязычные поля будущего контрагента.",
+        title: "Детали контрагента",
       }
     : {
         description:
-          "Юридические реквизиты, идентификаторы, адрес, контакты, представители и лицензии будущего субъекта сделки.",
+          "Юридические реквизиты, идентификаторы, адрес, контакты, представители и лицензии будущего контрагента.",
         title: "Юридические и контактные данные",
       };
 }
@@ -86,7 +86,7 @@ export function CustomerCounterpartyCreateEditor({
 
         const response = await apiClient.v1["counterparty-groups"].options.$get({});
         if (!response.ok) {
-          throw new Error("Не удалось загрузить группы субъектов");
+          throw new Error("Не удалось загрузить группы контрагентов");
         }
 
         const payload = await readJsonWithSchema(
@@ -102,7 +102,7 @@ export function CustomerCounterpartyCreateEditor({
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "Не удалось загрузить группы субъектов",
+              : "Не удалось загрузить группы контрагентов",
           );
         }
       } finally {
@@ -145,15 +145,15 @@ export function CustomerCounterpartyCreateEditor({
 
   if (loading) {
     return (
-      <Card>
+        <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Загрузка формы создания субъекта...
+          Загрузка формы создания контрагента...
         </CardContent>
       </Card>
     );
   }
 
-  const subjectDetailsCopy = getSubjectDetailsCopy(generalValues.kind);
+  const counterpartyDetailsCopy = getCounterpartyDetailsCopy(generalValues.kind);
 
   return (
     <div className="space-y-6">
@@ -205,7 +205,7 @@ export function CustomerCounterpartyCreateEditor({
                   },
                 },
               }),
-            fallbackMessage: "Ошибка создания субъекта",
+            fallbackMessage: "Ошибка создания контрагента",
             parseData: async (response) =>
               readJsonWithSchema(response, CreatedCounterpartySchema),
           });
@@ -223,17 +223,17 @@ export function CustomerCounterpartyCreateEditor({
           return values;
         }}
         onShortNameChange={() => {}}
-        description="Базовая карточка нового субъекта сделки: как он будет называться, в какой стране работает и как отображается в CRM."
-        submitLabel="Создать субъекта"
+        description="Базовая карточка нового контрагента: как он будет называться, в какой стране работает и как отображается в CRM."
+        submitLabel="Создать контрагента"
         submittingLabel="Создание..."
         disableSubmitUntilDirty={false}
         showGroups={false}
         showDates={false}
-        title="Карточка субъекта"
+        title="Карточка контрагента"
       />
       <PartyProfileEditor
         bundle={partyProfileDraft}
-        description={subjectDetailsCopy.description}
+        description={counterpartyDetailsCopy.description}
         localizedTextVariant={localizedTextVariant}
         partyKind={generalValues.kind}
         seed={partyProfileSeed}
@@ -246,7 +246,7 @@ export function CustomerCounterpartyCreateEditor({
         onChange={(bundle) => {
           setPartyProfileDraft(bundle);
         }}
-        title={subjectDetailsCopy.title}
+        title={counterpartyDetailsCopy.title}
       />
     </div>
   );

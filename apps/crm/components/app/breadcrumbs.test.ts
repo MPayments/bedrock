@@ -109,10 +109,10 @@ describe("buildCrmBreadcrumbs", () => {
         label: "Клиент",
       },
       {
-        href: "/customers/customer-1/counterparties",
+        href: "/customers/customer-1?tab=counterparties",
         icon: "counterparty",
         iconOnly: false,
-        label: "Субъекты сделки",
+        label: "Контрагенты",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
@@ -205,10 +205,10 @@ describe("buildCrmBreadcrumbs", () => {
         label: "Acme Trade",
       },
       {
-        href: "/customers/customer-1/counterparties",
+        href: "/customers/customer-1?tab=counterparties",
         icon: "counterparty",
         iconOnly: false,
-        label: "Субъекты сделки",
+        label: "Контрагенты",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
@@ -240,16 +240,48 @@ describe("buildCrmBreadcrumbs", () => {
         label: "Клиент",
       },
       {
-        href: "/customers/customer-1/counterparties",
+        href: "/customers/customer-1?tab=counterparties",
         icon: "counterparty",
         iconOnly: false,
-        label: "Субъекты сделки",
+        label: "Контрагенты",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
         icon: "counterparty",
         iconOnly: false,
         label: "Контрагент",
+      },
+    ]);
+  });
+
+  it("links the counterparty create page back to the customer tab", () => {
+    expect(
+      summarizeBreadcrumbs("/customers/customer-1/counterparties/new"),
+    ).toEqual([
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/customer-1",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиент",
+      },
+      {
+        href: "/customers/customer-1?tab=counterparties",
+        icon: "counterparty",
+        iconOnly: false,
+        label: "Контрагенты",
+      },
+      {
+        href: "/customers/customer-1/counterparties/new",
+        icon: "counterparty",
+        iconOnly: false,
+        label: "Новый контрагент",
       },
     ]);
   });
