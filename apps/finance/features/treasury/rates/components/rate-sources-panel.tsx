@@ -67,7 +67,7 @@ export function RateSourcesPanel({ initialSources }: RateSourcesPanelProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-3">
       {initialSources.map((source) => (
         <Card key={source.source} className="rounded-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
