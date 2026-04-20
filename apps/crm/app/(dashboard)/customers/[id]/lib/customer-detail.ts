@@ -17,6 +17,7 @@ export type CustomerCounterparty = {
   externalRef: string | null;
   fullName: string;
   inn: string | null;
+  kind: "individual" | "legal_entity";
   orgName: string;
   relationshipKind: "customer_owned" | "external";
   shortName: string;
@@ -37,6 +38,16 @@ export type CustomerWorkspaceDetail = {
   primaryCounterpartyId: string | null;
   updatedAt: string;
 };
+
+export const CUSTOMER_DETAIL_TABS = [
+  "common",
+  "counterparties",
+  "requisites",
+  "documents",
+  "agreements",
+] as const;
+
+export type CustomerDetailTab = (typeof CUSTOMER_DETAIL_TABS)[number];
 
 export const ClientDocumentSchema = z.object({
   createdAt: z.iso.datetime(),
@@ -88,51 +99,49 @@ export function isPrimaryCounterparty(
   );
 }
 
-export function resolveActiveCounterpartyId(input: {
-  counterparties: CustomerCounterparty[];
-  primaryCounterpartyId: string | null;
-  requestedCounterpartyId: string | null;
-}) {
-  if (input.counterparties.length === 0) {
-    return null;
+export function normalizeCustomerDetailTab(
+  value: string | null | undefined,
+): CustomerDetailTab {
+  if (value && CUSTOMER_DETAIL_TABS.includes(value as CustomerDetailTab)) {
+    return value as CustomerDetailTab;
   }
 
-  if (
-    input.requestedCounterpartyId &&
-    input.counterparties.some(
-      (partyProfile) =>
-        partyProfile.counterpartyId === input.requestedCounterpartyId,
-    )
-  ) {
-    return input.requestedCounterpartyId;
-  }
-
-  if (
-    input.primaryCounterpartyId &&
-    input.counterparties.some(
-      (partyProfile) =>
-        partyProfile.counterpartyId === input.primaryCounterpartyId,
-    )
-  ) {
-    return input.primaryCounterpartyId;
-  }
-
-  return input.counterparties[0]?.counterpartyId ?? null;
+  return "common";
 }
 
-export function buildCustomerEntityHref(input: {
-  counterpartyId: string | null;
+export function buildCustomerTabHref(input: {
   pathname: string;
   searchParams: URLSearchParams;
+  tab: CustomerDetailTab;
 }) {
   const nextSearchParams = new URLSearchParams(input.searchParams.toString());
+  nextSearchParams.delete("entity");
 
-  if (input.counterpartyId) {
-    nextSearchParams.set("entity", input.counterpartyId);
+  if (input.tab === "common") {
+    nextSearchParams.delete("tab");
   } else {
-    nextSearchParams.delete("entity");
+    nextSearchParams.set("tab", input.tab);
   }
 
   const query = nextSearchParams.toString();
   return query.length > 0 ? `${input.pathname}?${query}` : input.pathname;
+}
+
+export function buildCustomerCounterpartiesTabHref(customerId: string) {
+  return buildCustomerTabHref({
+    pathname: `/customers/${customerId}`,
+    searchParams: new URLSearchParams(),
+    tab: "counterparties",
+  });
+}
+
+export function buildCustomerCounterpartyCreateHref(customerId: string) {
+  return `/customers/${customerId}/counterparties/new`;
+}
+
+export function buildCustomerCounterpartyDetailsHref(
+  customerId: string,
+  counterpartyId: string,
+) {
+  return `/customers/${customerId}/counterparties/${counterpartyId}`;
 }

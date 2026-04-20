@@ -48,6 +48,7 @@ const CounterpartyDetailSchema = z.object({
   externalRef: z.string().nullable(),
   relationshipKind: z.enum(["customer_owned", "external"]),
   country: z.string().nullable(),
+  kind: z.enum(["individual", "legal_entity"]),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   partyProfile: z
@@ -88,10 +89,46 @@ const CounterpartyAssignmentSchema = z.object({
 const AgreementsListResponseSchema = z.object({
   data: z.array(
     z.object({
+      createdAt: z.iso.datetime(),
+      currentVersion: z.object({
+        contractNumber: z.string().nullable(),
+        versionNumber: z.number().int(),
+      }),
+      id: z.uuid(),
       isActive: z.boolean(),
+      updatedAt: z.iso.datetime(),
     }),
   ),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
 });
+
+const AgreementFeeRuleSchema = z.object({
+  currencyCode: z.string().nullable(),
+  id: z.uuid(),
+  kind: z.enum(["agent_fee", "fixed_fee"]),
+  unit: z.enum(["bps", "money"]),
+  value: z.string(),
+});
+
+const CustomerAgreementDetailSchema = z.object({
+  createdAt: z.iso.datetime(),
+  currentVersion: z.object({
+    contractDate: z.string().nullable(),
+    contractNumber: z.string().nullable(),
+    feeRules: z.array(AgreementFeeRuleSchema),
+    id: z.uuid(),
+    versionNumber: z.number().int(),
+  }),
+  id: z.uuid(),
+  isActive: z.boolean(),
+  organizationId: z.uuid(),
+  organizationRequisiteId: z.uuid(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type CustomerAgreementDetail = z.infer<typeof CustomerAgreementDetailSchema>;
 
 function buildCounterpartyDocumentsBasePath(
   customerId: string,
@@ -143,6 +180,7 @@ function mapCustomerCounterparty(input: {
     externalRef: input.counterparty.externalRef,
     fullName: input.counterparty.fullName,
     inn: findIdentifier(input.counterparty, "inn"),
+    kind: input.counterparty.kind,
     orgName: input.counterparty.shortName,
     relationshipKind: input.counterparty.relationshipKind,
     shortName: input.counterparty.shortName,
@@ -441,5 +479,49 @@ export async function downloadCustomerCounterpartyContract(input: {
     }),
     { method: "GET" },
     "Ошибка скачивания договора",
+  );
+}
+
+export async function listCustomerAgreements(
+  customerId: string,
+): Promise<CustomerAgreementDetail[]> {
+  const listResponse = await apiClient.v1.agreements.$get({
+    query: {
+      customerId,
+      limit: 100,
+      offset: 0,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    },
+  });
+
+  if (!listResponse.ok) {
+    throw new Error(
+      await resolveErrorMessage(listResponse, "Не удалось загрузить договоры"),
+    );
+  }
+
+  const payload = await readJsonWithSchema(
+    listResponse,
+    AgreementsListResponseSchema,
+  );
+
+  return Promise.all(
+    payload.data.map(async (agreement) => {
+      const detailResponse = await apiClient.v1.agreements[":id"].$get({
+        param: { id: agreement.id },
+      });
+
+      if (!detailResponse.ok) {
+        throw new Error(
+          await resolveErrorMessage(
+            detailResponse,
+            "Не удалось загрузить договор",
+          ),
+        );
+      }
+
+      return readJsonWithSchema(detailResponse, CustomerAgreementDetailSchema);
+    }),
   );
 }

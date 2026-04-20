@@ -1,19 +1,59 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, ChevronLeft, Loader2, X } from "lucide-react";
+import {
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  type VisibilityState,
+  getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  AlertCircle,
+  Building2,
+  Download,
+  File,
+  FileImage,
+  FileText,
+  FileType,
+  Handshake,
+  Loader2,
+  Paperclip,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload as UploadIcon,
+  Wallet,
+  X,
+} from "lucide-react";
 import {
   useParams,
   usePathname,
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
+import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
+import { DataTableToolbar } from "@bedrock/sdk-tables-ui/components/data-table-toolbar";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -22,20 +62,54 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@bedrock/sdk-ui/components/dialog";
-
-import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
-import { CustomerDetailHeader } from "./components/customer-detail-header";
-import { CustomerCounterpartyPanel } from "./components/customer-counterparty-panel";
-import { CustomerSummaryCard } from "./components/customer-summary-card";
-import { PendingEntitySwitchDialog } from "./components/pending-entity-switch-dialog";
 import {
-  buildCustomerEntityHref,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@bedrock/sdk-ui/components/tabs";
+
+import { NewContractDialog, type ContractDialogInitialValues } from "@/components/dashboard/NewContractDialog";
+import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatAgreementFeeRuleLabel } from "@/lib/utils/agreement-fee-format";
+import { formatDate } from "@/lib/utils/currency";
+import { CounterpartyBankRequisitesWorkspace } from "./components/counterparty-bank-requisites-workspace";
+import { CustomerDetailHeader } from "./components/customer-detail-header";
+import { CustomerSummaryCard } from "./components/customer-summary-card";
+import {
+  formatBankRequisiteIdentity,
+  getBankProviderLabel,
+} from "./lib/counterparty-bank-requisites";
+import {
+  buildCustomerCounterpartyCreateHref,
+  buildCustomerCounterpartyDetailsHref,
+  buildCustomerTabHref,
   customerFormSchema,
   customerToFormValues,
+  isPrimaryCounterparty,
+  normalizeCustomerDetailTab,
   type ClientDocument,
+  type CustomerCounterparty,
+  type CustomerDetailTab,
   type CustomerFormData,
   type CustomerWorkspaceDetail,
-  resolveActiveCounterpartyId,
 } from "./lib/customer-detail";
 import {
   archiveCustomer,
@@ -43,10 +117,17 @@ import {
   downloadCustomerCounterpartyContract,
   downloadCustomerCounterpartyDocument,
   getCustomerWorkspace,
+  listCustomerAgreements,
   listCustomerCounterpartyDocuments,
+  type CustomerAgreementDetail,
   updateCustomerWorkspace,
   uploadCustomerCounterpartyDocument,
 } from "./lib/customer-workspace-api";
+import {
+  loadCounterpartyBankRequisitesReferenceData,
+  listCounterpartyBankRequisites,
+  type CounterpartyBankRequisitesReferenceData,
+} from "./lib/use-counterparty-bank-requisites";
 
 function normalizeOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -64,7 +145,8 @@ async function downloadResponseAsFile(
 
   const contentDisposition = response.headers.get("Content-Disposition");
   const matchedFileName =
-    contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackFileName;
+    contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ??
+    fallbackFileName;
   anchor.download = decodeURIComponent(matchedFileName);
 
   document.body.appendChild(anchor);
@@ -73,10 +155,164 @@ async function downloadResponseAsFile(
   document.body.removeChild(anchor);
 }
 
-type PendingEntitySwitch = {
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
+
+  const units = ["Bytes", "KB", "MB", "GB"];
+  const unitIndex = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${Math.round((bytes / Math.pow(1024, unitIndex)) * 100) / 100} ${
+    units[unitIndex]
+  }`;
+}
+
+function getFileIcon(mimeType: string) {
+  if (mimeType.startsWith("image/")) {
+    return <FileImage className="h-5 w-5" />;
+  }
+
+  if (mimeType === "application/pdf") {
+    return <FileText className="h-5 w-5" />;
+  }
+
+  if (mimeType.includes("word") || mimeType.includes("document")) {
+    return <FileType className="h-5 w-5" />;
+  }
+
+  if (mimeType === "application/zip") {
+    return <File className="h-5 w-5" />;
+  }
+
+  return <Paperclip className="h-5 w-5" />;
+}
+
+function getDefaultCounterparty(
+  counterparties: CustomerCounterparty[],
+  primaryCounterpartyId: string | null,
+) {
+  return (
+    counterparties.find(
+      (counterparty) => counterparty.counterpartyId === primaryCounterpartyId,
+    ) ??
+    counterparties[0] ??
+    null
+  );
+}
+
+function trimLeadingZeros(value: string) {
+  const trimmed = value.replace(/^0+(?=\d)/, "");
+  return trimmed.length > 0 ? trimmed : "0";
+}
+
+function normalizePositiveDecimalString(value: string) {
+  const trimmed = value.trim();
+  if (!/^\d+(?:\.\d+)?$/u.test(trimmed)) {
+    return null;
+  }
+
+  const [wholeRaw = "0", fractionRaw = ""] = trimmed.split(".");
+  const whole = trimLeadingZeros(wholeRaw);
+  const fraction = fractionRaw.replace(/0+$/u, "");
+
+  return fraction.length > 0 ? `${whole}.${fraction}` : whole;
+}
+
+function shiftPositiveDecimalString(value: string, decimalPlaces: number) {
+  const normalized = normalizePositiveDecimalString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const [wholeRaw = "0", fractionRaw = ""] = normalized.split(".");
+  const digits = `${wholeRaw}${fractionRaw}`.replace(/^0+(?=\d)/u, "") || "0";
+  const nextScale = fractionRaw.length - decimalPlaces;
+
+  if (digits === "0") {
+    return "0";
+  }
+
+  if (nextScale <= 0) {
+    return normalizePositiveDecimalString(`${digits}${"0".repeat(-nextScale)}`);
+  }
+
+  if (nextScale >= digits.length) {
+    return normalizePositiveDecimalString(
+      `0.${"0".repeat(nextScale - digits.length)}${digits}`,
+    );
+  }
+
+  const integerPart = digits.slice(0, digits.length - nextScale);
+  const fractionPart = digits.slice(digits.length - nextScale);
+
+  return normalizePositiveDecimalString(`${integerPart}.${fractionPart}`);
+}
+
+function formatDateShort(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getAgreementDialogInitialValues(
+  agreement: CustomerAgreementDetail,
+): ContractDialogInitialValues {
+  const agentFeeRule = agreement.currentVersion.feeRules.find(
+    (rule) => rule.kind === "agent_fee",
+  );
+  const fixedFeeRule = agreement.currentVersion.feeRules.find(
+    (rule) => rule.kind === "fixed_fee",
+  );
+
+  return {
+    agentFee: agentFeeRule
+      ? (shiftPositiveDecimalString(agentFeeRule.value, -2) ?? "")
+      : "",
+    fixedFee: fixedFeeRule?.value ?? "",
+    organizationId: agreement.organizationId,
+    organizationRequisiteId: agreement.organizationRequisiteId,
+  };
+}
+
+type RequisiteDialogState =
+  | {
+      counterpartyId: string;
+      counterpartyName: string;
+      initialMode: "create" | "existing";
+      initialRequisiteId: string | null;
+      key: number;
+    }
+  | null;
+
+type ContractDialogState =
+  | {
+      counterpartyId: string;
+      initialValues: ContractDialogInitialValues | null;
+    }
+  | null;
+
+type RequisiteTableRow = {
   counterpartyId: string;
-  mode: "push" | "replace";
-} | null;
+  counterpartyName: string;
+  currencyCode: string;
+  id: string;
+  identity: string;
+  isDefault: boolean;
+  label: string;
+  providerLabel: string;
+  updatedAt: string;
+};
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -84,81 +320,111 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const customerId = params.id as string;
-  const entityParam = searchParams.get("entity");
+  const activeTab = normalizeCustomerDetailTab(searchParams.get("tab"));
 
   const [workspace, setWorkspace] = useState<CustomerWorkspaceDetail | null>(
     null,
   );
-  const [activeCounterpartyId, setActiveCounterpartyId] = useState<
-    string | null
-  >(null);
-  const [pendingEntitySwitch, setPendingEntitySwitch] =
-    useState<PendingEntitySwitch>(null);
-  const [entitySwitchDialogOpen, setEntitySwitchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerSaving, setCustomerSaving] = useState(false);
-  const [counterpartyDirty, setCounterpartyDirty] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<ClientDocument[]>([]);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
-  const [uploadingDocument, setUploadingDocument] = useState(false);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<
-    ClientDocument["id"] | null
+  const [emptyAlertDismissed, setEmptyAlertDismissed] = useState(false);
+  const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
+
+  const [requisiteDialogState, setRequisiteDialogState] =
+    useState<RequisiteDialogState>(null);
+  const [requisiteDialogDirty, setRequisiteDialogDirty] = useState(false);
+  const [requisiteCloseDialogOpen, setRequisiteCloseDialogOpen] =
+    useState(false);
+  const [requisiteOwnerPickerOpen, setRequisiteOwnerPickerOpen] =
+    useState(false);
+  const [requisiteOwnerPickerCounterpartyId, setRequisiteOwnerPickerCounterpartyId] =
+    useState("");
+
+  const [requisiteReferenceData, setRequisiteReferenceData] =
+    useState<CounterpartyBankRequisitesReferenceData | null>(null);
+  const [requisiteRows, setRequisiteRows] = useState<RequisiteTableRow[]>([]);
+  const [requisitesTableLoading, setRequisitesTableLoading] = useState(false);
+  const [requisitesTableError, setRequisitesTableError] = useState<
+    string | null
   >(null);
-  const [contractDialogOpen, setContractDialogOpen] = useState(false);
-  const [downloadingContract, setDownloadingContract] = useState(false);
-  const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
+  const [requisitesReloadKey, setRequisitesReloadKey] = useState(0);
+
+  const [documentsByCounterpartyId, setDocumentsByCounterpartyId] = useState<
+    Record<string, ClientDocument[]>
+  >({});
+  const [documentErrorsByCounterpartyId, setDocumentErrorsByCounterpartyId] =
+    useState<Record<string, string>>({});
+  const [loadingDocumentsByCounterpartyId, setLoadingDocumentsByCounterpartyId] =
+    useState<Record<string, boolean>>({});
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadTargetCounterpartyId, setUploadTargetCounterpartyId] = useState<
+    string | null
+  >(null);
   const [uploadDocumentFile, setUploadDocumentFile] = useState<File | null>(
     null,
   );
   const [uploadDocumentDescription, setUploadDocumentDescription] =
     useState("");
-  const [creatingCounterpartyMode, setCreatingCounterpartyMode] = useState(false);
-  const [emptyAlertDismissed, setEmptyAlertDismissed] = useState(false);
-  const [agreementAlertDismissed, setAgreementAlertDismissed] = useState(false);
-  const [requisitesDirty, setRequisitesDirty] = useState(false);
-  const [requisitesResetSignal, setRequisitesResetSignal] = useState(0);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [deletingDocumentKey, setDeletingDocumentKey] = useState<string | null>(
+    null,
+  );
+  const [downloadingContractCounterpartyId, setDownloadingContractCounterpartyId] =
+    useState<string | null>(null);
+  const [contractLang, setContractLang] = useState<"ru" | "en">("ru");
+
+  const [agreements, setAgreements] = useState<CustomerAgreementDetail[]>([]);
+  const [agreementsLoading, setAgreementsLoading] = useState(false);
+  const [agreementsError, setAgreementsError] = useState<string | null>(null);
+
+  useCrmBreadcrumbs(
+    workspace
+      ? [
+          {
+            href: `/customers/${customerId}`,
+            label: workspace.name,
+          },
+        ]
+      : [],
+  );
+  const [agreementsReloadKey, setAgreementsReloadKey] = useState(0);
+  const [agreementPickerOpen, setAgreementPickerOpen] = useState(false);
+  const [agreementPickerCounterpartyId, setAgreementPickerCounterpartyId] =
+    useState("");
+  const [contractDialogState, setContractDialogState] =
+    useState<ContractDialogState>(null);
 
   const customerForm = useForm<CustomerFormData>({
     defaultValues: customerToFormValues(null),
     resolver: zodResolver(customerFormSchema) as never,
   });
 
-  const resolvedActiveCounterpartyId = useMemo(() => {
-    if (!workspace) {
-      return null;
-    }
-
-    return resolveActiveCounterpartyId({
-      counterparties: workspace.counterparties,
-      primaryCounterpartyId: workspace.primaryCounterpartyId,
-      requestedCounterpartyId: entityParam,
-    });
-  }, [entityParam, workspace]);
-
-  const selectedCounterparty = useMemo(() => {
-    const targetCounterpartyId =
-      activeCounterpartyId ?? resolvedActiveCounterpartyId;
-
-    if (!workspace || !targetCounterpartyId) {
-      return null;
-    }
-
-    return (
-      workspace.counterparties.find(
-        (partyProfile) => partyProfile.counterpartyId === targetCounterpartyId,
-      ) ?? null
-    );
-  }, [activeCounterpartyId, resolvedActiveCounterpartyId, workspace]);
-
   const customerDirty = customerForm.formState.isDirty;
-  const hasUnsavedChanges =
-    customerDirty || counterpartyDirty || requisitesDirty;
   const hasCustomerAgreement = workspace?.hasActiveAgreement ?? false;
+  const activeAgreement =
+    agreements.find((agreement) => agreement.isActive) ?? null;
+  const defaultCounterparty = useMemo(
+    () =>
+      workspace
+        ? getDefaultCounterparty(
+            workspace.counterparties,
+            workspace.primaryCounterpartyId,
+          )
+        : null,
+    [workspace],
+  );
+  const requisitesTabCount = requisiteRows.length;
+  const documentsTabCount = workspace?.counterparties.length ?? 0;
+  const agreementsTabCount = agreements.length;
+  const uploadTargetCounterparty =
+    workspace?.counterparties.find(
+      (counterparty) => counterparty.counterpartyId === uploadTargetCounterpartyId,
+    ) ?? null;
   const showMissingAgreementAlert =
-    selectedCounterparty !== null &&
+    workspace !== null &&
+    workspace.counterparties.length > 0 &&
     !hasCustomerAgreement &&
     !agreementAlertDismissed;
   const showMissingLegalEntitiesAlert =
@@ -166,80 +432,17 @@ export default function CustomerDetailPage() {
     workspace.counterparties.length === 0 &&
     !emptyAlertDismissed;
 
-  const navigateToEntity = useCallback(
-    (counterpartyId: string | null, mode: "push" | "replace") => {
-      const href = buildCustomerEntityHref({
-        counterpartyId,
-        pathname,
-        searchParams: new URLSearchParams(searchParams.toString()),
-      });
-
-      if (mode === "replace") {
-        router.replace(href);
-        return;
-      }
-
-      router.push(href);
+  const switchToTab = useCallback(
+    (tab: CustomerDetailTab) => {
+      router.replace(
+        buildCustomerTabHref({
+          pathname,
+          searchParams: new URLSearchParams(searchParams.toString()),
+          tab,
+        }),
+      );
     },
     [pathname, router, searchParams],
-  );
-
-  const resetDraftsFromWorkspace = useCallback(
-    () => {
-      customerForm.reset(customerToFormValues(workspace));
-      setCounterpartyDirty(false);
-      setRequisitesDirty(false);
-      setRequisitesResetSignal((current) => current + 1);
-      setError(null);
-    },
-    [customerForm, workspace],
-  );
-
-  const requestEntityChange = useCallback(
-    (counterpartyId: string, mode: "push" | "replace" = "push") => {
-      if (
-        !counterpartyId ||
-        counterpartyId === activeCounterpartyId ||
-        !workspace
-      ) {
-        return;
-      }
-
-      if (hasUnsavedChanges) {
-        setPendingEntitySwitch({ counterpartyId, mode });
-        setEntitySwitchDialogOpen(true);
-        return;
-      }
-
-      navigateToEntity(counterpartyId, mode);
-    },
-    [activeCounterpartyId, hasUnsavedChanges, navigateToEntity, workspace],
-  );
-
-  const fetchDocuments = useCallback(
-    async (counterpartyId: string | null) => {
-      if (!counterpartyId) {
-        setDocuments([]);
-        return;
-      }
-
-      try {
-        setLoadingDocuments(true);
-        setDocuments(
-          await listCustomerCounterpartyDocuments(customerId, counterpartyId),
-        );
-      } catch (fetchError) {
-        console.error("Failed to fetch documents", fetchError);
-        setError(
-          fetchError instanceof Error
-            ? fetchError.message
-            : "Не удалось загрузить документы",
-        );
-      } finally {
-        setLoadingDocuments(false);
-      }
-    },
-    [customerId],
   );
 
   const fetchWorkspace = useCallback(async () => {
@@ -262,57 +465,134 @@ export default function CustomerDetailPage() {
     }
   }, [customerId]);
 
+  const fetchDocumentsForCounterparty = useCallback(
+    async (counterpartyId: string, force = false) => {
+      if (!force && documentsByCounterpartyId[counterpartyId]) {
+        return documentsByCounterpartyId[counterpartyId];
+      }
+
+      try {
+        setLoadingDocumentsByCounterpartyId((current) => ({
+          ...current,
+          [counterpartyId]: true,
+        }));
+
+        const documents = await listCustomerCounterpartyDocuments(
+          customerId,
+          counterpartyId,
+        );
+
+        setDocumentsByCounterpartyId((current) => ({
+          ...current,
+          [counterpartyId]: documents,
+        }));
+        setDocumentErrorsByCounterpartyId((current) => {
+          const next = { ...current };
+          delete next[counterpartyId];
+          return next;
+        });
+
+        return documents;
+      } catch (fetchError) {
+        console.error("Failed to fetch documents", fetchError);
+        setDocumentErrorsByCounterpartyId((current) => ({
+          ...current,
+          [counterpartyId]:
+            fetchError instanceof Error
+              ? fetchError.message
+              : "Не удалось загрузить документы",
+        }));
+        return [];
+      } finally {
+        setLoadingDocumentsByCounterpartyId((current) => ({
+          ...current,
+          [counterpartyId]: false,
+        }));
+      }
+    },
+    [customerId, documentsByCounterpartyId],
+  );
+
+  const loadAgreements = useCallback(async () => {
+    try {
+      setAgreementsLoading(true);
+      setAgreementsError(null);
+      setAgreements(await listCustomerAgreements(customerId));
+    } catch (loadError) {
+      console.error("Failed to load customer agreements", loadError);
+      setAgreementsError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Не удалось загрузить договоры",
+      );
+    } finally {
+      setAgreementsLoading(false);
+    }
+  }, [customerId]);
+
+  const loadRequisitesTable = useCallback(async () => {
+    if (!workspace) {
+      return;
+    }
+
+    try {
+      setRequisitesTableLoading(true);
+      setRequisitesTableError(null);
+
+      const referenceData =
+        requisiteReferenceData ??
+        (await loadCounterpartyBankRequisitesReferenceData());
+
+      if (!requisiteReferenceData) {
+        setRequisiteReferenceData(referenceData);
+      }
+
+      const rows = (
+        await Promise.all(
+          workspace.counterparties.map(async (counterparty) => {
+            const requisites = await listCounterpartyBankRequisites(
+              counterparty.counterpartyId,
+            );
+
+            return requisites.map((requisite) => ({
+              counterpartyId: counterparty.counterpartyId,
+              counterpartyName: counterparty.shortName,
+              currencyCode:
+                referenceData.currencyOptions.find(
+                  (currency) => currency.id === requisite.currencyId,
+                )?.code ?? "—",
+              id: requisite.id,
+              identity: formatBankRequisiteIdentity(requisite),
+              isDefault: requisite.isDefault,
+              label: requisite.label,
+              providerLabel: getBankProviderLabel(
+                requisite,
+                referenceData.providerOptions,
+              ),
+              updatedAt: requisite.updatedAt,
+            }));
+          }),
+        )
+      )
+        .flat()
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+      setRequisiteRows(rows);
+    } catch (loadError) {
+      console.error("Failed to load requisites table", loadError);
+      setRequisitesTableError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Не удалось загрузить реквизиты",
+      );
+    } finally {
+      setRequisitesTableLoading(false);
+    }
+  }, [requisiteReferenceData, workspace]);
+
   useEffect(() => {
     void fetchWorkspace();
   }, [fetchWorkspace]);
-
-  useEffect(() => {
-    if (!workspace) {
-      return;
-    }
-
-    if (entityParam !== resolvedActiveCounterpartyId) {
-      navigateToEntity(resolvedActiveCounterpartyId, "replace");
-    }
-  }, [entityParam, navigateToEntity, resolvedActiveCounterpartyId, workspace]);
-
-  useEffect(() => {
-    if (!workspace) {
-      return;
-    }
-
-    if (!resolvedActiveCounterpartyId) {
-      setActiveCounterpartyId(null);
-      return;
-    }
-
-    if (activeCounterpartyId === null) {
-      setActiveCounterpartyId(resolvedActiveCounterpartyId);
-      return;
-    }
-
-    if (resolvedActiveCounterpartyId === activeCounterpartyId) {
-      return;
-    }
-
-    if (hasUnsavedChanges) {
-      setPendingEntitySwitch({
-        counterpartyId: resolvedActiveCounterpartyId,
-        mode: "replace",
-      });
-      setEntitySwitchDialogOpen(true);
-      navigateToEntity(activeCounterpartyId, "replace");
-      return;
-    }
-
-    setActiveCounterpartyId(resolvedActiveCounterpartyId);
-  }, [
-    activeCounterpartyId,
-    hasUnsavedChanges,
-    navigateToEntity,
-    resolvedActiveCounterpartyId,
-    workspace,
-  ]);
 
   useEffect(() => {
     if (!workspace || customerDirty) {
@@ -323,18 +603,80 @@ export default function CustomerDetailPage() {
   }, [customerDirty, customerForm, workspace]);
 
   useEffect(() => {
+    if (!searchParams.get("entity")) {
+      return;
+    }
+
+    switchToTab(activeTab);
+  }, [activeTab, searchParams, switchToTab]);
+
+  useEffect(() => {
     if (workspace?.counterparties.length) {
       setEmptyAlertDismissed(false);
     }
-  }, [workspace?.counterparties.length]);
+
+    const fallbackCounterpartyId = getDefaultCounterparty(
+      workspace?.counterparties ?? [],
+      workspace?.primaryCounterpartyId ?? null,
+    )?.counterpartyId;
+
+    setAgreementPickerCounterpartyId((current) => {
+      if (
+        current &&
+        workspace?.counterparties.some(
+          (counterparty) => counterparty.counterpartyId === current,
+        )
+      ) {
+        return current;
+      }
+
+      return fallbackCounterpartyId ?? "";
+    });
+    setRequisiteOwnerPickerCounterpartyId((current) => {
+      if (
+        current &&
+        workspace?.counterparties.some(
+          (counterparty) => counterparty.counterpartyId === current,
+        )
+      ) {
+        return current;
+      }
+
+      return fallbackCounterpartyId ?? "";
+    });
+  }, [workspace]);
 
   useEffect(() => {
     setAgreementAlertDismissed(false);
   }, [hasCustomerAgreement]);
 
   useEffect(() => {
-    void fetchDocuments(selectedCounterparty?.counterpartyId ?? null);
-  }, [fetchDocuments, selectedCounterparty?.counterpartyId]);
+    if (activeTab !== "documents" || !workspace) {
+      return;
+    }
+
+    void Promise.all(
+      workspace.counterparties.map((counterparty) =>
+        fetchDocumentsForCounterparty(counterparty.counterpartyId),
+      ),
+    );
+  }, [activeTab, fetchDocumentsForCounterparty, workspace]);
+
+  useEffect(() => {
+    if (!workspace) {
+      return;
+    }
+
+    void loadAgreements();
+  }, [agreementsReloadKey, loadAgreements, workspace]);
+
+  useEffect(() => {
+    if (!workspace) {
+      return;
+    }
+
+    void loadRequisitesTable();
+  }, [loadRequisitesTable, requisitesReloadKey, workspace]);
 
   async function handleSaveCustomer(data: CustomerFormData) {
     if (!workspace) {
@@ -346,8 +688,8 @@ export default function CustomerDetailPage() {
       setError(null);
       await updateCustomerWorkspace(customerId, {
         description: normalizeOptionalText(data.description),
-        name: data.name.trim(),
         externalRef: normalizeOptionalText(data.externalRef),
+        name: data.name.trim(),
       });
       const updatedWorkspace = await fetchWorkspace();
       if (updatedWorkspace) {
@@ -383,40 +725,99 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleCounterpartyCreated(counterpartyId: string) {
-    try {
-      setError(null);
-      setCreatingCounterpartyMode(false);
-      setCounterpartyDirty(false);
-      await fetchWorkspace();
-      navigateToEntity(counterpartyId, "push");
-    } catch (createError) {
-      console.error("Failed to finish counterparty creation", createError);
-      setError(
-        createError instanceof Error
-          ? createError.message
-          : "Не удалось создать субъекта",
-      );
+  function openRequisiteDialog(input: {
+    counterpartyId: string;
+    counterpartyName: string;
+    initialMode: "create" | "existing";
+    initialRequisiteId?: string | null;
+  }) {
+    switchToTab("requisites");
+    setRequisiteDialogDirty(false);
+    setRequisiteDialogState((current) => ({
+      counterpartyId: input.counterpartyId,
+      counterpartyName: input.counterpartyName,
+      initialMode: input.initialMode,
+      initialRequisiteId: input.initialRequisiteId ?? null,
+      key: (current?.key ?? 0) + 1,
+    }));
+  }
+
+  function closeRequisiteDialog() {
+    setRequisiteDialogDirty(false);
+    setRequisiteCloseDialogOpen(false);
+    setRequisiteDialogState(null);
+  }
+
+  function requestRequisiteDialogClose() {
+    if (requisiteDialogDirty) {
+      setRequisiteCloseDialogOpen(true);
+      return;
     }
+
+    closeRequisiteDialog();
+  }
+
+  function openAgreementCreateFlow() {
+    if (!workspace?.counterparties.length) {
+      return;
+    }
+
+    setAgreementPickerCounterpartyId(
+      getDefaultCounterparty(
+        workspace.counterparties,
+        workspace.primaryCounterpartyId,
+      )?.counterpartyId ?? "",
+    );
+    setAgreementPickerOpen(true);
+  }
+
+  function openRequisiteCreateFlow() {
+    if (!workspace?.counterparties.length) {
+      return;
+    }
+
+    setRequisiteOwnerPickerCounterpartyId(
+      getDefaultCounterparty(
+        workspace.counterparties,
+        workspace.primaryCounterpartyId,
+      )?.counterpartyId ?? "",
+    );
+    setRequisiteOwnerPickerOpen(true);
+  }
+
+  function openAgreementEditFlow() {
+    if (!activeAgreement || !defaultCounterparty) {
+      return;
+    }
+
+    setContractDialogState({
+      counterpartyId: defaultCounterparty.counterpartyId,
+      initialValues: getAgreementDialogInitialValues(activeAgreement),
+    });
   }
 
   async function handleUploadDocument() {
-    if (!selectedCounterparty || !uploadDocumentFile) {
+    if (!uploadTargetCounterparty || !uploadDocumentFile) {
       return;
     }
 
     try {
       setUploadingDocument(true);
+      setError(null);
       await uploadCustomerCounterpartyDocument({
+        counterpartyId: uploadTargetCounterparty.counterpartyId,
         customerId,
-        counterpartyId: selectedCounterparty.counterpartyId,
         description: uploadDocumentDescription,
         file: uploadDocumentFile,
       });
+      await fetchDocumentsForCounterparty(
+        uploadTargetCounterparty.counterpartyId,
+        true,
+      );
       setUploadDialogOpen(false);
+      setUploadTargetCounterpartyId(null);
       setUploadDocumentDescription("");
       setUploadDocumentFile(null);
-      await fetchDocuments(selectedCounterparty.counterpartyId);
     } catch (uploadError) {
       console.error("Failed to upload document", uploadError);
       setError(
@@ -429,16 +830,16 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleDownloadDocument(document: ClientDocument) {
-    if (!selectedCounterparty) {
-      return;
-    }
-
+  async function handleDownloadDocument(
+    counterpartyId: string,
+    document: ClientDocument,
+  ) {
     try {
+      setError(null);
       await downloadResponseAsFile(
         await downloadCustomerCounterpartyDocument({
+          counterpartyId,
           customerId,
-          counterpartyId: selectedCounterparty.counterpartyId,
           documentId: document.id,
         }),
         document.fileName,
@@ -453,19 +854,19 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function handleDeleteDocument(documentId: ClientDocument["id"]) {
-    if (!selectedCounterparty) {
-      return;
-    }
-
+  async function handleDeleteDocument(
+    counterpartyId: string,
+    documentId: ClientDocument["id"],
+  ) {
     try {
-      setDeletingDocumentId(documentId);
+      setDeletingDocumentKey(`${counterpartyId}:${String(documentId)}`);
+      setError(null);
       await deleteCustomerCounterpartyDocument({
+        counterpartyId,
         customerId,
-        counterpartyId: selectedCounterparty.counterpartyId,
         documentId,
       });
-      await fetchDocuments(selectedCounterparty.counterpartyId);
+      await fetchDocumentsForCounterparty(counterpartyId, true);
     } catch (deleteError) {
       console.error("Failed to delete document", deleteError);
       setError(
@@ -474,25 +875,25 @@ export default function CustomerDetailPage() {
           : "Не удалось удалить документ",
       );
     } finally {
-      setDeletingDocumentId(null);
+      setDeletingDocumentKey(null);
     }
   }
 
-  async function handleDownloadContract(format: "docx" | "pdf") {
-    if (!selectedCounterparty) {
-      return;
-    }
-
+  async function handleDownloadContract(
+    counterpartyId: string,
+    format: "docx" | "pdf",
+  ) {
     try {
-      setDownloadingContract(true);
+      setDownloadingContractCounterpartyId(counterpartyId);
+      setError(null);
       await downloadResponseAsFile(
         await downloadCustomerCounterpartyContract({
+          counterpartyId,
           customerId,
-          counterpartyId: selectedCounterparty.counterpartyId,
           format,
           lang: contractLang,
         }),
-        `customer-contract-${selectedCounterparty.counterpartyId}.${format}`,
+        `customer-contract-${counterpartyId}.${format}`,
       );
     } catch (downloadError) {
       console.error("Failed to download contract", downloadError);
@@ -502,22 +903,8 @@ export default function CustomerDetailPage() {
           : "Не удалось скачать договор",
       );
     } finally {
-      setDownloadingContract(false);
+      setDownloadingContractCounterpartyId(null);
     }
-  }
-
-  function handleConfirmEntitySwitch() {
-    const nextSwitch = pendingEntitySwitch;
-
-    setEntitySwitchDialogOpen(false);
-    setPendingEntitySwitch(null);
-    resetDraftsFromWorkspace();
-
-    if (!nextSwitch) {
-      return;
-    }
-
-    navigateToEntity(nextSwitch.counterpartyId, nextSwitch.mode);
   }
 
   if (loading) {
@@ -531,10 +918,6 @@ export default function CustomerDetailPage() {
   if (!workspace) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
         <Card className="border-destructive">
           <CardContent className="py-6">
             <p className="text-sm text-destructive">
@@ -549,13 +932,12 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-4">
       <CustomerDetailHeader
-        canManageAgreement={selectedCounterparty !== null}
         deleting={deleting}
         counterpartyCount={workspace.counterpartyCount}
-        onAddCounterparty={() => setCreatingCounterpartyMode(true)}
+        onAddCounterparty={() => {
+          router.push(buildCustomerCounterpartyCreateHref(customerId));
+        }}
         onArchive={handleArchive}
-        onBack={() => router.back()}
-        onOpenContractDialog={() => setContractDialogOpen(true)}
         title={workspace.name}
       />
 
@@ -571,6 +953,17 @@ export default function CustomerDetailPage() {
           <AlertDescription>
             У клиента пока нет субъектов сделки. Добавьте первый субъект, чтобы
             продолжить работу.
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                router.push(buildCustomerCounterpartyCreateHref(customerId));
+              }}
+            >
+              Добавить субъекта
+            </Button>
           </AlertDescription>
           <Button
             type="button"
@@ -595,9 +988,9 @@ export default function CustomerDetailPage() {
               variant="outline"
               size="sm"
               className="mt-3"
-              onClick={() => setContractDialogOpen(true)}
+              onClick={() => switchToTab("agreements")}
             >
-              Создать договор
+              Перейти к договорам
             </Button>
           </AlertDescription>
           <Button
@@ -613,129 +1006,321 @@ export default function CustomerDetailPage() {
         </Alert>
       ) : null}
 
-      <CustomerSummaryCard
-        createdAt={workspace.createdAt}
-        form={customerForm}
-        onSave={(data) => {
-          void handleSaveCustomer(data);
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (
+            value === "common" ||
+            value === "counterparties" ||
+            value === "requisites" ||
+            value === "documents" ||
+            value === "agreements"
+          ) {
+            switchToTab(value);
+          }
         }}
-        saving={customerSaving}
-        workspace={workspace}
-      />
+        className="w-full"
+      >
+        <TabsList variant="line" className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="common">
+            <CustomerTabLabel icon={Handshake} label="Общее" />
+          </TabsTrigger>
+          <TabsTrigger value="counterparties">
+            <CustomerTabLabel
+              count={workspace.counterparties.length}
+              icon={Building2}
+              label="Контрагенты"
+            />
+          </TabsTrigger>
+          <TabsTrigger value="requisites">
+            <CustomerTabLabel
+              count={requisitesTabCount}
+              icon={Wallet}
+              label="Реквизиты"
+            />
+          </TabsTrigger>
+          <TabsTrigger value="documents">
+            <CustomerTabLabel
+              count={documentsTabCount}
+              icon={File}
+              label="Документы"
+            />
+          </TabsTrigger>
+          <TabsTrigger value="agreements">
+            <CustomerTabLabel
+              count={agreementsTabCount}
+              icon={FileText}
+              label="Договоры"
+            />
+          </TabsTrigger>
+        </TabsList>
 
-      <div>
-        {workspace.counterparties.length > 0 && selectedCounterparty ? (
-          <CustomerCounterpartyPanel
-            createMode={creatingCounterpartyMode}
-            customerId={customerId}
-            contractLang={contractLang}
-            deletingDocumentId={deletingDocumentId}
-            documents={documents}
-            downloadingContract={downloadingContract}
-            counterpartyResetSignal={requisitesResetSignal}
-            loadingDocuments={loadingDocuments}
-            onContractLangChange={setContractLang}
-            onDeleteDocument={(documentId) => {
-              void handleDeleteDocument(documentId);
+        <TabsContent value="common" className="pt-4">
+          <CustomerSummaryCard
+            createdAt={workspace.createdAt}
+            form={customerForm}
+            onSave={(data) => {
+              void handleSaveCustomer(data);
             }}
-            onDownloadContract={(format) => {
-              void handleDownloadContract(format);
-            }}
-            onDownloadDocument={(document) => {
-              void handleDownloadDocument(document);
-            }}
-            onEntityChange={(counterpartyId) => {
-              requestEntityChange(counterpartyId, "push");
-            }}
-            onCancelCreate={() => {
-              setCreatingCounterpartyMode(false);
-              setCounterpartyDirty(false);
-            }}
-            onCreated={(counterpartyId) => {
-              void handleCounterpartyCreated(counterpartyId);
-            }}
-            onCounterpartyDirtyChange={setCounterpartyDirty}
-            onCounterpartySaved={() => {
-              setCounterpartyDirty(false);
-              void fetchWorkspace();
-            }}
-            onRequisitesDirtyChange={setRequisitesDirty}
-            requisitesResetSignal={requisitesResetSignal}
-            onUploadDocument={() => setUploadDialogOpen(true)}
-            selectedCounterparty={selectedCounterparty}
-            workspaceCounterparties={workspace.counterparties}
-            workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
+            saving={customerSaving}
+            workspace={workspace}
           />
-        ) : (
-          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            {creatingCounterpartyMode ? (
-              <CustomerCounterpartyPanel
-                createMode
-                customerId={customerId}
-                contractLang={contractLang}
-                deletingDocumentId={deletingDocumentId}
-                documents={documents}
-                downloadingContract={downloadingContract}
-                counterpartyResetSignal={requisitesResetSignal}
-                loadingDocuments={loadingDocuments}
-                onContractLangChange={setContractLang}
-                onDeleteDocument={(documentId) => {
-                  void handleDeleteDocument(documentId);
-                }}
-                onDownloadContract={(format) => {
-                  void handleDownloadContract(format);
-                }}
-                onDownloadDocument={(document) => {
-                  void handleDownloadDocument(document);
-                }}
-                onEntityChange={(counterpartyId) => {
-                  requestEntityChange(counterpartyId, "push");
-                }}
-                onCancelCreate={() => {
-                  setCreatingCounterpartyMode(false);
-                  setCounterpartyDirty(false);
-                }}
-                onCreated={(counterpartyId) => {
-                  void handleCounterpartyCreated(counterpartyId);
-                }}
-                onCounterpartyDirtyChange={setCounterpartyDirty}
-                onCounterpartySaved={() => {
-                  setCounterpartyDirty(false);
-                  void fetchWorkspace();
-                }}
-                onRequisitesDirtyChange={setRequisitesDirty}
-                requisitesResetSignal={requisitesResetSignal}
-                onUploadDocument={() => setUploadDialogOpen(true)}
-                selectedCounterparty={{
-                  counterpartyId: "00000000-0000-0000-0000-000000000000",
-                  country: null,
-                  createdAt: workspace.createdAt,
-                  externalRef: null,
-                  fullName: "",
-                  inn: null,
-                  orgName: "",
-                  relationshipKind: "customer_owned",
-                  shortName: "",
-                  subAgent: null,
-                  subAgentCounterpartyId: null,
-                  updatedAt: workspace.updatedAt,
-                }}
-                workspaceCounterparties={workspace.counterparties}
-                workspacePrimaryCounterpartyId={workspace.primaryCounterpartyId}
-              />
-            ) : (
-              "У этого клиента пока нет субъектов сделки."
-            )}
+        </TabsContent>
+
+        <TabsContent value="counterparties" className="pt-4">
+          <CounterpartiesTab
+            counterparties={workspace.counterparties}
+            onAdd={() => {
+              router.push(buildCustomerCounterpartyCreateHref(customerId));
+            }}
+            onEdit={(counterpartyId) => {
+              router.push(
+                buildCustomerCounterpartyDetailsHref(
+                  customerId,
+                  counterpartyId,
+                ),
+              );
+            }}
+            primaryCounterpartyId={workspace.primaryCounterpartyId}
+          />
+        </TabsContent>
+
+        <TabsContent value="requisites" className="pt-4">
+          <RequisitesTab
+            counterparties={workspace.counterparties}
+            error={requisitesTableError}
+            loading={requisitesTableLoading}
+            onAdd={openRequisiteCreateFlow}
+            onEdit={(row) => {
+              openRequisiteDialog({
+                counterpartyId: row.counterpartyId,
+                counterpartyName: row.counterpartyName,
+                initialMode: "existing",
+                initialRequisiteId: row.id,
+              });
+            }}
+            rows={requisiteRows}
+          />
+        </TabsContent>
+
+        <TabsContent value="documents" className="pt-4">
+          <DocumentsTab
+            contractLang={contractLang}
+            counterpartyDocuments={documentsByCounterpartyId}
+            counterpartyErrors={documentErrorsByCounterpartyId}
+            counterparties={workspace.counterparties}
+            deletingDocumentKey={deletingDocumentKey}
+            downloadingContractCounterpartyId={downloadingContractCounterpartyId}
+            hasActiveAgreement={hasCustomerAgreement}
+            loadingByCounterpartyId={loadingDocumentsByCounterpartyId}
+            onContractLangChange={setContractLang}
+            onDeleteDocument={(counterpartyId, documentId) => {
+              void handleDeleteDocument(counterpartyId, documentId);
+            }}
+            onDownloadContract={(counterpartyId, format) => {
+              void handleDownloadContract(counterpartyId, format);
+            }}
+            onDownloadDocument={(counterpartyId, document) => {
+              void handleDownloadDocument(counterpartyId, document);
+            }}
+            onRetry={(counterpartyId) => {
+              void fetchDocumentsForCounterparty(counterpartyId, true);
+            }}
+            onUploadDocument={(counterpartyId) => {
+              setUploadTargetCounterpartyId(counterpartyId);
+              setUploadDialogOpen(true);
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="agreements" className="pt-4">
+          <AgreementsTab
+            agreements={agreements}
+            error={agreementsError}
+            hasCounterparties={workspace.counterparties.length > 0}
+            loading={agreementsLoading}
+            onCreate={openAgreementCreateFlow}
+            onEditActive={openAgreementEditFlow}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog
+        open={requisiteDialogState !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            requestRequisiteDialogClose();
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>
+              {requisiteDialogState?.initialMode === "create"
+                ? "Новый банковский реквизит"
+                : "Банковские реквизиты"}
+            </DialogTitle>
+            <DialogDescription>
+              {requisiteDialogState
+                ? `Субъект: ${requisiteDialogState.counterpartyName}`
+                : "Управление банковскими реквизитами."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {requisiteDialogState ? (
+            <CounterpartyBankRequisitesWorkspace
+              key={`${requisiteDialogState.counterpartyId}-${requisiteDialogState.key}`}
+              counterpartyId={requisiteDialogState.counterpartyId}
+              counterpartyName={requisiteDialogState.counterpartyName}
+              initialMode={requisiteDialogState.initialMode}
+              initialRequisiteId={requisiteDialogState.initialRequisiteId}
+              onDirtyChange={setRequisiteDialogDirty}
+              onRequisitesChange={() => {
+                setRequisitesReloadKey((current) => current + 1);
+              }}
+              resetSignal={requisiteDialogState.key}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={agreementPickerOpen} onOpenChange={setAgreementPickerOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Выберите субъекта для договора</DialogTitle>
+            <DialogDescription>
+              Договор хранится на уровне клиента, но создание запускается из
+              контекста одного из его субъектов сделки.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Select
+              value={agreementPickerCounterpartyId}
+              onValueChange={(value) =>
+                setAgreementPickerCounterpartyId(value ?? "")
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Выберите субъекта" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspace.counterparties.map((counterparty) => (
+                  <SelectItem
+                    key={counterparty.counterpartyId}
+                    value={counterparty.counterpartyId}
+                  >
+                    {counterparty.shortName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
-      </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAgreementPickerOpen(false)}
+              type="button"
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              disabled={!agreementPickerCounterpartyId}
+              onClick={() => {
+                setAgreementPickerOpen(false);
+                setContractDialogState({
+                  counterpartyId: agreementPickerCounterpartyId,
+                  initialValues: null,
+                });
+              }}
+            >
+              Продолжить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={requisiteOwnerPickerOpen}
+        onOpenChange={setRequisiteOwnerPickerOpen}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Выберите субъекта для реквизита</DialogTitle>
+            <DialogDescription>
+              Новый реквизит нужно привязать к одному из субъектов сделки
+              клиента.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Select
+              value={requisiteOwnerPickerCounterpartyId}
+              onValueChange={(value) =>
+                setRequisiteOwnerPickerCounterpartyId(value ?? "")
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Выберите субъекта" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspace.counterparties.map((counterparty) => (
+                  <SelectItem
+                    key={counterparty.counterpartyId}
+                    value={counterparty.counterpartyId}
+                  >
+                    {counterparty.shortName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRequisiteOwnerPickerOpen(false)}
+              type="button"
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              disabled={!requisiteOwnerPickerCounterpartyId}
+              onClick={() => {
+                const counterparty = workspace.counterparties.find(
+                  (item) =>
+                    item.counterpartyId === requisiteOwnerPickerCounterpartyId,
+                );
+
+                if (!counterparty) {
+                  return;
+                }
+
+                setRequisiteOwnerPickerOpen(false);
+                openRequisiteDialog({
+                  counterpartyId: counterparty.counterpartyId,
+                  counterpartyName: counterparty.shortName,
+                  initialMode: "create",
+                });
+              }}
+            >
+              Продолжить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Загрузить документ</DialogTitle>
             <DialogDescription>
-              Документ будет привязан к выбранному субъекту сделки.
+              {uploadTargetCounterparty
+                ? `Документ будет привязан к субъекту "${uploadTargetCounterparty.shortName}".`
+                : "Документ будет привязан к выбранному субъекту сделки."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -775,6 +1360,7 @@ export default function CustomerDetailPage() {
               variant="outline"
               onClick={() => {
                 setUploadDialogOpen(false);
+                setUploadTargetCounterpartyId(null);
                 setUploadDocumentDescription("");
                 setUploadDocumentFile(null);
               }}
@@ -796,28 +1382,822 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <PendingEntitySwitchDialog
-        open={entitySwitchDialogOpen}
-        onOpenChange={(open) => {
-          setEntitySwitchDialogOpen(open);
-          if (!open) {
-            setPendingEntitySwitch(null);
-          }
-        }}
-        onConfirm={handleConfirmEntitySwitch}
-      />
-
-      {selectedCounterparty ? (
+      {contractDialogState ? (
         <NewContractDialog
-          counterpartyId={selectedCounterparty.counterpartyId}
+          counterpartyId={contractDialogState.counterpartyId}
           customerId={customerId}
-          onOpenChange={setContractDialogOpen}
+          initialValues={contractDialogState.initialValues}
+          onOpenChange={(open) => {
+            if (!open) {
+              setContractDialogState(null);
+            }
+          }}
           onSuccess={() => {
+            setContractDialogState(null);
+            setAgreementsReloadKey((current) => current + 1);
             void fetchWorkspace();
           }}
-          open={contractDialogOpen}
+          open
         />
       ) : null}
+
+      <PendingCloseDialog
+        description="Несохраненные изменения реквизита будут потеряны."
+        onConfirm={closeRequisiteDialog}
+        onOpenChange={setRequisiteCloseDialogOpen}
+        open={requisiteCloseDialogOpen}
+        title="Закрыть форму реквизита?"
+      />
+    </div>
+  );
+}
+
+function PendingCloseDialog(props: {
+  description: string;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  title: string;
+}) {
+  const { description, onConfirm, onOpenChange, open, title } = props;
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Остаться</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            Закрыть без сохранения
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function CustomerTabLabel(props: {
+  count?: number;
+  icon: LucideIcon;
+  label: string;
+}) {
+  const { count, icon: Icon, label } = props;
+
+  return (
+    <>
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+      {typeof count === "number" ? (
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+          {count}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function CounterpartiesTab(props: {
+  counterparties: CustomerCounterparty[];
+  onAdd: () => void;
+  onEdit: (counterpartyId: string) => void;
+  primaryCounterpartyId: string | null;
+}) {
+  const { counterparties, onAdd, onEdit, primaryCounterpartyId } = props;
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "updatedAt", desc: true },
+  ]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+
+  const columns = useMemo<ColumnDef<CustomerCounterparty>[]>(
+    () => [
+      {
+        accessorKey: "shortName",
+        cell: ({ row }) => {
+          const counterparty = row.original;
+          const primary = isPrimaryCounterparty(
+            {
+              counterparties,
+              primaryCounterpartyId,
+            },
+            counterparty.counterpartyId,
+          );
+
+          return (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{counterparty.shortName}</span>
+              {primary ? <Badge variant="outline">Основной</Badge> : null}
+            </div>
+          );
+        },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Краткое имя" />
+        ),
+        meta: {
+          label: "Краткое имя",
+          placeholder: "Поиск по краткому имени...",
+          variant: "text",
+        },
+      },
+      {
+        accessorKey: "fullName",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Полное имя" />
+        ),
+        meta: {
+          label: "Полное имя",
+          placeholder: "Поиск по полному имени...",
+          variant: "text",
+        },
+      },
+      {
+        accessorKey: "kind",
+        cell: ({ row }) => (
+          <Badge variant="secondary">
+            {row.original.kind === "individual" ? "Физ. лицо" : "Юр. лицо"}
+          </Badge>
+        ),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Тип" />
+        ),
+      },
+      {
+        accessorKey: "inn",
+        cell: ({ row }) => row.original.inn || "—",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="ИНН" />
+        ),
+      },
+      {
+        accessorKey: "country",
+        cell: ({ row }) =>
+          row.original.country?.trim().toUpperCase() || "—",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Страна" />
+        ),
+      },
+      {
+        id: "subAgent",
+        accessorFn: (row) => row.subAgent?.shortName ?? "",
+        cell: ({ row }) => row.original.subAgent?.shortName ?? "—",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Субагент" />
+        ),
+      },
+      {
+        accessorKey: "updatedAt",
+        cell: ({ row }) => formatDate(row.original.updatedAt),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Обновлен" />
+        ),
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(row.original.counterpartyId)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [counterparties, onEdit, primaryCounterpartyId],
+  );
+
+  const table = useReactTable({
+    columns,
+    data: counterparties,
+    state: {
+      columnFilters,
+      columnVisibility,
+      sorting,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  if (counterparties.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+          <div className="bg-muted rounded-full p-3">
+            <Handshake className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium">У клиента пока нет субъектов сделки</p>
+            <p className="text-sm text-muted-foreground">
+              Добавьте первый субъект, чтобы настроить реквизиты, документы и
+              договоры.
+            </p>
+          </div>
+          <Button type="button" onClick={onAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить субъекта
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">Counterparties</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Все субъекты сделки клиента в одном списке.
+          </p>
+        </div>
+        <Button type="button" onClick={onAdd}>
+          <Plus className="mr-2 h-4 w-4" />
+          Добавить субъекта
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <DataTable
+          table={table}
+          onRowDoubleClick={(row) => onEdit(row.original.counterpartyId)}
+          contextMenuItems={(row) => [
+            {
+              label: "Открыть",
+              onClick: () => onEdit(row.original.counterpartyId),
+            },
+          ]}
+        >
+          <DataTableToolbar table={table} />
+        </DataTable>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RequisitesTab(props: {
+  counterparties: CustomerCounterparty[];
+  error: string | null;
+  loading: boolean;
+  onAdd: () => void;
+  onEdit: (row: RequisiteTableRow) => void;
+  rows: RequisiteTableRow[];
+}) {
+  const { counterparties, error, loading, onAdd, onEdit, rows } = props;
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "updatedAt", desc: true },
+  ]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+
+  const columns = useMemo<ColumnDef<RequisiteTableRow>[]>(
+    () => [
+      {
+        accessorKey: "counterpartyName",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Субъект" />
+        ),
+        meta: {
+          label: "Субъект",
+          placeholder: "Поиск по субъекту...",
+          variant: "text",
+        },
+      },
+      {
+        accessorKey: "label",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Название" />
+        ),
+        meta: {
+          label: "Название",
+          placeholder: "Поиск по названию...",
+          variant: "text",
+        },
+      },
+      {
+        accessorKey: "providerLabel",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Банк" />
+        ),
+      },
+      {
+        accessorKey: "currencyCode",
+        cell: ({ row }) => <Badge variant="secondary">{row.original.currencyCode}</Badge>,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Валюта" />
+        ),
+      },
+      {
+        accessorKey: "identity",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Идентификатор" />
+        ),
+      },
+      {
+        accessorKey: "isDefault",
+        cell: ({ row }) =>
+          row.original.isDefault ? <Badge>Основной</Badge> : "—",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="По умолчанию" />
+        ),
+      },
+      {
+        accessorKey: "updatedAt",
+        cell: ({ row }) => formatDate(row.original.updatedAt),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} label="Обновлен" />
+        ),
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(row.original)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [onEdit],
+  );
+
+  const table = useReactTable({
+    columns,
+    data: rows,
+    state: {
+      columnFilters,
+      columnVisibility,
+      sorting,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  if (counterparties.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          Сначала добавьте субъект сделки, чтобы создать для него реквизиты.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">Requisites</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Банковские реквизиты всех субъектов сделки клиента.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={onAdd}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Добавить реквизит
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-6 py-10 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="font-medium">У клиента пока нет банковских реквизитов</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Создайте первый реквизит и привяжите его к нужному субъекту.
+            </p>
+          </div>
+        ) : (
+          <DataTable
+            table={table}
+            onRowDoubleClick={(row) => onEdit(row.original)}
+            contextMenuItems={(row) => [
+              {
+                label: "Открыть",
+                onClick: () => onEdit(row.original),
+              },
+            ]}
+          >
+            <DataTableToolbar table={table} />
+          </DataTable>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DocumentsTab(props: {
+  contractLang: "ru" | "en";
+  counterpartyDocuments: Record<string, ClientDocument[]>;
+  counterpartyErrors: Record<string, string>;
+  counterparties: CustomerCounterparty[];
+  deletingDocumentKey: string | null;
+  downloadingContractCounterpartyId: string | null;
+  hasActiveAgreement: boolean;
+  loadingByCounterpartyId: Record<string, boolean>;
+  onContractLangChange: (value: "ru" | "en") => void;
+  onDeleteDocument: (
+    counterpartyId: string,
+    documentId: ClientDocument["id"],
+  ) => void;
+  onDownloadContract: (
+    counterpartyId: string,
+    format: "docx" | "pdf",
+  ) => void;
+  onDownloadDocument: (
+    counterpartyId: string,
+    document: ClientDocument,
+  ) => void;
+  onRetry: (counterpartyId: string) => void;
+  onUploadDocument: (counterpartyId: string) => void;
+}) {
+  const {
+    contractLang,
+    counterpartyDocuments,
+    counterpartyErrors,
+    counterparties,
+    deletingDocumentKey,
+    downloadingContractCounterpartyId,
+    hasActiveAgreement,
+    loadingByCounterpartyId,
+    onContractLangChange,
+    onDeleteDocument,
+    onDownloadContract,
+    onDownloadDocument,
+    onRetry,
+    onUploadDocument,
+  } = props;
+
+  if (counterparties.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          Документы появятся после добавления субъектов сделки.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="text-base">Documents</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Документы и шаблоны договоров сгруппированы по субъектам сделки.
+            </p>
+          </div>
+          <div className="w-full max-w-[180px] space-y-1">
+            <Select
+              value={contractLang}
+              onValueChange={(value) => {
+                if (value) {
+                  onContractLangChange(value);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ru">Русский</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {counterparties.map((counterparty) => {
+        const documents =
+          counterpartyDocuments[counterparty.counterpartyId] ?? [];
+        const counterpartyError =
+          counterpartyErrors[counterparty.counterpartyId] ?? null;
+        const loading =
+          loadingByCounterpartyId[counterparty.counterpartyId] ?? false;
+        const downloadingContract =
+          downloadingContractCounterpartyId === counterparty.counterpartyId;
+
+        return (
+          <Card key={counterparty.counterpartyId}>
+            <CardHeader>
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Building2 className="h-4 w-4" />
+                    {counterparty.shortName}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Документы субъекта сделки и выгрузка шаблона договора.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasActiveAgreement || downloadingContract}
+                    onClick={() =>
+                      onDownloadContract(counterparty.counterpartyId, "docx")
+                    }
+                    type="button"
+                  >
+                    {downloadingContract ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Скачать DOCX
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasActiveAgreement || downloadingContract}
+                    onClick={() =>
+                      onDownloadContract(counterparty.counterpartyId, "pdf")
+                    }
+                    type="button"
+                  >
+                    {downloadingContract ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Скачать PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onUploadDocument(counterparty.counterpartyId)}
+                    type="button"
+                  >
+                    <UploadIcon className="mr-2 h-4 w-4" />
+                    Загрузить документ
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {counterpartyError ? (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex flex-wrap items-center gap-3">
+                    <span>{counterpartyError}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onRetry(counterparty.counterpartyId)}
+                    >
+                      Повторить
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {loading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Документы ещё не загружены.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((document) => (
+                    <div
+                      key={document.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="shrink-0">{getFileIcon(document.mimeType)}</div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {document.fileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(document.fileSize)} •{" "}
+                            {new Date(document.createdAt).toLocaleString("ru-RU")}
+                          </p>
+                          {document.description ? (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {document.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            onDownloadDocument(counterparty.counterpartyId, document)
+                          }
+                          type="button"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={
+                            deletingDocumentKey ===
+                            `${counterparty.counterpartyId}:${String(document.id)}`
+                          }
+                          onClick={() =>
+                            onDeleteDocument(
+                              counterparty.counterpartyId,
+                              document.id,
+                            )
+                          }
+                          type="button"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgreementsTab(props: {
+  agreements: CustomerAgreementDetail[];
+  error: string | null;
+  hasCounterparties: boolean;
+  loading: boolean;
+  onCreate: () => void;
+  onEditActive: () => void;
+}) {
+  const {
+    agreements,
+    error,
+    hasCounterparties,
+    loading,
+    onCreate,
+    onEditActive,
+  } = props;
+  const activeAgreement =
+    agreements.find((agreement) => agreement.isActive) ?? null;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="text-base">Agreements</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              История агентских договоров клиента.
+            </p>
+          </div>
+          <Button
+            type="button"
+            disabled={!hasCounterparties}
+            onClick={activeAgreement ? onEditActive : onCreate}
+          >
+            {activeAgreement ? (
+              <>
+                <Pencil className="mr-2 h-4 w-4" />
+                Редактировать активный договор
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Создать договор
+              </>
+            )}
+          </Button>
+        </CardHeader>
+      </Card>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : agreements.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-10 text-center">
+            <p className="font-medium">Договоры клиента ещё не созданы</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Создайте первый агентский договор, чтобы его можно было
+              использовать в сделках.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        agreements.map((agreement) => (
+          <Card
+            key={agreement.id}
+            className={agreement.isActive ? "border-primary/40" : undefined}
+          >
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4" />
+                    Агентский договор
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Создан {formatDate(agreement.createdAt)} • обновлен{" "}
+                    {formatDate(agreement.updatedAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={agreement.isActive ? "default" : "secondary"}>
+                    {agreement.isActive ? "Действует" : "Не активен"}
+                  </Badge>
+                  <Badge variant="outline">
+                    Версия {agreement.currentVersion.versionNumber}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Номер договора
+                  </div>
+                  <div className="text-base">
+                    {agreement.currentVersion.contractNumber || "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Дата договора
+                  </div>
+                  <div className="text-base">
+                    {formatDateShort(agreement.currentVersion.contractDate)}
+                  </div>
+                </div>
+              </div>
+
+              {agreement.currentVersion.feeRules.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Условия
+                  </div>
+                  {agreement.currentVersion.feeRules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      className="rounded-md border bg-muted/30 px-3 py-2 text-sm"
+                    >
+                      {formatAgreementFeeRuleLabel(rule)}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ))
+      )}
     </div>
   );
 }

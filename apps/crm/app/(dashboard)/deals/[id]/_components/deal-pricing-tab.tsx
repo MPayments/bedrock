@@ -89,16 +89,6 @@ type StoredPricingSnapshot = {
   profitability: ApiDealPricingProfitability | null;
 };
 
-const FUNDING_ADJUSTMENT_KIND_LABELS: Record<
-  ApiDealFundingAdjustment["kind"],
-  string
-> = {
-  already_funded: "Уже профинансировано",
-  available_balance: "Доступный остаток",
-  manual_offset: "Ручная корректировка",
-  reconciliation_adjustment: "Корректировка по сверке",
-};
-
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

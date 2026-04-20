@@ -11,31 +11,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type PendingEntitySwitchDialogProps = {
+type PendingCounterpartyPageLeaveDialogProps = {
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 };
 
-export function PendingEntitySwitchDialog({
+export function PendingCounterpartyPageLeaveDialog({
   onConfirm,
   onOpenChange,
   open,
-}: PendingEntitySwitchDialogProps) {
+}: PendingCounterpartyPageLeaveDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Переключить юридическое лицо?</AlertDialogTitle>
+          <AlertDialogTitle>Покинуть страницу контрагента?</AlertDialogTitle>
           <AlertDialogDescription>
             Несохраненные изменения будут потеряны. Вы можете остаться на
-            текущем юридическом лице и сначала сохранить правки.
+            странице и сохранить изменения позже.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Остаться</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
-            Перейти без сохранения
+            Выйти без сохранения
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

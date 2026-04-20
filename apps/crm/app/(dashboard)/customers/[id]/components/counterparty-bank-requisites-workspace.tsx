@@ -79,7 +79,10 @@ import { useCounterpartyBankRequisites } from "../lib/use-counterparty-bank-requ
 type CounterpartyBankRequisitesWorkspaceProps = {
   counterpartyId: string;
   counterpartyName: string;
+  initialMode?: "create" | "existing";
+  initialRequisiteId?: string | null;
   onDirtyChange: (dirty: boolean) => void;
+  onRequisitesChange?: () => void;
   resetSignal: number;
 };
 
@@ -299,7 +302,10 @@ function formatProviderAddress(provider: RequisiteProviderDetails | null) {
 export function CounterpartyBankRequisitesWorkspace({
   counterpartyId,
   counterpartyName,
+  initialMode,
+  initialRequisiteId,
   onDirtyChange,
+  onRequisitesChange,
   resetSignal,
 }: CounterpartyBankRequisitesWorkspaceProps) {
   const {
@@ -374,13 +380,19 @@ export function CounterpartyBankRequisitesWorkspace({
   }, [counterpartyName]);
 
   useEffect(() => {
-    setEditorState({ kind: "idle" });
+    if (initialMode === "create") {
+      setEditorState({ kind: "create" });
+    } else if (initialMode === "existing" && initialRequisiteId) {
+      setEditorState({ kind: "existing", requisiteId: initialRequisiteId });
+    } else {
+      setEditorState({ kind: "idle" });
+    }
     setPendingEditorState(null);
     setSwitchDialogOpen(false);
     setMutationError(null);
     setProviderDetail(null);
     form.reset(createEmptyBankRequisiteValues(counterpartyNameRef.current));
-  }, [counterpartyId, form, resetSignal]);
+  }, [counterpartyId, form, initialMode, initialRequisiteId, resetSignal]);
 
   useEffect(() => {
     if (editorState.kind === "create") {
@@ -389,7 +401,9 @@ export function CounterpartyBankRequisitesWorkspace({
 
     const nextId = resolveInitialBankRequisiteId(
       requisites,
-      selectedRequisiteId,
+      initialMode === "existing"
+        ? (initialRequisiteId ?? selectedRequisiteId)
+        : selectedRequisiteId,
     );
 
     if (!nextId) {
@@ -402,7 +416,13 @@ export function CounterpartyBankRequisitesWorkspace({
     }
 
     setEditorState({ kind: "existing", requisiteId: nextId });
-  }, [editorState.kind, requisites, selectedRequisiteId]);
+  }, [
+    editorState.kind,
+    initialMode,
+    initialRequisiteId,
+    requisites,
+    selectedRequisiteId,
+  ]);
 
   useEffect(() => {
     if (editorState.kind === "create") {
@@ -576,6 +596,7 @@ export function CounterpartyBankRequisitesWorkspace({
       resolveInitialBankRequisiteId(nextRequisites, result.data.id) ??
       result.data.id;
     applyEditorState({ kind: "existing", requisiteId: nextId });
+    onRequisitesChange?.();
   }
 
   async function handleArchive() {
@@ -607,6 +628,7 @@ export function CounterpartyBankRequisitesWorkspace({
     applyEditorState(
       nextId ? { kind: "existing", requisiteId: nextId } : { kind: "idle" },
     );
+    onRequisitesChange?.();
   }
 
   async function handleMakeDefault() {
@@ -636,6 +658,7 @@ export function CounterpartyBankRequisitesWorkspace({
     }
 
     await refresh();
+    onRequisitesChange?.();
   }
 
   const effectiveError = mutationError ?? loadError;

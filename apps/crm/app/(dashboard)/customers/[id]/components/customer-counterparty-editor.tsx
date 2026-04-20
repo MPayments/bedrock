@@ -175,6 +175,10 @@ export function CustomerCounterpartyEditor({
         : undefined,
     [counterparty],
   );
+  const initialValues = useMemo(
+    () => (counterparty ? toGeneralFormValues(counterparty) : undefined),
+    [counterparty],
+  );
 
   if (loading) {
     return (
@@ -201,7 +205,7 @@ export function CustomerCounterpartyEditor({
   return (
     <div className="space-y-6">
       <CounterpartyGeneralEditor
-        initialValues={toGeneralFormValues(counterparty)}
+        initialValues={initialValues}
         groupOptions={groupOptions}
         lockedGroupIds={lockedGroupIds}
         createdAt={counterparty.createdAt}

@@ -905,7 +905,7 @@ export default function NewCustomerPage() {
         }
       }
 
-      router.push(`/customers/${customer.id}?entity=${counterparty.id}`);
+      router.push(`/customers/${customer.id}?tab=counterparties`);
     } catch (submitError) {
       console.error("Create customer error:", submitError);
       setError(
@@ -921,7 +921,6 @@ export default function NewCustomerPage() {
   return (
     <div className="space-y-4">
       <CustomerCreateHeader
-        onBack={attemptLeave}
         onCancel={attemptLeave}
         saving={loading}
       />

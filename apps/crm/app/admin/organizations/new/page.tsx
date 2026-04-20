@@ -3,7 +3,6 @@
 
 import type { ChangeEvent, ReactNode } from "react";
 import {
-  ChevronLeft,
   FileSignature,
   Loader2,
   Stamp,
@@ -253,21 +252,8 @@ export default function NewOrganizationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => router.push("/admin/organizations")}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Назад
-          </Button>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold">Новая организация</h1>
-          </div>
-        </div>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold">Новая организация</h1>
       </div>
 
       {error ? (

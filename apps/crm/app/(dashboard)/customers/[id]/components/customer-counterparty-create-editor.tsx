@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
 import { z } from "zod";
 
 import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
@@ -13,7 +12,6 @@ import {
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
 import type { LocalizedTextVariant } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 
 import { apiClient } from "@/lib/api-client";
@@ -23,7 +21,6 @@ import { readJsonWithSchema } from "@/lib/api/response";
 type CustomerCounterpartyCreateEditorProps = {
   customerId: string;
   localizedTextVariant?: LocalizedTextVariant;
-  onCancel: () => void;
   onCreated: (counterpartyId: string) => void;
   onDirtyChange: (dirty: boolean) => void;
 };
@@ -59,7 +56,6 @@ function getSubjectDetailsCopy(kind: "individual" | "legal_entity") {
 export function CustomerCounterpartyCreateEditor({
   customerId,
   localizedTextVariant,
-  onCancel,
   onCreated,
   onDirtyChange,
 }: CustomerCounterpartyCreateEditorProps) {
@@ -139,6 +135,13 @@ export function CustomerCounterpartyCreateEditor({
     }),
     [generalValues.country, generalValues.fullName, generalValues.shortName],
   );
+  const initialValues = useMemo(
+    () => ({
+      ...INITIAL_VALUES,
+      groupIds: lockedGroupIds,
+    }),
+    [lockedGroupIds],
+  );
 
   if (loading) {
     return (
@@ -155,10 +158,7 @@ export function CustomerCounterpartyCreateEditor({
   return (
     <div className="space-y-6">
       <CounterpartyGeneralEditor
-        initialValues={{
-          ...INITIAL_VALUES,
-          groupIds: lockedGroupIds,
-        }}
+        initialValues={initialValues}
         groupOptions={groupOptions}
         lockedGroupIds={lockedGroupIds}
         submitting={submitting}
@@ -230,12 +230,6 @@ export function CustomerCounterpartyCreateEditor({
         showGroups={false}
         showDates={false}
         title="Карточка субъекта"
-        headerActions={
-          <Button variant="outline" type="button" onClick={onCancel}>
-            <X className="size-4" />
-            Отменить
-          </Button>
-        }
       />
       <PartyProfileEditor
         bundle={partyProfileDraft}

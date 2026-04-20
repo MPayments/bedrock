@@ -8,7 +8,6 @@ import {
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ChevronLeft,
   Download,
   FileSpreadsheet,
   FileText,
@@ -365,12 +364,7 @@ export default function ClientsReportsPage() {
     <div className="space-y-4">
       {/* Заголовок с кнопками */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-          <h1 className="text-2xl font-bold">Отчёты по клиентам</h1>
-        </div>
+        <h1 className="text-2xl font-bold">Отчёты по клиентам</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs whitespace-nowrap">

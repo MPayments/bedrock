@@ -26,6 +26,84 @@ type UseCounterpartyBankRequisitesResult = {
   requisites: CounterpartyBankRequisite[];
 };
 
+export type CounterpartyBankRequisitesReferenceData = {
+  currencyOptions: CurrencyOption[];
+  providerOptions: RequisiteProviderOption[];
+};
+
+export async function listCounterpartyBankRequisites(counterpartyId: string) {
+  const response = await apiClient.v1.counterparties[":id"].requisites.$get({
+    param: { id: counterpartyId },
+    query: {
+      limit: 100,
+      offset: 0,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Не удалось загрузить реквизиты: ${response.status}`);
+  }
+
+  const payload = await readJsonWithSchema(
+    response,
+    CounterpartyBankRequisitesListResponseSchema,
+  );
+  const bankItems = payload.data.filter((item) => item.kind === "bank");
+
+  return Promise.all(
+    bankItems.map(async (item) => {
+      const detailResponse = await apiClient.v1.requisites[":id"].$get({
+        param: { id: item.id },
+      });
+
+      if (!detailResponse.ok) {
+        throw new Error(
+          `Не удалось загрузить реквизит ${item.label}: ${detailResponse.status}`,
+        );
+      }
+
+      return readJsonWithSchema(detailResponse, CounterpartyBankRequisiteSchema);
+    }),
+  );
+}
+
+export async function loadCounterpartyBankRequisitesReferenceData(): Promise<CounterpartyBankRequisitesReferenceData> {
+  const [providersResponse, currenciesResponse] = await Promise.all([
+    apiClient.v1.requisites.providers.options.$get({
+      query: { kind: "bank" },
+    }),
+    apiClient.v1.currencies.options.$get({}),
+  ]);
+
+  if (!providersResponse.ok) {
+    throw new Error(
+      `Не удалось загрузить провайдеров реквизитов: ${providersResponse.status}`,
+    );
+  }
+
+  if (!currenciesResponse.ok) {
+    throw new Error(`Не удалось загрузить валюты: ${currenciesResponse.status}`);
+  }
+
+  const providersPayload = await readJsonWithSchema(
+    providersResponse,
+    RequisiteProviderOptionsResponseSchema,
+  );
+  const currenciesPayload = await readJsonWithSchema(
+    currenciesResponse,
+    CurrencyOptionsResponseSchema,
+  );
+
+  return {
+    providerOptions: providersPayload.data
+      .filter((provider) => provider.kind === "bank")
+      .sort((left, right) => left.label.localeCompare(right.label, "ru")),
+    currencyOptions: [...currenciesPayload.data].sort((left, right) =>
+      left.label.localeCompare(right.label, "ru"),
+    ),
+  };
+}
+
 export function useCounterpartyBankRequisites(
   counterpartyId: string | null,
 ): UseCounterpartyBankRequisitesResult {
@@ -43,82 +121,16 @@ export function useCounterpartyBankRequisites(
       return [];
     }
 
-    const response = await apiClient.v1.counterparties[":id"].requisites.$get({
-      param: { id: counterpartyId },
-      query: {
-        limit: 100,
-        offset: 0,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Не удалось загрузить реквизиты: ${response.status}`);
-    }
-
-    const payload = await readJsonWithSchema(
-      response,
-      CounterpartyBankRequisitesListResponseSchema,
-    );
-    const bankItems = payload.data.filter((item) => item.kind === "bank");
-    const details = await Promise.all(
-      bankItems.map(async (item) => {
-        const detailResponse = await apiClient.v1.requisites[":id"].$get({
-          param: { id: item.id },
-        });
-
-        if (!detailResponse.ok) {
-          throw new Error(
-            `Не удалось загрузить реквизит ${item.label}: ${detailResponse.status}`,
-          );
-        }
-
-        return readJsonWithSchema(detailResponse, CounterpartyBankRequisiteSchema);
-      }),
-    );
+    const details = await listCounterpartyBankRequisites(counterpartyId);
 
     setRequisites(details);
     return details;
   }, [counterpartyId]);
 
   const fetchOptions = useCallback(async () => {
-    const [providersResponse, currenciesResponse] = await Promise.all([
-      apiClient.v1.requisites.providers.options.$get({
-        query: { kind: "bank" },
-      }),
-      apiClient.v1.currencies.options.$get({}),
-    ]);
-
-    if (!providersResponse.ok) {
-      throw new Error(
-        `Не удалось загрузить провайдеров реквизитов: ${providersResponse.status}`,
-      );
-    }
-
-    if (!currenciesResponse.ok) {
-      throw new Error(
-        `Не удалось загрузить валюты: ${currenciesResponse.status}`,
-      );
-    }
-
-    const providersPayload = await readJsonWithSchema(
-      providersResponse,
-      RequisiteProviderOptionsResponseSchema,
-    );
-    const currenciesPayload = await readJsonWithSchema(
-      currenciesResponse,
-      CurrencyOptionsResponseSchema,
-    );
-
-    setProviderOptions(
-      providersPayload.data
-        .filter((provider) => provider.kind === "bank")
-        .sort((left, right) => left.label.localeCompare(right.label, "ru")),
-    );
-    setCurrencyOptions(
-      [...currenciesPayload.data].sort((left, right) =>
-        left.label.localeCompare(right.label, "ru"),
-      ),
-    );
+    const referenceData = await loadCounterpartyBankRequisitesReferenceData();
+    setProviderOptions(referenceData.providerOptions);
+    setCurrencyOptions(referenceData.currencyOptions);
   }, []);
 
   useEffect(() => {

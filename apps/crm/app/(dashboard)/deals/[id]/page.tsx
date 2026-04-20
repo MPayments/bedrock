@@ -13,11 +13,11 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { Button } from "@bedrock/sdk-ui/components/button";
 
+import { formatDealBreadcrumbLabel } from "@/components/app/crm-breadcrumbs";
+import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
 import { API_BASE_URL } from "@/lib/constants";
 import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { AgreementCard } from "./_components/agreement-card";
@@ -40,6 +40,7 @@ import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
+  DEAL_TYPE_LABELS,
   formatDealWorkflowMessage,
   getDealWorkflowMessageTone,
   STATUS_LABELS,
@@ -839,6 +840,21 @@ export default function DealDetailPage() {
   const [quotePreview, setQuotePreview] = useState<ApiQuotePreview | null>(
     null,
   );
+
+  useCrmBreadcrumbs(
+    data
+      ? [
+          {
+            href: `/deals/${dealId}`,
+            label: formatDealBreadcrumbLabel({
+              applicantDisplayName:
+                data.workbench.summary.applicantDisplayName,
+              dealTypeLabel: DEAL_TYPE_LABELS[data.deal.type],
+            }),
+          },
+        ]
+      : [],
+  );
   const [quotePreviewError, setQuotePreviewError] = useState<string | null>(
     null,
   );
@@ -1150,46 +1166,6 @@ export default function DealDetailPage() {
           ),
     );
   }, [calculationToCurrency, data]);
-
-  const handleOpenQuoteDialog = useCallback(() => {
-    if (!data) {
-      return;
-    }
-
-    setOverrideCalculationAmount(false);
-    const quoteRequest = buildQuoteRequestContext(data.workbench);
-    setCalculationAmount(quoteRequest.amount ?? "");
-    setCalculationToCurrency(
-      quoteRequest.amountSide === "target"
-        ? (data.currency?.code ?? "")
-        : resolveDefaultToCurrency(
-            data.currencyOptions,
-            data.sourceCurrency?.code ?? null,
-          ),
-    );
-    setCalculationAsOf(formatDateTimeInput(new Date()));
-    setQuoteMarkupPercent(
-      acceptedQuoteDetails?.commercialTerms?.quoteMarkupBps
-        ? feeBpsToPercentString(acceptedQuoteDetails.commercialTerms.quoteMarkupBps)
-        : "",
-    );
-    setFixedFeeAmount(
-      acceptedQuoteCommercialSummary.fixedFeeAmount ||
-        agreementCommercialDefaults.fixedFeeAmount,
-    );
-    setFixedFeeCurrencyCode(
-      acceptedQuoteCommercialSummary.fixedFeeCurrencyCode ??
-        agreementCommercialDefaults.fixedFeeCurrencyCode,
-    );
-    setIsQuoteDialogOpen(true);
-  }, [
-    acceptedQuoteCommercialSummary.fixedFeeAmount,
-    acceptedQuoteCommercialSummary.fixedFeeCurrencyCode,
-    acceptedQuoteDetails,
-    agreementCommercialDefaults.fixedFeeAmount,
-    agreementCommercialDefaults.fixedFeeCurrencyCode,
-    data,
-  ]);
 
   const handleCreateQuote = useCallback(async () => {
     if (!data) {
@@ -1984,10 +1960,6 @@ export default function DealDetailPage() {
   if (error || !data) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
           {error ?? "Не удалось загрузить сделку"}
         </div>
@@ -2000,7 +1972,6 @@ export default function DealDetailPage() {
       <DealHeader
         applicantDisplayName={data.workbench.summary.applicantDisplayName}
         isUpdatingStatus={isUpdatingStatus}
-        onBack={() => router.back()}
         onBlockedStatusClick={handleBlockedTransitionClick}
         onStatusChange={handleStatusUpdate}
         status={data.deal.status}

@@ -1,33 +1,25 @@
 "use client";
 
-import { ChevronLeft, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 type CustomerCreateHeaderProps = {
-  onBack: () => void;
   onCancel: () => void;
   saving: boolean;
 };
 
 export function CustomerCreateHeader({
-  onBack,
   onCancel,
   saving,
 }: CustomerCreateHeaderProps) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex items-start gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Новый клиент</h1>
-          <p className="text-sm text-muted-foreground">
-            Создание клиента в CRM, первого субъекта сделки и расчетных данных
-          </p>
-        </div>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold">Новый клиент</h1>
+        <p className="text-sm text-muted-foreground">
+          Создание клиента в CRM, первого субъекта сделки и расчетных данных
+        </p>
       </div>
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end lg:w-auto">

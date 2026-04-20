@@ -7,12 +7,13 @@ import { useEffect, useState } from "react";
 
 import { formatFractionDecimal } from "@bedrock/shared/money";
 import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@bedrock/sdk-ui/components/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +25,19 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@bedrock/sdk-ui/components/avatar";
+
+import { useCrmBreadcrumbTrail } from "@/components/app/crm-breadcrumbs-provider";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import { signOut } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
+import type { CrmBreadcrumbItem } from "./crm-breadcrumbs";
 
 type CurrencyCode = "USD" | "EUR" | "CNY";
 type HeaderRateSource = "cbr" | "investing";
@@ -97,6 +108,7 @@ async function fetchHeaderRates(): Promise<Record<HeaderRateSource, SourceRates>
 
 export function AppHeader({ session }: { session: UserSessionSnapshot }) {
   const router = useRouter();
+  const breadcrumbs = useCrmBreadcrumbTrail();
   const [cbrRates, setCbrRates] = useState<SourceRates | null>(null);
   const [investingRates, setInvestingRates] = useState<SourceRates | null>(
     null,
@@ -331,6 +343,12 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
           />
         </div>
       </div>
+
+      <div className="border-b bg-background">
+        <div className="mx-auto max-w-[1920px] px-4 py-2">
+          <HeaderBreadcrumbs items={breadcrumbs} />
+        </div>
+      </div>
     </>
   );
 }
@@ -371,5 +389,34 @@ function SourceRatesTicker({
         </div>
       )}
     </div>
+  );
+}
+
+function HeaderBreadcrumbs({ items }: { items: CrmBreadcrumbItem[] }) {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+
+          return (
+            <span key={`${item.href ?? item.label}-${index}`} className="contents">
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                ) : item.href ? (
+                  <BreadcrumbLink render={<Link href={item.href} />}>
+                    {item.label}
+                  </BreadcrumbLink>
+                ) : (
+                  <span className="text-muted-foreground">{item.label}</span>
+                )}
+              </BreadcrumbItem>
+              {!isLast && <BreadcrumbSeparator />}
+            </span>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }

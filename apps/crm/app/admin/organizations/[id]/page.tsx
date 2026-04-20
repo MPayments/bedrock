@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ChevronLeft, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -10,7 +10,6 @@ import {
 } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Select,
   SelectContent,
@@ -19,6 +18,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
+import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
 import { OrganizationBankRequisitesWorkspace } from "./_components/organization-bank-requisites-workspace";
 import { OrganizationCanonicalEditor } from "./_components/organization-canonical-editor";
 import { OrganizationFilesWorkspace } from "./_components/organization-files-workspace";
@@ -83,6 +83,17 @@ export default function OrganizationWorkspacePage() {
     return organization.shortName || organization.fullName || "Организация";
   }, [organization]);
 
+  useCrmBreadcrumbs(
+    organization
+      ? [
+          {
+            href: `/admin/organizations/${organizationId}`,
+            label: organizationTitle,
+          },
+        ]
+      : [],
+  );
+
   function handleTabChange(nextTab: "organization" | "requisites" | "files") {
     router.replace(
       buildOrganizationWorkspaceHref({
@@ -133,14 +144,6 @@ export default function OrganizationWorkspacePage() {
   if (!organization) {
     return (
       <div className="space-y-4">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => router.push("/admin/organizations")}
-        >
-          <ChevronLeft className="size-4" />
-          Назад
-        </Button>
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertDescription>
@@ -182,25 +185,12 @@ export default function OrganizationWorkspacePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => router.push("/admin/organizations")}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Назад
-          </Button>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold">{organizationTitle}</h1>
-              <Badge variant={organization.isActive ? "default" : "secondary"}>
-                {organization.isActive ? "Активна" : "Архивирована"}
-              </Badge>
-            </div>
-          </div>
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold">{organizationTitle}</h1>
+          <Badge variant={organization.isActive ? "default" : "secondary"}>
+            {organization.isActive ? "Активна" : "Архивирована"}
+          </Badge>
         </div>
       </div>
 

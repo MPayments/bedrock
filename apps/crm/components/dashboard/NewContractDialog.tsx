@@ -93,11 +93,19 @@ interface ContractFormData {
   fixedFee: string;
 }
 
+export interface ContractDialogInitialValues {
+  agentFee?: string | null;
+  fixedFee?: string | null;
+  organizationId?: string;
+  organizationRequisiteId?: string;
+}
+
 interface NewContractDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   counterpartyId: string;
   customerId: string;
+  initialValues?: ContractDialogInitialValues | null;
   onSuccess?: () => void;
 }
 
@@ -108,6 +116,7 @@ export function NewContractDialog({
   onOpenChange,
   counterpartyId,
   customerId,
+  initialValues,
   onSuccess,
 }: NewContractDialogProps) {
   const [step, setStep] = useState<Step>("organization");
@@ -150,20 +159,6 @@ export function NewContractDialog({
     }
   }, []);
 
-  // Сброс состояния при открытии
-  useEffect(() => {
-    if (open) {
-      setStep("organization");
-      setFormData({
-        agentFee: "",
-        fixedFee: "",
-      });
-      setBanks([]);
-      setError(null);
-      void fetchOrganizations();
-    }
-  }, [fetchOrganizations, open]);
-
   // Загрузка банков для выбранной организации
   const fetchBanks = useCallback(async (orgId: string) => {
     try {
@@ -194,6 +189,34 @@ export function NewContractDialog({
     }
   }, []);
 
+  // Сброс состояния при открытии
+  useEffect(() => {
+    if (open) {
+      const nextFormData: ContractFormData = {
+        organizationId: initialValues?.organizationId,
+        organizationRequisiteId: initialValues?.organizationRequisiteId,
+        agentFee: initialValues?.agentFee ?? "",
+        fixedFee: initialValues?.fixedFee ?? "",
+      };
+
+      setFormData(nextFormData);
+      setBanks([]);
+      setError(null);
+
+      void (async () => {
+        await fetchOrganizations();
+
+        if (nextFormData.organizationId) {
+          await fetchBanks(nextFormData.organizationId);
+          setStep(nextFormData.organizationRequisiteId ? "fees" : "bank");
+          return;
+        }
+
+        setStep("organization");
+      })();
+    }
+  }, [fetchBanks, fetchOrganizations, initialValues, open]);
+
   // Проверка, заполнена ли форма
   const isFormDirty = () => {
     return (
@@ -214,11 +237,11 @@ export function NewContractDialog({
   };
 
   const confirmClose = () => {
-    setShowCloseConfirm(false);
-    onOpenChange(false);
-    setFormData({
-      agentFee: "",
-      fixedFee: "",
+      setShowCloseConfirm(false);
+      onOpenChange(false);
+      setFormData({
+        agentFee: "",
+        fixedFee: "",
     });
     setError(null);
   };
@@ -305,6 +328,7 @@ export function NewContractDialog({
   const selectedBank = banks.find(
     (bank) => bank.id === formData.organizationRequisiteId
   );
+  const isEditMode = Boolean(initialValues);
 
   const getStepTitle = () => {
     switch (step) {
@@ -313,7 +337,7 @@ export function NewContractDialog({
       case "bank":
         return "Выберите реквизит";
       case "fees":
-        return "Условия договора";
+        return isEditMode ? "Измените условия договора" : "Условия договора";
     }
   };
 
@@ -324,7 +348,9 @@ export function NewContractDialog({
       case "bank":
         return `Выберите банковские реквизиты для ${selectedOrganization?.shortName || "организации"}`;
       case "fees":
-        return "Укажите комиссии для агентского договора";
+        return isEditMode
+          ? "Обновите текущие условия агентского договора"
+          : "Укажите комиссии для агентского договора";
     }
   };
 
@@ -595,7 +621,7 @@ export function NewContractDialog({
             ) : (
               <Button type="button" onClick={handleCreate} disabled={creating}>
                 {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Создать договор
+                {isEditMode ? "Сохранить договор" : "Создать договор"}
               </Button>
             )}
           </DialogFooter>

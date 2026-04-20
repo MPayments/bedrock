@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -148,12 +148,7 @@ export default function DealsPage() {
     <div className="space-y-4">
       {/* Заголовок с кнопками */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-          <h1 className="text-2xl font-bold">Сделки</h1>
-        </div>
+        <h1 className="text-2xl font-bold">Сделки</h1>
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end text-sm">
             <div className="font-medium text-muted-foreground">

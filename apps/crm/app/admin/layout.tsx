@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { AppHeader } from "@/components/app/header";
+
+import { CrmShell } from "@/components/app/crm-shell";
 import { requireAdminSession } from "@/lib/auth/session";
 
 export default async function AdminLayout({
@@ -9,10 +10,5 @@ export default async function AdminLayout({
 }>) {
   const session = await requireAdminSession();
 
-  return (
-    <>
-      <AppHeader session={session} />
-      <main className="mx-auto max-w-[1920px] p-4">{children}</main>
-    </>
-  );
+  return <CrmShell session={session}>{children}</CrmShell>;
 }

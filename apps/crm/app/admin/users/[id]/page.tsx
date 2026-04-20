@@ -1,11 +1,9 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import { ChevronLeft, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
-import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import type {
@@ -18,6 +16,7 @@ import { UserGeneralForm } from "@bedrock/sdk-users-ui/components/user-general-f
 import { UserHeader } from "@bedrock/sdk-users-ui/components/user-header";
 import { UserPasswordForm } from "@bedrock/sdk-users-ui/components/user-password-form";
 
+import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
 import { apiClient } from "@/lib/api/browser-client";
 import { executeApiMutation } from "@/lib/api/mutation";
 
@@ -32,10 +31,20 @@ export default function UserDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  useCrmBreadcrumbs(
+    user
+      ? [
+          {
+            href: `/admin/users/${id}`,
+            label: user.name,
+          },
+        ]
+      : [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -183,15 +192,6 @@ export default function UserDetailPage({
   if (loadError || !user) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push("/admin/users")}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-        </div>
         <Alert variant="destructive">
           <AlertDescription>
             {loadError ?? "Пользователь не найден"}
@@ -207,15 +207,6 @@ export default function UserDetailPage({
         name={user.name}
         email={user.email}
         banned={user.banned}
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push("/admin/users")}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-        }
       />
 
       <UserGeneralForm
