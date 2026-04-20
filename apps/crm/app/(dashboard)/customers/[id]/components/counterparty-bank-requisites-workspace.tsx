@@ -73,8 +73,8 @@ import {
   resolveInitialBankRequisiteId,
   type BankRequisiteEditorFormData,
   type RequisiteProviderDetails,
-} from "../_lib/counterparty-bank-requisites";
-import { useCounterpartyBankRequisites } from "../_lib/use-counterparty-bank-requisites";
+} from "../lib/counterparty-bank-requisites";
+import { useCounterpartyBankRequisites } from "../lib/use-counterparty-bank-requisites";
 
 type CounterpartyBankRequisitesWorkspaceProps = {
   counterpartyId: string;
@@ -120,9 +120,10 @@ function ProviderCombobox(props: {
     { id: string; label: string }[] | null
   >(null);
   const [searching, setSearching] = useState(false);
-  const [pickedOption, setPickedOption] = useState<
-    { id: string; label: string } | null
-  >(null);
+  const [pickedOption, setPickedOption] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const requestIdRef = useRef(0);
   const isAsync = Boolean(onSearch);
   const selectedOption =
@@ -207,7 +208,7 @@ function ProviderCombobox(props: {
         </span>
         <Search className="h-4 w-4 shrink-0" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
+      <PopoverContent align="start" className="w-(--anchor-width) p-0">
         <Command shouldFilter={!isAsync}>
           <CommandInput
             placeholder="Поиск банка..."
@@ -257,9 +258,7 @@ function findPrimaryIdentifier(
 
   const branchValue =
     provider.branches
-      .flatMap((branch) =>
-        branch.isPrimary ? branch.identifiers : [],
-      )
+      .flatMap((branch) => (branch.isPrimary ? branch.identifiers : []))
       .find((identifier) => identifier.scheme === scheme)?.value ?? null;
 
   if (branchValue) {
@@ -278,7 +277,8 @@ function formatProviderAddress(provider: RequisiteProviderDetails | null) {
   }
 
   const primaryBranch =
-    provider.branches.find((branch) => branch.isPrimary) ?? provider.branches[0];
+    provider.branches.find((branch) => branch.isPrimary) ??
+    provider.branches[0];
 
   if (!primaryBranch) {
     return null;
@@ -353,8 +353,9 @@ export function CounterpartyBankRequisitesWorkspace({
         ? getBankProviderLabel(selectedRequisite, providerOptions)
         : "Банк не выбран");
   const selectedBranch =
-    providerDetail?.branches.find((branch) => branch.id === selectedProviderBranchId) ??
-    null;
+    providerDetail?.branches.find(
+      (branch) => branch.id === selectedProviderBranchId,
+    ) ?? null;
   const selectedBranchLabel = selectedBranch
     ? `${selectedBranch.name}${selectedBranch.isPrimary ? " · основной" : ""}`
     : undefined;
@@ -386,7 +387,10 @@ export function CounterpartyBankRequisitesWorkspace({
       return;
     }
 
-    const nextId = resolveInitialBankRequisiteId(requisites, selectedRequisiteId);
+    const nextId = resolveInitialBankRequisiteId(
+      requisites,
+      selectedRequisiteId,
+    );
 
     if (!nextId) {
       setEditorState({ kind: "idle" });
@@ -409,7 +413,10 @@ export function CounterpartyBankRequisitesWorkspace({
 
     if (editorState.kind === "existing") {
       form.reset(
-        bankRequisiteToFormValues(selectedRequisite, counterpartyNameRef.current),
+        bankRequisiteToFormValues(
+          selectedRequisite,
+          counterpartyNameRef.current,
+        ),
       );
       setMutationError(null);
       return;
@@ -726,7 +733,10 @@ export function CounterpartyBankRequisitesWorkspace({
                                   {requisite.label}
                                 </p>
                                 <p className="truncate text-sm text-muted-foreground">
-                                  {getBankProviderLabel(requisite, providerOptions)}
+                                  {getBankProviderLabel(
+                                    requisite,
+                                    providerOptions,
+                                  )}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {formatBankRequisiteIdentity(requisite)}
@@ -819,7 +829,9 @@ export function CounterpartyBankRequisitesWorkspace({
                               })
                             }
                           />
-                          <FieldError message={form.formState.errors.label?.message} />
+                          <FieldError
+                            message={form.formState.errors.label?.message}
+                          />
                         </div>
 
                         <div className="space-y-2">
@@ -908,21 +920,27 @@ export function CounterpartyBankRequisitesWorkspace({
 
                       {providerDetail ? (
                         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                          <p className="font-medium">{providerDetail.displayName}</p>
+                          <p className="font-medium">
+                            {providerDetail.displayName}
+                          </p>
                           <div className="mt-1 space-y-1 text-muted-foreground">
                             {providerDetail.country ? (
                               <p>Страна: {providerDetail.country}</p>
                             ) : null}
                             {providerAddress ? <p>{providerAddress}</p> : null}
                             {providerBic ? <p>BIC: {providerBic}</p> : null}
-                            {providerSwift ? <p>SWIFT: {providerSwift}</p> : null}
+                            {providerSwift ? (
+                              <p>SWIFT: {providerSwift}</p>
+                            ) : null}
                           </div>
                         </div>
                       ) : null}
 
                       {providerDetail?.branches.length ? (
                         <div className="space-y-2">
-                          <Label htmlFor="requisite-provider-branch">Филиал банка</Label>
+                          <Label htmlFor="requisite-provider-branch">
+                            Филиал банка
+                          </Label>
                           <Select
                             value={selectedProviderBranchId}
                             onValueChange={(value) =>
@@ -1069,10 +1087,14 @@ export function CounterpartyBankRequisitesWorkspace({
                           disabled={isEditorBusy}
                           value={form.watch("beneficiaryAddress")}
                           onChange={(event) =>
-                            form.setValue("beneficiaryAddress", event.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            })
+                            form.setValue(
+                              "beneficiaryAddress",
+                              event.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            )
                           }
                           rows={3}
                         />

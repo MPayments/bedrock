@@ -63,8 +63,8 @@ import { API_BASE_URL } from "@/lib/constants";
 import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import type { CustomerBankingFormData } from "@/lib/validation";
-import { CustomerCreateHeader } from "./_components/customer-create-header";
-import { PendingCreateLeaveDialog } from "./_components/pending-create-leave-dialog";
+import { CustomerCreateHeader } from "./components/customer-create-header";
+import { PendingCreateLeaveDialog } from "./components/pending-create-leave-dialog";
 import {
   buildCounterpartyAssignmentPayload,
   buildCounterpartyBankRequisiteCreatePayload,
@@ -75,7 +75,7 @@ import {
   getCustomerCreateDefaultValues,
   resolveDefaultRequisiteCurrencyCode,
   type CustomerCreateFormData,
-} from "./_lib/customer-create";
+} from "./lib/customer-create";
 
 type SubAgent = {
   commission: number;
@@ -112,10 +112,7 @@ const RequisiteProviderDetailSchema = z.object({
   ),
 });
 
-function getResponseErrorMessage(
-  payload: unknown,
-  fallback: string,
-) {
+function getResponseErrorMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") {
     return fallback;
   }
@@ -483,20 +480,22 @@ export default function NewCustomerPage() {
             },
       );
 
-      const mapping: Record<string, Path<CustomerCreateFormData>> =
-        values.counterpartyKind === "legal_entity"
-          ? {
-              address: "addressI18n.en",
-              directorBasis: "directorBasisI18n.en",
-              directorName: "directorNameI18n.en",
-              orgName: "orgNameI18n.en",
-              orgType: "orgTypeI18n.en",
-              position: "positionI18n.en",
-            }
-          : {
-              address: "addressI18n.en",
-              personFullName: "personFullNameI18n.en",
-            };
+      const mapping: Record<
+        string,
+        Path<CustomerCreateFormData>
+      > = values.counterpartyKind === "legal_entity"
+        ? {
+            address: "addressI18n.en",
+            directorBasis: "directorBasisI18n.en",
+            directorName: "directorNameI18n.en",
+            orgName: "orgNameI18n.en",
+            orgType: "orgTypeI18n.en",
+            position: "positionI18n.en",
+          }
+        : {
+            address: "addressI18n.en",
+            personFullName: "personFullNameI18n.en",
+          };
 
       Object.entries(mapping).forEach(([sourceField, targetField]) => {
         const value = translated[sourceField];
@@ -775,11 +774,12 @@ export default function NewCustomerPage() {
 
       const assignmentPayload = buildCounterpartyAssignmentPayload(data);
       if (assignmentPayload.subAgentCounterpartyId) {
-        const assignmentResponse =
-          await apiClient.v1.counterparties[":id"].assignment.$patch({
-            param: { id: counterparty.id },
-            json: assignmentPayload,
-          });
+        const assignmentResponse = await apiClient.v1.counterparties[
+          ":id"
+        ].assignment.$patch({
+          param: { id: counterparty.id },
+          json: assignmentPayload,
+        });
 
         if (!assignmentResponse.ok) {
           const errorData = await assignmentResponse.json().catch(() => ({}));
@@ -795,7 +795,8 @@ export default function NewCustomerPage() {
       const manualProviderPayload = buildManualBankProviderCreatePayload(data);
       let providerId = data.bankProviderId || null;
       let providerBranchId: string | null = null;
-      let providerCountry = data.bankProvider.country?.trim().toUpperCase() || null;
+      let providerCountry =
+        data.bankProvider.country?.trim().toUpperCase() || null;
 
       if (manualProviderPayload) {
         const providerResponse = await apiClient.v1.requisites.providers.$post({
@@ -821,10 +822,11 @@ export default function NewCustomerPage() {
         providerBranchId =
           provider.branches.find((branch) => branch.isPrimary)?.id ?? null;
       } else if (providerId) {
-        const providerResponse =
-          await apiClient.v1.requisites.providers[":id"].$get({
-            param: { id: providerId },
-          });
+        const providerResponse = await apiClient.v1.requisites.providers[
+          ":id"
+        ].$get({
+          param: { id: providerId },
+        });
 
         if (!providerResponse.ok) {
           const errorData = await providerResponse.json().catch(() => ({}));
@@ -846,7 +848,9 @@ export default function NewCustomerPage() {
       }
 
       if (providerId) {
-        const currenciesResponse = await apiClient.v1.currencies.options.$get({});
+        const currenciesResponse = await apiClient.v1.currencies.options.$get(
+          {},
+        );
         if (!currenciesResponse.ok) {
           const errorData = await currenciesResponse.json().catch(() => ({}));
           throw new Error(
@@ -882,11 +886,12 @@ export default function NewCustomerPage() {
         });
 
         if (requisitePayload) {
-          const requisiteResponse =
-            await apiClient.v1.counterparties[":id"].requisites.$post({
-              param: { id: counterparty.id },
-              json: requisitePayload,
-            });
+          const requisiteResponse = await apiClient.v1.counterparties[
+            ":id"
+          ].requisites.$post({
+            param: { id: counterparty.id },
+            json: requisitePayload,
+          });
 
           if (!requisiteResponse.ok) {
             const errorData = await requisiteResponse.json().catch(() => ({}));
@@ -939,102 +944,133 @@ export default function NewCustomerPage() {
         </div>
         {counterpartyKind === "legal_entity" ? (
           <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="h-full">
-            <CardHeader className="border-b">
-              <div className="space-y-1">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Building2 className="h-4 w-4 text-primary" />
-                  Заполнить по ИНН
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Подтянет карточку юрлица из справочника по ИНН.
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                placeholder="Введите ИНН"
-                value={innSearchValue}
-                onChange={(event) => {
-                  setInnSearchValue(event.target.value.replace(/\D/g, ""));
-                  setInnSearchSuccess(false);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleInnSearch();
-                  }
-                }}
-                disabled={searchingByInn}
-                maxLength={12}
-              />
-              <Button
-                type="button"
-                onClick={() => void handleInnSearch()}
-                disabled={searchingByInn || !innSearchValue.trim()}
-                className="w-full"
-              >
-                {searchingByInn ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Search className="size-4" />
-                )}
-                Подтянуть данные
-              </Button>
-              {innSearchSuccess ? (
-                <div className="flex items-center gap-2 text-xs text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Данные субъекта обновлены
+            <Card className="h-full">
+              <CardHeader className="border-b">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    Заполнить по ИНН
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Подтянет карточку юрлица из справочника по ИНН.
+                  </p>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Input
+                  placeholder="Введите ИНН"
+                  value={innSearchValue}
+                  onChange={(event) => {
+                    setInnSearchValue(event.target.value.replace(/\D/g, ""));
+                    setInnSearchSuccess(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleInnSearch();
+                    }
+                  }}
+                  disabled={searchingByInn}
+                  maxLength={12}
+                />
+                <Button
+                  type="button"
+                  onClick={() => void handleInnSearch()}
+                  disabled={searchingByInn || !innSearchValue.trim()}
+                  className="w-full"
+                >
+                  {searchingByInn ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Search className="size-4" />
+                  )}
+                  Подтянуть данные
+                </Button>
+                {innSearchSuccess ? (
+                  <div className="flex items-center gap-2 text-xs text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Данные субъекта обновлены
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
 
-          <Card className="h-full">
-            <CardHeader className="border-b">
-              <div className="space-y-1">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Импорт из PDF
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Извлечёт реквизиты и контакты из PDF-карточки.
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="application/pdf"
-                className="hidden"
-                disabled={parsingFile}
-              />
-              <Button
-                className="w-full"
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={parsingFile}
-              >
-                {parsingFile ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Upload className="size-4" />
-                )}
-                Загрузить PDF
-              </Button>
-              {uploadedFileName ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span className="truncate">{uploadedFileName}</span>
+            <Card className="h-full">
+              <CardHeader className="border-b">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Импорт из PDF
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Извлечёт реквизиты и контакты из PDF-карточки.
+                  </p>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="application/pdf"
+                  className="hidden"
+                  disabled={parsingFile}
+                />
+                <Button
+                  className="w-full"
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={parsingFile}
+                >
+                  {parsingFile ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Upload className="size-4" />
+                  )}
+                  Загрузить PDF
+                </Button>
+                {uploadedFileName ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <span className="truncate">{uploadedFileName}</span>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
 
-          <Card className="h-full">
+            <Card className="h-full">
+              <CardHeader className="border-b">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Languages className="h-4 w-4 text-primary" />
+                    Английская версия
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Заполнит англоязычные поля по русским данным субъекта.
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleTranslateToEnglish()}
+                  disabled={translating}
+                >
+                  {translating ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Languages className="size-4" />
+                  )}
+                  Заполнить английскую версию
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Card>
             <CardHeader className="border-b">
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1042,7 +1078,7 @@ export default function NewCustomerPage() {
                   Английская версия
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Заполнит англоязычные поля по русским данным субъекта.
+                  Заполнит англоязычные поля по данным физлица.
                 </p>
               </div>
             </CardHeader>
@@ -1062,37 +1098,6 @@ export default function NewCustomerPage() {
                 Заполнить английскую версию
               </Button>
             </CardContent>
-          </Card>
-          </div>
-        ) : (
-          <Card>
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Languages className="h-4 w-4 text-primary" />
-                Английская версия
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Заполнит англоязычные поля по данным физлица.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button
-              className="w-full"
-              type="button"
-              variant="outline"
-              onClick={() => void handleTranslateToEnglish()}
-              disabled={translating}
-            >
-              {translating ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Languages className="size-4" />
-              )}
-              Заполнить английскую версию
-            </Button>
-          </CardContent>
           </Card>
         )}
       </section>
@@ -1154,7 +1159,10 @@ export default function NewCustomerPage() {
                 onValueChange={(value) =>
                   form.setValue(
                     "counterpartyKind",
-                    value as PathValue<CustomerCreateFormData, "counterpartyKind">,
+                    value as PathValue<
+                      CustomerCreateFormData,
+                      "counterpartyKind"
+                    >,
                     {
                       shouldDirty: true,
                       shouldValidate: true,
@@ -1291,9 +1299,7 @@ export default function NewCustomerPage() {
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <h3 className="text-sm font-medium">
-                    Идентификация физлица
-                  </h3>
+                  <h3 className="text-sm font-medium">Идентификация физлица</h3>
                   <p className="text-sm text-muted-foreground">
                     Основные данные субъекта, который будет участвовать в
                     сделках.
@@ -1559,7 +1565,8 @@ export default function NewCustomerPage() {
                               <SelectValue>
                                 {
                                   SUB_AGENT_KIND_OPTIONS.find(
-                                    (option) => option.value === newSubAgentKind,
+                                    (option) =>
+                                      option.value === newSubAgentKind,
                                   )?.label
                                 }
                               </SelectValue>

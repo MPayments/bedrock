@@ -13,7 +13,7 @@ import {
   isPrimaryCounterparty,
   type CustomerCounterparty,
   type CustomerWorkspaceDetail,
-} from "../_lib/customer-detail";
+} from "../lib/customer-detail";
 
 type CustomerCounterpartySelectProps = {
   activeCounterpartyId: string;

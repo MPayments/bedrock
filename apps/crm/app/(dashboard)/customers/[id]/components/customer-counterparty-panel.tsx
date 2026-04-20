@@ -39,7 +39,7 @@ import {
 import type {
   ClientDocument,
   CustomerCounterparty,
-} from "../_lib/customer-detail";
+} from "../lib/customer-detail";
 import { CounterpartyBankRequisitesWorkspace } from "./counterparty-bank-requisites-workspace";
 import { CustomerCounterpartyCreateEditor } from "./customer-counterparty-create-editor";
 import { CustomerCounterpartyEditor } from "./customer-counterparty-editor";
@@ -214,7 +214,7 @@ export function CustomerCounterpartyPanel({
               </Select>
             </div>
           </div>
-          <TabsList className="gap-2">
+          <TabsList className="gap-2" variant="line">
             <TabsTrigger value="subject">
               <Building2 className="h-4 w-4" />
               Субъект

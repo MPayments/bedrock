@@ -18,8 +18,8 @@ import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import type {
   CustomerFormData,
   CustomerWorkspaceDetail,
-} from "../_lib/customer-detail";
-import { customerToFormValues } from "../_lib/customer-detail";
+} from "../lib/customer-detail";
+import { customerToFormValues } from "../lib/customer-detail";
 
 type CustomerSummaryCardProps = {
   createdAt: string;

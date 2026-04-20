@@ -24,10 +24,10 @@ import {
 } from "@bedrock/sdk-ui/components/dialog";
 
 import { NewContractDialog } from "@/components/dashboard/NewContractDialog";
-import { CustomerDetailHeader } from "./_components/customer-detail-header";
-import { CustomerCounterpartyPanel } from "./_components/customer-counterparty-panel";
-import { CustomerSummaryCard } from "./_components/customer-summary-card";
-import { PendingEntitySwitchDialog } from "./_components/pending-entity-switch-dialog";
+import { CustomerDetailHeader } from "./components/customer-detail-header";
+import { CustomerCounterpartyPanel } from "./components/customer-counterparty-panel";
+import { CustomerSummaryCard } from "./components/customer-summary-card";
+import { PendingEntitySwitchDialog } from "./components/pending-entity-switch-dialog";
 import {
   buildCustomerEntityHref,
   customerFormSchema,
@@ -36,7 +36,7 @@ import {
   type CustomerFormData,
   type CustomerWorkspaceDetail,
   resolveActiveCounterpartyId,
-} from "./_lib/customer-detail";
+} from "./lib/customer-detail";
 import {
   archiveCustomer,
   deleteCustomerCounterpartyDocument,
@@ -46,7 +46,7 @@ import {
   listCustomerCounterpartyDocuments,
   updateCustomerWorkspace,
   uploadCustomerCounterpartyDocument,
-} from "./_lib/customer-workspace-api";
+} from "./lib/customer-workspace-api";
 
 function normalizeOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
