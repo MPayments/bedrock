@@ -31,7 +31,6 @@ const DEFAULT_SOURCE_TTL_SECONDS: Record<RateSource, number> = {
   cbr: DAY_IN_SECONDS,
   investing: FIVE_MIN_IN_SECONDS,
   xe: FIVE_MIN_IN_SECONDS,
-  grinex: FIVE_MIN_IN_SECONDS,
 };
 
 export class SyncRatesFromSourceCommand implements RateSourceSyncPort {
@@ -176,11 +175,7 @@ export class SyncRatesFromSourceCommand implements RateSourceSyncPort {
   }
 
   private getFreshnessBase(row: RateSourceRowRecord) {
-    if (
-      row.source === "investing" ||
-      row.source === "xe" ||
-      row.source === "grinex"
-    ) {
+    if (row.source === "investing" || row.source === "xe") {
       return row.lastSyncedAt ?? row.lastPublishedAt;
     }
 

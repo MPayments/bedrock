@@ -1,5 +1,4 @@
 export { createCbrRateSourceProvider } from "./sources/cbr";
-export { createGrinexRateSourceProvider } from "./sources/grinex";
 export { createInvestingRateSourceProvider } from "./sources/investing";
 export { createXeRateSourceProvider } from "./sources/xe";
 export { createDefaultRateSourceProviders } from "./defaults";

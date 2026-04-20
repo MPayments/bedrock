@@ -2,9 +2,6 @@ import {
   createCbrRateSourceProvider,
 } from "./sources/cbr";
 import {
-  createGrinexRateSourceProvider,
-} from "./sources/grinex";
-import {
   createInvestingRateSourceProvider,
 } from "./sources/investing";
 import {
@@ -16,6 +13,5 @@ export function createDefaultRateSourceProviders() {
     cbr: createCbrRateSourceProvider(),
     investing: createInvestingRateSourceProvider(),
     xe: createXeRateSourceProvider(),
-    grinex: createGrinexRateSourceProvider(),
   };
 }
